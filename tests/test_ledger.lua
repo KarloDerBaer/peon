@@ -1122,7 +1122,9 @@ local Co, It = ns.Cost, ns.Item
 local T = "Mirel Dorna"
 local me = realm.chars[T]
 local savedStart, savedMoves = me.start, realm.moves
-local now = os.time()
+-- heute 12 Uhr: "vor n Tagen" bleibt auch ueber eine Zeitumstellung hinweg am richtigen Tag (sonst Fehler zwischen 23 und 24 Uhr)
+local nd = os.date("*t")
+local now = os.time({ year = nd.year, month = nd.month, day = nd.day, hour = 12 })
 local today = Co.DayOf(now)
 local function at(daysAgo) return now - daysAgo * 86400 end
 me.start = { t = at(20), places = {} }
