@@ -1,0 +1,27 @@
+## Interface: 16001
+## Title: |cff8ccf4dPeon|r Ledger
+## Notes: Inventory of all characters and bookkeeping for the Peon addon collection (in development: inventory, stock in tooltips).
+## Notes-deDE: Bestand aller Charaktere und Buchführung für Peon (in Arbeit: Bestand, Bestand im Tooltip).
+## Author: KarloDerBaer
+## Version: 0.10.1
+## Dependencies: Peon
+## Group: Peon
+## IconTexture: Interface\Icons\INV_Scroll_03
+## SavedVariables: PeonLedgerDB
+
+Locales.lua
+Ledger.lua
+Inventory.lua
+Moves.lua
+Cost.lua
+Tooltip.lua
+Window.lua
+Overview.lua
+Stock.lua
+History.lua
+Book.lua
+Catalog.lua
+Item.lua
+Pick.lua
+Probe.lua
+Options.lua

@@ -1,0 +1,61 @@
+-- Peon_Mover - Locales.lua
+-- Allgemeine Texte (Fehler, Standardwerte) liefert der Peon-Kern (Peon.L)
+local ADDON_NAME, ns = ...
+
+local L = Peon.NewLocale()
+ns.L = L
+
+-- enUS (Standard)
+L.DESC        = "Move windows by dragging their title bar. Ctrl + mouse wheel changes the size, Shift + right-click on the title bar resets position and size. Positions are saved for all characters."
+L.HDR_MAIN    = "General"
+L.ENABLED     = "Allow moving windows"
+L.ENABLED_HINT = "Off: windows stay where they are (saved positions still apply), dragging and scaling do nothing."
+L.HDR_LIST    = "Windows"
+L.LIST_HINT   = "Windows appear here once the game has loaded them (some only after opening them the first time)."
+L.COL_NAME    = "Window"
+L.COL_STATE   = "Status"
+L.COL_ON      = "On"
+L.STATE_DEFAULT = "default"
+L.STATE_MOVED = "moved"
+L.STATE_SCALE = "size %d %%"
+L.STATE_OFF   = "off"
+L.YES         = "yes"
+L.NO          = "no"
+L.BTN_TOGGLE  = "On / Off"
+L.BTN_RESET   = "Reset"
+L.BTN_RESET_ALL = "Reset all windows"
+L.CONFIRM_RESET_ALL = "Reset position and size of all windows?"
+L.MSG_RESET_ALL = "All windows reset."
+L.MSG_COMBAT  = "This window cannot be moved or resized in combat."
+L.LIST_EMPTY  = "No windows found yet."
+L.TIP_SOURCE_LIST = "Known window"
+L.TIP_SOURCE_AUTO = "Found automatically"
+L.SLASH_HINT  = "Chat: /peon mover opens this panel."
+
+if GetLocale() == "deDE" then
+    L.DESC        = "Fenster an der Titelleiste ziehen, um sie zu verschieben. Strg + Mausrad ändert die Größe, Umschalt + Rechtsklick auf die Titelleiste setzt Position und Größe zurück. Positionen gelten für alle Charaktere."
+    L.HDR_MAIN    = "Allgemein"
+    L.ENABLED     = "Fenster verschieben erlaubt"
+    L.ENABLED_HINT = "Aus: Fenster bleiben, wo sie sind (gemerkte Positionen gelten weiter), Ziehen und Größe ändern sind gesperrt."
+    L.HDR_LIST    = "Fenster"
+    L.LIST_HINT   = "Fenster erscheinen hier, sobald das Spiel sie geladen hat (manche erst nach dem ersten Öffnen)."
+    L.COL_NAME    = "Fenster"
+    L.COL_STATE   = "Status"
+    L.COL_ON      = "An"
+    L.STATE_DEFAULT = "Standard"
+    L.STATE_MOVED = "verschoben"
+    L.STATE_SCALE = "Größe %d %%"
+    L.STATE_OFF   = "aus"
+    L.YES         = "ja"
+    L.NO          = "nein"
+    L.BTN_TOGGLE  = "An / Aus"
+    L.BTN_RESET   = "Zurücksetzen"
+    L.BTN_RESET_ALL = "Alle Fenster zurücksetzen"
+    L.CONFIRM_RESET_ALL = "Position und Größe aller Fenster zurücksetzen?"
+    L.MSG_RESET_ALL = "Alle Fenster zurückgesetzt."
+    L.MSG_COMBAT  = "Dieses Fenster lässt sich im Kampf nicht verschieben oder vergrößern."
+    L.LIST_EMPTY  = "Noch keine Fenster gefunden."
+    L.TIP_SOURCE_LIST = "Bekanntes Fenster"
+    L.TIP_SOURCE_AUTO = "Automatisch gefunden"
+    L.SLASH_HINT  = "Chat: /peon mover öffnet dieses Menü."
+end

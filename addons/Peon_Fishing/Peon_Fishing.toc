@@ -1,0 +1,23 @@
+## Interface: 16001
+## Title: |cff8ccf4dPeon|r Fishing
+## Notes: Fishing mode with equipment swap and one-key/double-click fishing.
+## Notes-deDE: Angelmodus mit Ausrüstungswechsel und Angeln per Doppelklick oder Taste.
+## Author: KarloDerBaer
+## Version: 1.5.1
+## Dependencies: Peon
+## Group: Peon
+## IconTexture: Interface\Icons\Trade_Fishing
+## SavedVariables: PeonFishingDB
+## SavedVariablesPerCharacter: PeonFishingCharDB
+
+Locales.lua
+Fishing.lua
+Sets.lua
+Click.lua
+Lure.lua
+Keys.lua
+Combat.lua
+Sound.lua
+Minimap.lua
+Catches.lua
+Options.lua

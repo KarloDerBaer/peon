@@ -1,0 +1,155 @@
+'use strict';
+// Peon Manager - Datenbank (SQLite ueber node:sqlite, eine Datei peon.db im Datenordner).
+// Angebote einer Momentaufnahme liegen gepackt (zlib) in snapshots.rows, die Kennzahlen je Gegenstand
+// in item_snap. So bleibt die Datei klein und alles laesst sich spaeter neu berechnen.
+
+const path = require('node:path');
+const fs = require('node:fs');
+const { DatabaseSync } = require('node:sqlite');
+
+const SCHEMA = 3;   // 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart
+
+const DDL = `
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS markets (
+  id INTEGER PRIMARY KEY, key TEXT UNIQUE NOT NULL, realm TEXT, faction TEXT, region INTEGER, created INTEGER);
+CREATE TABLE IF NOT EXISTS items (
+  key TEXT PRIMARY KEY, item_id INTEGER NOT NULL, variant TEXT, name TEXT, quality INTEGER, updated INTEGER);
+CREATE INDEX IF NOT EXISTS items_id ON items(item_id);
+CREATE TABLE IF NOT EXISTS snapshots (
+  id TEXT PRIMARY KEY, market_id INTEGER NOT NULL, source TEXT NOT NULL, art TEXT NOT NULL,
+  t INTEGER NOT NULL, char TEXT, build TEXT, broker TEXT, region INTEGER, account TEXT,
+  total INTEGER, offers INTEGER, lines INTEGER, items INTEGER, partial INTEGER, item_key TEXT, commodity INTEGER,
+  rows BLOB, imported INTEGER);
+CREATE INDEX IF NOT EXISTS snapshots_mt ON snapshots(market_id, source, t);
+CREATE TABLE IF NOT EXISTS item_snap (
+  snapshot_id TEXT NOT NULL, market_id INTEGER NOT NULL, item_key TEXT NOT NULL, t INTEGER NOT NULL, source TEXT NOT NULL,
+  min REAL, median REAL, p25 REAL, p75 REAL, qty INTEGER, auctions INTEGER,
+  PRIMARY KEY (snapshot_id, item_key));
+CREATE INDEX IF NOT EXISTS item_snap_mkt ON item_snap(market_id, item_key, t);
+CREATE TABLE IF NOT EXISTS ext_fetch (
+  id INTEGER PRIMARY KEY, source TEXT NOT NULL, market TEXT NOT NULL, t_data INTEGER, t_fetch INTEGER NOT NULL,
+  rows INTEGER, etag TEXT, status INTEGER);
+CREATE INDEX IF NOT EXISTS ext_fetch_m ON ext_fetch(source, market, t_fetch);
+CREATE TABLE IF NOT EXISTS ext_ahledger (
+  fetch_id INTEGER NOT NULL, item_id INTEGER NOT NULL, median REAL, min REAL, qty INTEGER,
+  med7 REAL, med30 REAL, low30 REAL, high30 REAL, per_day REAL,
+  PRIMARY KEY (fetch_id, item_id));
+CREATE TABLE IF NOT EXISTS hist (
+  market_id INTEGER NOT NULL, item_key TEXT NOT NULL, source TEXT NOT NULL, period TEXT NOT NULL, num INTEGER NOT NULL,
+  t INTEGER NOT NULL, min REAL, median REAL, qty REAL, n INTEGER,
+  PRIMARY KEY (market_id, item_key, source, period, num));
+CREATE INDEX IF NOT EXISTS hist_t ON hist(market_id, source, t);
+CREATE TABLE IF NOT EXISTS item_hour (
+  market_id INTEGER NOT NULL, item_key TEXT NOT NULL, source TEXT NOT NULL, hour INTEGER NOT NULL, t INTEGER NOT NULL,
+  min REAL, median REAL, p25 REAL, p75 REAL, qty REAL, auctions REAL, n INTEGER NOT NULL,
+  PRIMARY KEY (market_id, item_key, source, hour));
+CREATE TABLE IF NOT EXISTS item_day (
+  market_id INTEGER NOT NULL, item_key TEXT NOT NULL, source TEXT NOT NULL, day INTEGER NOT NULL, t INTEGER NOT NULL,
+  min REAL, median REAL, p25 REAL, p75 REAL, qty REAL, auctions REAL, n INTEGER NOT NULL,
+  PRIMARY KEY (market_id, item_key, source, day));
+CREATE INDEX IF NOT EXISTS item_snap_t ON item_snap(t);
+CREATE TABLE IF NOT EXISTS sales_pair (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, market_id INTEGER NOT NULL, a_id TEXT NOT NULL, b_id TEXT NOT NULL,
+  ta INTEGER NOT NULL, tb INTEGER NOT NULL, src TEXT NOT NULL, item_key TEXT, folded INTEGER NOT NULL DEFAULT 0);
+CREATE INDEX IF NOT EXISTS sales_pair_m ON sales_pair(market_id, src, tb);
+CREATE TABLE IF NOT EXISTS sales_cmp (
+  pair_id INTEGER NOT NULL, market_id INTEGER NOT NULL, item_key TEXT NOT NULL, day INTEGER NOT NULL, tb INTEGER NOT NULL,
+  secs INTEGER NOT NULL, sold REAL, expired REAL, cancelled REAL, listed REAL, value REAL, max_sold REAL,
+  PRIMARY KEY (pair_id, item_key));
+CREATE INDEX IF NOT EXISTS sales_cmp_m ON sales_cmp(market_id, day, item_key);
+CREATE TABLE IF NOT EXISTS sales_day (
+  market_id INTEGER NOT NULL, item_key TEXT NOT NULL, day INTEGER NOT NULL, secs INTEGER NOT NULL, cmp INTEGER NOT NULL,
+  sold REAL, expired REAL, cancelled REAL, listed REAL, value REAL, max_sold REAL,
+  PRIMARY KEY (market_id, day, item_key));
+CREATE TABLE IF NOT EXISTS opp_snap (
+  snapshot_id TEXT NOT NULL, market_id INTEGER NOT NULL, item_key TEXT NOT NULL, t INTEGER NOT NULL, kind TEXT NOT NULL,
+  qty REAL NOT NULL, profit REAL NOT NULL, cost REAL NOT NULL, ref REAL,
+  PRIMARY KEY (snapshot_id, item_key, kind));
+CREATE INDEX IF NOT EXISTS opp_snap_m ON opp_snap(market_id, kind, t);
+CREATE TABLE IF NOT EXISTS opp_scan (
+  snapshot_id TEXT PRIMARY KEY, market_id INTEGER NOT NULL, t INTEGER NOT NULL, vendor_n INTEGER);
+CREATE TABLE IF NOT EXISTS log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, kind TEXT NOT NULL, ok INTEGER NOT NULL, text TEXT);
+`;
+
+function openDb(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, 'peon.db');
+  const db = new DatabaseSync(file);
+  db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF;');
+  db.exec(DDL);
+  // Schema 3: Haendlerpreis und Warenart je Gegenstand
+  const cols = new Set(db.prepare('PRAGMA table_info(items)').all().map((c) => c.name));
+  if (!cols.has('vendor')) db.exec('ALTER TABLE items ADD COLUMN vendor INTEGER');
+  if (!cols.has('commodity')) db.exec('ALTER TABLE items ADD COLUMN commodity INTEGER');
+  db.prepare("INSERT INTO meta(key, value) VALUES ('schema', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(SCHEMA));
+  db.file = file;
+  db.logDir = path.join(dir, 'logs');
+  return db;
+}
+
+function tx(db, fn) {
+  db.exec('BEGIN');
+  try {
+    const r = fn();
+    db.exec('COMMIT');
+    return r;
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+// Protokoll: in der Datenbank (Uebersicht) und als Datei je Tag in <Daten>\logs (Design Abschnitt 10)
+function log(db, kind, ok, text) {
+  const now = new Date();
+  db.prepare('INSERT INTO log(t, kind, ok, text) VALUES (?, ?, ?, ?)').run(Math.floor(now.getTime() / 1000), kind, ok ? 1 : 0, String(text));
+  if (db.logDir) {
+    try {
+      const p2 = (n) => String(n).padStart(2, '0');
+      const day = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
+      const line = `${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())} ${ok ? 'ok    ' : 'FEHLER'} ${kind}: ${String(text).replace(/\r?\n/g, ' ')}\r\n`;
+      fs.mkdirSync(db.logDir, { recursive: true });
+      fs.appendFileSync(path.join(db.logDir, `${day}.log`), line, 'utf8');
+    } catch { /* Protokoll darf nie stoeren */ }
+  }
+  db.prepare('DELETE FROM log WHERE id < (SELECT MAX(id) - 500 FROM log)').run();
+}
+
+function marketId(db, key, info = {}) {
+  const r = db.prepare('SELECT id FROM markets WHERE key = ?').get(key);
+  if (r) {
+    if (info.region != null) db.prepare('UPDATE markets SET region = ? WHERE id = ?').run(info.region, r.id);
+    return r.id;
+  }
+  const res = db.prepare('INSERT INTO markets(key, realm, faction, region, created) VALUES (?, ?, ?, ?, ?)')
+    .run(key, info.realm ?? null, info.faction ?? null, info.region ?? null, Math.floor(Date.now() / 1000));
+  return Number(res.lastInsertRowid);
+}
+
+// Groesse der Datenbank inkl. WAL-Datei
+function dbSize(db) {
+  let size = 0;
+  for (const f of [db.file, db.file + '-wal']) {
+    try { size += fs.statSync(f).size; } catch { /* fehlt */ }
+  }
+  return size;
+}
+
+// Logdateien aelter als `days` Tage loeschen
+function pruneLogs(db, days = 30, now = Date.now()) {
+  if (!db.logDir) return 0;
+  let n = 0;
+  let files = [];
+  try { files = fs.readdirSync(db.logDir); } catch { return 0; }
+  for (const f of files) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})\.log$/.exec(f);
+    if (!m) continue;
+    const t = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime();
+    if (now - t > days * 86400000) { try { fs.unlinkSync(path.join(db.logDir, f)); n++; } catch { /* egal */ } }
+  }
+  return n;
+}
+
+module.exports = { openDb, tx, log, marketId, dbSize, pruneLogs, SCHEMA };

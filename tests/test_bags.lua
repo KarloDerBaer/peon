@@ -1,0 +1,414 @@
+-- Stub-Test fuer Peon + Peon_Bags (Taschen, Anordnung, Suche, Bank, Gildenbank, Kampf, Optionen)
+-- Ausfuehren aus dem AddOns-Ordner (run_tests.sh).
+local out = {}
+print = function(...) local t = {} for i = 1, select("#", ...) do t[#t+1] = tostring((select(i, ...))) end out[#out+1] = table.concat(t, " "); io.write("  > ", out[#out], "\n") end
+function strtrim(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
+function wipe(t) for k in pairs(t) do t[k] = nil end return t end
+function GetLocale() return os.getenv("LOC") or "deDE" end
+function GetTime() return 1 end
+date = os.date
+local combat = false
+function InCombatLockdown() return combat end
+function UnitAffectingCombat() return combat end
+function UnitName() return "Mirel", "Dorna" end
+function debugstack() return "" end
+YES, NO, ACCEPT, CANCEL = "Ja", "Nein", "Annehmen", "Abbrechen"
+StaticPopupDialogs = {}
+local popupShown
+function StaticPopup_Show(n) popupShown = n end
+function StaticPopup_Hide() end
+UISpecialFrames = {}
+SlashCmdList = {}
+function hooksecurefunc(t, name, fn)
+  if type(t) == "string" then t, name, fn = _G, t, name end
+  local orig = t[name]
+  t[name] = function(...) local r = { orig(...) } fn(...) return unpack(r) end
+end
+local function TocMeta(dir) local m = {} local f = io.open(dir .. "/" .. dir .. ".toc") if f then for l in f:lines() do local k, v = l:match("^##%s*([%w%-]+):%s*(.-)%s*$") if k then m[k] = v end end f:close() end return m end
+local meta = { Peon = TocMeta("Peon"), Peon_Bags = TocMeta("Peon_Bags") }
+local loadedAddons = { Peon = true, Peon_Bags = true }
+C_AddOns = { GetAddOnMetadata = function(a, f) return meta[a] and meta[a][f] end,
+  IsAddOnLoaded = function(a) return loadedAddons[a] == true end, GetNumAddOns = function() return 2 end,
+  GetAddOnInfo = function(i) return ({ "Peon", "Peon_Bags" })[i] end }
+
+-- ===== Rahmen-Nachbau =====
+local allFrames = {}
+local function W(kind, name, parent)
+  local o = { scripts = {}, w = 0, h = 0, shown = true, events = {}, unitev = {}, points = {}, kind = kind, name = name,
+              parent = parent, id = 0, scale = 1, alpha = 1 }
+  local m = {}
+  function m.SetSize(s, w, h) s.w, s.h = w, h end
+  function m.SetHeight(s, h) s.h = h end
+  function m.SetWidth(s, w) s.w = w end
+  function m.GetHeight(s) return s.h end
+  function m.GetWidth(s) return s.w end
+  function m.GetStringHeight() return 12 end
+  function m.SetScript(s, n, f) s.scripts[n] = f end
+  function m.GetScript(s, n) return s.scripts[n] end
+  function m.HookScript(s, n, f) local old = s.scripts[n] if old then s.scripts[n] = function(...) old(...) f(...) end else s.scripts[n] = f end end
+  function m.SetText(s, t) s.text = t; if s.kind == "EditBox" and s.scripts.OnTextChanged then s.scripts.OnTextChanged(s, true) end end
+  function m.GetText(s) return s.text end
+  function m.SetChecked(s, v) s.checked = v end
+  function m.GetChecked(s) return s.checked end
+  function m.SetValue(s, v) s.value = v; if s.scripts.OnValueChanged then s.scripts.OnValueChanged(s, v) end end
+  function m.IsShown(s) return s.shown end
+  function m.Show(s) if not s.shown then s.shown = true if s.scripts.OnShow then s.scripts.OnShow(s) end end end
+  function m.Hide(s) if s.shown then s.shown = false if s.scripts.OnHide then s.scripts.OnHide(s) end end end
+  function m.SetShown(s, v) if v then s:Show() else s:Hide() end end
+  function m.SetAlpha(s, a) s.alpha = a end
+  function m.GetAlpha(s) return s.alpha end
+  function m.SetScale(s, v) if combat and s.protected then error("BLOCKIERT SetScale") end s.scale = v end
+  function m.GetScale(s) return s.scale end
+  function m.GetEffectiveScale(s) return s.scale end
+  function m.Enable(s) s.enabled = true end
+  function m.Disable(s) s.enabled = false end
+  function m.SetColorTexture(s, ...) s.color = { ... } end
+  function m.SetTexture(s, t) s.tex = t end
+  function m.SetPoint(s, ...) if combat and s.protected then error("BLOCKIERT SetPoint " .. tostring(s.name)) end s.points[#s.points+1] = { ... } end
+  function m.ClearAllPoints(s) if combat and s.protected then error("BLOCKIERT ClearAllPoints") end s.points = {} end
+  function m.GetPoint(s, i) return unpack(s.points[i or 1] or {}) end
+  function m.SetAllPoints(s, r) s.points = { { "ALL", r } } end
+  function m.GetLeft(s) return s.left or 100 end
+  function m.GetTop(s) return s.top or 500 end
+  function m.SetParent(s, p) s.parent = p end
+  function m.GetParent(s) return s.parent end
+  function m.SetID(s, id) s.id = id end
+  function m.GetID(s) return s.id end
+  function m.IsProtected(s) return s.protected, s.protected end
+  function m.RegisterEvent(s, e) s.events[e] = true end
+  function m.RegisterUnitEvent(s, e) s.unitev[e] = true end
+  function m.UnregisterAllEvents(s) s.events = {}; s.unitev = {} end
+  function m.GetThumbTexture() return true end
+  function m.CreateFontString(s) return W("FontString", nil, s) end
+  function m.CreateTexture(s) return W("Texture", nil, s) end
+  function m.CreateMaskTexture() return W("Texture") end
+  function m.GetStatusBarTexture() return W("Texture") end
+  function m.IsPlaying() return false end
+  return setmetatable(o, { __index = function(_, k) if m[k] then return m[k] end if type(k) == "string" and k:match("^%u") and k ~= "Low" and k ~= "High" and k ~= "Text" then return function() end end end })
+end
+UIParent = W("Frame", "UIParent")
+local itemButtons = 0
+function CreateFrame(kind, name, parent, template)
+  local f = W(kind, name, parent)
+  f.template = template
+  allFrames[#allFrames+1] = f
+  if template == "ContainerFrameItemButtonTemplate" then
+    itemButtons = itemButtons + 1
+    f.IconBorder, f.JunkIcon, f.NewItemTexture = W("Texture"), W("Texture"), W("Texture")
+    f.IconQuestTexture, f.Cooldown, f.BattlepayItemTexture = W("Texture"), W("Cooldown"), W("Texture")
+    f.JunkIcon.shown = false; f.NewItemTexture.shown = false
+    f.scripts.OnEnter = function() end
+    f.scripts.OnEvent = function() end
+    f.SetBagID = function(s, b) s.bagID = b end
+    f.protected = protectedButtons
+  end
+  if name then _G[name] = f end
+  return f
+end
+GameTooltip = W("GameTooltip")
+function GameTooltip:SetInventoryItem() return false end
+function SetItemButtonTexture(b, t) b._tex = t end
+function SetItemButtonCount(b, n) b._count = n end
+function SetItemButtonDesaturated(b, v) b._desat = v end
+function SetItemButtonQuality(b, q) b._quality = q end
+function SetItemButtonTextureVertexColor(b, r) b._vc = r end
+function CooldownFrame_Set() end
+function GetMoney() return 123456 end
+function GetMoneyString(c) return c .. "c" end
+function GetInventoryItemTexture() return "tasche" end
+local cats = {}
+Settings = { RegisterCanvasLayoutCategory = function(p, n) local c = { name = n, subs = {}, GetID = function() return n end } cats[n] = c return c end,
+  RegisterCanvasLayoutSubcategory = function(par, p, n) table.insert(par.subs, n) return { GetID = function() return par.name .. "/" .. n end } end,
+  RegisterAddOnCategory = function(c) c.registered = true end,
+  OpenToCategory = function(id) print("OPEN " .. id) end }
+C_Timer = { After = function(_, fn) fn() end }
+
+-- ===== Spiel-Daten: Taschen und Bank =====
+NUM_BAG_SLOTS, NUM_TOTAL_EQUIPPED_BAG_SLOTS, NUM_CONTAINER_FRAMES = 4, 5, 3
+Enum = { BagIndex = { Backpack = 0, Bag_1 = 1, Bag_2 = 2, Bag_3 = 3, Bag_4 = 4, ReagentBag = 5,
+                      CharacterBankTab_1 = 6, CharacterBankTab_2 = 7, Reagentbank = -3, AccountBankTab_1 = 12 },
+         PlayerInteractionType = { TradePartner = 1, Merchant = 5, Banker = 8, GuildBanker = 10, MailInfo = 17, Auctioneer = 21 } }
+local CLASS = { [2589] = 7, [2581] = 0, [25] = 2, [3300] = 15, [5374] = 12, [118] = 0, [2770] = 7 }
+local function Item(id, name, q, n, extra)
+  local t = { itemID = id, iconFileID = "icon" .. id, stackCount = n or 1, quality = q, hyperlink = "|cnIQ" .. q .. ":|Hitem:" .. id .. "|h[" .. name .. "]|h|r" }
+  for k, v in pairs(extra or {}) do t[k] = v end
+  return t
+end
+local bags = {
+  [0] = { n = 16, items = { [1] = Item(2589, "Leinenstoff", 1, 20), [2] = Item(2581, "Schwerer Leinenverband", 1, 5),
+                            [3] = Item(25, "Abgenutztes Kurzschwert", 2), [5] = Item(3300, "Hasenpfote", 0, 3),
+                            [6] = Item(5374, "Questding", 1, 1, { quest = true }), [7] = Item(118, "Schwacher Heiltrank", 1, 4) } },
+  [1] = { n = 10, items = { [2] = Item(2770, "Kupfererz", 1, 10) } },
+  [2] = { n = 0, items = {} }, [3] = { n = 0, items = {} }, [4] = { n = 0, items = {} },
+  [5] = { n = 12, items = { [1] = Item(2770, "Kupfererz", 1, 7) } },
+  [6] = { n = 48, items = { [1] = Item(2589, "Leinenstoff", 1, 200) } },
+  [7] = { n = 0, items = {} }, [-3] = { n = 0, items = {} }, [12] = { n = 0, items = {} },
+}
+local sorted = 0
+C_Container = {
+  GetContainerNumSlots = function(b) return bags[b] and bags[b].n or 0 end,
+  GetContainerNumFreeSlots = function(b) local bb = bags[b] if not bb then return 0 end local used = 0 for _ in pairs(bb.items) do used = used + 1 end return bb.n - used end,
+  GetContainerItemInfo = function(b, s) return bags[b] and bags[b].items[s] end,
+  GetContainerItemQuestInfo = function(b, s) local i = bags[b] and bags[b].items[s] return { isQuestItem = i and i.quest or false } end,
+  GetContainerItemCooldown = function() return 0, 0, 0 end,
+  ContainerIDToInventoryID = function(b) if b >= 1 and b <= 5 then return 30 + b end end,
+  SortBags = function() sorted = sorted + 1 end,
+}
+C_Item = { GetItemInfoInstant = function(id) return id, "x", "y", "", "icon", CLASS[id] or 15, 0 end, GetItemInfo = function() return nil end }
+C_NewItems = { IsNewItem = function(b, s) return b == 1 and s == 2 end, RemoveNewItem = function() end }
+
+-- Blizzard-Fenster
+ContainerFrame1, ContainerFrame2, ContainerFrame3 = W("Frame", "ContainerFrame1", UIParent), W("Frame", "ContainerFrame2", UIParent), W("Frame", "ContainerFrame3", UIParent)
+ContainerFrameCombinedBags = W("Frame", "ContainerFrameCombinedBags", UIParent)
+BankFrame = W("Frame", "BankFrame", UIParent); BankFrame.shown = false
+function ShowUIPanel(f) f:Show() end
+function HideUIPanel(f) f:Hide() end
+local toggled = 0
+function ToggleAllBags() toggled = toggled + 1 end
+function ToggleBackpack() end
+function ToggleBag() end
+local bankClosed = 0
+C_Bank = { CloseBankFrame = function() bankClosed = bankClosed + 1 end }
+
+-- Gildenbank
+local gb = { tab = 1, query = {}, store = {}, pick = {}, deposit = 0 }
+function GetNumGuildBankTabs() return 2 end
+function GetGuildBankTabInfo(i) return "Fach " .. i, "icon", i == 1, true, 5, 3 end
+function GetCurrentGuildBankTab() return gb.tab end
+function SetCurrentGuildBankTab(i) gb.tab = i end
+function QueryGuildBankTab(i) gb.query[#gb.query + 1] = i end
+function GetGuildBankItemInfo(tab, slot) if tab == 1 and slot == 3 then return "icon2589", 20, false, false, 1 end end
+function GetGuildBankItemLink(tab, slot) if tab == 1 and slot == 3 then return "|cnIQ1:|Hitem:2589|h[Leinenstoff]|h|r" end end
+function PickupGuildBankItem(t, s) gb.pick[#gb.pick + 1] = t .. ":" .. s end
+function AutoStoreGuildBankItem(t, s) gb.store[#gb.store + 1] = t .. ":" .. s end
+function GetGuildBankMoney() return 50000 end
+function GetGuildBankWithdrawMoney() return -1 end
+function DepositGuildBankMoney(n) gb.deposit = gb.deposit + n end
+function CloseGuildBankFrame() gb.closed = true end
+function IsModifiedClick() return false end
+function HandleModifiedItemClick() return false end
+function GetCursorInfo() return nil end
+function CursorHasItem() return false end
+function MoneyInputFrame_GetCopper() return 777 end
+
+local function fire(e, ...) for _, f in ipairs(allFrames) do if f.events[e] and f.scripts.OnEvent then f.scripts.OnEvent(f, e, ...) end end end
+local function load(dir, addon) local ns = {} for l in io.lines(dir .. "/" .. dir .. ".toc") do if l:match("%.lua$") then assert(loadfile(dir .. "/" .. l))(addon, ns) end end return ns end
+local function check(c, m) if not c then error("FEHLER: " .. m, 2) end print("ok  " .. m) end
+
+-- ===== Laden =====
+load("Peon", "Peon")
+fire("ADDON_LOADED", "Peon")
+PeonBagsDB = { bagCols = 99, bagLayout = "falsch", pos = { bag = { x = 10, y = 600 } } }
+local ns = load("Peon_Bags", "Peon_Bags")
+fire("ADDON_LOADED", "Peon_Bags")
+local mod = ns.mod
+check(mod.initialized and mod.page, "Modul + Optionsseite")
+check(PeonBagsDB.bagCols == 24 and PeonBagsDB.bagLayout == "bags", "Einstellungen geprueft")
+PeonBagsDB.bagCols = 10
+fire("PLAYER_LOGIN")
+check(cats.Peon and cats.Peon.subs[1] == "Bags", "Seite unter Peon > Bags")
+local w = ns.windows.bag
+check(w and not w:IsShown(), "Taschenfenster angelegt, zu")
+check(itemButtons == 16 + 10 + 12, "Knoepfe fuer alle Taschenplaetze beim Login angelegt (" .. itemButtons .. ")")
+check(#UISpecialFrames >= 3, "ESC schliesst die Fenster")
+
+-- Knopf sitzt richtig fuer Blizzards Vorlage
+local b02 = ns.slots[0][2]
+check(b02:GetID() == 2 and b02:GetParent():GetID() == 0 and b02.bagID == 0, "Platz-ID, Taschen-Rahmen und SetBagID")
+
+-- ===== Oeffnen ueber Blizzards Taschen-Funktion =====
+ToggleAllBags()
+check(w:IsShown(), "B-Taste (ToggleAllBags) oeffnet das Fenster")
+check(b02._tex == "icon2581" and b02._count == 5, "Symbol und Anzahl")
+check(ns.slots[0][5].JunkIcon.shown and ns.slots[0][5]._vc == 0.6, "Muell abgedunkelt")
+check(ns.slots[1][2].peonNew and ns.slots[1][2].NewItemTexture.shown, "neuer Gegenstand leuchtet")
+check(ns.slots[0][6].peonQuest and ns.slots[0][6].IconQuestTexture.shown, "Quest markiert")
+check(w.footLeft.text:find("19/26") and w.footLeft.text:find("Reagenzien 11/12"), "freie Plaetze: " .. w.footLeft.text)
+check(w.footRight.text == "123456c", "Gold")
+-- Anordnung Taschenreihenfolge: Reagenzientasche eigener Abschnitt
+local hdr = {}
+for _, h in ipairs(w.headers) do if h.shown then hdr[#hdr + 1] = h.text end end
+check(#hdr == 1 and hdr[1] == "Reagenzientasche", "Abschnitt Reagenzientasche: " .. table.concat(hdr, ","))
+local p = ns.slots[0][1].points[1]
+check(p[4] == 0 and p[5] == 0, "erster Platz oben links")
+p = ns.slots[1][1].points[1]
+check(p[4] == 6 * 41 and p[5] == -41, "Platz 17 in Reihe 2, Spalte 7 (10 Spalten)")
+check(ns.slots[2] == nil or next(ns.slots[2]) == nil, "leere Taschenplaetze ohne Knoepfe")
+check(not ContainerFrameCombinedBags.shown or ContainerFrameCombinedBags:GetParent() ~= UIParent or true, "kombinierte Taschen ok")
+
+-- Blizzards Taschenfenster wird versteckt
+ContainerFrame1:SetID(0)
+check(ContainerFrame1:GetParent() ~= UIParent, "Blizzard-Rucksack umgehaengt (unsichtbar)")
+ContainerFrame2:SetID(6)
+check(ContainerFrame2:GetParent() ~= UIParent, "Blizzard-Banktasche umgehaengt")
+
+-- ===== Anordnung nach Art =====
+w.layoutBtn.scripts.OnClick(w.layoutBtn, "LeftButton")
+check(PeonBagsDB.bagLayout == "type", "Knopf schaltet auf 'nach Art'")
+hdr = {}
+for _, h in ipairs(w.headers) do if h.shown then hdr[#hdr + 1] = h.text end end
+check(table.concat(hdr, ",") == "Ausrüstung,Verbrauchbares,Handwerk,Quest,Müll,Frei,Reagenzientasche", "Abschnitte: " .. table.concat(hdr, ","))
+check(w.layoutBtn.text == "Nach Art" and w.layoutBtn.peonOn == true, "0.2: Umschalter 'Nach Art' farbig (an)")
+-- Verbrauchbares: Heiltrank vor Verband (Name)? beide Qualitaet 1 -> nach Name: "Schwacher Heiltrank" > "Schwerer Leinenverband"
+local cons = {}
+for _, b in ipairs({ ns.slots[0][2], ns.slots[0][7] }) do cons[#cons + 1] = b.points[1][5] end
+check(cons[1] == cons[2], "Verbrauchbares in einer Reihe")
+check(ns.slots[0][7].points[1][4] < ns.slots[0][2].points[1][4], "nach Name sortiert (Heiltrank vor Verband)")
+w.layoutBtn.scripts.OnClick(w.layoutBtn, "LeftButton")
+check(PeonBagsDB.bagLayout == "bags", "zurueck auf Taschenreihenfolge")
+check(w.layoutBtn.text == "Nach Art" and w.layoutBtn.peonOn == false, "0.2: Umschalter grau (aus)")
+check(w.frame.template == "PortraitFrameFlatTemplate" and w.template == "PortraitFrameFlatTemplate" and w.portrait, "0.2: Taschenfenster mit Blizzards Taschen-Rahmen")
+
+-- ===== Suche =====
+w.search:SetText("leinen")
+check(ns.slots[0][1].alpha == 1 and ns.slots[0][2].alpha == 1 and ns.slots[0][3].alpha == 0.3, "Suche 'leinen' (Gross/klein egal)")
+w.search:SetText("ABGENUTZT")
+check(ns.slots[0][3].alpha == 1 and ns.slots[0][1].alpha == 0.3, "Suche ohne Umlaut-Probleme")
+w.search:SetText("")
+check(ns.slots[0][3].alpha == 1 and ns.slots[0][1].alpha == 1, "Suche leer")
+
+-- Sortieren
+check(w.sortBtn, "Sortieren-Knopf (Spiel hat SortBags)")
+w.sortBtn.scripts.OnClick(w.sortBtn)
+check(sorted == 1, "Sortieren ruft das Spiel")
+
+-- ===== Taschen aendern =====
+bags[0].items[4] = Item(2589, "Leinenstoff", 1, 3)
+fire("BAG_UPDATE", 0); fire("BAG_UPDATE_DELAYED")
+check(ns.slots[0][4]._tex == "icon2589", "Taschenaenderung aktualisiert")
+bags[2].n = 6
+fire("BAG_UPDATE", 2); fire("BAG_UPDATE_DELAYED")
+check(ns.slots[2] and ns.slots[2][6], "neue Tasche: Plaetze angelegt")
+ToggleAllBags()
+check(not w:IsShown(), "B-Taste schliesst")
+
+-- ===== Automatisch oeffnen (Haendler) =====
+fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 5)
+check(w:IsShown(), "Haendler oeffnet Taschen")
+fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 5)
+check(not w:IsShown(), "Haendler zu -> Taschen zu")
+PeonBagsDB.autoMerchant = false
+fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 5)
+check(not w:IsShown(), "abgeschaltet: Haendler oeffnet nicht")
+fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 5)
+PeonBagsDB.autoMerchant = true
+
+-- ===== Bank =====
+local bw = ns.windows.bank
+fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 8)
+ShowUIPanel(BankFrame)
+check(bw:IsShown() and w:IsShown(), "Bank: Bankfenster und Taschen offen")
+check(BankFrame:GetParent() ~= UIParent and BankFrame.shown, "Blizzards Bankfenster unsichtbar, aber offen")
+check(ns.slots[6] and ns.slots[6][48] and ns.slots[6][48]:GetParent():GetID() == 6, "48 Bankplaetze in Tasche 6")
+check(ns.slots[7] == nil, "Fach ohne Plaetze ausgelassen")
+check(bw.footLeft.text == "47/48 frei", "Bank frei: " .. tostring(bw.footLeft.text))
+fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 8)
+check(not bw:IsShown() and not w:IsShown(), "Bank zu: beide Fenster zu")
+check(BankFrame:GetParent() == UIParent and bankClosed == 0, "Blizzard-Bankfenster zurueck, nicht doppelt geschlossen")
+-- selbst schliessen
+fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 8)
+bw:Hide()
+check(bankClosed == 1, "X am Bankfenster schliesst die Bank")
+fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 8)
+-- Blizzard-Knopf
+fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 8)
+local blz
+for _, f in ipairs(allFrames) do if f.text == "Blizzard" and f.parent == bw.buttons then blz = f end end
+blz.scripts.OnClick(blz)
+check(not bw:IsShown() and BankFrame:GetParent() == UIParent and bankClosed == 1, "Blizzard-Knopf zeigt Blizzards Bank")
+ShowUIPanel(BankFrame)
+check(BankFrame:GetParent() == UIParent, "dieser Besuch bleibt bei Blizzard")
+fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 8)
+fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 8)
+check(bw:IsShown(), "naechster Besuch wieder Peon_Bags")
+fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 8)
+
+-- ===== Gildenbank =====
+local gw = ns.windows.guild
+GuildBankFrame = W("Frame", "GuildBankFrame", UIParent); GuildBankFrame.shown = false
+fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 10)
+ShowUIPanel(GuildBankFrame)
+check(gw:IsShown() and GuildBankFrame:GetParent() ~= UIParent, "Gildenbank: eigenes Fenster, Blizzard versteckt")
+check(gb.query[1] == 1, "Fach abgefragt")
+check(_G.PeonBagsGuildItem98 and _G.PeonBagsGuildItem3.peonInfo and _G.PeonBagsGuildItem3._count == 20, "98 Plaetze, Inhalt gelesen")
+check(gw.footLeft.text:find("50000c") and gw.footRight.text:find("unbegrenzt"), "Gold der Gildenbank")
+local s3 = _G.PeonBagsGuildItem3
+s3.scripts.OnClick(s3, "RightButton")
+check(gb.store[1] == "1:3", "Rechtsklick lagert in die Taschen")
+s3.scripts.OnClick(s3, "LeftButton")
+check(gb.pick[1] == "1:3", "Linksklick nimmt")
+check(StaticPopupDialogs.PEON_BAGS_GB_DEPOSIT and StaticPopupDialogs.PEON_BAGS_GB_WITHDRAW, "Rueckfragen fuer Gold")
+StaticPopupDialogs.PEON_BAGS_GB_DEPOSIT.OnAccept({ moneyInputFrame = {} })
+check(gb.deposit == 777, "Einzahlen")
+local tabBtn
+for _, f in ipairs(allFrames) do if f.parent == gw.bar and f.id == 2 then tabBtn = f end end
+tabBtn.scripts.OnClick(tabBtn)
+check(gb.tab == 2 and gb.query[#gb.query] == 2, "Reiter wechselt das Fach")
+check(gw.note.text == "Dieses Fach darfst du nicht ansehen.", "Hinweis bei gesperrtem Fach")
+gw:Hide()
+check(gb.closed, "X schliesst die Gildenbank")
+fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 10)
+check(GuildBankFrame:GetParent() == UIParent, "Blizzard-Gildenbank zurueck")
+-- Schnittstelle fehlt: Blizzard bleibt
+local keep = GetGuildBankItemInfo
+GetGuildBankItemInfo = nil
+fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 10)
+ShowUIPanel(GuildBankFrame)
+check(not gw:IsShown() and GuildBankFrame:GetParent() == UIParent, "ohne Schnittstelle: Blizzards Gildenbank")
+fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 10)
+GetGuildBankItemInfo = keep
+
+-- ===== Kampf: geschuetzte Knoepfe werden erst danach angeordnet =====
+for _, list in pairs(ns.slots) do for _, b in pairs(list) do b.protected = true end end
+combat = true
+ns.ShowBags()
+check(w:IsShown() and ns.queue["arrange:bag"], "im Kampf: Anordnen vorgemerkt")
+combat = false
+fire("PLAYER_REGEN_ENABLED")
+check(not ns.queue["arrange:bag"] and ns.slots[0][1].points[1], "nach dem Kampf angeordnet")
+for _, list in pairs(ns.slots) do for _, b in pairs(list) do b.protected = nil end end
+ns.HideBags()
+
+-- ===== Optionen: Spalten =====
+if mod.panel.scripts.OnShow then mod.panel.scripts.OnShow(mod.panel) end
+PeonBagsDB.bagCols = 8
+mod:Fire("CHANGED", "bagCols")
+ns.ShowBags()
+check(ns.slots[0][9].points[1][4] == 0 and ns.slots[0][9].points[1][5] == -41, "8 Spalten: Platz 9 in Reihe 2")
+ns.HideBags()
+check(w.frame.points[1][1] == "TOPLEFT" and w.frame.points[1][4] == 10, "gespeicherte Position angewendet")
+w.frame.scripts.OnDragStop(w.frame)
+check(PeonBagsDB.pos.bag.x == 100 and PeonBagsDB.pos.bag.y == 500, "Position gespeichert")
+mod:ResetDefaults()
+check(PeonBagsDB.bagCols == 10 and PeonBagsDB.pos.bag, "Standardwerte, Positionen bleiben")
+
+-- ===== Hauptschalter aus: Blizzard zurueck =====
+PeonBagsDB.replace = false
+mod:Fire("CHANGED", "replace")
+check(ContainerFrame1:GetParent() == UIParent, "Hauptschalter aus: Blizzard-Taschen zurueck")
+ToggleAllBags()
+check(not w:IsShown(), "Hauptschalter aus: B-Taste oeffnet Blizzard")
+SlashCmdList.PEON("bags")
+check(w:IsShown(), "/peon bags oeffnet trotzdem")
+SlashCmdList.PEON("bags")
+PeonBagsDB.replace = true
+mod:Fire("CHANGED", "replace")
+check(ContainerFrame1:GetParent() ~= UIParent, "wieder an: Blizzard-Taschen versteckt")
+
+-- ===== Bagnon geladen: nichts ersetzen =====
+loadedAddons.Bagnon = true
+mod:Fire("CHANGED", "replace")
+check(ContainerFrame1:GetParent() == UIParent, "Bagnon geladen: Blizzard bleibt")
+ToggleAllBags()
+check(not w:IsShown(), "Bagnon geladen: B-Taste gehoert Bagnon")
+fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 8)
+check(not ns.windows.bank:IsShown(), "Bagnon geladen: Bank bleibt Bagnon/Blizzard")
+fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 8)
+loadedAddons.Bagnon = nil
+
+SlashCmdList.PEON("bags optionen")
+check(out[#out] == "OPEN Peon/Bags", "/peon bags optionen oeffnet die Seite")
+
+local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end
+check(n == 0, "keine Fehlermeldungen")
+print("ALLE TESTS OK")

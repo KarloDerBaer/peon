@@ -1,0 +1,26 @@
+# Schreibt der Peon Manager, wird nie ausgeliefert
+addons/Peon_Bridge/Data.lua
+
+# Peon Manager: Pakete, Bau, Protokolle
+manager/node_modules/
+manager/dist/
+manager/release/
+*.log
+
+# Release-Bau
+build/
+
+# Spieldaten und Archiv gehören nicht ins Repo
+/WTF/
+/eingang/
+/Claude outputs/
+
+# Windows und Editoren
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Nur auf diesem Rechner: echte Pfade (CLAUDE.local.md, scripts/local.json)
+CLAUDE.local.md
+scripts/local.json

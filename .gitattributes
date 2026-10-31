@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.sh text eol=lf
+*.exe binary
+*.tga binary
+*.png binary
+*.zip binary
+tools/lua5.1-linux binary

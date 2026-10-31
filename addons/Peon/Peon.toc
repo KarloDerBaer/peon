@@ -1,0 +1,19 @@
+## Interface: 16001
+## Title: |cff8ccf4dPeon|r
+## Notes: Shared core for the Peon addon collection. Work, work!
+## Notes-deDE: Gemeinsamer Kern der Peon-Addonsammlung. Arbeit, Arbeit!
+## Author: KarloDerBaer
+## Version: 0.11.0
+## IconTexture: Interface\Icons\INV_Pick_02
+## SavedVariables: PeonDB
+
+Locales.lua
+Core.lua
+Feedback.lua
+Module.lua
+Options.lua
+Widgets.lua
+List.lua
+Minimap.lua
+Chart.lua
+Slash.lua

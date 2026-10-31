@@ -1,0 +1,31 @@
+# Peon: alle Tests bei jedem Push und jedem Pull Request
+# Lua-Tests der Addons (tools/lua5.1-linux auf addons/) und Tests des Peon Managers (nur Node, keine Pakete nötig)
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Lua-Tests der Addons
+        run: sh tests/run_tests.sh
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Tests des Peon Managers
+        working-directory: manager
+        run: node --test test/*.test.js
+
+      - name: Tests des Release-Skripts
+        run: node --test scripts/test/*.test.js

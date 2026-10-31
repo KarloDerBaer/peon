@@ -1,0 +1,13 @@
+## Interface: 16001
+## Title: |cff8ccf4dPeon|r ComboPoints
+## Notes: Round combo points in Blizzard style above the enemy nameplate (rogues only).
+## Notes-deDE: Runde Combo-Punkte im Blizzard-Stil über dem Nameplate des Gegners (nur Schurken).
+## Author: KarloDerBaer
+## Version: 3.5.1
+## Dependencies: Peon
+## Group: Peon
+## IconTexture: Interface\Icons\Ability_Rogue_Eviscerate
+## SavedVariables: PeonComboPointsDB
+
+ComboPoints.lua
+Options.lua

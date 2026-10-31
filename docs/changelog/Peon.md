@@ -1,0 +1,31 @@
+# Peon (Kern): Verlauf der Versionen
+
+Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
+
+## 0.11.0
+
+- 0.11.0 (07.10.2026, Wunsch KarloDerBaer für die Tooltip-Optionen): API 11 – **Untertabs auf Optionsseiten**: `page:Tabs({ { key, Text }, … }, y)` (Reiterleiste oben, `PanelTopTabButtonTemplate`, Rückfall normale Knöpfe), `page:Column(x, y, reiter)` (Spalte gehört zu einem Reiter; ohne Reiter immer sichtbar), `page:SelectTab(key)`, `page:GetTab()`, `page.onTab(page, key)`. Bausteine einer Reiter-Spalte hängen an einem Haltefenster je Reiter (eigenes Ein-/Ausblenden eines Bausteins bleibt erhalten); der Reset-Knopf steht unter der tiefsten sichtbaren Spalte. Diagramm-Legende: bei mehreren Reihen mit demselben Schlüssel gewinnt die Reihe mit Beschriftung (vorher die letzte – Ledger zeigte „zone“ statt „Gewinnzone“). Bestehendes unverändert.
+
+## 0.10.0
+
+- 0.10.0 (06.10.2026, Konzept `Peon_Ledger_Gegenstand.md` G1): API 10 – **Diagramm-Baustein** `Peon.NewChart` (neue Datei Chart.lua): Linien (gestrichelt, Lücken überbrücken), Stufenlinien, Fläche zwischen zwei Linien (Band; Gewinnzone zweifarbig je Abschnitt, Trapez über `SetVertexOffset`), Balken (auch unter 0 in eigener Farbe), Punkte (Kreis/Quadrat), senkrechte Markierungen, waagerechte Linie, zwei Achsen mit schönen Grenzen (`Peon.NiceRange`) und eigener Beschriftung, Mauslinie mit `onHover(index)`, Legende mit Knöpfen an/aus (`ch:CreateLegend`), `ch:SetSize`, verknüpfte Diagramme (`Peon.LinkCharts`: gemeinsame Mauslinie, gleicher Bereich links). Linien über `CreateLine` (Rückfall ohne: kleine Kästchen). Bereich „Diagramm“ für Peon_Feedback. Bestehendes unverändert. **Im Spiel prüfen:** ob `CreateLine` und `SetVertexOffset` in Forever gehen (Linien glatt, Gewinnzone als Fläche statt Treppe).
+
+## 0.9.0
+
+- 0.9.0 (02.10.2026): API 9 – Bereiche für Rückmeldungen: `Peon.SetFeedbackAreas(ADDON_NAME, { … })` und `Peon.GetFeedbackAreas(ADDON_NAME)` (Kopie der Liste; doppelte, leere und falsche Einträge werden entfernt). Der Kern meldet eigene Bereiche (Einstellungsseite, Bausteine, Liste, Minimap-Button, Debug-Log, Chatbefehle). Neue Datei Feedback.lua, bestehendes unverändert.
+
+## 0.8.0
+
+- 0.8.0 (01.10.2026): API 8 – Liste mit Zeilenfarbe (`rowColor = function(item) return r, g, b, a end`, `list:UpdateColors()` nur für die Farben, z. B. zum Pulsieren). Bestehendes unverändert.
+
+## 0.7.0
+
+- 0.7.0 (29.09.2026): API 7 – Liste mit Spalten, Sortierung und Bildlauf (`Peon.NewList`, `page:List`), Minimap-Button (`mod:NewMinimapButton`). Fishing behält vorerst seinen eigenen Minimap-Button.
+
+## 0.6.0
+
+- 0.6.0 (29.09.2026): API 6 – Auswahlliste `page:Dropdown` (neue Menü-API, Rückfall UIDropDownMenu, dann Knopfreihe; Liste auch per Funktion; eigene get/set).
+
+## 0.5.0
+
+- 0.5.0 (29.09.2026): API 5 – Button, Text, Check mit Hinweis und eigenen Werten, Neuanordnung beim Refresh, `opts.keepOnReset`.

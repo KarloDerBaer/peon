@@ -1,0 +1,105 @@
+/* Peon Manager - Aussehen
+   Dunkler Moosgrund statt Schwarz, Peon-Grün nur für das, was gerade wichtig ist (aktiver Bereich, Hauptknopf,
+   frische Daten). Münzfarben und Qualitätsfarben aus dem Spiel tragen Bedeutung, nicht Dekoration. */
+:root {
+  --ground: #131814;
+  --panel: #1a211c;
+  --raised: #222b24;
+  --line: #2f3a32;
+  --line-soft: #252e27;
+  --text: #e3e8de;
+  --muted: #8f9a8d;
+  --faint: #66705f;
+  --accent: #8ccf4d;
+  --accent-ink: #13200a;
+  --accent-soft: rgba(140, 207, 77, 0.14);
+  --warn: #e2a53c;
+  --bad: #e2634f;
+  --gold: #e9c45b;
+  --silver: #bcc3ca;
+  --copper: #c7803f;
+  --up: #8ccf4d;
+  --down: #e2634f;
+  --q0: #9d9d9d; --q1: #ffffff; --q2: #1eff00; --q3: #3d9df0; --q4: #b46cf2; --q5: #ff8000; --q6: #e6cc80; --q7: #00ccff;
+  --radius-s: 4px;
+  --radius-m: 8px;
+  --font: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --font-cond: "Barlow Semi Condensed", "Barlow", "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --ground: #eef1ea;
+  --panel: #f8faf5;
+  --raised: #ffffff;
+  --line: #d3dacd;
+  --line-soft: #e2e7dd;
+  --text: #1e261f;
+  --muted: #5d6a5c;
+  --faint: #8b9688;
+  --accent: #4f8f1e;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(79, 143, 30, 0.12);
+  --warn: #a96d07;
+  --bad: #b8392a;
+  --gold: #a57c05;
+  --silver: #6b7680;
+  --copper: #9a5419;
+  --up: #3f7f12;
+  --down: #b8392a;
+  --q0: #7b7b7b; --q1: #1e261f; --q2: #1c8500; --q3: #0060c0; --q4: #8338c9; --q5: #c05d00; --q6: #8f7520; --q7: #007a99;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--ground);
+  color: var(--text);
+  font: 400 15px/1.45 var(--font);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+#app { height: 100%; }
+
+h1, h2, h3 { font-family: var(--font-cond); font-weight: 600; margin: 0; letter-spacing: 0.005em; }
+h1 { font-size: 30px; line-height: 1.15; }
+h2 { font-size: 19px; line-height: 1.25; }
+h3 { font-size: 16px; line-height: 1.3; font-weight: 500; }
+p { margin: 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.muted { color: var(--muted); }
+.faint { color: var(--faint); }
+.small { font-size: 13px; }
+
+button, select, input {
+  font: inherit;
+  color: inherit;
+}
+button {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover { border-color: var(--muted); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+button.primary:hover { filter: brightness(1.08); }
+button:disabled { opacity: 0.5; cursor: default; }
+button.link { background: none; border: none; padding: 0; color: var(--accent); text-align: left; }
+button.link:hover { text-decoration: underline; }
+select, input[type="text"] {
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  padding: 6px 8px;
+}
+input[type="text"] { width: 100%; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

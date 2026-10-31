@@ -1,0 +1,6 @@
+<Bindings>
+    <!-- ab 0.9.1: Gegenstand im Tooltip unter der Maus im Ledger-Reiter "Gegenstand" zeigen (Pick.lua) -->
+    <Binding name="PEON_LEDGER_ITEM" header="PEON_LEDGER" category="ADDONS">
+        PeonLedger_ShowHoverItem()
+    </Binding>
+</Bindings>

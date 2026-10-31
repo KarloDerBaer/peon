@@ -1,0 +1,15 @@
+## Interface: 16001
+## Title: |cff8ccf4dPeon|r Mover
+## Notes: Move and scale Blizzard and Peon windows.
+## Notes-deDE: Fenster von Blizzard und Peon verschieben und in der Größe ändern.
+## Author: KarloDerBaer
+## Version: 0.1.0
+## Dependencies: Peon
+## Group: Peon
+## IconTexture: Interface\Icons\Ability_Rogue_Sprint
+## SavedVariables: PeonMoverDB
+
+Locales.lua
+Frames.lua
+Mover.lua
+Options.lua

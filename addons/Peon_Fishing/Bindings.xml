@@ -1,0 +1,13 @@
+<Bindings>
+    <Binding name="PEON_FISHING_TOGGLE" header="PEON_FISHING" category="ADDONS">
+        PeonFishing_Toggle()
+    </Binding>
+    <!-- Angel-Taste: im Angelmodus per Override Auswerfen/Einholen (Keys.lua), sonst Angelmodus an -->
+    <Binding name="PEON_FISHING_ACTION" category="ADDONS">
+        PeonFishing_Action()
+    </Binding>
+    <!-- Waffen der Rueckkehr-Ausruestung anlegen (sicherer Makro-Button, geht auch im Kampf) -->
+    <Binding name="CLICK PeonFishingWeaponButton:LeftButton" category="ADDONS">
+    </Binding>
+
+</Bindings>

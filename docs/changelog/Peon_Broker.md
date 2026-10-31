@@ -1,0 +1,429 @@
+# Peon_Broker: Verlauf der Versionen
+
+Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
+
+## 0.33.0
+
+- 0.33.0 (31.10.2026): Werte und Momentaufnahmen über **Peon_Bridge** (Modul `bridge`, bisher Peon_Client `client`) an zwei Stellen (`Data.lua` `D.ClientBand`, `Sales.lua` `S.ClientStats`). Die Bridge liefert nur Werte, wenn der Peon Manager den Kanal broker freischaltet, sonst rechnet Broker wie bisher selbst. Texte wie „Üblich (Client, n Tage)“ bleiben (gemeint ist der Manager mit dem Broker Client).
+
+## 0.32.0
+
+- 0.32.0 (23.10.2026, Peon Client C6, Rechenmodell F49): **Absatz vom Peon Client als Rückfall.** `Sales.Stats(e, now, key)`: hat Broker in den letzten 6 Std. weniger als 60 Min. selbst beobachtet (rot oder nichts), nimmt er Absatz je Std. (14-Tage-Wert ÷ 24), Quote und Sicherheit (nach beobachteter Zeit) vom Client, `src = "client"`. Gilt im Tooltip („Absatz (Client, 14 Tage)“), Reiter Preise, Verkaufen und beim Radar (Begrenzung nach Absatz). Neu für Peon_Client: `mod:IsCommodity(key)`, `mod:VendorPrice(id)`. Ohne Client oder bei Fehler wie bisher. Im Beta-Ordner blieb Broker bei 0.31.0 mit neuer Sales.lua (Dateien schreibgeschützt). In `_forever_` vollständig 0.32.0 (25.10.).
+
+## 0.31.0
+
+- 0.31.0 (23.10.2026, Peon Client C4, Rechenmodell Kapitel 8): **Langzeit-Teil des üblichen Bereichs vom Peon Client.** `D.ClientBand(key)` fragt Peon_Client (`LongTerm`) nach MITTE, SCHW, LANG und Tagen für den Gegenstand im eigenen Markt. Sind die Werte da und frisch (F43), nimmt `D.Band` sie statt der eigenen F35 bis F37 (SCHW mindestens 5 %, reicht auch bei weniger als 3 eigenen Tagen); HEUTE, Richtwert, Bereich, Trend und Schnäppchen rechnet Broker weiter selbst (F44). Ohne Peon_Client, ohne Werte, bei alten Werten oder bei einem Fehler im Client (abgefangen) rechnet Broker wie bisher. `D.Band` und `D.Deal` bekommen den Schlüssel als neuen letzten Wert (Verkaufen, Tooltip, Einkaufen, Radar). Anzeige „Üblich (Client, n Tage)“ im Tooltip, im Reiter Preise und beim Verkaufen. Nur mit dem Nachbau geprüft (Beta offline).
+
+## 0.30.2
+
+- 0.30.2 (22.10.2026, **Ursache gefunden** über `lastScanError`): „integer overflow attempting to store 49999996000“. Ein Angebot zum Höchstpreis (fast 5 Mio. Gold) brach den Scan ab, weil Broker Preise mit `%d` in seine kompakten Texte schrieb (Tageswerte in Data.lua, Absatz-Daten in Sales.lua samt Auktionsnummern). `%d` geht im Forever-Lua nur bis 2^31 (etwa 214.748 Gold). Jetzt `%.0f`. Hatte mit Peon_Client nichts zu tun. `test_client.lua` baut die Grenze von Forever nach (`string.format` mit `%d` über 2^31 = Fehler) und prüft Scan, Tageswert, Live-Abfrage und Absatz-Daten mit Höchstpreis und großer Auktionsnummer.
+
+## 0.30.1
+
+- 0.30.1 (22.10.2026, Fehler beim ersten Scan mit Peon_Client, Meldung im Chat nicht erhalten): Scheitert ein Arbeitsschritt des Komplettscans, bricht Broker den Scan sauber ab (Hinweis im Chat) und merkt die Meldung in `PeonBrokerDB.lastScanError` (Zeit, Text, Version, Phase, Stand), auch ohne Debug. Bisher lief der Scan dann bei jedem Bild erneut in den Fehler und wurde nie fertig. Abfrage `Peon.IsSecret` nur noch für vorhandene Links. Nachstellen mit KarloDerBaers echten Broker-Daten im Test lief fehlerfrei, die Ursache ist noch offen.
+
+## 0.30.0
+
+- 0.30.0 (22.10.2026, Peon Client C1): **Zuhörer für Momentaufnahmen** `mod:AddSnapshotListener(fn)` für Peon_Client. Komplettscan meldet `scan_start` (Markt, Zeit, Anzahl, Varianten), jedes Angebot als `scan_row` (auch reine Gebote, mit Mindestgebot, Gebot, Restzeit-Stufe, Link ab Qualität 2), `scan_end` bzw. `scan_abort`; jede Live-Abfrage meldet `live` (aus `Data.ApplyLive`, nicht bei Ergebnissen eines anderen Gegenstands). Ohne Zuhörer unverändert; ein Zuhörer mit Fehler wird entfernt und einmal gemeldet. Rechnung und Daten von Broker unverändert.
+
+## 0.29.0
+
+- 0.29.0 (07.10.2026, für Ledger 0.10): Schnittstelle `mod:MarketItems()` → alle Gegenstände des aktuellen Markts mit Nummer (Varianten ausgenommen): `{ [itemID] = { min, median, qty, t, gone, name, quality } }`.
+
+## 0.28.1
+
+- 0.28.1 (07.10.2026, **Absturz** beim Öffnen des Berufsfensters, Absturzbericht von KarloDerBaer): WoW brach mit „Assertion failure! L->top < L->ci->top (lapi.c)“ ab. Ursache: Die Box „Broker Herstellen“ sucht Leisten am Fensterrand (`C.SideOffset`, 0.25.2) und rief dafür `pcall(UIParent.GetChildren, UIParent)` auf – `pcall` mit mehreren Hundert Rückgabewerten überläuft im Forever-Lua den Platz des Aufrufs. Jetzt direkt `parent:GetChildren()`. Alle Peon-Module nach dem Muster durchsucht (sonst keine `pcall` mit vielen Rückgabewerten). Test mit 400 Kindern ergänzt.
+
+## 0.28.0
+
+- 0.28.0 (07.10.2026, Durchsicht des Moduls, alle Punkte mit KarloDerBaer abgestimmt):
+  - **Ausrüstung mit Zusatz getrennt** (wichtigster Punkt): `keyLog` zeigte, dass Forever den Zusatz im Suchschlüssel (`itemSuffix` 14299–14340) und im Link als Bonus-Nummer ablegt, nicht im Link-Feld 7; die Preise der Varianten liegen weit auseinander (Gleißendes Claymore 17s–25g). Scan, Taschen und Links liefern den vollen Namen. Jetzt: Hat ein Gegenstand Varianten (`markets[…].variants[itemID]`), ist der Schlüssel `"itemID:voller Name"`. Der Scan erkennt Varianten (mehrere Namen, Link mit Bonus-Nummern oder Name ≠ Grundname aus `C_Item.GetItemInfo`; Grundname noch nicht geladen → vorerst unter der Nummer, nächster Scan entscheidet) und löscht dann den alten gemischten Eintrag und den gemerkten Schlüssel. Link je Variante in `e.lk` (Tooltip in den Listen).
+  - **Suchschlüssel je Variante** werden nebenbei gelernt (`itemKeys["itemID:Name"] = "Stufe:Zusatz"`): beim Verkaufen (Taschen), aus eigenen Auktionen, aus jedem Suchergebnis (auch beim Stöbern im Blizzard-Fenster) und aus der Browse-Suche (`GetItemKeyInfo` – ob dort der volle Name kommt, im Spiel prüfen). Ergebnisse werden nach Variante gefiltert (Verkaufen, Einkaufen, Radar, Meine Auktionen) und gehen je Variante in die Datenbank. Radar, Einkaufsliste-Runde und Startseite lassen Varianten ohne gelernten Schlüssel aus (statt „weg“).
+  - **Ledger:** `mod:ItemValue(itemID)` liefert bei Varianten den Wert der günstigsten Variante mit Angeboten (vorsichtig, KarloDerBaer). `MarketInfo`/`History` liefern für Gegenstände mit Varianten nichts (Ledger kennt nur Nummern).
+  - **Kleine Fehler:** Reiter „Start“ wird als letzter Reiter gemerkt (`windowTab`, „book“ entfernt); Beschreibung (Optionen, TOC) und Meldung „braucht Peon 0.8“ aktualisiert; Warenart am Auktionshaus auch aus der Reagenzientasche; Kostenwarnung mit `D.CUT`.
+  - **Schnellkauf abgesichert:** kein Preis vorab, solange ein Treffer gewählt oder Blizzards Kaufansicht für Massenware offen ist; Preisantworten in dieser Zeit gelten nicht als eigene, Broker bricht dann nie einen Kauf ab (`R.BlizzardBuying`).
+  - **Datenmenge:** Absatz-Momentaufnahmen und Einzelvergleiche älter als 24 Std. werden beim täglichen Verdichten gelöscht (`Sales.Prune`); Vergleiche derselben Stunde werden zusammengefasst (höchstens 24 je Gegenstand); Fehlersuch-Protokolle (`radarLog`, `keyLog`, `showLog`, `aucLog`, `radarStats`) nur noch mit `/broker debug`, ohne Debug beim Start gelöscht; `posted`, `cancelled`, `bought`, `buyMode`, `dealMaxAge` und `depositCheck` entfallen (Abgleich der Einstellgebühr abgeschaltet, Formel bestätigt; Warenart wird nur noch einmal je Gegenstand gefragt).
+  - **Kleinigkeiten:** Verkaufen lädt bei Teil-Ergebnissen den Rest nach (`RequestMore…SearchResults`, bis 5×; kommt nichts, gilt der Teil); Taschenliste bewertet jeden Gegenstand nur einmal, beim Einstellen ohne Bewertung (`ScanBags(true)`); rund 60 unbenutzte Texte entfernt.
+  - Tests: test_broker um Schnellkauf, Aufräumen, Teil-Ergebnisse und Varianten ergänzt; alle Tests OK. **Im Spiel prüfen:** nach dem ersten Scan Ausrüstung mit Zusatz im Tooltip und im Reiter Preise (je Variante eigene Zeile?), Verkaufen einer Variante, ob der Radar nach Stöbern im Auktionshaus Varianten prüft, `/broker debug` für Protokolle.
+
+## 0.27.1
+
+- 0.27.1 (06.10.2026, KarloDerBaer): **Alt+Klick entfernt** (gehört jetzt Peon_Ledger): kein Auswählen im Reiter Verkaufen/Behalten und kein Hinzufügen zur Einkaufsliste per Alt+Klick mehr – Auswahl über das Broker-Fenster, Hinzufügen über Suchfeld und „Zur Einkaufsliste“ im Reiter Preise. `S.SelectLink(link)` bleibt als Funktion. Hinweistexte angepasst.
+
+## 0.27.0
+
+- 0.27.0 (06.10.2026, Konzept `Peon_Ledger_Gegenstand.md` G2):
+  - **Absatz so lange wie die Preise:** Tageswerte `e.ab` bleiben `dataDays` (mind. 14) Tage, ältere als Wochensummen `e.abw` (26 Wochen). Der 14-Tage-Wert (`Stats14`) zählt weiter nur 14 Tage. Bestehende Daten bleiben.
+  - **Schnittstellen für Ledger:** `mod:History(itemID)` → je Tag/Woche Min, Median, Menge, Scans, Absatz je Tag (ab 1 Std. Beobachtung), üblicher Bereich an diesem Tag (aus den Tagen bis dahin); `mod:MarketInfo(itemID)` → aktueller Stand (Min, Median, Menge, Bereich, Trend, Vorschlag, Händler, Warenart, Absatz je Std. mit Stufe); `mod:DayOf(t)` (Tage wie Broker).
+  - **Reiter Preise:** Knopf „Mehr… (Ledger)“ neben „Zur Einkaufsliste“ (nur mit Ledger) öffnet den Gegenstand im Ledger-Reiter „Gegenstand“.
+
+## 0.26.0
+
+- 0.26.0 (03.10.2026, Befund KarloDerBaer „Abgefangene Kiste“: 55 Stück als Schnäppchen bei 323 Angeboten, Absatz 0,0/Std., Preis im freien Fall; mit KarloDerBaer abgestimmt):
+  - **Wiederverkauf höchstens zur Untergrenze des üblichen Bereichs** (der Preis, den Verkaufen bei Dumping vorschlägt); ohne Bereich (unter 3 Tagen) höchstens Mitte zwischen Dumping-Grenze und Vergleichspreis (85 % bei DG 30 %). Gilt auch für den Gewinn bei Teilkauf (F33b). Kiste: Wiederverkauf 1s 59c statt 4s 50c → nur noch 7 Stück zu 1s lohnen (≈ 3s 50c) → unter dem Mindestgewinn, kein Schnäppchen.
+  - **Menge höchstens Absatz je Std. × `dealHold`** (Standard 48 Std., Optionen „Markt: verkaufen innerhalb“). Erst ab gelbem ≈ (mind. 60 Min. beobachtet); Absatz 0/Std. = kein Markt-Schnäppchen. Rotes ≈ oder kein Absatz: Menge nicht begrenzt, Hinweis im Zeilen-Tooltip.
+  - Zeilen-Tooltip im Radar: „Wiederverkauf: X je Stück (vor 5 % Anteil, höchstens Untergrenze des üblichen Bereichs)“, „Absatz ≈ x/Std. – höchstens n St. in 48 Std.“ bzw. „Absatz unbekannt oder unsicher – Menge nicht begrenzt“ (orange).
+  - Händler-Schnäppchen unverändert.
+
+## 0.25.2
+
+- 0.25.2 (03.10.2026, Wunsch KarloDerBaer): Box „Broker Herstellen“ verdeckte die Leiste mit Berufs-Symbolen rechts am Berufsfenster. Die Box rückt jetzt hinter alles, was rechts an der Fensterkante klebt (sichtbare Rahmen am Fenster oder an UIParent, die an der rechten Kante beginnen, höchstens 140 breit, innerhalb der Fensterhöhe; `C.SideOffset`), sonst 4 Punkte Abstand. Im Spiel prüfen, ob die Leiste erkannt wird.
+
+## 0.25.1
+
+- 0.25.1 (03.10.2026, Wunsch KarloDerBaer): Zeile „Post“ auf der Startseite entfernt – ohne Besuch am Briefkasten liefert das Spiel keinen Inhalt, und beim Öffnen wird die Post ohnehin geleert. Startseite: Meine Auktionen, Verkaufen, Radar, Einkaufsliste, Scan.
+
+## 0.25.0
+
+- 0.25.0 (03.10.2026, Ledger Z3): Verkaufen zeigt „Unter deinen Kosten (X je Stück, Ledger)“ (orange), wenn der Erlös je Stück nach 5 % Anteil unter den Kosten des nächsten Stücks aus Ledger liegt (`ledger:Cost`).
+
+## 0.24.0
+
+- 0.24.0 (03.10.2026, Feedback-Liste und offene Punkte, mit KarloDerBaer abgestimmt), neue Dateien Start.lua und Craft.lua (**WoW komplett neu starten**):
+  - **Reiter „Start“ – Was steht an?** (ganz links, am Auktionshaus öffnet das Fenster damit): je Zeile Meine Auktionen (unterboten / laufen / verkauft), Post (Gold in der Post aus Ledger `mod:MailInfo`, verkaufte Auktionen), Verkaufen (lohnende Gegenstände in den Taschen mit Wert, Händlerwert der übrigen), Radar (Schnäppchen in den letzten Daten, Händler/AH, bester Gewinn; höchstens alle 30 Sek. neu gerechnet), Einkaufsliste (Gegenstände unter dem Höchstpreis), Scan (letzter, nächster möglich; Klick startet den Scan, wenn möglich). Klick auf eine Zeile öffnet den Reiter. Beim Öffnen werden die eigenen Auktionen abgefragt.
+  - **Berufe** (Craft.lua): beim Öffnen eines Berufs werden die erlernten Rezepte gelesen (`GetAllRecipeIDs`, `GetRecipeInfo`, `GetRecipeSchematic`, nur Pflicht-Material) und je Charakter gemerkt. Box rechts am Berufsfenster (`ProfessionsFrame` oder `TradeSkillFrame`): gewähltes Rezept mit Material einzeln, Materialkosten (günstigstes Angebot), Wert (Zeile 1 des Tooltips), Gewinn, „Lohnt sich / Lohnt sich nicht“, darunter die 5 besten Rezepte. Tooltip mit Umschalt: „Herstellen: Material X · Gewinn Y“. Im Spiel prüfen: welches Berufsfenster Forever nutzt und ob das gewählte Rezept erkannt wird (sonst zeigt die Box nur die besten Rezepte).
+  - **Meine Auktionen** (Feedback #4): beim Öffnen des Reiters neu laden und danach automatisch live prüfen.
+  - **Radar „weg“, obwohl noch da** (Feedback #5, hoch): Im Radar-Protokoll waren es fast nur Gegenstände mit Zusatz („… des Wolfs“, „… der Heilung“) – die Suche mit dem Schlüssel aus `MakeItemKey(itemID)` lieferte vollständig 0 Angebote. Forever-Links haben den Zusatz nicht im Link-Feld 7, deshalb liegen alle Varianten unter der itemID. Jetzt: bleibt die Suche nach der zweiten Prüfung leer, sucht Broker den Gegenstand über die Browse-Suche (Grundname, wie das Suchfeld des Auktionshauses), nimmt den Schlüssel des Spiels mit dem günstigsten Angebot, merkt ihn (`itemKeys`) und prüft gleich nochmal; erst wenn auch das nichts findet, „weg“. Gilt auch für Einkaufsliste und Anzeige im Blizzard-Fenster. Protokoll `keyLog` (Standard-Schlüssel und gefundene Schlüssel) – zeigt beim nächsten Test, wie Forever Zusätze im Schlüssel ablegt.
+  - **Schnellkauf mit einem Klick** (Feedback #6): Für das beste Händler-Schnäppchen (Massenware) holt Broker den Preis schon vorher (`StartCommoditiesPurchase`, alle 15 Sek. erneuert); der Knopf heißt dann „Händler: jetzt kaufen“ und bestätigt sofort (alles, was das Gold hergibt). Preis zu hoch: verworfen, Treffer wird neu geprüft. Antwortet das Spiel zweimal nicht, bleibt es für die Sitzung bei zwei Klicks. Einzelgegenstände: weiter ein Klick je Auktion (verlangt das Spiel).
+  - **Graue Zeilen („weg“)** (Feedback #7): Klick zeigt den Gegenstand trotzdem im Blizzard-Fenster; Radar pausiert solange, die Zeile bleibt, solange sie gewählt ist.
+  - **Händler-Knopf „Schnäppchen verkaufen“ entfernt** (Feedback #8): Merchant.lua gelöscht, `vendorFlip` wird gelöscht.
+  - **Einkaufsliste**: neue Spalte „Vorrat“ (grau, wenn die Wunschmenge erreicht ist) und derselbe Umschalter „Vorrat aller Charaktere (Ledger)“ wie im Reiter Behalten.
+  - **Verkaufen**: Hinweis mit der eigenen Verkaufsquote aus Ledger („Deine Verkäufe (30 T.): 3 von 4 verkauft (75 %)“, orange unter 50 %).
+  - Bereiche für Peon_Feedback: Start, Verkaufen, Behalten, Meine Auktionen, Einkaufsliste, Radar, Preise, Berufe, Scan, Tooltip, Fenster, Optionen („Händler“ entfällt).
+  - Erledigt und aus den offenen Punkten genommen (KarloDerBaer): „Abverkauf“ (= Absatz je Stunde seit 0.23) und „Vorschlag bei stark schwankenden Preisen“ (= Richtwert/üblicher Bereich seit 0.21).
+
+## 0.23.1
+
+- 0.23.1 (03.10.2026, mit KarloDerBaer abgestimmt):
+  - **Aktueller Absatz je Stunde** aus den Vergleichen der letzten 6 Std. (einstellbar 1–24; einzelne Vergleiche in `e.ar`, 24 Std.). 14-Tage-Wert nur noch intern (Preise-Einzelheiten, `/broker absatz`, später Verbindung mit der Verkaufsquote).
+  - **Sicherheit nach beobachteter Zeit** statt Zahl der Vergleiche, **Zeichen „≈“ immer da**: rot unter 60 Min., gelb ab 60, grün ab 180 Min. (einstellbar). Zahl weiß.
+  - **Live-Vergleiche schon ab 1 Min. Abstand** (Neuladen beim Verkaufen, Radar liefern schnell Daten).
+  - **Tooltip ohne Reichweite**: „Absatz (6 Std.): ≈ 30/Std. · 70 % verkauft“. Verkaufen mit Reichweite in Std./Tagen („reicht 15 Std.“ = bei diesem Absatz ist alles im Auktionshaus nach 15 Std. verkauft). Hinweise „Verkauft sich schnell“ (reicht unter 24 Std.) / „Markt ist voll“ (über 7 Tage) / „Läuft oft ab“ erst ab gelbem ≈. Preise: Spalte „Absatz/Std.“.
+  - **Restzeit-Stufen 1–4** (Bedeutung aus `Enum.AuctionHouseTimeLeftBand`, wenn das Spiel sie mit 1–4 liefert, sonst fest 1–4).
+  - Absatz-Daten aus 0.23.0 werden einmal verworfen (`salesVer` = 2), Preise bleiben.
+
+## 0.23.0
+
+- 0.23.0 (03.10.2026, **Absatzquote A1**, Konzept `Peon_Broker_Absatz.md`, mit KarloDerBaer abgestimmt), neue Datei Sales.lua:
+  - **Vergleich zweier Beobachtungen** je Gegenstand (mind. 10 Min., höchstens 24 Std. Abstand): Live-Abfragen mit Auktionsnummer und Restzeit (`e.as`, 30 günstigste Angebote), Komplettscan ohne Nummer mit Restzeit-Stufe aus `GetReplicateItemTimeLeft` (`e.ss`, 15 günstigste). Gleicher Zeitraum wird nur einmal gezählt (`e.acov`; Live vor Scan).
+  - **Regeln:** Menge kleiner = verkauft; weg und Ende vorbei = abgelaufen; weg vor dem Ende: Massenware – stand ein günstigeres Angebot in beiden Beobachtungen (auch teilweise gekauft) oder wurde dieselbe Menge billiger neu eingestellt = abgebrochen, sonst verkauft; Einzelgegenstand = verkauft abzüglich Schätzwert Abbrüche (Standard 10 %). Ende unklar = nicht gezählt. Nur bis zum höchsten in beiden sicher gesehenen Preis. Scan ohne Restzeit: nur bis 2 Std. Abstand.
+  - **Werte (14 Tage, `e.ab` Tageswerte):** Absatz je Tag = verkauft ÷ beobachtete Zeit; Absatzquote = verkauft ÷ (verkauft + abgelaufen); Reichweite = Menge im Auktionshaus ÷ Absatz je Tag.
+  - **Anzeige ab dem ersten Vergleich:** Sicherheit als Zeichen „≈“ (grau bis 4 Vergleiche, gelb ab 5, ohne Zeichen ab 15); Farbe der Zahl nach Reichweite (grün unter 1 Tag, rot über 7 Tage, sonst weiß). Tooltip mit Umschalt „Absatz (14 T.): ≈ 120/Tag · reicht 2 T. · 70 % verkauft“; Verkaufen: Zeile „Absatz“, Hinweise „Verkauft sich schnell“ / „Markt ist voll“ / „Läuft oft unverkauft ab – lieber Händler?“ (Quote unter 50 %, ab gelb); Preise: Spalte „Absatz/Tag“ und Zeile in den Einzelheiten.
+  - **Optionen „Absatz (Markt)“:** Schwellen gelb/sicher, Anteil Abbrüche bei Einzelgegenständen, Reichweite grün/rot.
+  - Chat: `/broker absatz <Name, Nummer oder Link>` – Zähler (verkauft, abgelaufen, abgebrochen, beobachtete Stunden, Vergleiche).
+- Test 0.23.0 (KarloDerBaer, 03.10.2026): Tooltip zeigte „≈ 0,0/Tag · reicht > 99 T.“ rot und „Markt ist voll“, obwohl die Mengen bei Erdwurzel sichtbar sanken. Ursache: nur ein Vergleich (zwei Scans 15 Min. auseinander, dabei nichts verändert), Live-Vergleiche erst ab 10 Min. Abstand; der 14-Tage-Wert ist für „jetzt verkaufen“ nutzlos. Außerdem: **Restzeit-Stufen im Komplettscan sind in Forever 1–4** (gesehen: 1: 3.926, 2: 13.714, 3: 58.287, 4: 16.690 Angebote), nicht 0–3 wie in Retail.
+
+## 0.22.1
+
+- 0.22.1 (03.10.2026): `/broker pruefen scan` liest zusätzlich die Restzeit je Angebot (Beispiele „|| Restzeit …“) und zählt die Stufen über alle Angebote (`probe.scan.timeLeftBands`) – zeigt, ob Forever echte Werte liefert.
+
+## 0.22.0
+
+- 0.22.0 (03.10.2026, **Ledger L6 – Zusammenspiel**, abgestimmt mit KarloDerBaer):
+  - **Reiter „Buch“ entfällt** (Buch in Peon_Ledger); sechs Reiter. Bereich „Buch“ für Peon_Feedback entfernt.
+  - **Behalten:** neuer Umschalter unten links „Vorrat aller Charaktere (Ledger)“ (`keepAllChars`, Standard aus, nur sichtbar mit Ledger). An: Vorrat = Taschen + Bank dieses Charakters + Taschen, Bank und Post der Twinks + Accountbank (Ledger `mod:StockOthers`). Gilt auch für „zu verkaufen“ (Reiter Verkaufen, Tooltip „Behalten“). Neue Spalte „Twinks“.
+  - **Tooltip (mit Umschalt):** Zeile „Deine Verkäufe (30 T.): 3 von 4 verkauft (75 %)“ aus Ledger (`mod:SellRate`), nur wenn es eigene Auktionen gab; Prozent ab 3 Stück.
+  - **Schnittstelle für Ledger:** `mod:ItemValue(itemID, Stück)` = Wert wie Zeile 1 des Tooltips (günstigstes Angebot bzw. Händlerpreis).
+  - **Prüfung für die Absatzquote** (nur lesend, läuft automatisch mit): Beim Lesen von Suchergebnissen (Verkaufen, Radar, Einkaufsliste) werden je Art (Massenware/Einzelgegenstand) die vorhandenen Felder gezählt (bis 500 Ergebnisse) und 5 Beispiele gespeichert: `PeonBrokerDB.fieldProbe`. Auswertung im Chat: `/broker pruefen auktionen` (wichtig: auctionID, timeLeftSeconds/timeLeft, owners).
+  - **Komplettscan** (`/broker pruefen scan`, Ergebnis in `PeonBrokerDB.probe.scan`): `GetReplicateItemInfo` liefert wie in Retail 18 Werte je Angebot – **keine Auktionsnummer, Verkäufer leer (nil)**. Bestätigt mit warcraft.wiki.gg (03.10.2026): Besitzer ist seit Patch 9.0.2 immer nil außer bei eigenen Auktionen. **Restzeit gibt es aber über eine eigene Funktion** `C_AuctionHouse.GetReplicateItemTimeLeft(index)` (in Forever vorhanden) als Stufe 0–3 (`Enum.AuctionHouseTimeLeftBand`: bis 30 Min., 2 Std., 12 Std., 2 Tage). Laut Wiki haben auch die Einzelabfragen `auctionID` und `owners`; Massenware `timeLeftSeconds` (kann fehlen), Einzelgegenstände `timeLeft` (Stufe) und `timeLeftSeconds`.
+
+## 0.21.3
+
+- 0.21.3 (02.10.2026): Meine Auktionen erkennt die Qualität (Namensfarbe) auch aus Links im Forever-Format `|cnIQ3:` (gefunden mit der Ledger-Prüfung).
+
+## 0.21.2
+
+- 0.21.2 (02.10.2026, Feedback Nr. 3 von KarloDerBaer, Fehler/Verkaufen/hoch): Beim Einstellen kam manchmal „Der Gegenstand ist nicht mehr in den Taschen“, obwohl er da war. Ursache: Die Taschenliste überspringt gesperrte Plätze, und ein Platz ist gesperrt, solange der Gegenstand im Verkaufsfenster des Auktionshauses liegt (oder gerade eingestellt wird) – lag nur ein Stapel in den Taschen, fand Broker keinen. Jetzt eigene Suche beim Einstellen: freie Plätze zuerst, sonst auch gesperrte; über das Blizzard-Fenster wird ohnehin der Gegenstand eingestellt, der dort liegt. Test gegen das alte Verhalten geprüft.
+- Test 0.21.x (KarloDerBaer, 02.10.2026): „bis jetzt schaut alles gut aus“.
+- Post einsammeln und Buch kommen ins **neue Modul Peon_Ledger** (Konzept `Peon_Ledger_Konzept.md`, abgestimmt 02.10.2026); Broker nutzt es später nur lesend (Vorrat aller Charaktere, Verkaufsquote).
+
+## 0.21.1
+
+- 0.21.1 (02.10.2026):
+  - Nach jedem Umschalten lädt Broker Blizzards Liste einmal neu wie der Knopf „Neu laden“ (Liste leeren mit `ItemList:Reset()`, dann `Refresh…SearchResults`), sobald das Spiel bereit ist und keine eigene Abfrage läuft. Danach Prüfung, ob die Ergebnisse zum Gegenstand gehören; sonst bis zu 3 Versuche (neu laden, eigene Suche, nochmal zeigen). Protokoll in `PeonBrokerDB.showLog` (40 Zeilen).
+  - Umschalten wartet, bis keine eigene Broker-Abfrage mehr unterwegs ist (sonst überholen sich die Suchen).
+  - Ergebnisse eines anderen Gegenstands (Link/Schlüssel passt nicht) werden nicht mehr gelesen (`rows.foreign`) und zählen wie „lädt noch“.
+  - Radar: gewählter Treffer wird nicht mehr alle 5 Sek. neu abgefragt (Blizzard-Fenster lud dadurch ständig neu); geprüft wird beim Anklicken, nach einem Kauf und vor dem Kauf.
+
+## 0.21.0
+
+- 0.21.0 (02.10.2026): **Richtwert und üblicher Bereich** (Rechenmodell Kapitel 7, F35–F41, mit KarloDerBaer abgestimmt): aus den Tagesmedianen der letzten 14 Tage robuste Mitte und Schwankung (mind. 5 %), gleitender Mittelwert (Halbwertszeit 3 Tage, Ausreißer gekappt); Richtwert = mittlerer Wert aus jetzt, heute und gleitendem Mittel; zwei Messungen außerhalb des Bereichs = „Preis fällt/steigt“, dann folgt der Richtwert dem Markt. Ab 3 Tageswerten, sonst bisheriges Verfahren (`D.Band`, `D.Suggest(min, median, key, db, e, vor)`).
+  - Vorschlag: Dumping nur noch unter dem üblichen Bereich und wenn der Markt nicht fällt; dann Untergrenze minus Unterbieten.
+  - **Zeile 1 im Tooltip** und Wert im Reiter Verkaufen: günstigstes Angebot minus Unterbieten (statt Vorschlag), Farbe grün (gut), orange (Markt fällt), rot (Dumping); Händler weiter, wenn er mehr zahlt. Mit Umschalt neue Zeile „Üblich (n Tage) X – Y“ (+ fällt/steigt), Hinweise „Preis fällt“ / „Dumping … unter dem üblichen Bereich“.
+  - Verkaufen: Hinweise „Üblich: X – Y (n Tage)“, „Preis fällt/steigt“, „Über dem üblichen Bereich – guter Zeitpunkt“. Preise-Reiter: Bereich und Richtwert.
+  - Radar: Markt-Schnäppchen gegen den Richtwert; fällt der Markt, keine Markt-Schnäppchen. Vorauswahl beim Öffnen weiter gefasst (unter Händlerpreis oder unter Median).
+
+## 0.20.2
+
+- 0.20.2 (02.10.2026): Vermutung: Das Spiel schickt eine Suche nicht ab, wenn es für den Gegenstand schon (alte) Ergebnisse hat, oder nimmt gerade keine Abfrage an. Jetzt: Broker schaltet das Blizzard-Fenster erst um, wenn das Spiel bereit ist; kommt danach 0,8 Sek. kein Ergebnis für den Gegenstand, lädt Broker die Liste wie Blizzards Knopf neu (`RefreshItemSearchResults` / `RefreshCommoditySearchResults`, im Spiel vorhanden laut Prüfbefehl). Der gewählte Radar-Treffer wird ebenfalls so neu geladen. Meine Auktionen: leeres Ergebnis zählt nicht als „günstigster“ (dann gilt der Scan), Ergebnisse auch unter dem Schlüssel der Auktion gesucht; Protokoll der letzten 30 Ergebnisse in `PeonBrokerDB.aucLog`.
+- Test 0.20.2 (KarloDerBaer, 02.10.2026): Umschalten bei Meine Auktionen weiter unzuverlässig (Titel richtig, Liste vom vorherigen Gegenstand), im Radar langsam und lädt immer wieder neu. `aucLog` zeigte: die Ergebnisse für den angeklickten Gegenstand kamen jeweils an – Blizzards Liste wurde trotzdem nicht aufgefrischt.
+
+## 0.20.1
+
+- 0.20.1 (02.10.2026): Vermutete Ursache: Bei Einzelgegenständen meldet das Spiel das Such-Ergebnis zuerst leer und noch unvollständig (lädt noch); Broker las „0 Angebote“ als „weg“. Jetzt: leeres und unvollständiges Ergebnis = weiter warten (auch auf `ITEM_SEARCH_RESULTS_ADDED` / `COMMODITY_SEARCH_RESULTS_ADDED`), in Radar, Verkaufen, Einkaufsliste und Meine Auktionen; kommt in die Datenbank nicht als „weg“. Zusätzlich glaubt der Radar „keine Angebote mehr“ erst nach einer zweiten Prüfung 3 Sek. später (`R.CONFIRM_AFTER`). Radar-Protokoll mit Anzahl Stufen und Schlüssel des Ereignisses; Zähler `radarStats.loading` und `emptyOnce`.
+- Test (KarloDerBaer, 02.10.2026): Meine Auktionen – Klick auf „Bauplan: Arkaner Wiederverwerter“ schaltete Blizzard auf den richtigen Gegenstand, die Liste darunter zeigte aber noch die Angebote von „Pläne: Jadeschlangenklinge“; erst Blizzards „Neu laden“ half. Spalte „Günstigster“ zeigte „–“ und Status „günstigster“, obwohl es billigere Angebote gab.
+
+## 0.20.0
+
+- 0.20.0 (02.10.2026, Fehler und Wünsche von KarloDerBaer):
+  - **Teil-Ergebnisse** (wichtigster Fehler): Das Auktionshaus liefert große Ergebnislisten in Teilen (`HasFullCommoditySearchResults` / `HasFullItemSearchResults`, wie Blizzards eigene Liste). Broker las bis 0.19 nur den ersten Teil und schrieb daraus Median und Menge in die Datenbank – der Median fiel, Markt-Schnäppchen verschwanden nach der nächsten Prüfung, und der Vorschlag beim Verkaufen wurde falsch. Jetzt: `rows.partial`; bei Teil-Ergebnissen werden nur Minimum und günstigste Stufen übernommen, Median und Menge bleiben; der Vorschlag nimmt dann den Median aus der Datenbank. Zähler `radarStats.partial`.
+  - **Radar – weggefallene Treffer**: verschwinden nicht mehr stillschweigend, sondern bleiben 30 Sek. grau in der Liste mit „weg“ und Grund (keine Angebote mehr; günstige Angebote weg – günstigstes jetzt X; Wiederverkauf lohnt nicht mehr; unter Mindestgewinn / mit deinem Gold nicht; Preis beim Kauf gestiegen; gekauft; neue Daten). Grund im Tooltip und unter der Liste; Rechtsklick nimmt die graue Zeile weg. Protokoll der letzten 200 in `PeonBrokerDB.radarLog` (Zeit, Gegenstand, Grund, vorher/jetzt).
+  - Radar: Ergebnisse, die das Spiel schon hatte (ohne Antwort auf die Abfrage), entfernen keinen Treffer mehr und kommen nicht in die Datenbank (können alt sein). Live geprüfte Treffer bleiben beim Neuladen des Reiters so lange wie `radarMaxAge` (vorher 5 Min.).
+  - **Radar pausiert, solange ein Treffer gewählt ist** (jede fremde Abfrage verändert sonst die Anzeige im Blizzard-Fenster); gewählte Zeile nochmal anklicken = Auswahl aufheben, Radar läuft weiter. Statuszeile sagt es.
+  - **Blizzard-Fenster**: `SelectBrowseResult` tut nichts, solange das Spiel die Daten zum Gegenstand nicht hat (`GetItemKeyInfo` = nil) – das Fenster zeigte dann weiter den alten Gegenstand. Broker wartet jetzt darauf (`ITEM_KEY_ITEM_INFO_RECEIVED`, sonst alle 0,3 Sek., bis 10×) und prüft, ob umgeschaltet wurde. Reiterwechsel schaltet Blizzard passend um (`W.SetAHMode`, neue Seiten-Funktion `enter`): Meine Auktionen → „Auktionen“, Radar/Einkaufsliste ohne Auswahl → „Kaufen“, Verkaufen → gewählter Gegenstand wieder ins Verkaufsfenster.
+  - **Meine Auktionen**: Klick auf eine Auktion zeigt die aktuellen Angebote des Gegenstands im Blizzard-Fenster; deren Ergebnis aktualisiert gleich „Günstigster“ und Status.
+  - **Verkaufen**: eingetragen wird immer das günstigste Angebot minus Unterbieten (auch bei Dumping), Untergrenze Mindestpreis (Händler). Der Vorschlag bleibt Richtwert: Hinweis „Unter dem Vorschlag X (n % weniger)“, rot bei starkem Abstand, mit Dumping-Grund. Rückfrage nur noch, wenn im Blizzard-Fenster von Hand noch tiefer eingetragen wird. Beschriftung „Preis je Stück“. Wird auf den Mindestpreis angehoben: Hinweis „Lieber beim Händler verkaufen“ und Erlös orange (Rechenmodell F23a).
+- Test 0.20.0 (KarloDerBaer, 02.10.2026): Änderungen gefallen. Aber: Ausrüstung/Einzelgegenstände (z. B. 15-pfündiger Matschschnapper, mehrere „des Champions“/„der Ausdauer“) standen im Radar als „weg – keine Angebote mehr“, obwohl das Angebot im Blizzard-Fenster noch da war.
+
+## 0.19.1
+
+- 0.19.1 (02.10.2026): meldet Bereiche für Peon_Feedback (Verkaufen, Behalten, Meine Auktionen, Einkaufsliste, Radar, Preise, Buch, Scan, Tooltip, Händler, Fenster, Optionen); eine Zeile am Ende von Broker.lua, sonst unverändert.
+- Vergleich mit Auctionator, TSM, Journalator, Auctioneer, aux (02.10.2026, im Chat): Broker hat die meisten Werkzeuge, es fehlt ein roter Faden. KarloDerBaer hat daraus die Punkte unter „Offene Punkte“ beschlossen; Tastenbelegungen, Preisgrenzen je Gegenstand und ein Verkaufs-Durchlauf werden vorerst nicht gebraucht.
+
+## 0.19.0
+
+- 0.19.0 (01.10.2026, Wünsche von KarloDerBaer, Fragen abgestimmt):
+  - **Eine Spalte „Gewinn“**: höchster Gewinn mit meinem Gold (Gold minus Goldreserve; Kandidaten 1 Stück, jedes Stufenende, was das Gold hergibt). Sortierung, Mindestgewinn und Schnellkauf richten sich danach. Spalte „Menge“ zeigt „mit meinem Gold / ganzes Schnäppchen“ (z. B. 51/60). Spalten Gewinn je Stück / je Stapel entfallen. Tooltip der Zeile: „Mit meinem Gold: …“ und „Ganzes Schnäppchen: …“.
+  - **Mindestgewinn** für Händler (H) und AH direkt im Reiter (Geldbeträge wie „50s“, „1g 20s“, „10c“; Zahl ohne Einheit = Silber) und in den Optionen; Händler jetzt bis 1000g. Neue **Goldreserve** (Optionen): gibt der Radar nie aus.
+  - **Schnellkauf „Händler: Bestes kaufen“** (unten links): bestes Händler-Schnäppchen, alles was ich mir leisten kann. Massenware: Preis vom Spiel, dann Bestätigen; Einzelgegenstände: ein Klick je Auktion.
+  - **Mehrere Einzelgegenstände kaufen**: Knöpfe auch bei Nicht-Massenware (1 Stück / ab Gewinn n Stück / Alle), ein Klick je Auktion, Knopf zählt mit („Weiter (2 übrig)“). Mittlerer Knopf = Menge ab Gewinn, wenn erst ab n Stück Gewinn; sonst bei Massenware bis ein Stapel.
+  - **Gewählter Treffer** wird gleich im Auktionshaus gezeigt (Broker wartet, bis keine eigene Abfrage unterwegs ist, und nimmt die Antwort auf die Anzeige des Auktionshauses als Prüfung) und danach alle 5 Sek. neu abgefragt (aktualisiert auch das Blizzard-Fenster), auch ohne Radar-Scan, bis Auswahl/Reiter wechselt.
+  - **Neue Treffer**: ganze Zeile pulsiert grün (Optionen: 0–30 Sek., Standard 5), grüner Punkt als eigenes Bild (das Zeichen ● fehlte in der Spielschrift → Viereck), Warnton wählbar (Schlachtzugswarnung, Bereitschaftscheck, Wecker, Flüstern; Kanal „Master“) mit Hörprobe. Vorher `SOUNDKIT.MAP_PING`.
+  - **Händler-Schnäppchen** farbig: Zeile dezent gold, „H“ und Gewinn gold.
+  - **Ausblenden**: keine Chatmeldung mehr; Knopf „Alle ausblenden“ (alle sichtbaren), in der Ausgeblendet-Liste „Alle wieder zeigen“.
+  - **Broker-Scan beendet den Radar-Scan**; während des Scans keine Radar-Abfragen und kein Start („Broker-Scan läuft – Radar pausiert“).
+  - **Händlerware am Händler verkaufen** (Merchant.lua): was der Radar als Händler-Schnäppchen kauft, wird je Charakter gemerkt; am Händler Knopf „Broker: Schnäppchen verkaufen (n · Wert)“ über dem Händlerfenster, verkauft ganze Stapel, nie mehr als gemerkt.
+  - Tooltip: Händlerpreis in den Details **immer und je Stück** („Händler 5c je Stück“).
+  - Unten drei Reihen: Schnellkauf | Mindestgewinn H/AH; Stand | Anzeige | Reihenfolge | Scan; gerade geprüft | Alle ausblenden | Ausgeblendet (n) | Nur Warnton.
+- Nächster Schritt: KarloDerBaer testet 0.19.0 (**WoW komplett neu starten** – neue Dateien Merchant.lua und dot_new.tga, Kern 0.8.0). Danach Bauabschnitt „Buch“.
+
+## 0.18.0
+
+- 0.18.0 (30.09.2026, Wünsche von KarloDerBaer, Ausblenden abgestimmt):
+  - **Kaufzeile direkt unter der Liste** für den gewählten Treffer: Name, Menge des Schnäppchens, Hinweis „Gewinn erst ab n Stück“ bzw. „Bei keiner Menge Gewinn“; Knöpfe „1 Stück“, „n Stück“ (bis ein Stapel, nur wenn weniger als alle) und „Alle (n)“ mit Kosten und Gewinn (grün/rot) darunter; grau mit „Nicht genug Gold“, wenn es nicht reicht. Einzelgegenstände nur „1 Stück“. Gewinn für jede Menge nach F33b (Rechenmodell).
+  - Schnellkauf-Knöpfe unten entfernt. Scan-Einstellungen ganz unten: Stand | Anzeige | Reihenfolge | Scan; darunter gerade geprüfter Gegenstand | „Ausgeblendet (n)“ | Nur Warnton. Liste 14 Zeilen.
+  - **Rechtsklick blendet aus** (alle Charaktere, je Markt, `PeonBrokerDB.radarHidden`): bleibt weg, solange Prüfungen (live oder voller Scan) es als Schnäppchen sehen; ist es einmal keins, wird es wieder frei und erscheint, wenn es wieder eins wird. Wird weiter abgefragt; kein Ton. Knopf „Ausgeblendet (n)“ öffnet eine Liste, Klick zeigt wieder.
+
+## 0.17.0
+
+- 0.17.0 (30.09.2026, mit KarloDerBaer abgestimmt):
+  - **Markt-Schnäppchen neu (F33):** Wiederverkauf gegen das nächste Angebot nach dem Kauf (höchstens Median), Mindestmarge je Stück (`dealMargin`, 20 %), höchstens 20 % aller Angebote (`dealDepth`); beste Kaufmenge wird gesucht. 12 statt 5 Preisstufen gespeichert.
+  - Spalten: Gewinn je Stück, Gewinn je Stapel (nur Massenware, Stapelgröße des Spiels, höchstens Schnäppchen-Menge), „Wiederverk.“ statt „Vergleich“, „Art“ als H/AH, Spalte „Daten“ in den Tooltip (dort auch Wiederverkauf/Händlerpreis und ganzes Schnäppchen). Sortierung und „bestes“ nach Gewinn je Stück.
+  - Kaufen je Stück oder Stapel: unten vier Knöpfe (Händler 1×, Händler Stapel, AH 1×, AH Stapel) mit dem Preis genau dieses Kaufs; für die gewählte Zeile ebenso zwei Knöpfe. Nach einem Teilkauf bleibt der Treffer und wird neu geprüft.
+  - Auswahl „Händler + AH / Nur Händler / Nur AH“ (`radarKind`) für Anzeige und Scan.
+  - Gold: Schnäppchen, von denen ich mir kein Stück leisten kann, werden nicht angezeigt (Einstellung „auch Schnäppchen zeigen, die ich mir nicht leisten kann“ zeigt sie grau, nicht kaufbar); Stapel nur so groß, wie das Gold reicht.
+  - Datenlade-Prüfung auch bei Schnellprüfung und Nachprüfen der Treffer.
+
+## 0.16.0
+
+- 0.16.0 (30.09.2026, Wünsche von KarloDerBaer):
+  - Text „Wähle ein Schnäppchen“ und die Zähler-Zeile entfernt (Zähler weiter in `radarStats`).
+  - Zweite Statuszeile: welcher Gegenstand gerade abgefragt wird („Prüfe: [Symbol] Name“).
+  - Auswahl der Reihenfolge im Reiter (Dropdown, `radarOrder`): smart (bisher, beste 400 nach Wert × Menge), zufällig, Massenware zuerst, höchster Preis zuerst, niedrigster Preis zuerst (Preis = Median); Einkaufslisten und Nachprüfen der Treffer immer zuerst. Nach jeder Runde wird die Liste mit frischen Daten neu gebaut.
+  - „Nur Warnton“ (Haken im Reiter, Standard an, `radarMute`): während des Radar-Scans Effekte, Musik, Umgebung, Dialog auf 0, „Gesamt“ bleibt (dort spielt der Warnton), Ton auch im Hintergrund und Ton allgemein an. Zurück beim Stoppen, Verlassen des Reiters, Schließen des Auktionshauses, Ausloggen/Reload; alte Werte solange in `PeonBrokerDB.radarMuteSaved` (beim nächsten Start zurückgesetzt, falls das Spiel abstürzt).
+  - Vermutung zu den Abfragen ohne Antwort: Gegenstandsdaten nicht geladen. Radar prüft jetzt vorher `C_Item.IsItemDataCachedByID`, fordert fehlende Daten an und fragt den Gegenstand später ab; `timeoutLog` vermerkt „ungeladen“.
+- Ergebnis 0.16.0 (30.09.2026): ~560 Abfragen, 549 Antworten, 11 ohne Antwort – **alle bei ungeladenen Gegenstandsdaten** (Vermutung bestätigt); sie kamen über Schnellprüfung/Nachprüfen, wo die Prüfung noch fehlte. ~83/Min.
+- Befund KarloDerBaer: viele Markt-Treffer sind keine Schnäppchen (z. B. Abgefangene Kiste: 103 Stück zwischen 50s und 70s, Median durch 120 Stück zu 1g 26s hochgetrieben; Deviatschuppe 1172 Stück).
+
+## 0.15.0
+
+- 0.15.0 (30.09.2026): **Live-Ergebnisse im aktuellen Stand** (Rechenmodell Kapitel 6, mit KarloDerBaer abgestimmt): jede Live-Abfrage (Radar, Einkaufsliste, Verkaufen, Meine Auktionen) schreibt Min, Median, Menge, Preisstufen bzw. „weg“ in die Datenbank (`e.lt` = Zeit); Verlauf, Scan-Zahl und Trend bleiben reine Scan-Werte. Nächster Scan markiert auch nur live gesehene Gegenstände als weg, wenn sie fehlen. Tooltip/Preise nutzen „zuletzt gesehen“ (Scan oder live).
+  - Radar beim Öffnen: alle Schnäppchen aus der Datenbank bis `radarMaxAge` (Standard 60 Min., 0 = unbegrenzt), jeder einmal live geprüft; weggefallene kommen nicht wieder. Spalte „Gesehen“ zeigt das Alter der Daten (z. B. „40 Min.“), nach der Prüfung Sekunden.
+  - Radar-Tempo: prüft alle 0,1 s, ob die nächste Abfrage raus darf (Abstand weiter mind. 0,65 s), statt fest alle 0,65 s – weniger Leerlauf nach „Spiel nicht bereit“. Gegenstände, die zweimal in Folge ohne Antwort bleiben, werden für die Sitzung ausgelassen. `AUCTION_HOUSE_NEW_RESULTS_RECEIVED` für den abgefragten Gegenstand zählt als Antwort; vorhandene Ergebnisse werden unter beiden Warenarten gesucht. Zweite Statuszeile: gesendet, Antworten, ohne Antwort, Warten aufs Spiel (Sek.), ausgelassen, Ø. Fehlersuche: `radarStats.timeoutLog` mit den Ereignissen während einer Abfrage ohne Antwort.
+- Ergebnis 0.15.0 (langer Lauf 22:01–22:12, 30.09.2026): ~940 Abfragen in ~11½ Min. (≈ 82/Min.), 871 vom Spiel gesendet = 871 Antworten (Ø 0,2 s), 71 ohne Antwort (7,5 %), Warten aufs Spiel nur 5 s. Bei allen Abfragen ohne Antwort kam **kein einziges** Ereignis (auch kein „gesendet“) – das Spiel schickt sie gar nicht ab. Es sind immer wieder dieselben Gegenstände.
+
+## 0.14.5
+
+- 0.14.5 (30.09.2026): Radar wartet nur noch 1 Sek. auf eine Antwort (statt 2). Ohne Antwort liest er die Ergebnisse, die das Spiel schon hat, und wertet sie aus (Zähler `cached`, in „Antworten“ enthalten); nur ohne vorhandene Ergebnisse zählt „ohne Antwort“. Vor einem Kauf (Einzelgegenstand) gilt weiter nur eine echte Antwort.
+- Ergebnis 0.14.5 (langer Lauf, 30.09.2026): 343 Abfragen, 266 Antworten (Ø 0,2 s), 77 ohne Antwort (22 %), vorhandene Ergebnisse gab es dafür keine (0). 275 Takte „Spiel nicht bereit“ (je 0,65 s ≈ 3 Min. verloren). Dieselben Gegenstände bleiben immer wieder ohne Antwort (z. B. Flitzdistel, Großer gleißender Splitter, Himmelblauer Farbstoff).
+
+## 0.14.4
+
+- 0.14.4 (30.09.2026): Abfrage-Test um zwei Schritte über die Radar-Funktion selbst ergänzt (gleicher Gegenstand, Gegenstand der Einkaufsliste). Radar zählt „vom Spiel gesendet“ (Ereignis `AUCTION_HOUSE_THROTTLED_MESSAGE_SENT`) und protokolliert die ersten 30 Abfragen in `radarStats.log` (Gegenstand, Zeit, Spiel bereit, Anzeige des Auktionshauses, gesendet, Antwort).
+- Ergebnis 0.14.4 (30.09.2026): Abfrage-Test alle sechs Wege ok (auch über die Radar-Funktion, auch Flitzdistel). Radar-Scan lief diesmal: 117 Abfragen, 98 vom Spiel gesendet, 98 Antworten (Ø 0,2 s), 19 ohne Antwort, 22× Spiel nicht bereit, nichts abgewiesen; etwa 60/Min. Warum der Lauf davor gar nichts abschickte, bleibt ungeklärt (beobachten). Im Protokoll: Abfragen ohne Antwort waren solche, nach denen das Spiel sofort wieder „bereit“ meldete – die Abfrage ging offenbar nicht wirklich raus; vermutlich hatte das Spiel für den Gegenstand schon Ergebnisse.
+
+## 0.14.3
+
+- 0.14.3 (30.09.2026): Abfrage-Test `/broker pruefen abfrage` – schickt nacheinander eine Abfrage 1. direkt aus dem Befehl, 2. aus dem Ergebnis-Ereignis, 3. aus `C_Timer`, 4. aus `OnUpdate` und meldet je Schritt „gesendet / Antwort“ (Chat und `PeonBrokerDB.queryTest`). Danach wird der Radar-Scan entsprechend umgebaut.
+- Ergebnis Abfrage-Test (30.09.2026, Kupfer-/Massenware 8067): alle vier Wege funktionieren (Befehl 0,2 s, Ereignis 0,6 s, Timer 0,2 s, OnUpdate 0,2 s). Timer sind also **nicht** die Ursache. Auffällig: die erste Radar-Abfrage (Flitzdistel aus der Einkaufsliste, 1216 Angebote) wurde auch nicht abgeschickt. Ursache weiter offen.
+
+## 0.14.2
+
+- 0.14.2 (30.09.2026): Fehlersuche Radar-Tempo. Zweite Statuszeile beim Radar-Scan: Antworten, ohne Antwort, Spiel nicht bereit, abgewiesen, Ø Antwortzeit. Zähler auch in `PeonBrokerDB.radarStats` (mit den letzten 20 Gegenständen ohne Antwort). Ereignisse `AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED/QUEUED` werden gezählt; die Ereignis-Liste (Probe) nimmt zusätzlich diese beiden und `UI_ERROR_MESSAGE` (rote Fehlermeldungen wie „zu schnell“) auf.
+- Befund 0.14.2 (KarloDerBaer, 30.09.2026): Radar-Scan „Antworten 0, ohne Antwort 11“. In der Ereignis-Liste kam während des Radar-Scans kein einziges `AUCTION_HOUSE_THROTTLED_MESSAGE_SENT` – die Abfragen werden gar nicht abgeschickt (kein Fehler, nicht abgewiesen). Unterschied zu „Liste durchsuchen“ (funktioniert): dort kommt die erste Abfrage direkt aus dem Klick, die weiteren aus dem Ergebnis-Ereignis; der Radar schickt alle aus `C_Timer`. Vermutung: Forever nimmt Suchabfragen aus Timern nicht an.
+
+## 0.14.1
+
+- 0.14.1 (30.09.2026): Knöpfe „alle kaufen“ heißen jetzt **„Händler: Bestes kaufen“ / „AH: Bestes kaufen“** und zeigen nur den Preis des nächsten Kaufs (Massenware: alle Stück bis zur Grenze, Einzelgegenstand: eine Auktion); ohne Treffer „nichts zu kaufen“ (Hinweis von KarloDerBaer: je Klick wird nur ein Angebot gekauft).
+- Abfragegrenze: laut Wowpedia und TSM-Blog 100 Suchen pro 60 Sek. (Retail seit 8.3); für Forever nicht bestätigt, Broker nutzt ~92/Min. und wartet zusätzlich auf die Freigabe des Spiels (`IsThrottledMessageSystemReady`). KarloDerBaer testet den Radar-Scan im Dauerlauf.
+- KarloDerBaer im Spiel (0.14.0): Radar-Scan läuft nur mit ca. 24 Abfragen/Min. statt ~92. Vermutung: viele Abfragen bekommen keine passende Antwort, Broker wartet dann jeweils 2 Sek. (2,65 Sek. je Abfrage ≈ 23/Min.). Ursache noch offen.
+
+## 0.14.0
+
+- 0.14.0 (30.09.2026): Reiter „Einkaufsliste“ (Buy.lua) und neuer Reiter **„Radar“** (Radar.lua), Fenster 680 breit, sieben Reiter unten.
+  - Einkaufsliste: wie bisher, ohne Umschalter.
+  - Radar: Schnäppchen (Händler und Markt, Spalte „Gesehen“). Beim Öffnen Treffer aus einem höchstens 5 Min. alten Scan, die sofort einmal live geprüft werden (auch ohne Radar-Scan, je Treffer höchstens 2 Versuche); weg = gleich entfernt.
+  - Knopf „Radar-Scan starten/stoppen“: laufend Einzelabfragen alle 0,65 Sek. (~92/Min.), nur solange der Reiter offen ist und das Auktionshaus offen; Reihenfolge ungeprüfte Treffer, jeder dritte Schritt der am längsten nicht geprüfte Treffer (spätestens alle 15 Sek.), Einkaufslisten, bis zu 400 Gegenstände mit den besten Chancen (Median × Menge, Händlerpreis oder gute Datenlage). Anzeige Abfragen je Minute.
+  - Neue Treffer: Ton (abschaltbar, Einstellung „Ton bei neuen Radar-Treffern“) und grün mit ● für 60 Sek.
+  - Knöpfe „Händler: alle kaufen“ und „AH: alle kaufen“ mit Anzahl und Gesamtkosten; je Klick ein Kauf, höchster Gewinn zuerst. Massenware: Kauf starten → Preis vom Spiel (teurer als die Grenze = Abbruch mit Meldung) → zweiter Klick „Bestätigen“. Einzelgegenstand: nur mit höchstens 10 Sek. alter Prüfung, sonst erst prüfen, dann `PlaceBid`. Zusätzlich Knopf „Kaufen“ für die gewählte Zeile.
+  - Einstellung `buyMode` entfällt.
+
+## 0.13.0
+
+- 0.13.0 (30.09.2026, **Bauabschnitt 7**): Reiter „Einkaufen“ (Buy.lua), abgestimmt in `Peon_Broker_Einkaufen.md`, Formeln Rechenmodell Kapitel 5 (F28–F34).
+  - Einkaufslisten je Charakter: Listen anlegen/umbenennen/löschen, Rabatt x % unter dem Median je Liste (Median = 7-Tage-Median, bei zu wenig Daten der aktuelle), Wunschmenge je Gegenstand (Kauf bis Wunschmenge minus Vorrat). Hinzufügen per Alt+Klick (im Reiter Einkaufen), Suchfeld (Namen aus den Scans) und Knopf „Zur Einkaufsliste“ im Reiter Preise. „Liste durchsuchen“ fragt nacheinander live ab.
+  - Schnäppchen: Händler (Angebot < Händlerpreis, ab 10c Gewinn) und Markt/Dump (Angebot < üblicher Preis × (1 − DG), üblicher Preis = kleinerer Wert aus 7-Tage- und aktuellem Median, Gewinn beim Wiederverkauf nach 5 %, ab 50s, nur bei mind. 10 Scans in 7 Tagen). Nur bis 5 Min. nach dem Scan (einstellbar). Spalte „Daten“ (Scans / Tage). Grundlage: günstigste 5 Preisstufen je Gegenstand aus dem letzten Scan (neu im Scan: `lv`), live nachgeprüft beim Anklicken.
+  - Kaufen: Anklicken öffnet den Gegenstand in Blizzards Kaufen-Ansicht (`SelectBrowseResult`); Knopf „Kaufen“ in Broker: Massenware über `StartCommoditiesPurchase` → Preis vom Spiel → Rückfrage (rot, wenn teurer als die Grenze) → `ConfirmCommoditiesPurchase`; Einzelgegenstand: Rückfrage → `PlaceBid` (günstigstes passendes Angebot). Käufe fürs Buch vermerkt.
+  - Neue Einstellungen: Mindestgewinn Händler/Markt, Markt-Datenlage (Scans, Tage), Schnäppchen nur bis X Min. nach dem Scan.
+- 0.13.0 von KarloDerBaer im Spiel bestätigt: Einkaufen funktioniert, drei Händler-Schnäppchen gekauft.
+
+## 0.12.1
+
+- 0.12.1 (30.09.2026): Broker-Knöpfe folgen Blizzards Knopf (gesperrt mit Hinweis „zu schnell – kurz warten“, frei sobald das Auktionshaus wieder annimmt; kein Warten auf eine Bestätigung, wenn nichts eingestellt wurde; Wartezeit 20 Sek.). Gesperrte Taschenplätze zählen nicht; der Rest desselben Gegenstands kommt erst nach dem Taschen-Update wieder ins Verkaufsfenster; verschwindet der Gegenstand, wird das Verkaufsfenster geleert.
+
+## 0.12.0
+
+- 0.12.0 (30.09.2026, **Bauabschnitt 6**): Reiter „Meine Auktionen“ (Auctions.lua), mit KarloDerBaer abgestimmt.
+  - Liste der eigenen Auktionen (`QueryOwnedAuctions`, `OWNED_AUCTIONS_UPDATED`): Gegenstand mit Symbol, Menge, Mein Preis, Günstigster (anderer Verkäufer), Status, Restzeit. Status: günstigster (grün), gleichauf (gelb, nur live erkennbar), unterboten (orange), verkauft (grau). Sortierung: unterbotene zuerst, dann Restzeit.
+  - Günstigster zuerst aus dem letzten Scan; „Live prüfen“ (nur auf Knopfdruck) fragt die Gegenstände nacheinander ab, eigene Angebote zählen nicht.
+  - Abbrechen mit Anzeige der Kosten (`GetCancelCost`), „Nächste unterbotene (n)“ bricht je Klick eine ab, „Neu einstellen“ springt zu „Verkaufen“ und wählt den Gegenstand (kommt nach dem Abbruch per Post zurück, sonst Hinweis). Abbrüche fürs Buch vermerkt.
+  - Ohne Auktionshaus: letzter Stand des Markts, Abbrechen gesperrt. Abgelaufene Auktionen (nur als Post) vorerst nicht angezeigt, kommen ins Buch.
+- Test 0.10–0.12 (KarloDerBaer, 30.09.2026): funktioniert bisher gut. Zwei Fehler gefunden:
+  - Nach zu schnellem Einstellen sperrt das Auktionshaus seinen Knopf („Ihr macht das zu schnell“); Brokers Knöpfe blieben danach grau, bis über das Auktionshaus selbst eingestellt wurde (Broker wartete auf eine Bestätigung, die nie kam).
+  - Lua-Fehler in Blizzards `ItemSellFrame:UpdateNoneAvailableEntry` (`GetCurrentItemLevel`, ungültiger Platz): Broker legte nach dem Einstellen denselben, gerade verschwindenden Gegenstand wieder ins Verkaufsfenster.
+
+## 0.11.0
+
+- 0.11.0 (30.09.2026): **Reiter „Behalten“** (Keep.lua), mit KarloDerBaer abgestimmt.
+  - Optionale Behalten-Menge je Gegenstand (leer = alle). Vorrat = Taschen + Bank (`C_Item.GetItemCount` mit Bank, geht auch bei geschlossener Bank; so macht es auch BagBrother). Zu verkaufen = Vorrat − Menge, höchstens die Menge in den Taschen.
+  - Reiter „Behalten“ (hinter „Verkaufen“): Gegenstand mit Symbol, Menge (alle/Zahl), Vorrat (hervorgehoben: größere, hellweiße Schrift – WoW hat keinen Fettdruck), Taschen, Bank, Wert des Vorrats, Seit. Zeile anklicken → unten „Behalten: [Zahl] [Alle] [Wieder verkaufen]“; Rechtsklick = wieder verkaufen. Auch Gegenstände, die gerade nicht da sind.
+  - Verkaufen: zeigt nur den Rest, trägt ihn im Auktionshaus als Menge ein; Hinweis „Du wolltest X behalten“, wenn dort mehr steht (Einstellen bleibt möglich). Rechtsklick/Knopf markiert weiter mit „alle“.
+  - Tooltip: Zeile „Behalten: alle“ bzw. „Behalten: 20 (1 zu verkaufen)“ in Hellblau direkt unter Zeile 1, auch ohne Umschalt (nur aktueller Charakter).
+  - Markierungen aus 0.10 werden zu „alle behalten“.
+
+## 0.10.0
+
+- 0.10.0 (30.09.2026, Wünsche von KarloDerBaer):
+  - Gewählter Gegenstand wird ins Verkaufsfenster des Auktionshauses gelegt (`AuctionHouseFrame:SetPostItem`, Rückfall `SetDisplayMode` + `SellFrame:SetItem`), Brokers Werte dort eingetragen: Preis (`PriceInput:SetAmount`), Menge (`QuantityInput:SetQuantity`, Standard alles), Dauer (`Duration:SetDuration`). Nach 0,3 und 1 Sek. nochmal, weil das Auktionshaus nach seiner Suche selbst einen Preis setzt.
+  - Eingestellt wird mit den Werten, die im Auktionshaus stehen (Broker klickt dessen Knopf „Auktion erstellen“); ohne Verkaufsfenster Rückfall auf Brokers eigene Werte mit Hinweis. Im Auktionshaus geänderte Dauer wird je Gegenstand gemerkt.
+  - Linke Spalte schmal: Symbol, Name, Anzahl, Live-Stand, Vorschlag je Stück mit Stichwort, Erlös (für Menge und Dauer aus dem Auktionshaus), Hinweise; Knöpfe übereinander: „Nicht verkaufen“, „Auktion erstellen“, „Erstellen & weiter“. Eingabefelder entfernt.
+  - Rechte Spalte breiter mit Spalte Trend (wie Zeile 1 im Tooltip). Rechtsklick auf eine Zeile = nicht verkaufen.
+  - „Nicht verkaufen“ je Charakter (`PeonBrokerCharDB.keep`): verschwindet aus der Liste und aus „Erstellen & weiter“; per Alt+Klick auswählbar und mit „Wieder verkaufen“ freizugeben. Reiter zum Verwalten folgt.
+
+## 0.9.3
+
+- 0.9.3 (30.09.2026): Live-Abfrage über die normale Suche `SendSearchQuery` mit dem Schlüssel des Gegenstands (wie beim Anklicken im Auktionshaus); Nachsehen unter mehreren Schlüsseln (Gegenstand, Stufe 0, Schlüssel aus „neue Ergebnisse“), Protokoll inkl. Browse-Ergebnissen.
+- 0.9.3 im Spiel bestätigt (30.09.2026): Live-Abfrage funktioniert für Massenware und Ausrüstung, Antwort nach etwa 0,3 Sek. über `COMMODITY_SEARCH_RESULTS_UPDATED` bzw. `ITEM_SEARCH_RESULTS_UPDATED`.
+
+## 0.9.2
+
+- 0.9.2 (30.09.2026): Live-Abfrage repariert. Debug-Log zeigte: Bei Massenware wurde die Abfrage gar nicht abgeschickt, bei Ausrüstung lagen die Ergebnisse unter einem anderen Schlüssel. Ursache: `SendSellSearchQuery` braucht einen Schlüssel mit Stufe/Zusatz/Haustierart = 0 (`MakeItemKey(itemID)`), Broker nahm den aus `GetItemKeyFromItem` (mit Gegenstandsstufe).
+- 0.9.2 hat nicht geholfen: `MakeItemKey(itemID)` füllt in Forever die Stufe selbst aus (Log: 273085/25/0). Massenware wurde weiter nicht abgeschickt; bei Ausrüstung kam „neue Ergebnisse“, aber keine lesbaren Einträge.
+
+## 0.9.1
+
+- 0.9.1: genaueres Debug-Protokoll der Live-Abfrage (itemKey, Bereitschaft, jedes Ereignis, jedes Nachsehen).
+
+## 0.9.0
+
+- 0.9.0 (30.09.2026): **Neues Layout** nach KarloDerBaers Wunsch, angelehnt an das Blizzard-Fenster „Auktionen einstellen“.
+  - Fenster im Stil des Auktionshauses (`ButtonFrameTemplate` mit Symbol und Titel, dunkle Innenfelder), Reiter unten wie im Auktionshaus; Rückfall auf den alten Rahmen, falls die Vorlagen fehlen.
+  - Verkaufen zweispaltig: links Einstellen (großes Symbol, Name, Anzahl und Live-Stand, Kaufpreis pro Stück, Stichwort zum Vorschlag mit ausführlichem Text beim Überfahren, Menge mit „Max“, Dauer, Einzahlen, Gesamtpreis, Erlös, Hinweise, Knöpfe „Auktion erstellen“ und „Erstellen & weiter“), rechts die Taschen mit kleinem Symbol vor dem Namen.
+  - Live-Angebote werden nur noch im Hintergrund für den Vorschlag abgefragt (Anzeige im Blizzard-Fenster); Knopf zum erneuten Abfragen neben dem Live-Stand.
+  - Händlerpreis keine eigene Zeile mehr, nur als Hinweis „Lieber beim Händler verkaufen (zahlt …)“; Erlös orange, wenn der Händler mehr zahlt.
+- **Ergebnis der Prüfung im Spiel (29.09.2026, Mirel Dorna, Build 70058):**
+  - Markt: „Classic Beta PvE / Alliance“ – Realm-Name und Fraktion funktionieren als Markt-Schlüssel. Es gibt keine eigene Regelsatz-Funktion.
+  - `UnitName("player")` liefert als zweiten Wert den **Nachnamen** („Mirel“, „Dorna“), nicht den Realm. Charaktere daher immer über Vor- und Nachname kennzeichnen.
+  - Modernes Auktionshaus: `AuctionHouseFrame` / Blizzard_AuctionHouseUI, 85 Funktionen in `C_AuctionHouse` (u. a. ReplicateItems, SendSearchQuery, PostItem/PostCommodity, CancelAuction, StartCommoditiesPurchase, PlaceBid, CalculateItemDeposit/CalculateCommodityDeposit, GetOwnedAuctions, GetCancelCost). Keine alten Classic-Funktionen.
+  - Komplettscan: 70.388 Angebote in 10 Sekunden. `GetReplicateItemInfo` liefert wie in Retail: Name, Symbol, Menge, Qualität, benutzbar, Stufe, Stufenart, Mindestgebot, Erhöhung, Sofortkaufpreis (für den ganzen Stapel), Gebot, Höchstbieter, …, Verkäufer (leer), …, itemID, hasAllInfo.
+  - Gebühren-Test mit Nachtkriecher (Massenware): Einstellgebühr 1c / 4c / 12c für 12 / 24 / 48 Stunden. Händlerpreis kam leer zurück (Gegenstand noch nicht im Zwischenspeicher) – Händlerpreise später mit Nachladen abfragen. Die Formel der Einstellgebühr und der Verkaufsanteil sind noch offen; es gibt keine Funktion für den Anteil, er wird über die Rechnungs-Post ermittelt.
+  - Verkaufs- und Posttexte (deDE) sind vorhanden, z. B. „Es wurde ein Käufer für Eure Auktion gefunden: %1$s“, „Auktion erfolgreich: %s“.
+  - Ereignisse: alle modernen Auktionshaus-Ereignisse bekannt; `PLAYER_INTERACTION_MANAGER_FRAME_SHOW/HIDE` mit Typ 21 = Auktionshaus. Alte Ereignisse (`AUCTION_ITEM_LIST_UPDATE`, `NEW_AUCTION_UPDATE`, `AUCTION_OWNED_LIST_UPDATE`) gibt es nicht.
+- Offen: Verkaufsanteil (5 % angenommen) und Formel der Einstellgebühr; Stapelpreis im Tooltip hängt davon ab, ob das Spiel die Stapelgröße liefert (`C_Item.GetItemLocation`/`GetStackCount`).
+- Rechenmodell `Peon_Broker_Rechenmodell.md` abgestimmt (30.09.2026); Broker 0.6.0 setzt es um.
+- Wollstoff-Test im Spiel (30.09.2026): Erlös (Gesamtpreis − 5 %), Händlerwert und Vorschlag stimmen; Min wich ab, weil das günstigste Angebot nach dem Scan gekauft wurde (normal). Einstellgebühr rundete falsch → 0.6.1.
+- Rechnung Wollstoff (30.09.2026): Anteil 5 % bestätigt (1s 29c von 25s 85c), erhalten 25s 56c = Broker-Erlös 24s 56c + zurückgezahlte Einzahlung. Auffällig: Einzahlung laut Rechnung 1s 0c zurück, gezahlt 72c – bei weiteren Verkäufen beobachten; 2 und 24 Std. im Abgleich noch ungeprüft.
+- Begleitprogramm beschlossen (30.09.2026): Konzept `Peon_Broker_Programm.md` als Entwurf, wird mit KarloDerBaer abgestimmt. Danach neue Reihenfolge der Bauabschnitte (Vorschlag im Konzept, Abschnitt 8).
+- Test 0.9.0 (KarloDerBaer, 30.09.2026): Stil passt, Inhalt vorerst passend (wird später weiter angepasst). Live-Abfrage endet mit „keine Antwort“, obwohl das Spiel Ergebnis-Ereignisse meldet (COMMODITY_SEARCH_RESULTS_UPDATED 24×).
+
+## 0.8.1
+
+- 0.8.1 (30.09.2026, nach KarloDerBaers Test): Einzelgegenstände zeigten live den Preis geteilt durch die Anzahl gleicher Angebote (20s bei 6 Angeboten → 3s 33c) – `buyoutAmount` ist schon der Preis je Stück. Live-Abfrage blieb bei „wird geladen“: jetzt zusätzlich Nachsehen nach 0,5/1,5/3 Sek. und Zeitgrenze 6 Sek. („keine Antwort“, Rückfall auf den Scan); Ereignis des Spiels gilt auch, wenn die Warenart falsch vermutet war; Protokoll im Debug-Log (`/broker debug`). „(kommt zurück)“ hinter der Einstellgebühr entfernt.
+
+## 0.8.0
+
+- 0.8.0 (30.09.2026, **Bauabschnitt 5**): Reiter „Verkaufen“ (Sell.lua), Rechenmodell Kapitel 4 (F21–F27).
+  - Links die Taschen: verkaufbare Gegenstände (keine gebundenen), gleiche zusammengefasst, Wert wie Zeile 1 im Tooltip, sortiert nach Erlös; „nur lohnende“ (Standard an).
+  - Rechts: Live-Angebote (Verkaufs-Suche des Auktionshauses, eigene markiert, Klick übernimmt den Preis), Vorschlag je Stück in Gold/Silber/Kupfer mit Grund, Menge (Standard alles, „Alle“), Laufzeit (Auswahlliste; Massenware ab 20 Angeboten 2 Std.), Gesamtpreis, Einstellgebühr vom Spiel, Erlös nach 5 %, Händlerwert, Hinweise.
+  - „Einstellen“ und „Einstellen & weiter“ (nächster lohnender Gegenstand); wartet auf die Bestätigung des Spiels (10 Sek.), Rückfragen bei Preis weit unter dem Vorschlag und wenn das Spiel nachfragt. Nie im Kampf.
+  - Alt+Klick auf einen Gegenstand in den Taschen wählt ihn im Reiter aus (über `HandleModifiedItemClick`).
+  - Am Auktionshaus öffnet das Fenster mit „Verkaufen“.
+- Test 0.8.0 (KarloDerBaer, 30.09.2026): Bedienung und Einstellen funktionieren. Layout gefällt noch nicht: soll übersichtlicher werden und sich am Blizzard-Fenster „Auktionen einstellen“ orientieren.
+
+## 0.7.0
+
+- 0.7.0 (30.09.2026, **Bauabschnitt 4**): Broker-Fenster mit Reiter „Preise“.
+  - Fenster (Window.lua): Reiter Verkaufen, Meine Auktionen, Einkaufen, Preise, Buch; bisher nur „Preise“ offen, die anderen gesperrt („folgt“). Bei offenem Auktionshaus rechts angedockt, schließt mit ihm; sonst frei verschiebbar (Position gemerkt). Escape schließt. Fußzeile: Markt und letzter Scan.
+  - Öffnen: `/broker`, Minimap-Button (links Fenster, rechts Einstellungen), Knopf „Broker“ links unter dem Auktionshausfenster, Knopf auf der Optionsseite; optional automatisch mit dem Auktionshaus.
+  - Reiter „Preise“ (Prices.lua): Suche nach Namensteil (Groß/klein und Umlaute egal), Liste aller Gegenstände des Markts (Name in Qualitätsfarbe, Min, Median, Angebote, gesehen; sortierbar), Maus über Zeile zeigt den Gegenstand im Tooltip mit Broker-Zeilen. Klick zeigt Einzelheiten (AH Min/Median, Angebote, 7 Tage, Vorschlag und Händler je Stück, Warenart, Dumping-Hinweis) und den Verlauf (Tage, ältere als Wochen).
+  - Scan merkt Name und Qualität (`nm`, `ql`) je Gegenstand.
+- 0.7.0 im Spiel getestet (30.09.2026): Fenster passt, Namen werden gespeichert; Abgleich der Einstellgebühr mit 0.6.2-Formel: 24 gleich, 0 abweichend (Formel bestätigt).
+- KarloDerBaer möchte zuerst im Spiel weitermachen (Broker muss ohne Programm funktionieren); das Programm-Konzept bleibt als Entwurf liegen.
+
+## 0.6.2
+
+- 0.6.2 (30.09.2026): **Einstellgebühr wie im Spiel**: Grundgebühr 5 % vom Händlerwert des Stapels, abgerundet, dann × 1/4/12 für 2/8/24 Std. Gefunden über den automatischen Abgleich (`depositCheck`: vorher 32 gleich, 67 abweichend; die neue Formel trifft alle 17 gespeicherten Beispiele). Der Abgleich beginnt bei neuer Formel von vorn.
+
+## 0.6.1
+
+- 0.6.1 (30.09.2026): Einstellgebühr wird jetzt wie im Spiel **abgerundet** (von KarloDerBaer gefunden, Wollstoff: Broker 73c, Spiel 72c). Rechnung in ganzen Prozent, Test mit dem Wollstoff-Beispiel ergänzt.
+
+## 0.6.0
+
+- 0.6.0 (30.09.2026): **Rechenmodell umgesetzt** (`Peon_Broker_Rechenmodell.md`, Formeln F1–F20, Tooltip nach Kapitel 3). Neues Speicherformat (`dataVersion` 2): alte Preisdaten beim ersten Start einmalig gelöscht, Hinweis im Chat.
+  - Je Gegenstand: AHmin, AHmedian (Median über alle Stück), AHmenge, AHanz, Zeit, Vorwerte; Tageswerte als Summen und Anzahl aller Scans des Tages (Tag = Mitternacht nach PC-Uhr); 7-Tage-Werte gleitend inkl. heute, Trend gegenüber Vortag.
+  - Preisvorschlag: AHmin minus Unterbieten (Massenware/Einzelgegenstand getrennt); bei Dumping (AHmin mehr als DG unter dem Median) Mitte zwischen Grenze und Median. Erlös = VP × Stapel × 0,95 (Einstellgebühr wird nicht abgezogen, sie kommt bei Verkauf zurück). Einstellgebühr = Händlerwert × 5/20/60 % (Laufzeit einstellbar). Empfehlung AH nur bei Erlös > Händlerwert.
+  - Tooltip: Z1 bester Wert (Stapel); mit Umschalt Angebote (Anzahl), AH Min/Median je Stück, 7 Tage (n) ab 2 Tagen, Vorschlag je Stück, Einstellgebühr, Händler, Hinweise (Dumping, wenig Angebote < 3, keine Angebote, alte Daten).
+  - Entfallen: Abverkauf, gemerkte Einstellgebühren (`deposits`), „~“, „Ø“.
+  - Bei geöffnetem Auktionshaus: Warenart der Taschen-Gegenstände vom Spiel gemerkt; Einstellgebühr des Spiels mit der Formel verglichen (`depositCheck`, bis zu 20 Abweichungen als Beispiel).
+
+## 0.5.1
+
+- 0.5.1: Fehler behoben (von KarloDerBaer gefunden, Schwerer Leinenverband): Lag der Markt auf Händlerniveau (20c), wurde der Vorschlag auf den Mindestpreis 26c angehoben; durch Aufrunden kamen 21c Erlös heraus und Zeile 1 zeigte „AH“. Jetzt gilt: Muss der Vorschlag auf den Mindestpreis angehoben werden, zeigt Zeile 1 immer den Händlerpreis.
+
+## 0.5.0
+
+- 0.5.0 (Wünsche von KarloDerBaer nach dem Test):
+  - Zeile 1 zeigt nur den besseren Wert: „AH: …“ (Erlös, grün, mit Trend) oder „Händler: …“. Ohne Umschalt nur diese Zeile mit dezentem Hinweis „(Umschalt)“; mit Umschalt die Details. Umschalt während der Tooltip offen ist baut ihn neu auf (`MODIFIER_STATE_CHANGED` → `GameTooltip:RefreshData`).
+  - Werte immer für den ganzen Stapel unter der Maus (ohne bekannte Stapelgröße 1 Stück); der Zusatz „Stapel x…“ entfällt.
+  - Händlerpreis in den Details nur, wenn Zeile 1 den AH-Wert zeigt; der Hinweis „Lieber beim Händler verkaufen“ entfällt (steckt in Zeile 1).
+  - Neue Trend-Symbole (abgestimmt): stark gestiegen dunkelgrün, gestiegen hellgrün, gleich dezent blauer Balken (statt gelbem Punkt, sah wie eine Münze aus), gefallen orange, stark gefallen rot.
+  - Fehler behoben: Händlerpreis kam leer zurück, weil es im Forever-Client kein globales `GetItemInfo` mehr gibt – jetzt `ns.GetItemInfo`/`ns.VendorPrice` über `C_Item.GetItemInfo` (auch im Prüfbefehl). Dadurch war der Erlös grün, obwohl der Händler mehr zahlte.
+
+## 0.4.1
+
+- 0.4.1: Fehler behoben – ESC (Spielmenü) meldete ADDON_ACTION_FORBIDDEN „SpellStopCasting()“, weil Options.lua `StaticPopupDialogs = StaticPopupDialogs or {}` neu zugewiesen hatte. Jetzt wird nur ein Eintrag hinzugefügt; der Test prüft das.
+
+## 0.4.0
+
+- 0.4.0: Tooltip neu nach KarloDerBaers Aufbau (Erlös, Angebote mit Abverkauf je Stunde, AH Min/Ø, 7 Tage Min/Ø, Hinweise, Händlerpreis), Münzsymbole, Trend in fünf Stufen mit eigenen Symbolen, Umschalt zeigt alle Werte für den Stapel.
+  - Je Gegenstand zusätzlich: Werte des vorherigen Scans (`pm`, `pa`, `pq`, `pt`), günstigste 20 Preisstufen (`l`), geschätzter Abverkauf (`s`, `si`); Gegenstände, die beim neuen Scan fehlen, bekommen 0 Angebote (`gone`) und behalten ihre letzten Preise.
+  - Preisvorschlag (`Data.Suggest`): günstigstes Angebot minus Unterbieten; bei mehr als `dumpPct` unter dem 7-Tage-Durchschnitt der Durchschnitt minus Unterbieten; nie unter dem Mindestpreis (Erlös = Händlerpreis). Wird im Reiter „Verkaufen“ wiederverwendet.
+  - Einstellgebühren werden beim Öffnen des Auktionshauses und bei Taschenänderungen (während es offen ist) für alle verkaufbaren Taschen-Gegenstände abgefragt und gemerkt.
+
+## 0.3.0
+
+- 0.3.0 (Bauabschnitt 3): Komplettscan, Preisdatenbank je Markt, Preise im Tooltip.
+  - Scan: Knopf „Broker-Scan“ unter dem Auktionshausfenster (mit Status: Wartezeit, letzter Scan, Fortschritt) und `/broker scan`. 15-Minuten-Sperre wird selbst mitgezählt. Auswertung in Portionen (1500 Angebote bzw. 300 Gegenstände je Bild); Schließen des Auktionshauses während des Lesens bricht ab.
+  - Je Gegenstand: niedrigster Stückpreis, typischer Preis (Durchschnitt der günstigsten 25 % der Menge), Menge, Anzahl Angebote, Zeitpunkt. Ausrüstung mit Zusatz („… des Bären“) getrennt über `itemID:suffixID`. Reine Gebote (ohne Sofortkauf) zählen nicht.
+  - Verlauf: ein Tageswert je Tag (späterer Scan gewinnt), nach `dataDays` zu Wochenwerten verdichtet (26 Wochen), dann gelöscht. Verdichten einmal am Tag.
+  - Tooltip (nur aktueller Markt): AH-Preis mit Alter, Ø 7 Tage, Händlerpreis, mit Umschalt Stapelpreis, Hinweis „Lieber beim Händler verkaufen“ (AH-Preis nach 5 % Anteil ≤ Händlerpreis). Ohne Scan im Markt ein Hinweis bei verkaufbaren Gegenständen.
+  - Minimap-Tooltip zeigt letzten Scan und Anzahl Gegenstände. Der Chat-Hinweis beim Öffnen des Auktionshauses ist entfallen.
+
+## 0.2.0
+
+- 0.2.0 (Bauabschnitt 2): Minimap-Button (Klick öffnet vorerst die Einstellungen, Tooltip mit Markt und letzter Prüfung), Ereignis-Liste auf der Optionsseite als erster Einsatz der neuen Kern-Liste.
+
+## 0.1.0
+
+- Funktionen 0.1.0 (Bauabschnitt 1 – Prüfbefehl, nur lesend): Markt-Schlüssel (Realm-Name / Fraktion), Client-Version, Liste aller `C_AuctionHouse`-Funktionen, alte Classic-Funktionen, Auktionshaus-Fenster, Enums, Texte für Verkaufs-/Postmeldungen, Mitzählen der Auktionshaus- und Post-Ereignisse. Bei geöffnetem Auktionshaus zusätzlich Gebühren-Test (erster verkaufbarer Gegenstand, Einstellgebühr für alle drei Laufzeiten) und Komplettscan-Test (Anzahl, Dauer, drei Beispiel-Einträge).

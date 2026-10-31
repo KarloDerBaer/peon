@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: |cff8ccf4dPeon|r Bridge
+## Notes: Connection between the game and the Peon Manager on the PC. Content registers as channels, the manager enables them.
+## Notes-deDE: Verbindung zwischen Spiel und Peon Manager auf dem PC. Inhalte melden sich als Kanäle an, der Manager schaltet sie frei.
+## Author: KarloDerBaer
+## Version: 0.4.0
+## Dependencies: Peon
+## OptionalDeps: Peon_Broker
+## Group: Peon
+## IconTexture: Interface\Icons\INV_Misc_Gear_01
+## SavedVariables: PeonBridgeDB
+
+Data.lua
+Locales.lua
+Bridge.lua
+Channel_Broker.lua
+Options.lua

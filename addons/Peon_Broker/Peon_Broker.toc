@@ -1,0 +1,29 @@
+## Interface: 16001
+## Title: |cff8ccf4dPeon|r Broker
+## Notes: Auction house helper for the Peon addon collection: full scan, price database per market, prices in tooltips, Broker window (selling, my auctions, shopping list, radar).
+## Notes-deDE: Auktionshaus-Helfer für Peon: Komplettscan, Preisdatenbank je Markt, Preise im Tooltip, Broker-Fenster (Verkaufen, Meine Auktionen, Einkaufsliste, Radar).
+## Author: KarloDerBaer
+## Version: 0.33.0
+## Dependencies: Peon
+## Group: Peon
+## IconTexture: Interface\Icons\INV_Misc_Coin_02
+## SavedVariables: PeonBrokerDB
+## SavedVariablesPerCharacter: PeonBrokerCharDB
+
+Locales.lua
+Broker.lua
+Data.lua
+Sales.lua
+Scan.lua
+Tooltip.lua
+Craft.lua
+Window.lua
+Start.lua
+Keep.lua
+Sell.lua
+Auctions.lua
+Buy.lua
+Radar.lua
+Prices.lua
+Probe.lua
+Options.lua

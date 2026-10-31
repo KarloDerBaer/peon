@@ -1,0 +1,14 @@
+## Interface: 16001
+## Title: |cff8ccf4dPeon|r Beispiel
+## Notes: Template module for the Peon addon collection.
+## Notes-deDE: Vorlage für ein Peon-Modul.
+## Author: KarloDerBaer
+## Version: 0.1.0
+## Dependencies: Peon
+## Group: Peon
+## IconTexture: Interface\Icons\INV_Misc_QuestionMark
+## SavedVariables: PeonBeispielDB
+
+Locales.lua
+Beispiel.lua
+Options.lua

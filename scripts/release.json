@@ -1,0 +1,25 @@
+{
+  "fmt": 1,
+  "discord": null,
+  "managerMinVersion": "0.6.0",
+  "addons": {
+    "Peon":             { "api": "core" },
+    "Peon_Bags":        { "api": 6 },
+    "Peon_Bridge":      { "api": 5, "managerOnly": true, "exclude": ["Data.lua"] },
+    "Peon_Broker":      { "api": 8 },
+    "Peon_ComboPoints": { "api": 5 },
+    "Peon_Fishing":     { "api": 6 },
+    "Peon_Ledger":      { "api": 10 },
+    "Peon_Mover":       { "api": 7 },
+    "Peon_Tooltip":     { "api": 6 }
+  },
+  "managerModules": [
+    {
+      "key": "broker-client",
+      "title": "Peon Broker Client",
+      "desc": "Sammelt die Auktionsdaten von Broker, wertet sie aus (Verlauf, Chancen, Absatz) und gibt Broker bessere Preise zurück.",
+      "needs": ["Peon_Broker", "Peon_Bridge"],
+      "channels": ["broker"]
+    }
+  ]
+}
