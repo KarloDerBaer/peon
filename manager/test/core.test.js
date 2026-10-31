@@ -134,9 +134,9 @@ test('Einlesen aus dem Spiel, Bestaetigung, kein doppeltes Einlesen', () => {
   const { wow, ad } = fakeWow(SAMPLE);
   const dbDir = tmp();
   let now = 1792700400;
-  const svc = new Service({ dbDir, version: '0.1.0', now: () => now });
+  const svc = new Service({ enable: ['broker-client'], dbDir, version: '0.1.0', now: () => now });
   svc.saveSettings({ wowDir: wow });
-  const r = svc.importGame();
+  const r = svc.broker.importGame();
   assert.equal(r.imported, 2); assert.equal(r.known, 0); assert.deepEqual(r.failed, []);
   assert.equal(r.ack.count, 2);
   const data = parseLua(fs.readFileSync(path.join(ad, 'Data.lua'))).PeonBridgeData;
@@ -149,7 +149,7 @@ test('Einlesen aus dem Spiel, Bestaetigung, kein doppeltes Einlesen', () => {
   assert.equal(data.t, now);
   assert.ok(!fs.existsSync(path.join(ad, 'Data.lua.neu')));
 
-  const db = svc.db;
+  const db = svc.broker.db;
   const snap = db.prepare("SELECT * FROM snapshots WHERE id = '1792700225-1'").get();
   assert.equal(snap.source, 'scan'); assert.equal(snap.art, 'moment'); assert.equal(snap.region, 110);
   assert.equal(snap.char, 'Mirel Dorna'); assert.equal(snap.offers, 8); assert.equal(snap.items, 4);
@@ -169,14 +169,14 @@ test('Einlesen aus dem Spiel, Bestaetigung, kein doppeltes Einlesen', () => {
   // nochmal einlesen: nichts neu, Data.lua bleibt gleich
   const t1 = fs.statSync(path.join(ad, 'Data.lua')).mtimeMs;
   now += 60;
-  const r2 = svc.importGame();
+  const r2 = svc.broker.importGame();
   assert.equal(r2.imported, 0); assert.equal(r2.known, 2); assert.equal(r2.ack, null);
   assert.equal(fs.statSync(path.join(ad, 'Data.lua')).mtimeMs, t1);
 
   // Spiel hat die bestaetigten geloescht und eine neue abgelegt
   const sv = path.join(wow, 'WTF', 'Account', '123456789#2', 'SavedVariables', 'Peon_Bridge.lua');
   fs.writeFileSync(sv, 'PeonBridgeDB = { ["queue"] = { { ["id"] = "1792701200-3", ["kind"] = "scan", ["market"] = "Classic Beta PvE / Alliance", ["t"] = 1792701200, ["rows"] = "2770;;;10;1300;;;3;;1" } } }');
-  const r3 = svc.importGame();
+  const r3 = svc.broker.importGame();
   assert.equal(r3.imported, 1);
   const d3 = parseLua(fs.readFileSync(path.join(ad, 'Data.lua'))).PeonBridgeData;
   assert.deepEqual(Object.keys(d3.ack), ['1792701200-3']);
@@ -195,9 +195,9 @@ test('Einlesen aus dem Spiel, Bestaetigung, kein doppeltes Einlesen', () => {
 
 test('Fehler: kaputte Datei, fehlender Markt, kein Peon_Bridge', () => {
   const { wow, ad } = fakeWow('PeonBridgeDB = { ["queue"] = { { ["id"] = "x-1", ["kind"] = "scan", ["t"] = 5, ["rows"] = "" }, { ["id"] = "x-2", ["kind"] = "scan", ["market"] = "M / Horde", ["t"] = 6, ["rows"] = "1;;;1;5;;;3;;1" } } }');
-  const svc = new Service({ dbDir: tmp() });
+  const svc = new Service({ enable: ['broker-client'], dbDir: tmp() });
   svc.saveSettings({ wowDir: wow });
-  const r = svc.importGame();
+  const r = svc.broker.importGame();
   assert.equal(r.imported, 1);
   assert.equal(r.failed.length, 1);
   assert.match(r.failed[0].error, /Markt oder Zeit fehlt/);
@@ -207,12 +207,12 @@ test('Fehler: kaputte Datei, fehlender Markt, kein Peon_Bridge', () => {
 
   const w2 = fakeWow('PeonBridgeDB = { ["queue"] = { "nicht zu Ende ');
   svc.saveSettings({ wowDir: w2.wow });
-  const r2 = svc.importGame();
+  const r2 = svc.broker.importGame();
   assert.equal(r2.imported, 0); assert.equal(r2.failed.length, 1);
 
   const empty = tmp();
   svc.saveSettings({ wowDir: empty });
-  const r3 = svc.importGame();
+  const r3 = svc.broker.importGame();
   assert.equal(r3.error, 'Keine Peon_Bridge.lua gefunden');
   assert.equal(svc.overview().wowOk, false);
   svc.close();
@@ -228,31 +228,31 @@ test('AHledger abrufen: speichern, ETag, gleicher Stand, Fehler', async () => {
     if (reply.status === 304) return { status: 304, ok: false, headers: new Map() };
     return { status: reply.status, ok: reply.status === 200, headers: new Map([['etag', reply.etag]]), text: async () => reply.body };
   };
-  const svc = new Service({ dbDir: tmp(), fetchImpl });
+  const svc = new Service({ enable: ['broker-client'], dbDir: tmp(), fetchImpl });
   svc.saveSettings({ wowDir: wow });
-  svc.importGame();
-  let r = await svc.fetchAhledger();
+  svc.broker.importGame();
+  let r = await svc.broker.fetchAhledger();
   assert.equal(r[0].market, 'forever.normal.alliance.us'); assert.equal(r[0].status, 200); assert.equal(r[0].rows, 2);
   assert.match(calls[0].url, /\/v1\/pricetable\/forever\.normal\.alliance\.us$/);
   assert.equal(calls[0].headers['If-None-Match'], undefined);
-  const row = svc.db.prepare('SELECT * FROM ext_ahledger WHERE item_id = 117').get();
+  const row = svc.broker.db.prepare('SELECT * FROM ext_ahledger WHERE item_id = 117').get();
   assert.equal(row.per_day, 8.5); assert.equal(row.med7, 18);
   reply = { status: 304 };
-  r = await svc.fetchAhledger();
+  r = await svc.broker.fetchAhledger();
   assert.equal(r[0].status, 304);
   assert.equal(calls[1].headers['If-None-Match'], '"v1"');
-  assert.equal(svc.db.prepare('SELECT COUNT(*) AS n FROM ext_ahledger').get().n, 2);
+  assert.equal(svc.broker.db.prepare('SELECT COUNT(*) AS n FROM ext_ahledger').get().n, 2);
   reply = { status: 200, etag: '"v2"', body: 'AHL1|forever/normal/alliance/us|1792691095|2\n35:1:1:1:1:1:1:1:1\n' };
-  r = await svc.fetchAhledger();
+  r = await svc.broker.fetchAhledger();
   assert.equal(r[0].status, 304, 'gleicher Stand ohne Aenderung wird nicht doppelt gespeichert');
   reply = { status: 'fail' };
-  r = await svc.fetchAhledger();
+  r = await svc.broker.fetchAhledger();
   assert.match(r[0].error, /Netz weg/);
   const ov = svc.overview();
   assert.equal(ov.ahledger.markets[0].tData, 1792691095);
   assert.equal(ov.ahledger.markets[0].ok, false);
   svc.saveSettings({ ahledger: { enabled: false, intervalMin: 30 } });
-  assert.deepEqual(await svc.fetchAhledger(), []);
+  assert.deepEqual(await svc.broker.fetchAhledger(), []);
   svc.close();
 });
 
@@ -260,20 +260,20 @@ test('Echte Datei aus dem Spiel (22.10.2026)', () => {
   const real = path.join(__dirname, 'fixtures', 'Peon_Bridge_echt.lua');
   if (!fs.existsSync(real)) return;
   const { wow } = fakeWow(fs.readFileSync(real));
-  const svc = new Service({ dbDir: tmp() });
+  const svc = new Service({ enable: ['broker-client'], dbDir: tmp() });
   svc.saveSettings({ wowDir: wow });
   const t0 = Date.now();
-  const r = svc.importGame();
+  const r = svc.broker.importGame();
   const ms = Date.now() - t0;
   assert.equal(r.imported, 1); assert.deepEqual(r.failed, []);
-  const snap = svc.db.prepare('SELECT * FROM snapshots').get();
+  const snap = svc.broker.db.prepare('SELECT * FROM snapshots').get();
   assert.equal(snap.offers, 20220); assert.equal(snap.lines, 9388); assert.equal(snap.region, 110);
   assert.equal(snap.char, 'Mirel Dorna');
-  const n = svc.db.prepare('SELECT COUNT(*) AS n, SUM(auctions) AS a FROM item_snap').get();
+  const n = svc.broker.db.prepare('SELECT COUNT(*) AS n, SUM(auctions) AS a FROM item_snap').get();
   assert.equal(n.a, 20220, 'alle Angebote gezaehlt');
-  const axe = svc.db.prepare("SELECT * FROM items WHERE key = '3201:Barbarische Kriegsaxt des Bären'").get();
+  const axe = svc.broker.db.prepare("SELECT * FROM items WHERE key = '3201:Barbarische Kriegsaxt des Bären'").get();
   assert.ok(axe, 'Variante mit Umlaut im Schluessel');
-  const named = svc.db.prepare('SELECT COUNT(*) AS n FROM items WHERE name IS NOT NULL').get().n;
+  const named = svc.broker.db.prepare('SELECT COUNT(*) AS n FROM items WHERE name IS NOT NULL').get().n;
   assert.equal(named, n.n, 'jeder Gegenstand hat einen Namen');
   console.log(`  echte Datei: ${n.n} Gegenstaende, ${ms} ms, Datenbank ${(svc.overview().dbSize / 1024).toFixed(0)} KB`);
   svc.close();

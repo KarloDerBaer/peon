@@ -1,5 +1,6 @@
 'use strict';
-// Peon Manager - Hauptteil (Electron): Fenster, Symbol im Infobereich, Dateiwaechter, Zeitplan fuer AHledger.
+// Peon Manager - Hauptteil (Electron): Fenster, Symbol im Infobereich, Manager-Module.
+// Dateiwaechter, Zeitplan fuer AHledger und Aufraeumen laufen nur, wenn das Modul Peon Broker Client installiert ist.
 // Rechnen und Speichern macht src/core (ohne Electron testbar).
 // Sicherheit: Die Oberflaeche hat keinen Zugriff auf Node, nur auf die feste Befehlsliste aus preload.js,
 // laedt keine fremden Seiten, alle Netzzugriffe macht dieser Teil.
@@ -60,23 +61,29 @@ if (!app.requestSingleInstanceLock()) {
   function createTray() {
     tray = new Tray(icon.resize({ width: 16, height: 16 }));
     tray.setToolTip('Peon Manager');
-    const menu = Menu.buildFromTemplate([
-      { label: 'Fenster öffnen', click: showWindow },
-      { label: 'Jetzt einlesen', click: () => runImport('Infobereich') },
-      { label: 'AHledger abrufen', click: () => runAhledger(true) },
-      { type: 'separator' },
-      { label: 'Beenden', click: () => { quitting = true; app.quit(); } },
-    ]);
-    tray.setContextMenu(menu);
+    updateTray();
     tray.on('click', showWindow);
+  }
+
+  // Menue im Infobereich: Eintraege des Broker Client nur, wenn er installiert ist
+  function updateTray() {
+    if (!tray) return;
+    const items = [{ label: 'Fenster öffnen', click: showWindow }];
+    if (svc.broker) {
+      items.push({ label: 'Jetzt einlesen', click: () => runImport('Infobereich') });
+      items.push({ label: 'AHledger abrufen', click: () => runAhledger(true) });
+    }
+    items.push({ type: 'separator' }, { label: 'Beenden', click: () => { quitting = true; app.quit(); } });
+    tray.setContextMenu(Menu.buildFromTemplate(items));
   }
 
   // ---------- Einlesen ----------
   function runImport(why) {
+    if (!svc.broker) { svc.syncBridge(); return { inactive: true }; }
     if (busy) { pending = pending || setTimeout(() => { pending = null; runImport(why); }, 1000); return null; }
     busy = true;
     try {
-      const r = svc.importGame();
+      const r = svc.broker.importGame();
       for (const f of r.files) lastSeen.set(f.file, f.mtime);
       for (const f of require('../src/core/broker').findFiles(svc.settings.wowDir)) {
         try { lastSeen.set(f.file, Math.floor(fs.statSync(f.file).mtimeMs / 1000)); } catch { /* weg */ }
@@ -109,6 +116,7 @@ if (!app.requestSingleInstanceLock()) {
 
   function setupWatch() {
     while (watchers.length) { try { watchers.pop().close(); } catch { /* egal */ } }
+    if (!svc.broker) return;
     const base = path.join(svc.settings.wowDir, 'WTF', 'Account');
     try {
       watchers.push(fs.watch(base, { recursive: true }, (ev, name) => {
@@ -120,6 +128,7 @@ if (!app.requestSingleInstanceLock()) {
 
   // Rueckfall: jede Minute nachsehen
   function poll() {
+    if (!svc.broker) return;
     const files = [...require('../src/core/game').findFiles(svc.settings.wowDir), ...require('../src/core/broker').findFiles(svc.settings.wowDir)];
     for (const f of files) {
       let m = 0;
@@ -130,12 +139,13 @@ if (!app.requestSingleInstanceLock()) {
 
   // ---------- AHledger ----------
   async function runAhledger(force) {
+    if (!svc.broker) return [];
     const a = svc.settings.ahledger;
     if (!a.enabled && !force) return [];
     const now = Date.now();
     if (!force && now - lastAhl < a.intervalMin * 60 * 1000) return [];
     lastAhl = now;
-    const r = await svc.fetchAhledger();
+    const r = await svc.broker.fetchAhledger();
     send('changed', { what: 'ahledger' });
     return r;
   }
@@ -150,17 +160,32 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('overview', () => svc.overview());
     ipcMain.handle('import', () => runImport('Knopf'));
     ipcMain.handle('ahledger', () => runAhledger(true));
-    ipcMain.handle('ahledgerMarkets', () => svc.ahledgerMarkets());
+    ipcMain.handle('ahledgerMarkets', () => (svc.broker ? svc.broker.ahledgerMarkets() : null));
     ipcMain.handle('settings', () => svc.settings);
-    ipcMain.handle('items', (_e, market) => svc.itemList(String(market)));
-    ipcMain.handle('item', (_e, market, key, range) => svc.itemDetail(String(market), String(key), String(range || '30d')));
-    ipcMain.handle('chances', (_e, market, days) => svc.chances(String(market), Number(days) || null));
-    ipcMain.handle('retention', (_e, keepDays) => svc.retention(keepDays == null ? null : Number(keepDays)));
+    ipcMain.handle('items', (_e, market) => (svc.broker ? svc.broker.itemList(String(market)) : null));
+    ipcMain.handle('item', (_e, market, key, range) => (svc.broker ? svc.broker.itemDetail(String(market), String(key), String(range || '30d')) : null));
+    ipcMain.handle('chances', (_e, market, days) => (svc.broker ? svc.broker.chances(String(market), Number(days) || null) : null));
+    ipcMain.handle('retention', (_e, keepDays) => (svc.broker ? svc.broker.retention(keepDays == null ? null : Number(keepDays)) : null));
+    // Manager-Module: Installieren schaltet ein, Entfernen schaltet aus, Daten loeschen nur ausgeschaltet
+    ipcMain.handle('modules', () => svc.moduleList());
+    ipcMain.handle('setModule', (_e, key, on) => {
+      const list = svc.setModule(String(key), !!on);
+      setupWatch();
+      updateTray();
+      if (svc.broker) { runImport('Modul installiert'); try { svc.broker.prune(); } catch { /* steht im Protokoll */ } runAhledger(false).catch(() => {}); }
+      send('changed', { what: 'module' });
+      return list;
+    });
+    ipcMain.handle('clearModuleData', (_e, key) => {
+      const list = svc.clearModuleData(String(key));
+      send('changed', { what: 'module' });
+      return list;
+    });
     ipcMain.handle('saveSettings', (_e, patch) => {
       const before = svc.settings.wowDir, keepBefore = svc.settings.keepDays;
       const s = svc.saveSettings(patch || {});
       if (s.wowDir !== before) { setupWatch(); runImport('Ordner geändert'); }
-      if (s.keepDays !== keepBefore) { try { svc.prune(); } catch (e) { /* steht im Protokoll */ } }
+      if (s.keepDays !== keepBefore && svc.broker) { try { svc.broker.prune(); } catch (e) { /* steht im Protokoll */ } }
       applyAutostart();
       send('changed', { what: 'settings' });
       return s;
@@ -187,13 +212,18 @@ if (!app.requestSingleInstanceLock()) {
     createWindow();
     if (!HIDDEN) win.__userOpened = true;
     runImport('Start');
-    try { svc.prune(); } catch { /* steht im Protokoll */ }
-    setInterval(() => { const t = svc.meta('pruneAt') || 0; if (svc.now() - t > 86400) { try { svc.prune(); } catch { /* egal */ } } }, 60 * 60 * 1000);
+    if (svc.broker) { try { svc.broker.prune(); } catch { /* steht im Protokoll */ } }
+    setInterval(() => {
+      if (!svc.broker) return;
+      const t = svc.broker.meta('pruneAt') || 0;
+      if (svc.now() - t > 86400) { try { svc.broker.prune(); } catch { /* egal */ } }
+    }, 60 * 60 * 1000);
     setupWatch();
     setInterval(poll, 60 * 1000);
     // Tageswechsel: Werte fuer Broker neu rechnen (Alter der Tage verschiebt sich), schreibt nur bei Aenderung
     setInterval(() => {
-      const a = svc.meta('ack');
+      if (!svc.broker) return;
+      const a = svc.broker.meta('ack');
       if (!a || a.day !== require('../src/core/broker').dayOf(svc.now())) runImport('Tageswechsel');
     }, 60 * 60 * 1000);
     runAhledger(false).catch(() => {});

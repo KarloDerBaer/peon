@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, computed } from 'vue';
 import { bytes } from '../util.js';
 
-const props = defineProps({ data: Object, settings: Object, stamp: Number });
+const props = defineProps({ data: Object, settings: Object, stamp: Number, broker: Boolean });
 const emit = defineEmits(['save']);
 const api = window.peon;
 const wowDir = ref(props.settings.wowDir);
@@ -22,9 +22,10 @@ const step = ref(stepOf(props.settings.keepDays));
 const est = ref(null);
 const days = computed(() => STEPS[step.value]);
 let timer = null;
-async function estimate() { est.value = await api.retention(days.value); }
+async function estimate() { est.value = props.broker ? await api.retention(days.value) : null; }
 watch(step, () => { clearTimeout(timer); timer = setTimeout(estimate, 120); });
 watch(() => props.stamp, estimate);
+watch(() => props.broker, estimate);
 watch(() => props.settings.keepDays, (v) => { step.value = stepOf(v); });
 onMounted(estimate);
 function saveKeep() { if (days.value !== props.settings.keepDays) emit('save', { keepDays: days.value }); }
@@ -49,8 +50,8 @@ const daysText = computed(() => (days.value === 0 ? 'unbegrenzt' : days.value ==
       </label>
     </section>
 
-    <section class="group">
-      <h2>AHledger</h2>
+    <section class="group" v-if="broker">
+      <h2>AHledger <span class="small muted">(Peon Broker Client)</span></h2>
       <label class="check"><input type="checkbox" :checked="settings.ahledger.enabled" @change="setAhl({ enabled: $event.target.checked })" /> Preistabelle regelmäßig abrufen</label>
       <label class="field inline">
         <span>Abruf alle</span>
@@ -79,11 +80,11 @@ const daysText = computed(() => (days.value === 0 ? 'unbegrenzt' : days.value ==
         <span>Datenordner <span class="muted">{{ data.dbDir }}</span></span>
         <button @click="api.openFolder('db')">Ordner öffnen</button>
       </div>
-      <p>Datenbank {{ bytes(data.dbSize) }}</p>
+      <p>{{ broker ? 'Datenbank des Broker Client' : 'Datenbank des Managers' }} {{ bytes(data.dbSize) }}</p>
     </section>
 
-    <section class="group">
-      <h2>Aufbewahrung</h2>
+    <section class="group" v-if="broker">
+      <h2>Aufbewahrung <span class="small muted">(Peon Broker Client)</span></h2>
       <label class="field">
         <span>Momentaufnahmen vollständig aufheben: <strong>{{ daysText }}</strong></span>
         <input type="range" min="0" :max="STEPS.length - 1" step="1" v-model.number="step" @change="saveKeep" aria-label="Tage vollständig aufheben" />

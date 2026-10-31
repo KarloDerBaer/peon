@@ -2,6 +2,14 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 31.10.2026: Manager-Module, Schritt G (Peon Manager 0.7.0)
+
+- **Eigene Datenbankdatei je Manager-Modul** (KarloDerBaer): `broker-client.db` für den Broker Client, `peon.db` für den Manager. „Daten löschen“ löscht so einfach die Datei des Moduls. Die alte `peon.db` zieht einmalig um (Claude).
+- Wer vor 0.7.0 schon Einstellungen oder Daten hatte, behält den Broker Client aktiv. Neue Nutzer starten ohne Modul (Design 5.2, 5.5).
+- Übersicht, Gegenstände, Chancen und Quellen gehören zum Broker Client und erscheinen nur mit ihm. Ohne Modul zeigt der Manager „Module“ und „Einstellungen“ (Claude).
+- Ohne aktives Modul schreibt der Manager `channels = {}` in Data.lua, damit eine installierte Bridge sicher nichts aufzeichnet. Ohne Bridge schreibt er nichts (Claude).
+- Fehlende Addons eines Moduls zeigt die Ansicht „Module“ nur an. Installieren kommt mit Schritt H (Claude).
+
 ## 31.10.2026: Keine privaten Daten im Repo
 
 - Im öffentlichen Repo steht für den Besitzer nur **KarloDerBaer**, auch in Entscheidungen, Changelogs und Code-Kommentaren (KarloDerBaer). Die Addons bekommen dafür keine neue Version, weil sich nur Kommentare ändern und es noch kein Release gab (KarloDerBaer).

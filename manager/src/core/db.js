@@ -1,5 +1,7 @@
 'use strict';
-// Peon Manager - Datenbank (SQLite ueber node:sqlite, eine Datei peon.db im Datenordner).
+// Peon Manager - Datenbanken (SQLite ueber node:sqlite) im Datenordner:
+//   peon.db           Manager: Zustand (meta) und Protokoll (log)
+//   broker-client.db  Modul Peon Broker Client: Maerkte, Momentaufnahmen, Verlauf, Absatz, Chancen, AHledger
 // Angebote einer Momentaufnahme liegen gepackt (zlib) in snapshots.rows, die Kennzahlen je Gegenstand
 // in item_snap. So bleibt die Datei klein und alles laesst sich spaeter neu berechnen.
 
@@ -73,20 +75,73 @@ CREATE TABLE IF NOT EXISTS log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, kind TEXT NOT NULL, ok INTEGER NOT NULL, text TEXT);
 `;
 
-function openDb(dir) {
+const MANAGER_DDL = `
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, kind TEXT NOT NULL, ok INTEGER NOT NULL, text TEXT);
+`;
+
+const BROKER_FILE = 'broker-client.db';
+const MANAGER_FILE = 'peon.db';
+
+function open(dir, name, ddl) {
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, 'peon.db');
+  const file = path.join(dir, name);
   const db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF;');
-  db.exec(DDL);
+  db.exec(ddl);
+  db.file = file;
+  db.logDir = path.join(dir, 'logs');
+  return db;
+}
+
+// Datenbank des Moduls Peon Broker Client
+function openDb(dir) {
+  const db = open(dir, BROKER_FILE, DDL);
   // Schema 3: Haendlerpreis und Warenart je Gegenstand
   const cols = new Set(db.prepare('PRAGMA table_info(items)').all().map((c) => c.name));
   if (!cols.has('vendor')) db.exec('ALTER TABLE items ADD COLUMN vendor INTEGER');
   if (!cols.has('commodity')) db.exec('ALTER TABLE items ADD COLUMN commodity INTEGER');
   db.prepare("INSERT INTO meta(key, value) VALUES ('schema', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(SCHEMA));
-  db.file = file;
-  db.logDir = path.join(dir, 'logs');
   return db;
+}
+
+// Datenbank des Managers (Zustand, Protokoll)
+function openManagerDb(dir) {
+  return open(dir, MANAGER_FILE, MANAGER_DDL);
+}
+
+// Bis Manager 0.6.0 lag alles in peon.db. Liegen dort Daten des Broker Clients, wird die Datei einmalig
+// zu broker-client.db (mit -wal und -shm). Rueckgabe: true, wenn umgezogen.
+function migrateSplit(dir) {
+  const old = path.join(dir, MANAGER_FILE), neu = path.join(dir, BROKER_FILE);
+  if (!fs.existsSync(old) || fs.existsSync(neu)) return false;
+  const db = new DatabaseSync(old);
+  let broker = false;
+  try { broker = !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'snapshots'").get(); } finally { db.close(); }
+  if (!broker) return false;
+  for (const ext of ['', '-wal', '-shm']) {
+    if (fs.existsSync(old + ext)) fs.renameSync(old + ext, neu + ext);
+  }
+  return true;
+}
+
+// Groesse einer Datenbankdatei samt -wal, auch wenn sie nicht offen ist
+function fileSize(file) {
+  let size = 0;
+  for (const f of [file, file + '-wal']) {
+    try { size += fs.statSync(f).size; } catch { /* fehlt */ }
+  }
+  return size;
+}
+
+// Datenbankdatei samt -wal und -shm loeschen (nur geschlossen)
+function removeDb(file) {
+  let n = 0;
+  for (const ext of ['', '-wal', '-shm']) {
+    try { fs.unlinkSync(file + ext); n++; } catch { /* fehlt */ }
+  }
+  return n;
 }
 
 function tx(db, fn) {
@@ -130,11 +185,7 @@ function marketId(db, key, info = {}) {
 
 // Groesse der Datenbank inkl. WAL-Datei
 function dbSize(db) {
-  let size = 0;
-  for (const f of [db.file, db.file + '-wal']) {
-    try { size += fs.statSync(f).size; } catch { /* fehlt */ }
-  }
-  return size;
+  return fileSize(db.file);
 }
 
 // Logdateien aelter als `days` Tage loeschen
@@ -152,4 +203,4 @@ function pruneLogs(db, days = 30, now = Date.now()) {
   return n;
 }
 
-module.exports = { openDb, tx, log, marketId, dbSize, pruneLogs, SCHEMA };
+module.exports = { openDb, openManagerDb, migrateSplit, fileSize, removeDb, BROKER_FILE, MANAGER_FILE, tx, log, marketId, dbSize, pruneLogs, SCHEMA };

@@ -25,30 +25,30 @@ fs.writeFileSync(path.join(sv, 'Peon_Bridge.lua'), 'PeonBridgeDB = ' + toLua({ q
 fs.copyFileSync(path.join(__dirname, '..', 'fixtures', 'Peon_Broker_echt.lua'), path.join(sv, 'Peon_Broker.lua'));
 const now = t0 + 3 * 3600 + 600;
 const fetchImpl = async () => ({ status: 200, ok: true, headers: new Map([['etag', '"a"']]), text: async () => 'AHL1|forever/normal/alliance/us|' + (now - 2400) + '|3\n35:1900:1900:1:3193:2400:500:10100:12\n117:5:5:54:18:10:1:90:85\n118:29:18:880:16:8:1:89:20961\n' });
-const svc = new Service({ dbDir: fs.mkdtempSync(path.join(os.tmpdir(), 'd-')), version: '0.1.0', now: () => now, fetchImpl });
+const svc = new Service({ enable: ['broker-client'], dbDir: fs.mkdtempSync(path.join(os.tmpdir(), 'd-')), version: '0.1.0', now: () => now, fetchImpl });
 svc.saveSettings({ wowDir: wow });
-svc.importGame();
+svc.broker.importGame();
 // Haendlerpreise fuer einen Teil der Gegenstaende (kommen sonst erst mit Peon_Client 0.3.0)
-for (const r of svc.db.prepare("SELECT i.key, AVG(s.median) AS m FROM items i JOIN item_snap s ON s.item_key = i.key GROUP BY i.key").all()) {
-  if (r.m && rnd() < 0.2) svc.db.prepare('UPDATE items SET vendor = ? WHERE key = ?').run(Math.max(1, Math.round(r.m * (0.4 + rnd() * 0.5))), r.key);
+for (const r of svc.broker.db.prepare("SELECT i.key, AVG(s.median) AS m FROM items i JOIN item_snap s ON s.item_key = i.key GROUP BY i.key").all()) {
+  if (r.m && rnd() < 0.2) svc.broker.db.prepare('UPDATE items SET vendor = ? WHERE key = ?').run(Math.max(1, Math.round(r.m * (0.4 + rnd() * 0.5))), r.key);
 }
-svc.importGame();
+svc.broker.importGame();
 svc.saveSettings({ marketMap: { 'Classic Beta PvE / Alliance': { ext: 'forever.normal.alliance.us', confirmed: false } } });
-svc.fetchAhledger().then(() => {
+svc.broker.fetchAhledger().then(() => {
   const ov = svc.overview();
   ov.wowDir = 'C:\\Program Files (x86)\\World of Warcraft\\_forever_'; ov.dbDir = 'C:\\Peon Manager\\DB';
   for (const f of ov.game.files) f.file = 'C:\\Program Files (x86)\\...\\Peon_Bridge.lua';
   const st = { ...svc.settings, wowDir: ov.wowDir };
   const M = 'Classic Beta PvE / Alliance';
-  const items = svc.itemList(M);
+  const items = svc.broker.itemList(M);
   const item = {};
   for (const key of ['2770', '3201:Barbarische Kriegsaxt des Bären']) {
     item[key] = {};
-    for (const r of ['1d', '7d', '30d', '90d', 'all']) item[key][r] = svc.itemDetail(M, key, r);
+    for (const r of ['1d', '7d', '30d', '90d', 'all']) item[key][r] = svc.broker.itemDetail(M, key, r);
   }
   const chances = {};
-  for (const d of [1, 3, 7, 14]) chances[d] = svc.chances(M, d);
+  for (const d of [1, 3, 7, 14]) chances[d] = svc.broker.chances(M, d);
   const retention = {};
-  for (const d of [7, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365, 0]) retention[d] = svc.retention(d);
+  for (const d of [7, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365, 0]) retention[d] = svc.broker.retention(d);
   process.stdout.write(JSON.stringify({ overview: ov, settings: st, now, items, item, retention, chances }));
 });

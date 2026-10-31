@@ -6,6 +6,7 @@ import Settings from './views/Settings.vue';
 import Items from './views/Items.vue';
 import Item from './views/Item.vue';
 import Chances from './views/Chances.vue';
+import Modules from './views/Modules.vue';
 import { ago } from './util.js';
 
 const api = window.peon;
@@ -19,13 +20,17 @@ const now = ref(Math.floor(Date.now() / 1000));
 const itemKey = ref(null);
 const stamp = ref(0);   // erhoeht sich bei neuen Daten, damit Listen neu laden
 
-const NAV = [
+// Ansichten der Manager-Module (nur wenn das Modul installiert ist), dazu immer Module und Einstellungen
+const ALL = [
   { key: 'overview', label: 'Übersicht' },
   { key: 'items', label: 'Gegenstände' },
   { key: 'chances', label: 'Chancen' },
   { key: 'sources', label: 'Quellen' },
-  { key: 'settings', label: 'Einstellungen' },
+  { key: 'modules', label: 'Module', always: true },
+  { key: 'settings', label: 'Einstellungen', always: true },
 ];
+const NAV = computed(() => ALL.filter((n) => n.always || (data.value && data.value.views.includes(n.key))));
+const broker = computed(() => !!(data.value && data.value.views.includes('overview')));
 
 const current = computed(() => {
   const ms = data.value ? data.value.markets : [];
@@ -37,6 +42,9 @@ async function load() {
   data.value = o;
   settings.value = s;
   if (!market.value && o.markets.length) market.value = o.markets[0].key;
+  // Ansicht eines entfernten Moduls: zu den Modulen wechseln. Beim Start ohne Modul gleich dorthin.
+  const ok = ALL.some((n) => n.key === view.value && (n.always || o.views.includes(n.key))) || (view.value === 'item' && o.views.includes('items'));
+  if (!ok) view.value = o.views.includes('overview') ? 'overview' : 'modules';
   stamp.value++;
   document.documentElement.dataset.theme = s.theme === 'light' ? 'light' : 'dark';
 }
@@ -92,7 +100,7 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
     </nav>
 
     <main class="main">
-      <header class="top" v-if="data">
+      <header class="top" v-if="data && broker">
         <div class="market">
           <select v-if="data.markets.length > 1" v-model="market" aria-label="Markt">
             <option v-for="m in data.markets" :key="m.key" :value="m.key">{{ m.key }}</option>
@@ -113,7 +121,8 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
         <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @back="go(back === 'chances' ? 'chances' : 'items')" :back-label="back === 'chances' ? 'Zurück zu Chancen' : 'Alle Gegenstände'" />
         <Chances v-else-if="view === 'chances'" :market="current" :now="now" :stamp="stamp" :settings="settings" @open="openItem" @save="saveQuiet" />
         <Sources v-else-if="view === 'sources'" :data="data" :settings="settings" :now="now" @save="saveSettings" />
-        <Settings v-else-if="view === 'settings'" :data="data" :settings="settings" :stamp="stamp" @save="saveSettings" />
+        <Modules v-else-if="view === 'modules'" :data="data" @changed="load" />
+        <Settings v-else-if="view === 'settings'" :data="data" :settings="settings" :stamp="stamp" :broker="broker" @save="saveSettings" />
       </div>
       <div class="page muted" v-else>Lade Daten</div>
     </main>

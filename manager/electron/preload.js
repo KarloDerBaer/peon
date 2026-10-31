@@ -16,5 +16,8 @@ contextBridge.exposeInMainWorld('peon', {
   pickFolder: () => ipcRenderer.invoke('pickFolder'),
   openFolder: (which) => ipcRenderer.invoke('openFolder', which),
   openLink: (url) => ipcRenderer.invoke('openLink', url),
+  modules: () => ipcRenderer.invoke('modules'),
+  setModule: (key, on) => ipcRenderer.invoke('setModule', key, on),
+  clearModuleData: (key) => ipcRenderer.invoke('clearModuleData', key),
   onChanged: (fn) => { ipcRenderer.on('changed', (_e, info) => fn(info)); },
 });

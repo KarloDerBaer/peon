@@ -45,32 +45,32 @@ test('Broker-Verlauf einlesen, ersetzen, Namen', () => {
     '6611:Klinge des Wolfs': { d: `${day - 1}:9000:9000:1:1`, ql: 2 },
     999: { q: 0 },   // ohne Verlauf
   });
-  const svc = new Service({ dbDir: tmp(), now: () => at(day, 20) });
+  const svc = new Service({ enable: ['broker-client'], dbDir: tmp(), now: () => at(day, 20) });
   svc.saveSettings({ wowDir: wow });
-  const r = svc.importBroker();
+  const r = svc.broker.importBroker();
   assert.equal(r.length, 1);
   assert.deepEqual(r[0].markets, [{ key: M, items: 2, rows: 4 }]);
-  const h = svc.db.prepare("SELECT * FROM hist WHERE item_key = '2770' AND period = 'day' ORDER BY num").all();
+  const h = svc.broker.db.prepare("SELECT * FROM hist WHERE item_key = '2770' AND period = 'day' ORDER BY num").all();
   assert.equal(h.length, 2);
   assert.equal(h[0].min, 120); assert.equal(h[0].median, 160); assert.equal(h[0].qty, 100); assert.equal(h[0].n, 2);
   assert.equal(broker.dayOf(h[0].t), day - 2);
-  const w = svc.db.prepare("SELECT * FROM hist WHERE period = 'week'").get();
+  const w = svc.broker.db.prepare("SELECT * FROM hist WHERE period = 'week'").get();
   assert.equal(w.median, 150); assert.equal(w.n, 5);
-  const it = svc.db.prepare("SELECT * FROM items WHERE key = '6611:Klinge des Wolfs'").get();
+  const it = svc.broker.db.prepare("SELECT * FROM items WHERE key = '6611:Klinge des Wolfs'").get();
   assert.equal(it.name, 'Klinge des Wolfs'); assert.equal(it.quality, 2); assert.equal(it.variant, 'Klinge des Wolfs');
   // unveraenderte Datei wird nicht nochmal gelesen
-  assert.equal(svc.importBroker().length, 0);
+  assert.equal(svc.broker.importBroker().length, 0);
   // neue Datei ersetzt die Werte (Broker hat verdichtet)
   write({ 2770: { d: `${day}:110:140:50:1`, nm: 'Kupfererz', ql: 1 } });
   const t2 = new Date(Date.now() + 5000); fs.utimesSync(path.join(sv, 'Peon_Broker.lua'), t2, t2);
-  svc.importBroker();
-  assert.equal(svc.db.prepare("SELECT COUNT(*) AS n FROM hist").get().n, 1);
+  svc.broker.importBroker();
+  assert.equal(svc.broker.db.prepare("SELECT COUNT(*) AS n FROM hist").get().n, 1);
   // kaputte Datei: Fehler im Protokoll, nichts geloescht
   fs.writeFileSync(path.join(sv, 'Peon_Broker.lua'), 'PeonBrokerDB = { ["markets"] = ');
   const t3 = new Date(Date.now() + 9000); fs.utimesSync(path.join(sv, 'Peon_Broker.lua'), t3, t3);
-  const r3 = svc.importBroker();
+  const r3 = svc.broker.importBroker();
   assert.ok(r3[0].error);
-  assert.equal(svc.db.prepare("SELECT COUNT(*) AS n FROM hist").get().n, 1);
+  assert.equal(svc.broker.db.prepare("SELECT COUNT(*) AS n FROM hist").get().n, 1);
   svc.close();
 });
 
@@ -91,15 +91,15 @@ function setup() {
   scan(at(day, 20), ['2770;;;10;1800;;;3;;1', '2770;;;30;6000;;;3;;1', '15;;;1;1000000;;;4;;1']);
   queue.push({ id: `${at(day, 21)}-${k++}`, kind: 'live', market: M, t: at(day, 21), key: '2770', commodity: true, rows: '2770;;;5;;190;;1;123;1' });
   fs.writeFileSync(path.join(sv, 'Peon_Bridge.lua'), 'PeonBridgeDB = ' + toLua({ queue, fmt: 1 }));
-  const svc = new Service({ dbDir: tmp(), now: () => at(day, 22) });
+  const svc = new Service({ enable: ['broker-client'], dbDir: tmp(), now: () => at(day, 22) });
   svc.saveSettings({ wowDir: wow });
-  svc.importGame();
+  svc.broker.importGame();
   return { svc, day };
 }
 
 test('Gegenstandsliste: letzter Stand, weg, Mittel 7 Tage, Trend, Quellen', () => {
   const { svc } = setup();
-  const l = svc.itemList(M);
+  const l = svc.broker.itemList(M);
   assert.equal(l.items.length, 3);
   const cu = l.items.find((x) => x.key === '2770');
   assert.equal(cu.name, 'Kupfererz'); assert.equal(cu.inLast, true);
@@ -119,7 +119,7 @@ test('Gegenstandsliste: letzter Stand, weg, Mittel 7 Tage, Trend, Quellen', () =
 
 test('Gegenstand: Verlauf, Vorrang eigener Tage, aktueller Stand, Muster, Preisstufen', () => {
   const { svc, day } = setup();
-  const d = svc.itemDetail(M, '2770', 'all');
+  const d = svc.broker.itemDetail(M, '2770', 'all');
   assert.equal(d.name, 'Kupfererz');
   assert.equal(d.own.length, 4);
   assert.equal(d.counts.scan, 3); assert.equal(d.counts.live, 1);
@@ -134,33 +134,33 @@ test('Gegenstand: Verlauf, Vorrang eigener Tage, aktueller Stand, Muster, Preiss
   assert.equal(d.levels.t, at(day, 20));
   assert.deepEqual(d.levels.list, [{ price: 180, qty: 10, auctions: 1, cum: 10 }, { price: 200, qty: 30, auctions: 1, cum: 40 }]);
   // Zeitraum 1 Tag: nur heute
-  const d1 = svc.itemDetail(M, '2770', '1d');
+  const d1 = svc.broker.itemDetail(M, '2770', '1d');
   assert.equal(d1.own.length, 3);
   assert.equal(d1.broker.length, 0);
   // unbekannt
-  assert.equal(svc.itemDetail('X / Horde', '1', 'all'), null);
-  const none = svc.itemDetail(M, '424242', 'all');
+  assert.equal(svc.broker.itemDetail('X / Horde', '1', 'all'), null);
+  const none = svc.broker.itemDetail(M, '424242', 'all');
   assert.equal(none.own.length, 0); assert.equal(none.levels, null);
   svc.close();
 });
 
 test('Aufbewahrung: Verdichten zu Stunden- und Tageswerten, Schaetzung', () => {
   const { svc, day } = setup();
-  const db = svc.db;
+  const db = svc.broker.db;
   const before = db.prepare('SELECT COUNT(*) AS n FROM item_snap').get().n;
   // 0 = unbegrenzt: nichts passiert
   svc.saveSettings({ keepDays: 0 });
-  assert.deepEqual(svc.prune(), { snaps: 0, hours: 0, blobs: 0, pairs: 0 });
+  assert.deepEqual(svc.broker.prune(), { snaps: 0, hours: 0, blobs: 0, pairs: 0 });
   // nur 1 Tag fein: der Scan von Tag-1 wird zu Stundenwerten
   svc.saveSettings({ keepDays: 1 });
-  const r = svc.prune();
+  const r = svc.broker.prune();
   assert.equal(r.blobs, 1);
   assert.equal(r.snaps, 1);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM item_snap').get().n, before - 1);
   const h = db.prepare("SELECT * FROM item_hour WHERE item_key = '2770'").get();
   assert.equal(h.n, 1); assert.equal(h.median, 220);
   // Verlauf zeigt den Stundenwert, Broker-Tag bleibt ausgeblendet
-  const d = svc.itemDetail(M, '2770', 'all');
+  const d = svc.broker.itemDetail(M, '2770', 'all');
   assert.equal(d.hours.length, 1);
   assert.deepEqual(d.broker.map((x) => broker.dayOf(x.t)), [day - 9, day - 3]);
   // Stundenwerte aelter als hourDays werden Tageswerte
@@ -176,11 +176,11 @@ test('Aufbewahrung: Verdichten zu Stunden- und Tageswerten, Schaetzung', () => {
   const z = db.prepare("SELECT * FROM item_hour WHERE item_key = 'z'").get();
   assert.equal(z.n, 3); assert.equal(z.median, 50);
   // Schaetzung
-  const e30 = svc.retention(30), e90 = svc.retention(90);
+  const e30 = svc.broker.retention(30), e90 = svc.broker.retention(90);
   assert.ok(e30.measured);
   assert.ok(e30.perScan > 0 && e30.scansPerDay >= 1);
   assert.ok(e90.fine > e30.fine && e90.total > e30.total);
-  assert.equal(svc.retention(0).fine, 0);
+  assert.equal(svc.broker.retention(0).fine, 0);
   svc.close();
 });
 
@@ -191,23 +191,23 @@ test('Echte Daten: Broker-Verlauf und Scan vom 22.10.2026', () => {
   const { wow, sv } = fakeWow();
   fs.copyFileSync(fb, path.join(sv, 'Peon_Broker.lua'));
   fs.copyFileSync(fc, path.join(sv, 'Peon_Bridge.lua'));
-  const svc = new Service({ dbDir: tmp(), now: () => 1792700225 + 3600 });
+  const svc = new Service({ enable: ['broker-client'], dbDir: tmp(), now: () => 1792700225 + 3600 });
   svc.saveSettings({ wowDir: wow });
   const t0 = Date.now();
-  const r = svc.importGame();
+  const r = svc.broker.importGame();
   const ms = Date.now() - t0;
   assert.equal(r.imported, 1);
   assert.equal(r.broker.length, 1);
   const bm = r.broker[0].markets.find((m) => m.key === M);
   assert.ok(bm.items > 2000);
   const t1 = Date.now();
-  const l = svc.itemList(M);
+  const l = svc.broker.itemList(M);
   const msList = Date.now() - t1;
   assert.ok(l.items.length >= 2773);
   const cu = l.items.find((x) => x.key === '2770');
   assert.equal(cu.name, 'Kupfererz');
   const t2 = Date.now();
-  const d = svc.itemDetail(M, '2770', 'all');
+  const d = svc.broker.itemDetail(M, '2770', 'all');
   const msItem = Date.now() - t2;
   // Broker-Tage 30.09. bis 03.10. bleiben, der 22.10. kommt aus dem eigenen Scan
   assert.deepEqual(d.broker.map((x) => x.num), [20726, 20727, 20728, 20729]);
@@ -250,14 +250,14 @@ test('C4: Data.lua mit Langzeit-Teil, eigene Tage vor Broker, neu bei Aenderung'
   assert.equal(v[3], '4'); assert.equal(v[4], 'eb');
   // Leinenstoff nur 2 Tage (Broker Tag-3, eigener Scan heute): nicht drin
   assert.equal(mk.items[2589], undefined);
-  const detail = svc.itemDetail(M, '2770', 'all');
+  const detail = svc.broker.itemDetail(M, '2770', 'all');
   assert.equal(detail.longterm.days, 4);
   // unveraendert: Data.lua bleibt; neuer Tag aendert die Werte
   const t1 = fs.statSync(path.join(ad, 'Data.lua')).mtimeMs;
-  assert.equal(svc.importGame().ack, null);
+  assert.equal(svc.broker.importGame().ack, null);
   assert.equal(fs.statSync(path.join(ad, 'Data.lua')).mtimeMs, t1);
   svc.now = () => at(day + 1, 10);
-  const r = svc.importGame();
+  const r = svc.broker.importGame();
   assert.ok(r.ack && r.ack.items >= 1, 'neuer Tag: Data.lua neu geschrieben');
   assert.equal(parseLua(fs.readFileSync(path.join(ad, 'Data.lua'))).PeonBridgeData.markets[M].day, day + 1);
   svc.close();
