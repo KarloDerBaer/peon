@@ -2,6 +2,15 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 04.11.2026: Addons installieren, Schritt H (Peon Manager 0.8.0)
+
+- **Der Manager sucht beim Start und alle 6 Stunden, installiert aber nur per Klick** (KarloDerBaer). So ändert sich nichts ungefragt, etwa während WoW läuft.
+- Entfernen verschiebt den Addon-Ordner in die Sicherung statt ihn zu löschen. Das Design sagt „löscht den Ordner“, die Sicherung ist vorsichtiger und kostet kaum Platz (Claude). Alte Sicherungen werden noch nicht automatisch aufgeräumt.
+- Laufendes WoW sperrt nichts, der Manager warnt nur (Design 5.4, Punkt 7).
+- Der Willkommens-Vorschlag entfällt, sobald Peon installiert ist, auch bei Installation von Hand oder per Junction (Claude).
+- Meldet GitHub kein Release, vergisst der Manager das alte Manifest, weil dessen Dateien nicht mehr zu laden wären. Scheitert die Suche nur (Netz, kaputte Antwort), bleibt der letzte gute Stand (Claude).
+- Die Abnahme mit dem echten Release bleibt offen, bis es das erste Release gibt. Geprüft wurde mit einem Paket aus `build_release` über einen lokalen Server und einem Testordner (Claude).
+
 ## 31.10.2026: Manager-Module, Schritt G (Peon Manager 0.7.0)
 
 - **Eigene Datenbankdatei je Manager-Modul** (KarloDerBaer): `broker-client.db` für den Broker Client, `peon.db` für den Manager. „Daten löschen“ löscht so einfach die Datei des Moduls. Die alte `peon.db` zieht einmalig um (Claude).

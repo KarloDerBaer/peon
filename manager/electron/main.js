@@ -7,14 +7,18 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
+const { execFile } = require('node:child_process');
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, session } = require('electron');
 const { Service } = require('../src/core/service');
+const { findWowDirs, REPO_URL } = require('../src/core/addons');
+const modules = require('../src/core/modules');
 
 process.removeAllListeners('warning');   // Hinweis "SQLite is experimental" nicht anzeigen
 
 const ROOT = path.join(__dirname, '..');
 const DEV = !app.isPackaged;
 const HIDDEN = process.argv.includes('--hidden');
+const ADDON_CHECK_MS = 6 * 60 * 60 * 1000;   // Addons: beim Start und alle 6 Stunden nach Updates suchen, installiert wird nur per Klick
 
 function dataDir() {
   if (process.env.PEON_MANAGER_DB) return process.env.PEON_MANAGER_DB;
@@ -137,6 +141,52 @@ if (!app.requestSingleInstanceLock()) {
     }
   }
 
+  // ---------- Addons ----------
+  // Laeuft WoW Forever? (Programmname Wow.exe, Peon_GitHub_Design.md 5.4)
+  function wowRunning() {
+    return new Promise((resolve) => {
+      execFile('tasklist', ['/FI', 'IMAGENAME eq Wow.exe', '/NH'], { windowsHide: true, timeout: 5000 }, (err, out) => {
+        resolve(!err && /^wow\.exe\s/im.test(String(out)));
+      });
+    });
+  }
+
+  // Ort von WoW aus der Registrierung (Eintrag von Battle.net), leer wenn nicht vorhanden
+  function registryPaths() {
+    const keys = ['HKLM\\SOFTWARE\\WOW6432Node\\Blizzard Entertainment\\World of Warcraft', 'HKLM\\SOFTWARE\\Blizzard Entertainment\\World of Warcraft'];
+    return Promise.all(keys.map((k) => new Promise((resolve) => {
+      execFile('reg', ['query', k, '/v', 'InstallPath'], { windowsHide: true, timeout: 5000 }, (err, out) => {
+        const m = !err && /InstallPath\s+REG_\w+\s+(.+)/i.exec(String(out));
+        resolve(m ? m[1].trim() : null);
+      });
+    }))).then((r) => r.filter(Boolean));
+  }
+
+  async function findWow() { return findWowDirs({ installPaths: await registryPaths() }); }
+
+  async function addonState() { return svc.addonState(await wowRunning()); }
+
+  async function checkAddons() {
+    const r = await svc.addons.check();
+    send('changed', { what: 'addons' });
+    return r;
+  }
+
+  // Erster Start: stimmt der WoW-Ordner nicht, den gefundenen eintragen
+  async function firstStart() {
+    if (svc.settings.setup.done || svc.addons.wowValid()) return;
+    const found = await findWow();
+    if (found.length) { svc.saveSettings({ wowDir: found[0] }); send('changed', { what: 'settings' }); }
+  }
+
+  function afterInstall(res) {
+    // Bridge neu: Bei aktivem Broker Client hat der Manager Data.lua schon geschrieben (bridgeInstalled)
+    send('changed', { what: 'addons' });
+    return res;
+  }
+
+  const names = (list) => (Array.isArray(list) ? list.map(String) : []);
+
   // ---------- AHledger ----------
   async function runAhledger(force) {
     if (!svc.broker) return [];
@@ -155,6 +205,14 @@ if (!app.requestSingleInstanceLock()) {
     try { app.setLoginItemSettings({ openAtLogin: !!svc.settings.autostart, args: ['--hidden'] }); } catch { /* egal */ }
   }
 
+  // Ein Modul wurde ein- oder ausgeschaltet: Hintergrundaufgaben und Menue nachziehen
+  function moduleChanged() {
+    setupWatch();
+    updateTray();
+    if (svc.broker) { runImport('Modul installiert'); try { svc.broker.prune(); } catch { /* steht im Protokoll */ } runAhledger(false).catch(() => {}); }
+    send('changed', { what: 'module' });
+  }
+
   // ---------- Befehle fuer die Oberflaeche ----------
   function registerIpc() {
     ipcMain.handle('overview', () => svc.overview());
@@ -168,13 +226,34 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('retention', (_e, keepDays) => (svc.broker ? svc.broker.retention(keepDays == null ? null : Number(keepDays)) : null));
     // Manager-Module: Installieren schaltet ein, Entfernen schaltet aus, Daten loeschen nur ausgeschaltet
     ipcMain.handle('modules', () => svc.moduleList());
-    ipcMain.handle('setModule', (_e, key, on) => {
+    ipcMain.handle('setModule', async (_e, key, on) => {
+      // Installieren holt fehlende Addons des Moduls, wenn ein Release bekannt ist. Scheitert das, ist das Modul trotzdem an.
+      let install = null;
+      const m = modules.find(String(key));
+      if (on && m && svc.addons.manifest) {
+        const missing = m.needs.filter((n) => !svc.addons.installed(n).present);
+        if (missing.length) { try { install = await svc.addons.install(missing); } catch (e) { install = { done: [], skipped: [], failed: missing.map((name) => ({ name, error: e.message })) }; } }
+      }
       const list = svc.setModule(String(key), !!on);
-      setupWatch();
-      updateTray();
-      if (svc.broker) { runImport('Modul installiert'); try { svc.broker.prune(); } catch { /* steht im Protokoll */ } runAhledger(false).catch(() => {}); }
-      send('changed', { what: 'module' });
-      return list;
+      moduleChanged();
+      return { list, install };
+    });
+    // Addons
+    ipcMain.handle('addons', () => addonState());
+    ipcMain.handle('checkAddons', () => checkAddons());
+    ipcMain.handle('installAddons', async (_e, list) => afterInstall(await svc.addons.install(names(list))));
+    ipcMain.handle('updateAddons', async () => afterInstall(await svc.addons.install(svc.addons.updates())));
+    ipcMain.handle('removeAddon', (_e, name) => { svc.addons.remove(String(name)); send('changed', { what: 'addons' }); return true; });
+    ipcMain.handle('setAddonChannel', async (_e, channel) => {
+      if (channel !== 'stable' && channel !== 'test') throw new Error('Unbekannter Kanal');
+      svc.saveSettings({ addons: { ...svc.settings.addons, channel } });
+      return checkAddons();
+    });
+    ipcMain.handle('findWow', () => findWow());
+    ipcMain.handle('finishSetup', async (_e, plan) => {
+      const res = await svc.finishSetup({ addons: names(plan && plan.addons), modules: names(plan && plan.modules) });
+      moduleChanged();
+      return res;
     });
     ipcMain.handle('clearModuleData', (_e, key) => {
       const list = svc.clearModuleData(String(key));
@@ -199,14 +278,18 @@ if (!app.requestSingleInstanceLock()) {
       if (p) shell.openPath(p);
     });
     ipcMain.handle('openLink', (_e, url) => {
-      if (typeof url === 'string' && /^https:\/\/(www\.)?ahledger\.com(\/|$)/.test(url)) shell.openExternal(url);
+      if (typeof url !== 'string') return;
+      const repo = url === REPO_URL || url.startsWith(`${REPO_URL}/`);
+      if (repo || /^https:\/\/(www\.)?ahledger\.com(\/|$)/.test(url) || /^https:\/\/discord\.(gg|com)\//.test(url)) shell.openExternal(url);
     });
   }
 
   app.whenReady().then(() => {
     // keine Woerterbuecher fuer die Rechtschreibpruefung aus dem Netz laden
     try { session.defaultSession.setSpellCheckerEnabled(false); session.defaultSession.setSpellCheckerLanguages([]); } catch { /* egal */ }
-    svc = new Service({ dbDir: dataDir(), version: app.getVersion() });
+    // PEON_MANAGER_RELEASES: nachgebautes Release statt GitHub (nur zum Testen)
+    const rel = process.env.PEON_MANAGER_RELEASES;
+    svc = new Service({ dbDir: dataDir(), version: app.getVersion(), releases: rel ? { releaseBase: rel, apiBase: `${rel}/api` } : undefined });
     registerIpc();
     createTray();
     createWindow();
@@ -229,11 +312,24 @@ if (!app.requestSingleInstanceLock()) {
     runAhledger(false).catch(() => {});
     setInterval(() => runAhledger(false).catch(() => {}), 60 * 1000);
     applyAutostart();
+    firstStart().catch(() => {}).then(() => checkAddons()).catch(() => {});
+    setInterval(() => checkAddons().catch(() => {}), ADDON_CHECK_MS);
     // Selbsttest (nur fuer Tests): Bildschirmfoto und Uebersicht schreiben, dann beenden
     if (process.env.PEON_MANAGER_SELFTEST) {
       const out = process.env.PEON_MANAGER_SELFTEST;
       win.webContents.once('did-finish-load', () => setTimeout(async () => {
         try {
+          // Addons installieren (PEON_MANAGER_SELFTEST_INSTALL = Namen mit Komma) und Ansicht Module zeigen
+          let install = null;
+          const wanted = process.env.PEON_MANAGER_SELFTEST_INSTALL;
+          if (wanted) {
+            install = await win.webContents.executeJavaScript(`(async () => { await window.peon.checkAddons(); return window.peon.installAddons(${JSON.stringify(wanted.split(','))}); })()`);
+            fs.writeFileSync(path.join(out, 'install.json'), JSON.stringify({ install, state: await addonState() }, null, 1));
+          }
+          if (process.env.PEON_MANAGER_SELFTEST_VIEW) {
+            await win.webContents.executeJavaScript(`[...document.querySelectorAll('button.nav')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(process.env.PEON_MANAGER_SELFTEST_VIEW)})).click()`);
+            await new Promise((r) => setTimeout(r, 800));
+          }
           const img = await win.webContents.capturePage();
           fs.writeFileSync(path.join(out, 'electron.png'), img.toPNG());
           const ov = svc.overview();

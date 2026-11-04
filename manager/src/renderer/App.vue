@@ -66,6 +66,11 @@ const back = ref('items');
 function openItem(key) { back.value = view.value === 'item' ? back.value : view.value; itemKey.value = key; view.value = 'item'; }
 function go(v) { view.value = v; if (v !== 'item') itemKey.value = null; }
 
+async function pickWow() {
+  const p = await api.pickFolder();
+  if (p) await saveSettings({ wowDir: p });
+}
+
 // Filter der Chancen merken, ohne alles neu zu laden
 async function saveQuiet(patch) { settings.value = await api.saveSettings(patch); }
 
@@ -94,7 +99,7 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
       </div>
       <button v-for="n in NAV" :key="n.key" class="nav" :class="{ on: view === n.key || (n.key === back && view === 'item') }" :disabled="n.soon"
         @click="go(n.key)" :title="n.soon ? 'Folgt in einer späteren Version' : ''">
-        {{ n.label }}<span v-if="n.soon" class="soon">folgt</span>
+        {{ n.label }}<span v-if="n.soon" class="soon">folgt</span><span v-if="n.key === 'modules' && data && data.addonUpdates" class="count" :title="`${data.addonUpdates} Updates verfügbar`">{{ data.addonUpdates }}</span>
       </button>
       <div class="rail-foot faint small" v-if="data">Version {{ data.version }}</div>
     </nav>
@@ -121,7 +126,7 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
         <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @back="go(back === 'chances' ? 'chances' : 'items')" :back-label="back === 'chances' ? 'Zurück zu Chancen' : 'Alle Gegenstände'" />
         <Chances v-else-if="view === 'chances'" :market="current" :now="now" :stamp="stamp" :settings="settings" @open="openItem" @save="saveQuiet" />
         <Sources v-else-if="view === 'sources'" :data="data" :settings="settings" :now="now" @save="saveSettings" />
-        <Modules v-else-if="view === 'modules'" :data="data" @changed="load" />
+        <Modules v-else-if="view === 'modules'" :data="data" :now="now" :stamp="stamp" @changed="load" @pick-folder="pickWow" />
         <Settings v-else-if="view === 'settings'" :data="data" :settings="settings" :stamp="stamp" :broker="broker" @save="saveSettings" />
       </div>
       <div class="page muted" v-else>Lade Daten</div>
@@ -139,6 +144,7 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
 .nav.on { color: var(--text); border-left-color: var(--accent); background: var(--accent-soft); }
 .nav:disabled { opacity: 1; color: var(--faint); }
 .soon { font-size: 12px; color: var(--faint); font-weight: 400; }
+.count { font-size: 12px; font-weight: 600; min-width: 18px; padding: 0 5px; border-radius: 9px; text-align: center; background: var(--accent); color: var(--accent-ink); }
 .rail-foot { margin-top: auto; padding: 0 12px; }
 .main { display: flex; flex-direction: column; min-width: 0; height: 100%; }
 .top { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 28px; border-bottom: 1px solid var(--line-soft); }

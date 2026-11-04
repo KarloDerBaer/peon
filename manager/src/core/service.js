@@ -9,10 +9,13 @@ const { openManagerDb, migrateSplit, fileSize, removeDb, log } = require('./db')
 const { writeData, addonDir } = require('./datalua');
 const modules = require('./modules');
 const { BrokerClient } = require('./broker-client');
+const { AddonManager, ISSUES_URL } = require('./addons');
 
 const DEFAULTS = {
   wowDir: 'C:\\Program Files (x86)\\World of Warcraft\\_forever_',   // ueblicher Ort von Battle.net, in den Einstellungen aenderbar
   modules: { 'broker-client': { enabled: false } },                  // Manager-Module, standardmaessig aus
+  addons: { channel: 'stable' },                                     // Kanal der Addons: stable oder test
+  setup: { done: false },                                            // erster Start (Vorschlag in der Ansicht Module)
   ahledger: { enabled: true, intervalMin: 30 },
   marketMap: {},          // Broker-Markt -> { ext: 'forever.normal.alliance.us', confirmed: false }
   autostart: false,
@@ -35,7 +38,8 @@ function merge(def, cur) {
 
 class Service {
   // enable: Liste von Modulen, die gleich eingeschaltet werden (fuer Tests)
-  constructor({ dbDir, version = '0.0.0', fetchImpl, now, enable } = {}) {
+  // releases: { releaseBase, apiBase, testHook } andere Quelle fuer Addons (Tests, nachgebautes Release)
+  constructor({ dbDir, version = '0.0.0', fetchImpl, now, enable, releases } = {}) {
     this.dbDir = dbDir;
     this.version = version;
     this.fetchImpl = fetchImpl || ((...a) => fetch(...a));
@@ -55,11 +59,15 @@ class Service {
       for (const k of on) if (modules.find(k)) mods[k] = { enabled: true };
       this.saveSettings({ modules: mods });
     }
+    // Wer schon Einstellungen hatte, sieht den Vorschlag fuer den ersten Start nicht
+    if (raw.setup === undefined && existed) this.saveSettings({ setup: { done: true } });
     this.broker = this.isActive('broker-client') ? new BrokerClient(this) : null;
+    this.addons = new AddonManager(this, releases || {});
   }
 
   readSettings() {
-    try { return JSON.parse(fs.readFileSync(this.settingsFile, 'utf8')) || {}; } catch { return {}; }
+    // Windows-Editoren setzen gern eine BOM-Markierung an den Anfang, die Datei gilt trotzdem
+    try { return JSON.parse(fs.readFileSync(this.settingsFile, 'utf8').replace(/^﻿/, '')) || {}; } catch { return {}; }
   }
 
   saveSettings(patch) {
@@ -151,6 +159,55 @@ class Service {
     }
   }
 
+  // Peon_Bridge wurde neu installiert oder aktualisiert: Data.lua passend zu den Modulen schreiben
+  bridgeInstalled() {
+    if (this.broker) {
+      this.broker.meta('ack', null);
+      this.broker.importGame();
+    } else {
+      this.syncBridge(true);
+    }
+  }
+
+  // Zustand fuer die Ansicht Module, Gruppe Addons
+  addonState(wowRunning = false) {
+    const a = this.addons;
+    const m = a.manifest;
+    let tooOld = null;
+    try { a.checkManagerVersion(); } catch (e) { tooOld = e.message; }
+    const items = a.list();
+    return {
+      channel: this.settings.addons.channel,
+      check: this.meta('addonCheck'),
+      release: m ? m.release : null,
+      items,
+      updates: items.filter((x) => x.status === 'update').length,
+      missing: items.filter((x) => x.status === 'missing').length,
+      busy: a.busy,
+      wowRunning: !!wowRunning,
+      wowValid: a.wowValid(),
+      wowDir: this.settings.wowDir,
+      feedback: (m && m.discord) || ISSUES_URL,
+      // Der Vorschlag fuer den ersten Start entfaellt, sobald Peon da ist (auch von Hand oder per Junction)
+      setup: { done: this.settings.setup.done || a.installed('Peon').present },
+      tooOld,
+    };
+  }
+
+  // Erster Start: gewaehlte Addons und Module installieren, danach kommt der Vorschlag nicht wieder
+  async finishSetup({ addons = [], modules: mods = [] } = {}) {
+    const needs = [];
+    for (const k of mods) {
+      const m = modules.find(k);
+      if (!m) throw new Error(`Unbekanntes Modul: ${k}`);
+      needs.push(...m.needs);
+    }
+    const res = await this.addons.install([...new Set([...addons, ...needs])]);
+    for (const k of mods) this.setModule(k, true);
+    if (!res.failed.length) this.saveSettings({ setup: { done: true } });
+    return res;
+  }
+
   // ---------- Daten fuer die Oberflaeche ----------
   overview() {
     const base = {
@@ -161,6 +218,7 @@ class Service {
       wowOk: fs.existsSync(path.join(addonDir(this.settings.wowDir), 'Peon_Bridge.toc')),
       modules: this.moduleList(),
       views: modules.views(this.settings),
+      addonUpdates: this.addons.updates().length,
     };
     const own = this.db.prepare('SELECT t, kind, ok, text FROM log ORDER BY id DESC LIMIT 12').all();
     if (!this.broker) {

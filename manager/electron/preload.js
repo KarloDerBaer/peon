@@ -19,5 +19,13 @@ contextBridge.exposeInMainWorld('peon', {
   modules: () => ipcRenderer.invoke('modules'),
   setModule: (key, on) => ipcRenderer.invoke('setModule', key, on),
   clearModuleData: (key) => ipcRenderer.invoke('clearModuleData', key),
+  addons: () => ipcRenderer.invoke('addons'),
+  checkAddons: () => ipcRenderer.invoke('checkAddons'),
+  installAddons: (names) => ipcRenderer.invoke('installAddons', names),
+  updateAddons: () => ipcRenderer.invoke('updateAddons'),
+  removeAddon: (name) => ipcRenderer.invoke('removeAddon', name),
+  setAddonChannel: (channel) => ipcRenderer.invoke('setAddonChannel', channel),
+  findWow: () => ipcRenderer.invoke('findWow'),
+  finishSetup: (plan) => ipcRenderer.invoke('finishSetup', plan),
   onChanged: (fn) => { ipcRenderer.on('changed', (_e, info) => fn(info)); },
 });

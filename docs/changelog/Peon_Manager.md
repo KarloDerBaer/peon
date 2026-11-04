@@ -2,6 +2,22 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.8.0
+
+- 0.8.0 (04.11.2026, Design `Peon_GitHub_Design.md` 5.3 bis 5.5, Schritt H): **Addons installieren und aktualisieren.**
+  - **Ansicht „Module“:** Gruppe Addons mit Status, installierter und verfügbarer Version, „Was ist neu“, Knöpfen Installieren, Aktualisieren und Entfernen, dazu „Nach Updates suchen“ und „Alle aktualisieren“. In der Seitenleiste zeigt eine Zahl, wie viele Updates bereitliegen.
+  - **Ablauf je Addon:** Zip laden, Größe und SHA-256 gegen das Manifest prüfen, in einen Zwischenordner entpacken, Inhalt prüfen, alten Ordner nach `backup\<Addon>-<Version>` verschieben, neuen an seine Stelle, jede Datei prüfen. Bei einem Fehler kommt die alte Fassung zurück.
+  - **Schutz:** Manifest und Zip kommen aus dem Netz. Namen, Dateien und Tags werden geprüft, Pfade außerhalb des Addon-Ordners im Zip werden abgewiesen, Größen sind begrenzt. Fremde Addons und WTF werden nie angefasst. Ein `Data.lua` im Zip der Bridge wird nicht übernommen, die vorhandene bleibt erhalten, sonst legt der Manager den Platzhalter an.
+  - **Abhängigkeiten:** Peon und Peon_Bridge kommen automatisch mit. „Installieren“ eines Manager-Moduls holt seine fehlenden Addons. Entfernen ist gesperrt, solange etwas das Addon braucht. Es verschiebt den Ordner in die Sicherung, die Einstellungen in WTF bleiben.
+  - **Entwicklermodus:** Ist ein Addon-Ordner eine Junction, zeigt der Manager „Entwicklung (Repo)“ und ändert nichts.
+  - **Suchen:** beim Start und alle 6 Stunden, installiert wird nur per Klick (KarloDerBaer). Kanal Stabil über `releases/latest/download/manifest.json`, Kanal Test über die Liste der Releases mit ETag und Zwischenspeicher. Ohne Release sagt der Manager das und vergisst ein altes Manifest. Ist der Manager zu alt für ein Release (`minVersion`), installiert er nichts und sagt warum.
+  - **WoW läuft:** Warnung über den Programmnamen `Wow.exe`. Aktualisieren geht trotzdem, neue Dateien brauchen dann einen Neustart von WoW.
+  - **Erster Start:** Vorschlag mit allen Addons außer dem Broker Client, der als Angebot dabeisteht. WoW-Ordner aus der Windows-Registrierung und an üblichen Orten suchen, sonst fragen. Der Vorschlag entfällt, sobald Peon da ist oder man „Später“ wählt.
+  - **Feedback:** Link zu den Issues im Repo, ein Discord-Link aus dem Manifest hätte Vorrang.
+  - **Einstellungen mit BOM-Markierung** (zum Beispiel aus Notepad) gelten jetzt. Vorher wurden sie still verworfen.
+  - Zip-Code in `src\core\zip.js`, auch für `scripts\build_release.js`. `minVersion` im Manifest ist 0.8.0, weil ältere Manager kein Manifest lesen.
+  - Tests: neue `test\addons.test.js` gegen einen lokalen Server mit den Pfaden von GitHub (Installieren, Aktualisieren, Prüfsumme, manipulierte Zips, Zurücktauschen, Junctions, Entfernen, Kanäle, erster Start).
+
 ## 0.7.0
 
 - 0.7.0 (31.10.2026, Design `Peon_GitHub_Design.md` 5.2, Schritt G): **Manager-Module.**

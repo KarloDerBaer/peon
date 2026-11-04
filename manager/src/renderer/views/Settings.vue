@@ -13,6 +13,7 @@ async function pick() {
   if (p) { wowDir.value = p; emit('save', { wowDir: p }); }
 }
 function saveWow() { if (wowDir.value && wowDir.value !== props.settings.wowDir) emit('save', { wowDir: wowDir.value }); }
+async function setChannel(c) { await api.setAddonChannel(c); emit('save', {}); }
 function setAhl(patch) { emit('save', { ahledger: { ...props.settings.ahledger, ...patch } }); }
 
 // Aufbewahrung: Stufen des Schiebers (Tage, 0 = unbegrenzt)
@@ -48,6 +49,17 @@ const daysText = computed(() => (days.value === 0 ? 'unbegrenzt' : days.value ==
           {{ data.wowOk ? 'Peon_Bridge gefunden. Der Manager liest WTF und schreibt Data.lua in den Addon-Ordner.' : 'Peon_Bridge nicht gefunden. Gemeint ist der Ordner mit Interface und WTF, z. B. C:\\Program Files (x86)\\World of Warcraft\\_forever_.' }}
         </span>
       </label>
+    </section>
+
+    <section class="group">
+      <h2>Addons</h2>
+      <label class="field inline">
+        <span>Kanal</span>
+        <select :value="settings.addons.channel" @change="setChannel($event.target.value)">
+          <option value="stable">Stabil</option><option value="test">Test (Vorabversionen)</option>
+        </select>
+      </label>
+      <p class="small muted">Der Manager sucht beim Start und alle 6 Stunden nach neuen Versionen. Installiert wird nur, wenn du es unter Module auslöst.</p>
     </section>
 
     <section class="group" v-if="broker">

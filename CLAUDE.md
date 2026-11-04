@@ -16,8 +16,15 @@ Peon ist eine Addon-Sammlung von KarloDerBaer für WoW Forever, dazu das Windows
 ## Abstimmung mit KarloDerBaer
 
 - Vor größeren Entscheidungen kurz mit KarloDerBaer abstimmen.
-- Ideen für neue Funktionen gibt KarloDerBaer einzeln vor. Sie kommen erst nach seiner Zustimmung in `Peon_Stand.md`.
-- Nichts löschen ohne KarloDerBaers Zustimmung.
+- Ideen für neue Funktionen gibt KarloDerBaer einzeln vor. Sie kommen erst nach Zustimmung von KarloDerBaer in `Peon_Stand.md`.
+- Nichts löschen ohne Zustimmung von KarloDerBaer.
+
+## Öffentliches Repo: keine privaten Daten
+
+- Das Repo ist öffentlich. Wenn es um den Besitzer geht, steht dort nur **KarloDerBaer**. Keine echten Namen, Mailadressen, Konto- oder Charakternamen.
+- Keine Pfade des eigenen Rechners. In Doku und Code stehen Platzhalter: `<WoW-Ordner>`, `<Programmordner>`, `<alter Programmordner>`, `<Repo>`, `<Archiv>`, `<WoW-Beta-Ordner>`.
+- Die echten Pfade stehen nur in `CLAUDE.local.md` (wird von Claude Code automatisch gelesen, liegt nicht im Repo). Das Junction-Skript liest den AddOns-Ordner aus `scripts\local.json` (ebenfalls nicht im Repo).
+- Vor jedem Commit neue Texte darauf prüfen.
 
 ## Code
 

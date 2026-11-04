@@ -1,7 +1,7 @@
 {
   "fmt": 1,
   "discord": null,
-  "managerMinVersion": "0.6.0",
+  "managerMinVersion": "0.8.0",
   "addons": {
     "Peon":             { "api": "core" },
     "Peon_Bags":        { "api": 6 },
