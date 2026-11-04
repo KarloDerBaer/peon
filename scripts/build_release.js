@@ -7,7 +7,7 @@
 // Aufruf:  node scripts/build_release.js [--tag v2026.11.04] [--test] [--prev alte/manifest.json] [--out build/release] [--dirty]
 //   --tag    Name des Release, Standard v<heute> (vJJJJ.MM.TT)
 //   --test   Vorabversion fuer den Kanal Test (Tag bekommt -test)
-//   --prev   Manifest des letzten Release: "Was ist neu" enthaelt dann alle Versionen seitdem, sonst nur die aktuelle
+//   --prev   Manifest des letzten Release: "Was ist neu" enthaelt dann alle Versionen seitdem, ohne bleibt es leer (erstes Release)
 //   --dirty  auch bauen, wenn addons/ ungespeicherte Aenderungen hat (nur zum Ausprobieren)
 //
 // Die Zips sind immer gleich gebaut (feste Zeit, sortierte Eintraege): Ein Addon, das sich nicht geaendert hat,
@@ -172,7 +172,8 @@ function build(opts = {}) {
       file,
       sha256: crypto.createHash('sha256').update(zip).digest('hex'),
       size: zip.length,
-      notes: notesFor(sections, version, prevVersions[name]),
+      // erstes Release: nichts "neu", die Changelogs sind fuer Erstinstallationen zu technisch
+      notes: prev ? notesFor(sections, version, prevVersions[name]) : '',
       managerOnly: !!cfg.managerOnly,
       changed: prevVersions[name] !== version,
     });

@@ -2,6 +2,12 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 04.11.2026: Erstes Release zum Start von Forever
+
+- Das erste Release erscheint noch vor dem Start, damit ein Freund pünktlich installieren und beim Testen helfen kann (KarloDerBaer). Das Risiko, dass nach dem Start etwas nicht passt (zum Beispiel die Interface-Nummer), fängt eine neue Version auf: Der Manager kann sie verteilen, weitere Releases am selben Tag heißen `vJJJJ.MM.TT.2`.
+- Beim ersten Release bleibt „Was ist neu“ leer, weil die Changelogs für eine Erstinstallation zu technisch sind (KarloDerBaer).
+- Die README zeigt ein Bild vom Manager aus einem Testordner und den Link zu Buy Me a Coffee (KarloDerBaer).
+
 ## 04.11.2026: Umzug auf den Installer (Peon Manager 0.9.1)
 
 - KarloDerBaer nutzt jetzt die installierte Fassung mit Daten im Standard-Datenordner, also dasselbe wie alle anderen, und vor dem ersten Scan (KarloDerBaer). Der frühere Ordner bleibt als Sicherung, die Addons bleiben Junctions.

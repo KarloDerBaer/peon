@@ -96,12 +96,15 @@ test('Gleiches Addon, gleiches Zip (Pruefsumme bleibt)', () => {
   assert.deepEqual(a.addons.map((x) => x.sha256), b.addons.map((x) => x.sha256));
 });
 
-test('Was ist neu: ohne frueheres Release nur die aktuelle Version, sonst alles seitdem', () => {
+test('Was ist neu: beim ersten Release leer, danach alles seitdem, neues Addon mit aktueller Version', () => {
   const f = fakeRepo();
   const first = run(f).manifest;
   const broker = first.addons.find((a) => a.name === 'Peon_Broker');
-  assert.equal(broker.notes, '### 0.33.0\n\n- Bridge');
+  assert.equal(broker.notes, '');
   assert.equal(broker.changed, true);
+  assert.doesNotMatch(R.releaseNotes(first), /^## /m);
+  const neu = run(f, { prev: { addons: [] } }).manifest.addons.find((a) => a.name === 'Peon_Broker');
+  assert.equal(neu.notes, '### 0.33.0\n\n- Bridge');
   const prev = { addons: [{ name: 'Peon_Broker', version: '0.31.0' }, { name: 'Peon', version: '0.11.0' }] };
   const second = run(f, { prev }).manifest;
   const b2 = second.addons.find((a) => a.name === 'Peon_Broker');
@@ -142,6 +145,8 @@ test('Echtes Repo: alle Addons, Bridge nur fuer den Manager, ohne Data.lua', () 
   const bridge = m.addons.find((a) => a.name === 'Peon_Bridge');
   assert.equal(bridge.managerOnly, true);
   assert.ok(!R.readZip(fs.readFileSync(path.join(out, bridge.file))).some((e) => /Data\.lua$/.test(e.name)));
-  assert.ok(m.addons.every((a) => a.notes.startsWith(`### ${a.version}`)), 'jede Version hat einen Changelog-Abschnitt');
+  assert.ok(m.addons.every((a) => a.notes === ''), 'erstes Release ohne Was ist neu');
+  const spaeter = R.build({ out: tmp('echt2'), tag: 'v2026.11.04', dirty: true, prev: { addons: [] } }).manifest;
+  assert.ok(spaeter.addons.every((a) => a.notes.startsWith(`### ${a.version}`)), 'jede Version hat einen Changelog-Abschnitt');
   assert.equal(m.addons.find((a) => a.name === 'Peon').api, 11);
 });

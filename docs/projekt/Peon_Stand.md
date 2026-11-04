@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 31.10.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.11.0 / Broker 0.33.0 / Bridge 0.4.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.9.1 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.1 / Fishing 1.5.1 / Tooltip 0.7.2 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.1. Peon_Feedback 0.2.0 ist archiviert (`<Archiv>\Peon_Feedback_0.2.0\`).
+Stand: 31.10.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.11.0 / Broker 0.33.0 / Bridge 0.4.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.9.2 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.1 / Fishing 1.5.1 / Tooltip 0.7.2 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.1. Peon_Feedback 0.2.0 ist archiviert (`<Archiv>\Peon_Feedback_0.2.0\`).
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.11.0, API 11
@@ -55,7 +55,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.9.1
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.9.2
 
 - Quellcode: `manager\` (bisher `client\`), Anleitung in `manager\README.md`. Design: `docs\konzepte\manager\Peon_Client_Design.md` (Funktionen, jetzt Modul Peon Broker Client) und `Peon_GitHub_Design.md` (Peon Manager, Module, Installieren).
 - Programm bei KarloDerBaer: installiert wie bei allen anderen (ab 04.11.2026, siehe unten). Der frühere Ordner `<Programmordner>` mit Runtime und DB bleibt als Sicherung. Anderer Datenordner: Umgebungsvariable `PEON_MANAGER_DB`.
@@ -152,12 +152,13 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
   - **Neue Reihenfolge (KarloDerBaer, 31.10.2026):** Das erste Release kommt erst, wenn auch der Peon Manager fertig ist. Zuerst F1 (Skript für Zips und Manifest, ohne Veröffentlichung), dann G Manager-Module, H Ansicht „Module“ und Installieren, I Installer und Selbst-Update, danach das erste Release mit allen Addons (Peon_Bridge nur über den Manager) und dem Installer.
   - Programmname von WoW Forever: `Wow.exe` im Ordner `_forever_` (geprüft 31.10.2026, für die Warnung „WoW läuft“).
   - F1 erledigt (31.10.2026): `node scripts/build_release.js [--tag vJJJJ.MM.TT] [--test] [--prev manifest.json]` baut nach `build\release\<Tag>\` je Addon ein Zip, `manifest.json` (Design 6.2) und `notes.md` (Text für das Release). Einstellungen je Addon (nötige Kern-API, nur Manager, Ausnahmen wie Data.lua) und die Manager-Module stehen in `scripts\release.json`. Die Zips sind immer gleich gebaut (gleiches Addon, gleiche Prüfsumme). Geprüft: mit Windows entpackt, alle 97 Dateien gleich dem Repo, kein Data.lua. Tests in `scripts\test\`, laufen auch auf GitHub. Nichts veröffentlicht.
-  - Offen für das erste Release: „Was ist neu“ kommt aus den Changelogs und ist sehr technisch (Funktionsnamen, „Wunsch KarloDerBaer“). Vor dem ersten Release mit KarloDerBaer klären, ob es für Freunde kürzere Texte geben soll (z. B. eigener Abschnitt je Version oder nur die Beschreibung beim ersten Release).
+  - „Was ist neu“ kommt aus den Changelogs und ist sehr technisch (Funktionsnamen, „Wunsch KarloDerBaer“). Entschieden (04.11.2026): Beim ersten Release bleibt es leer, ab dem zweiten kommen die Changelogs. Ob es dafür kürzere Texte für Freunde geben soll, ist noch offen.
   - G Manager-Module erledigt (31.10.2026): Peon Manager 0.7.0. Broker Client als abschaltbares Modul mit eigener Datei `broker-client.db` (KarloDerBaer), Seitenleiste je nach aktiven Modulen, `channels` je Modul, Ansicht „Module“. Bei KarloDerBaer zieht `peon.db` beim ersten Start einmalig nach `broker-client.db` um (mit einer Kopie im Selbsttest geprüft). Programm eingespielt, alte Version als `Runtime_0.6.0`.
   - H Ansicht „Module“ und Installieren erledigt (04.11.2026): Peon Manager 0.8.0. Im echten Programm geprüft mit einem Paket aus `build_release` über einen lokalen Server und einem Testordner: alle 9 Addons installiert (98 Dateien gleich dem Repo), eines aktualisiert, alte Fassung in der Sicherung. **Noch offen aus der Abnahme:** dasselbe mit dem echten Release auf GitHub, das erst mit dem ersten Release möglich ist (Punkt der Abnahme für das erste Release).
   - I Installer und Selbst-Update (04.11.2026): Peon Manager 0.9.0, `release.yml` baut alles auf GitHub, README mit Installation und SmartScreen. Im Testordner geprüft: Installer installiert 0.9.0, Manager lädt 0.9.1 und spielt sie ein (1,2 MB statt 99 MB, die Fassungen unterschieden sich aber fast nur in der Versionsnummer). **Noch nicht geprüft:** Knopf „Jetzt neu starten“ (Test lief ohne Neustart), Warnung von SmartScreen, Selbst-Update gegen das echte GitHub.
   - Umzug bei KarloDerBaer erledigt (04.11.2026): Manager 0.9.1 mit dem Installer installiert, Daten nach `%APPDATA%\Peon Manager\Daten` kopiert (Prüfsummen gleich), `Data.lua` hat `channels.broker = true`.
-  - **Offen für das erste Release:** Tag setzen, Abnahme von H und I mit dem echten Release (Testordner, Freund installiert, neue Version kommt an), Texte „Was ist neu“ für Freunde, Umzug der eigenen Daten.
+  - README neu gestaltet (04.11.2026): Logo, Badges, Bild vom Manager (`docs\bilder\manager_module.png`, nur Testdaten), Link zu Buy Me a Coffee.
+  - **Offen für das erste Release:** Tag setzen, Abnahme von H und I mit dem echten Release (Testordner, Freund installiert, neue Version kommt an).
 
 ### Peon Client und Modul Peon_Client (beschlossen 22.10.2026, Design `Peon_Client_Design.md` abgestimmt)
 

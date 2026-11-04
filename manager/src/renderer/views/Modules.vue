@@ -144,7 +144,7 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
             <h3>{{ a.title }}</h3>
             <span class="small" :class="{ ok: a.status === 'current', warn: a.status === 'update', muted: !['current', 'update'].includes(a.status) }">
               {{ LABEL[a.status] }}
-              <template v-if="a.installed"> · installiert {{ a.installed }}</template>
+              <template v-if="a.installed">{{ a.status === 'unknown' ? ' ' : ' · installiert ' }}{{ a.installed }}</template>
               <template v-if="a.available && a.available !== a.installed"> · verfügbar {{ a.available }}</template>
             </span>
           </div>
