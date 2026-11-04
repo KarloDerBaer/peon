@@ -159,7 +159,7 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
   - Umzug bei KarloDerBaer erledigt (04.11.2026): Manager 0.9.1 mit dem Installer installiert, Daten nach `%APPDATA%\Peon Manager\Daten` kopiert (Prüfsummen gleich), `Data.lua` hat `channels.broker = true`.
   - README neu gestaltet (04.11.2026): Logo, Badges, Bild vom Manager (`docs\bilder\manager_module.png`, nur Testdaten), Link zu Buy Me a Coffee.
   - **Erstes Release `v2026.11.04` veröffentlicht (04.11.2026):** alle 9 Addons, Manager 0.9.2. Gegen das echte GitHub geprüft: frisch gebauter Manager 0.9.2 installiert im Testordner alle 9 Addons (98 Dateien gleich dem Repo), Prüfsumme des geladenen Installers gleich `latest.yml`.
-  - **Blizzard-API (04.11.2026):** Prüfabruf unter Quellen fertig (Manager 0.10.0, noch in keinem Release). **Nächster Schritt:** Nach dem Start mit einem eigenen Zugang prüfen. Liefert er Angebote, passend zum echten Format den Einleser bauen und die Zuordnung zu den Märkten klären. Sonst später erneut prüfen.
+  - **Blizzard-API (04.11.2026):** Prüfabruf unter Quellen fertig (Manager 0.10.0, im Release `v2026.11.04.2`, Addons darin unverändert, gegen das echte GitHub geprüft wie beim ersten Release). **Nächster Schritt:** Nach dem Start mit einem eigenen Zugang prüfen. Liefert er Angebote, passend zum echten Format den Einleser bauen und die Zuordnung zu den Märkten klären. Sonst später erneut prüfen.
   - **Noch offen aus der Abnahme von H und I:** Installer auf einem fremden Rechner mit Warnung von SmartScreen (Freund), Selbst-Update gegen das echte GitHub mit Knopf „Jetzt neu starten“ (Manager 0.9.1 bei KarloDerBaer auf 0.9.2).
 
 ### Peon Client und Modul Peon_Client (beschlossen 22.10.2026, Design `Peon_Client_Design.md` abgestimmt)
