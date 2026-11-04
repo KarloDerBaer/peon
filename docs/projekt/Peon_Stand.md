@@ -158,7 +158,8 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
   - I Installer und Selbst-Update (04.11.2026): Peon Manager 0.9.0, `release.yml` baut alles auf GitHub, README mit Installation und SmartScreen. Im Testordner geprüft: Installer installiert 0.9.0, Manager lädt 0.9.1 und spielt sie ein (1,2 MB statt 99 MB, die Fassungen unterschieden sich aber fast nur in der Versionsnummer). **Noch nicht geprüft:** Knopf „Jetzt neu starten“ (Test lief ohne Neustart), Warnung von SmartScreen, Selbst-Update gegen das echte GitHub.
   - Umzug bei KarloDerBaer erledigt (04.11.2026): Manager 0.9.1 mit dem Installer installiert, Daten nach `%APPDATA%\Peon Manager\Daten` kopiert (Prüfsummen gleich), `Data.lua` hat `channels.broker = true`.
   - README neu gestaltet (04.11.2026): Logo, Badges, Bild vom Manager (`docs\bilder\manager_module.png`, nur Testdaten), Link zu Buy Me a Coffee.
-  - **Offen für das erste Release:** Tag setzen, Abnahme von H und I mit dem echten Release (Testordner, Freund installiert, neue Version kommt an).
+  - **Erstes Release `v2026.11.04` veröffentlicht (04.11.2026):** alle 9 Addons, Manager 0.9.2. Gegen das echte GitHub geprüft: frisch gebauter Manager 0.9.2 installiert im Testordner alle 9 Addons (98 Dateien gleich dem Repo), Prüfsumme des geladenen Installers gleich `latest.yml`.
+  - **Noch offen aus der Abnahme von H und I:** Installer auf einem fremden Rechner mit Warnung von SmartScreen (Freund), Selbst-Update gegen das echte GitHub mit Knopf „Jetzt neu starten“ (Manager 0.9.1 bei KarloDerBaer auf 0.9.2).
 
 ### Peon Client und Modul Peon_Client (beschlossen 22.10.2026, Design `Peon_Client_Design.md` abgestimmt)
 
