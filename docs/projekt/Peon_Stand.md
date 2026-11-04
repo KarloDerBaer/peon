@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 31.10.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.11.0 / Broker 0.33.0 / Bridge 0.4.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.8.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.1 / Fishing 1.5.1 / Tooltip 0.7.2 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.1. Peon_Feedback 0.2.0 ist archiviert (`<Archiv>\Peon_Feedback_0.2.0\`).
+Stand: 31.10.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.11.0 / Broker 0.33.0 / Bridge 0.4.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.9.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.1 / Fishing 1.5.1 / Tooltip 0.7.2 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.1. Peon_Feedback 0.2.0 ist archiviert (`<Archiv>\Peon_Feedback_0.2.0\`).
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.11.0, API 11
@@ -55,14 +55,15 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.8.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.9.0
 
 - Quellcode: `manager\` (bisher `client\`), Anleitung in `manager\README.md`. Design: `docs\konzepte\manager\Peon_Client_Design.md` (Funktionen, jetzt Modul Peon Broker Client) und `Peon_GitHub_Design.md` (Peon Manager, Module, Installieren).
 - Programm bei KarloDerBaer: `<Programmordner>\Runtime\PeonManager.exe`, Daten in `<Programmordner>\DB\`: `peon.db` (Manager: Zustand, Protokoll), `broker-client.db` (Modul Peon Broker Client), `settings.json`, `logs\`. Dazu `backup\` (alte Fassungen der Addons) und `tmp\` (Zwischenordner). Alte Programmversionen als `Runtime_0.6.0` und `Runtime_0.7.0`. Anderer Datenordner: Umgebungsvariable `PEON_MANAGER_DB`. Der alte Ordner `<alter Programmordner>` (Runtime 0.5.0, DB, DB_beta) bleibt als Sicherung.
 - Liest `WTF\Account\<Konto>\SavedVariables\Peon_Bridge.lua` (`PeonBridgeDB`), schreibt `AddOns\Peon_Bridge\Data.lua` (`PeonBridgeData`, Format 2, `channels` aus den aktiven Manager-Modulen).
 - Manager-Module (ab 0.7.0, Variante B): Liste in `manager\src\core\modules.js`, je Modul Schlüssel, Name, Beschreibung, nötige Addons, Kanäle, Ansichten, Datenbankdatei. Erstes Modul **Peon Broker Client** (`broker-client`, Code in `broker-client.js`), standardmäßig aus, bei KarloDerBaer aktiv. Ansicht „Module“ mit Installieren, Entfernen und Daten löschen.
 - Addons (ab 0.8.0, `src\core\addons.js`): Manifest des Release holen, Zip laden und prüfen, tauschen, bei Fehler zurücktauschen. Sucht beim Start und alle 6 Stunden, installiert nur per Klick. Junctions gelten als „Entwicklung (Repo)“ und bleiben unberührt, deshalb ändert der Manager bei KarloDerBaer keine Addons. Kanal Stabil oder Test in den Einstellungen. Quelle zum Testen: Umgebungsvariable `PEON_MANAGER_RELEASES`.
-- Bauen: `npm ci`, `npm run dist` (Ordner `manager\release\win-unpacked`), Selbsttest mit `PEON_MANAGER_SELFTEST=<Ordner>`.
+- Installiert (ab 0.9.0): Installer `PeonManager-Setup-<Version>.exe` für den Benutzer, ohne Administratorrechte, Programm unter `%LOCALAPPDATA%\Programs`, Daten in `%APPDATA%\Peon Manager\Daten`. Selbst-Update über `electron/updater.js`: lädt im Hintergrund, fragt vor dem Neustart. Liegt ein Ordner `DB` neben dem Programmordner (Aufbau bei KarloDerBaer), gilt dieser, und es gibt kein Selbst-Update.
+- Bauen: `npm ci`, `npm run dist:setup` (Installer) oder `npm run dist` (nur Ordner) (Ordner `manager\release\win-unpacked`), Selbsttest mit `PEON_MANAGER_SELFTEST=<Ordner>`.
 - Tests: `npm test` im Ordner `manager\` (Rechenkern, dazu der Vergleich mit Brokers Sales.lua über `tools\lua5.1.exe`).
 - Verlauf der Versionen: `docs/changelog/Peon_Manager.md`
 
@@ -154,7 +155,8 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
   - Offen für das erste Release: „Was ist neu“ kommt aus den Changelogs und ist sehr technisch (Funktionsnamen, „Wunsch KarloDerBaer“). Vor dem ersten Release mit KarloDerBaer klären, ob es für Freunde kürzere Texte geben soll (z. B. eigener Abschnitt je Version oder nur die Beschreibung beim ersten Release).
   - G Manager-Module erledigt (31.10.2026): Peon Manager 0.7.0. Broker Client als abschaltbares Modul mit eigener Datei `broker-client.db` (KarloDerBaer), Seitenleiste je nach aktiven Modulen, `channels` je Modul, Ansicht „Module“. Bei KarloDerBaer zieht `peon.db` beim ersten Start einmalig nach `broker-client.db` um (mit einer Kopie im Selbsttest geprüft). Programm eingespielt, alte Version als `Runtime_0.6.0`.
   - H Ansicht „Module“ und Installieren erledigt (04.11.2026): Peon Manager 0.8.0. Im echten Programm geprüft mit einem Paket aus `build_release` über einen lokalen Server und einem Testordner: alle 9 Addons installiert (98 Dateien gleich dem Repo), eines aktualisiert, alte Fassung in der Sicherung. **Noch offen aus der Abnahme:** dasselbe mit dem echten Release auf GitHub, das erst mit dem ersten Release möglich ist (Punkt der Abnahme für das erste Release).
-  - Nächster Schritt: I Installer und Selbst-Update.
+  - I Installer und Selbst-Update (04.11.2026): Peon Manager 0.9.0, `release.yml` baut alles auf GitHub, README mit Installation und SmartScreen. Im Testordner geprüft: Installer installiert 0.9.0, Manager lädt 0.9.1 und spielt sie ein (1,2 MB statt 99 MB, die Fassungen unterschieden sich aber fast nur in der Versionsnummer). **Noch nicht geprüft:** Knopf „Jetzt neu starten“ (Test lief ohne Neustart), Warnung von SmartScreen, Selbst-Update gegen das echte GitHub.
+  - **Offen für das erste Release:** Tag setzen, Abnahme von H und I mit dem echten Release (Testordner, Freund installiert, neue Version kommt an), Texte „Was ist neu“ für Freunde, Umzug der eigenen Daten.
 
 ### Peon Client und Modul Peon_Client (beschlossen 22.10.2026, Design `Peon_Client_Design.md` abgestimmt)
 

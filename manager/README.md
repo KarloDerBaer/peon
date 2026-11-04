@@ -8,7 +8,7 @@ Design: `..\docs\konzepte\manager\Peon_Client_Design.md` (Funktionen) und `..\do
 
 | Ordner | Inhalt |
 |---|---|
-| `electron\` | Hauptteil: Fenster, Infobereich, Dateiwächter, Zeitplan (`main.js`), feste Befehlsliste für die Oberfläche (`preload.js`), Symbol |
+| `electron\` | Hauptteil: Fenster, Infobereich, Dateiwächter, Zeitplan (`main.js`), Selbst-Update (`updater.js`), feste Befehlsliste für die Oberfläche (`preload.js`), Symbol |
 | `src\core\` | Rechenkern ohne Electron: Manager (`service.js`), Liste der Manager-Module (`modules.js`), Modul Peon Broker Client (`broker-client.js`), Addons installieren (`addons.js`, `zip.js`), Lua-Leser, Datenbanken, Einleser Spiel und AHledger, Rückgabe `Data.lua`, Kennzahlen |
 | `src\renderer\` | Oberfläche (Vue 3, ECharts, Schrift Barlow) |
 | `test\` | Tests des Rechenkerns (`*.test.js`), echte WTF-Datei als Beispiel (`fixtures\`), Vergleich mit Brokers Lua-Code (`lua\`), Bildschirmfotos der Oberfläche (`ui\`) |
@@ -31,6 +31,7 @@ npm ci
 npm test                 # Rechenkern und Vergleich mit Broker (nutzt ..\tools\lua5.1.exe)
 npm run shots            # Bildschirmfotos nach test\ui (braucht Chromium)
 npm run dist             # Windows-Ordner nach release\win-unpacked
+npm run dist:setup       # Installer nach release\ (mit latest.yml und Blockmap)
 ```
 
 Selbsttest des echten Programms: `PEON_MANAGER_DB=<Ordner> PEON_MANAGER_SELFTEST=<Ausgabe>` setzen und `PeonManager.exe` (oder `electron .`) starten. Es schreibt ein Bildschirmfoto und die Übersicht und beendet sich. Mit `PEON_MANAGER_SELFTEST_INSTALL=<Namen mit Komma>` installiert es vorher Addons, mit `PEON_MANAGER_SELFTEST_VIEW=<Ansicht>` fotografiert es diese Ansicht.

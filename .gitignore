@@ -5,6 +5,7 @@ addons/Peon_Bridge/Data.lua
 manager/node_modules/
 manager/dist/
 manager/release/
+manager/release2/
 *.log
 
 # Release-Bau

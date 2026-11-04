@@ -100,6 +100,13 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
     <p class="small warn" v-if="error" role="alert">{{ error }}</p>
     <p class="small ok" v-if="message" role="status">{{ message }}</p>
 
+    <div class="banner ok-line" v-if="st.manager && st.manager.status === 'ready'" role="status">
+      <p>Peon Manager {{ st.manager.version }} ist bereit (jetzt {{ st.manager.version && data.version }}). Zum Einspielen startet das Programm neu.</p>
+      <button class="primary" @click="api.installManagerUpdate()">Jetzt neu starten</button>
+    </div>
+    <p class="small muted" v-else-if="st.manager && st.manager.status === 'downloading'" role="status">Peon Manager {{ st.manager.version }} wird geladen ({{ st.manager.percent }} %).</p>
+    <p class="small warn" v-else-if="st.manager && st.manager.status === 'error'" role="status">Selbst-Update fehlgeschlagen: {{ st.manager.error }}</p>
+
     <section class="group setup" v-if="showSetup">
       <h2>Willkommen</h2>
       <p>Wähle, was der Manager installieren soll. Du kannst später alles hier ändern. {{ st.wowValid ? `WoW-Ordner: ${st.wowDir}` : '' }}</p>
@@ -202,6 +209,7 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
 .ok { color: var(--accent); }
 .warn { color: var(--warn); }
 .banner { border: 1px solid var(--warn); border-radius: var(--radius-m); padding: 10px 14px; display: grid; gap: 8px; justify-items: start; }
+.ok-line { border-color: var(--accent); }
 .setup { border: 1px solid var(--accent); border-radius: var(--radius-m); padding: 16px 18px; }
 .notes { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 280px; overflow: auto; color: var(--muted); border-top: 1px solid var(--line-soft); padding-top: 8px; }
 .data { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid var(--line-soft); }

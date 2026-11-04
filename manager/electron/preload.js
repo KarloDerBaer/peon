@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('peon', {
   updateAddons: () => ipcRenderer.invoke('updateAddons'),
   removeAddon: (name) => ipcRenderer.invoke('removeAddon', name),
   setAddonChannel: (channel) => ipcRenderer.invoke('setAddonChannel', channel),
+  installManagerUpdate: () => ipcRenderer.invoke('installManagerUpdate'),
   findWow: () => ipcRenderer.invoke('findWow'),
   finishSetup: (plan) => ipcRenderer.invoke('finishSetup', plan),
   onChanged: (fn) => { ipcRenderer.on('changed', (_e, info) => fn(info)); },

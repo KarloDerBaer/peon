@@ -19,24 +19,27 @@ Peon ist eine Sammlung von Addons für **World of Warcraft Forever** (deutscher 
 
 Jedes Addon außer Peon ist freiwillig. Nimm nur, was du willst, aber **Peon selbst muss immer dabei sein**.
 
-Peon_Bridge (Verbindung zum Programm Peon Manager) gehört zum Peon Manager und wird mit ihm installiert. Ohne den Manager tut es nichts.
+Peon_Bridge (Verbindung zum Peon Manager) gehört zum Manager und wird mit ihm installiert. Ohne den Manager tut es nichts.
 
 ## Installation
 
-Bis der Peon Manager fertig ist, geht die Installation von Hand:
+Am einfachsten geht es mit dem **Peon Manager**, einem kleinen Windows-Programm. Er installiert und aktualisiert die Addons und hält sich selbst aktuell.
 
-1. Öffne die Seite [Releases](https://github.com/KarloDerBaer/peon/releases/latest) und lade die Zip-Dateien der Addons, die du möchtest. **Peon** brauchst du immer.
-2. Schließe WoW.
-3. Entpacke jede Zip-Datei in den AddOns-Ordner von Forever, zum Beispiel  
-   `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns`  
-   Danach liegt dort für jedes Addon ein eigener Ordner, z. B. `AddOns\Peon` und `AddOns\Peon_Broker`. Achte darauf, dass kein doppelter Ordner entsteht (`AddOns\Peon\Peon`).
-4. Starte WoW. In der Addonliste stehen die Peon-Module eingerückt unter Peon. Im Chat zeigt `/peon list`, was geladen ist.
+1. Öffne die Seite [Releases](https://github.com/KarloDerBaer/peon/releases/latest) und lade `PeonManager-Setup-….exe`.
+2. Starte die Datei. Administratorrechte brauchst du nicht.
+3. **Windows warnt beim ersten Start** („Der Computer wurde durch Windows geschützt“), weil das Programm nicht digital signiert ist. Klicke auf **„Weitere Informationen“** und dann auf **„Trotzdem ausführen“**.
+4. Der Manager sucht deinen WoW-Ordner und schlägt die Addons vor. Wähle ab, was du nicht willst, und klicke auf **Installieren**. Findet er WoW nicht, wählst du den Ordner `_forever_` selbst aus.
+5. Starte WoW. In der Addonliste stehen die Peon-Module eingerückt unter Peon. Im Chat zeigt `/peon list`, was geladen ist.
 
-**Aktualisieren:** Den alten Ordner des Addons löschen und die neue Zip-Datei genauso entpacken. Deine Einstellungen bleiben erhalten, sie liegen im Ordner `WTF` und nicht im Addon-Ordner.
+Neue Versionen zeigt der Manager unter **Module** an, installiert wird erst, wenn du auf **Aktualisieren** klickst. Läuft WoW dabei, reicht danach meist `/reload`, neue Dateien brauchen einen Neustart von WoW.
 
-## Peon Manager
+### Peon Broker Client
 
-Später gibt es ein kleines Windows-Programm, den **Peon Manager**. Er installiert und aktualisiert die Addons von selbst. Als Zusatz bringt er den **Peon Broker Client** mit, der die Auktionsdaten von Broker sammelt, auswertet und Broker bessere Preise zurückgibt. Bis dahin funktioniert alles auch ohne Programm.
+Unter **Module** kannst du zusätzlich den **Peon Broker Client** installieren. Er sammelt die Auktionsdaten von Broker, wertet sie aus (Verlauf, Chancen, Absatz) und gibt Broker bessere Preise zurück. Broker funktioniert auch ohne ihn.
+
+### Ohne den Manager
+
+Die Addons gehen auch von Hand: Lade auf der Seite [Releases](https://github.com/KarloDerBaer/peon/releases/latest) die Zip-Dateien, die du möchtest (**Peon** brauchst du immer), schließe WoW und entpacke sie nach `<WoW>\_forever_\Interface\AddOns`. Danach liegt dort für jedes Addon ein eigener Ordner, z. B. `AddOns\Peon`. Zum Aktualisieren den alten Ordner löschen und neu entpacken, deine Einstellungen liegen in `WTF` und bleiben erhalten.
 
 ## Feedback und Fehler
 

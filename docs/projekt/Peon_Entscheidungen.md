@@ -2,6 +2,12 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 04.11.2026: Installer und Selbst-Update, Schritt I (Peon Manager 0.9.0)
+
+- Selbst-Update liest aus dem Ordner des Release (`generic`) statt über den GitHub-Weg von electron-updater, weil dieser Tags wie v2026.11.04 nicht als Versionen annimmt (im Code nachgelesen). Der Manager kennt den Ordner ohnehin aus dem Manifest (Claude).
+- Die neue Version wird im Hintergrund geladen, eingespielt wird nur per Klick, auch nicht beim Beenden. Das passt zu „installiert wird nur per Klick“ (Claude, Design: fragt vor dem Neustart).
+- Der Umzug von `<Programmordner>` in den Standard-Datenordner ist kein Code, weil es ihn nur einmal bei KarloDerBaer braucht und kein privater Pfad ins Repo gehört (Claude).
+
 ## 04.11.2026: Addons installieren, Schritt H (Peon Manager 0.8.0)
 
 - **Der Manager sucht beim Start und alle 6 Stunden, installiert aber nur per Klick** (KarloDerBaer). So ändert sich nichts ungefragt, etwa während WoW läuft.

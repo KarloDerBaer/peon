@@ -416,6 +416,25 @@ test('Release zurueckgezogen: altes Manifest wird vergessen, Installierte bleibe
   w.close();
 });
 
+test('Selbst-Update: nur eine neuere Version aus dem Manifest, Quelle ist der Ordner des Release', async () => {
+  const w = await world();
+  assert.equal(w.svc.addons.managerUpdate(), null, 'ohne Manifest nichts');
+  await w.svc.addons.check();
+  assert.equal(w.svc.addons.managerUpdate(), null, 'gleiche Version');
+  const rel = JSON.parse(w.state.releases['v2026.11.04']['manifest.json']);
+  rel.manager.version = '0.10.0';   // 0.10 ist neuer als 0.8, auch wenn es als Text kleiner waere
+  w.state.releases['v2026.11.04']['manifest.json'] = JSON.stringify(rel);
+  await w.svc.addons.check();
+  const u = w.svc.addons.managerUpdate();
+  assert.equal(u.version, '0.10.0');
+  assert.ok(u.feed.endsWith('/releases/download/v2026.11.04'));
+  rel.manager.version = '0.7.0';
+  w.state.releases['v2026.11.04']['manifest.json'] = JSON.stringify(rel);
+  await w.svc.addons.check();
+  assert.equal(w.svc.addons.managerUpdate(), null, 'aelter: nichts');
+  w.close();
+});
+
 test('Einstellungen mit BOM-Markierung (Windows-Editor) bleiben gueltig', () => {
   const dir = tmp();
   fs.writeFileSync(path.join(dir, 'settings.json'), '\uFEFF' + JSON.stringify({ wowDir: 'X:\\WoW', keepDays: 45, setup: { done: false }, modules: {} }));

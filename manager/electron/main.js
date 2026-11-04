@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const { execFile } = require('node:child_process');
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, session } = require('electron');
 const { Service } = require('../src/core/service');
+const { createUpdater } = require('./updater');
 const { findWowDirs, REPO_URL } = require('../src/core/addons');
 const modules = require('../src/core/modules');
 
@@ -20,17 +21,21 @@ const DEV = !app.isPackaged;
 const HIDDEN = process.argv.includes('--hidden');
 const ADDON_CHECK_MS = 6 * 60 * 60 * 1000;   // Addons: beim Start und alle 6 Stunden nach Updates suchen, installiert wird nur per Klick
 
+// Ordner mit Runtime und DB nebeneinander: wird von Hand getauscht, kein Selbst-Update
+const SIDE_DB = path.join(path.dirname(process.execPath), '..', 'DB');
+const BESIDE = !DEV && fs.existsSync(SIDE_DB);
+
 function dataDir() {
   if (process.env.PEON_MANAGER_DB) return process.env.PEON_MANAGER_DB;
   if (DEV) return path.join(ROOT, 'data');
-  // <Programmordner>\Runtime\PeonManager.exe -> <Programmordner>\DB
-  return path.join(path.dirname(process.execPath), '..', 'DB');
+  if (BESIDE) return SIDE_DB;                            // <Programmordner>\Runtime\PeonManager.exe -> <Programmordner>\DB
+  return path.join(app.getPath('userData'), 'Daten');    // installiert: %APPDATA%\Peon Manager\Daten
 }
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  let win = null, tray = null, svc = null, quitting = false;
+  let win = null, tray = null, svc = null, quitting = false, updater = null;
   const watchers = [];
   let lastSeen = new Map();
   let pending = null;
@@ -164,10 +169,11 @@ if (!app.requestSingleInstanceLock()) {
 
   async function findWow() { return findWowDirs({ installPaths: await registryPaths() }); }
 
-  async function addonState() { return svc.addonState(await wowRunning()); }
+  async function addonState() { return { ...svc.addonState(await wowRunning()), manager: { version: svc.version, ...updater.state() } }; }
 
   async function checkAddons() {
     const r = await svc.addons.check();
+    updater.check();
     send('changed', { what: 'addons' });
     return r;
   }
@@ -249,6 +255,7 @@ if (!app.requestSingleInstanceLock()) {
       svc.saveSettings({ addons: { ...svc.settings.addons, channel } });
       return checkAddons();
     });
+    ipcMain.handle('installManagerUpdate', () => updater.install());
     ipcMain.handle('findWow', () => findWow());
     ipcMain.handle('finishSetup', async (_e, plan) => {
       const res = await svc.finishSetup({ addons: names(plan && plan.addons), modules: names(plan && plan.modules) });
@@ -290,6 +297,7 @@ if (!app.requestSingleInstanceLock()) {
     // PEON_MANAGER_RELEASES: nachgebautes Release statt GitHub (nur zum Testen)
     const rel = process.env.PEON_MANAGER_RELEASES;
     svc = new Service({ dbDir: dataDir(), version: app.getVersion(), releases: rel ? { releaseBase: rel, apiBase: `${rel}/api` } : undefined });
+    updater = createUpdater({ enabled: app.isPackaged && !BESIDE, svc, onChange: () => send('changed', { what: 'update' }), beforeInstall: () => { quitting = true; } });
     registerIpc();
     createTray();
     createWindow();
@@ -325,6 +333,13 @@ if (!app.requestSingleInstanceLock()) {
           if (wanted) {
             install = await win.webContents.executeJavaScript(`(async () => { await window.peon.checkAddons(); return window.peon.installAddons(${JSON.stringify(wanted.split(','))}); })()`);
             fs.writeFileSync(path.join(out, 'install.json'), JSON.stringify({ install, state: await addonState() }, null, 1));
+          }
+          // Selbst-Update pruefen: warten, bis die neue Version geladen ist, dann ohne Neustart einspielen
+          if (process.env.PEON_MANAGER_SELFTEST_UPDATE) {
+            await checkAddons();
+            for (let i = 0; i < 240 && !['ready', 'error'].includes(updater.state().status); i++) await new Promise((r) => setTimeout(r, 500));
+            fs.writeFileSync(path.join(out, 'update.json'), JSON.stringify(updater.state()));
+            if (updater.state().status === 'ready') { updater.install(false); return; }
           }
           if (process.env.PEON_MANAGER_SELFTEST_VIEW) {
             await win.webContents.executeJavaScript(`[...document.querySelectorAll('button.nav')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(process.env.PEON_MANAGER_SELFTEST_VIEW)})).click()`);

@@ -159,6 +159,8 @@ class Service {
     }
   }
 
+  logManager(kind, ok, text) { log(this.db, kind, ok, text); }
+
   // Peon_Bridge wurde neu installiert oder aktualisiert: Data.lua passend zu den Modulen schreiben
   bridgeInstalled() {
     if (this.broker) {

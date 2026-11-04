@@ -1,0 +1,86 @@
+# Peon: Release bauen (Peon_GitHub_Design.md, Abschnitt 6).
+# Ein Tag vJJJJ.MM.TT (Vorabversion mit -test) baut und veroeffentlicht: Zips der Addons, manifest.json, Installer des Managers.
+# Von Hand gestartet (workflow_dispatch) ist es ein Probelauf: Alles wird gebaut, aber nichts veroeffentlicht.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Lua-Tests der Addons
+        run: sh tests/run_tests.sh
+
+      - name: Tests des Peon Managers
+        working-directory: manager
+        run: node --test test/*.test.js
+
+      - name: Tests des Release-Skripts
+        run: node --test scripts/test/*.test.js
+
+      - name: Name des Release
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then echo "TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"; echo "DRY=" >> "$GITHUB_ENV"
+          else echo "TAG=v$(date +%Y.%m.%d)" >> "$GITHUB_ENV"; echo "DRY=1" >> "$GITHUB_ENV"; fi
+
+      # Letztes Release: "Was ist neu" seitdem, und die Blockmap des alten Installers fuer das Laden nur geaenderter Teile
+      - name: Letztes Release holen
+        run: |
+          mkdir -p build/prev
+          gh release download --pattern manifest.json --pattern '*.blockmap' --dir build/prev || echo "Noch kein Release"
+          ls build/prev
+
+      - name: Zips und Manifest bauen
+        run: |
+          PREV=""
+          if [ -f build/prev/manifest.json ]; then PREV="--prev build/prev/manifest.json"; fi
+          node scripts/build_release.js --tag "$TAG" --out build/release $PREV
+
+      - name: Installer des Managers bauen
+        working-directory: manager
+        run: |
+          npm ci
+          npm run dist:setup
+
+      - name: Alles zusammenlegen
+        run: |
+          OUT="build/release/$TAG"
+          cp build/prev/*.blockmap "$OUT/" 2>/dev/null || true
+          cp manager/release/PeonManager-Setup-*.exe manager/release/PeonManager-Setup-*.exe.blockmap manager/release/latest.yml "$OUT/"
+          ls -la "$OUT"
+          grep -q "\"version\": \"$(node -p "require('./manager/package.json').version")\"" "$OUT/manifest.json"
+
+      - name: Veroeffentlichen
+        if: env.DRY == ''
+        run: |
+          OUT="build/release/$TAG"
+          PRE=""
+          case "$TAG" in *-test) PRE="--prerelease";; esac
+          gh release create "$TAG" "$OUT"/* --title "Peon $TAG" --notes-file "$OUT/notes.md" $PRE
+          gh release delete-asset "$TAG" notes.md --yes
+
+      - name: Probelauf aufbewahren
+        if: env.DRY != ''
+        uses: actions/upload-artifact@v5
+        with:
+          name: probelauf
+          path: build/release
+          retention-days: 3

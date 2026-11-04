@@ -187,7 +187,7 @@ function build(opts = {}) {
 // Text fuer das Release auf GitHub: neue und geaenderte Addons mit "Was ist neu"
 function releaseNotes(m) {
   const lines = [`Peon ${m.release}${m.prerelease ? ' (Vorabversion, Kanal Test)' : ''}`, ''];
-  lines.push('Installation: Zip-Dateien in `Interface\\AddOns` von WoW Forever entpacken, **Peon** wird immer gebraucht. Anleitung in der README.', '');
+  lines.push(`Installation: \`PeonManager-Setup-${m.manager.version}.exe\` laden und starten, der Peon Manager installiert und aktualisiert die Addons. Anleitung in der README.`, '');
   lines.push('| Addon | Version | |', '|---|---|---|');
   for (const a of m.addons) lines.push(`| ${a.name} | ${a.version} | ${a.managerOnly ? 'nur mit dem Peon Manager' : (a.changed ? 'neu oder geändert' : 'unverändert')} |`);
   for (const a of m.addons.filter((x) => x.changed && x.notes)) lines.push('', `## ${a.name} ${a.version}`, '', a.notes);

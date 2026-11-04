@@ -374,6 +374,14 @@ class AddonManager {
     return true;
   }
 
+  // Neuere Version des Managers laut Manifest: { version, feed } (feed = Ordner des Release mit latest.yml), sonst null
+  managerUpdate() {
+    const m = this.manifest;
+    const v = m && m.manager && m.manager.version;
+    if (!v || !VERSION_RE.test(v) || cmpVersion(v, this.host.version) <= 0) return null;
+    return { version: v, feed: `${this.releaseBase}/releases/download/${m.release}` };
+  }
+
   // Was laesst sich gerade aktualisieren (ohne fehlende Addons)
   updates() { return this.list().filter((a) => a.status === 'update').map((a) => a.name); }
 }

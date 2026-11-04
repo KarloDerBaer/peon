@@ -1,6 +1,6 @@
 {
   "name": "peon-manager",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Peon Manager: installiert die Peon-Addons, Modul Peon Broker Client erfasst und wertet Auktionsdaten aus",
   "main": "electron/main.js",
   "scripts": {
@@ -8,7 +8,8 @@
     "start": "npm run build && electron .",
     "test": "node --test test/*.test.js",
     "shots": "node test/ui/mock.js > test/ui/mock.json && node test/ui/shots.js test/ui/mock.json test/ui",
-    "dist": "npm run build && electron-builder --win dir --x64"
+    "dist": "npm run build && electron-builder --win dir --x64 --publish never",
+    "dist:setup": "npm run build && electron-builder --win nsis --x64 --publish never"
   },
   "author": "KarloDerBaer",
   "license": "MIT",
@@ -40,12 +41,29 @@
     ],
     "asar": true,
     "win": {
-      "target": "dir",
-      "signAndEditExecutable": false
+      "target": "nsis",
+      "icon": "electron/icon.png",
+      "signExecutable": false
     },
     "electronLanguages": [
       "de",
       "en-US"
+    ],
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "PeonManager-Setup-${version}.${ext}",
+      "shortcutName": "Peon Manager",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://github.com/KarloDerBaer/peon/releases/latest/download"
+      }
     ]
+  },
+  "dependencies": {
+    "electron-updater": "6.8.11"
   }
 }

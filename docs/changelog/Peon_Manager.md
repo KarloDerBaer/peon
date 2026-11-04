@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.9.0
+
+- 0.9.0 (04.11.2026, Design `Peon_GitHub_Design.md` 5.6 und 6.3, Schritt I): **Installer und Selbst-Update.**
+  - **Installer** (NSIS) für den Benutzer, ohne Administratorrechte. Programm jetzt mit eigenem Symbol und Angaben in der exe.
+  - **Selbst-Update** mit electron-updater: Nennt das Manifest eine neuere Version, lädt der Manager sie im Hintergrund (nur geänderte Teile, wenn möglich) und zeigt unter Module „Jetzt neu starten“. Beim Beenden wird nichts ungefragt eingespielt.
+  - Quelle ist der Ordner des Release aus dem Manifest, weil der GitHub-Weg von electron-updater unsere Tags vJJJJ.MM.TT nicht als Versionen annimmt.
+  - **Datenordner:** Installiert liegen die Daten in `%APPDATA%\Peon Manager\Daten`. Liegt `DB` neben dem Programmordner, gilt weiter dieser Ordner, und es gibt kein Selbst-Update.
+  - `release.yml`: Tag `v*` führt Tests aus, baut Zips, Manifest und Installer und veröffentlicht. Von Hand gestartet ist es ein Probelauf ohne Veröffentlichung. Die Blockmap des letzten Installers kommt mit ins neue Release, damit schon das erste Update nur Teile lädt.
+  - README mit Installation des Managers und Hinweis auf SmartScreen.
+
 ## 0.8.0
 
 - 0.8.0 (04.11.2026, Design `Peon_GitHub_Design.md` 5.3 bis 5.5, Schritt H): **Addons installieren und aktualisieren.**
