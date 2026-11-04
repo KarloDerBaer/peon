@@ -2,6 +2,10 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.9.1
+
+- 0.9.1 (04.11.2026, Fehler beim Umzug gefunden): Der Manager merkte sich nur, was er zuletzt in Data.lua geschrieben hatte, und prüfte die Datei nicht. Stand dort etwas anderes (Datei ohne Kanäle, Platzhalter einer neu installierten Bridge, gelöscht oder kaputt), blieb das so, und die Bridge zeichnete nichts auf, obwohl der Broker Client aktiv war. Jetzt vergleicht er beim Einlesen Format und Kanäle mit der Datei und schreibt sie bei Abweichung neu. Test in `test\modules.test.js`.
+
 ## 0.9.0
 
 - 0.9.0 (04.11.2026, Design `Peon_GitHub_Design.md` 5.6 und 6.3, Schritt I): **Installer und Selbst-Update.**

@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { openDb, log, dbSize, pruneLogs } = require('./db');
 const game = require('./game');
-const { writeData, addonDir } = require('./datalua');
+const { writeData, dataMatches, addonDir } = require('./datalua');
 const ahl = require('./ahledger');
 const broker = require('./broker');
 const history = require('./history');
@@ -80,7 +80,7 @@ class BrokerClient {
     const prev = this.meta('ack') || { ids: [] };
     const same = prev.ids.length === known.length && prev.ids.every((x, k) => x === known[k]);
     const hash = crypto.createHash('md5').update(JSON.stringify(markets.values)).digest('hex');
-    if (!same || !prev.t || prev.hash !== hash) {
+    if (!same || !prev.t || prev.hash !== hash || !dataMatches(wow, this.host.channels())) {
       try {
         const w = writeData(wow, { ack: known, markets: markets.lua, channels: this.host.channels(), version: this.version, now: this.now() });
         sum.ack = { t: this.now(), count: known.length, file: w.file, items: markets.count, bytes: w.bytes };

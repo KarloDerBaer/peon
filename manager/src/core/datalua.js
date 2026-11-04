@@ -7,7 +7,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { toLua } = require('./lua');
+const { toLua, parseLua } = require('./lua');
 
 const FMT = 2;
 const ADDON = 'Peon_Bridge';
@@ -36,4 +36,16 @@ function writeData(wowDir, { ack = [], markets = {}, channels = { broker: true }
   return { file, bytes: Buffer.byteLength(text), ack: ack.length };
 }
 
-module.exports = { writeData, addonDir, FMT, ADDON };
+// Steht in der Datei auf der Platte das Format und die Kanaele, die der Manager erwartet?
+// Sie kann sich aendern, ohne dass der Manager es merkt: neu installierte Bridge, geloeschte Datei, anderes Programm.
+function dataMatches(wowDir, channels = {}) {
+  try {
+    const d = parseLua(fs.readFileSync(path.join(addonDir(wowDir), 'Data.lua'))).PeonBridgeData;
+    if (!d || d.fmt !== FMT) return false;
+    const have = Object.keys(d.channels || {}).filter((k) => d.channels[k] === true).sort();
+    const want = Object.keys(channels).filter((k) => channels[k]).sort();
+    return have.join() === want.join();
+  } catch { return false; }
+}
+
+module.exports = { writeData, dataMatches, addonDir, FMT, ADDON };

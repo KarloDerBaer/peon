@@ -112,6 +112,36 @@ test('Alte Einstellungen ohne Datenbank: Broker Client an', () => {
   svc.close();
 });
 
+test('Data.lua passt nicht mehr zu den Kanaelen: der Manager repariert sie beim Einlesen', () => {
+  const wow = fakeWow();
+  const svc = new Service({ dbDir: tmp(), enable: ['broker-client'] });
+  svc.saveSettings({ wowDir: wow });
+  const file = path.join(wow, 'Interface', 'AddOns', 'Peon_Bridge', 'Data.lua');
+  svc.broker.importGame();
+  assert.deepEqual(dataLua(wow).channels, { broker: true });
+  // gleicher Stand: wird nicht neu geschrieben
+  const t = dataLua(wow).t;
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(`["t"] = ${t}`, '["t"] = 7'));
+  svc.broker.importGame();
+  assert.equal(dataLua(wow).t, 7, 'passt: Datei bleibt, wie sie ist');
+  // von aussen ueberschrieben: keine Kanaele
+  fs.writeFileSync(file, 'PeonBridgeData = { ["fmt"] = 2, ["channels"] = {}, ["ack"] = {}, ["markets"] = {} }\n');
+  svc.broker.importGame();
+  assert.deepEqual(dataLua(wow).channels, { broker: true }, 'Kanal wieder frei');
+  // leerer Platzhalter
+  fs.writeFileSync(file, '-- Platzhalter\n');
+  svc.broker.importGame();
+  assert.deepEqual(dataLua(wow).channels, { broker: true }, 'Platzhalter ersetzt');
+  // geloescht und kaputt
+  fs.unlinkSync(file);
+  svc.broker.importGame();
+  assert.deepEqual(dataLua(wow).channels, { broker: true }, 'geloeschte Datei neu');
+  fs.writeFileSync(file, 'PeonBridgeData = { kaputt');
+  svc.broker.importGame();
+  assert.deepEqual(dataLua(wow).channels, { broker: true }, 'kaputte Datei neu');
+  svc.close();
+});
+
 test('Installieren, Entfernen, Daten loeschen, wieder installieren', () => {
   const dir = tmp(), wow = fakeWow();
   const svc = new Service({ dbDir: dir });

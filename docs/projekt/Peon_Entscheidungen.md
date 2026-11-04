@@ -2,6 +2,12 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 04.11.2026: Umzug auf den Installer (Peon Manager 0.9.1)
+
+- KarloDerBaer nutzt jetzt die installierte Fassung mit Daten im Standard-Datenordner, also dasselbe wie alle anderen, und vor dem ersten Scan (KarloDerBaer). Der frühere Ordner bleibt als Sicherung, die Addons bleiben Junctions.
+- Der Manager prüft Data.lua auf der Platte, statt sich auf seinen eigenen Merker zu verlassen. Anlass: Ein Selbsttest ohne eigene Einstellungen fand den echten WoW-Ordner und schrieb dort Data.lua ohne Kanäle (Claude).
+- Selbsttests laufen deshalb immer mit eigener `settings.json`, deren `wowDir` auf einen Testordner zeigt.
+
 ## 04.11.2026: Installer und Selbst-Update, Schritt I (Peon Manager 0.9.0)
 
 - Selbst-Update liest aus dem Ordner des Release (`generic`) statt über den GitHub-Weg von electron-updater, weil dieser Tags wie v2026.11.04 nicht als Versionen annimmt (im Code nachgelesen). Der Manager kennt den Ordner ohnehin aus dem Manifest (Claude).

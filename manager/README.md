@@ -18,10 +18,10 @@ Design: `..\docs\konzepte\manager\Peon_Client_Design.md` (Funktionen) und `..\do
 - Liest `WTF\Account\<Konto>\SavedVariables\Peon_Bridge.lua` (`PeonBridgeDB.queue`).
 - Schreibt `Interface\AddOns\Peon_Bridge\Data.lua` (`PeonBridgeData`, Format 2): `fmt`, `t`, `manager` (Version), `channels = { broker = true }`, `ack`, `markets`. Ohne `channels` zeichnet die Bridge nichts auf.
 
-## Laufendes Programm (bei KarloDerBaer)
+## Laufendes Programm
 
-- Programm: `<Programmordner>\Runtime\PeonManager.exe` (Doppelklick). Läuft danach im Infobereich.
-- Daten: `<Programmordner>\DB\` (`peon.db` für den Manager, `broker-client.db` für das Modul Peon Broker Client, `settings.json`, `logs\`, `backup\` mit alten Fassungen der Addons, `tmp\`). Der Datenordner liegt immer neben `Runtime`. Ein Update ersetzt nur `Runtime`.
+- Programm: mit dem Installer unter `%LOCALAPPDATA%\Programs\peon-manager\PeonManager.exe`. Läuft danach im Infobereich.
+- Daten: `%APPDATA%\Peon Manager\Daten\` (`peon.db` für den Manager, `broker-client.db` für das Modul Peon Broker Client, `settings.json`, `logs\`, `backup\` mit alten Fassungen der Addons, `tmp\`). Liegt ein Ordner `DB` neben dem Programmordner, gilt dieser, und es gibt kein Selbst-Update.
 - Anderer Datenordner: Umgebungsvariable `PEON_MANAGER_DB`. Anderes Release zum Testen: `PEON_MANAGER_RELEASES=http://127.0.0.1:<Port>` (gleiche Pfade wie GitHub).
 
 ## Bauen und Testen (Windows, Node 24)
@@ -34,6 +34,5 @@ npm run dist             # Windows-Ordner nach release\win-unpacked
 npm run dist:setup       # Installer nach release\ (mit latest.yml und Blockmap)
 ```
 
-Selbsttest des echten Programms: `PEON_MANAGER_DB=<Ordner> PEON_MANAGER_SELFTEST=<Ausgabe>` setzen und `PeonManager.exe` (oder `electron .`) starten. Es schreibt ein Bildschirmfoto und die Übersicht und beendet sich. Mit `PEON_MANAGER_SELFTEST_INSTALL=<Namen mit Komma>` installiert es vorher Addons, mit `PEON_MANAGER_SELFTEST_VIEW=<Ansicht>` fotografiert es diese Ansicht.
+Selbsttest des echten Programms: `PEON_MANAGER_DB=<Ordner> PEON_MANAGER_SELFTEST=<Ausgabe>` setzen und `PeonManager.exe` (oder `electron .`) starten. **Immer mit eigener `settings.json` im Testordner, deren `wowDir` auf einen Test-WoW-Ordner zeigt.** Sonst sucht der Manager den echten WoW-Ordner und schreibt dort `Data.lua`. Es schreibt ein Bildschirmfoto und die Übersicht und beendet sich. Mit `PEON_MANAGER_SELFTEST_INSTALL=<Namen mit Komma>` installiert es vorher Addons, mit `PEON_MANAGER_SELFTEST_VIEW=<Ansicht>` fotografiert es diese Ansicht.
 
-Neue Version bei KarloDerBaer einspielen: Programm beenden, `release\win-unpacked` nach `<Programmordner>\Runtime_neu` kopieren, Prüfsummen vergleichen, alten Ordner umbenennen und `Runtime_neu` zu `Runtime` machen.
