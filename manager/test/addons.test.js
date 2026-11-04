@@ -427,9 +427,9 @@ test('Einstellungen mit BOM-Markierung (Windows-Editor) bleiben gueltig', () => 
 });
 
 test('WoW-Ordner suchen: Registrierung zuerst, dann uebliche Orte', () => {
-  const da = new Set(['D:\\Spiele\\Blizzard\\WoW\\_forever_\\Wow.exe', 'C:\\Program Files (x86)\\World of Warcraft\\_forever_\\Wow.exe', 'E:\\Games\\World of Warcraft\\_forever_\\Wow.exe']);
-  const r = findWowDirs({ installPaths: ['D:\\Spiele\\Blizzard\\WoW\\_retail_\\'], exists: (p) => da.has(p) });
-  assert.deepEqual(r, ['D:\\Spiele\\Blizzard\\WoW\\_forever_', 'C:\\Program Files (x86)\\World of Warcraft\\_forever_', 'E:\\Games\\World of Warcraft\\_forever_']);
+  const da = new Set(['X:\\Spiele\\Blizzard\\WoW\\_forever_\\Wow.exe', 'C:\\Program Files (x86)\\World of Warcraft\\_forever_\\Wow.exe', 'E:\\Games\\World of Warcraft\\_forever_\\Wow.exe']);
+  const r = findWowDirs({ installPaths: ['X:\\Spiele\\Blizzard\\WoW\\_retail_\\'], exists: (p) => da.has(p) });
+  assert.deepEqual(r, ['X:\\Spiele\\Blizzard\\WoW\\_forever_', 'C:\\Program Files (x86)\\World of Warcraft\\_forever_', 'E:\\Games\\World of Warcraft\\_forever_']);
   assert.deepEqual(findWowDirs({ exists: () => false }), []);
   assert.equal(PLACEHOLDER.includes('PeonBridgeData ='), false, 'Platzhalter setzt keine Werte');
 });
