@@ -2,6 +2,10 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.9.3
+
+- 0.9.3 (04.11.2026, Wunsch KarloDerBaer): Seitenleiste: Module und Einstellungen stehen jetzt unten, darüber ein Querbalken, wenn der Peon Broker Client installiert ist. Dabei behoben: Bei langen Seiten scrollte das ganze Fenster und die Leiste wurde mitgezogen, jetzt scrollt nur der Inhalt.
+
 ## 0.9.2
 
 - 0.9.2 (04.11.2026): Ansicht Module: Bei Addons ohne Eintrag im Release stand doppelt „Installiert · installiert 0.2.0“, jetzt „Installiert 0.2.0“.

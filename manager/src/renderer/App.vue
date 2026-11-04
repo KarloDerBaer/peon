@@ -29,7 +29,8 @@ const ALL = [
   { key: 'modules', label: 'Module', always: true },
   { key: 'settings', label: 'Einstellungen', always: true },
 ];
-const NAV = computed(() => ALL.filter((n) => n.always || (data.value && data.value.views.includes(n.key))));
+const NAV = computed(() => ALL.filter((n) => !n.always && data.value && data.value.views.includes(n.key)));
+const NAV_BOTTOM = ALL.filter((n) => n.always);
 const broker = computed(() => !!(data.value && data.value.views.includes('overview')));
 
 const current = computed(() => {
@@ -99,9 +100,15 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
       </div>
       <button v-for="n in NAV" :key="n.key" class="nav" :class="{ on: view === n.key || (n.key === back && view === 'item') }" :disabled="n.soon"
         @click="go(n.key)" :title="n.soon ? 'Folgt in einer späteren Version' : ''">
-        {{ n.label }}<span v-if="n.soon" class="soon">folgt</span><span v-if="n.key === 'modules' && data && data.addonUpdates" class="count" :title="`${data.addonUpdates} Updates verfügbar`">{{ data.addonUpdates }}</span>
+        {{ n.label }}<span v-if="n.soon" class="soon">folgt</span>
       </button>
-      <div class="rail-foot faint small" v-if="data">Version {{ data.version }}</div>
+      <div class="rail-bottom">
+        <hr class="rail-sep" v-if="NAV.length">
+        <button v-for="n in NAV_BOTTOM" :key="n.key" class="nav" :class="{ on: view === n.key }" @click="go(n.key)">
+          {{ n.label }}<span v-if="n.key === 'modules' && data && data.addonUpdates" class="count" :title="`${data.addonUpdates} Updates verfügbar`">{{ data.addonUpdates }}</span>
+        </button>
+        <div class="rail-foot faint small" v-if="data">Version {{ data.version }}</div>
+      </div>
     </nav>
 
     <main class="main">
@@ -135,7 +142,7 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
 </template>
 
 <style scoped>
-.shell { display: grid; grid-template-columns: 196px 1fr; height: 100%; }
+.shell { display: grid; grid-template-columns: 196px 1fr; grid-template-rows: minmax(0, 1fr); height: 100%; }
 .rail { background: var(--panel); border-right: 1px solid var(--line-soft); display: flex; flex-direction: column; padding: 18px 12px; gap: 2px; }
 .mark { display: flex; align-items: center; gap: 10px; padding: 0 8px 22px; font-family: var(--font-cond); font-weight: 600; font-size: 18px; }
 .nav { text-align: left; background: none; border: none; border-left: 3px solid transparent; border-radius: 0 var(--radius-s) var(--radius-s) 0;
@@ -145,7 +152,9 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
 .nav:disabled { opacity: 1; color: var(--faint); }
 .soon { font-size: 12px; color: var(--faint); font-weight: 400; }
 .count { font-size: 12px; font-weight: 600; min-width: 18px; padding: 0 5px; border-radius: 9px; text-align: center; background: var(--accent); color: var(--accent-ink); }
-.rail-foot { margin-top: auto; padding: 0 12px; }
+.rail-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 2px; }
+.rail-sep { width: 100%; border: none; border-top: 1px solid var(--line-soft); margin: 0 0 8px; }
+.rail-foot { padding: 12px 12px 0; }
 .main { display: flex; flex-direction: column; min-width: 0; height: 100%; }
 .top { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 28px; border-bottom: 1px solid var(--line-soft); }
 .market-name { font-family: var(--font-cond); font-weight: 500; font-size: 17px; }
