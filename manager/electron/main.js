@@ -8,9 +8,10 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { execFile } = require('node:child_process');
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, session } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, session, safeStorage } = require('electron');
 const { Service } = require('../src/core/service');
 const { createUpdater } = require('./updater');
+const blizzard = require('../src/core/blizzard');
 const { findWowDirs, REPO_URL } = require('../src/core/addons');
 const modules = require('../src/core/modules');
 
@@ -35,7 +36,7 @@ function dataDir() {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  let win = null, tray = null, svc = null, quitting = false, updater = null;
+  let win = null, tray = null, svc = null, quitting = false, updater = null, blizzardAccess = null;
   const watchers = [];
   let lastSeen = new Map();
   let pending = null;
@@ -206,6 +207,18 @@ if (!app.requestSingleInstanceLock()) {
     return r;
   }
 
+  // ---------- Blizzard-API ----------
+  // Pruefabruf mit dem gespeicherten Zugang. Client-ID und Secret bleiben in diesem Teil, die Oberflaeche sieht sie nie.
+  async function checkBlizzard() {
+    const c = blizzardAccess.load();
+    if (!c) throw new Error('Bitte zuerst den Zugang speichern.');
+    const test = process.env.PEON_MANAGER_BLIZZARD;   // nachgebautes Blizzard (nur zum Testen)
+    const report = await blizzard.probe(c, { fetchImpl: svc.fetchImpl, ...(test ? { oauthBase: test, apiBase: test } : {}) });
+    blizzardAccess.saveReport(report);
+    svc.logManager('blizzard', report.result === 'auctions', `Prüfabruf ${c.region}: ${report.text}`);
+    return blizzardAccess.state();
+  }
+
   function applyAutostart() {
     if (DEV) return;
     try { app.setLoginItemSettings({ openAtLogin: !!svc.settings.autostart, args: ['--hidden'] }); } catch { /* egal */ }
@@ -225,6 +238,10 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('import', () => runImport('Knopf'));
     ipcMain.handle('ahledger', () => runAhledger(true));
     ipcMain.handle('ahledgerMarkets', () => (svc.broker ? svc.broker.ahledgerMarkets() : null));
+    ipcMain.handle('blizzardState', () => blizzardAccess.state());
+    ipcMain.handle('blizzardSave', (_e, c) => blizzardAccess.save(c));
+    ipcMain.handle('blizzardClear', () => blizzardAccess.clear());
+    ipcMain.handle('blizzardCheck', () => checkBlizzard());
     ipcMain.handle('settings', () => svc.settings);
     ipcMain.handle('items', (_e, market) => (svc.broker ? svc.broker.itemList(String(market)) : null));
     ipcMain.handle('item', (_e, market, key, range) => (svc.broker ? svc.broker.itemDetail(String(market), String(key), String(range || '30d')) : null));
@@ -287,7 +304,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('openLink', (_e, url) => {
       if (typeof url !== 'string') return;
       const repo = url === REPO_URL || url.startsWith(`${REPO_URL}/`);
-      if (repo || /^https:\/\/(www\.)?ahledger\.com(\/|$)/.test(url) || /^https:\/\/discord\.(gg|com)\//.test(url)) shell.openExternal(url);
+      if (repo || /^https:\/\/(www\.)?ahledger\.com(\/|$)/.test(url) || /^https:\/\/discord\.(gg|com)\//.test(url) || /^https:\/\/develop\.battle\.net\//.test(url)) shell.openExternal(url);
     });
   }
 
@@ -298,6 +315,8 @@ if (!app.requestSingleInstanceLock()) {
     const rel = process.env.PEON_MANAGER_RELEASES;
     svc = new Service({ dbDir: dataDir(), version: app.getVersion(), releases: rel ? { releaseBase: rel, apiBase: `${rel}/api` } : undefined });
     updater = createUpdater({ enabled: app.isPackaged && !BESIDE, svc, onChange: () => send('changed', { what: 'update' }), beforeInstall: () => { quitting = true; } });
+    blizzardAccess = new blizzard.BlizzardAccess({ keyFile: path.join(svc.dbDir, 'blizzard-zugang.dat'), reportFile: path.join(svc.dbDir, 'blizzard-pruefung.json'),
+      encrypt: (s) => safeStorage.encryptString(s), decrypt: (b) => safeStorage.decryptString(b), available: () => safeStorage.isEncryptionAvailable() });
     registerIpc();
     createTray();
     createWindow();
@@ -341,14 +360,24 @@ if (!app.requestSingleInstanceLock()) {
             fs.writeFileSync(path.join(out, 'update.json'), JSON.stringify(updater.state()));
             if (updater.state().status === 'ready') { updater.install(false); return; }
           }
+          // Pruefabruf ueber die Befehlsliste: PEON_MANAGER_SELFTEST_BLIZZARD = id:secret
+          if (process.env.PEON_MANAGER_SELFTEST_BLIZZARD) {
+            const [clientId, clientSecret] = process.env.PEON_MANAGER_SELFTEST_BLIZZARD.split(':');
+            const result = await win.webContents.executeJavaScript(`(async () => { const saved = await window.peon.blizzardSave(${JSON.stringify({ clientId, clientSecret, region: 'eu' })}); return { saved, checked: await window.peon.blizzardCheck() }; })()`);
+            fs.writeFileSync(path.join(out, 'blizzard.json'), JSON.stringify(result, null, 1));
+          }
           if (process.env.PEON_MANAGER_SELFTEST_VIEW) {
             await win.webContents.executeJavaScript(`[...document.querySelectorAll('button.nav')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(process.env.PEON_MANAGER_SELFTEST_VIEW)})).click()`);
             await new Promise((r) => setTimeout(r, 800));
           }
+          if (process.env.PEON_MANAGER_SELFTEST_SCROLL) await win.webContents.executeJavaScript(`document.querySelector('.page').scrollTop = 1e6`);
+          // sonst liefert ein verdecktes Fenster manchmal ein altes Bild
+          win.webContents.invalidate();
+          await new Promise((r) => setTimeout(r, 500));
           const img = await win.webContents.capturePage();
           fs.writeFileSync(path.join(out, 'electron.png'), img.toPNG());
           const ov = svc.overview();
-          fs.writeFileSync(path.join(out, 'electron.json'), JSON.stringify({ markets: ov.markets.length, back: ov.back, log: ov.log, peon: await win.webContents.executeJavaScript('typeof window.peon + "/" + typeof window.require'),
+          fs.writeFileSync(path.join(out, 'electron.json'), JSON.stringify({ markets: ov.markets.length, back: ov.back, log: ov.log, view: await win.webContents.executeJavaScript(`(document.querySelector('button.nav.on') || {}).textContent`), peon: await win.webContents.executeJavaScript('typeof window.peon + "/" + typeof window.require'),
             ipc: await win.webContents.executeJavaScript(`(async () => { const o = await window.peon.overview(); const m = o.markets[0]; if (!m) return null;
               const l = await window.peon.items(m.key); const d = await window.peon.item(m.key, '2770', 'all'); const r = await window.peon.retention(30);
               return { items: l.items.length, broker: d ? d.broker.length : null, own: d ? d.own.length : null, perScan: r.perScan }; })()`) }));

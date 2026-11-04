@@ -95,7 +95,7 @@ Vorwerte: Für den Trend merkt sich Broker bei jedem Scan die Werte des vorherig
 |---|---|---|---|
 | VQ | Verkaufsquote | Anteil deiner eigenen Angebote eines Gegenstands, die verkauft statt abgelaufen sind. Erst damit lässt sich das Verlustrisiko der Einstellgebühr bewerten: AH besser, wenn VQ × (ERL − HP) > (1 − VQ) × EG. | Buch (eigene Verkäufe und abgelaufene Auktionen aus dem Postfach) |
 | – | Tagesverlauf | Preise nach Uhrzeit (wann ist ein Gegenstand am teuersten?). | später besprechen |
-| – | Blizzard-API | Die offizielle Battle.net-Schnittstelle liefert für Retail stündliche Auktionsdaten mit Kennung je Angebot (damit wären echte Verkäufe fremder Spieler erkennbar). Für **Forever gibt es sie nicht** (Stand 30.09.2026), für Classic Era ist sie seit Ende 2024 gestört. Ein Addon kann außerdem nicht ins Internet; nötig wäre ein Zusatzprogramm auf dem PC. Erneut prüfen, falls Blizzard Forever-Daten veröffentlicht. | – |
+| – | Blizzard-API | Die offizielle Battle.net-Schnittstelle liefert für Retail stündliche Auktionsdaten mit Kennung je Angebot (damit wären echte Verkäufe fremder Spieler erkennbar). Für **Forever gibt es seit November 2026 eigene Bereiche, ob sie Auktionen liefern, ist offen** (siehe `Peon_Client_Design.md` 5.5), für Classic Era ist sie seit Ende 2024 gestört. Ein Addon kann außerdem nicht ins Internet; nötig wäre ein Zusatzprogramm auf dem PC. Erneut prüfen, falls Blizzard Forever-Daten veröffentlicht. | – |
 
 ## 2. Formeln
 

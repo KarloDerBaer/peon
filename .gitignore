@@ -6,6 +6,10 @@ manager/node_modules/
 manager/dist/
 manager/release/
 manager/release2/
+manager/data/
+
+# Zugang zur Blizzard-API: nur verschluesselt im Datenordner, nie im Repo
+blizzard-zugang.dat
 *.log
 
 # Release-Bau

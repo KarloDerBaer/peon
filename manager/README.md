@@ -21,7 +21,7 @@ Design: `..\docs\konzepte\manager\Peon_Client_Design.md` (Funktionen) und `..\do
 ## Laufendes Programm
 
 - Programm: mit dem Installer unter `%LOCALAPPDATA%\Programs\peon-manager\PeonManager.exe`. Läuft danach im Infobereich.
-- Daten: `%APPDATA%\Peon Manager\Daten\` (`peon.db` für den Manager, `broker-client.db` für das Modul Peon Broker Client, `settings.json`, `logs\`, `backup\` mit alten Fassungen der Addons, `tmp\`). Liegt ein Ordner `DB` neben dem Programmordner, gilt dieser, und es gibt kein Selbst-Update.
+- Daten: `%APPDATA%\Peon Manager\Daten\` (`peon.db` für den Manager, `broker-client.db` für das Modul Peon Broker Client, `settings.json`, `logs\`, `backup\` mit alten Fassungen der Addons, `tmp\`, für den Prüfabruf der Blizzard-API `blizzard-zugang.dat` verschlüsselt und `blizzard-pruefung.json`). Liegt ein Ordner `DB` neben dem Programmordner, gilt dieser, und es gibt kein Selbst-Update.
 - Anderer Datenordner: Umgebungsvariable `PEON_MANAGER_DB`. Anderes Release zum Testen: `PEON_MANAGER_RELEASES=http://127.0.0.1:<Port>` (gleiche Pfade wie GitHub).
 
 ## Bauen und Testen (Windows, Node 24)

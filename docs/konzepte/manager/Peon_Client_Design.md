@@ -113,7 +113,9 @@ Einzelne Gegenstände (Radar, Verkaufen, Einkaufsliste, Meine Auktionen). Mit Au
 
 ### 5.5 Blizzard-API (später)
 
-- Liefert für Forever bisher keine Auktionsdaten. Eine geplante Aufgabe prüft das täglich.
+- Seit Anfang November 2026 gibt es die Bereiche `dynamic-forever-{region}`, `profile-forever-{region}` und `static-…-forever-{region}` für US, EU und TW, nicht für KR. Sie sind von Blizzard nicht dokumentiert, ein Spieler hat sie durch Ausprobieren gefunden ([Forum](https://us.forums.blizzard.com/en/blizzard/t/world-of-warcraft-forever-api-namespace/59774)). Ob sie Auktionsdaten liefern, ist offen. Bei Classic Era und Anniversary gibt es eine Liste der Auktionshäuser, die Angebote liefern aber Fehler 404.
+- **Prüfabruf (ab Peon Manager 0.10.0):** unter Quellen. Er zeigt je Stufe den Antwort-Code und speichert den Bericht in `blizzard-pruefung.json` im Datenordner. Eingelesen wird nichts.
+- **Zugang:** Jeder Nutzer legt unter develop.battle.net einen eigenen an. Er liegt nur verschlüsselt (Windows-Schutz je Benutzer, `safeStorage`) in `blizzard-zugang.dat` im Datenordner, die Oberfläche bekommt ihn nie zurück. Einen gemeinsamen Zugang im Programm kann es nicht geben, weil das Secret dann öffentlich wäre.
 - Format, an dem sich auch unser Export orientiert: je Auktionshaus eine Momentaufnahme pro Stunde, jedes Angebot einzeln mit `id`, `item` (`id`, Zusätze über `bonus_lists`), `quantity`, `unit_price` (Massenware) bzw. `buyout` und `bid` (Einzelgegenstände), `time_left` (`SHORT`, `MEDIUM`, `LONG`, `VERY_LONG`).
 - Braucht einen eigenen Zugang bei Blizzard (Entwicklerkonto, Schlüssel). Der Einleser ist im Aufbau vorgesehen, wird aber erst gebaut, wenn es Daten gibt.
 

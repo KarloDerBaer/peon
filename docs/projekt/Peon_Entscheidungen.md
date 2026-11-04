@@ -2,6 +2,12 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 04.11.2026: Blizzard-API, erst prüfen, dann einlesen (Peon Manager 0.10.0)
+
+- Zuerst nur ein Prüfabruf, der Einleser folgt passend zu den echten Daten, weil nicht bestätigt ist, dass Forever Auktionen liefert (KarloDerBaer).
+- Der Prüfabruf liegt im Manager, damit auch Freunde ihn nutzen können. Jeder trägt einen eigenen Zugang ein (KarloDerBaer).
+- Der Zugang liegt nur verschlüsselt im Datenordner, die Oberfläche bekommt ihn nie zurück, und ohne verfügbare Verschlüsselung wird er nicht gespeichert (Claude).
+
 ## 04.11.2026: Erstes Release zum Start von Forever
 
 - Das erste Release erscheint noch vor dem Start, damit ein Freund pünktlich installieren und beim Testen helfen kann (KarloDerBaer). Das Risiko, dass nach dem Start etwas nicht passt (zum Beispiel die Interface-Nummer), fängt eine neue Version auf: Der Manager kann sie verteilen, weitere Releases am selben Tag heißen `vJJJJ.MM.TT.2`.

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { ago, num } from '../util.js';
+import BlizzardCheck from '../components/BlizzardCheck.vue';
 
 const props = defineProps({ data: Object, settings: Object, now: Number });
 const emit = defineEmits(['save']);
@@ -13,6 +14,7 @@ const listNote = ref('');
 const map = ref(JSON.parse(JSON.stringify(props.settings.marketMap || {})));
 const saved = ref(false);
 const fetching = ref(false);
+const blizzard = ref(null);
 
 onMounted(async () => {
   const r = await api.ahledgerMarkets();
@@ -33,7 +35,8 @@ const sources = computed(() => [
     state: props.data.brokerHist && props.data.brokerHist.items ? `${num(props.data.brokerHist.items)} Gegenstände, ${num(props.data.brokerHist.days)} Tage` : 'Noch keine' },
   { name: 'AHledger', kind: 'Fremdmessung (Scans vieler Spieler)', use: 'Nur zum Vergleich, bis die Quellenprüfung abgeschlossen ist',
     state: !props.data.ahledger.enabled ? 'Ausgeschaltet' : ahlLast.value && ahlLast.value.tData ? `Stand ${ago(ahlLast.value.tData, props.now)}` : 'Noch nicht abgerufen' },
-  { name: 'Blizzard-API', kind: 'Momentaufnahme', use: 'Folgt, sobald Blizzard Daten für Forever liefert', state: 'Nicht verfügbar' },
+  { name: 'Blizzard-API', kind: 'Momentaufnahme', use: 'Wird eingelesen, sobald Blizzard Daten für Forever liefert',
+    state: !blizzard.value || !blizzard.value.report ? 'Noch nicht geprüft' : blizzard.value.report.result === 'auctions' ? 'Daten gefunden, noch nicht eingelesen' : `Keine Daten (${ago(blizzard.value.report.t, props.now)})` },
 ]);
 
 function setExt(key, ext) {
@@ -86,6 +89,8 @@ async function fetchNow() {
       </div>
       <p class="small muted">Preise von AHledger werden mit Quellenangabe gezeigt und nie als eigener Scan ausgegeben. <button class="link" @click="api.openLink(data.ahledger.link)">ahledger.com</button></p>
     </section>
+
+    <BlizzardCheck :now="now" @state="blizzard = $event" />
   </div>
 </template>
 

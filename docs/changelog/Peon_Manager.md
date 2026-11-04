@@ -2,6 +2,10 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.10.0
+
+- 0.10.0 (04.11.2026, Wunsch KarloDerBaer): **Prüfabruf für die Blizzard-API** unter Quellen (`src\core\blizzard.js`, Ansicht `components\BlizzardCheck.vue`). Er prüft, ob `dynamic-forever-{region}` Auktionsdaten liefert, zeigt je Stufe den Antwort-Code und liest nichts ein. Jeder trägt einen eigenen Zugang von develop.battle.net ein, er liegt nur verschlüsselt im Datenordner und wird nur an Blizzard geschickt. Mit nachgebautem Blizzard geprüft, **gegen das echte Blizzard noch nicht**.
+
 ## 0.9.3
 
 - 0.9.3 (04.11.2026, Wunsch KarloDerBaer): Seitenleiste: Module und Einstellungen stehen jetzt unten, darüber ein Querbalken, wenn der Peon Broker Client installiert ist. Dabei behoben: Bei langen Seiten scrollte das ganze Fenster und die Leiste wurde mitgezogen, jetzt scrollt nur der Inhalt.
