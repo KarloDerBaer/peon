@@ -1188,6 +1188,18 @@ local htext = table.concat(hl, "|")
 check(htext:find("Preis je Stück", 1, true) and htext:find("verkauft 10", 1, true) and htext:find("Stück|Bestand", 1, true) and htext:find("Menge im AH", 1, true), "0.10: Werte-Kasten nach Einheit (" .. htext .. ")")
 It.Hover(nil)
 check(It.hoverLines == nil and It.info2.text:find("Maus", 1, true), "ohne Maus: Kasten weg, Hinweis")
+-- 0.10.2: Menge im AH als eigene Zeile, kurze Texte, Hinweis bei nur einem Tag Daten
+check(It.rows.qty.l.text == "Menge im AH" and It.rows.qty.r.text ~= "" and not It.sub.text:find("im AH", 1, true), "0.10.2: Menge im AH eigene Zeile, nicht mehr im abgeschnittenen Untertitel")
+check(It.margeBox.big.text == "Kosten 0", "0.10.2: kurzer Text im Marge-Kasten, wird nicht abgeschnitten")
+check(d.daysWithData > 1, "0.10.2: mehrere Tage mit Daten (" .. tostring(d.daysWithData) .. ")")
+local keepData = It.data
+It.data = { daysWithData = 1 }
+It.Hover(nil)
+check(It.info2.text:find("einem Tag", 1, true), "0.10.2: nur ein Tag Daten: Hinweis statt Maus-Text")
+It.data = keepData
+It.Hover(nil)
+local one = It.Data(424242, T, 30, today)
+check(one.daysWithData == 0, "0.10.2: Gegenstand ohne Daten zaehlt 0 Tage")
 -- Zeitraum, Marge-Streifen, Linien an/aus werden gemerkt
 for _, b in ipairs(It.periodBtns) do if b.period == 7 then b.scripts.OnClick() end end
 check(mod.db.itemPeriod == 7 and It.chartA.n == 7, "Zeitraum 7 Tage")

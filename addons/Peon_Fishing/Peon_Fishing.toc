@@ -3,7 +3,7 @@
 ## Notes: Fishing mode with equipment swap and one-key/double-click fishing.
 ## Notes-deDE: Angelmodus mit Ausrüstungswechsel und Angeln per Doppelklick oder Taste.
 ## Author: KarloDerBaer
-## Version: 1.5.1
+## Version: 1.5.2
 ## Dependencies: Peon
 ## Group: Peon
 ## IconTexture: Interface\Icons\Trade_Fishing

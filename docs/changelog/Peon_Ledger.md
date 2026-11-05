@@ -2,6 +2,10 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.10.2
+
+- 0.10.2 (05.11.2026, Rückmeldung KarloDerBaer): Reiter „Gegenstand“: Liegen erst Daten von einem Tag vor, zeigen die Diagramme Punkte (braucht Peon 0.11.1) und unter dem Diagramm steht ein Hinweis, dass Linien ab dem zweiten Tag entstehen. Abgeschnittene Texte behoben: im Marge-Kasten nur noch „Kosten 0“, Suchhinweis kürzer, die Menge im Auktionshaus hat eine eigene Zeile statt im Untertitel zu stehen. „Üblich“ zeigt ohne Werte „–“ statt einer leeren Zeile. Die gespeicherten Werte waren richtig. **Im Spiel prüfen:** Punkte in beiden Diagrammen, alle Texte vollständig, Textspalte passt ins Fenster.
+
 ## 0.10.1
 
 - 0.10.1 (31.10.2026): Beispielnamen im Hinweis der Optionsseite („Bestand: 25 (Mirel 20, Borin 5)“) erfunden statt echter Charakternamen, weil das Repo öffentlich wird. Sonst unverändert.

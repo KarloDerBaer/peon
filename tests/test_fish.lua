@@ -63,6 +63,25 @@ local function fire(e, ...) for _, f in ipairs(frames) do if f.ev[e] and f.scrip
 local function load(dir, addon) local ns = {} for l in io.lines(dir .. "/" .. dir .. ".toc") do if l:match("%.lua$") then assert(loadfile(dir .. "/" .. l))(addon, ns) end end return ns end
 local function check(c, m) if not c then error("FEHLER: " .. m, 2) end print("ok  " .. m) end
 
+-- Ausruestungssets nachgebaut (ab 1.5.2): merkt, welche Plaetze beim Speichern ignoriert waren
+local eqIgnored, eqSets = {}, {}
+local function CopySlots() local c = {} for s in pairs(eqIgnored) do c[s] = true end return c end
+INVSLOT_MAINHAND, INVSLOT_OFFHAND = 16, 17
+C_EquipmentSet = {
+  GetEquipmentSetIDs = function() return {} end,
+  GetItemIDs = function() return {} end,
+  GetEquipmentSetID = function(name) return eqSets[name] and eqSets[name].id end,
+  GetEquipmentSetInfo = function(id)
+    for name, s in pairs(eqSets) do if s.id == id then return name, 1, id, false, 2, 0, 2, 0 end end
+  end,
+  GetIgnoredSlots = function(id) for _, s in pairs(eqSets) do if s.id == id then return s.ignored end end end,
+  ClearIgnoredSlotsForSave = function() eqIgnored = {} end,
+  IgnoreSlotForSave = function(slot) eqIgnored[slot] = true end,
+  CreateEquipmentSet = function(name) local n = 0 for _ in pairs(eqSets) do n = n + 1 end eqSets[name] = { id = 100 + n, ignored = CopySlots() } end,
+  SaveEquipmentSet = function(id) for _, s in pairs(eqSets) do if s.id == id then s.ignored = CopySlots() end end end,
+  UseEquipmentSet = function() return true end,
+}
+
 load("Peon", "Peon")
 fire("ADDON_LOADED", "Peon")
 -- echte SavedVariables von KarloDerBaer
@@ -142,6 +161,28 @@ check(PeonFishingDB.soundMusic == 0 and PeonFishingDB.lostSound == "raid", "Stan
 check(PeonFishingCharDB.pending == "leave" and mod.db.fishingSetID == setID and PeonFishingDB.lure == 6529
     and PeonFishingDB.catches == catches, "Zustand, Angel-Set, Koeder und Faenge bleiben erhalten")
 PeonFishingCharDB.pending = ""
+-- 1.5.2 (Feedback): neues Angel-Set nur mit Haupt- und Nebenhand, mit Hinweis
+StaticPopupDialogs.PEON_FISHING_CONFIRM_SAVE.OnAccept(nil, "Probe-Set")
+local probe = eqSets["Probe-Set"]
+local slotsOff, weaponsOff = 0, false
+for slot = 1, 19 do
+  if probe and probe.ignored[slot] then
+    slotsOff = slotsOff + 1
+    if slot == 16 or slot == 17 then weaponsOff = true end
+  end
+end
+check(probe and slotsOff == 17 and not weaponsOff and mod.db.fishingSetID == probe.id, "neues Angel-Set ignoriert alle Plaetze ausser Haupt- und Nebenhand")
+local hinted = false
+for _, l in ipairs(out) do if l:find("Anglerhut", 1, true) then hinted = true end end
+check(hinted, "Hinweis auf weitere Angelausruestung")
+-- aktiv geschalteter Platz (Kopf) bleibt beim erneuten Speichern aktiv, ignorierte bleiben ignoriert
+probe.ignored[1] = nil
+StaticPopupDialogs.PEON_FISHING_CONFIRM_SAVE.OnAccept(nil, "Probe-Set")
+check(eqSets["Probe-Set"].ignored[1] == nil and eqSets["Probe-Set"].ignored[5] == true, "Set erneut speichern behaelt die Auswahl der Plaetze")
+-- das Rueckkehr-Set bleibt vollstaendig
+ns.Enter()
+local ret = eqSets[PeonFishingDB.returnSetName or mod.db.returnSetName]
+check(ret and next(ret.ignored) == nil, "Rueckkehr-Set ignoriert keinen Platz")
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler in") then n = n + 1; io.write("!! ", l, "\n") end end
 check(n == 0, "keine Fehlermeldungen")
 print("ALLE TESTS OK")

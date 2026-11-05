@@ -78,7 +78,9 @@ local function RestoreSnapshot(snap)
 end
 
 -- Aktuelle Ausruestung in das Set <name> speichern (anlegen, falls es fehlt). Rueckgabe: setID oder nil
-local function SaveIntoSet(name)
+-- weaponsOnly: ein neues Set merkt sich nur Haupt- und Nebenhand, alle anderen Plaetze sind ignoriert (ab 1.5.2),
+-- damit es nicht kaputtgeht, wenn der Spieler Ruestung tauscht oder verkauft.
+local function SaveIntoSet(name, weaponsOnly)
     local id = E.GetEquipmentSetID(name)
     E.ClearIgnoredSlotsForSave()
     if id then
@@ -93,9 +95,18 @@ local function SaveIntoSet(name)
         E.SaveEquipmentSet(id, info and info.icon or nil)
         ns.Dbg("Set gespeichert: " .. name .. " (ID " .. id .. ")")
     else
+        if weaponsOnly then
+            local main, off = INVSLOT_MAINHAND or 16, INVSLOT_OFFHAND or 17
+            for slot = 1, NUM_SLOTS do
+                if slot ~= main and slot ~= off then E.IgnoreSlotForSave(slot) end
+            end
+        end
         E.CreateEquipmentSet(name, GetInventoryItemTexture("player", INVSLOT_MAINHAND or 16) or DEFAULT_ICON)
         id = E.GetEquipmentSetID(name)
-        if id then ns.Print(L.MSG_SET_CREATED:format(name)) end
+        if id then
+            ns.Print((weaponsOnly and L.MSG_SET_CREATED_WEAPONS or L.MSG_SET_CREATED):format(name))
+            if weaponsOnly then ns.Print(L.MSG_SET_ADD_SLOTS) end
+        end
     end
     E.ClearIgnoredSlotsForSave()
     return id
@@ -302,7 +313,7 @@ local function DoSaveFishingSet(name)
     if name == "" then return end
     if ns.InCombat() then ns.Error(L.ERR_SAVE_COMBAT) return end
     if name == db.returnSetName then ns.Error(L.ERR_SAME_SET) return end
-    local ok, id = pcall(SaveIntoSet, name)
+    local ok, id = pcall(SaveIntoSet, name, true)
     if not ok or type(id) ~= "number" then
         ns.Error(L.ERR_SAVE_FAILED:format(name, ok and "?" or tostring(id)))
         return

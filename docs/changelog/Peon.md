@@ -2,6 +2,10 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.11.1
+
+- 0.11.1 (05.11.2026): Diagramm: Ein Wert ohne Nachbarn erscheint bei Linien und Stufenlinien als Punkt. Eine Linie braucht zwei Punkte, deshalb blieb das Diagramm am ersten Tag mit Daten leer (gesehen in Ledger). API unverändert. **Im Spiel prüfen:** Punkte im Ledger-Reiter „Gegenstand“.
+
 ## 0.11.0
 
 - 0.11.0 (07.10.2026, Wunsch KarloDerBaer für die Tooltip-Optionen): API 11 – **Untertabs auf Optionsseiten**: `page:Tabs({ { key, Text }, … }, y)` (Reiterleiste oben, `PanelTopTabButtonTemplate`, Rückfall normale Knöpfe), `page:Column(x, y, reiter)` (Spalte gehört zu einem Reiter; ohne Reiter immer sichtbar), `page:SelectTab(key)`, `page:GetTab()`, `page.onTab(page, key)`. Bausteine einer Reiter-Spalte hängen an einem Haltefenster je Reiter (eigenes Ein-/Ausblenden eines Bausteins bleibt erhalten); der Reset-Knopf steht unter der tiefsten sichtbaren Spalte. Diagramm-Legende: bei mehreren Reihen mit demselben Schlüssel gewinnt die Reihe mit Beschriftung (vorher die letzte – Ledger zeigte „zone“ statt „Gewinnzone“). Bestehendes unverändert.

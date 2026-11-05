@@ -44,6 +44,7 @@ local function W()
   function m.SetVertexOffset(s, v, x, y) s.vo = s.vo or {}; s.vo[v] = y end
   function m.GetStringWidth(s) return #(s.text or "") * 5 end
   function m.SetColorTexture(s, r, g, b, a) s.color = { r, g, b, a } end
+  function m.SetVertexColor(s, r, g, b, a) s.vcolor = { r, g, b, a } end
   function m.SetAlpha(s, a) s.alpha = a end
   return setmetatable(o, { __index = function(_, k) if m[k] then return m[k] end if type(k) == "string" and k:match("^%u") and k ~= "Low" and k ~= "High" and k ~= "Text" then return function() end end end })
 end
@@ -148,4 +149,22 @@ ch4:SetData(0, {})
 check(ch4:GetRange("left") == nil, "leeres Diagramm")
 ch4:SetData(3, { { key = "a", kind = "line", values = { 1, "x", 3 } } })
 check(true, "falscher Wert stoert nicht")
+-- 0.11.1: ein einzelner Wert ist als Punkt sichtbar (erster Tag mit Daten)
+local function dots(c)
+  local n = 0
+  for _, t in ipairs(c.pools.tex) do if t.shown and t.vcolor and t.vcolor[1] == 0.1 then n = n + 1 end end
+  return n
+end
+local RED = { 0.1, 0.2, 0.3, 1 }
+local ch5 = Peon.NewChart(UIParent, { width = 300, height = 100 })
+ch5:SetData(5, { { key = "a", kind = "line", values = { [5] = 26 }, color = RED, connect = true } })
+check(dots(ch5) == 1 and count(ch5, "line") == 0, "Linie mit einem Wert: ein Punkt")
+ch5:SetData(5, { { key = "a", kind = "step", values = { [5] = 26 }, color = RED } })
+check(dots(ch5) == 1, "Stufenlinie mit einem Wert: ein Punkt")
+ch5:SetData(5, { { key = "a", kind = "line", values = { 1, 2, nil, 4, nil }, color = RED } })
+check(dots(ch5) == 1 and count(ch5, "line") == 1, "ohne connect: nur der Wert ohne Nachbarn wird Punkt")
+ch5:SetData(5, { { key = "a", kind = "line", values = { 1, nil, 3, nil, nil }, color = RED, connect = true } })
+check(dots(ch5) == 0 and count(ch5, "line") == 1, "mit connect: ueberbrueckte Werte bleiben Linie")
+ch5:SetData(5, { { key = "a", kind = "line", values = { 1, 2, 3, 4, 5 }, color = RED } })
+check(dots(ch5) == 0, "durchgehende Linie ohne Punkte")
 print("ALLE TESTS OK")

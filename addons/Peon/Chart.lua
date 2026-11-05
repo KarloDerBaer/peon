@@ -294,6 +294,24 @@ local function Quad(ch, x1, x2, top1, top2, bot1, bot2, c)
     end
 end
 
+-- Punkt ohne Nachbarn: eine Linie braucht zwei Punkte, einzelne Werte waeren sonst unsichtbar (ab 0.11.1)
+local function LonePoints(ch, s, axis)
+    local total = 0
+    if s.connect then
+        for i = 1, ch.n do if ch:Y(axis, s.values[i]) then total = total + 1 end end
+    end
+    local size = math.max((s.width or 2) + 3, 5)
+    for i = 1, ch.n do
+        local y = ch:Y(axis, s.values[i])
+        if y then
+            local alone
+            if s.connect then alone = total == 1
+            else alone = not ch:Y(axis, s.values[i - 1]) and not ch:Y(axis, s.values[i + 1]) end
+            if alone then Rect(ch, ch:X(i) - size / 2, y - size / 2, size, size, s.color, "OVERLAY", 1, CIRCLE) end
+        end
+    end
+end
+
 local DRAW = {}
 function DRAW.line(ch, s, axis)
     ch.dashPos = 0
@@ -304,6 +322,7 @@ function DRAW.line(ch, s, axis)
         if y and px then DSeg(ch, px, py, x, y, s.color, s.width or 2, s.dash, "ARTWORK", s.layer or 2) end
         if y then px, py = x, y elseif not s.connect then px, py = nil, nil end
     end
+    LonePoints(ch, s, axis)
 end
 function DRAW.step(ch, s, axis)
     ch.dashPos = 0
@@ -317,6 +336,7 @@ function DRAW.step(ch, s, axis)
         end
         if y then px, py = x, y elseif not s.connect then px, py = nil, nil end
     end
+    LonePoints(ch, s, axis)
 end
 local function Area(ch, s, axis, two)
     local a, b = s.values, s.values2 or {}

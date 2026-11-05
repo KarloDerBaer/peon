@@ -940,7 +940,10 @@ end
 -- Broker den Preis schon vorher beim Spiel (StartCommoditiesPurchase). Der Klick bestaetigt dann sofort.
 -- Die Anfrage wird alle PRE_TTL Sek. erneuert; kommt zweimal keine Antwort, bleibt es fuer die Sitzung bei
 -- zwei Klicks (das Spiel hat die Anfrage dann wohl nicht angenommen).
+-- Ab 0.33.1 aus: StartCommoditiesPurchase geht nur direkt aus einem Klick, sonst meldet das Spiel
+-- ADDON_ACTION_BLOCKED (pcall faengt das nicht ab). Der Schnellkauf braucht deshalb zwei Klicks.
 ---------------------------------------------------------------------------
+R.preOff = true
 R.PRE_TTL = 15      -- Sekunden, so lange gilt ein vorab geholter Preis
 R.PRE_WAIT = 5      -- Sekunden auf die Antwort warten
 R.PRE_EVERY = 3     -- hoechstens so oft eine neue Anfrage

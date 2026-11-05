@@ -2,6 +2,10 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.33.1
+
+- 0.33.1 (05.11.2026): **Radar: Fehlermeldung nach dem Scan behoben** (`ADDON_ACTION_BLOCKED`, `UNKNOWN()`). Der Preis vorab für den Schnellkauf (`StartCommoditiesPurchase` ab 0.24) lief ohne Klick, das Spiel erlaubt die Funktion aber nur direkt aus einem Klick (`HasRestrictions` in Blizzards Doku, `pcall` fängt die Meldung nicht ab). Preis vorab ist aus (`R.preOff`), der Schnellkauf für Massenware braucht zwei Klicks: 1. Klick Preis, 2. Klick bestätigen. Hinweis am Knopf angepasst. **Im Spiel prüfen:** Scan im Reiter Radar ohne Meldung, Kauf von Massenware mit zwei Klicks.
+
 ## 0.33.0
 
 - 0.33.0 (31.10.2026): Werte und Momentaufnahmen über **Peon_Bridge** (Modul `bridge`, bisher Peon_Client `client`) an zwei Stellen (`Data.lua` `D.ClientBand`, `Sales.lua` `S.ClientStats`). Die Bridge liefert nur Werte, wenn der Peon Manager den Kanal broker freischaltet, sonst rechnet Broker wie bisher selbst. Texte wie „Üblich (Client, n Tage)“ bleiben (gemeint ist der Manager mit dem Broker Client).

@@ -3,14 +3,14 @@
 Stand: 31.10.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.11.0 / Broker 0.33.0 / Bridge 0.4.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.11.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.1 / Fishing 1.5.1 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2. Peon_Feedback 0.2.0 ist archiviert (`<Archiv>\Peon_Feedback_0.2.0\`).
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
-## Peon (Kern) – 0.11.0, API 11
+## Peon (Kern) – 0.11.1, API 11
 
 - Dateien: Locales.lua, Core.lua, Feedback.lua (ab 0.9, direkt nach Core.lua), Module.lua, Options.lua, Widgets.lua, List.lua, Minimap.lua, Chart.lua (ab 0.10), Slash.lua
 - SavedVariables: `PeonDB` (derzeit leer)
 - Aufgaben: globales Objekt `Peon`, Modulverwaltung (`Peon:NewModule`), Einstellungen mit Standardwerten/Bereichen/erlaubten Werten, Übernahme alter Variablennamen (`oldDB`/`oldCharDB`), Ereignisse (INIT, LOGIN, COMBAT_START, COMBAT_END, RESET, CHANGED), Debug-Log, Einstellungsseite „Peon“ mit Modulübersicht, Optionsseite mit Bildlauf und Bausteinen (Header, Slider, Check mit Hinweis/eigenen Werten, Dropdown, Choice, PositionGrid, Color, Button, Text, Reset-Knopf, mitwachsende Anordnung), `keepOnReset`, `/peon`.
 - Noch nicht im Kern: `RegisterUnitEvent`.
 - Verlauf der Versionen: `docs/changelog/Peon.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.10.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.11.1, 0.10.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon_Tooltip – 0.7.4 (früher TooltipPlus)
 
@@ -32,7 +32,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Optionsseite: Kern-Bausteine, mit Vorschau.
 - Verlauf der Versionen: `docs/changelog/Peon_ComboPoints.md`
 
-## Peon_Fishing – 1.5.1 (früher FishingPlus)
+## Peon_Fishing – 1.5.2 (früher FishingPlus)
 
 - Dateien: Locales.lua, Fishing.lua, Sets.lua, Click.lua, Lure.lua, Keys.lua, Combat.lua, Sound.lua, Minimap.lua, Catches.lua, Options.lua, Bindings.xml
 - SavedVariables: `PeonFishingDB` (accountweit), `PeonFishingCharDB` (pro Charakter, z. B. Mirel-Dorna); `dbVersion` = 3
@@ -42,9 +42,11 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Optionsseite (Kern-Bausteine, braucht Peon API 6): links Ausrüstung (Angel-Set als Auswahlliste ohne Rückkehr-Set), Steuerung, Schwimmer-Erkennung (Reichweite, Markierung, neu auswerfen, Warnton mit Hörprobe), Fänge; rechts Ton beim Angeln (ausgegraut ohne Tonmix), Kampf (nach dem Kampf), Anzeige; unten „Standardwerte“. Alle Auswahlen als Auswahllisten.
 - Standardwerte-Knopf lässt erhalten (`keepOnReset`): Angel-Set, Rückkehr-Set, Zustand (mode/pending), Köder, Minimap-Position, Klicktaste, dbVersion; Fangdatenbank ist ohnehin keine Einstellung.
 - Wertebereiche (`ranges`): Reichweite 10–100 m (5er), Musik/Umgebung/Effekte 0–100 % (5er), Nachlaufzeit 0–15 s.
+- Neues Angel-Set: nur Haupt- und Nebenhand aktiv (ab 1.5.2).
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.33.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.33.1 (neu, Auktionshaus-Helfer)
 
 - Konzept: `Peon_Broker_Konzept.md` (freigegeben 29.09.2026) – Funktionsumfang, Preisvorschlag, Markttrennung, Bauabschnitte.
 - Dateien: Locales.lua, Broker.lua, Data.lua, Scan.lua, Tooltip.lua, Window.lua, Keep.lua, Sell.lua, Auctions.lua, Buy.lua, Radar.lua, Prices.lua, Probe.lua, Options.lua, Start.lua und Craft.lua (ab 0.24; Merchant.lua 0.19–0.23 entfernt), Media\trend_*.tga (5 Trend-Symbole, 32×32, selbst erstellt: dunkelgrün ↑, hellgrün ↗, blauer Balken, orange ↘, rot ↓), Media\dot_new.tga (grüner Punkt für neue Radar-Treffer, ab 0.19)
@@ -53,7 +55,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Befehle: `/broker` (Broker-Fenster ein/aus), `/broker optionen`, `/broker scan`, `/broker pruefen` (auch `check`), `/broker pruefen scan`, `/broker pruefen abfrage`, `/broker debug`, `/peon broker`
 - Optionsseite: Minimap-Button an/aus; Broker-Fenster mit dem Auktionshaus öffnen, Knopf „Broker-Fenster öffnen“; Preise im Tooltip (an/aus, Zeile 7 Tage, Zeile Händler, Hinweise); Trend (Grenzen); Preisvorschlag (Unterbieten Massenware und Einzelgegenstände je Kupfer/Prozent, Dumping-Grenze, Laufzeit, Massenware mit vielen Angeboten 2 Std. ab X Angeboten, nur lohnende im Reiter Verkaufen); Preisdaten (Tageswerte aufbewahren, Märkte verwalten); Prüfung; Ereignis-Liste.
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.11.0
 
@@ -80,7 +82,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Bridge.md`
 - Im Spiel prüfen (nach dem Start): Optionsseite zeigt „Kanal broker freigeschaltet“ und „Peon Manager: Werte vom … (Version 0.6.0)“.
 
-## Peon_Ledger – 0.10.1 (neu, Bestand und Buch)
+## Peon_Ledger – 0.10.2 (neu, Bestand und Buch)
 
 - Konzept: `Peon_Ledger_Konzept.md` (abgestimmt 02.10.2026). Bestand aller Charaktere, alle Bewegungen von Gegenständen und Gold mit Grund (nur ereignisgesteuert), Post einsammeln, Buch; Broker liest später nur daraus.
 - Dateien: Locales.lua, Ledger.lua, Inventory.lua, Moves.lua, Cost.lua (ab 0.7), Tooltip.lua, Window.lua, Overview.lua, Stock.lua, History.lua, Book.lua, Catalog.lua (ab 0.10), Item.lua (ab 0.9), Pick.lua und Bindings.xml (ab 0.9.1), Probe.lua, Options.lua; Symbol `INV_Scroll_03` (bis 0.9.1 `INV_Misc_Book_09`, das nutzt schon das Dungeon-Journal)
@@ -89,7 +91,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - **Accountbank / Gildenbank (Recherche 06.10.2026):** Eine Accountbank (Kriegsmeutenbank) gibt es in Forever nach allem Bekannten nicht – der Reiter im Bankfenster und die Taschen-Nummern stammen aus der Retail-Oberfläche, die Taschen haben keine Plätze. Ledger liest sie nur, falls sie Plätze hat (Code bleibt). Die **Gildenbank** gibt es (Beta, 100 Gold); Gildenbank wird noch nicht erfasst (Ein- und Auslagern erscheint als „verbraucht/sonstiges“ bzw. „sonstiger Zugang“ mit Kosten 0) – erst testbar, wenn KarloDerBaers Gilde eine Gildenbank hat.
 - Befehle: `/ledger` (Fenster), `/ledger optionen`, `/ledger pruefen` (auch `check`), `/ledger debug`, `/peon ledger`
 - Verlauf der Versionen: `docs/changelog/Peon_Ledger.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.10.0, 0.9.1 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.10.2, 0.10.0, 0.9.1 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ### Ledger – offen (Stand 03.10.2026, für die nächste Session)
 

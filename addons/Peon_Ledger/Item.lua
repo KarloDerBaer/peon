@@ -175,6 +175,11 @@ function I.Data(id, char, period, today)
     for i = 1, n do
         if Num(d.min[i]) and Num(d.cost[i]) then d.marge[i] = d.min[i] * I.CUT - d.cost[i] end
     end
+    -- Tage mit Daten: an einem einzigen Tag gibt es nur Punkte, noch keine Linien (ab 0.10.2)
+    d.daysWithData = 0
+    for i = 1, n do
+        if d.st[i] ~= nil or d.median[i] ~= nil or d.min[i] ~= nil then d.daysWithData = d.daysWithData + 1 end
+    end
     return d
 end
 
@@ -262,7 +267,7 @@ function I.BuildLeft(c)
     I.hdrAH = Text(box, "GameFontNormalSmall", I.LEFT_W - 20)
     y = y - 8; I.hdrAH:SetPoint("TOPLEFT", 10, y); y = y - 15
     I.hdrAH:SetText(L.ITEM_HDR_AH)
-    Add("band"); Add("sales"); Add("median", true); Add("vendor", true)
+    Add("qty"); Add("band"); Add("sales"); Add("median", true); Add("vendor", true)
     I.note = Text(box, "GameFontDisableSmall", I.LEFT_W - 20)
     I.note:SetPoint("BOTTOMLEFT", 10, 8)
     if I.note.SetWordWrap then I.note:SetWordWrap(true) end
@@ -516,7 +521,7 @@ function I.FillLeft(d)
     local info = I.info
     I.name:SetText(W.Colored(name or (info and info.name) or ("#" .. id), quality or (info and info.quality)))
     if info then
-        I.sub:SetText((info.commodity and L.ITEM_COMMODITY or L.ITEM_SINGLE) .. " · " .. L.ITEM_IN_AH:format(math.floor((info.qty or 0) + 0.5)))
+        I.sub:SetText(info.commodity and L.ITEM_COMMODITY or L.ITEM_SINGLE)
     else
         I.sub:SetText(I.Broker() and L.ITEM_NO_MARKET or L.ITEM_NO_BROKER)
     end
@@ -570,7 +575,8 @@ function I.FillLeft(d)
     end
     -- Auktionshaus
     if info then
-        if info.low and info.high then I.rows.band:Set(L.ITEM_BAND, M(info.low) .. " – " .. M(info.high)) end
+        I.rows.qty:Set(L.ITEM_S_QTY, tostring(math.floor((info.qty or 0) + 0.5)))
+        I.rows.band:Set(L.ITEM_BAND, (info.low and info.high) and (M(info.low) .. " – " .. M(info.high)) or "–")
         if Num(info.perHour) then
             local col = (info.level == 3 and "|cff40ff40") or (info.level == 2 and "|cffffd200") or "|cffff4040"
             I.rows.sales:Set(L.ITEM_SALES, col .. "≈|r " .. L.ITEM_PER_HOUR:format(info.perHour >= 10 and ("%d"):format(info.perHour + 0.5) or (("%.1f"):format(info.perHour):gsub("%.", ","))))
@@ -618,7 +624,7 @@ end
 
 function I.Hover(i)
     I.info1:SetText(L.ITEM_LEGEND_EV)
-    I.info2:SetText(L.ITEM_HOVER_HINT)
+    I.info2:SetText((I.data and I.data.daysWithData == 1) and L.ITEM_ONE_DAY or L.ITEM_HOVER_HINT)
     local tt = rawget(_G, "GameTooltip")
     local lines = I.HoverLines(i)
     I.hoverLines = lines

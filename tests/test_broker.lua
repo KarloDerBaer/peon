@@ -1141,7 +1141,7 @@ check(PeonBrokerCharDB.lists[1].items[2589] ~= nil, "aus dem Reiter Preise hinzu
 
 -- ===== Reiter "Radar" (0.14) =====
 local Rd = ns.Radar
-Rd.preOff = true   -- Preis vorab (0.24) erst im eigenen Test unten
+check(Rd.preOff == true, "0.33.1: Preis vorab ist aus (Spiel erlaubt ihn nur direkt aus einem Klick)")
 local sounds = 0
 mod.db.dealDepth = 100   -- einfache Testfaelle: ganze Stufe, danach nichts mehr im Angebot
 local lastSound

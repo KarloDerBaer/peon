@@ -2,6 +2,12 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 05.11.2026: Rückmeldungen nach dem Start (Broker 0.33.1, Ledger 0.10.2, Fishing 1.5.2, Peon 0.11.1)
+
+- **Schnellkauf im Radar braucht wieder zwei Klicks.** Das Spiel erlaubt `StartCommoditiesPurchase` nur direkt aus einem Klick, ein Preis vorab ist also nicht möglich. Das ersetzt die Entscheidung vom 03.10. (Schnellkauf mit einem Klick). Der Code bleibt vorerst abgeschaltet im Addon, weil über das Entfernen KarloDerBaer entscheidet (Claude).
+- **Neues Angel-Set nur mit Haupt- und Nebenhand**, Hinweis auf weitere Ausrüstung (KarloDerBaer). Vorhandene Sets bleiben unverändert, damit nichts Eingestelltes verloren geht (Claude).
+- Einzelne Werte zeichnet der Diagramm-Baustein selbst als Punkt, weil das für jedes Modul gilt und nicht nur für Ledger (Claude).
+
 ## 05.11.2026: Einleser der Blizzard-API, AHledger entfernt (Peon Manager 0.11.0)
 
 - **AHledger fliegt ganz raus**, die Blizzard-API ersetzt es (KarloDerBaer). Das Design `Peon_Client_Design.md` nennt AHledger noch, gilt dort aber nicht mehr.
