@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.7.3
+
+- 0.7.3 (05.11.2026, Wünsche von KarloDerBaer aus dem ersten Test in Forever):
+  - **Abstand zum Mauszeiger:** Standard 40 statt 20, für X und Y.
+  - **Ausblenden:** Standardmäßig verschwindet der Tooltip von Einheiten in der Welt sofort, wenn die Maus sie verlässt (`fadeCustom` an, `fadeTime` 0). Einstellbar im Reiter „Gegner“ unter „Ausblenden“. Für Objekte ohne Einheit (z. B. Briefkasten) bleibt Blizzards Ausblenden.
+  - **Umstellung:** Wer noch die alten Standardwerte gespeichert hat (Abstand 20/20, eigene Ausblendzeit aus mit 0,2 Sek.), bekommt einmalig die neuen. Selbst gewählte Werte bleiben.
+  - **Im Spiel prüfen:** Tooltip verschwindet sofort beim Verlassen eines Gegners, kein Flackern beim Wechsel von Gegner zu Gegner.
+
 ## 0.7.2
 
 - 0.7.2 (23.10.2026, Fehler von KarloDerBaer, 57× im BugGrabber): `Items.lua:297: attempt to index local 'st' (a secret string value, while execution tainted by 'Peon_Tooltip')`.

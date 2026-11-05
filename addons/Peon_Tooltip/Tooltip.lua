@@ -8,21 +8,35 @@ local PL = Peon.L
 
 ns.ICON_POSITIONS = Peon.POSITIONS
 
+-- Neue Standardwerte (ab 0.7.3) einmalig uebernehmen: nur wer noch die alten Standardwerte hat,
+-- bekommt die neuen. Selbst gewaehlte Werte bleiben.
+function ns.MigrateDefaults(acc)
+    if acc.defaultsVer then return end
+    acc.defaultsVer = 1
+    if acc.offsetX == 20 and acc.offsetY == 20 then
+        acc.offsetX, acc.offsetY = 40, 40
+    end
+    if acc.fadeCustom == false and acc.fadeTime == 2 then
+        acc.fadeCustom, acc.fadeTime = true, 0
+    end
+end
+
 local mod = Peon:NewModule(ADDON_NAME, {
     key      = "tooltip",
     title    = "Tooltip",
     db       = "PeonTooltipDB",
     defaults = {
         corner      = "BOTTOMRIGHT",
-        offsetX     = 20,
-        offsetY     = 20,
+        defaultsVer = 1,         -- neue Standardwerte uebernommen (ns.MigrateDefaults)
+        offsetX     = 40,
+        offsetY     = 40,
         edgeFlip    = true,
         scale       = 100,       -- Prozent
         bgAlpha     = 100,       -- Prozent
         borderMode  = "reaction",
         playerInfo  = true,
-        fadeCustom  = false,
-        fadeTime    = 2,         -- Zehntelsekunden
+        fadeCustom  = true,
+        fadeTime    = 0,         -- Zehntelsekunden, 0 = sofort
         combatMode  = "normal",
         combatAlpha = 40,        -- Prozent
         combatShift = true,
@@ -39,6 +53,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         itemWrap    = true,      -- ab 0.7.1: lange Zeilen umbrechen
         itemMaxWidth = 450,      -- ab 0.7.1: maximale Breite des Textes (Tooltip-Punkte)
     },
+    migrate  = function(_, acc) ns.MigrateDefaults(acc) end,
     keepOnReset = { itemKnown = true, itemSepId = true },
     -- min, max, Schrittweite
     ranges = {

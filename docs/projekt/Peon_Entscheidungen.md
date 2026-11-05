@@ -2,6 +2,11 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 05.11.2026: Neue Standardwerte im Tooltip (Tooltip 0.7.3)
+
+- Abstand zum Mauszeiger 40 statt 20, Tooltip von Einheiten verschwindet standardmäßig sofort (KarloDerBaer).
+- Gespeicherte Werte, die noch den alten Standardwerten entsprechen, werden einmalig umgestellt, weil ein neuer Standard sonst bei niemandem ankäme, der schon gespielt hat. Selbst gewählte Werte bleiben (Claude).
+
 ## 04.11.2026: Blizzard-API, erst prüfen, dann einlesen (Peon Manager 0.10.0)
 
 - Zuerst nur ein Prüfabruf, der Einleser folgt passend zu den echten Daten, weil nicht bestätigt ist, dass Forever Auktionen liefert (KarloDerBaer).

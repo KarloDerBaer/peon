@@ -125,6 +125,21 @@ check(alphaBefore, "Ausgrauen aktiv")
 -- Slash
 SlashCmdList.PEON_TOOLTIP("reset")
 check(PeonTooltipDB.corner == "BOTTOMRIGHT" and PeonTooltipDB.scale == 100 and PeonTooltipDB.pvpIcon == "TOPRIGHT", "/ttp reset")
+check(PeonTooltipDB.offsetX == 40 and PeonTooltipDB.offsetY == 40, "0.7.3: Standard-Abstand 40")
+check(PeonTooltipDB.fadeCustom == true and PeonTooltipDB.fadeTime == 0, "0.7.3: Standard sofort ausblenden")
+-- neue Standardwerte einmalig uebernehmen
+local old = { offsetX = 20, offsetY = 20, fadeCustom = false, fadeTime = 2 }
+ns.MigrateDefaults(old)
+check(old.offsetX == 40 and old.offsetY == 40 and old.fadeCustom == true and old.fadeTime == 0, "0.7.3: alte Standardwerte werden umgestellt")
+old.fadeCustom, old.fadeTime, old.offsetX, old.offsetY = false, 2, 20, 20
+ns.MigrateDefaults(old)
+check(old.fadeCustom == false and old.fadeTime == 2 and old.offsetX == 20, "0.7.3: nur einmal, spaetere eigene Wahl bleibt")
+local own = { offsetX = 35, offsetY = 20, fadeCustom = false, fadeTime = 5 }
+ns.MigrateDefaults(own)
+check(own.offsetX == 35 and own.offsetY == 20 and own.fadeCustom == false and own.fadeTime == 5, "0.7.3: eigene Werte bleiben")
+local fresh = {}
+ns.MigrateDefaults(fresh)
+check(fresh.defaultsVer == 1 and fresh.offsetX == nil and fresh.fadeCustom == nil, "0.7.3: neue Installation bekommt die Standardwerte")
 SlashCmdList.PEON("tooltip")
 check(out[#out] == "OPEN Peon/Tooltip", "/peon tooltip oeffnet Seite")
 SlashCmdList.PEON_TOOLTIP("")

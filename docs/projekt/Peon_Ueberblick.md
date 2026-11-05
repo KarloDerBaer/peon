@@ -32,7 +32,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 | Addon | Version | SavedVariables | Befehl |
 |---|---|---|---|
 | Peon | 0.11.0 | `PeonDB` | /peon |
-| Peon_Tooltip (früher TooltipPlus) | 0.7.2 | `PeonTooltipDB` | /ttp |
+| Peon_Tooltip (früher TooltipPlus) | 0.7.3 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
 | Peon_Fishing (früher FishingPlus) | 1.5.1 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
 | Peon_Broker (neu, Auktionshaus) | 0.33.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
