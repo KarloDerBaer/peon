@@ -45,8 +45,8 @@ function importEntry(db, e, account) {
   const now = Math.floor(Date.now() / 1000);
   db.prepare(`INSERT INTO snapshots(id, market_id, source, art, t, char, build, broker, region, account,
       total, offers, lines, items, partial, item_key, commodity, rows, imported)
-      VALUES (?, ?, ?, 'moment', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(String(e.id), mid, source, e.t, e.char ?? null, e.build ?? null, e.broker ?? null, e.region ?? null, account ?? null,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(String(e.id), mid, source, e.art || 'moment', e.t, e.char ?? null, e.build ?? null, e.broker ?? null, e.region ?? null, account ?? null,
       e.total ?? null, e.offers ?? rows.reduce((s, r) => s + r.n, 0), e.lines ?? rows.length, stats.size,
       e.partial ? 1 : 0, e.key ?? null, e.commodity == null ? null : (e.commodity ? 1 : 0),
       zlib.deflateSync(Buffer.from(e.rows || '', 'utf8')), now);
@@ -71,8 +71,11 @@ function importEntry(db, e, account) {
         commodity = COALESCE(excluded.commodity, items.commodity), updated = excluded.updated`);
   const names = e.names && typeof e.names === 'object' ? e.names : {};
   const seen = new Set();
+  // Aus eigenen Daten lernen: Bonus-Nummer und voller Name, die Blizzard-API nennt nur die Nummer
+  const learn = e.art === 'api' ? null : db.prepare('INSERT OR REPLACE INTO variant_names(item_id, bonus, name) VALUES (?, ?, ?)');
   for (const r of rows) {
     const key = itemKey(r);
+    if (learn && r.bonus && r.name) learn.run(r.item, r.bonus, r.name);
     if (seen.has(key)) continue;
     seen.add(key);
     const info = parseName(names[r.item]);

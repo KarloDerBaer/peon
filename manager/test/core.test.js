@@ -7,7 +7,6 @@ const os = require('node:os');
 const path = require('node:path');
 const { parseLua, toLua } = require('../src/core/lua');
 const { parseRow, parseRows, summarize, itemKey } = require('../src/core/stats');
-const { parsePricetable, suggestMarket } = require('../src/core/ahledger');
 const { Service, merge } = require('../src/core/service');
 const game = require('../src/core/game');
 
@@ -112,19 +111,6 @@ test('Zeilen und Kennzahlen wie Broker', () => {
   assert.equal(s5.min, 118);
 });
 
-test('AHledger: Preistabelle lesen, Vorschlag fuer den Markt', () => {
-  const pt = parsePricetable('AHL1|forever/normal/alliance/us|1792691095|3\n35:1900:1900:1:3193:2400:500:10100:12\n117:5:5:54:18:10:1:90:85\n200:15000:15000:1:15000:15000:15000:15000:\n');
-  assert.equal(pt.market, 'forever.normal.alliance.us');
-  assert.equal(pt.t, 1792691095);
-  assert.equal(pt.rows.length, 3);
-  assert.deepEqual(pt.rows[1], { id: 117, median: 5, min: 5, qty: 54, med7: 18, med30: 10, low30: 1, high30: 90, perDay: 8.5 });
-  assert.equal(pt.rows[2].perDay, null);
-  assert.throws(() => parsePricetable('kaputt'), /Kopfzeile/);
-  assert.equal(suggestMarket('Classic Beta PvE / Alliance', 110), 'forever.normal.alliance.us');
-  assert.equal(suggestMarket('Classic PvP / Horde', 3), 'forever.pvp.horde.eu');
-  assert.equal(suggestMarket('Unsinn', 1), null);
-});
-
 test('Einstellungen: Standardwerte ergaenzen, falsche Typen ersetzen', () => {
   const m = merge({ a: 1, b: { c: 2, d: 3 }, e: {} }, { a: 'x', b: { c: 5 }, f: 9 });
   assert.deepEqual(m, { a: 1, b: { c: 5, d: 3 }, e: {}, f: 9 });
@@ -163,8 +149,6 @@ test('Einlesen aus dem Spiel, Bestaetigung, kein doppeltes Einlesen', () => {
   const items = db.prepare('SELECT key, name, quality FROM items ORDER BY key').all();
   assert.deepEqual({ ...items.find((x) => x.key === '2770') }, { key: '2770', name: 'Kupfererz', quality: 1 });
   assert.deepEqual({ ...items.find((x) => x.key === '6611:Klinge des Wolfs') }, { key: '6611:Klinge des Wolfs', name: 'Klinge des Wolfs', quality: null });
-  // Markt bekommt einen AHledger-Vorschlag (noch nicht bestaetigt)
-  assert.deepEqual(svc.settings.marketMap['Classic Beta PvE / Alliance'], { ext: 'forever.normal.alliance.us', confirmed: false });
 
   // nochmal einlesen: nichts neu, Data.lua bleibt gleich
   const t1 = fs.statSync(path.join(ad, 'Data.lua')).mtimeMs;
@@ -215,44 +199,6 @@ test('Fehler: kaputte Datei, fehlender Markt, kein Peon_Bridge', () => {
   const r3 = svc.broker.importGame();
   assert.equal(r3.error, 'Keine Peon_Bridge.lua gefunden');
   assert.equal(svc.overview().wowOk, false);
-  svc.close();
-});
-
-test('AHledger abrufen: speichern, ETag, gleicher Stand, Fehler', async () => {
-  const { wow } = fakeWow(SAMPLE);
-  const calls = [];
-  let reply = { status: 200, etag: '"v1"', body: 'AHL1|forever/normal/alliance/us|1792691095|2\n35:1900:1900:1:3193:2400:500:10100:12\n117:5:5:54:18:10:1:90:85\n' };
-  const fetchImpl = async (url, opts) => {
-    calls.push({ url, headers: opts.headers });
-    if (reply.status === 'fail') throw new Error('Netz weg');
-    if (reply.status === 304) return { status: 304, ok: false, headers: new Map() };
-    return { status: reply.status, ok: reply.status === 200, headers: new Map([['etag', reply.etag]]), text: async () => reply.body };
-  };
-  const svc = new Service({ enable: ['broker-client'], dbDir: tmp(), fetchImpl });
-  svc.saveSettings({ wowDir: wow });
-  svc.broker.importGame();
-  let r = await svc.broker.fetchAhledger();
-  assert.equal(r[0].market, 'forever.normal.alliance.us'); assert.equal(r[0].status, 200); assert.equal(r[0].rows, 2);
-  assert.match(calls[0].url, /\/v1\/pricetable\/forever\.normal\.alliance\.us$/);
-  assert.equal(calls[0].headers['If-None-Match'], undefined);
-  const row = svc.broker.db.prepare('SELECT * FROM ext_ahledger WHERE item_id = 117').get();
-  assert.equal(row.per_day, 8.5); assert.equal(row.med7, 18);
-  reply = { status: 304 };
-  r = await svc.broker.fetchAhledger();
-  assert.equal(r[0].status, 304);
-  assert.equal(calls[1].headers['If-None-Match'], '"v1"');
-  assert.equal(svc.broker.db.prepare('SELECT COUNT(*) AS n FROM ext_ahledger').get().n, 2);
-  reply = { status: 200, etag: '"v2"', body: 'AHL1|forever/normal/alliance/us|1792691095|2\n35:1:1:1:1:1:1:1:1\n' };
-  r = await svc.broker.fetchAhledger();
-  assert.equal(r[0].status, 304, 'gleicher Stand ohne Aenderung wird nicht doppelt gespeichert');
-  reply = { status: 'fail' };
-  r = await svc.broker.fetchAhledger();
-  assert.match(r[0].error, /Netz weg/);
-  const ov = svc.overview();
-  assert.equal(ov.ahledger.markets[0].tData, 1792691095);
-  assert.equal(ov.ahledger.markets[0].ok, false);
-  svc.saveSettings({ ahledger: { enabled: false, intervalMin: 30 } });
-  assert.deepEqual(await svc.broker.fetchAhledger(), []);
   svc.close();
 });
 

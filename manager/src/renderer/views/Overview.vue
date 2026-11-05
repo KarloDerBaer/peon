@@ -8,18 +8,13 @@ const props = defineProps({ data: Object, market: Object, now: Number, theme: St
 const emit = defineEmits(['import', 'go', 'open']);
 const api = window.peon;
 
-const ahl = computed(() => {
-  if (!props.market || !props.market.ext) return null;
-  return props.data.ahledger.markets.find((x) => x.market === props.market.ext) || { market: props.market.ext };
-});
-
 const gameFile = computed(() => {
   const files = props.data.game.files || [];
   if (!files.length) return null;
   return files.reduce((a, b) => (b.mtime > a.mtime ? b : a));
 });
 
-// Datenweg Spiel -> Manager -> Broker, AHledger als Zuweg
+// Datenweg Spiel -> Manager -> Broker, Blizzard-API als Zuweg
 const stations = computed(() => {
   const m = props.market, d = props.data, now = props.now;
   const last = m && m.lastScan;
@@ -29,7 +24,7 @@ const stations = computed(() => {
       fact: gameFile.value ? `${pl(gameFile.value.entries, 'Momentaufnahme', 'Momentaufnahmen')} in der WTF-Datei` : 'Keine Peon_Bridge.lua gefunden',
       time: gameFile.value ? `geschrieben ${ago(gameFile.value.mtime, now)}` : 'Komplettscan im Spiel, dann „An Manager“' },
     { key: 'client', title: 'Manager', state: last ? freshness(last.t, 2 * 86400, now) : 'aus',
-      fact: m ? `${pl(m.scans, 'Scan', 'Scans')}, ${pl(m.lives, 'Live-Abfrage', 'Live-Abfragen')}, ${pl(m.items, 'Gegenstand', 'Gegenstände')}` : 'Noch nichts gespeichert',
+      fact: m ? `${pl(m.scans, 'Scan', 'Scans')}${m.stands ? `, ${pl(m.stands, 'API-Stand', 'API-Stände')}` : ''}, ${pl(m.lives, 'Live-Abfrage', 'Live-Abfragen')}, ${pl(m.items, 'Gegenstand', 'Gegenstände')}` : 'Noch nichts gespeichert',
       time: `Datenbank ${bytes(d.dbSize)}` + (d.brokerHist && d.brokerHist.items ? `, Broker-Verlauf ${pl(d.brokerHist.days, 'Tag', 'Tage')}` : '') },
     { key: 'broker', title: 'Broker', state: back ? freshness(back.t, 2 * 86400, now) : 'aus',
       fact: back ? (back.items || back.sales ? `Üblicher Bereich für ${num(back.items)}, Absatz für ${pl(back.sales || 0, 'Gegenstand', 'Gegenstände')}` : `${pl(back.count, 'Momentaufnahme', 'Momentaufnahmen')} bestätigt`) : 'Noch keine Rückgabe geschrieben',
@@ -37,14 +32,11 @@ const stations = computed(() => {
   ];
 });
 
-const ahlStation = computed(() => {
-  const a = ahl.value, now = props.now;
-  if (!props.data.ahledger.enabled) return { state: 'aus', fact: 'Abruf ist ausgeschaltet', time: '' };
-  if (!a) return { state: 'aus', fact: 'Markt noch nicht zugeordnet', time: 'Zuordnung unter Quellen' };
-  if (a.ok === false && !a.tData) return { state: 'bad', fact: a.text || 'Abruf fehlgeschlagen', time: '' };
-  return { state: a.tData ? freshness(a.tData, 6 * 3600, now) : 'aus',
-    fact: a.tData ? `${num(a.rows)} Gegenstände, nur zum Vergleich` : 'Noch nicht abgerufen',
-    time: a.tData ? `Stand ${ago(a.tData, now)}, abgerufen ${ago(a.tFetch, now)}` : '' };
+const apiStation = computed(() => {
+  const a = props.data.api, now = props.now;
+  if (!a || !a.selected) return { state: 'aus', fact: 'Kein Auktionshaus gewählt', time: 'Auswahl unter Quellen' };
+  if (a.error) return { state: 'bad', fact: `Abruf fehlgeschlagen${a.error.status ? `, Antwort ${a.error.status}` : ''}`, time: a.last ? `Letzter Stand ${ago(a.last, now)}` : '' };
+  return { state: a.last ? freshness(a.last, 3 * 3600, now) : 'aus', fact: `${pl(a.selected, 'Auktionshaus', 'Auktionshäuser')}, ${pl(a.stands, 'Stand', 'Stände')}`, time: a.last ? `Letzter Stand ${ago(a.last, now)}` : 'Noch nicht abgerufen' };
 });
 
 function lampTitle(s) { return { ok: 'aktuell', alt: 'älter', aus: 'keine Daten', bad: 'Fehler' }[s]; }
@@ -67,18 +59,17 @@ function lampTitle(s) { return { ok: 'aktuell', alt: 'älter', aus: 'keine Daten
         </div>
         <div v-if="k < stations.length - 1" class="link-line" aria-hidden="true"></div>
       </template>
-      <div class="station side" :class="ahlStation.state">
-        <div class="st-head"><span class="lamp" :title="lampTitle(ahlStation.state)"></span><h3>AHledger</h3></div>
-        <p>{{ ahlStation.fact }}</p>
-        <p class="small muted">{{ ahlStation.time }}</p>
-        <p class="small"><button class="link" @click="api.openLink(data.ahledger.link)">Daten von AHledger (ahledger.com)</button></p>
+      <div class="station side" :class="apiStation.state">
+        <div class="st-head"><span class="lamp" :title="lampTitle(apiStation.state)"></span><h3>Blizzard-API</h3></div>
+        <p>{{ apiStation.fact }}</p>
+        <p class="small muted">{{ apiStation.time }}</p>
       </div>
     </section>
 
     <section class="block">
       <div class="block-head">
         <h2>Markt in den letzten 30 Tagen</h2>
-        <span class="small muted" v-if="market.lastScan">Letzter Scan {{ when(market.lastScan.t) }}: {{ num(market.lastScan.offers) }} Angebote, {{ num(market.lastScan.items) }} Gegenstände<template v-if="market.lastScan.char">, von {{ market.lastScan.char }}</template></span>
+        <span class="small muted" v-if="market.lastScan">{{ market.lastScan.art === 'api' ? 'Letzter Stand der Blizzard-API' : 'Letzter Scan' }} {{ when(market.lastScan.t) }}: {{ num(market.lastScan.offers) }} Angebote, {{ num(market.lastScan.items) }} Gegenstände<template v-if="market.lastScan.char">, von {{ market.lastScan.char }}</template></span>
       </div>
       <MarketChart v-if="market.history.length > 1" :history="market.history" :theme="theme" />
       <p v-else class="muted chart-empty">Ab dem zweiten Komplettscan steht hier, wie sich Angebote und Gegenstände entwickeln.</p>
@@ -114,7 +105,7 @@ function lampTitle(s) { return { ok: 'aktuell', alt: 'älter', aus: 'keine Daten
       <ul class="log" v-else>
         <li v-for="(l, k) in data.log" :key="k" :class="{ fail: !l.ok }">
           <span class="faint small">{{ when(l.t) }}</span>
-          <span class="small kind">{{ l.kind === 'spiel' ? 'Spiel' : l.kind === 'ahledger' ? 'AHledger' : l.kind }}</span>
+          <span class="small kind">{{ l.kind === 'spiel' ? 'Spiel' : l.kind === 'blizzard' ? 'Blizzard' : l.kind }}</span>
           <span class="small">{{ l.text }}</span>
         </li>
       </ul>

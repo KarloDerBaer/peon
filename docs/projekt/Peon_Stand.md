@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 31.10.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.11.0 / Broker 0.33.0 / Bridge 0.4.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.10.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.1 / Fishing 1.5.1 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2. Peon_Feedback 0.2.0 ist archiviert (`<Archiv>\Peon_Feedback_0.2.0\`).
+Stand: 31.10.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.11.0 / Broker 0.33.0 / Bridge 0.4.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.11.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.1 / Fishing 1.5.1 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2. Peon_Feedback 0.2.0 ist archiviert (`<Archiv>\Peon_Feedback_0.2.0\`).
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.11.0, API 11
@@ -55,7 +55,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.10.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.11.0
 
 - Quellcode: `manager\` (bisher `client\`), Anleitung in `manager\README.md`. Design: `docs\konzepte\manager\Peon_Client_Design.md` (Funktionen, jetzt Modul Peon Broker Client) und `Peon_GitHub_Design.md` (Peon Manager, Module, Installieren).
 - Programm bei KarloDerBaer: installiert wie bei allen anderen (ab 04.11.2026, siehe unten). Der frühere Ordner `<Programmordner>` mit Runtime und DB bleibt als Sicherung. Anderer Datenordner: Umgebungsvariable `PEON_MANAGER_DB`.
@@ -63,6 +63,8 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Manager-Module (ab 0.7.0, Variante B): Liste in `manager\src\core\modules.js`, je Modul Schlüssel, Name, Beschreibung, nötige Addons, Kanäle, Ansichten, Datenbankdatei. Erstes Modul **Peon Broker Client** (`broker-client`, Code in `broker-client.js`), standardmäßig aus, bei KarloDerBaer aktiv. Ansicht „Module“ mit Installieren, Entfernen und Daten löschen.
 - Addons (ab 0.8.0, `src\core\addons.js`): Manifest des Release holen, Zip laden und prüfen, tauschen, bei Fehler zurücktauschen. Sucht beim Start und alle 6 Stunden, installiert nur per Klick. Junctions gelten als „Entwicklung (Repo)“ und bleiben unberührt, deshalb ändert der Manager bei KarloDerBaer keine Addons. Kanal Stabil oder Test in den Einstellungen. Quelle zum Testen: Umgebungsvariable `PEON_MANAGER_RELEASES`.
 - Installiert (ab 0.9.0): Installer `PeonManager-Setup-<Version>.exe` für den Benutzer, ohne Administratorrechte, Programm unter `%LOCALAPPDATA%\Programs`, Daten in `%APPDATA%\Peon Manager\Daten`. Selbst-Update über `electron/updater.js`: lädt im Hintergrund, fragt vor dem Neustart. Liegt ein Ordner `DB` neben dem Programmordner (Aufbau bei KarloDerBaer), gilt dieser, und es gibt kein Selbst-Update.
+- Blizzard-API (ab 0.11.0): Zugang, Anleitung und Prüfabruf unter Einstellungen für alle Module (`src\core\blizzard.js`). Einleser im Broker Client (`blizzard-import.js`), Auswahl der Häuser unter Quellen, Einstellung `blizzard.houses`. Beobachter nur in der Testfassung (`blizzard-watch.js`). Wissen und offene Fragen: `docs\konzepte\manager\Peon_Blizzard_API.md`.
+- AHledger ist ab 0.11.0 entfernt.
 - Bauen: `npm ci`, `npm run dist:setup` (Installer) oder `npm run dist` (nur Ordner) (Ordner `manager\release\win-unpacked`), Selbsttest mit `PEON_MANAGER_SELFTEST=<Ordner>`.
 - Tests: `npm test` im Ordner `manager\` (Rechenkern, dazu der Vergleich mit Brokers Sales.lua über `tools\lua5.1.exe`).
 - Verlauf der Versionen: `docs/changelog/Peon_Manager.md`
@@ -161,6 +163,7 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
   - **Erstes Release `v2026.11.04` veröffentlicht (04.11.2026):** alle 9 Addons, Manager 0.9.2. Gegen das echte GitHub geprüft: frisch gebauter Manager 0.9.2 installiert im Testordner alle 9 Addons (98 Dateien gleich dem Repo), Prüfsumme des geladenen Installers gleich `latest.yml`.
   - **Blizzard-API (04.11.2026):** Prüfabruf unter Quellen fertig (Manager 0.10.0, im Release `v2026.11.04.2`, Addons darin unverändert, gegen das echte GitHub geprüft wie beim ersten Release). **Nächster Schritt:** Nach dem Start mit einem eigenen Zugang prüfen. Liefert er Angebote, passend zum echten Format den Einleser bauen und die Zuordnung zu den Märkten klären. Sonst später erneut prüfen. Stand der Prüfungen (EU): 04.11., 20:13 Uhr, vor dem Start: Realms antworten (26), alles zu Auktionen 404. 05.11., 05:02 Uhr, nach dem Start: Anmeldung klappt, auch die Realms liefern jetzt 404. Im Forum und bei goldbook gibt es dazu noch nichts. Der Bericht meldet dann „Bereich unbekannt“, das ist ungenau: Ein unbekannter Bereich antwortet laut goldbook mit 403, hier kam 404.
   - **Release `v2026.11.05` veröffentlicht (05.11.2026):** Bags 0.2.2 und Tooltip 0.7.4 aus dem ersten Test in Forever, die übrigen Addons und Manager 0.10.0 unverändert. Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Tooltip 0.7.3 und 0.7.4 sind im Spiel noch zu prüfen, der Broker erst, wenn KarloDerBaer ins Auktionshaus kommt.
+  - **Blizzard-API liefert Auktionsdaten (05.11.2026):** Forever läuft über Regelsatz und Auktionshaus, nicht über Realms (`docs\konzepte\manager\Peon_Blizzard_API.md`). Manager 0.11.0 (nicht im Release): Zugang unter Einstellungen, Prüfabruf auf den richtigen Wegen, Beobachter in der Testfassung. Geprüft gegen das echte Blizzard: Der Markt von KarloDerBaer ist Haus 111 (Scan 98,7 % gleich, Testangebot bestätigt), Takt stündlich, Angebotsnummern bleiben gleich. Einleser, Auswahl unter Quellen und Anleitung sind gebaut, AHledger ist entfernt. **Nächster Schritt:** Commit und Release. Die Nutzung durch Ledger kommt später.
   - **Noch offen aus der Abnahme von H und I:** Installer auf einem fremden Rechner mit Warnung von SmartScreen (Freund), Selbst-Update gegen das echte GitHub mit Knopf „Jetzt neu starten“ (Manager 0.9.1 bei KarloDerBaer auf 0.9.2).
 
 ### Peon Client und Modul Peon_Client (beschlossen 22.10.2026, Design `Peon_Client_Design.md` abgestimmt)

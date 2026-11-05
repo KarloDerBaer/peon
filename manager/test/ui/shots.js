@@ -26,7 +26,7 @@ srv.listen(0, async () => {
         retention: async (d) => retention[d == null ? 30 : d] || retention[30],
         chances: async (m, d) => chances[d] || chances[7],
         overview: async () => ov, settings: async () => st, importNow: async () => ({ imported: 0, files: [{}] }),
-        fetchAhledger: async () => [], ahledgerMarkets: async () => [{ id: 'forever.normal.alliance.us', label: 'Normal Alliance US', game: 'forever' }, { id: 'forever.normal.alliance.eu', label: 'Normal Alliance EU', game: 'forever' }],
+        blizzardState: async () => ({ saved: false, region: 'eu', report: null, watch: null }), blizzardHouses: async () => ({ saved: false, houses: [] }),
         saveSettings: async (p) => ({ ...st, ...p }), pickFolder: async () => null, openFolder: async () => {}, openLink: async () => {}, onChanged: () => {},
       };
     }, { ov: mock.overview, st: settings, now: mock.now, items: mock.items, item: mock.item, retention: mock.retention, chances: mock.chances });
@@ -62,7 +62,7 @@ srv.listen(0, async () => {
   // leerer Zustand
   const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
   await page.addInitScript(({ ov, st }) => {
-    window.peon = { overview: async () => ({ ...ov, markets: [], back: null, log: [], game: { files: [] }, wowOk: false }), settings: async () => st, importNow: async () => ({}), onChanged: () => {}, ahledgerMarkets: async () => [] };
+    window.peon = { overview: async () => ({ ...ov, markets: [], back: null, log: [], game: { files: [] }, wowOk: false }), settings: async () => st, importNow: async () => ({}), onChanged: () => {}, blizzardState: async () => ({ saved: false, region: 'eu', report: null, watch: null }), blizzardHouses: async () => ({ saved: false, houses: [] }) };
   }, { ov: mock.overview, st: mock.settings });
   await page.goto(`http://127.0.0.1:${port}/index.html`);
   await page.waitForTimeout(500);

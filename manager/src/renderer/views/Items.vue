@@ -38,7 +38,7 @@ const COLS = [
   { key: 'band', label: 'Üblicher Bereich', num: true, tip: 'Untergrenze bis Obergrenze, wie Broker ihn vom Manager bekommt' },
   { key: 'trend', label: 'Trend', num: true },
   { key: 'seen', label: 'Gesehen', num: true },
-  { key: 'src', label: 'Quellen', tip: 'S = eigene Komplettscans, L = Live-Abfragen, B = Broker-Verlauf' },
+  { key: 'src', label: 'Quellen', tip: 'S = Komplettscans und Blizzard-API, L = Live-Abfragen, B = Broker-Verlauf' },
 ];
 
 const rows = computed(() => {

@@ -103,11 +103,11 @@ function itemDetail(db, marketKey, key, { from = null, now = Math.floor(Date.now
     .filter((x) => x.period !== 'day' || !ownDays.has(x.num));
 
   // aktueller Stand: letzter eigener Scan, sonst letzte Live-Abfrage
-  const lastScan = db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(m.id);
+  const lastScan = db.prepare("SELECT id, t, art FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(m.id);
   const curScan = lastScan ? db.prepare('SELECT * FROM item_snap WHERE snapshot_id = ? AND item_key = ?').get(lastScan.id, key) : null;
   const lastLive = db.prepare("SELECT * FROM item_snap WHERE market_id = ? AND item_key = ? AND source = 'live' ORDER BY t DESC LIMIT 1").get(m.id, key);
   let current = null;
-  if (curScan) current = { ...curScan, source: 'scan' };
+  if (curScan) current = { ...curScan, source: 'scan', art: lastScan.art };
   if (lastLive && (!current || lastLive.t > current.t)) current = { ...lastLive, min: lastLive.min ?? (current && current.min), source: 'live' };
   if (!current && lastScan) current = { t: lastScan.t, source: 'scan', qty: 0, auctions: 0, min: null, median: null, gone: true };
 

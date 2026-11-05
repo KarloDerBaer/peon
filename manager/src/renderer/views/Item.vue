@@ -77,7 +77,7 @@ const levelsTop = computed(() => (d.value && d.value.levels ? d.value.levels.lis
       <div><dt>Spanne 14 Tage</dt><dd v-if="d.low14 != null"><Gold :copper="d.low14" /> bis <Gold :copper="d.high14" /></dd><dd v-else>–</dd></div>
     </dl>
     <p class="small muted" v-if="d.current">
-      Stand {{ when(d.current.t) }} ({{ ago(d.current.t, now) }}) aus {{ d.current.source === 'live' ? 'einer Live-Abfrage' : 'dem letzten Komplettscan' }}.
+      Stand {{ when(d.current.t) }} ({{ ago(d.current.t, now) }}) aus {{ d.current.source === 'live' ? 'einer Live-Abfrage' : d.current.art === 'api' ? 'der Blizzard-API' : 'dem letzten Komplettscan' }}.
       Die Spanne ist der tiefste und höchste Tagesmedian.
     </p>
 

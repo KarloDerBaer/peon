@@ -1,8 +1,9 @@
 'use strict';
 // Peon Manager - Absatz (Rechenmodell Kapitel 9, F45 bis F48).
 // Vergleicht zwei aufeinanderfolgende Komplettscans eines Markts mit allen Angeboten nach Brokers Regeln
-// (Peon_Broker Sales.lua, Konzept Peon_Broker_Absatz.md Abschnitt 3 und 7). Live-Abfragen mit Auktionsnummern
-// zaehlen nur fuer Zeiten, die kein Scan-Paar abdeckt. Ergebnis je Paar und Gegenstand in sales_cmp.
+// (Peon_Broker Sales.lua, Konzept Peon_Broker_Absatz.md Abschnitt 3 und 7). Staende der Blizzard-API (art = 'api') werden
+// nur untereinander ueber die Angebotsnummern verglichen und haben Vorrang. Eigene Scans zaehlen nur fuer Zeiten ohne
+// API-Paar, Live-Abfragen nur fuer Zeiten ohne beides. Ergebnis je Paar und Gegenstand in sales_cmp.
 
 const zlib = require('node:zlib');
 const { parseRows, itemKey, unitPrice } = require('./stats');
@@ -155,6 +156,7 @@ function addPair(db, marketId, a, b, src, itemKeyOnly) {
   const ra = rowsOf(db, a.id), rb = rowsOf(db, b.id);
   if (!ra || !rb) return false;
   if (src === 'scan') { learnCommodity(db, ra); learnCommodity(db, rb); }
+  const withIds = src !== 'scan';
   const A = offersByItem(ra, a.t), B = offersByItem(rb, b.t);
   const keys = itemKeyOnly ? [itemKeyOnly] : [...new Set([...A.keys(), ...B.keys()])];
   const comm = commodityOf(db, keys);
@@ -174,7 +176,7 @@ function addPair(db, marketId, a, b, src, itemKeyOnly) {
       cap = ca && cb ? Math.min(ca, cb) : (ca || cb);
     }
     const commodity = src === 'live' && a.commodity != null ? !!a.commodity : (comm.get(k) || false);
-    const r = compare(la, lb, a.t, b.t, { commodity, withIds: src === 'live', cap });
+    const r = compare(la, lb, a.t, b.t, { commodity, withIds, cap });
     ins.run(pid, marketId, k, day, b.t, secs, r.sold, r.expired, r.cancelled, r.listed, r.value, r.maxSold);
   }
   return true;
@@ -184,12 +186,24 @@ function addPair(db, marketId, a, b, src, itemKeyOnly) {
 function updateMarket(db, marketId, now = Math.floor(Date.now() / 1000)) {
   const res = { added: 0, removed: 0 };
   tx(db, () => {
-    const scans = db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' AND rows IS NOT NULL ORDER BY t").all(marketId);
+    // Blizzard-API: je zwei aufeinanderfolgende Staende, die Nummern machen den Vergleich genau
+    const apis = db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' AND art = 'api' AND rows IS NOT NULL ORDER BY t").all(marketId);
+    const haveApi = new Set(db.prepare("SELECT a_id || '>' || b_id AS k FROM sales_pair WHERE market_id = ? AND src = 'api'").all(marketId).map((x) => x.k));
+    for (let i = 1; i < apis.length; i++) {
+      const a = apis[i - 1], b = apis[i];
+      const gap = b.t - a.t;
+      if (gap < MIN_GAP || gap > MAX_GAP || haveApi.has(a.id + '>' + b.id)) continue;
+      if (addPair(db, marketId, a, b, 'api')) res.added++;
+    }
+    const apiPairs = db.prepare("SELECT ta, tb FROM sales_pair WHERE market_id = ? AND src = 'api'").all(marketId);
+    const hasApi = (ta, tb) => apiPairs.some((c) => c.ta < tb && c.tb > ta);
+
+    const scans = db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' AND art <> 'api' AND rows IS NOT NULL ORDER BY t").all(marketId);
     const want = new Map();
     for (let i = 1; i < scans.length; i++) {
       const a = scans[i - 1], b = scans[i];
       const gap = b.t - a.t;
-      if (gap >= MIN_GAP && gap <= MAX_GAP) want.set(a.id + '>' + b.id, [a, b]);
+      if (gap >= MIN_GAP && gap <= MAX_GAP && !hasApi(a.t, b.t)) want.set(a.id + '>' + b.id, [a, b]);
     }
     const have = db.prepare("SELECT id, a_id, b_id, ta, tb, folded FROM sales_pair WHERE market_id = ? AND src = 'scan'").all(marketId);
     const oldest = scans.length ? scans[0].t : Infinity;
@@ -204,7 +218,7 @@ function updateMarket(db, marketId, now = Math.floor(Date.now() / 1000)) {
     for (const [a, b] of want.values()) if (addPair(db, marketId, a, b, 'scan')) res.added++;
 
     // Live-Abfragen: Paare je Gegenstand, nur wo kein Scan-Paar die Zeit abdeckt
-    const covered = db.prepare("SELECT ta, tb FROM sales_pair WHERE market_id = ? AND src = 'scan'").all(marketId);
+    const covered = db.prepare("SELECT ta, tb FROM sales_pair WHERE market_id = ? AND src IN ('scan', 'api')").all(marketId);
     const overlaps = (ta, tb) => covered.some((c) => c.ta < tb && c.tb > ta);
     const lives = db.prepare("SELECT id, t, item_key, partial, commodity FROM snapshots WHERE market_id = ? AND source = 'live' AND rows IS NOT NULL AND item_key IS NOT NULL ORDER BY item_key, t").all(marketId);
     const haveLive = new Set(db.prepare("SELECT a_id || '>' || b_id AS k FROM sales_pair WHERE market_id = ? AND src = 'live'").all(marketId).map((x) => x.k));

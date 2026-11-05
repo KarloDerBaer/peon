@@ -1,98 +1,145 @@
 'use strict';
-// Peon Manager - Pruefabruf "Blizzard-API": Liefert die Schnittstelle Auktionsdaten fuer Forever?
-// Die Bereiche (namespace) dynamic-forever-{region} gibt es seit Anfang November 2026, sie sind nicht dokumentiert.
-// Eingelesen wird noch nichts (Peon_Client_Design.md 5.5). Der Bericht enthaelt nur Stufen, Antwort-Codes und Beispiel-Angebote.
+// Peon Manager - Blizzard-API fuer Forever. Allgemeiner Baustein: Zugang, Anmeldung, Abfragen, Pruefabruf.
+// Forever hat keine Realms: Die Bereiche (namespace) dynamic-forever-{region} sind nach Regelsatz und Auktionshaus aufgebaut,
+// von Blizzard nicht dokumentiert. Geprueftes steht in docs/konzepte/manager/Peon_Blizzard_API.md.
+// Der Pruefbericht enthaelt nur Stufen, Antwort-Codes und Beispiel-Angebote. Eingelesen wird in blizzard-import.js.
 // Zugang: Jeder Nutzer legt einen eigenen an. Er liegt nur verschluesselt im Datenordner und geht nur an Blizzard.
 
 const fs = require('node:fs');
 
-const REGIONS = ['eu', 'us', 'tw'];    // Kein Forever-Bereich fuer kr (Stand 02.11.2026)
+const REGIONS = ['eu', 'us', 'tw'];    // Kein Forever-Bereich fuer kr (Stand 02.11.2026), tw noch ungeprueft
 const OAUTH = 'https://oauth.battle.net';
-const MAX_REALMS = 3;                  // so viele Realm-Gruppen probieren, jede Stufe ist eine Abfrage bei Blizzard
 const TIMEOUT_MS = 60000;
 
 const TEXT = {
-  auctions: 'Blizzard liefert Auktionsdaten für Forever. Der Einleser kann gebaut werden.',
-  empty: 'Die Abfrage funktioniert, die Listen sind aber leer. Nach dem Start erneut prüfen.',
-  'no-listings': 'Es gibt eine Liste der Auktionshäuser, die Angebote fehlen aber. So verhalten sich auch Classic Era und Anniversary.',
+  auctions: 'Der Zugang funktioniert, Blizzard liefert Auktionsdaten für Forever.',
+  empty: 'Die Abfrage funktioniert, die Auktionshäuser sind aber leer.',
+  'no-listings': 'Es gibt eine Liste der Auktionshäuser, die Angebote fehlen aber.',
   'no-auctions': 'Die Forever-Bereiche antworten, aber es gibt keine Auktionsdaten.',
   'no-namespace': 'Blizzard kennt den Forever-Bereich für diese Region nicht.',
   'bad-key': 'Blizzard lehnt den Zugang ab. Bitte Client-ID und Client-Secret prüfen.',
   network: 'Blizzard ist nicht erreichbar. Bitte die Verbindung prüfen und später erneut versuchen.',
 };
 
-// Liste der Angebote aus einer Antwort, null wenn die Antwort keine hat
-const offersOf = (json) => (json && Array.isArray(json.auctions) && json.auctions.some((a) => a && a.item) ? json.auctions : (json && Array.isArray(json.auctions) && !json.auctions.length ? [] : null));
-// Liste der Auktionshaeuser, zum Beispiel { auctions: [{ id: 2, name: 'Alliance' }] }
-const housesOf = (json) => (json && Array.isArray(json.auctions) ? json.auctions.filter((a) => a && !a.item && a.id != null) : []);
-const idFromHref = (href) => { const m = /\/connected-realm\/(\d+)/.exec(String(href)); return m ? Number(m[1]) : null; };
+// Liste aus einer Antwort: der erwartete Name, sonst die erste Liste mit Eintraegen, die eine Nummer haben
+function listOf(json, key) {
+  if (!json || typeof json !== 'object') return [];
+  if (Array.isArray(json[key])) return json[key];
+  const other = Object.values(json).find((v) => Array.isArray(v) && v.some((x) => x && x.id != null));
+  return other || [];
+}
+// Angebote einer Antwort. Ein Haus ohne Angebote antwortet nur mit einer Beschreibung (id, name, Links).
+const offersOf = (json) => (json && Array.isArray(json.auctions) ? json.auctions.filter((a) => a && a.item) : []);
+const failed = (status) => status == null || status === 429 || status >= 500;
+const auctionPath = (ruleset, house, commodities) => `/data/wow/ruleset/${ruleset}/auctions/${house}${commodities ? '/commodities' : ''}`;
 
-async function probe({ clientId, clientSecret, region = 'eu' }, { fetchImpl = fetch, now = () => Math.floor(Date.now() / 1000), oauthBase = OAUTH, apiBase } = {}) {
-  if (!REGIONS.includes(region)) throw new Error('Unbekannte Region');
-  const base = apiBase || `https://${region}.api.blizzard.com`;
-  const namespace = `dynamic-forever-${region}`;
-  const report = { t: now(), region, namespace, result: null, text: '', steps: [], sample: null };
-  const finish = (result) => { report.result = result; report.text = TEXT[result]; return report; };
-  const signal = () => AbortSignal.timeout(TIMEOUT_MS);
-
-  let token;
-  try {
-    const r = await fetchImpl(`${oauthBase}/token`, { method: 'POST', signal: signal(), body: new URLSearchParams({ grant_type: 'client_credentials' }),
-      headers: { Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`, 'Content-Type': 'application/x-www-form-urlencoded' } });
-    report.steps.push({ name: 'Anmeldung bei Blizzard', status: r.status });
-    if (r.status === 400 || r.status === 401 || r.status === 403) return finish('bad-key');
-    if (!r.ok) return finish('network');
-    token = (await r.json()).access_token;
-    if (!token) return finish('bad-key');
-  } catch {
-    report.steps.push({ name: 'Anmeldung bei Blizzard', status: null });
-    return finish('network');
+class BlizzardClient {
+  constructor({ clientId, clientSecret, region = 'eu' }, { fetchImpl = fetch, now = () => Math.floor(Date.now() / 1000), oauthBase = OAUTH, apiBase } = {}) {
+    if (!REGIONS.includes(region)) throw new Error('Unbekannte Region');
+    Object.assign(this, { clientId, clientSecret, region, fetchImpl, now, oauthBase, apiBase });
+    this.token = null;
+    this.tokenUntil = 0;
   }
 
-  // Eine Stufe: Der Code kommt in den Bericht, Fehlertexte von Blizzard nicht
+  // Ergebnis: ok, status, reason (bad-key oder network)
+  async login() {
+    this.token = null;
+    try {
+      const r = await this.fetchImpl(`${this.oauthBase}/token`, { method: 'POST', signal: AbortSignal.timeout(TIMEOUT_MS), body: new URLSearchParams({ grant_type: 'client_credentials' }),
+        headers: { Authorization: `Basic ${Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64')}`, 'Content-Type': 'application/x-www-form-urlencoded' } });
+      if (r.status === 400 || r.status === 401 || r.status === 403) return { ok: false, status: r.status, reason: 'bad-key' };
+      if (!r.ok) return { ok: false, status: r.status, reason: 'network' };
+      const j = await r.json();
+      if (!j.access_token) return { ok: false, status: r.status, reason: 'bad-key' };
+      this.token = j.access_token;
+      this.tokenUntil = this.now() + (Number(j.expires_in) || 3600) - 60;
+      return { ok: true, status: r.status };
+    } catch { return { ok: false, status: null, reason: 'network' }; }
+  }
+
+  // Eine Abfrage. kind: dynamic oder static. since: Last-Modified des letzten Stands, Antwort 304 wenn unveraendert.
+  // Ergebnis: status (null: keine Antwort), lastModified, bytes, json. Fehlertexte von Blizzard kommen nicht mit.
+  async get(apiPath, { kind = 'dynamic', since, region = this.region, namespace = `${kind}-forever-${region}` } = {}) {
+    const empty = { status: null, lastModified: null, bytes: 0, json: null };
+    if (!this.token || this.now() >= this.tokenUntil) {
+      const l = await this.login();
+      if (!l.ok) return { ...empty, loginFailed: l.reason };
+    }
+    const base = this.apiBase || `https://${region}.api.blizzard.com`;
+    const url = `${base}${apiPath}?namespace=${namespace}&locale=de_DE`;
+    const ask = () => this.fetchImpl(url, { signal: AbortSignal.timeout(TIMEOUT_MS), headers: { Authorization: `Bearer ${this.token}`, ...(since ? { 'If-Modified-Since': since } : {}) } });
+    try {
+      let r = await ask();
+      if (r.status === 401) {   // Anmeldung abgelaufen: einmal neu anmelden
+        const l = await this.login();
+        if (!l.ok) return { ...empty, loginFailed: l.reason };
+        r = await ask();
+      }
+      const res = { status: r.status, lastModified: r.headers.get('last-modified'), bytes: 0, json: null };
+      if (!r.ok) return res;
+      const text = await r.text();
+      res.bytes = Buffer.byteLength(text);
+      res.json = JSON.parse(text);
+      return res;
+    } catch { return empty; }
+  }
+}
+
+// Pruefabruf: Anmeldung, Regelsaetze, Auktionshaeuser, dann das erste Haus mit Angeboten
+async function probe(access, options = {}) {
+  const client = new BlizzardClient(access, options);
+  const report = { t: client.now(), region: client.region, namespace: `dynamic-forever-${client.region}`, result: null, text: '', steps: [], sample: null };
+  const finish = (result) => { report.result = result; report.text = TEXT[result]; return report; };
+
+  const login = await client.login();
+  report.steps.push({ name: 'Anmeldung bei Blizzard', status: login.status });
+  if (!login.ok) return finish(login.reason);
+
   async function get(name, apiPath) {
     const step = { name, path: apiPath, status: null };
     report.steps.push(step);
-    try {
-      const r = await fetchImpl(`${base}${apiPath}?namespace=${namespace}&locale=de_DE`, { signal: signal(), headers: { Authorization: `Bearer ${token}` } });
-      step.status = r.status;
-      if (!r.ok) return null;
-      return await r.json();
-    } catch { return null; }
+    const r = await client.get(apiPath);
+    step.status = r.status;
+    return { ...r, step };
   }
 
-  const realms = await get('Realms', '/data/wow/realm/index');
-  const groups = await get('Realm-Gruppen', '/data/wow/connected-realm/index');
-  if (realms) report.steps[report.steps.length - 2].note = `${(realms.realms || []).length} Realms`;
-  if (!realms && !groups) return finish(report.steps.some((s) => s.status === null || s.status >= 500) ? 'network' : 'no-namespace');
+  const rs = await get('Regelsätze', '/data/wow/ruleset/index');
+  if (!rs.json) return finish(failed(rs.status) ? 'network' : 'no-namespace');
+  const rulesets = listOf(rs.json, 'rulesets').filter((x) => x && x.id != null);
+  rs.step.note = `${rulesets.length} Regelsätze`;
+  if (!rulesets.length) return finish('no-auctions');
+  report.rulesets = rulesets.map((x) => ({ id: x.id, name: x.name }));
 
-  // Realm-Gruppen, sonst die Realm-Nummern (ist die Gruppe noch nicht freigeschaltet, passen sie oft)
-  let ids = ((groups && groups.connected_realms) || []).map((c) => idFromHref(c.href)).filter((x) => x != null);
-  if (!ids.length) ids = ((realms && realms.realms) || []).map((r) => r.id).filter((x) => x != null);
+  // Der Regelsatz im Abrufweg aendert nichts, die Hausnummer bestimmt den Markt
+  const ruleset = rulesets[0].id;
+  const idx = await get('Auktionshäuser', `/data/wow/ruleset/${ruleset}/auctions/index`);
+  if (!idx.json) return finish(failed(idx.status) ? 'network' : 'no-auctions');
+  const houses = listOf(idx.json, 'auctions').filter((x) => x && x.id != null);
+  idx.step.note = `${houses.length} Auktionshäuser`;
+  if (!houses.length) return finish('no-auctions');
+  report.houses = houses.map((x) => ({ id: x.id, name: x.name }));
 
-  let houses = 0, empty = false;
-  const found = (house, offers, step) => {
-    step.note = `${offers.length} Angebote`;
-    report.sample = { house, count: offers.length, fields: Object.keys(offers[0]), offers: offers.slice(0, 3) };
+  let answered = false, broken = false;
+  const part = (r) => {
+    if (!r.json) { if (failed(r.status)) broken = true; return []; }
+    answered = true;
+    const offers = offersOf(r.json);
+    r.step.note = `${offers.length} Angebote`;
+    return offers;
   };
-  for (const id of ids.slice(0, MAX_REALMS)) {
-    const list = housesOf(await get(`Auktionshäuser von ${id}`, `/data/wow/connected-realm/${id}/auctions/index`));
-    houses += list.length;
-    for (const h of list) {
-      const offers = offersOf(await get(`Angebote von ${id}, Haus ${h.id}`, `/data/wow/connected-realm/${id}/auctions/${h.id}`));
-      if (offers && offers.length) { found(h.id, offers, report.steps[report.steps.length - 1]); return finish('auctions'); }
-      if (offers) empty = true;
+  const brief = (offers) => ({ count: offers.length, fields: offers.length ? Object.keys(offers[0]) : [], offers: offers.slice(0, 3) });
+  for (const h of houses) {
+    const one = await get(`Haus ${h.id}, Einzelgegenstände`, auctionPath(ruleset, h.id, false));
+    const mass = await get(`Haus ${h.id}, Massenware`, auctionPath(ruleset, h.id, true));
+    const a = part(one), b = part(mass);
+    if (a.length || b.length) {
+      const main = a.length ? a : b;
+      report.sample = { house: h.id, lastModified: (a.length ? one : mass).lastModified, ...brief(main), commodities: brief(b) };
+      return finish('auctions');
     }
-    // Aufbau wie bei Retail: alle Angebote einer Gruppe ohne Auktionshaus
-    const offers = offersOf(await get(`Angebote von ${id}`, `/data/wow/connected-realm/${id}/auctions`));
-    if (offers && offers.length) { found(null, offers, report.steps[report.steps.length - 1]); return finish('auctions'); }
-    if (offers) empty = true;
   }
-  const com = offersOf(await get('Massenware', '/data/wow/auctions/commodities'));
-  if (com && com.length) { found(null, com, report.steps[report.steps.length - 1]); return finish('auctions'); }
-  if (com) empty = true;
-  if (empty) return finish('empty');
-  return finish(houses ? 'no-listings' : 'no-auctions');
+  if (broken && !answered) return finish('network');
+  return finish(answered ? 'empty' : 'no-listings');
 }
 
 // Zugang und letzter Bericht im Datenordner. encrypt/decrypt kommen vom Hauptteil (Windows-Schutz je Benutzer).
@@ -136,4 +183,4 @@ class BlizzardAccess {
   }
 }
 
-module.exports = { probe, BlizzardAccess, REGIONS, TEXT };
+module.exports = { probe, BlizzardClient, BlizzardAccess, REGIONS, TEXT, listOf, offersOf, auctionPath, failed };

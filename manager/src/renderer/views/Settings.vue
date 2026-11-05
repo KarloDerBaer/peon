@@ -1,8 +1,9 @@
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
 import { bytes } from '../util.js';
+import BlizzardCheck from '../components/BlizzardCheck.vue';
 
-const props = defineProps({ data: Object, settings: Object, stamp: Number, broker: Boolean });
+const props = defineProps({ data: Object, settings: Object, stamp: Number, broker: Boolean, now: Number });
 const emit = defineEmits(['save']);
 const api = window.peon;
 const wowDir = ref(props.settings.wowDir);
@@ -14,7 +15,6 @@ async function pick() {
 }
 function saveWow() { if (wowDir.value && wowDir.value !== props.settings.wowDir) emit('save', { wowDir: wowDir.value }); }
 async function setChannel(c) { await api.setAddonChannel(c); emit('save', {}); }
-function setAhl(patch) { emit('save', { ahledger: { ...props.settings.ahledger, ...patch } }); }
 
 // Aufbewahrung: Stufen des Schiebers (Tage, 0 = unbegrenzt)
 const STEPS = [7, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365, 0];
@@ -62,17 +62,9 @@ const daysText = computed(() => (days.value === 0 ? 'unbegrenzt' : days.value ==
       <p class="small muted">Der Manager sucht beim Start und alle 6 Stunden nach neuen Versionen. Installiert wird nur, wenn du es unter Module auslöst.</p>
     </section>
 
-    <section class="group" v-if="broker">
-      <h2>AHledger <span class="small muted">(Peon Broker Client)</span></h2>
-      <label class="check"><input type="checkbox" :checked="settings.ahledger.enabled" @change="setAhl({ enabled: $event.target.checked })" /> Preistabelle regelmäßig abrufen</label>
-      <label class="field inline">
-        <span>Abruf alle</span>
-        <select :value="settings.ahledger.intervalMin" @change="setAhl({ intervalMin: Number($event.target.value) })" :disabled="!settings.ahledger.enabled">
-          <option :value="15">15 Minuten</option><option :value="30">30 Minuten</option><option :value="60">60 Minuten</option>
-        </select>
-      </label>
-      <p class="small muted">Der Abruf läuft nur, solange der Manager läuft. Unveränderte Tabellen werden nicht neu geladen.</p>
-    </section>
+    <div class="group">
+      <BlizzardCheck :now="now" :stamp="stamp" />
+    </div>
 
     <section class="group">
       <h2>Programm</h2>

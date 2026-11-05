@@ -1,7 +1,7 @@
 'use strict';
 // Peon Manager - Datenbanken (SQLite ueber node:sqlite) im Datenordner:
 //   peon.db           Manager: Zustand (meta) und Protokoll (log)
-//   broker-client.db  Modul Peon Broker Client: Maerkte, Momentaufnahmen, Verlauf, Absatz, Chancen, AHledger
+//   broker-client.db  Modul Peon Broker Client: Maerkte, Momentaufnahmen, Verlauf, Absatz, Chancen
 // Angebote einer Momentaufnahme liegen gepackt (zlib) in snapshots.rows, die Kennzahlen je Gegenstand
 // in item_snap. So bleibt die Datei klein und alles laesst sich spaeter neu berechnen.
 
@@ -9,7 +9,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
 
-const SCHEMA = 3;   // 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart
+const SCHEMA = 4;   // 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -29,14 +29,6 @@ CREATE TABLE IF NOT EXISTS item_snap (
   min REAL, median REAL, p25 REAL, p75 REAL, qty INTEGER, auctions INTEGER,
   PRIMARY KEY (snapshot_id, item_key));
 CREATE INDEX IF NOT EXISTS item_snap_mkt ON item_snap(market_id, item_key, t);
-CREATE TABLE IF NOT EXISTS ext_fetch (
-  id INTEGER PRIMARY KEY, source TEXT NOT NULL, market TEXT NOT NULL, t_data INTEGER, t_fetch INTEGER NOT NULL,
-  rows INTEGER, etag TEXT, status INTEGER);
-CREATE INDEX IF NOT EXISTS ext_fetch_m ON ext_fetch(source, market, t_fetch);
-CREATE TABLE IF NOT EXISTS ext_ahledger (
-  fetch_id INTEGER NOT NULL, item_id INTEGER NOT NULL, median REAL, min REAL, qty INTEGER,
-  med7 REAL, med30 REAL, low30 REAL, high30 REAL, per_day REAL,
-  PRIMARY KEY (fetch_id, item_id));
 CREATE TABLE IF NOT EXISTS hist (
   market_id INTEGER NOT NULL, item_key TEXT NOT NULL, source TEXT NOT NULL, period TEXT NOT NULL, num INTEGER NOT NULL,
   t INTEGER NOT NULL, min REAL, median REAL, qty REAL, n INTEGER,
@@ -71,6 +63,8 @@ CREATE TABLE IF NOT EXISTS opp_snap (
 CREATE INDEX IF NOT EXISTS opp_snap_m ON opp_snap(market_id, kind, t);
 CREATE TABLE IF NOT EXISTS opp_scan (
   snapshot_id TEXT PRIMARY KEY, market_id INTEGER NOT NULL, t INTEGER NOT NULL, vendor_n INTEGER);
+CREATE TABLE IF NOT EXISTS variant_names (
+  item_id INTEGER NOT NULL, bonus TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY (item_id, bonus));
 CREATE TABLE IF NOT EXISTS log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, kind TEXT NOT NULL, ok INTEGER NOT NULL, text TEXT);
 `;
@@ -102,6 +96,8 @@ function openDb(dir) {
   const cols = new Set(db.prepare('PRAGMA table_info(items)').all().map((c) => c.name));
   if (!cols.has('vendor')) db.exec('ALTER TABLE items ADD COLUMN vendor INTEGER');
   if (!cols.has('commodity')) db.exec('ALTER TABLE items ADD COLUMN commodity INTEGER');
+  // Schema 4: AHledger ist entfernt (05.11.2026)
+  db.exec('DROP TABLE IF EXISTS ext_ahledger; DROP TABLE IF EXISTS ext_fetch;');
   db.prepare("INSERT INTO meta(key, value) VALUES ('schema', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(SCHEMA));
   return db;
 }

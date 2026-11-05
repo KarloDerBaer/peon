@@ -1,6 +1,6 @@
 'use strict';
 // Peon Manager - Hauptteil (Electron): Fenster, Symbol im Infobereich, Manager-Module.
-// Dateiwaechter, Zeitplan fuer AHledger und Aufraeumen laufen nur, wenn das Modul Peon Broker Client installiert ist.
+// Dateiwaechter, Zeitplan fuer die Blizzard-API und Aufraeumen laufen nur, wenn das Modul Peon Broker Client installiert ist.
 // Rechnen und Speichern macht src/core (ohne Electron testbar).
 // Sicherheit: Die Oberflaeche hat keinen Zugriff auf Node, nur auf die feste Befehlsliste aus preload.js,
 // laedt keine fremden Seiten, alle Netzzugriffe macht dieser Teil.
@@ -12,6 +12,7 @@ const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, ses
 const { Service } = require('../src/core/service');
 const { createUpdater } = require('./updater');
 const blizzard = require('../src/core/blizzard');
+const { BlizzardWatch } = require('../src/core/blizzard-watch');
 const { findWowDirs, REPO_URL } = require('../src/core/addons');
 const modules = require('../src/core/modules');
 
@@ -21,6 +22,8 @@ const ROOT = path.join(__dirname, '..');
 const DEV = !app.isPackaged;
 const HIDDEN = process.argv.includes('--hidden');
 const ADDON_CHECK_MS = 6 * 60 * 60 * 1000;   // Addons: beim Start und alle 6 Stunden nach Updates suchen, installiert wird nur per Klick
+// Beobachter der Blizzard-API, nur in der Testfassung: 1 = alle 10 Minuten, sonst Abstand in Millisekunden
+const WATCH_MS = process.env.PEON_MANAGER_BLIZZARD_WATCH ? (Number(process.env.PEON_MANAGER_BLIZZARD_WATCH) > 1 ? Number(process.env.PEON_MANAGER_BLIZZARD_WATCH) : 10 * 60 * 1000) : 0;
 
 // Ordner mit Runtime und DB nebeneinander: wird von Hand getauscht, kein Selbst-Update
 const SIDE_DB = path.join(path.dirname(process.execPath), '..', 'DB');
@@ -36,12 +39,11 @@ function dataDir() {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  let win = null, tray = null, svc = null, quitting = false, updater = null, blizzardAccess = null;
+  let win = null, tray = null, svc = null, quitting = false, updater = null, blizzardAccess = null, blizzardWatch = null;
   const watchers = [];
   let lastSeen = new Map();
   let pending = null;
   let busy = false;
-  let lastAhl = 0;
 
   const icon = nativeImage.createFromPath(path.join(ROOT, 'electron', 'icon.png'));
 
@@ -81,7 +83,6 @@ if (!app.requestSingleInstanceLock()) {
     const items = [{ label: 'Fenster öffnen', click: showWindow }];
     if (svc.broker) {
       items.push({ label: 'Jetzt einlesen', click: () => runImport('Infobereich') });
-      items.push({ label: 'AHledger abrufen', click: () => runAhledger(true) });
     }
     items.push({ type: 'separator' }, { label: 'Beenden', click: () => { quitting = true; app.quit(); } });
     tray.setContextMenu(Menu.buildFromTemplate(items));
@@ -194,29 +195,63 @@ if (!app.requestSingleInstanceLock()) {
 
   const names = (list) => (Array.isArray(list) ? list.map(String) : []);
 
-  // ---------- AHledger ----------
-  async function runAhledger(force) {
-    if (!svc.broker) return [];
-    const a = svc.settings.ahledger;
-    if (!a.enabled && !force) return [];
-    const now = Date.now();
-    if (!force && now - lastAhl < a.intervalMin * 60 * 1000) return [];
-    lastAhl = now;
-    const r = await svc.broker.fetchAhledger();
-    send('changed', { what: 'ahledger' });
+  // ---------- Blizzard-API ----------
+  // Pruefabruf mit dem gespeicherten Zugang. Client-ID und Secret bleiben in diesem Teil, die Oberflaeche sieht sie nie.
+  function blizzardOptions() {
+    const test = process.env.PEON_MANAGER_BLIZZARD;   // nachgebautes Blizzard (nur zum Testen)
+    return { fetchImpl: svc.fetchImpl, ...(test ? { oauthBase: test, apiBase: test } : {}) };
+  }
+
+  function blizzardState() {
+    return { ...blizzardAccess.state(), watch: WATCH_MS ? (blizzardWatch ? blizzardWatch.summary() : { checks: 0, stands: 0, gaps: [] }) : null };
+  }
+
+  // Abfragen mit dem gespeicherten Zugang, der Client merkt sich seine Anmeldung
+  let apiClient = null;
+  function blizzardClient() {
+    const c = blizzardAccess.load();
+    if (!c) { apiClient = null; return null; }
+    if (!apiClient || apiClient.clientId !== c.clientId || apiClient.clientSecret !== c.clientSecret || apiClient.region !== c.region) {
+      apiClient = new blizzard.BlizzardClient(c, blizzardOptions());
+    }
+    return apiClient;
+  }
+
+  // Gewaehlte Auktionshaeuser abrufen, wenn sie dran sind. Neue Staende laufen wie Scans durch die Auswertung.
+  async function runBlizzard(force = false) {
+    if (!svc.broker) return null;
+    const client = blizzardClient();
+    if (!client) return null;
+    const r = await svc.broker.api.tick(client, { force });
+    if (r.imported) runImport('Blizzard-API');
+    else if (r.checked) send('changed', { what: 'blizzard' });
     return r;
   }
 
-  // ---------- Blizzard-API ----------
-  // Pruefabruf mit dem gespeicherten Zugang. Client-ID und Secret bleiben in diesem Teil, die Oberflaeche sieht sie nie.
+  async function blizzardHouses() {
+    const client = svc.broker ? blizzardClient() : null;
+    return client ? svc.broker.api.view(client) : { saved: !!blizzardAccess.load(), houses: [], known: [] };
+  }
+
   async function checkBlizzard() {
     const c = blizzardAccess.load();
     if (!c) throw new Error('Bitte zuerst den Zugang speichern.');
-    const test = process.env.PEON_MANAGER_BLIZZARD;   // nachgebautes Blizzard (nur zum Testen)
-    const report = await blizzard.probe(c, { fetchImpl: svc.fetchImpl, ...(test ? { oauthBase: test, apiBase: test } : {}) });
+    const report = await blizzard.probe(c, blizzardOptions());
     blizzardAccess.saveReport(report);
     svc.logManager('blizzard', report.result === 'auctions', `Prüfabruf ${c.region}: ${report.text}`);
-    return blizzardAccess.state();
+    return blizzardState();
+  }
+
+  // Beobachter: ohne Zugang tut er nichts, ein neuer Zugang gilt ab dem naechsten Lauf
+  async function watchBlizzard() {
+    if (!WATCH_MS) return;
+    const c = blizzardAccess.load();
+    if (!c) { blizzardWatch = null; return; }
+    if (!blizzardWatch || blizzardWatch.client.clientId !== c.clientId || blizzardWatch.client.region !== c.region) {
+      blizzardWatch = new BlizzardWatch({ client: new blizzard.BlizzardClient(c, blizzardOptions()), dir: path.join(svc.dbDir, 'blizzard-beobachter'), log: (ok, text) => svc.logManager('blizzard', ok, text) });
+    }
+    await blizzardWatch.tick();
+    send('changed', { what: 'blizzard' });
   }
 
   function applyAutostart() {
@@ -228,7 +263,7 @@ if (!app.requestSingleInstanceLock()) {
   function moduleChanged() {
     setupWatch();
     updateTray();
-    if (svc.broker) { runImport('Modul installiert'); try { svc.broker.prune(); } catch { /* steht im Protokoll */ } runAhledger(false).catch(() => {}); }
+    if (svc.broker) { runImport('Modul installiert'); try { svc.broker.prune(); } catch { /* steht im Protokoll */ } }
     send('changed', { what: 'module' });
   }
 
@@ -236,12 +271,26 @@ if (!app.requestSingleInstanceLock()) {
   function registerIpc() {
     ipcMain.handle('overview', () => svc.overview());
     ipcMain.handle('import', () => runImport('Knopf'));
-    ipcMain.handle('ahledger', () => runAhledger(true));
-    ipcMain.handle('ahledgerMarkets', () => (svc.broker ? svc.broker.ahledgerMarkets() : null));
-    ipcMain.handle('blizzardState', () => blizzardAccess.state());
-    ipcMain.handle('blizzardSave', (_e, c) => blizzardAccess.save(c));
-    ipcMain.handle('blizzardClear', () => blizzardAccess.clear());
+    ipcMain.handle('blizzardState', () => blizzardState());
+    ipcMain.handle('blizzardSave', (_e, c) => { blizzardAccess.save(c); watchBlizzard().catch(() => {}); return blizzardState(); });
+    ipcMain.handle('blizzardClear', () => { blizzardAccess.clear(); blizzardWatch = null; return blizzardState(); });
     ipcMain.handle('blizzardCheck', () => checkBlizzard());
+    ipcMain.handle('blizzardHouses', () => blizzardHouses());
+    ipcMain.handle('blizzardSetHouse', async (_e, house, on, name) => {
+      const client = svc.broker && blizzardClient();
+      if (!client) throw new Error('Bitte zuerst den Zugang speichern.');
+      svc.broker.api.setHouse(client.region, Number(house), !!on, name == null ? null : String(name));
+      runBlizzard(false).catch(() => {});
+      return blizzardHouses();
+    });
+    ipcMain.handle('blizzardSuggest', async () => {
+      const client = svc.broker && blizzardClient();
+      if (!client) throw new Error('Bitte zuerst den Zugang speichern.');
+      const result = await svc.broker.api.suggest(client);
+      runBlizzard(false).catch(() => {});
+      return { result, view: await blizzardHouses() };
+    });
+    ipcMain.handle('blizzardFetch', async () => { const r = await runBlizzard(true); return { result: r, view: await blizzardHouses() }; });
     ipcMain.handle('settings', () => svc.settings);
     ipcMain.handle('items', (_e, market) => (svc.broker ? svc.broker.itemList(String(market)) : null));
     ipcMain.handle('item', (_e, market, key, range) => (svc.broker ? svc.broker.itemDetail(String(market), String(key), String(range || '30d')) : null));
@@ -304,7 +353,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('openLink', (_e, url) => {
       if (typeof url !== 'string') return;
       const repo = url === REPO_URL || url.startsWith(`${REPO_URL}/`);
-      if (repo || /^https:\/\/(www\.)?ahledger\.com(\/|$)/.test(url) || /^https:\/\/discord\.(gg|com)\//.test(url) || /^https:\/\/develop\.battle\.net\//.test(url)) shell.openExternal(url);
+      if (repo || /^https:\/\/discord\.(gg|com)\//.test(url) || /^https:\/\/(develop|community\.developer)\.battle\.net\//.test(url)) shell.openExternal(url);
     });
   }
 
@@ -336,11 +385,16 @@ if (!app.requestSingleInstanceLock()) {
       const a = svc.broker.meta('ack');
       if (!a || a.day !== require('../src/core/broker').dayOf(svc.now())) runImport('Tageswechsel');
     }, 60 * 60 * 1000);
-    runAhledger(false).catch(() => {});
-    setInterval(() => runAhledger(false).catch(() => {}), 60 * 1000);
     applyAutostart();
     firstStart().catch(() => {}).then(() => checkAddons()).catch(() => {});
     setInterval(() => checkAddons().catch(() => {}), ADDON_CHECK_MS);
+    // Blizzard-API: einmal je Minute nachsehen, ob ein Haus dran ist. Abgefragt wird nur, wenn ein neuer Stand zu erwarten ist.
+    runBlizzard().catch(() => {});
+    setInterval(() => runBlizzard().catch(() => {}), 60 * 1000);
+    if (WATCH_MS) {
+      watchBlizzard().catch(() => {});
+      setInterval(() => watchBlizzard().catch(() => {}), WATCH_MS);
+    }
     // Selbsttest (nur fuer Tests): Bildschirmfoto und Uebersicht schreiben, dann beenden
     if (process.env.PEON_MANAGER_SELFTEST) {
       const out = process.env.PEON_MANAGER_SELFTEST;
@@ -365,6 +419,14 @@ if (!app.requestSingleInstanceLock()) {
             const [clientId, clientSecret] = process.env.PEON_MANAGER_SELFTEST_BLIZZARD.split(':');
             const result = await win.webContents.executeJavaScript(`(async () => { const saved = await window.peon.blizzardSave(${JSON.stringify({ clientId, clientSecret, region: 'eu' })}); return { saved, checked: await window.peon.blizzardCheck() }; })()`);
             fs.writeFileSync(path.join(out, 'blizzard.json'), JSON.stringify(result, null, 1));
+          }
+          // Blizzard-API: Vorschlag ueber die Befehlsliste, warten, bis der Abruf fertig ist (Zugang muss gespeichert sein)
+          if (process.env.PEON_MANAGER_SELFTEST_SUGGEST) {
+            const t0 = Date.now();
+            const result = await win.webContents.executeJavaScript('window.peon.blizzardSuggest()');
+            await new Promise((r) => setTimeout(r, 500));
+            while (svc.broker.api.busy) await new Promise((r) => setTimeout(r, 500));
+            fs.writeFileSync(path.join(out, 'suggest.json'), JSON.stringify({ result, ms: Date.now() - t0, view: await blizzardHouses() }, null, 1));
           }
           if (process.env.PEON_MANAGER_SELFTEST_VIEW) {
             await win.webContents.executeJavaScript(`[...document.querySelectorAll('button.nav')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(process.env.PEON_MANAGER_SELFTEST_VIEW)})).click()`);

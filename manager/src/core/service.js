@@ -16,8 +16,7 @@ const DEFAULTS = {
   modules: { 'broker-client': { enabled: false } },                  // Manager-Module, standardmaessig aus
   addons: { channel: 'stable' },                                     // Kanal der Addons: stable oder test
   setup: { done: false },                                            // erster Start (Vorschlag in der Ansicht Module)
-  ahledger: { enabled: true, intervalMin: 30 },
-  marketMap: {},          // Broker-Markt -> { ext: 'forever.normal.alliance.us', confirmed: false }
+  blizzard: { houses: {} },   // gewaehlte Auktionshaeuser: 'eu-111' -> { market, how }
   autostart: false,
   theme: 'dark',
   keepDays: 30,           // Momentaufnahmen vollstaendig aufheben (Tage, 0 = unbegrenzt)
@@ -48,6 +47,7 @@ class Service {
     const existed = fs.existsSync(this.settingsFile);
     const moved = migrateSplit(dbDir);
     const raw = this.readSettings();
+    delete raw.ahledger; delete raw.marketMap;   // AHledger ist entfernt
     this.settings = merge(DEFAULTS, raw);
     this.db = openManagerDb(dbDir);
     if (moved) log(this.db, 'manager', true, 'Daten des Peon Broker Client nach broker-client.db umgezogen');
@@ -225,7 +225,7 @@ class Service {
     const own = this.db.prepare('SELECT t, kind, ok, text FROM log ORDER BY id DESC LIMIT 12').all();
     if (!this.broker) {
       return { ...base, dbSize: fileSize(this.db.file), markets: [], game: { files: [], lastImport: null }, back: null,
-        ahledger: null, log: own, brokerHist: null };
+        log: own, brokerHist: null };
     }
     const b = this.broker.overview();
     const merged = [...b.log, ...own].sort((x, y) => y.t - x.t).slice(0, 12);

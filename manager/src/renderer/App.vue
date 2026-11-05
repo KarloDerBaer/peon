@@ -122,7 +122,7 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
         </div>
         <div class="top-right">
           <span class="note small" v-if="note" role="status">{{ note }}</span>
-          <span class="small muted" v-if="current && current.lastScan">Letzter Scan {{ ago(current.lastScan.t, now) }}</span>
+          <span class="small muted" v-if="current && current.lastScan">{{ current.lastScan.art === 'api' ? 'Letzter Stand' : 'Letzter Scan' }} {{ ago(current.lastScan.t, now) }}</span>
           <button class="primary" :disabled="busy" @click="importNow">{{ busy ? 'Liest ein' : 'Jetzt einlesen' }}</button>
         </div>
       </header>
@@ -132,9 +132,9 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
         <Items v-else-if="view === 'items'" :market="current" :now="now" :stamp="stamp" @open="openItem" />
         <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @back="go(back === 'chances' ? 'chances' : 'items')" :back-label="back === 'chances' ? 'Zurück zu Chancen' : 'Alle Gegenstände'" />
         <Chances v-else-if="view === 'chances'" :market="current" :now="now" :stamp="stamp" :settings="settings" @open="openItem" @save="saveQuiet" />
-        <Sources v-else-if="view === 'sources'" :data="data" :settings="settings" :now="now" @save="saveSettings" />
+        <Sources v-else-if="view === 'sources'" :data="data" :now="now" :stamp="stamp" @go="go($event)" />
         <Modules v-else-if="view === 'modules'" :data="data" :now="now" :stamp="stamp" @changed="load" @pick-folder="pickWow" />
-        <Settings v-else-if="view === 'settings'" :data="data" :settings="settings" :stamp="stamp" :broker="broker" @save="saveSettings" />
+        <Settings v-else-if="view === 'settings'" :data="data" :settings="settings" :stamp="stamp" :broker="broker" :now="now" @save="saveSettings" />
       </div>
       <div class="page muted" v-else>Lade Daten</div>
     </main>

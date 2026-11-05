@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.11.0
+
+- 0.11.0 (05.11.2026, Wunsch KarloDerBaer): **Blizzard-API unter Einstellungen und mit den richtigen Wegen.**
+  - **Einstellungen:** Zugang und Prüfung ziehen von Quellen nach Einstellungen und sind damit auch ohne Peon Broker Client erreichbar, weil andere Module die API ebenfalls nutzen können. Unter Quellen bleibt die Zeile mit dem Stand.
+  - **Prüfabruf:** Forever hat keine Realms. 0.10.0 fragte Realm-Wege ab und meldete fälschlich „Blizzard kennt den Forever-Bereich nicht“. Jetzt geht er über Regelsatz und Auktionshaus und findet das erste Haus mit Angeboten.
+  - **Baustein:** `blizzard.js` hat eine allgemeine Abfrage (`BlizzardClient`) für dynamische und statische Daten, mit erneuter Anmeldung und `If-Modified-Since`.
+  - **Beobachter** (`blizzard-watch.js`), nur in der Testfassung mit `PEON_MANAGER_BLIZZARD_WATCH`: klärt Takt, Felder, Werte und Angebotsnummern (`docs\konzepte\manager\Peon_Blizzard_API.md`).
+  - **Einleser** (`blizzard-import.js`): Unter Quellen lassen sich Auktionshäuser wählen, standardmäßig keines. „Vorschlag“ wählt sie aus Scans, Broker und Ledger. Ohne Zugang steht dort ein Link zu den Einstellungen. Abgefragt wird nur, wenn ein neuer Stand zu erwarten ist. Stände laufen wie Scans durch Verlauf, Chancen und die Werte für Broker, die Übersicht zeigt sie im Datenweg.
+  - **Absatz:** Vergleicht API-Stände über die Angebotsnummern und erkennt so auch Teilkäufe. Eigene Scans zählen nur noch für Zeiten ohne API-Paar.
+  - **Anleitung:** Fünf Schritte zum eigenen API-Zugang unter Einstellungen, geprüft an Blizzards Anleitung. Das Formular selbst liegt hinter der Anmeldung und ist ungeprüft.
+  - **AHledger entfernt** (KarloDerBaer): Abruf, Zuordnung, Ansichten, Einstellungen. Die Tabellen `ext_fetch` und `ext_ahledger` werden beim Start gelöscht, Schema 4. Neue Tabelle `variant_names`.
+  - Im echten Programm gegen das echte Blizzard geprüft (EU, Testfassung): Prüfabruf meldet Daten, Beobachter holt alle 15 Häuser und vergleicht zwei Stände, Vorschlag findet Haus 111 über den Scan, Abruf liest 47.266 Angebote ein.
+
 ## 0.10.0
 
 - 0.10.0 (04.11.2026, Wunsch KarloDerBaer): **Prüfabruf für die Blizzard-API** unter Quellen (`src\core\blizzard.js`, Ansicht `components\BlizzardCheck.vue`). Er prüft, ob `dynamic-forever-{region}` Auktionsdaten liefert, zeigt je Stufe den Antwort-Code und liest nichts ein. Jeder trägt einen eigenen Zugang von develop.battle.net ein, er liegt nur verschlüsselt im Datenordner und wird nur an Blizzard geschickt. Mit nachgebautem Blizzard geprüft, **gegen das echte Blizzard noch nicht**.

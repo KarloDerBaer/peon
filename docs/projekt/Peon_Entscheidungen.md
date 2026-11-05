@@ -2,6 +2,22 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 05.11.2026: Einleser der Blizzard-API, AHledger entfernt (Peon Manager 0.11.0)
+
+- **AHledger fliegt ganz raus**, die Blizzard-API ersetzt es (KarloDerBaer). Das Design `Peon_Client_Design.md` nennt AHledger noch, gilt dort aber nicht mehr.
+- **Häuser wählt man unter Quellen**, standardmäßig keines. Ein Knopf „Vorschlag“ wählt, was die Addons über Regelsatz, Region und Fraktion wissen. Ohne Zugang steht dort ein Link zu den Einstellungen (KarloDerBaer).
+- **Abgefragt wird nur, wenn ein neuer Stand zu erwarten ist**, statt alle 10 Minuten: eine Stunde nach dem letzten Stand, danach alle 5 Minuten, bis er da ist (KarloDerBaer fragte nach dem Sinn von 10 Minuten).
+- Der Scan-Vergleich geht beim Vorschlag vor dem Regelsatz, weil nur Normal (PvE) belegt ist (Claude).
+- API-Stände werden als Momentaufnahmen wie Scans gespeichert und nur über `art` unterschieden, statt alle Abfragen zu ändern (Claude). Beim Absatz haben sie Vorrang, Scans und API werden nicht miteinander verglichen, weil Scans keine Nummern haben (Claude).
+- Gegenstände mit Zusatz: Fehlt der Grundname wegen eines Fehlers bei Blizzard, wird der Stand später eingelesen, statt einen Schlüssel anzulegen, der nie zu den Scans passt (Claude).
+
+## 05.11.2026: Blizzard-API unter Einstellungen, Beobachter (Peon Manager 0.11.0)
+
+- Zugang und Prüfung ziehen nach Einstellungen, weil die API auch für andere Module als den Broker Client taugen kann, zum Beispiel Ledger (KarloDerBaer).
+- Offene Fragen zu Takt, Feldern und Angebotsnummern klärt ein Beobachter im Manager, statt eines eigenen Testprogramms. Er sieht das Secret nur im Hauptteil, und seine Abfragen kann der spätere Einleser übernehmen (Claude).
+- Der Beobachter läuft nur in der Testfassung über eine Umgebungsvariable, weil er je Stand etwa 30 Abfragen macht und die Antworten ablegt. Nutzer sollen das nicht nebenbei bekommen (Claude).
+- Eine Anleitung zum Anlegen des Zugangs und die Nutzung durch Ledger kommen später (KarloDerBaer).
+
 ## 05.11.2026: Neue Standardwerte im Tooltip (Tooltip 0.7.3)
 
 - Abstand zum Mauszeiger 40 statt 20, Tooltip von Einheiten verschwindet standardmäßig sofort (KarloDerBaer).

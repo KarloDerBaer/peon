@@ -1,6 +1,6 @@
 'use strict';
 // Peon Manager - Modul "Peon Broker Client" (bis Manager 0.6.0 der ganze Dienst).
-// Einlesen aus dem Spiel, Rueckgabe an Broker, AHledger, Daten fuer die Ansichten. Eigene Datenbank broker-client.db.
+// Einlesen aus dem Spiel, Blizzard-API, Rueckgabe an Broker, Daten fuer die Ansichten. Eigene Datenbank broker-client.db.
 // Einstellungen, Version, Zeit und die Kanaele fuer Data.lua kommen vom Manager (service.js, host).
 
 const fs = require('node:fs');
@@ -8,13 +8,13 @@ const path = require('node:path');
 const { openDb, log, dbSize, pruneLogs } = require('./db');
 const game = require('./game');
 const { writeData, dataMatches, addonDir } = require('./datalua');
-const ahl = require('./ahledger');
 const broker = require('./broker');
 const history = require('./history');
 const retention = require('./retention');
 const longterm = require('./longterm');
 const sales = require('./sales');
 const chances = require('./chances');
+const { BlizzardImport } = require('./blizzard-import');
 const crypto = require('node:crypto');
 
 class BrokerClient {
@@ -24,6 +24,7 @@ class BrokerClient {
     this.db = openDb(host.dbDir);
     this.lastImport = null;
     this.lastFiles = [];
+    this.api = new BlizzardImport(this);
   }
 
   get settings() { return this.host.settings; }
@@ -39,19 +40,6 @@ class BrokerClient {
     }
     this.db.prepare('INSERT INTO meta(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, JSON.stringify(value));
     return value;
-  }
-
-  // Neue Maerkte bekommen einen Vorschlag fuer AHledger (Bestaetigung in den Einstellungen)
-  suggestMarkets() {
-    const map = { ...this.settings.marketMap };
-    let changed = false;
-    for (const m of this.db.prepare('SELECT key, region FROM markets').all()) {
-      if (!map[m.key]) {
-        const ext = ahl.suggestMarket(m.key, m.region);
-        if (ext) { map[m.key] = { ext, confirmed: false }; changed = true; }
-      }
-    }
-    if (changed) this.saveSettings({ marketMap: map });
   }
 
   // Alle Peon_Bridge.lua einlesen und die Bestaetigung (Data.lua) schreiben
@@ -95,7 +83,6 @@ class BrokerClient {
     }
     this.lastImport = sum;
     this.lastFiles = sum.files;
-    this.suggestMarkets();
     return sum;
   }
 
@@ -235,43 +222,17 @@ class BrokerClient {
     return d;
   }
 
-  async fetchAhledger() {
-    const out = [];
-    if (!this.settings.ahledger.enabled) return out;
-    const seen = new Set();
-    for (const v of Object.values(this.settings.marketMap)) {
-      const ext = v && v.ext;
-      if (!ext || seen.has(ext)) continue;
-      seen.add(ext);
-      try {
-        const r = await ahl.fetchPricetable(this.db, ext, this.fetchImpl);
-        out.push({ market: ext, ...r });
-        if (r.status === 200) log(this.db, 'ahledger', true, `${ext}: ${r.rows} Gegenstände, Stand ${new Date(r.t * 1000).toLocaleString('de-DE')}`);
-      } catch (e) {
-        out.push({ market: ext, error: e.message });
-        log(this.db, 'ahledger', false, `${ext}: ${e.message}`);
-      }
-    }
-    return out;
-  }
-
   // ---------- Daten fuer die Oberflaeche ----------
   overview() {
     const db = this.db;
     const markets = db.prepare('SELECT id, key, region FROM markets ORDER BY key').all().map((m) => this.marketInfo(m));
     const ack = this.meta('ack');
-    const ext = db.prepare(`SELECT market, MAX(t_fetch) AS tFetch FROM ext_fetch WHERE source = 'ahledger' GROUP BY market`).all()
-      .map((x) => {
-        const last = db.prepare("SELECT t_data, rows FROM ext_fetch WHERE source = 'ahledger' AND market = ? AND status = 200 ORDER BY t_fetch DESC LIMIT 1").get(x.market);
-        const err = db.prepare("SELECT t, ok, text FROM log WHERE kind = 'ahledger' AND text LIKE ? ORDER BY id DESC LIMIT 1").get(x.market + ':%');
-        return { market: x.market, tFetch: x.tFetch, tData: last ? last.t_data : null, rows: last ? last.rows : 0, ok: err ? !!err.ok : true, text: err ? err.text : null };
-      });
     return {
       dbSize: dbSize(db),
       markets,
       game: { files: this.lastFiles, lastImport: this.lastImport },
+      api: this.api.summary(),
       back: ack ? { t: ack.t, count: ack.ids.length, file: ack.file, items: ack.items || 0, sales: ack.sales || 0, bytes: ack.bytes || 0, day: ack.day || null } : null,
-      ahledger: { enabled: this.settings.ahledger.enabled, intervalMin: this.settings.ahledger.intervalMin, link: ahl.LINK, markets: ext },
       log: db.prepare('SELECT t, kind, ok, text FROM log ORDER BY id DESC LIMIT 12').all(),
       brokerHist: db.prepare("SELECT COUNT(DISTINCT item_key) AS items, COUNT(DISTINCT num) AS days, MIN(t) AS t0, MAX(t) AS t1 FROM hist WHERE source = 'broker' AND period = 'day'").get(),
     };
@@ -279,15 +240,14 @@ class BrokerClient {
 
   marketInfo(m) {
     const db = this.db;
-    const last = db.prepare("SELECT id, t, offers, items, char FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(m.id);
-    const scans = db.prepare("SELECT COUNT(*) AS n FROM snapshots WHERE market_id = ? AND source = 'scan'").get(m.id).n;
+    const last = db.prepare("SELECT id, t, offers, items, char, art FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(m.id);
+    const scans = db.prepare("SELECT COUNT(*) AS n FROM snapshots WHERE market_id = ? AND source = 'scan' AND art <> 'api'").get(m.id).n;
+    const stands = db.prepare("SELECT COUNT(*) AS n FROM snapshots WHERE market_id = ? AND art = 'api'").get(m.id).n;
     const lives = db.prepare("SELECT COUNT(*) AS n FROM snapshots WHERE market_id = ? AND source = 'live'").get(m.id).n;
     const items = db.prepare('SELECT COUNT(DISTINCT item_key) AS n FROM item_snap WHERE market_id = ?').get(m.id).n;
     const since = (last ? last.t : this.now()) - 30 * 86400;
     const history = db.prepare("SELECT t, offers, items FROM snapshots WHERE market_id = ? AND source = 'scan' AND t >= ? ORDER BY t").all(m.id, since);
-    const map = this.settings.marketMap[m.key] || null;
-    return { key: m.key, region: m.region, ext: map ? map.ext : null, extConfirmed: map ? !!map.confirmed : false,
-      lastScan: last || null, scans, lives, items, history, moves: last ? this.moves(m.id, last) : null };
+    return { key: m.key, region: m.region, lastScan: last || null, scans, stands, lives, items, history, moves: last ? this.moves(m.id, last) : null };
   }
 
   // Groesste Bewegungen: Median des letzten Scans gegen einen Scan etwa einen Tag vorher (sonst den vorigen)
@@ -304,10 +264,6 @@ class BrokerClient {
     const up = rows.filter((r) => r.pct > 0).sort((x, y) => y.pct - x.pct).slice(0, 6);
     const down = rows.filter((r) => r.pct < 0).sort((x, y) => x.pct - y.pct).slice(0, 6);
     return { base: base.t, up, down };
-  }
-
-  async ahledgerMarkets() {
-    try { return await ahl.fetchMarkets(this.fetchImpl); } catch (e) { return { error: e.message }; }
   }
 
   close() { try { this.db.close(); } catch { /* schon zu */ } }
