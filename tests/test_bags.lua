@@ -102,6 +102,13 @@ function CreateFrame(kind, name, parent, template)
     f.SetBagID = function(s, b) s.bagID = b end
     f.protected = protectedButtons
   end
+  if template == "PortraitFrameFlatTemplate" or template == "PortraitFrameTemplate" then
+    f.PortraitContainer = { portrait = W("Texture"), CircleMask = W("Texture") }
+    f.SetPortraitToAsset = function(s, a) s.portraitAsset = a end
+    f.SetPortraitToUnit = function(s, u) s.portraitUnit = u end
+    f.SetPortraitTextureSizeAndOffset = function(s, size, x, y) s.portraitSize = { size, x, y } end
+    f.SetBorder = function(s, layout) s.borderLayout = layout end
+  end
   if name then _G[name] = f end
   return f
 end
@@ -258,6 +265,13 @@ w.layoutBtn.scripts.OnClick(w.layoutBtn, "LeftButton")
 check(PeonBagsDB.bagLayout == "bags", "zurueck auf Taschenreihenfolge")
 check(w.layoutBtn.text == "Nach Art" and w.layoutBtn.peonOn == false, "0.2: Umschalter grau (aus)")
 check(w.frame.template == "PortraitFrameFlatTemplate" and w.template == "PortraitFrameFlatTemplate" and w.portrait, "0.2: Taschenfenster mit Blizzards Taschen-Rahmen")
+check(w.frame.portraitAsset == "Interface\\Icons\\INV_Misc_Bag_08", "0.2.2: Taschenbild im runden Rahmen gesetzt")
+check(w.frame.borderLayout == "HeldBagLayout" and w.frame.portraitSize[1] == 36, "0.2.2: kleiner Taschen-Ring wie Blizzards Taschen")
+do
+  local mask = w.frame.PortraitContainer.CircleMask
+  check(#mask.points == 2 and mask.points[1][2] == w.frame.PortraitContainer.portrait and mask.points[1][4] == 0 and mask.points[2][4] == 0, "0.2.2: runde Maske sitzt genau auf dem Bild")
+end
+check(ns.windows.bank.frame.borderLayout == nil, "0.2.2: Bank behaelt den grossen Ring")
 
 -- ===== Suche =====
 w.search:SetText("leinen")

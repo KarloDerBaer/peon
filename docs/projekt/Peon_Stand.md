@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 31.10.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.11.0 / Broker 0.33.0 / Bridge 0.4.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.10.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.1 / Fishing 1.5.1 / Tooltip 0.7.2 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.1. Peon_Feedback 0.2.0 ist archiviert (`<Archiv>\Peon_Feedback_0.2.0\`).
+Stand: 31.10.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.11.0 / Broker 0.33.0 / Bridge 0.4.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.10.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.1 / Fishing 1.5.1 / Tooltip 0.7.2 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2. Peon_Feedback 0.2.0 ist archiviert (`<Archiv>\Peon_Feedback_0.2.0\`).
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.11.0, API 11
@@ -116,7 +116,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Befehle: `/peon mover` (Optionen), `/peon mover zuruecksetzen` (alle Fenster), `/peon debug mover` (Log: eingehängte Fenster, Verschieben, Größe).
 - Verlauf der Versionen: `docs/changelog/Peon_Mover.md`
 
-## Peon_Bags – 0.2.1 (neu, Taschen, Bank, Gildenbank)
+## Peon_Bags – 0.2.2 (neu, Taschen, Bank, Gildenbank)
 
 - Konzept: `Peon_Bags_Konzept.md` (abgestimmt 07.10.2026). Ersetzt Bagnon, Bagnon_Bank, Bagnon_GuildBank und BagBrother (Twinks zeigt Ledger).
 - Dateien: Locales.lua, Bags.lua, Slots.lua, Window.lua, Inventory.lua, Bank.lua, Guild.lua, Options.lua; Symbol `INV_Misc_Bag_08`.
@@ -124,7 +124,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Braucht Peon API 6 (Auswahlliste); Bereiche für Peon_Feedback ab API 9.
 - Befehle: `/peon bags` (Taschenfenster ein/aus, geht immer – auch mit Bagnon), `/peon bags optionen`, `/peon bags debug`.
 - Verlauf der Versionen: `docs/changelog/Peon_Bags.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.2.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.2.2, 0.2.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Projektordner <Repo>
 

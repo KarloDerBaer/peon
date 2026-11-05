@@ -357,6 +357,7 @@ function ns.InitInventory()
     w = ns.NewWindow("bag", {
         title = L.TITLE_BAGS,
         template = "PortraitFrameFlatTemplate", portrait = "Interface\\Icons\\INV_Misc_Bag_08", portraitSize = 36,
+        border = "HeldBagLayout",
         point = { "BOTTOMRIGHT", -60, 100 },
         onShow = function() Refresh() end,
         onHide = function() autoOpened = nil end,

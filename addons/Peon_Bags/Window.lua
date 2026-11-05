@@ -69,17 +69,27 @@ function ns.NewWindow(key, opts)
         local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
         close:SetPoint("TOPRIGHT", -2, -2)
     end
+    w.frame = f
     -- rundes Bild oben links (nur bei den Portrait-Vorlagen)
     w.portrait = (w.template == "PortraitFrameFlatTemplate" or w.template == "PortraitFrameTemplate")
         and (type(f.SetPortraitToAsset) == "function" or type(f.PortraitContainer) == "table" or type(f.portrait) == "table")
     if w.portrait then
         if opts.portraitSize and type(f.SetPortraitTextureSizeAndOffset) == "function" then
+            -- kleiner Ring wie Blizzards Taschen: Die Vorlage bringt sonst den grossen Ring mit, der
+            -- nicht zum kleinen Bild passt und in die Taschenleiste ragt
+            if opts.border and type(f.SetBorder) == "function" then pcall(f.SetBorder, f, opts.border) end
             pcall(f.SetPortraitTextureSizeAndOffset, f, opts.portraitSize, -4, 1)
             if type(f.SetTitleOffsets) == "function" then pcall(f.SetTitleOffsets, f, opts.portraitSize - 1) end
+            -- runde Maske genau auf das kleine Bild legen (wie Blizzards Taschen in Forever)
+            local pc = f.PortraitContainer
+            if type(pc) == "table" and type(pc.CircleMask) == "table" and type(pc.portrait) == "table" then
+                pc.CircleMask:ClearAllPoints()
+                pc.CircleMask:SetPoint("TOPLEFT", pc.portrait, "TOPLEFT", 0, 0)
+                pc.CircleMask:SetPoint("BOTTOMRIGHT", pc.portrait, "BOTTOMRIGHT", 0, 0)
+            end
         end
         w:SetPortrait(opts.portrait)
     end
-    w.frame = f
     f:Hide()
     f:SetFrameStrata("MEDIUM")
     f:SetToplevel(true)

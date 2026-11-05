@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.2.2
+
+- 0.2.2 (05.11.2026, Fehler von KarloDerBaer beim ersten Test in Forever):
+  - **Taschenbild fehlte:** Das runde Feld oben links war leer und durchsichtig, weil das Bild gesetzt wurde, bevor das Fenster seinen Rahmen kannte. Die Bank war nicht betroffen, sie setzt ihr Bild beim Öffnen erneut.
+  - **Ring zu groß:** Das Fenster hatte den großen Ring von Blizzards Vorlage, der in die erste Schaltfläche der Taschenleiste ragte. Jetzt der kleine Ring von Blizzards Taschen (`HeldBagLayout`), die runde Maske liegt genau auf dem Bild.
+  - **Im Spiel prüfen:** Taschenbild rund und mittig im Ring, Taschenleiste frei.
+
 ## 0.2.1
 
 - 0.2.1 (23.10.2026, vorbeugend nach dem Tooltip-Fehler): Beim Öffnen der Taschen liest Peon_Bags die Aufrufkette (`debugstack`), um interne Weiterleitungen von Blizzard zu erkennen. Ist sie geheim, wird sie nicht mehr durchsucht (sonst derselbe Lua-Fehler wie in Tooltip 0.7.1), sondern als leer behandelt.

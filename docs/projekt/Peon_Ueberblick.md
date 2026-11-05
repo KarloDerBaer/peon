@@ -40,7 +40,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 | Peon_Feedback (archiviert 31.10.2026, nicht im Repo) | 0.2.0 | `PeonFeedbackDB` | /feedback |
 | Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
 | Peon_Ledger (neu, Bestand und Buch) | 0.10.1 | `PeonLedgerDB` | /ledger |
-| Peon_Bags (neu, Taschen, Bank, Gildenbank) | 0.2.1 | `PeonBagsDB` | /peon bags |
+| Peon_Bags (neu, Taschen, Bank, Gildenbank) | 0.2.2 | `PeonBagsDB` | /peon bags |
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
@@ -174,7 +174,7 @@ Peon.NiceRange(lo, hi, schritte)
 - **Nie `pcall` (oder `xpcall`) um eine Funktion mit sehr vielen Rückgabewerten** (z. B. `{ pcall(UIParent.GetChildren, UIParent) }`): Forever-Lua stürzt dann mit „Assertion failure! L->top < L->ci->top (lapi.c)“ ab (Broker 0.28.0, Berufsfenster). Direkt aufrufen: `{ frame:GetChildren() }`.
 - **Vergleichs-Tooltips:** Blizzard baut Gegenstands- und Vergleichs-Tooltip alle 0,2 Sek. neu auf und hängt die Vergleichszeilen („Wenn Ihr diesen Gegenstand ersetzt …“) nach allen Nachläufen an, dann `SetShown(true)`. Wer Zeilen umsortiert, muss das im selben Bild tun (`hooksecurefunc(tt, "Show"/"SetShown")`), sonst flackert es.
 - **Breite Vergleichs-Tooltips schieben den Gegenstands-Tooltip:** Passt der Vergleich nicht neben den Tooltip, verschiebt Blizzard den Gegenstands-Tooltip (`AnchorShoppingTooltips`). Im Auktionshaus (Neuaufbau alle 0,2 Sek. mit `GameTooltip_Hide`) sieht das wie Flackern aus. Umgeschriebene Zeilen verlieren Blizzards Umbruch; Peon_Tooltip bricht deshalb ab 0.7.1 selbst um (Tooltip 0.7.1).
-- **Fenster im Blizzard-Stil:** Taschen `PortraitFrameFlatTemplate` (+ `SetPortraitToAsset`, `SetPortraitTextureSizeAndOffset(36, -4, 1)`, `SetTitleOffsets(35)`), Bank `PortraitFrameTemplate` (`SetPortraitToUnit("npc")`), Broker/Ledger `ButtonFrameTemplate`, Gildenbank `BasicFrameTemplate`; Reiter oben `PanelTopTabButtonTemplate`, unten `PanelTabButtonTemplate`.
+- **Fenster im Blizzard-Stil:** Taschen `PortraitFrameFlatTemplate` (+ `SetBorder("HeldBagLayout")` für den kleinen Ring, ohne ihn bleibt der große, `SetPortraitToAsset`, `SetPortraitTextureSizeAndOffset(36, -4, 1)`, `SetTitleOffsets(35)`, `PortraitContainer.CircleMask` genau auf das Bild legen wie Blizzards `Camelot\ContainerFrame.lua`), Bank `PortraitFrameTemplate` (`SetPortraitToUnit("npc")`), Broker/Ledger `ButtonFrameTemplate`, Gildenbank `BasicFrameTemplate`; Reiter oben `PanelTopTabButtonTemplate`, unten `PanelTabButtonTemplate`.
 
 ## Start einer neuen Sitzung
 
