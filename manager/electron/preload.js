@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('peon', {
   settings: () => ipcRenderer.invoke('settings'),
   items: (market) => ipcRenderer.invoke('items', market),
   item: (market, key, range) => ipcRenderer.invoke('item', market, key, range),
+  itemInfo: (id) => ipcRenderer.invoke('itemInfo', id),
   chances: (market, days) => ipcRenderer.invoke('chances', market, days),
   retention: (keepDays) => ipcRenderer.invoke('retention', keepDays),
   saveSettings: (patch) => ipcRenderer.invoke('saveSettings', patch),

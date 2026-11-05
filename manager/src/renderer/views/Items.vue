@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import Gold from '../components/Gold.vue';
 import Sales from '../components/Sales.vue';
+import ItemTip from '../components/ItemTip.vue';
 import { ago, num, pct, fold, qualityColor, itemName } from '../util.js';
 
 const props = defineProps({ market: Object, now: Number, stamp: Number });
@@ -72,12 +73,48 @@ const visible = computed(() => {
   const count = Math.ceil(height.value / ROW) + 20;
   return { start, items: rows.value.slice(start, start + count) };
 });
-function onScroll(e) { scrollTop.value = e.target.scrollTop; }
+function onScroll(e) { scrollTop.value = e.target.scrollTop; rowLeave(); }
 onMounted(() => {
   const ro = new ResizeObserver(() => { if (scroller.value) height.value = scroller.value.clientHeight; });
   if (scroller.value) ro.observe(scroller.value);
 });
 watch([search, quality, onlyLast, kind], () => { if (scroller.value) scroller.value.scrollTop = 0; scrollTop.value = 0; });
+
+// Tooltip beim Ueberfahren einer Zeile, leicht verzoegert, damit Vorbeifahren keine Abfrage ausloest
+const HOVER_MS = 250, TIP_W = 340, GAP = 18;
+const hover = ref(null);
+const tipEl = ref(null);
+const tipPos = ref({ left: '0px', top: '0px', visibility: 'hidden' });
+let hoverTimer = null, mouse = { x: 0, y: 0 };
+function placeTip() {
+  const h = tipEl.value ? tipEl.value.offsetHeight : 0;
+  const left = mouse.x + GAP + TIP_W > window.innerWidth ? Math.max(8, mouse.x - GAP - TIP_W) : mouse.x + GAP;
+  const top = Math.max(8, Math.min(mouse.y + 8, window.innerHeight - h - 8));
+  tipPos.value = { left: `${left}px`, top: `${top}px`, visibility: 'visible' };
+}
+let hoverSeq = 0;   // spaete Antworten fuer eine schon verlassene Zeile verwerfen
+async function showTip(it) {
+  const seq = ++hoverSeq;
+  hover.value = { it, info: null };
+  await nextTick(); placeTip();
+  const info = await api.itemInfo(it.item);
+  if (seq !== hoverSeq) return;
+  hover.value = { it, info };
+  await nextTick(); placeTip();
+}
+function rowEnter(it, e) {
+  clearTimeout(hoverTimer);
+  hoverSeq++;
+  hover.value = null;
+  mouse = { x: e.clientX, y: e.clientY };
+  hoverTimer = setTimeout(() => showTip(it), HOVER_MS);
+}
+function rowMove(e) {
+  mouse = { x: e.clientX, y: e.clientY };
+  if (hover.value) placeTip();
+}
+function rowLeave() { clearTimeout(hoverTimer); hoverSeq++; hover.value = null; }
+onBeforeUnmount(() => clearTimeout(hoverTimer));
 
 function srcLetters(s) { return (s.scan ? 'S' : '') + (s.live ? 'L' : '') + (s.broker ? 'B' : ''); }
 function srcKey(s) { return (s.scan ? 4 : 0) + (s.live ? 2 : 0) + (s.broker ? 1 : 0); }
@@ -124,8 +161,9 @@ function sourceText(s) {
         <div :style="{ height: rows.length * ROW + 'px', position: 'relative' }">
           <div v-for="(it, k) in visible.items" :key="it.key" class="tr" role="row" tabindex="0"
             :style="{ top: (visible.start + k) * ROW + 'px' }" :class="{ gone: !it.inLast }"
-            @click="emit('open', it.key)" @keydown.enter="emit('open', it.key)">
-            <span class="cell name" :style="{ color: qualityColor(it.quality) }" :title="sourceText(it.sources)">{{ itemName(it) }}</span>
+            @click="emit('open', it.key)" @keydown.enter="emit('open', it.key)"
+            @mouseenter="rowEnter(it, $event)" @mousemove="rowMove" @mouseleave="rowLeave">
+            <span class="cell name" :style="{ color: qualityColor(it.quality) }">{{ itemName(it) }}</span>
             <span class="cell num"><Gold :copper="it.min" compact /></span>
             <span class="cell num"><Gold :copper="it.median" compact /></span>
             <span class="cell num">{{ it.inLast ? num(it.qty) : 'weg' }}</span>
@@ -140,6 +178,9 @@ function sourceText(s) {
         </div>
         <p v-if="list && !rows.length" class="muted empty">Nichts gefunden. Suche nach einem Teil des Namens oder der Nummer.</p>
       </div>
+    </div>
+    <div v-if="hover" ref="tipEl" class="hovertip" :style="tipPos">
+      <ItemTip :info="hover.info" :name="itemName(hover.it)" :quality="hover.it.quality" :variant="String(hover.it.key).includes(':')" />
     </div>
   </div>
   <p v-else class="muted">Noch kein Markt eingelesen.</p>
@@ -170,4 +211,5 @@ function sourceText(s) {
 .up { color: var(--up); }
 .down { color: var(--down); }
 .empty { padding: 24px 10px; }
+.hovertip { position: fixed; z-index: 50; pointer-events: none; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); border-radius: var(--radius-m); }
 </style>

@@ -23,6 +23,10 @@ srv.listen(0, async () => {
       Date.now = () => now * 1000;
       window.peon = {
         items: async () => items, item: async (m, k, r) => (item[k] || item['2770'])[r] || (item[k] || item['2770'])['30d'],
+        itemInfo: async () => ({ state: 'ok', tip: { name: 'Löwenherzhelm', quality: 4, sell: 21894, source: 'classic', lines: [
+          { l: 'Gegenstandsstufe 61', c: 'level' }, { l: 'Wird beim Anlegen gebunden' }, { l: 'Kopf', r: 'Platte' }, { l: '565 Rüstung' }, { l: '+18 Stärke' },
+          { l: '+20 Trefferwert', c: 'good' }, { l: 'Anlegen: Erhöht Eure Trefferchance um 2%.', c: 'good' }, { l: 'Benötigt Stufe 56' }, { l: 'Haltbarkeit 100 / 100' },
+          { l: 'Ornat des Beispiels (0/8)', c: 'set' }, { l: '(3) Set: Erhöht den Schaden.', c: 'muted' } ] } }),
         retention: async (d) => retention[d == null ? 30 : d] || retention[30],
         chances: async (m, d) => chances[d] || chances[7],
         overview: async () => ov, settings: async () => st, importNow: async () => ({ imported: 0, files: [{}] }),
@@ -36,6 +40,9 @@ srv.listen(0, async () => {
     if (theme === 'dark') {
       await page.click('nav >> text=Gegenstände'); await page.waitForTimeout(400);
       await page.screenshot({ path: `${out}/gegenstaende.png` });
+      await page.hover('.body .tr >> nth=2'); await page.waitForTimeout(500);
+      await page.screenshot({ path: `${out}/gegenstaende_tooltip.png` });
+      await page.mouse.move(5, 5);
       await page.fill('input[aria-label=Suchen]', 'kriegsaxt'); await page.waitForTimeout(200);
       await page.screenshot({ path: `${out}/gegenstaende_suche.png` });
       await page.fill('input[aria-label=Suchen]', 'kupfererz'); await page.waitForTimeout(200);

@@ -15,6 +15,7 @@ const longterm = require('./longterm');
 const sales = require('./sales');
 const chances = require('./chances');
 const { BlizzardImport } = require('./blizzard-import');
+const { ItemInfo } = require('./item-info');
 const crypto = require('node:crypto');
 
 class BrokerClient {
@@ -24,6 +25,7 @@ class BrokerClient {
     this.db = openDb(host.dbDir);
     this.lastImport = null;
     this.lastFiles = [];
+    this.info = new ItemInfo(this.db, () => this.now());
     this.api = new BlizzardImport(this);
   }
 

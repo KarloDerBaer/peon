@@ -2,6 +2,13 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 05.11.2026: Gegenstands-Tooltip über die Blizzard-API (Peon Manager 0.12.0)
+
+- Der Broker Client zeigt einen Tooltip mit den Werten eines Gegenstands, Daten aus der Blizzard-API, wenn ein Zugang eingetragen ist (KarloDerBaer).
+- Gespeichert wird der fertige Tooltip statt der ganzen Antwort, das hält die Datenbank klein. Neue Gegenstände bringt der Einleser mit, alle anderen werden erst beim Ansehen geholt, statt Tausende auf Vorrat abzufragen (Claude).
+- Classic-Daten werden angezeigt, wenn Forever den Gegenstand nicht kennt, aber immer gekennzeichnet, weil Werte abweichen können. Bei Zusätzen steht ein Hinweis, statt Werte vorzutäuschen (Claude).
+- Vorerst keine Symbole: Sie bräuchten je Gegenstand eine zweite Abfrage und Bilder aus dem Netz, die Oberfläche lädt bisher nichts von dort (Claude).
+
 ## 05.11.2026: Rückmeldungen nach dem Start (Broker 0.33.1, Ledger 0.10.2, Fishing 1.5.2, Peon 0.11.1)
 
 - **Schnellkauf im Radar braucht wieder zwei Klicks.** Das Spiel erlaubt `StartCommoditiesPurchase` nur direkt aus einem Klick, ein Preis vorab ist also nicht möglich. Das ersetzt die Entscheidung vom 03.10. (Schnellkauf mit einem Klick). Der Code bleibt vorerst abgeschaltet im Addon, weil über das Entfernen KarloDerBaer entscheidet (Claude).

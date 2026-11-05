@@ -51,6 +51,12 @@ Vermutung: 5 Märkte mit je einem Allianz-, Horde- und Neutral-Haus. Angebote ge
 - **Volle Namen:** Grundname plus Zusatz aus der Bonus-Nummer ergibt in allen 905 prüfbaren Paaren genau den Namen aus den Scans.
 - **Zugang anlegen:** Laut Blizzard braucht das Konto einen Battle.net Authenticator, der Client-Name ist über alle Entwickler einmalig. `develop.battle.net` leitet auf `community.developer.battle.net` um.
 
+## Gegenstandsdaten (Prüfabruf 05.11.2026, EU, Manager 0.12.0 `manager\src\core\item-info.js`)
+
+- **`preview_item` in `/data/wow/item/{id}` liefert fertige deutsche Tooltip-Zeilen:** `level`, `binding`, `unique_equipped`, `inventory_type`, `item_subclass`, `weapon` (Schaden, Tempo, Schaden je Sekunde), `armor`, `stats` (mit `display_string` und Farbe), `spells` (Beschreibung des Effekts), `requirements` (Stufe, Klassen, Beruf), `durability`, `charges`, `container_slots`, `set` (Name und Boni), `recipe` (Material), `description`, `crafting_reagent`, `sell_price`.
+- **`static-forever` kennt viele Gegenstände nicht**, auch ohne Zusatz (404 zum Beispiel bei 14097, 16802, 9449, 11996). `static-classic1x` kennt die meisten und hat denselben Aufbau, die Werte stammen aber aus Classic (zum Beispiel `static-1.15.9_68185-classic1x-eu`) und können in Forever abweichen. Bei ersten Einlesungen kam etwa die Hälfte aus den Classic-Daten. Einige fehlen in beiden (7779).
+- **Zusätze:** Die Abfrage kennt nur die Gegenstandsnummer. Die Werte eines Zusatzes wie „des Wolfs“ fehlen deshalb, die Antwort zeigt nur die Grundwerte.
+
 ## Offene Fragen
 
 1. Welche Regelsätze gehören zu den anderen Gruppen? Klärt sich mit Scans von Freunden auf anderen Regelsätzen.

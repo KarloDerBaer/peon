@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.12.0
+
+- 0.12.0 (05.11.2026, Wunsch KarloDerBaer): **Gegenstands-Tooltip im Broker Client.**
+  - **Anzeige:** Beim Überfahren einer Zeile unter „Gegenstände“ erscheint ein Tooltip wie im Spiel (Stufe, Bindung, Platz, Waffenschaden, Rüstung, Werte, Effekte, Voraussetzungen, Haltbarkeit, Set, Rezept, Händlerpreis). Die Detailansicht zeigt dasselbe unter „Eigenschaften“. Die Angabe der Quellen steht weiter an der Spalte „Quellen“, nicht mehr zusätzlich am Namen.
+  - **Daten:** `/data/wow/item/{id}` der Blizzard-API (`src\core\item-info.js`), neue Tabelle `item_info` (Schema 5). Neue Gegenstände bringt der Einleser ohne Zusatzabfrage mit, alle anderen werden beim ersten Ansehen geholt. Einträge gelten 30 Tage, unbekannte Gegenstände werden 7 Tage nicht erneut abgefragt. Ohne Antwort oder Zugang bleibt ein vorhandener Eintrag gültig.
+  - **Kennzeichnung:** Fehlt ein Gegenstand in `static-forever`, stammen die Werte aus den Classic-Daten und der Tooltip sagt das. Bei Gegenständen mit Zusatz steht dort, dass nur die Grundwerte bekannt sind. Ohne Zugang steht ein Hinweis auf die Einstellungen im Tooltip.
+  - Geprüft im echten Programm mit einem Testordner und echten Abfragen an Blizzard. **Noch nicht geprüft:** Lauf in der installierten Fassung, Abgleich der Classic-Werte mit dem Spiel.
+
 ## 0.11.0
 
 - 0.11.0 (05.11.2026, Wunsch KarloDerBaer): **Blizzard-API unter Einstellungen und mit den richtigen Wegen.**

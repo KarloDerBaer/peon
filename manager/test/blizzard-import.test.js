@@ -15,6 +15,20 @@ const T0 = 1793865600;   // volle Zeit fuer die Staende
 const stamp = (t) => new Date(t * 1000).toUTCString();
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'peon-api-'));
 
+test('Einleser behaelt die Antwort auch fuer den Tooltip', async () => {
+  const dir = tmp();
+  const { world, fetchImpl } = fakeBlizzard();
+  world.items[2589].preview_item = { crafting_reagent: 'Handwerksmaterial' };
+  const svc = new Service({ enable: ['broker-client'], dbDir: dir, fetchImpl, now: () => T0 });
+  const client = new BlizzardClient({ clientId: 'a', clientSecret: 'b', region: 'eu' }, { fetchImpl, now: () => T0 });
+  await svc.broker.api.fetchItems(client, new Set([2589, 7779]), new Set());
+  const calls = world.calls.length;
+  const r = await svc.broker.info.get(2589, client);
+  assert.equal(r.tip.lines[0].l, 'Handwerksmaterial');
+  assert.equal((await svc.broker.info.get(7779, client)).state, 'none');
+  assert.equal(world.calls.length, calls, 'keine zusaetzliche Abfrage');
+});
+
 // Nachgebautes Blizzard: world.houses[id] = { single, mass }, Stand umschaltbar
 function fakeBlizzard() {
   const world = { t: T0, houses: {}, items: { 2589: { name: 'Leinenstoff', quality: { type: 'COMMON' }, sell_price: 13 }, 6611: { name: 'Klinge', quality: { type: 'UNCOMMON' }, sell_price: 500 } }, classic: {}, calls: [], broken: false };

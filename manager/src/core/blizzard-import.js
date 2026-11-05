@@ -12,6 +12,7 @@ const { parseLua } = require('./lua');
 const { parseRows } = require('./stats');
 const { tx, log } = require('./db');
 const game = require('./game');
+const { fetchItem, QUALITY } = require('./item-info');
 
 const HOUR = 3600;
 const GRACE = 120;          // so lange nach der vollen Stunde warten, Blizzard braucht etwas
@@ -25,7 +26,6 @@ const MATCH_MIN = 0.5, MATCH_LEAD = 1.5;   // Scan-Vergleich: so viel muss gleic
 const STEP = { SHORT: 1, MEDIUM: 2, LONG: 3, VERY_LONG: 4 };
 const REGION_ID = { eu: 3, us: 1, tw: 4 };
 const REGION_OF_ID = { 3: 'eu', 1: 'us', 4: 'tw' };
-const QUALITY = { POOR: 0, COMMON: 1, UNCOMMON: 2, RARE: 3, EPIC: 4, LEGENDARY: 5, ARTIFACT: 6, HEIRLOOM: 7 };
 
 // Gruppen von je einem Allianz-, Horde- und Neutral-Haus. Nur Gruppe 2 ist belegt (Scan und Testangebot, 05.11.2026).
 const GROUPS = {
@@ -293,15 +293,11 @@ class BlizzardImport {
       const work = async () => {
         while (next < list.length) {
           const id = list[next++];
-          let r = await client.get(`/data/wow/item/${id}`, { kind: 'static' });
-          await this.wait(STATIC_PAUSE_MS);
-          // static-forever kennt viele Gegenstaende mit Zusatz nicht (404, geprueft 05.11.2026), die Classic-Daten schon
-          if (r.status === 404) {
-            r = await client.get(`/data/wow/item/${id}`, { namespace: `static-classic1x-${client.region}` });
-            await this.wait(STATIC_PAUSE_MS);
-          }
+          // static-forever kennt viele Gegenstaende nicht (404, geprueft 05.11.2026), die Classic-Daten schon
+          const r = await fetchItem(client, id, () => this.wait(STATIC_PAUSE_MS));
           if (failed(r.status)) { unanswered.push(id); continue; }
           if (r.json && r.json.name) up.run(String(id), id, r.json.name, QUALITY[r.json.quality && r.json.quality.type] ?? null, r.json.sell_price ?? null, this.now());
+          this.broker.info.save(id, r);   // gleich fuer den Tooltip behalten, das spart spaeter eine Abfrage
         }
       };
       await Promise.all(Array.from({ length: STATIC_WORKERS }, work));

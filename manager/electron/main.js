@@ -294,6 +294,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('settings', () => svc.settings);
     ipcMain.handle('items', (_e, market) => (svc.broker ? svc.broker.itemList(String(market)) : null));
     ipcMain.handle('item', (_e, market, key, range) => (svc.broker ? svc.broker.itemDetail(String(market), String(key), String(range || '30d')) : null));
+    ipcMain.handle('itemInfo', (_e, id) => (svc.broker ? svc.broker.info.get(Number(id), blizzardClient()) : null));
     ipcMain.handle('chances', (_e, market, days) => (svc.broker ? svc.broker.chances(String(market), Number(days) || null) : null));
     ipcMain.handle('retention', (_e, keepDays) => (svc.broker ? svc.broker.retention(keepDays == null ? null : Number(keepDays)) : null));
     // Manager-Module: Installieren schaltet ein, Entfernen schaltet aus, Daten loeschen nur ausgeschaltet

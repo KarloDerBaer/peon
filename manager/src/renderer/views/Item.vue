@@ -4,6 +4,7 @@ import Gold from '../components/Gold.vue';
 import ItemChart from '../components/ItemChart.vue';
 import LevelsChart from '../components/LevelsChart.vue';
 import Sales from '../components/Sales.vue';
+import ItemTip from '../components/ItemTip.vue';
 import { ago, when, num, qualityColor, itemName, pl } from '../util.js';
 
 const props = defineProps({ market: Object, itemKey: String, now: Number, theme: String, stamp: Number, backLabel: { type: String, default: 'Alle Gegenstände' } });
@@ -15,12 +16,22 @@ const RANGES = [['1d', '24 Std.'], ['7d', '7 Tage'], ['30d', '30 Tage'], ['90d',
 const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const SLOTS = ['0-3', '3-6', '6-9', '9-12', '12-15', '15-18', '18-21', '21-24'];
 
+const info = ref(null);
 async function load() {
   if (!props.market || !props.itemKey) return;
   d.value = await api.item(props.market.key, props.itemKey, range.value);
 }
-onMounted(load);
+// Werte des Gegenstands (Blizzard-API), unabhaengig vom Zeitraum
+async function loadInfo() {
+  info.value = null;
+  const key = props.itemKey;
+  if (!key) return;
+  const r = await api.itemInfo(parseInt(key, 10));
+  if (props.itemKey === key) info.value = r;
+}
+onMounted(() => { load(); loadInfo(); });
 watch(() => [props.itemKey, props.stamp, range.value], load);
+watch(() => props.itemKey, loadInfo);
 
 const hasHistory = computed(() => d.value && (d.value.own.length + d.value.hours.length + d.value.days.length + d.value.broker.length) > 0);
 const datalage = computed(() => {
@@ -93,6 +104,11 @@ const levelsTop = computed(() => (d.value && d.value.levels ? d.value.levels.lis
         <span class="muted">Beobachtet {{ hoursText(d.sales.minutes) }} in {{ pl(d.sales.cmp, 'Vergleich', 'Vergleichen') }} (14 Tage), dabei {{ num(Math.round(d.sales.sold)) }} verkauft, {{ num(Math.round(d.sales.expired)) }} abgelaufen, {{ num(Math.round(d.sales.cancelled)) }} abgebrochen<template v-if="d.sales.avgPrice">, im Mittel zu <Gold :copper="d.sales.avgPrice" compact /></template>. Broker nimmt ihn, wenn er selbst in den letzten 6 Std. weniger als 1 Std. beobachtet hat.</span>
       </p>
       <p v-else class="muted">Absatz: noch kein Vergleich. Dafür braucht es zwei Komplettscans höchstens 24 Std. auseinander.</p>
+    </section>
+
+    <section class="block">
+      <h2>Eigenschaften</h2>
+      <ItemTip :info="info" :name="itemName(d)" :quality="d.quality" :variant="!!d.variant" />
     </section>
 
     <section class="block">
