@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 31.10.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.11.0 / Broker 0.33.0 / Bridge 0.4.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.10.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.1 / Fishing 1.5.1 / Tooltip 0.7.3 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2. Peon_Feedback 0.2.0 ist archiviert (`<Archiv>\Peon_Feedback_0.2.0\`).
+Stand: 31.10.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.11.0 / Broker 0.33.0 / Bridge 0.4.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.10.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.1 / Fishing 1.5.1 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2. Peon_Feedback 0.2.0 ist archiviert (`<Archiv>\Peon_Feedback_0.2.0\`).
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.11.0, API 11
@@ -12,7 +12,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.10.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Tooltip – 0.7.3 (früher TooltipPlus)
+## Peon_Tooltip – 0.7.4 (früher TooltipPlus)
 
 - Dateien: Locales.lua, Tooltip.lua, Style.lua, Units.lua, Icons.lua, Items.lua (ab 0.6), Debug.lua, Options.lua
 - SavedVariables: `PeonTooltipDB`
@@ -20,7 +20,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Funktionen: Tooltip folgt der Maus (Ecke, Abstand X/Y, Kantenwechsel), Größe, Hintergrund-Deckkraft, Rahmenfarbe (keine/Haltung/Klasse), Spielerinfos (Name in Klassenfarbe, Gilde), eigenes Ausblenden, Kampfmodus (normal/durchsichtig/aus, Umschalt zeigt), PvP- und Quest-Symbol mit Position und Größe.
 - Optionsseite: Kern-Bausteine (braucht Peon API 6). Position der Tooltips und Symbole als Knopfraster, Rahmenfarbe und Kampfmodus als Auswahllisten.
 - Verlauf der Versionen: `docs/changelog/Peon_Tooltip.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.7.3, 0.7.2, 0.7.1, 0.7.0, 0.6.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.7.4, 0.7.3, 0.7.2, 0.7.1, 0.7.0, 0.6.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon_ComboPoints – 3.5.1 (früher Combo Point Display)
 

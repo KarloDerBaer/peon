@@ -43,7 +43,7 @@ L.BORDER_REACTION = "Reaction"
 L.BORDER_CLASS   = "Class"
 L.BORDER_HINT    = "Reaction: green friendly, blue friendly player, red hostile, yellow neutral. Class: players in class colour."
 L.PLAYER_INFO    = "Player info (class colour, class, guild)"
-L.FADE_CUSTOM    = "Custom fade-out time (world units)"
+L.FADE_CUSTOM    = "Custom fade-out time (world units and objects)"
 L.FADE_TIME      = "Fade-out time"
 L.FADE_HINT      = "0 = hide instantly. Values above the game default may be capped by the game."
 
@@ -134,7 +134,7 @@ if GetLocale() == "deDE" then
     L.BORDER_CLASS   = "Klasse"
     L.BORDER_HINT    = "Haltung: grün freundlich, blau freundl. Spieler, rot feindlich, gelb neutral. Klasse: Spieler in Klassenfarbe."
     L.PLAYER_INFO    = "Spieler-Infos (Klassenfarbe, Klasse, Gilde)"
-    L.FADE_CUSTOM    = "Eigene Ausblendzeit (Einheiten in der Welt)"
+    L.FADE_CUSTOM    = "Eigene Ausblendzeit (Einheiten und Objekte in der Welt)"
     L.FADE_TIME      = "Ausblendzeit"
     L.FADE_HINT      = "0 = sofort weg. Längere Zeiten als der Spielstandard werden evtl. vom Spiel gekappt."
 

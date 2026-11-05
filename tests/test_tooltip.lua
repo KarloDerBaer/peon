@@ -9,7 +9,8 @@ date = os.date
 function InCombatLockdown() return false end
 function UnitAffectingCombat() return false end
 function IsShiftKeyDown() return false end
-function UnitExists() return false end
+local mouseoverUnit = false
+function UnitExists() return mouseoverUnit end
 function GetCursorPosition() return 500, 400 end
 SlashCmdList = {}
 local loaded = { Peon = true, Peon_Tooltip = true }
@@ -61,7 +62,14 @@ function CreateFrame(kind, name, parent, template)
 end
 UIParent = W()
 GameTooltip = W()
-function hooksecurefunc() end
+local hooks = {}
+function hooksecurefunc(a, b, c)
+  if type(a) == "string" then hooks[a] = b else hooks[b] = c end
+end
+function GameTooltip.GetOwner(s) return s.owner end
+function GameTooltip.GetAnchorType(s) return s.anchorType end
+function GameTooltip.SetOwner(s, o, a) s.owner, s.anchorType = o, a end
+function GameTooltip.FadeOut() end
 function GameTooltip_SetDefaultAnchor() end
 TooltipDataProcessor = { AddTooltipPostCall = function() end, AllTypes = "ALL" }
 Enum = { TooltipDataType = { Unit = 2 }, TooltipDataLineType = {} }
@@ -140,6 +148,26 @@ check(own.offsetX == 35 and own.offsetY == 20 and own.fadeCustom == false and ow
 local fresh = {}
 ns.MigrateDefaults(fresh)
 check(fresh.defaultsVer == 1 and fresh.offsetX == nil and fresh.fadeCustom == nil, "0.7.3: neue Installation bekommt die Standardwerte")
+
+-- Ausblenden in der Welt (0.7.4: auch Objekte)
+local function Anchor() GameTooltip:Show(); hooks.GameTooltip_SetDefaultAnchor(GameTooltip, UIParent) end
+local function Tick() GameTooltip.scripts.OnUpdate(GameTooltip) end
+Anchor(); Tick()
+check(GameTooltip.shown, "0.7.4: Maus auf dem Objekt, Tooltip bleibt")
+hooks.GameTooltip_SetDefaultAnchor(GameTooltip, UIParent)   -- wie Blizzards SetWorldCursor beim Verlassen
+hooks.FadeOut(GameTooltip); Tick()
+check(not GameTooltip.shown, "0.7.4: Objekt verlassen, Tooltip sofort weg")
+Anchor(); mouseoverUnit = true; Tick()
+check(GameTooltip.shown, "0.7.4: Maus auf der Einheit, Tooltip bleibt")
+mouseoverUnit = false; Tick()
+check(not GameTooltip.shown, "0.7.4: Einheit verlassen, Tooltip sofort weg")
+PeonTooltipDB.fadeCustom = false
+Anchor(); hooks.FadeOut(GameTooltip); Tick()
+check(GameTooltip.shown, "0.7.4: Funktion aus, Blizzard blendet aus")
+PeonTooltipDB.fadeCustom = true
+Anchor(); Tick()
+check(GameTooltip.shown, "0.7.4: neuer Tooltip vergisst das Verlassen")
+GameTooltip.owner = nil
 SlashCmdList.PEON("tooltip")
 check(out[#out] == "OPEN Peon/Tooltip", "/peon tooltip oeffnet Seite")
 SlashCmdList.PEON_TOOLTIP("")

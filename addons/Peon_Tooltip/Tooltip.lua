@@ -167,7 +167,7 @@ local function PositionAtCursor(tooltip, st)
     tooltip:SetPoint(point, UIParent, "BOTTOMLEFT", cx + dx * ox, cy + dy * oy)
 end
 
--- Eigenes Ausblenden fuer Einheiten in der Welt (Besitzer = UIParent)
+-- Eigenes Ausblenden fuer Einheiten und Objekte in der Welt (Besitzer = UIParent)
 local function HandleFade(tooltip, st)
     local db = mod.db
     if st.owner ~= UIParent then return end
@@ -179,8 +179,8 @@ local function HandleFade(tooltip, st)
         end
         return
     end
-    -- kein Einheiten-Tooltip (z. B. Briefkasten) oder Funktion aus: Blizzard ausblenden lassen
-    if not st.sawUnit or not db.fadeCustom then return end
+    -- Maus noch auf dem Objekt, anderer Tooltip oder Funktion aus: Blizzard ausblenden lassen
+    if not (st.sawUnit or st.objectLeft) or not db.fadeCustom then return end
 
     local duration = db.fadeTime / 10
     if duration <= 0 then
@@ -213,7 +213,7 @@ end
 local function OnTooltipHide(tooltip)
     local st = state[tooltip]
     if st then
-        st.owner, st.fadeStart, st.sawUnit = nil, nil, false
+        st.owner, st.fadeStart, st.sawUnit, st.objectLeft = nil, nil, false, false
     end
 end
 
@@ -231,7 +231,9 @@ local function OnSetDefaultAnchor(tooltip, parent)
         tooltip:HookScript("OnUpdate", OnTooltipUpdate)
         tooltip:HookScript("OnHide", OnTooltipHide)
     end
-    st.owner, st.ver, st.fadeStart, st.sawUnit = parent, nil, nil, false
+    -- neuer Inhalt waehrend des eigenen Ausblendens: wieder voll sichtbar
+    if st.fadeStart and ns.ResetAlpha then ns.ResetAlpha(tooltip) end
+    st.owner, st.ver, st.fadeStart, st.sawUnit, st.objectLeft = parent, nil, nil, false, false
     ns.defaultOwner[tooltip] = parent
 
     PositionAtCursor(tooltip, st)
@@ -246,6 +248,15 @@ if type(GameTooltip_SetDefaultAnchor) == "function" then
     hooksecurefunc("GameTooltip_SetDefaultAnchor", OnSetDefaultAnchor)
 else
     mod:Print(L.MSG_NO_ANCHOR)
+end
+
+-- Maus hat ein Objekt in der Welt verlassen: Blizzards SetWorldCursor ruft dann FadeOut auf (nur
+-- mitgelesen). Ausgeblendet wird im naechsten OnUpdate ueber HandleFade, wie bei Einheiten.
+if type(GameTooltip.FadeOut) == "function" then
+    hooksecurefunc(GameTooltip, "FadeOut", function(tooltip)
+        local st = state[tooltip]
+        if st and st.owner then st.objectLeft = true end
+    end)
 end
 
 ---------------------------------------------------------------------------

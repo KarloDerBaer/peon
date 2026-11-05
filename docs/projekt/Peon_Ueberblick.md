@@ -32,7 +32,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 | Addon | Version | SavedVariables | Befehl |
 |---|---|---|---|
 | Peon | 0.11.0 | `PeonDB` | /peon |
-| Peon_Tooltip (früher TooltipPlus) | 0.7.3 | `PeonTooltipDB` | /ttp |
+| Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
 | Peon_Fishing (früher FishingPlus) | 1.5.1 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
 | Peon_Broker (neu, Auktionshaus) | 0.33.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
@@ -143,7 +143,7 @@ Peon.NiceRange(lo, hi, schritte)
 - **Geheime Werte (Secret Values, aus Retail 12.x):** Sie werden bei Kampf-, Encounter- oder PvP-Einschränkungen geheim; in Instanzen sind Name, GUID und ID von NPCs immer geheim; UnitName von Nicht-Spielern ist im Kampf geheim. Erlaubt ist speichern, weiterreichen, `type()` und an Widgets übergeben (Text, Farbe, StatusBar). Verboten ist vergleichen, rechnen, boolesch prüfen oder als Tabellenschlüssel nutzen. Immer zuerst `Peon.IsSecret()` prüfen; `issecrettable` für Tooltip-Daten.
 - **Auch `debugstack()` kann einen geheimen Text liefern** (Kampf, Instanz, Tooltip mit geheimen Daten; BugGrabber zeigt dann „debugstack() returned secrets“). `type()` meldet weiter „string“, aber `:find`/`:gmatch` brechen ab. Vor dem Durchsuchen immer `Peon.IsSecret(st)` prüfen (Tooltip 0.7.2, Bags 0.2.1).
 - **Combo-Punkte** hängen am Gegner, nur einer trägt sie gleichzeitig. Der Trick: je Punkt eine StatusBar mit `SetMinMaxValues(i-1, i)`, alle bekommen denselben geheimen Wert. Der Träger wird über den Nameplate-Rahmen erkannt, nicht über GUID oder UnitIsUnit (die können geheim sein).
-- **Tooltip:** `GameTooltip_UnitColor` liefert für Spieler nur Weiß; `UnitSelectionColor(unit, true)` gibt die richtige Haltungsfarbe.
+- **Tooltip:** `GameTooltip_UnitColor` liefert für Spieler nur Weiß; `UnitSelectionColor(unit, true)` gibt die richtige Haltungsfarbe. Verlässt die Maus ein Objekt in der Welt, ruft Blizzards `SetWorldCursor` erst `GameTooltip_SetDefaultAnchor` und dann `FadeOut` auf; Letzteres lässt sich mitlesen (Tooltip 0.7.4).
 - **Angeln:** Der Schwimmer (GameObject 35591) wird über Soft Targeting erkannt (SoftTargetInteract 3, Arc 2, Reichweite einstellbar); etwa 25 % der Würfe werden nicht erkannt, deshalb Warnton und neu auswerfen. Fischschwärme sind nur über den Tooltip unter dem Mauszeiger erkennbar. Unterzonen melden teils englische Namen. Waffenwechsel mit Angel im Wasser geht nur per Makro mit `/stopcasting` über einen sicheren Button.
 - **Klick mit Taste:** Alt+Klick auf Gegenstände gehört ab 06.10.2026 Peon_Ledger (Gegenstand zeigen); im Spiel belegt sind Umschalt+Klick (Link/Stapel teilen), Strg+Klick (Anprobe), Rechtsklick (benutzen); auf Aktionsleisten löst Alt+Klick zusätzlich die Taste aus.
 - Geschützte Aktionen (Köder anlegen, auswerfen) nie automatisch, nur per Tastendruck oder Klick des Spielers.

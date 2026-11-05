@@ -2,6 +2,11 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.7.4
+
+- 0.7.4 (05.11.2026, Wunsch von KarloDerBaer): Die Ausblendzeit gilt jetzt auch für Objekte in der Welt (z. B. Briefkasten), nicht nur für Einheiten. Standard also auch dort sofort. Erkannt über Blizzards Aufruf von `FadeOut` in `SetWorldCursor`, wenn die Maus das Objekt verlässt.
+  - **Im Spiel prüfen:** Tooltip von Briefkasten oder Kräutern verschwindet sofort, kehrt beim erneuten Überfahren zurück und ist dann voll sichtbar.
+
 ## 0.7.3
 
 - 0.7.3 (05.11.2026, Wünsche von KarloDerBaer aus dem ersten Test in Forever):
