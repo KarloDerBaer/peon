@@ -24,31 +24,42 @@ local function OnDragUpdate()
     UpdatePosition()
 end
 
-local function ShowTooltip(self)
+-- Zustand und Angel-Set, auch fuer den Tooltip auf Peon_Panel
+local function FillTooltip(tooltip)
     local db = ns.GetDB()
-    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:AddLine("|cff8ccf4dPeon|r Fishing")
     local state = db.mode == "fishing" and L.MODE_FISHING or L.MODE_NORMAL
     if db.pending ~= "" then state = state .. " (" .. L["PENDING_" .. db.pending] .. ")" end
-    GameTooltip:AddLine(state, 1, 1, 1)
+    tooltip:AddLine(state, 1, 1, 1)
     local fish = ns.SetInfo(db.fishingSetID)
-    GameTooltip:AddLine(L.TT_FISHING_SET:format(fish and fish.name or L.NONE), 0.8, 0.8, 0.8)
+    tooltip:AddLine(L.TT_FISHING_SET:format(fish and fish.name or L.NONE), 0.8, 0.8, 0.8)
+end
+
+local function ShowTooltip(self)
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:AddLine("|cff8ccf4dPeon|r Fishing")
+    FillTooltip(GameTooltip)
     GameTooltip:AddLine(L.TT_MINIMAP_HINT, 0.6, 0.6, 0.6, true)
     GameTooltip:Show()
+end
+
+-- Grau ausserhalb des Angelmodus, gelb solange ein Wechsel aussteht
+local function ColorIcon(icon)
+    local db = ns.GetDB()
+    icon:SetDesaturated(db.mode ~= "fishing")
+    if db.pending ~= "" or ns.IsSwapping() then
+        icon:SetVertexColor(1, 0.85, 0.3)
+    else
+        icon:SetVertexColor(1, 1, 1)
+    end
 end
 
 function ns.UpdateButton()
     local db = ns.GetDB()
     if not btn or not db then return end
     btn:SetShown(db.showMinimap)
-    local fishing = db.mode == "fishing"
-    btn.icon:SetDesaturated(not fishing)
-    if db.pending ~= "" or ns.IsSwapping() then
-        btn.icon:SetVertexColor(1, 0.85, 0.3)
-    else
-        btn.icon:SetVertexColor(1, 1, 1)
-    end
+    ColorIcon(btn.icon)
     if GameTooltip:GetOwner() == btn then ShowTooltip(btn) end
+    if ns.mod.launcher then ns.mod.launcher:Refresh() end
 end
 
 ---------------------------------------------------------------------------
@@ -80,21 +91,23 @@ local function MenuItems()
     return items
 end
 
+-- Inhalt des Menues, auch fuer das Kontextmenue auf Peon_Panel
+local function FillMenu(root)
+    local isSel = function(v) return ns.GetDB().lure == v end
+    local setSel = function(v) ns.SetLureChoice(v) end
+    for _, it in ipairs(MenuItems()) do
+        if it.title then root:CreateTitle(it.title)
+        elseif it.divider then root:CreateDivider()
+        elseif it.button then root:CreateButton(it.button, it.func)
+        else root:CreateRadio(it.text, isSel, setSel, it.value) end
+    end
+end
+
 local fallbackMenu
 local function ShowMenu(owner)
     local db = ns.GetDB()
-    local items = MenuItems()
     if MenuUtil and MenuUtil.CreateContextMenu then
-        MenuUtil.CreateContextMenu(owner, function(_, root)
-            local isSel = function(v) return ns.GetDB().lure == v end
-            local setSel = function(v) ns.SetLureChoice(v) end
-            for _, it in ipairs(items) do
-                if it.title then root:CreateTitle(it.title)
-                elseif it.divider then root:CreateDivider()
-                elseif it.button then root:CreateButton(it.button, it.func)
-                else root:CreateRadio(it.text, isSel, setSel, it.value) end
-            end
-        end)
+        MenuUtil.CreateContextMenu(owner, function(_, root) FillMenu(root) end)
     elseif UIDropDownMenu_Initialize and ToggleDropDownMenu then
         if not fallbackMenu then
             fallbackMenu = CreateFrame("Frame", "PeonFishingMinimapMenu", UIParent, "UIDropDownMenuTemplate")
@@ -163,8 +176,34 @@ local function Create()
     UpdatePosition()
 end
 
+-- Starter fuer Peon_Panel (ab Peon API 14), neben dem eigenen Button
+local function CreateLauncher()
+    local mod = ns.mod
+    if not mod.NewLauncher then return end
+    mod:NewLauncher({
+        icon = FISHING_ICON,
+        showKey = "showMinimap",
+        onClick = function() ns.Toggle() end,
+        onTooltip = function(_, tooltip) FillTooltip(tooltip) end,
+        update = function(_, icon) ColorIcon(icon) end,
+        menu = function(_, root) FillMenu(root) end,
+        texts = {
+            { key = "mode", label = L.TEXT_MODE_LABEL, get = function()
+                return ns.GetDB().mode == "fishing" and L.TEXT_MODE_ON or L.TEXT_MODE_OFF
+            end },
+            { key = "lure", label = L.TEXT_LURE_LABEL, get = function()
+                local active, left = ns.LureActive()
+                if not active then return L.TEXT_LURE_NONE end
+                return ("%d:%02d"):format(math.floor(left / 60), math.floor(left % 60))
+            end },
+        },
+        defaultText = "mode",
+    })
+end
+
 table.insert(ns.onLogin, function()
     Create()
     ns.UpdateButton()
+    CreateLauncher()
 end)
 table.insert(ns.onModeChanged, function() ns.UpdateButton() end)

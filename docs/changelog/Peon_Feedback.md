@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.4.0
+
+Kurz: Mit Peon_Panel öffnest du das Feedback-Fenster von der Leiste aus und siehst die Zahl deiner Rückmeldungen.
+
+- 0.4.0 (07.11.2026): Text für Peon_Panel: Anzahl der Rückmeldungen, die noch nicht an den Manager übergeben sind. Beim Schreiben und Löschen aktualisiert. Der Klick auf das Symbol öffnet das Feedback-Fenster.
+
 ## 0.3.1
 
 Kurz: Einträge verschwinden nach „An Manager“ sofort aus der Liste.

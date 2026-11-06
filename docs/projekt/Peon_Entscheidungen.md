@@ -2,6 +2,20 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 06.11.2026: Neues Modul Peon_Panel (Peon_Panel 0.1.0, Peon 0.14.0, Konzept `Peon_Panel_Konzept.md`)
+
+- **Waagerechte Leiste an einer von 8 Stellen und zusätzlich ein quadratisches, frei verschiebbares Panel**, beide gleichzeitig möglich. Senkrechte Leisten vorerst nicht, weil der Text sie zu breit macht (KarloDerBaer).
+- **Symbole und Texte gleich in der ersten Fassung.** Je Modul einstellbar, wo es erscheint und ob und welchen Text es zeigt, auch im Kontextmenü, und später erweiterbar (KarloDerBaer).
+- Dabei sind die Module mit Button, dazu Bags und Peon, Feedback öffnet per Klick sein Fenster (KarloDerBaer).
+- **Minimap-Buttons werden automatisch ausgeblendet**, sobald das Modul angezeigt wird. Beim ersten Start erklärt ein Hinweis, dass sich jeder Button wieder einschalten lässt (KarloDerBaer).
+- Der Kern merkt sich, was Panel ausgeblendet hat, und stellt es wieder her, wenn Panel nicht mehr aktiv ist, sonst fehlten nach dem Abschalten alle Symbole (Claude).
+- Ob ein Minimap-Button sichtbar ist, bleibt im jeweiligen Modul gespeichert, damit dessen eigene Optionsseite weiter stimmt (Claude).
+- Die Anbindung läuft über einen neuen Eintrag im Kern (`mod:NewLauncher`, API 14), den `NewMinimapButton` selbst anlegt (Claude).
+- **Symbole lassen sich ziehen, das ändert nur die Reihenfolge** (KarloDerBaer). **Der Rechtsklick öffnet ein Kontextmenü, das nicht verdeckt wird** (KarloDerBaer). Es wird am Rand von Leiste oder Panel verankert, weil Blizzards Kontextmenü am Mauszeiger die Anzeige überdecken kann (Claude).
+- Texte werden von den Modulen kurz geschrieben statt abgeschnitten, weil ein abgeschnittener Goldbetrag falsch wäre. Im Panel stehen sie unter dem Symbol (Claude).
+- Beim Ziehen zeigt eine Markierung die Zielstelle, die Symbole rücken erst beim Loslassen, weil sie sonst bei unterschiedlich breiten Texten hin- und herspringen könnten (Claude, weicht vom ersten Entwurf ab).
+- Das Raster für die Leiste nutzt „Aus“ in der Mitte als Schalter, statt eines eigenen Hakens (Claude).
+
 ## 06.11.2026: Eigene Bereiche in Peon_Bags (Bags 0.3.0, Konzept `Peon_Bags_Bereiche.md`)
 
 - **Eigene, frei benennbare Bereiche** in Taschen und Bank, accountweit (KarloDerBaer, Vorschlag Claude). Die Gildenbank bleibt außen vor, weil sie allen in der Gilde gehört (Claude).

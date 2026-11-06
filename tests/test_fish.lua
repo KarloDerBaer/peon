@@ -183,6 +183,36 @@ check(eqSets["Probe-Set"].ignored[1] == nil and eqSets["Probe-Set"].ignored[5] =
 ns.Enter()
 local ret = eqSets[PeonFishingDB.returnSetName or mod.db.returnSetName]
 check(ret and next(ret.ignored) == nil, "Rueckkehr-Set ignoriert keinen Platz")
+-- Starter fuer Peon_Panel (ab 1.6)
+do
+  local s = mod.launcher
+  check(s and s.showKey == "showMinimap" and s.defaultText == "mode", "1.6: Starter neben dem eigenen Button")
+  local keepMode = mod.db.mode
+  mod.db.mode = "fishing"
+  check(s:GetText("mode") == "An", "1.6: Text Angelmodus an: " .. tostring(s:GetText("mode")))
+  mod.db.mode = "normal"
+  check(s:GetText("mode") == "Aus", "1.6: Text Angelmodus aus: " .. tostring(s:GetText("mode")))
+  mod.db.mode = "fishing"
+  check(type(s:GetText("lure")) == "string", "1.6: Text Koeder: " .. tostring(s:GetText("lure")))
+  local lines = {}
+  s:FillTooltip({ AddLine = function(_, t) lines[#lines + 1] = t end })
+  check(#lines == 2, "1.6: Tooltip mit Zustand und Angel-Set")
+  local items = 0
+  local root = {}
+  function root.CreateTitle() items = items + 1 end
+  function root.CreateDivider() items = items + 1 end
+  function root.CreateButton() items = items + 1 end
+  function root.CreateRadio() items = items + 1 end
+  s:FillMenu(root)
+  check(items >= 4, "1.6: Menue mit Koeder und Optionen")
+  local tex = { SetDesaturated = function(t, v) t.grey = v end, SetVertexColor = function() end }
+  s:ColorIcon(tex)
+  check(tex.grey == false, "1.6: Symbol im Angelmodus farbig")
+  mod.db.mode = "normal"
+  s:ColorIcon(tex)
+  check(tex.grey == true, "1.6: Symbol sonst grau")
+  mod.db.mode = keepMode
+end
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler in") then n = n + 1; io.write("!! ", l, "\n") end end
 check(n == 0, "keine Fehlermeldungen")
 print("ALLE TESTS OK")

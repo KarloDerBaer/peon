@@ -139,6 +139,7 @@ function ns.Add(e)
     }
     db.nextId = db.nextId + 1
     table.insert(db.entries, entry)
+    if mod.launcher then mod.launcher:Refresh() end
     mod:Dbg(("Add #%d %s/%s/%s/%s"):format(entry.id, entry.module, entry.kind, entry.area, entry.prio))
     return entry
 end
@@ -149,6 +150,7 @@ function ns.Delete(id)
     for i, e in ipairs(db.entries) do
         if e.id == id then
             table.remove(db.entries, i)
+            if mod.launcher then mod.launcher:Refresh() end
             mod:Dbg("Delete #" .. id)
             return true
         end
@@ -257,5 +259,8 @@ mod:On("INIT", function()
             tooltip:AddLine(L.MM_COUNT:format(ns.Counts()), 1, 1, 1)
         end,
         hint = L.MM_HINT,
+        -- Text fuer Peon_Panel
+        texts = { { key = "count", label = L.TEXT_COUNT_LABEL, get = function() return L.TEXT_COUNT:format((ns.Counts())) end } },
+        defaultText = "count",
     })
 end)

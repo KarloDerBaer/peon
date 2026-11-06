@@ -423,6 +423,22 @@ loadedAddons.Bagnon = nil
 SlashCmdList.PEON("bags optionen")
 check(out[#out] == "OPEN Peon/Bags", "/peon bags optionen oeffnet die Seite")
 
+-- ===== Starter fuer Peon_Panel (ab 0.4) =====
+do
+  local s = mod.launcher
+  check(s and s.showKey == nil and s.key == "bags", "Starter ohne Minimap-Button")
+  check(s:GetText("free") == "24 frei", "Text freie Plaetze: " .. tostring(s:GetText("free")))
+  check(s:GetText("used") == "8/32", "Text belegte und alle Plaetze: " .. tostring(s:GetText("used")))
+  local refreshed = 0
+  Peon.OnLauncherRefresh(function(l) if l == s then refreshed = refreshed + 1 end end)
+  fire("BAG_UPDATE_DELAYED")
+  check(refreshed == 1, "Taschenaenderung aktualisiert den Text")
+  s:Click("LeftButton")
+  check(w:IsShown(), "Linksklick oeffnet die Taschen")
+  s:Click("LeftButton")
+  check(not w:IsShown(), "Linksklick schliesst die Taschen")
+end
+
 -- ===== Eigene Bereiche (ab 0.3) =====
 local function headers(win)
   local t = {}

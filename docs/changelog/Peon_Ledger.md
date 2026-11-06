@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.11.0
+
+Kurz: Mit Peon_Panel zeigt Ledger auf der Leiste dein Gold.
+
+- 0.11.0 (07.11.2026): Texte für Peon_Panel: Gold aller Charaktere (Standard), Gold dieses Charakters, in kurzer Form wie `12,3k g`. Bei jeder Änderung des Golds aktualisiert. Ohne Peon_Panel ändert sich nichts.
+
 ## 0.10.2
 
 Kurz: Diagramme zeigen auch bei Daten von nur einem Tag etwas an.

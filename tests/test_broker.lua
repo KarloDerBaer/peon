@@ -2519,6 +2519,17 @@ end)()
   check(PeonBrokerDB.listsGone.items.alt == nil, "0.34: alte Loeschmarken verfallen")
 end)()
 
+-- Texte fuer Peon_Panel (ab 0.35)
+check(mod.launcher and mod.launcher.defaultText == "age", "0.35: Starter ueber den Minimap-Button")
+check(type(mod.launcher:GetText("age")) == "string", "0.35: Text Alter des Scans: " .. tostring(mod.launcher:GetText("age")))
+check(type(mod.launcher:GetText("offers")) == "string", "0.35: Text Angebote: " .. tostring(mod.launcher:GetText("offers")))
+do
+  local refreshed = 0
+  Peon.OnLauncherRefresh(function() refreshed = refreshed + 1 end)
+  mod:Fire("SCAN_DONE", "Markt")
+  check(refreshed == 1, "0.35: Scan aktualisiert den Text")
+end
+
 -- Keine unerwarteten Fehlermeldungen
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("hat einen Fehler gemeldet", 1, true) then n = n + 1 end end  -- erwartete Meldung aus dem Verkaufen-Test
 check(n == 0, "keine Fehlermeldungen")

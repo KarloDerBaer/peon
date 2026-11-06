@@ -432,6 +432,7 @@ function ns.InitInventory()
     local dirty = {}
     mod:RegisterEvent("BAG_UPDATE", function(_, bag) if ns.Num(bag) then dirty[bag] = true end end)
     mod:RegisterEvent("BAG_UPDATE_DELAYED", function()
+        if mod.launcher then mod.launcher:Refresh() end
         local any = false
         for bag in pairs(dirty) do if ns.IsInventoryBag(bag) then any = true end end
         wipe(dirty)

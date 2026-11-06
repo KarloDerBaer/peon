@@ -3,7 +3,7 @@
 ## Notes: Collect bug reports and ideas for Peon modules in-game.
 ## Notes-deDE: Rückmeldungen, Fehler und Ideen zu Peon-Modulen direkt im Spiel festhalten.
 ## Author: KarloDerBaer
-## Version: 0.3.1
+## Version: 0.4.0
 ## Dependencies: Peon
 ## OptionalDeps: Peon_Bridge
 ## Group: Peon

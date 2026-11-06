@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.35.0
+
+Kurz: Mit Peon_Panel zeigt Broker auf der Leiste das Alter des letzten Scans oder die Zahl der Angebote.
+
+- 0.35.0 (07.11.2026): Texte für Peon_Panel: Alter des letzten Scans (Standard), Angebote im letzten Scan. Nach einem Scan aktualisiert. Ohne Peon_Panel ändert sich nichts.
+
 ## 0.34.0
 
 Kurz: Einkaufslisten gelten jetzt für alle Charaktere und gleichen sich mit dem Peon Manager ab.

@@ -13,6 +13,7 @@
 --       onClick   = function(mod, button) end,              -- "LeftButton" / "RightButton"
 --       onTooltip = function(mod, tooltip) tooltip:AddLine("...") end,
 --       hint      = "Linksklick: ...",                      -- letzte Tooltip-Zeile (optional)
+--       texts, defaultText, menu, update                    -- ab API 14: fuer den Starter, siehe Launcher.lua
 --   })
 --   btn:Update()   -- Position und Sichtbarkeit neu setzen (passiert auch bei CHANGED und RESET)
 
@@ -107,5 +108,10 @@ function Module:NewMinimapButton(o)
 
     self.minimapButton = btn
     btn:Update()
+    -- Starter fuer Anzeigen wie Peon_Panel (ab API 14)
+    self:NewLauncher({
+        icon = o.icon, title = o.title, key = o.key, showKey = showKey, onClick = o.onClick, onTooltip = o.onTooltip,
+        hint = o.hint, update = o.update, menu = o.menu, texts = o.texts, defaultText = o.defaultText,
+    })
     return btn
 end

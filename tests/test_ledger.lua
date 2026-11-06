@@ -1305,6 +1305,11 @@ check(said("Kein Gegenstand unter der Maus"), "Tastenbelegung ohne Tooltip: Hinw
 tt.IsShown, tt.GetOwner, tt.shown = nil, nil, nil
 end)()
 
+-- Texte fuer Peon_Panel (ab 0.11)
+check(mod.launcher and mod.launcher.showKey == "minimapShow", "0.11: Starter ueber den Minimap-Button")
+check(mod.launcher.defaultText == "goldAll" and type(mod.launcher:GetText("goldAll")) == "string", "0.11: Text Gold aller Charaktere: " .. tostring(mod.launcher:GetText("goldAll")))
+check(type(mod.launcher:GetText("goldMe")) == "string", "0.11: Text Gold dieses Charakters: " .. tostring(mod.launcher:GetText("goldMe")))
+
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end
 check(n == 0, "keine Fehlermeldungen")
 print("ALLE TESTS OK")

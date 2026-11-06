@@ -48,6 +48,7 @@ Alle Teile hängen an einem gemeinsamen Kern und haben ihre Einstellungen unter 
 | **Peon_Fishing** | Angelmodus mit Ausrüstungswechsel, Angeln per Doppelklick oder Taste, Köder, Warnton. | `/fp` |
 | **Peon_Feedback** | Fehler und Ideen direkt im Spiel festhalten, der Peon Manager sendet sie weiter. Optional. | `/feedback` |
 | **Peon_Mover** | Fenster von Blizzard und Peon verschieben und in der Größe ändern. | `/peon mover` |
+| **Peon_Panel** | Leiste und verschiebbares Panel für die Symbole der Peon-Addons, mit kurzen Texten wie Gold oder freien Taschenplätzen. | `/peon panel` |
 | **Peon_ComboPoints** | Runde Combo-Punkte über dem Namensschild des Gegners (nur Schurken). | `/peon combopoints` |
 
 Jedes Addon außer Peon ist freiwillig. Nimm nur, was du willst, aber **Peon selbst muss immer dabei sein**.

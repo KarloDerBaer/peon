@@ -28,12 +28,13 @@
 | Mover | [Peon_Mover_Konzept.md](konzepte/mover/Peon_Mover_Konzept.md) | Fenster verschieben |
 | Bags | [Peon_Bags_Konzept.md](konzepte/bags/Peon_Bags_Konzept.md) | Taschen, Bank, Gildenbank |
 | Bags | [Peon_Bags_Bereiche.md](konzepte/bags/Peon_Bags_Bereiche.md) | Eigene Bereiche in Taschen und Bank |
+| Panel | [Peon_Panel_Konzept.md](konzepte/panel/Peon_Panel_Konzept.md) | Leiste und Panel für Symbole und kurze Texte |
 
 ## Verlauf der Versionen (`changelog/`)
 
 Je Modul eine Datei, neueste Version oben. Daraus entstehen auch die Texte „Was ist neu“ im Release.
 
-[Peon](changelog/Peon.md) · [Peon_Bags](changelog/Peon_Bags.md) · [Peon_Broker](changelog/Peon_Broker.md) · [Peon_Bridge](changelog/Peon_Bridge.md) · [Peon_ComboPoints](changelog/Peon_ComboPoints.md) · [Peon_Fishing](changelog/Peon_Fishing.md) · [Peon_Ledger](changelog/Peon_Ledger.md) · [Peon_Mover](changelog/Peon_Mover.md) · [Peon_Tooltip](changelog/Peon_Tooltip.md) · [Peon Manager](changelog/Peon_Manager.md)
+[Peon](changelog/Peon.md) · [Peon_Bags](changelog/Peon_Bags.md) · [Peon_Broker](changelog/Peon_Broker.md) · [Peon_Bridge](changelog/Peon_Bridge.md) · [Peon_ComboPoints](changelog/Peon_ComboPoints.md) · [Peon_Fishing](changelog/Peon_Fishing.md) · [Peon_Ledger](changelog/Peon_Ledger.md) · [Peon_Mover](changelog/Peon_Mover.md) · [Peon_Panel](changelog/Peon_Panel.md) · [Peon_Tooltip](changelog/Peon_Tooltip.md) · [Peon Manager](changelog/Peon_Manager.md)
 
 ## Archiv (`archiv/`)
 

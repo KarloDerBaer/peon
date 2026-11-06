@@ -58,6 +58,8 @@ L.TT_ZONE      = "Zone"
 L.TT_VERSION   = "Version"
 L.MM_HINT      = "Left click: feedback window\nRight click: options"
 L.MM_COUNT     = "%d reports (%d high)"
+L.TEXT_COUNT_LABEL = "Number of reports"
+L.TEXT_COUNT   = "%d open"
 
 if GetLocale() == "deDE" then
     L.TITLE        = "Feedback"
@@ -113,4 +115,6 @@ if GetLocale() == "deDE" then
     L.TT_VERSION   = "Version"
     L.MM_HINT      = "Linksklick: Feedback-Fenster\nRechtsklick: Einstellungen"
     L.MM_COUNT     = "%d Rückmeldungen (%d hoch)"
+    L.TEXT_COUNT_LABEL = "Anzahl der Rückmeldungen"
+    L.TEXT_COUNT   = "%d offen"
 end

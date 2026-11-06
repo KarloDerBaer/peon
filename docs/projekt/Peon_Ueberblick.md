@@ -31,20 +31,21 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 | Addon | Version | SavedVariables | Befehl |
 |---|---|---|---|
-| Peon | 0.11.1 | `PeonDB` | /peon |
+| Peon | 0.14.0 | `PeonDB` | /peon |
 | Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
-| Peon_Fishing (früher FishingPlus) | 1.5.2 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
-| Peon_Broker (neu, Auktionshaus) | 0.34.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
+| Peon_Fishing (früher FishingPlus) | 1.6.0 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
+| Peon_Broker (neu, Auktionshaus) | 0.35.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
 | Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.6.0 | `PeonBridgeDB` | /peon bridge |
-| Peon_Feedback | 0.3.1 | `PeonFeedbackDB` | /feedback |
+| Peon_Feedback | 0.4.0 | `PeonFeedbackDB` | /feedback |
 | Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
-| Peon_Ledger (neu, Bestand und Buch) | 0.10.2 | `PeonLedgerDB` | /ledger |
-| Peon_Bags (neu, Taschen, Bank, Gildenbank) | 0.3.0 | `PeonBagsDB` | /peon bags |
+| Peon_Ledger (neu, Bestand und Buch) | 0.11.0 | `PeonLedgerDB` | /ledger |
+| Peon_Bags (neu, Taschen, Bank, Gildenbank) | 0.4.0 | `PeonBagsDB` | /peon bags |
+| Peon_Panel (neu, Leiste und Panel) | 0.1.0 | `PeonPanelDB` | /peon panel |
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
-## Kern-API (Peon.API = 11)
+## Kern-API (Peon.API = 14)
 
 Die API wird nur erweitert, nie geändert (sonst brechen alle Module). Bei neuen Funktionen `Peon.API` erhöhen.
 
@@ -112,6 +113,12 @@ page:Add(left, page:List(opts))   -- auf Optionsseiten; Container hat .list, eig
 mod:NewMinimapButton({ icon = "Interface\\Icons\\…", name = "PeonXyMinimapButton",
     onClick = function(mod, button) end, onTooltip = function(mod, tooltip) tooltip:AddLine("…") end, hint = "Linksklick: …" })
 ```
+- **Starter (API 14, Launcher.lua):** Eintrag eines Moduls für Peon_Panel, `mod:NewMinimapButton` legt ihn selbst an. Wählbare Texte über `texts`, eigene Menüeinträge über `menu`. Nach einer Änderung `mod.launcher:Refresh()`. Für knappe Texte `Peon.ShortNumber(n)` und `Peon.ShortGold(kupfer)`.
+```lua
+mod:NewLauncher({ icon = "...", showKey = "minimapShow", onClick = function(mod, button, owner) end,
+    onTooltip = function(mod, tooltip) end, update = function(mod, iconTexture) end, menu = function(mod, root) end,
+    texts = { { key = "free", label = "Freie Plätze", get = function(mod) return "23 frei" end } }, defaultText = "free" })
+```
 - **Bereiche für Rückmeldungen (API 9, Feedback.lua):** Jedes Modul meldet seine Bereiche für Peon_Feedback und den Peon Manager (ab API 13 in `PeonDB.feedbackAreas`) mit einer Zeile (am Ende der ersten Code-Datei). Das `if` hält das Modul mit älterem Kern lauffähig; „Sonstiges“ hängt Feedback selbst an.
 ```lua
 if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Bereich 1", "Bereich 2", "Optionen" }) end
@@ -175,6 +182,8 @@ Peon.NiceRange(lo, hi, schritte)
 - **Forever hat keine Realms:** Je Region gibt es ein Auktionshaus je Regelsatz und Fraktion, dazu neutrale Häuser (laut API „Auktionshaus der Schwarzmeerräuber“, wenige Angebote). `GetRealmName()` liefert trotzdem einen internen Namen wie „CAMWOW EU4 Realm 3 PvE“. Er gehört zum Schlüssel von Broker, angezeigt wird im Manager nur „PvE Allianz“.
 - **Genaue Werte eines Gegenstands mit Zusatz** nennt nur das Spiel, die Blizzard-API nicht. `C_TooltipInfo.GetHyperlink("item:3192::::::::20:1488:::1:12723")` geht auch ohne echten Gegenstand (Feld 13 Anzahl der Boni, dahinter die Nummern), vorher `C_Item.RequestLoadItemDataByID` und kurz warten (im Spiel bestätigt 06.11.2026).
 - **Bank-Menge ohne offene Bank:** `C_Item.GetItemCount(itemID, true, false, true)` (mit Bank und Materiallager) minus `C_Item.GetItemCount(itemID)` – so zählt auch BagBrother für den eingeloggten Charakter. Andere Charaktere kennt das Spiel nicht. Höchstens 100 Abfragen pro Minute; nicht per `/run` aufrufbar. Bei Einzelgegenständen ist `buyoutAmount` schon der Preis je Stück, `quantity` die Anzahl gleicher Angebote.
+
+- **Verankerte Menüs:** `MenuUtil.CreateContextMenu` öffnet immer am Mauszeiger. Für eine feste Stelle: `MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultContextMenuMixin())`, `Menu.PopulateDescription(generator, owner, desc)`, `Menu.GetManager():OpenMenu(owner, desc, AnchorUtil.CreateAnchor(...))`. Nachgelesen in `Blizzard_Menu`, im Spiel mit Peon_Panel 0.1.0 noch zu bestätigen. Blizzard klappt das Menü bei Platzmangel um und hält es im Bild.
 
 - **Blizzard-Code der Forever-Version** liegt öffentlich auf GitHub: `Gethe/wow-ui-source`, Zweig **`forever`** (Stand 1.60.1.70245). Damit lassen sich Abläufe nachlesen statt raten (z. B. `TooltipComparisonManager.lua`, `ContainerFrame.lua`, `SharedUIPanelTemplates.xml`). Mainline-Dateien (`…/Mainline/…`) sind die, die Forever nutzt.
 - **`%d` in `string.format` nur bis 2^31** (2.147.483.647, also etwa 214.748 Gold in Kupfer): darüber bricht Forever-Lua mit „integer overflow attempting to store …“ ab. Angebote zum Höchstpreis (fast 5 Mio. Gold) kommen im Auktionshaus vor, Auktionsnummern können ebenfalls groß werden. Geldbeträge und Nummern immer mit `%.0f` oder `tostring` schreiben (Broker 0.30.2). Die Tests bauen die Grenze nach (`test_client.lua`).

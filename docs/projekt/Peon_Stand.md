@@ -1,17 +1,17 @@
 # Peon: Stand je Modul
 
-Stand: 06.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.13.0 / Broker 0.34.0 / Bridge 0.6.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.17.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.2 / Fishing 1.5.2 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.3.0 / Feedback 0.3.1.
+Stand: 07.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.14.0 / Broker 0.35.0 / Bridge 0.6.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.17.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.11.0 / Fishing 1.6.0 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.4.0 / Feedback 0.4.0 / Panel 0.1.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
-## Peon (Kern) – 0.13.0, API 13
+## Peon (Kern) – 0.14.0, API 14
 
-- Dateien: Locales.lua, Core.lua, Feedback.lua (ab 0.9, direkt nach Core.lua), Module.lua, Options.lua, Widgets.lua, List.lua, Minimap.lua, Chart.lua (ab 0.10), Slash.lua
-- SavedVariables: `PeonDB`: `errors` (Fehlerspeicher ab 0.12.0: `addon`, `where`, `msg`, `version`, `build`, `first`, `last`, `n`, höchstens 100), `feedbackAreas` (Bereiche je Modul für den Manager, ab 0.13.0)
+- Dateien: Locales.lua, Core.lua, Feedback.lua (ab 0.9, direkt nach Core.lua), Module.lua, Options.lua, Widgets.lua, List.lua, Launcher.lua (ab 0.14), Minimap.lua, Chart.lua (ab 0.10), Slash.lua
+- SavedVariables: `PeonDB`: `errors` (Fehlerspeicher ab 0.12.0: `addon`, `where`, `msg`, `version`, `build`, `first`, `last`, `n`, höchstens 100), `feedbackAreas` (Bereiche je Modul für den Manager, ab 0.13.0), `panelHid` (von Peon_Panel ausgeblendete Minimap-Buttons, ab 0.14.0)
 - Fehlerspeicher (API 12): `Peon.RecordError`, `Peon.ClearErrors`, `Peon.ReportCoreError`, `mod:ReportError` speichert automatisch. Befehle `/peon fehler`, `/peon fehler leeren`.
 - Aufgaben: globales Objekt `Peon`, Modulverwaltung (`Peon:NewModule`), Einstellungen mit Standardwerten/Bereichen/erlaubten Werten, Übernahme alter Variablennamen (`oldDB`/`oldCharDB`), Ereignisse (INIT, LOGIN, COMBAT_START, COMBAT_END, RESET, CHANGED), Debug-Log, Einstellungsseite „Peon“ mit Modulübersicht, Optionsseite mit Bildlauf und Bausteinen (Header, Slider, Check mit Hinweis/eigenen Werten, Dropdown, Choice, PositionGrid, Color, Button, Text, Reset-Knopf, mitwachsende Anordnung), `keepOnReset`, `/peon`.
 - Noch nicht im Kern: `RegisterUnitEvent`.
 - Verlauf der Versionen: `docs/changelog/Peon.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.13.0, 0.12.0, 0.11.1, 0.10.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.14.0, 0.13.0, 0.12.0, 0.11.1, 0.10.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon_Tooltip – 0.7.4 (früher TooltipPlus)
 
@@ -33,7 +33,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Optionsseite: Kern-Bausteine, mit Vorschau.
 - Verlauf der Versionen: `docs/changelog/Peon_ComboPoints.md`
 
-## Peon_Fishing – 1.5.2 (früher FishingPlus)
+## Peon_Fishing – 1.6.0 (früher FishingPlus)
 
 - Dateien: Locales.lua, Fishing.lua, Sets.lua, Click.lua, Lure.lua, Keys.lua, Combat.lua, Sound.lua, Minimap.lua, Catches.lua, Options.lua, Bindings.xml
 - SavedVariables: `PeonFishingDB` (accountweit), `PeonFishingCharDB` (pro Charakter, z. B. Mirel-Dorna); `dbVersion` = 3
@@ -45,9 +45,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Wertebereiche (`ranges`): Reichweite 10–100 m (5er), Musik/Umgebung/Effekte 0–100 % (5er), Nachlaufzeit 0–15 s.
 - Neues Angel-Set: nur Haupt- und Nebenhand aktiv (ab 1.5.2).
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.34.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.35.0 (neu, Auktionshaus-Helfer)
 
 - Konzept: `Peon_Broker_Konzept.md` (freigegeben 29.09.2026) – Funktionsumfang, Preisvorschlag, Markttrennung, Bauabschnitte.
 - Dateien: Locales.lua, Broker.lua, Data.lua, Scan.lua, Tooltip.lua, Window.lua, Keep.lua, Sell.lua, Auctions.lua, Shop.lua (ab 0.34), Buy.lua, Radar.lua, Prices.lua, Probe.lua, Options.lua, Start.lua und Craft.lua (ab 0.24; Merchant.lua 0.19–0.23 entfernt), Media\trend_*.tga (5 Trend-Symbole, 32×32, selbst erstellt: dunkelgrün ↑, hellgrün ↗, blauer Balken, orange ↘, rot ↓), Media\dot_new.tga (grüner Punkt für neue Radar-Treffer, ab 0.19)
@@ -90,7 +90,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Bridge.md`
 - Im Spiel prüfen (nach dem Start): Optionsseite zeigt „Kanal broker freigeschaltet“ und „Peon Manager: Werte vom … (Version 0.6.0)“.
 
-## Peon_Ledger – 0.10.2 (neu, Bestand und Buch)
+## Peon_Ledger – 0.11.0 (neu, Bestand und Buch)
 
 - Konzept: `Peon_Ledger_Konzept.md` (abgestimmt 02.10.2026). Bestand aller Charaktere, alle Bewegungen von Gegenständen und Gold mit Grund (nur ereignisgesteuert), Post einsammeln, Buch; Broker liest später nur daraus.
 - Dateien: Locales.lua, Ledger.lua, Inventory.lua, Moves.lua, Cost.lua (ab 0.7), Tooltip.lua, Window.lua, Overview.lua, Stock.lua, History.lua, Book.lua, Catalog.lua (ab 0.10), Item.lua (ab 0.9), Pick.lua und Bindings.xml (ab 0.9.1), Probe.lua, Options.lua; Symbol `INV_Scroll_03` (bis 0.9.1 `INV_Misc_Book_09`, das nutzt schon das Dungeon-Journal)
@@ -120,7 +120,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 
 **5. Später:** Verkaufsquote (Ledger) und Absatzquote (Broker) verbinden; nach erfolgreichen Tests Ledger 1.0.
 
-## Peon_Feedback – 0.3.1 (Zusatz, Feedback im Spiel)
+## Peon_Feedback – 0.4.0 (Zusatz, Feedback im Spiel)
 
 - Dateien: Locales.lua, Feedback.lua, Window.lua, Options.lua. Symbol `INV_Misc_Note_01`. `## OptionalDeps: Peon_Bridge`
 - SavedVariables: `PeonFeedbackDB` (accountweit): `entries` (id, t, module, kind, area, prio, text, char, market, zone, ver, edited, handed = an den Manager übergeben und ausgeblendet), `nextId`, `last`, `windowPos`, `minimapShow`, `minimapAngle`
@@ -139,7 +139,16 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Befehle: `/peon mover` (Optionen), `/peon mover zuruecksetzen` (alle Fenster), `/peon debug mover` (Log: eingehängte Fenster, Verschieben, Größe).
 - Verlauf der Versionen: `docs/changelog/Peon_Mover.md`
 
-## Peon_Bags – 0.3.0 (neu, Taschen, Bank, Gildenbank)
+## Peon_Panel – 0.1.0 (neu, Leiste und Panel)
+
+- Konzept: `Peon_Panel_Konzept.md` (abgestimmt 06.11.2026). Dateien: Locales.lua, Panel.lua, Display.lua, Menu.lua, Options.lua; Symbol `INV_Misc_Spyglass_03`.
+- SavedVariables: `PeonPanelDB` (accountweit): `barPos` (8 Stellen oder `none`, Standard `TOP`), `barX`, `barY` (0–800), `barSize` (14–40, 22), `barBg`, `barVis`, `boxShow` (aus), `boxCols` (0–8, 0 = möglichst quadratisch), `boxSize` (16–48, 28), `boxBg`, `boxVis`, `boxLocked`, `boxPos` (x, y), `entries[Starter] = { bar, box, text }`, `barOrder`, `boxOrder`, `known`, `hintShown`. `barVis` und `boxVis`: `always`, `hover`, `combat`. Bei „Standardwerte“ bleiben `boxPos`, `entries`, die Reihenfolgen und die Merker.
+- Braucht Peon API 14. Module melden sich als Starter (`mod:NewLauncher`, `mod:NewMinimapButton`). Der Peon-Starter kommt aus Panel, weil der Kern kein Modul ist.
+- Befehle: `/peon panel` (Optionen), `/peon debug panel`.
+- Verlauf der Versionen: `docs/changelog/Peon_Panel.md`
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.1.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+
+## Peon_Bags – 0.4.0 (neu, Taschen, Bank, Gildenbank)
 
 - Konzept: `Peon_Bags_Konzept.md` (abgestimmt 07.10.2026), eigene Bereiche `Peon_Bags_Bereiche.md` (abgestimmt 06.11.2026). Ersetzt Bagnon, Bagnon_Bank, Bagnon_GuildBank und BagBrother (Twinks zeigt Ledger).
 - Dateien: Locales.lua, Bags.lua, Groups.lua (ab 0.3), Slots.lua, Window.lua, Inventory.lua, Bank.lua, Guild.lua, Options.lua; Symbol `INV_Misc_Bag_08`.
@@ -160,6 +169,10 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 ## Offene Punkte
 
 Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie beschlossen sind.
+
+### Neues Modul Peon_Panel (beschlossen 06.11.2026, Konzept `Peon_Panel_Konzept.md`)
+
+Gebaut mit Peon 0.14.0 und Peon_Panel 0.1.0, dazu Starter und Texte in Broker 0.35.0, Ledger 0.11.0, Fishing 1.6.0, Bags 0.4.0 und Feedback 0.4.0. Noch in keinem Release und im Spiel noch nicht geprüft (Konzept, Abschnitt 9). Neue Dateien, also WoW neu starten.
 
 ### Peon_Bags: eigene Bereiche (beschlossen 06.11.2026, Konzept `Peon_Bags_Bereiche.md`)
 

@@ -12,6 +12,7 @@
     "Peon_Fishing":     { "api": 6 },
     "Peon_Ledger":      { "api": 10 },
     "Peon_Mover":       { "api": 7 },
+    "Peon_Panel":       { "api": 14 },
     "Peon_Tooltip":     { "api": 6 }
   },
   "managerModules": [

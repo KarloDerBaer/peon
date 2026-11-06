@@ -174,5 +174,5 @@ test('Echtes Repo: alle Addons, Bridge nur fuer den Manager, ohne Data.lua', () 
   assert.ok(m.addons.every((a) => a.notes === ''), 'erstes Release ohne Was ist neu');
   const spaeter = R.build({ out: tmp('echt2'), tag: 'v2026.11.04', dirty: true, prev: { addons: [] } }).manifest;
   assert.ok(spaeter.addons.every((a) => a.notes.startsWith(`### ${a.version}`)), 'jede Version hat einen Changelog-Abschnitt');
-  assert.equal(m.addons.find((a) => a.name === 'Peon').api, 13);
+  assert.equal(m.addons.find((a) => a.name === 'Peon').api, 14);
 });

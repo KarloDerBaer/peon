@@ -372,7 +372,20 @@ local function CreateMinimapButton()
             end
             tt:AddLine(L.MM_PROBE:format(when), 0.6, 0.6, 0.6)
         end,
+        -- Texte fuer Peon_Panel
+        texts = {
+            { key = "age", label = L.TEXT_SCAN_AGE, get = function()
+                local market = ns.Data.Market()
+                return market and market.lastScan and ns.Scan.Age(market.lastScan) or L.TEXT_NO_SCAN
+            end },
+            { key = "offers", label = L.TEXT_SCAN_OFFERS, get = function()
+                local market = ns.Data.Market()
+                return market and market.lastListings and L.TEXT_OFFERS:format(Peon.ShortNumber(market.lastListings)) or L.TEXT_NO_SCAN
+            end },
+        },
+        defaultText = "age",
     })
+    mod:On("SCAN_DONE", function() if mod.launcher then mod.launcher:Refresh() end end)
 end
 
 mod:On("INIT", function()

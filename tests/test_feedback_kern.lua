@@ -228,4 +228,18 @@ do
   PeonBridgeData = nil
 end
 
+-- Text fuer Peon_Panel (ab 0.4)
+do
+  local s = mod.launcher
+  check(s and s.defaultText == "count", "0.4: Starter ueber den Minimap-Button")
+  local before = #ns.Visible()
+  check(s:GetText("count") == before .. " offen", "0.4: Anzahl der Rueckmeldungen: " .. tostring(s:GetText("count")))
+  local refreshed = 0
+  Peon.OnLauncherRefresh(function() refreshed = refreshed + 1 end)
+  local e = ns.Add({ text = "Noch eine" })
+  check(refreshed == 1 and s:GetText("count") == (before + 1) .. " offen", "0.4: Schreiben aktualisiert den Text")
+  ns.Delete(e.id)
+  check(refreshed == 2 and s:GetText("count") == before .. " offen", "0.4: Loeschen aktualisiert den Text")
+end
+
 print("ALLE TESTS OK")

@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 1.6.0
+
+Kurz: Mit Peon_Panel liegt das Angeln auf der Leiste, samt Köder-Menü und Anzeige von Angelmodus oder Köder.
+
+- 1.6.0 (07.11.2026): Starter für Peon_Panel neben dem eigenen Minimap-Button: gleiche Färbung des Symbols, gleicher Tooltip, Menü mit Köder und Optionen, Texte Angelmodus (Standard) und Köder. Der eigene Button bleibt, das Menü ist in eine gemeinsame Funktion gezogen.
+  - **Im Spiel prüfen:** Menü am Minimap-Button wie bisher, Symbol und Text auf der Leiste wechseln mit dem Angelmodus.
+
 ## 1.5.2
 
 Kurz: Neue Angel-Sets nutzen nur noch Haupt- und Nebenhand und gehen beim Tausch von Rüstung nicht mehr kaputt.

@@ -186,6 +186,12 @@ local function CreateMinimapButton()
             local total, chars = ns.Inventory.TotalMoney()
             tt:AddLine(L.MM_MONEY:format(ns.Money(total), chars), 1, 1, 1)
         end,
+        -- Texte fuer Peon_Panel
+        texts = {
+            { key = "goldAll", label = L.TEXT_GOLD_ALL, get = function() return Peon.ShortGold((ns.Inventory.TotalMoney())) end },
+            { key = "goldMe", label = L.TEXT_GOLD_ME, get = function() return Peon.ShortGold(GetMoney()) end },
+        },
+        defaultText = "goldAll",
     })
 end
 

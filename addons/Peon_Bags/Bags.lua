@@ -283,6 +283,30 @@ mod:On("LOGIN", function()
     if ns.InitInventory then mod:Call("Taschen", ns.InitInventory) end
     if ns.InitBank then mod:Call("Bank", ns.InitBank) end
     if ns.InitGuild then mod:Call("Gildenbank", ns.InitGuild) end
+    -- Symbol fuer Peon_Panel (Bags hat keinen Minimap-Button)
+    if mod.NewLauncher then
+        local function Slots()
+            local free, total = 0, 0
+            for _, bag in ipairs(ns.BagIDs()) do
+                free = free + ns.FreeSlots(bag)
+                total = total + ns.NumSlots(bag)
+            end
+            return free, total
+        end
+        mod:NewLauncher({
+            icon = "Interface\\Icons\\INV_Misc_Bag_08",
+            onClick = function() ns.ToggleBags() end,
+            onTooltip = function(_, tooltip) tooltip:AddLine(L.FREE:format(Slots()), 1, 1, 1) end,
+            texts = {
+                { key = "free", label = L.TEXT_FREE_LABEL, get = function() return L.TEXT_FREE:format((Slots())) end },
+                { key = "used", label = L.TEXT_USED_LABEL, get = function()
+                    local free, total = Slots()
+                    return ("%d/%d"):format(total - free, total)
+                end },
+            },
+            defaultText = "free",
+        })
+    end
 end)
 
 local function ApplyAll()

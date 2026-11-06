@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.4.0
+
+Kurz: Mit Peon_Panel öffnest du die Taschen von der Leiste aus und siehst die freien Plätze.
+
+- 0.4.0 (07.11.2026): Starter für Peon_Panel, ohne Minimap-Button: Klick öffnet und schließt die Taschen, Texte freie Plätze (Standard) sowie belegte und alle Plätze. Die Reagenzientasche zählt wie im Fuß des Fensters nicht mit.
+
 ## 0.3.0
 
 Kurz: In Taschen und Bank kannst du jetzt eigene Bereiche anlegen und Gegenstände per Ziehen auf die Überschrift zuordnen, zum Beispiel alles, was du behalten willst.
