@@ -37,7 +37,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 | Peon_Fishing (früher FishingPlus) | 1.5.2 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
 | Peon_Broker (neu, Auktionshaus) | 0.33.1 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
 | Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.4.0 | `PeonBridgeDB` | /peon bridge |
-| Peon_Feedback | 0.3.0 | `PeonFeedbackDB` | /feedback |
+| Peon_Feedback | 0.3.1 | `PeonFeedbackDB` | /feedback |
 | Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
 | Peon_Ledger (neu, Bestand und Buch) | 0.10.2 | `PeonLedgerDB` | /ledger |
 | Peon_Bags (neu, Taschen, Bank, Gildenbank) | 0.2.2 | `PeonBagsDB` | /peon bags |

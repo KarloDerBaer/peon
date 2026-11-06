@@ -82,9 +82,7 @@ local function ShortTime(t) return date("%d.%m. %H:%M", t) end
 
 local function RefreshList()
     if not list then return end
-    local items = {}
-    for _, e in ipairs(mod.db and mod.db.entries or {}) do items[#items + 1] = e end
-    list:SetData(items)
+    list:SetData(ns.Visible())
     list:Refresh()
 end
 ns.RefreshList = RefreshList
@@ -288,7 +286,10 @@ local function Create()
     send:SetSize(118, 24)
     send:SetPoint("RIGHT", okb, "LEFT", -4, 0)
     send:SetText(L.TO_MANAGER)
-    send:SetScript("OnClick", function() ns.SendToManager() end)
+    send:SetScript("OnClick", function()
+        local n, hint = ns.SendToManager()
+        if not n then SetStatus(hint, 1, 0.3, 0.3) end
+    end)
     ns.sendButton = send
     frame:HookScript("OnHide", function() if ns.editFrame then ns.editFrame:Hide() end end)
 
@@ -300,7 +301,8 @@ local function Create()
         sel.prio   = last.prio or sel.prio
         UpdateDropdowns()
         RefreshList()
-        SetStatus("")
+        local handed = ns.HandedCount()
+        if handed > 0 then SetStatus(L.HANDED:format(handed), 0.55, 0.81, 0.3) else SetStatus("") end
     end)
 end
 

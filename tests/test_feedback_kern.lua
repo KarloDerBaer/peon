@@ -204,12 +204,28 @@ do
   check(ns.ApplyManagerMark() == 0 and #PeonFeedbackDB.entries == 3, "ohne Data.lua bleibt alles")
   PeonBridgeData = { fmt = 2, feedbackClearBefore = 200 }
   check(ns.ApplyManagerMark() == 1 and #PeonFeedbackDB.entries == 2 and PeonFeedbackDB.entries[1].id == 2, "Marke loescht, was der Manager hat, Geaendertes bleibt")
-  PeonBridgeData = nil
-  local reloaded = false
-  ReloadUI = function() reloaded = true end
+
+  -- Ausblenden beim Uebergeben (ab 0.3.1)
+  local reloads = 0
+  ReloadUI = function() reloads = reloads + 1 end
   ns.Show()
+  PeonBridgeData = nil
   ns.sendButton.scripts.OnClick(ns.sendButton)
-  check(reloaded, "Knopf An Manager laedt neu")
+  check(reloads == 0 and #ns.Visible() == 2 and ns.HandedCount() == 0, "ohne Manager: nichts ausblenden, kein Neuladen")
+  PeonBridgeData = { fmt = 2 }
+  ns.sendButton.scripts.OnClick(ns.sendButton)
+  check(reloads == 1, "Knopf An Manager laedt neu")
+  check(#PeonFeedbackDB.entries == 2 and PeonFeedbackDB.entries[1].text == "spaeter geaendert", "Eintraege bleiben fuer den Manager in der Datei")
+  check(#ns.Visible() == 0 and ns.HandedCount() == 2 and ns.Counts() == 0, "uebergebene sind ausgeblendet und zaehlen nicht")
+  ns.GetFrame().scripts.OnShow(ns.GetFrame())
+  ns.sendButton.scripts.OnClick(ns.sendButton)
+  check(reloads == 1, "nichts mehr zu uebergeben: kein Neuladen")
+  ns.GetEditBox():SetText("noch eine")
+  ns.Save()
+  check(#ns.Visible() == 1, "neue Rueckmeldung erscheint in der Liste")
+  PeonBridgeData = { fmt = 2, feedbackClearBefore = 400 }
+  check(ns.ApplyManagerMark() == 2 and ns.HandedCount() == 0 and #ns.Visible() == 1, "Marke loescht die uebergebenen, neue bleibt")
+  PeonBridgeData = nil
 end
 
 print("ALLE TESTS OK")

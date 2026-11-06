@@ -194,9 +194,39 @@ function ns.ApplyManagerMark()
     return n
 end
 
--- Gespeichertes dem Spiel zum Schreiben geben, dort holt es der Manager ab
+-- Hat das Spiel schon Daten vom Manager? Ohne ihn holt niemand etwas ab (ab 0.3.1)
+function ns.HasManager()
+    local data = rawget(_G, "PeonBridgeData")
+    return type(data) == "table" and data.fmt ~= nil
+end
+
+-- Sichtbare Einträge (ab 0.3.1): Übergebene blendet die Liste aus
+function ns.Visible()
+    local out = {}
+    for _, e in ipairs(mod.db and mod.db.entries or {}) do
+        if not e.handed then out[#out + 1] = e end
+    end
+    return out
+end
+
+function ns.HandedCount()
+    local n = 0
+    for _, e in ipairs(mod.db and mod.db.entries or {}) do
+        if e.handed then n = n + 1 end
+    end
+    return n
+end
+
+-- An den Manager übergeben (ab 0.3.1): Das Spiel schreibt die Datei erst beim Neuladen. Die Einträge müssen darin stehen,
+-- damit der Manager sie lesen kann. Sie werden deshalb nur markiert und ausgeblendet, gelöscht wird später über die Marke.
+-- Rückgabe: Anzahl übergeben, oder nil und Hinweis
 function ns.SendToManager()
+    if not ns.HasManager() then return nil, L.NO_MANAGER end
+    local visible = ns.Visible()
+    if #visible == 0 then return nil, L.NOTHING_TO_SEND end
+    for _, e in ipairs(visible) do e.handed = true end
     if ReloadUI then ReloadUI() end
+    return #visible
 end
 
 function ns.Get(id)
@@ -205,7 +235,7 @@ end
 
 function ns.Counts()
     local n, high = 0, 0
-    for _, e in ipairs(mod.db and mod.db.entries or {}) do
+    for _, e in ipairs(ns.Visible()) do
         n = n + 1
         if e.prio == "high" then high = high + 1 end
     end

@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 06.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.13.0 / Broker 0.33.1 / Bridge 0.5.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.14.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.2 / Fishing 1.5.2 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2 / Feedback 0.3.0.
+Stand: 06.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.13.0 / Broker 0.33.1 / Bridge 0.5.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.14.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.2 / Fishing 1.5.2 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2 / Feedback 0.3.1.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.13.0, API 13
@@ -115,14 +115,14 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 
 **5. Später:** Verkaufsquote (Ledger) und Absatzquote (Broker) verbinden; nach erfolgreichen Tests Ledger 1.0.
 
-## Peon_Feedback – 0.3.0 (Zusatz, Feedback im Spiel)
+## Peon_Feedback – 0.3.1 (Zusatz, Feedback im Spiel)
 
 - Dateien: Locales.lua, Feedback.lua, Window.lua, Options.lua. Symbol `INV_Misc_Note_01`. `## OptionalDeps: Peon_Bridge`
-- SavedVariables: `PeonFeedbackDB` (accountweit): `entries` (id, t, module, kind, area, prio, text, char, market, zone, ver, edited), `nextId`, `last`, `windowPos`, `minimapShow`, `minimapAngle`
+- SavedVariables: `PeonFeedbackDB` (accountweit): `entries` (id, t, module, kind, area, prio, text, char, market, zone, ver, edited, handed = an den Manager übergeben und ausgeblendet), `nextId`, `last`, `windowPos`, `minimapShow`, `minimapAngle`
 - Befehle: `/feedback` bzw. `/peon feedback` (Fenster), `/feedback optionen`, `/peon debug feedback`
-- Funktionen: Rückmeldungen im Spiel schreiben, ändern und löschen, Knopf „An Manager“ lädt neu und übergibt sie. Der Manager liest sie ein und führt sie weiter, das Addon löscht beim nächsten Laden, was er hat. Ohne Manager bleiben sie nur im Spiel.
+- Funktionen: Rückmeldungen im Spiel schreiben, ändern und löschen, Knopf „An Manager“ blendet sie aus, lädt neu und übergibt sie. Der Manager liest sie ein und führt sie weiter, das Addon löscht beim nächsten Laden, was er hat. Ohne Manager bleiben sie nur im Spiel.
 - Braucht Peon API 7, Bereiche ab API 9. Aus dem Archiv zurück (0.2.0 bleibt in `<Archiv>\Peon_Feedback_0.2.0\`).
-- **Noch offen bei KarloDerBaer:** Der AddOns-Ordner enthält noch den normalen Ordner 0.2.0. Ins Archiv verschieben und `scripts\junctions.cmd anlegen` ausführen, WoW muss dafür geschlossen sein.
+- Bei KarloDerBaer per Junction auf `addons\` verbunden (06.11.2026), der frühere Ordner 0.2.0 liegt in `<Archiv>\AddOns_vor_Peon_Feedback_2026-11-06\`.
 - Verlauf der Versionen: `docs/changelog/Peon_Feedback.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.3.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
