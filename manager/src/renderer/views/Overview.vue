@@ -7,7 +7,7 @@ import { when, num, pct, qualityColor, pl } from '../util.js';
 import { statusLine, LAMP_TITLE } from '../status.js';
 
 const props = defineProps({ data: Object, market: Object, now: Number, theme: String, stamp: Number, settings: Object });
-const emit = defineEmits(['import', 'go', 'open', 'save']);
+const emit = defineEmits(['go', 'open', 'save']);
 const api = window.peon;
 
 const status = computed(() => statusLine(props.data, props.market, props.now));
@@ -41,9 +41,12 @@ const chartTitle = computed(() => {
 
 // Chancen und Absatz kommen aus derselben Rechnung wie der Reiter Chancen
 const ch = ref(null);
+const buyable = ref([]);   // Einkaufsliste: gerade unter dem Hoechstpreis
 async function load() {
-  if (!props.market) { ch.value = null; return; }
-  ch.value = await api.chances(props.market.key, 7);
+  if (!props.market) { ch.value = null; buyable.value = []; return; }
+  const [c, b] = await Promise.all([api.chances(props.market.key, 7), api.shopBuyable(props.market.key)]);
+  ch.value = c;
+  buyable.value = b;
 }
 onMounted(load);
 watch(() => [props.market && props.market.key, props.stamp], load);
@@ -92,6 +95,23 @@ const sold = computed(() => (ch.value ? [...ch.value.worth].sort((a, b) => b.per
         <span class="small muted">Offene Chancen</span><strong>{{ ch ? num(openChances.length) : '–' }}</strong>
         <span class="small muted" v-if="openChances.length">zusammen <Gold :copper="chanceSum" compact /> Gewinn</span>
       </div>
+    </section>
+
+    <section class="block" v-if="buyable.length" aria-label="Einkaufsliste">
+      <div class="block-head">
+        <h2>Jetzt kaufbar</h2>
+        <button class="link small" @click="emit('go', 'shopping')">Zur Einkaufsliste</button>
+      </div>
+      <table class="tbl">
+        <tbody>
+          <tr v-for="r in buyable.slice(0, 5)" :key="r.key" class="click" tabindex="0" @click="emit('open', r.key)" @keydown.enter="emit('open', r.key)">
+            <td class="name" :style="{ color: qualityColor(r.quality) }" :title="r.name || r.key">{{ r.name || r.key }}</td>
+            <td class="muted small kind">{{ r.list }}, {{ pl(r.hits, 'Stück', 'Stück') }}</td>
+            <td class="num win"><Gold :copper="r.cheapest" compact /></td>
+            <td class="num muted">bis <Gold :copper="r.limit" compact /></td>
+          </tr>
+        </tbody>
+      </table>
     </section>
 
     <section class="block">

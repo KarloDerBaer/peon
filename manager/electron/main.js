@@ -12,7 +12,7 @@ const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, ses
 const { Service } = require('../src/core/service');
 const { createUpdater } = require('./updater');
 const backup = require('../src/core/backup');
-const { money: watchMoney } = require('../src/core/watch');
+const { money: shopMoney } = require('../src/core/shopping');
 const blizzard = require('../src/core/blizzard');
 const { BlizzardWatch } = require('../src/core/blizzard-watch');
 const { findWowDirs, REPO_URL } = require('../src/core/addons');
@@ -82,27 +82,30 @@ if (!app.requestSingleInstanceLock()) {
     tray.on('click', showWindow);
   }
 
-  // Menue im Infobereich: Eintraege des Broker Client nur, wenn er installiert ist
+  // Menue im Infobereich
   function updateTray() {
     if (!tray) return;
     const items = [{ label: 'Fenster öffnen', click: showWindow }];
-    if (svc.broker) {
-      items.push({ label: 'Jetzt einlesen', click: () => runImport('Infobereich') });
-    }
     items.push({ type: 'separator' }, { label: 'Beenden', click: () => { quitting = true; app.quit(); } });
     tray.setContextMenu(Menu.buildFromTemplate(items));
   }
 
-  // Preisalarm der Merkliste: Meldung von Windows, ein Klick oeffnet den Gegenstand
-  function notifyWatch() {
-    const hits = svc.broker.watchCheck();
-    if (!hits.length || !svc.settings.watchNotify || !Notification.isSupported()) return;
+  // Einkaufsliste: Meldung von Windows, wenn ein Angebot unter dem Hoechstpreis liegt. Ein Klick oeffnet den Gegenstand.
+  function notifyShop() {
+    const hits = svc.broker.shopCheck();
+    if (!hits.length || !svc.settings.shopNotify || !Notification.isSupported()) return;
     for (const h of hits.slice(0, 5)) {
-      const n = new Notification({ title: 'Peon Manager: Preisalarm', body: `${h.name} gibt es ab ${watchMoney(h.min)}, deine Grenze ist ${watchMoney(h.below)}.`, icon });
+      const n = new Notification({ title: 'Peon Manager: Einkaufsliste', body: `${h.name} gibt es ab ${shopMoney(h.min)}, dein Höchstpreis ist ${shopMoney(h.limit)} (${h.label}).`, icon });
       n.on('click', () => { showWindow(); send('openItem', { market: h.market, key: h.key }); });
       n.show();
     }
-    if (hits.length > 5) new Notification({ title: 'Peon Manager: Preisalarm', body: `Dazu ${hits.length - 5} weitere auf der Merkliste.`, icon }).show();
+    if (hits.length > 5) new Notification({ title: 'Peon Manager: Einkaufsliste', body: `Dazu ${hits.length - 5} weitere auf deinen Listen.`, icon }).show();
+  }
+
+  // Laeuft WoW? Daraus folgt der Hinweis in der Kopfleiste
+  async function watchGame() {
+    if (!svc.broker) return;
+    if (svc.broker.noteGame(await wowRunning())) send('changed', { what: 'spielstand' });
   }
 
   // ---------- Einlesen ----------
@@ -117,7 +120,7 @@ if (!app.requestSingleInstanceLock()) {
         try { lastSeen.set(f.file, Math.floor(fs.statSync(f.file).mtimeMs / 1000)); } catch { /* weg */ }
       }
       if (r.imported > 0 && tray) tray.setToolTip(`Peon Manager: ${r.imported} neue Momentaufnahmen`);
-      notifyWatch();
+      notifyShop();
       send('changed', { what: 'spiel', why, imported: r.imported });
       return r;
     } catch (e) {
@@ -297,7 +300,6 @@ if (!app.requestSingleInstanceLock()) {
   // ---------- Befehle fuer die Oberflaeche ----------
   function registerIpc() {
     ipcMain.handle('overview', () => svc.overview());
-    ipcMain.handle('import', () => runImport('Knopf'));
     ipcMain.handle('blizzardState', () => blizzardState());
     ipcMain.handle('blizzardSave', (_e, c) => { blizzardAccess.save(c); watchBlizzard().catch(() => {}); return blizzardState(); });
     ipcMain.handle('blizzardClear', () => { blizzardAccess.clear(); blizzardWatch = null; return blizzardState(); });
@@ -329,11 +331,20 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('settings', () => svc.settings);
     ipcMain.handle('items', (_e, market) => (svc.broker ? svc.broker.itemList(String(market)) : null));
     ipcMain.handle('item', (_e, market, key, range) => (svc.broker ? svc.broker.itemDetail(String(market), String(key), String(range || '30d')) : null));
-    ipcMain.handle('itemInfo', (_e, id) => (svc.broker ? svc.broker.info.get(Number(id), blizzardClient()) : null));
+    ipcMain.handle('itemInfo', (_e, key) => (svc.broker ? svc.broker.itemTip(String(key), blizzardClient()) : null));
     ipcMain.handle('chances', (_e, market, days) => (svc.broker ? svc.broker.chances(String(market), Number(days) || null) : null));
-    ipcMain.handle('watchList', (_e, market) => (svc.broker ? svc.broker.watchList(String(market)) : []));
-    ipcMain.handle('watchSet', (_e, market, key, below) => { const r = svc.broker.watchSet(String(market), String(key), below == null ? null : Number(below)); notifyWatch(); send('changed', { what: 'merkliste' }); return r; });
-    ipcMain.handle('watchRemove', (_e, market, key) => { svc.broker.watchRemove(String(market), String(key)); send('changed', { what: 'merkliste' }); return true; });
+    ipcMain.handle('favorites', () => (svc.broker ? svc.broker.favorites() : []));
+    ipcMain.handle('setFavorite', (_e, key, on) => svc.broker.setFavorite(String(key), !!on));
+    const shopChanged = (r) => { send('changed', { what: 'einkaufsliste' }); return r; };
+    ipcMain.handle('shopView', (_e, market) => (svc.broker ? svc.broker.shopView(String(market)) : { lists: [] }));
+    ipcMain.handle('shopBuyable', (_e, market) => (svc.broker ? svc.broker.shopBuyable(String(market)) : []));
+    ipcMain.handle('shopLists', (_e, key) => (svc.broker ? svc.broker.shopLists(key == null ? null : String(key)) : []));
+    ipcMain.handle('shopNewList', (_e, name) => shopChanged(svc.broker.newShopList(name == null ? '' : String(name))));
+    ipcMain.handle('shopDeleteList', (_e, id) => shopChanged(svc.broker.deleteShopList(id)));
+    ipcMain.handle('shopUpdateList', (_e, id, patch) => shopChanged(svc.broker.updateShopList(id, patch || {})));
+    ipcMain.handle('shopAdd', (_e, id, key) => { const r = svc.broker.addShopItem(id, key); notifyShop(); return shopChanged(r); });
+    ipcMain.handle('shopRemove', (_e, id, key) => shopChanged(svc.broker.removeShopItem(id, key)));
+    ipcMain.handle('shopSet', (_e, id, key, patch) => { const r = svc.broker.setShopItem(id, key, patch || {}); notifyShop(); return shopChanged(r); });
     ipcMain.handle('backupCreate', async () => {
       const r = await dialog.showOpenDialog(win, { title: 'Wohin soll die Sicherung?', properties: ['openDirectory', 'createDirectory'] });
       if (r.canceled || !r.filePaths[0]) return null;
@@ -438,6 +449,8 @@ if (!app.requestSingleInstanceLock()) {
     }, 60 * 60 * 1000);
     setupWatch();
     setInterval(poll, 60 * 1000);
+    watchGame().catch(() => {});
+    setInterval(() => watchGame().catch(() => {}), 30 * 1000);
     // Rueckmeldungen: gehoeren zu keinem Modul, einmal je Minute nach Neuem sehen (liest nur geaenderte Dateien)
     setInterval(() => { try { if (svc.reports.scan()) send('changed', { what: 'rueckmeldungen' }); } catch { /* steht im Protokoll */ } }, 60 * 1000);
     // Tageswechsel: Werte fuer Broker neu rechnen (Alter der Tage verschiebt sich), schreibt nur bei Aenderung

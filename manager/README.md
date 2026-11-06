@@ -9,7 +9,7 @@ Design: `..\docs\konzepte\manager\Peon_Client_Design.md` (Funktionen) und `..\do
 | Ordner | Inhalt |
 |---|---|
 | `electron\` | Hauptteil: Fenster, Infobereich, Dateiwächter, Zeitplan (`main.js`), Selbst-Update (`updater.js`), feste Befehlsliste für die Oberfläche (`preload.js`), Symbol |
-| `src\core\` | Rechenkern ohne Electron: Manager (`service.js`), Liste der Manager-Module (`modules.js`), Modul Peon Broker Client (`broker-client.js`), Addons installieren (`addons.js`, `zip.js`), Lua-Leser, Datenbanken, Einleser Spiel, Blizzard-API (`blizzard.js`, Einleser `blizzard-import.js`, Beobachter `blizzard-watch.js`), Rückgabe `Data.lua`, Kennzahlen |
+| `src\core\` | Rechenkern ohne Electron: Manager (`service.js`), Liste der Manager-Module (`modules.js`), Modul Peon Broker Client (`broker-client.js`, Einkaufsliste `shopping.js`, Märkte `markets.js`), Addons installieren (`addons.js`, `zip.js`), Lua-Leser, Datenbanken, Einleser Spiel, Blizzard-API (`blizzard.js`, Einleser `blizzard-import.js`, Beobachter `blizzard-watch.js`), Rückgabe `Data.lua`, Kennzahlen |
 | `src\renderer\` | Oberfläche (Vue 3, ECharts, Schrift Barlow) |
 | `test\` | Tests des Rechenkerns (`*.test.js`), echte WTF-Datei als Beispiel (`fixtures\`), Vergleich mit Brokers Lua-Code (`lua\`), Bildschirmfotos der Oberfläche (`ui\`) |
 

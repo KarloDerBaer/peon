@@ -1,6 +1,7 @@
 -- Peon_Broker - Buy.lua
 -- Reiter "Einkaufsliste" (Bauabschnitt 7, abgestimmt 30.09.2026, Peon_Broker_Einkaufen.md, Rechenmodell Kap. 5):
---   Einkaufslisten (je Charakter, Rabatt x % unter dem Median je Liste, Wunschmenge je Gegenstand).
+--   Einkaufslisten (ab 0.34 accountweit und abgeglichen mit dem Peon Manager, Shop.lua; Rabatt x % unter dem Median je Liste,
+--   Wunschmenge und optionaler eigener Hoechstpreis je Gegenstand).
 --   Schnaeppchen: ab 0.14 eigener Reiter "Radar" (Radar.lua); B.Deals/B.ScanFresh/B.live werden dort genutzt.
 -- Anklicken: Live-Abfrage und Anzeige in Blizzards Kaufen-Ansicht. "Kaufen": Rueckfrage mit Preis, dann kaufen.
 
@@ -24,13 +25,54 @@ local function Call(obj, name, ...)
 end
 
 ---------------------------------------------------------------------------
--- Einkaufslisten (je Charakter): char.lists = { { name, pct, items = { [Schluessel] = { wish, name, q, icon } } } }
+-- Einkaufslisten (accountweit, ab 0.34): acc.lists = { { id, name, pct, u, items = { [Schluessel] = { wish, max, name, q, icon, u } } } },
+-- acc.listsGone = Loeschmarken (Shop.lua). Gewaehlte Liste je Charakter (char.listSel).
 ---------------------------------------------------------------------------
-function B.Lists()
+local function Shop() return ns.Shop end
+
+function B.NewId()
+    return ("g%.0f_%d"):format(time(), math.random(1, 1000000))
+end
+
+function B.Gone()
+    local a = mod.acc
+    if type(a.listsGone) ~= "table" then a.listsGone = {} end
+    local g = a.listsGone
+    if type(g.lists) ~= "table" then g.lists = {} end
+    if type(g.items) ~= "table" then g.items = {} end
+    return g
+end
+
+-- Listen dieses Charakters (bis 0.33) einmalig uebernehmen. Gleicher Name: in die vorhandene Liste, nichts geht verloren.
+function B.TakeCharLists(lists)
     local c = mod.char
-    if type(c) ~= "table" then return {} end
-    if type(c.lists) ~= "table" then c.lists = {} end
-    return c.lists
+    if type(c) ~= "table" or type(c.lists) ~= "table" then return end
+    local now = time()
+    for _, old in ipairs(c.lists) do
+        if type(old) == "table" then
+            local into
+            for _, l in ipairs(lists) do if l.name == old.name then into = l end end
+            if not into then
+                into = { id = B.NewId() .. "_" .. #lists, name = old.name, pct = old.pct or 10, u = now, items = {} }
+                lists[#lists + 1] = into
+            end
+            for key, it in pairs(type(old.items) == "table" and old.items or {}) do
+                if not into.items[key] and type(it) == "table" then
+                    it.u = now
+                    into.items[key] = it
+                end
+            end
+        end
+    end
+    c.lists = nil
+end
+
+function B.Lists()
+    local a = mod.acc
+    if type(a) ~= "table" then return {} end
+    if type(a.lists) ~= "table" then a.lists = {} end
+    B.TakeCharLists(a.lists)
+    return a.lists
 end
 
 function B.CurrentList()
@@ -41,7 +83,7 @@ end
 
 function B.NewList(name)
     local lists = B.Lists()
-    lists[#lists + 1] = { name = name or L.BUY_LIST_DEFAULT:format(#lists + 1), pct = 10, items = {} }
+    lists[#lists + 1] = { id = B.NewId(), name = name or L.BUY_LIST_DEFAULT:format(#lists + 1), pct = 10, u = time(), items = {} }
     mod.char.listSel = #lists
     return lists[#lists]
 end
@@ -49,6 +91,7 @@ end
 function B.DeleteList(i)
     local lists = B.Lists()
     if not lists[i] then return end
+    if lists[i].id then B.Gone().lists[lists[i].id] = Shop().NextU(time(), lists[i].u) end
     table.remove(lists, i)
     mod.char.listSel = math.max(1, math.min(i, #lists))
 end
@@ -56,7 +99,12 @@ end
 function B.AddItem(key, info)
     if key == nil then return false end
     local list = B.CurrentList() or B.NewList()
-    local e = list.items[key] or {}
+    local e = list.items[key]
+    if not e then
+        local gk = tostring(list.id) .. "|" .. tostring(key)
+        e = { u = Shop().NextU(time(), B.Gone().items[gk]) }
+        B.Gone().items[gk] = nil
+    end
     if type(info) == "table" then
         e.name = info.name or e.name
         e.q = info.quality or info.q or e.q
@@ -66,6 +114,32 @@ function B.AddItem(key, info)
     mod:Print(L.BUY_ADDED:format(e.name or tostring(key), list.name))
     if B.view then B.Refresh() end
     return true
+end
+
+function B.RemoveItem(list, key)
+    if not (list and list.items[key]) then return end
+    if list.id then B.Gone().items[tostring(list.id) .. "|" .. tostring(key)] = Shop().NextU(time(), list.items[key].u) end
+    list.items[key] = nil
+end
+
+-- Aenderung an einer Liste oder einem Eintrag vermerken (Abgleich mit dem Manager)
+function B.Touch(obj)
+    if obj then obj.u = Shop().NextU(time(), obj.u) end
+end
+
+-- Listen aus dem Manager einmischen, die Bridge ruft das beim Laden auf (Data.lua). Rueckgabe: true bei Aenderung
+function mod:MergeShop(data)
+    local lists = B.Lists()
+    local gone = B.Gone()
+    Shop().Purge(gone, time())
+    local changed = Shop().Merge(lists, gone, data)
+    for _, l in ipairs(lists) do
+        for key, it in pairs(l.items) do
+            if not it.icon then it.icon = B.Icon(ns.Data.ItemID(key)) end
+        end
+    end
+    if changed and B.view then mod:Call("Einkaufsliste", B.Refresh) end
+    return changed
 end
 
 function B.AddFromLink(link)
@@ -111,7 +185,7 @@ function B.ListRows()
     if not list then return rows end
     for key, it in pairs(list.items) do
         local e = ns.Data.Lookup(key)
-        local limit = ns.Data.MaxBuyPrice(e, list.pct)
+        local limit = tonumber(it.max) or ns.Data.MaxBuyPrice(e, list.pct)   -- eigener Hoechstpreis geht vor (ab 0.34)
         local live = B.live[key]
         local levels = live and live.rows or ns.Data.ParseLevels(type(e) == "table" and e.lv)
         local cheapest
@@ -785,6 +859,7 @@ function B.UpdateView()
         B.filling = true
         local it = cur and cur.items[row.key]
         B.wishBox:SetText(it and it.wish and tostring(it.wish) or "")
+        B.maxBox:SetText(it and it.max and tostring(it.max / 10000) or "")
         B.filling = false
     else
         B.itemBar:Hide()
@@ -867,7 +942,7 @@ function B.Build(c)
     B.nameBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     B.nameBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
-        if cur and not B.filling and (self:GetText() or "") ~= "" then cur.name = self:GetText(); B.Refresh() end
+        if cur and not B.filling and (self:GetText() or "") ~= "" and cur.name ~= self:GetText() then cur.name = self:GetText(); B.Touch(cur); B.Refresh() end
     end)
     -- Umschalter "Vorrat aller Charaktere" (ab 0.24, gleiche Einstellung wie im Reiter Behalten)
     local cb = CreateFrame("CheckButton", nil, left, "UICheckButtonTemplate")
@@ -900,7 +975,11 @@ function B.Build(c)
     pl2:SetText(L.BUY_PCT_UNDER)
     local function SetPct(self)
         local cur = B.CurrentList()
-        if cur and not B.filling then cur.pct = math.max(0, math.min(90, tonumber(self:GetText() or "") or 0)); B.Refresh() end
+        if cur and not B.filling then
+            local v = math.max(0, math.min(90, tonumber(self:GetText() or "") or 0))
+            if v ~= cur.pct then cur.pct = v; B.Touch(cur) end
+            B.Refresh()
+        end
     end
     B.pctBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     B.pctBox:SetScript("OnEditFocusLost", SetPct)
@@ -945,12 +1024,12 @@ function B.Build(c)
     B.selText:SetPoint("TOPLEFT", 10, y - 30)
     B.selText:SetJustifyH("LEFT")
     local bar = CreateFrame("Frame", nil, right)
-    bar:SetSize(260, 24)
+    bar:SetSize(330, 24)
     bar:SetPoint("TOPRIGHT", -8, y - 26)
     B.itemBar = bar
     B.removeButton = Btn(bar, L.BUY_REMOVE, 90, function()
         local cur = B.CurrentList()
-        if cur and B.selected then cur.items[B.selected.key] = nil; B.selected = nil; B.Refresh() end
+        if cur and B.selected then B.RemoveItem(cur, B.selected.key); B.selected = nil; B.Refresh() end
     end)
     B.removeButton:SetPoint("RIGHT", 0, 0)
     B.wishBox = Box(bar, 50, true)
@@ -959,11 +1038,33 @@ function B.Build(c)
         local cur = B.CurrentList()
         if B.filling or not cur or not B.selected then return end
         local it = cur.items[B.selected.key]
-        if it then it.wish = tonumber(self:GetText() or ""); if it.wish and it.wish < 1 then it.wish = nil end; B.Refresh() end
+        if it then
+            local v = tonumber(self:GetText() or "")
+            if v and v < 1 then v = nil end
+            if v ~= it.wish then it.wish = v; B.Touch(it) end
+            B.Refresh()
+        end
     end
     B.wishBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     B.wishBox:SetScript("OnEditFocusLost", SetWish)
     local wl = Label(bar, L.BUY_WISH); wl:SetPoint("RIGHT", B.wishBox, "LEFT", -8, 0)
+    -- Eigener Hoechstpreis in Gold (ab 0.34), leer = Wert der Liste
+    B.maxBox = Box(bar, 50)
+    B.maxBox:SetPoint("RIGHT", wl, "LEFT", -12, 0)
+    local function SetMax(self)
+        local cur = B.CurrentList()
+        if B.filling or not cur or not B.selected then return end
+        local it = cur.items[B.selected.key]
+        if it then
+            local gold = tonumber((tostring(self:GetText() or ""):gsub(",", ".")))
+            local v = (gold and gold > 0) and math.floor(gold * 10000 + 0.5) or nil
+            if v ~= it.max then it.max = v; B.Touch(it) end
+            B.Refresh()
+        end
+    end
+    B.maxBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    B.maxBox:SetScript("OnEditFocusLost", SetMax)
+    local ml = Label(bar, L.BUY_MAX); ml:SetPoint("RIGHT", B.maxBox, "LEFT", -8, 0)
     B.listStatus = right:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     B.listStatus:SetPoint("BOTTOMLEFT", 10, 14)
     B.buyButton = Btn(right, L.BUY_BUY, 110, function() mod:Call("Einkaufen", B.Buy) end)

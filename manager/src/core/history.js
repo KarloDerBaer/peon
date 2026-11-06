@@ -12,7 +12,9 @@ function marketRow(db, key) {
 }
 
 // Tagesmediane der letzten `days` Tage je Gegenstand: Map key -> Map tag -> median
-function dailyMedians(db, mid, from) {
+function dailyMedians(db, mid, from, key = null) {
+  const k1 = key == null ? '' : ' AND item_key = ?';
+  const kv = key == null ? [] : [key];
   const out = new Map();
   const put = (key, day, med) => {
     if (med == null) return;
@@ -21,13 +23,13 @@ function dailyMedians(db, mid, from) {
     const x = m.get(day);
     if (x) { x.sum += med; x.n++; } else m.set(day, { sum: med, n: 1, own: true });
   };
-  for (const r of db.prepare("SELECT item_key, t, median FROM item_snap WHERE market_id = ? AND source = 'scan' AND t >= ?").iterate(mid, from)) {
+  for (const r of db.prepare("SELECT item_key, t, median FROM item_snap WHERE market_id = ? AND source = 'scan' AND t >= ?" + k1).iterate(mid, from, ...kv)) {
     put(r.item_key, dayOf(r.t), r.median);
   }
-  for (const r of db.prepare("SELECT item_key, t, median FROM item_hour WHERE market_id = ? AND source = 'scan' AND t >= ?").iterate(mid, from)) {
+  for (const r of db.prepare("SELECT item_key, t, median FROM item_hour WHERE market_id = ? AND source = 'scan' AND t >= ?" + k1).iterate(mid, from, ...kv)) {
     put(r.item_key, dayOf(r.t), r.median);
   }
-  for (const r of db.prepare("SELECT item_key, num, median FROM hist WHERE market_id = ? AND source = 'broker' AND period = 'day' AND t >= ?").iterate(mid, from)) {
+  for (const r of db.prepare("SELECT item_key, num, median FROM hist WHERE market_id = ? AND source = 'broker' AND period = 'day' AND t >= ?" + k1).iterate(mid, from, ...kv)) {
     if (r.median == null) continue;
     let m = out.get(r.item_key);
     if (!m) { m = new Map(); out.set(r.item_key, m); }
@@ -113,7 +115,7 @@ function itemDetail(db, marketKey, key, { from = null, now = Math.floor(Date.now
 
   // Tagesmediane fuer 7 und 14 Tage
   const today = dayOf(now);
-  const dm = dailyMedians(db, m.id, now - 16 * 86400).get(key) || new Map();
+  const dm = dailyMedians(db, m.id, now - 16 * 86400, key).get(key) || new Map();
   const a7 = avgOf(dm, today - 7, today);
   const d14 = [...dm].filter(([d]) => d > today - 14).map(([, v]) => v.sum / v.n);
 

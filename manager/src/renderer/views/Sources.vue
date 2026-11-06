@@ -106,6 +106,17 @@ const logText = computed(() => {
     </section>
 
     <section class="block">
+      <h2>Märkte</h2>
+      <p v-if="!data.markets.length" class="muted small">Noch kein Markt bekannt.</p>
+      <table v-else class="tbl markets">
+        <thead><tr><th>Markt</th><th>Interner Name im Spiel</th><th>Letzter Stand</th></tr></thead>
+        <tbody><tr v-for="m in data.markets" :key="m.key"><td>{{ m.label }}</td><td class="muted small">{{ m.key }}</td><td class="muted small">{{ m.lastScan ? ago(m.lastScan.t, now) : 'noch keiner' }}</td></tr></tbody>
+      </table>
+      <p class="small muted">Forever hat keine Realms: Je Region gibt es ein Auktionshaus je Regelsatz und Fraktion, dazu die neutralen Häuser. Den internen Namen meldet das Spiel, für dich ist er ohne Bedeutung.</p>
+    </section>
+
+    <section class="block">
+      <p class="small muted" v-if="data.tips">Genaue Werte aus dem Spiel: {{ num(data.tips.known) }} Gegenstände bekannt<template v-if="data.tips.open">, {{ num(data.tips.open) }} noch offen. Das Spiel liest sie im Hintergrund und gibt sie bei /reload oder beim Ausloggen weiter</template>.</p>
       <h2>Welche Daten wofür</h2>
       <table class="tbl use">
         <thead><tr><th>Quelle</th><th>Stand</th><th class="c" title="Preisverlauf eines Gegenstands">Verlauf</th><th class="c" title="Üblicher Preisbereich, den Broker bekommt">Üblicher Preis</th><th class="c" title="Wie viel sich verkauft">Absatz</th><th class="c">Chancen</th><th>Erneuert</th></tr></thead>
@@ -139,8 +150,8 @@ const logText = computed(() => {
           <div v-if="result" class="note small">
             <p v-if="!result.length">Deine Addons kennen noch keinen Charakter in dieser Region. Spiele einmal mit Peon_Ledger oder mache einen Komplettscan, oder wähle die Häuser von Hand.</p>
             <p v-for="r in result" :key="r.market">
-              <template v-if="r.house">{{ r.market }}: Haus {{ r.house }}</template>
-              <template v-else>{{ r.market }}: Kein Haus gefunden. Mache auf diesem Markt einen Komplettscan und frage dann erneut.</template>
+              <template v-if="r.house">{{ r.label }}: Haus {{ r.house }}</template>
+              <template v-else>{{ r.label }}: Kein Haus gefunden. Mache auf diesem Markt einen Komplettscan und frage dann erneut.</template>
             </p>
           </div>
 
@@ -153,7 +164,7 @@ const logText = computed(() => {
                 <td>{{ h.factionLabel }}</td>
                 <td class="muted">{{ unsure(h) }}</td>
                 <td>
-                  <template v-if="h.selected">{{ h.market }}<div class="small muted">{{ howText(h) }}</div></template>
+                  <template v-if="h.selected">{{ h.marketLabel }}<div class="small muted">{{ howText(h) }}</div></template>
                 </td>
                 <td class="muted">
                   <template v-if="h.error"><span class="warn">Fehler{{ h.error.status ? ` ${h.error.status}` : '' }}</span></template>

@@ -28,7 +28,8 @@ const NOTE = {
         <span>{{ l.l }}</span><span v-if="l.r" class="right">{{ l.r }}</span>
       </div>
       <div class="line sell" v-if="tip.sell">Händler <Gold :copper="tip.sell" /></div>
-      <p class="note" v-if="variant">Nur Grundwerte, die Werte des Zusatzes nennt Blizzard nicht.</p>
+      <p class="note" v-if="variant && !tip.exact">Nur Grundwerte. Die genauen Werte holt der Manager aus dem Spiel, sie kommen nach dem nächsten Laden dort.</p>
+      <p class="note" v-if="tip.exact">Genaue Werte aus dem Spiel.</p>
       <p class="note" v-if="tip.source === 'classic'">Aus den Classic-Daten, in Forever kann es abweichen.</p>
     </template>
     <p class="note" v-else-if="info">{{ NOTE[info.state] }}</p>
@@ -37,7 +38,7 @@ const NOTE = {
 </template>
 
 <style scoped>
-.itemtip { width: 340px; max-width: 100%; display: grid; gap: 2px; padding: 10px 12px; font-size: 13px; line-height: 1.35; background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius-m); }
+.itemtip { width: 100%; max-width: 340px; display: grid; gap: 2px; padding: 10px 12px; font-size: 13px; line-height: 1.35; background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius-m); }
 .name { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
 .line { display: flex; justify-content: space-between; gap: 12px; }
 .right { white-space: nowrap; }

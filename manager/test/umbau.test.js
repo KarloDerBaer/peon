@@ -1,5 +1,5 @@
 'use strict';
-// Tests fuer Merkliste, Datensicherung, Preisaenderungen und Modul-Gruppen (Manager 0.16.0): node --test test/
+// Tests fuer Datensicherung, Preisaenderungen und Modul-Gruppen (Manager 0.16.0): node --test test/
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -8,7 +8,6 @@ const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { Service } = require('../src/core/service');
 const backup = require('../src/core/backup');
-const watch = require('../src/core/watch');
 
 process.removeAllListeners('warning');
 function tmp() { return fs.mkdtempSync(path.join(os.tmpdir(), 'peon-u-')); }
@@ -34,44 +33,7 @@ test('Module tragen die Ueberschrift ihrer Gruppe in der Seitenleiste', () => {
   const { svc } = setup();
   const m = svc.moduleList().find((x) => x.key === 'broker-client');
   assert.equal(m.navTitle, 'Broker');
-  assert.ok(m.views.includes('watch'));
-  svc.close();
-});
-
-test('Merkliste: merken, Grenze, Alarm einmal, nach dem Preis darueber wieder', () => {
-  const { svc, db } = setup();
-  const b = svc.broker;
-  stand(db, 'a', NOW - 300, { 100: { min: 5000 }, 200: { min: 9000 } });
-  assert.deepEqual(b.watchList('M / Alliance'), []);
-  assert.deepEqual(b.watchSet('M / Alliance', '100', null), { below: null, hit: false });
-  b.watchSet('M / Alliance', '200', 8000);
-  const l = b.watchList('M / Alliance');
-  assert.deepEqual(l.map((x) => [x.key, x.name, x.min, x.below]).sort(), [['100', 'Name 100', 5000, null], ['200', 'Name 200', 9000, 8000]]);
-  assert.deepEqual(b.watchCheck(), [], 'noch nicht erreicht, ohne Grenze nie');
-
-  stand(db, 'b', NOW - 200, { 100: { min: 1 }, 200: { min: 7500 } });
-  const hits = b.watchCheck();
-  assert.deepEqual(hits, [{ market: 'M / Alliance', key: '200', name: 'Name 200', min: 7500, below: 8000 }]);
-  assert.deepEqual(b.watchCheck(), [], 'nur einmal melden');
-  assert.equal(b.watchList('M / Alliance')[0].hit, true, 'Treffer stehen oben');
-
-  stand(db, 'c', NOW - 100, { 200: { min: 9000 } });
-  assert.deepEqual(b.watchCheck(), []);
-  stand(db, 'd', NOW - 50, { 200: { min: 7000 } });
-  assert.equal(b.watchCheck().length, 1, 'nach dem Preis darueber wieder');
-
-  // Neue Grenze: darf sofort wieder melden. Nicht im Stand heisst: kein Alarm
-  b.watchSet('M / Alliance', '200', 7500);
-  assert.equal(b.watchCheck().length, 1);
-  b.watchSet('M / Alliance', '100', 2);
-  assert.deepEqual(b.watchCheck(), [], 'fehlt im letzten Stand');
-
-  b.watchRemove('M / Alliance', '200');
-  assert.deepEqual(b.watchList('M / Alliance').map((x) => x.key), ['100']);
-  assert.throws(() => b.watchSet('Unbekannt', '1', 5), /Unbekannter Markt/);
-  assert.equal(watch.money(12345), '1g 23s 45c');
-  assert.equal(watch.money(0), '0c');
-  assert.equal(watch.money(10000), '1g');
+  assert.ok(m.views.includes('shopping') && m.views.includes('favorites'));
   svc.close();
 });
 

@@ -1056,19 +1056,19 @@ if not wf.shown then Win.Open("buy") end
 Win.Select("buy")
 check(Win.current == "buy" and Buy.mode == "lists" and Buy.listsView.shown and Buy.dealsView == nil, "Reiter Einkaufsliste")
 Buy.newButton.scripts.OnClick(Buy.newButton)
-check(#PeonBrokerCharDB.lists == 1 and PeonBrokerCharDB.lists[1].name == "Liste 1" and PeonBrokerCharDB.lists[1].pct == 10, "neue Liste (je Charakter, 10 %)")
+check(#PeonBrokerDB.lists == 1 and PeonBrokerDB.lists[1].name == "Liste 1" and PeonBrokerDB.lists[1].pct == 10 and type(PeonBrokerDB.lists[1].id) == "string", "neue Liste (accountweit, 10 %, mit Nummer)")
 Buy.nameBox:SetText("Erze"); Buy.nameBox.scripts.OnEditFocusLost(Buy.nameBox)
-check(PeonBrokerCharDB.lists[1].name == "Erze" and Buy.listList:GetItems()[1].name == "Erze", "Liste umbenannt")
+check(PeonBrokerDB.lists[1].name == "Erze" and Buy.listList:GetItems()[1].name == "Erze", "Liste umbenannt")
 Buy.searchBox:SetText("kupfer"); Buy.searchBox.scripts.OnEnterPressed(Buy.searchBox)
-check(PeonBrokerCharDB.lists[1].items[2770] and said("zur Liste „Erze“ hinzugefügt"), "Suche: Kupfererz hinzugefuegt")
+check(PeonBrokerDB.lists[1].items[2770] and said("zur Liste „Erze“ hinzugefügt"), "Suche: Kupfererz hinzugefuegt")
 Buy.searchBox:SetText("gibtsnicht"); Buy.searchBox.scripts.OnEnterPressed(Buy.searchBox)
 check(said("Nichts gefunden"), "Suche ohne Treffer")
 alt = true
 HandleModifiedItemClick(SWLINK)
 alt = false
-check(not PeonBrokerCharDB.lists[1].items["15000:1047"], "Alt+Klick fuegt nicht mehr hinzu (ab 0.27.1)")
+check(not PeonBrokerDB.lists[1].items["15000:1047"], "Alt+Klick fuegt nicht mehr hinzu (ab 0.27.1)")
 Buy.AddFromLink(SWLINK)
-check(PeonBrokerCharDB.lists[1].items["15000:1047"] and Win.current == "buy", "Hinzufuegen per Link zur Liste")
+check(PeonBrokerDB.lists[1].items["15000:1047"] and Win.current == "buy", "Hinzufuegen per Link zur Liste")
 local rowsL = Buy.itemList:GetItems()
 check(#rowsL == 2, "zwei Gegenstaende in der Liste")
 local kuL for i, r in ipairs(rowsL) do if r.key == 2770 then kuL = i end end
@@ -1083,7 +1083,7 @@ Buy.selected.limit = 130      -- feste Grenze fuer den Test: nur die Stufe 1s 20
 local plan = Buy.Plan(Buy.selected)
 check(plan.qty == 40 and plan.cost == 4800 and plan.commodity, "Kaufplan: 40 Stueck fuer 48s")
 Buy.wishBox:SetText("100"); Buy.wishBox.scripts.OnEditFocusLost(Buy.wishBox)
-check(PeonBrokerCharDB.lists[1].items[2770].wish == 100, "Wunschmenge gesetzt")
+check(PeonBrokerDB.lists[1].items[2770].wish == 100, "Wunschmenge gesetzt")
 Buy.selected.limit = 130
 plan = Buy.Plan(Buy.selected)
 check(plan.qty == 35 and plan.cost == 4200, "Wunschmenge 100 minus Vorrat 65 = 35")
@@ -1130,14 +1130,14 @@ check(said("Gekauft: 1× Schwert des Baeren"), "Kauf gemeldet")
 swE.md, swE.d = savedMd, savedD
 LIVEITEM[1], LIVEITEM[2] = savedLI[1], savedLI[2]
 Buy.removeButton.scripts.OnClick(Buy.removeButton)
-check(PeonBrokerCharDB.lists[1].items["15000:1047"] == nil, "Gegenstand aus der Liste entfernt")
+check(PeonBrokerDB.lists[1].items["15000:1047"] == nil, "Gegenstand aus der Liste entfernt")
 -- Zur Einkaufsliste aus dem Reiter Preise
 Win.Select("prices")
 P.search:SetText(""); P.search.scripts.OnTextChanged(P.search)
 for i, it in ipairs(P.list:GetItems()) do if it.key == 2589 then P.list.rowFrames[i].scripts.OnClick(P.list.rowFrames[i], "LeftButton") end end
 check(not P.addButton.disabled, "Preise: Knopf 'Zur Einkaufsliste' aktiv")
 P.addButton.scripts.OnClick(P.addButton)
-check(PeonBrokerCharDB.lists[1].items[2589] ~= nil, "aus dem Reiter Preise hinzugefuegt")
+check(PeonBrokerDB.lists[1].items[2589] ~= nil, "aus dem Reiter Preise hinzugefuegt")
 
 -- ===== Reiter "Radar" (0.14) =====
 local Rd = ns.Radar
@@ -1333,7 +1333,7 @@ Rd.Halt()   -- Schleife aus den Kauf-Tests beenden (Nachpruefen nach Fehler)
 Rd.scanButton.scripts.OnClick(Rd.scanButton)
 check(Rd.running and Rd.loop and #Rd.round > 0 and Rd.scanButton.text == "Radar-Scan stoppen", "Radar-Scan gestartet")
 local r1 = Rd.round[1]
-check(PeonBrokerCharDB.lists[1].items[r1] ~= nil, "Runde beginnt mit den Einkaufslisten")
+check(PeonBrokerDB.lists[1].items[r1] ~= nil, "Runde beginnt mit den Einkaufslisten")
 now = now + 1; timers[#timers]()
 check(Rd.stats.sent == 1 and Rd.status.text:find("Radar läuft", 1, true), "Abfrage gesendet, Anzeige laeuft")
 local pk = Rd.pending.key
@@ -1457,7 +1457,7 @@ check(CV.Sound_SFXVolume == "0.3" and PeonBrokerDB.radarMuteSaved == nil, "nach 
 CV.Sound_SFXVolume = "0.8"
 -- Reihenfolge
 local function roundKeys() local r = Rd.BuildRound(); local t = {} for i, k in ipairs(r) do t[k] = i end return r, t end
-local nList = 0 for _ in pairs(PeonBrokerCharDB.lists[1].items) do nList = nList + 1 end
+local nList = 0 for _ in pairs(PeonBrokerDB.lists[1].items) do nList = nList + 1 end
 mod.db.radarOrder = "high"
 local rh = Rd.BuildRound()
 local okHigh = true
@@ -1708,13 +1708,13 @@ fire("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT"); fire("COMMODITY_SEARCH_RESULTS_UPD
 query = nil
 timers[#timers]()            -- 6. Radar-Funktion mit einem Gegenstand der Einkaufsliste
 local lid = query and query.key.itemID
-check(lid and PeonBrokerCharDB.lists[1].items[lid] ~= nil, "6. Gegenstand der Einkaufsliste ueber die Radar-Funktion")
+check(lid and PeonBrokerDB.lists[1].items[lid] ~= nil, "6. Gegenstand der Einkaufsliste ueber die Radar-Funktion")
 fire("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT"); fire("COMMODITY_SEARCH_RESULTS_UPDATED", lid)
 local ql = PeonBrokerDB.queryTest and PeonBrokerDB.queryTest.lines or {}
 check(#ql == 6 and ql[5]:find("Radar: gesendet ja, Antwort ja", 1, true) and ql[6]:find("Radar " .. lid .. ": gesendet ja, Antwort ja", 1, true) and ql[1]:find("Befehl: gesendet ja, Antwort ja", 1, true) and ql[2]:find("Ereignis: gesendet ja, Antwort ja", 1, true)
     and ql[3]:find("Timer: gesendet nein, Antwort nein", 1, true) and ql[4]:find("OnUpdate: gesendet ja, Antwort ja", 1, true), "Ergebnis im Chat und in PeonBrokerDB.queryTest")
 Buy.deleteButton.scripts.OnClick(Buy.deleteButton)
-check(#PeonBrokerCharDB.lists == 0, "Liste geloescht")
+check(#PeonBrokerDB.lists == 0, "Liste geloescht")
 Win.Select("sell")
 
 -- ohne Auktionshaus
@@ -2106,8 +2106,8 @@ end)()
   check(K.Sellable(2770, 2770, 60) == 0, "Umschalter aus: 65 - 70 = nichts zu verkaufen")
   K.Set(2770, nil); K.Remove(2770)
   -- 0.24: Einkaufsliste mit Spalte Vorrat und demselben Umschalter
-  local savedLists, savedSel = PeonBrokerCharDB.lists, PeonBrokerCharDB.listSel
-  PeonBrokerCharDB.lists, PeonBrokerCharDB.listSel = { { name = "T", pct = 10, items = { [2770] = { wish = 100, name = "Kupfererz" } } } }, 1
+  local savedLists, savedSel = PeonBrokerDB.lists, PeonBrokerCharDB.listSel
+  PeonBrokerDB.lists, PeonBrokerCharDB.listSel = { { name = "T", pct = 10, items = { [2770] = { wish = 100, name = "Kupfererz" } } } }, 1
   Win.Select("buy"); ns.Buy.Refresh()
   local br = ns.Buy.ListRows()[1]
   check(br.stock == 65 and ns.Buy.allChars.shown ~= false and not ns.Buy.allChars.checked, "Einkaufsliste: Vorrat dieses Charakters, Umschalter sichtbar")
@@ -2115,7 +2115,7 @@ end)()
   br = ns.Buy.ListRows()[1]
   check(mod.db.keepAllChars == true and br.stock == 85, "Einkaufsliste: Umschalter an -> Vorrat aller Charaktere (gleiche Einstellung wie Behalten)")
   ns.Buy.allChars:SetChecked(false); ns.Buy.allChars.scripts.OnClick(ns.Buy.allChars)
-  PeonBrokerCharDB.lists, PeonBrokerCharDB.listSel = savedLists, savedSel
+  PeonBrokerDB.lists, PeonBrokerCharDB.listSel = savedLists, savedSel
   -- 0.24: Verkaufen zeigt die eigene Verkaufsquote als Hinweis
   local savedItem = Sell.item
   Sell.item = Sell.item or {}
@@ -2468,6 +2468,55 @@ for k in pairs(m0.items) do if type(k) == "number" then expect = expect + 1 end 
 check(nNum == expect and nNum > 0 and nOther == 0, "0.29: MarketItems liefert " .. nNum .. " Gegenstaende")
 local anyId = next(mi)
 check(mi[anyId].min == m0.items[anyId].m and mi[anyId].qty == m0.items[anyId].q, "0.29: MarketItems mit Min und Menge")
+end)()
+
+-- Einkaufslisten ab 0.34: accountweit, Abgleich mit dem Manager, eigener Hoechstpreis
+;(function()
+  local B = Buy
+  local brokerMod = Peon:GetModule("broker")
+  PeonBrokerDB.lists, PeonBrokerDB.listsGone = nil, nil
+  PeonBrokerCharDB.lists = { { name = "Alt", pct = 5, items = { [2770] = { wish = 3 } } }, { name = "Zweite", pct = 7, items = {} } }
+  local lists = B.Lists()
+  check(#lists == 2 and PeonBrokerCharDB.lists == nil and PeonBrokerDB.lists == lists, "0.34: Listen des Charakters einmalig uebernommen")
+  check(type(lists[1].id) == "string" and lists[1].id ~= lists[2].id and lists[1].items[2770].wish == 3 and lists[1].items[2770].u == clock, "0.34: mit Nummer und Zeit")
+  PeonBrokerCharDB.lists = { { name = "Alt", pct = 50, items = { [2770] = { wish = 99 }, [2589] = { wish = 1 } } } }
+  B.Lists()
+  check(#lists == 2 and lists[1].items[2770].wish == 3 and lists[1].items[2589].wish == 1 and lists[1].pct == 5, "0.34: gleicher Name vom zweiten Charakter: in die vorhandene Liste, Eigenes bleibt")
+  PeonBrokerCharDB.listSel = 1
+
+  -- Eigener Hoechstpreis geht vor
+  local rows = B.ListRows()
+  local function row(k) for _, r in ipairs(B.ListRows()) do if r.key == k then return r end end end
+  lists[1].items[2770].max = 7777
+  check(row(2770).limit == 7777, "0.34: eigener Hoechstpreis gilt")
+  lists[1].items[2770].max = nil
+  check(row(2770).limit ~= 7777, "0.34: ohne eigenen wieder der Wert der Liste")
+  check(rows ~= nil, "0.34: Zeilen")
+
+  -- Loeschmarke beim Entfernen und Loeschen
+  local id = lists[1].id
+  B.RemoveItem(lists[1], 2589)
+  check(lists[1].items[2589] == nil and PeonBrokerDB.listsGone.items[id .. "|2589"] ~= nil, "0.34: Entfernen setzt eine Loeschmarke")
+  local before = lists[2].u
+  B.Touch(lists[2])
+  check(lists[2].u == before + 1, "0.34: Aenderung in derselben Sekunde zaehlt trotzdem als neuer")
+
+  -- Abgleich mit dem Manager
+  local later = clock + 100
+  local changed = brokerMod:MergeShop({
+    lists = { { id = id, name = "Neu benannt", pct = 15, u = later, items = { [2770] = { wish = 8, max = 500, u = later }, ["15000:Name des Wolfs"] = { name = "Name des Wolfs", u = later } } },
+              { id = "m1_1", name = "Vom Manager", pct = 10, u = later, items = {} } },
+    gone = { lists = { [lists[2].id] = later }, items = {} },
+  })
+  check(changed and #lists == 2, "0.34: Mischen aendert etwas")
+  check(lists[1].name == "Neu benannt" and lists[1].pct == 15 and lists[1].items[2770].max == 500, "0.34: neuere Angaben aus dem Manager gelten")
+  check(lists[1].items["15000:Name des Wolfs"] ~= nil and lists[2].id == "m1_1", "0.34: neuer Eintrag und neue Liste, geloeschte Liste weg")
+  check(brokerMod:MergeShop({ lists = { { id = id, name = "Alt", pct = 1, u = 5, items = {} } } }) == false and lists[1].name == "Neu benannt", "0.34: aelterer Stand aendert nichts")
+  check(brokerMod:MergeShop({ gone = { items = { [id .. "|2770"] = later + 1 } } }) == true and lists[1].items[2770] == nil, "0.34: Loeschmarke aus dem Manager")
+  check(brokerMod:MergeShop(nil) == false, "0.34: ohne Daten nichts")
+  PeonBrokerDB.listsGone.items.alt = clock - 90 * 86400
+  brokerMod:MergeShop({})
+  check(PeonBrokerDB.listsGone.items.alt == nil, "0.34: alte Loeschmarken verfallen")
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

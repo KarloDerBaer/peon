@@ -91,3 +91,28 @@ export function levelTitle(l) {
 export function slotText(s) {
   return s == null ? '' : `${s * 3}–${s * 3 + 3} Uhr`;
 }
+
+// Ein Satz zum Gegenstand: Lohnt sich der Kauf gerade? Vergleich des guenstigsten Angebots mit dem ueblichen Preis, sonst dem Mittel aus 7 Tagen
+export function verdict(d) {
+  if (!d) return null;
+  const c = d.current;
+  const parts = [];
+  let tone = '';
+  if (c && c.qty > 0 && c.min != null) {
+    const ref = d.longterm ? d.longterm.lang : d.median7;
+    const was = d.longterm ? 'dem üblichen Preis' : 'dem Mittel aus 7 Tagen';
+    if (ref > 0) {
+      const p = Math.round((c.min / ref - 1) * 100);
+      if (p <= -5) { parts.push(`Das günstigste Angebot liegt ${-p} % unter ${was}`); tone = 'good'; }
+      else if (p >= 5) { parts.push(`Das günstigste Angebot liegt ${p} % über ${was}`); tone = 'bad'; }
+      else parts.push(`Das günstigste Angebot entspricht ${was}`);
+    }
+  } else if (c) {
+    parts.push('Gerade gibt es keine Angebote');
+  }
+  if (d.sales) {
+    const v = d.sales.perDay;
+    parts.push(v >= 5 ? 'verkauft sich gut' : v >= 1 ? 'verkauft sich mäßig' : 'verkauft sich selten');
+  }
+  return parts.length ? { text: `${parts.join(', ')}.`, tone } : null;
+}

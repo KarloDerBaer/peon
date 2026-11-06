@@ -30,7 +30,7 @@ function readQueue(file) {
   const db = g.PeonBridgeDB;
   if (!db || typeof db !== 'object') return { queue: [], fmt: null };
   const q = Array.isArray(db.queue) ? db.queue : Object.values(db.queue || {});
-  return { queue: q, fmt: db.fmt ?? null, errors: db.errors };
+  return { queue: q, fmt: db.fmt ?? null, errors: db.errors, tipBox: db.tipBox };
 }
 
 // Eine Momentaufnahme in die Datenbank (ohne Transaktion, ruft importFile auf)
@@ -88,11 +88,43 @@ function importEntry(db, e, account) {
     const info = parseName(v);
     if (info.vendor != null) db.prepare('UPDATE items SET vendor = ? WHERE item_id = ? AND vendor IS NULL').run(info.vendor, Number(id));
   }
+  // Genaue Werte aus dem Spiel (Tooltip des Gegenstands, auch mit Zusatz), die Blizzard-API nennt sie nicht
+  if (e.tips && typeof e.tips === 'object') {
+    saveTips(db, e.tips, e.t);
+  }
   // Live-Abfrage: Warenart vom Spiel
   if (source === 'live' && e.key != null && e.commodity != null) {
     db.prepare('UPDATE items SET commodity = ? WHERE key = ?').run(e.commodity ? 1 : 0, String(e.key));
   }
   return true;
+}
+
+// Werte speichern. Leerer Text: Das Spiel kennt den Gegenstand gerade nicht, dann eine Marke statt vorhandene Werte zu ersetzen
+function saveTips(db, tips, t) {
+  const put = db.prepare('INSERT OR REPLACE INTO item_tip(key, lines, t) VALUES (?, ?, ?)');
+  const has = db.prepare("SELECT 1 FROM item_tip WHERE key = ? AND lines <> '[]'");
+  for (const [k, v] of Object.entries(tips)) {
+    const lines = parseTip(v);
+    if (lines.length) put.run(String(k), JSON.stringify(lines), t);
+    else if (!has.get(String(k))) put.run(String(k), '[]', t);
+  }
+}
+
+const TIP_KIND = { g: 'good', y: 'level', m: 'muted' };
+
+// Zeilen aus der Bridge: je Zeile "links\trechts\tArt" (g gruen, y gelb, m grau). Ergebnis wie toTip in item-info.js
+function parseTip(v) {
+  if (typeof v !== 'string') return [];
+  const out = [];
+  for (const line of v.split('\n')) {
+    const [l, r, c] = line.split('\t');
+    if (!l && !r) continue;
+    const x = { l: l || '' };
+    if (r) x.r = r;
+    if (TIP_KIND[c]) x.c = TIP_KIND[c];
+    out.push(x);
+  }
+  return out;
 }
 
 // "Name|Qualitaet" (bis 0.2) oder "Name|Qualitaet|Haendlerpreis|Massenware" (ab Peon_Client 0.3.0)
@@ -110,8 +142,8 @@ function parseName(v) {
 }
 
 // Ganze Datei einlesen. Rueckgabe: { file, account, ids (alle in der Datei), imported, known, failed: [{id, error}] }
-function importFile(db, file, account) {
-  const { queue, errors } = readQueue(file);
+function importFile(db, file, account, now = Math.floor(Date.now() / 1000)) {
+  const { queue, errors, tipBox } = readQueue(file);
   const res = { file, account, ids: [], imported: 0, known: 0, failed: [], gameErrors: errors };
   for (const e of queue) {
     if (!e || e.id == null) continue;
@@ -123,6 +155,8 @@ function importFile(db, file, account) {
       res.failed.push({ id: String(e.id), error: err.message });
     }
   }
+  // Bestellte Werte, die das Spiel im Hintergrund gelesen hat
+  if (tipBox && typeof tipBox === 'object') tx(db, () => saveTips(db, tipBox, now));
   return res;
 }
 
@@ -133,4 +167,4 @@ function snapshotRows(db, id) {
   return parseRows(zlib.inflateSync(Buffer.from(r.rows)).toString('utf8'));
 }
 
-module.exports = { findFiles, readQueue, importEntry, importFile, snapshotRows, parseName, FILE };
+module.exports = { findFiles, readQueue, importEntry, importFile, snapshotRows, parseName, parseTip, saveTips, FILE };

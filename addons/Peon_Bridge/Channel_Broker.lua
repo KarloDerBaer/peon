@@ -16,6 +16,7 @@ local E = {}
 ns.Export = E
 
 E.LIVE_SAME = 60   -- gleiche Live-Abfrage desselben Gegenstands innerhalb 60 Sek. nicht nochmal ablegen
+E.TIP_MAX = 400    -- genaue Werte je Komplettscan, der Rest kommt mit dem naechsten
 
 local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
 
@@ -60,6 +61,107 @@ end
 function E.Line(item, bonus, name, qty, buyout, unit, bid, band, id)
     return table.concat({ Int(item), bonus or "", Clean(name), Int(qty), Int(buyout), Int(unit), Int(bid),
         (Num(band) and band >= 1 and band <= 4) and tostring(band) or "", Int(id) }, ";")
+end
+
+---------------------------------------------------------------------------
+-- Genaue Werte eines Gegenstands (ab 0.6.0): Die Blizzard-API nennt die Werte eines Zusatzes nicht, der Tooltip des Spiels schon.
+-- Je Zeile "links\trechts\tArt" (g gruen, y gelb, m grau), Zeilen durch \n getrennt, ohne die erste Zeile (Name).
+---------------------------------------------------------------------------
+local function TipColor(c)
+    if type(c) ~= "table" or not Num(c.r) or not Num(c.g) or not Num(c.b) then return "" end
+    if c.g > c.r + 0.3 and c.g > c.b + 0.3 then return "g" end
+    if c.r > 0.8 and c.g > 0.6 and c.b < 0.3 then return "y" end
+    if math.abs(c.r - c.g) < 0.1 and math.abs(c.g - c.b) < 0.1 and c.r < 0.7 then return "m" end
+    return ""
+end
+
+local function TipPart(s)
+    if type(s) ~= "string" or Peon.IsSecret(s) then return "" end
+    return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("[\t\r\n]", " "))
+end
+
+-- Text fuer den Manager, nil wenn das Spiel die Werte nicht (oder noch nicht) nennt
+function E.TipText(link)
+    local ti = rawget(_G, "C_TooltipInfo")
+    if type(link) ~= "string" or Peon.IsSecret(link) or not (ti and ti.GetHyperlink) then return nil end
+    local ok, data = pcall(ti.GetHyperlink, link)
+    if not ok or type(data) ~= "table" or Peon.IsSecret(data) or type(data.lines) ~= "table" or #data.lines < 2 then return nil end
+    local out = {}
+    local waiting = rawget(_G, "RETRIEVING_ITEM_INFO")
+    for i = 2, math.min(#data.lines, 40) do
+        local line = data.lines[i]
+        if type(line) == "table" then
+            local l, r = TipPart(line.leftText), TipPart(line.rightText)
+            if waiting and l == waiting then return nil end
+            if l ~= "" or r ~= "" then out[#out + 1] = l .. "\t" .. r .. "\t" .. TipColor(line.leftColor) end
+        end
+    end
+    if #out == 0 then return nil end
+    return table.concat(out, "\n")
+end
+
+---------------------------------------------------------------------------
+-- Bestellte Werte (ab 0.6.0): Data.lua nennt in tipWant, was der Manager noch nicht kennt (Schluessel -> Link). Das Spiel fordert den
+-- Gegenstand an, liest kurz danach den Tooltip und legt ihn in PeonBridgeDB.tipBox. Nur ausserhalb des Kampfes, wenige auf einmal.
+-- Leerer Text: Das Spiel nennt nichts. Was der Manager nicht mehr bestellt, hat er bekommen und wird geloescht.
+---------------------------------------------------------------------------
+E.TIP_BATCH = 8      -- gleichzeitig angefordert
+E.TIP_WAIT = 6       -- so viele Sekunden auf einen Gegenstand warten
+E.TIP_EVERY = 0.5    -- Sekunden je Schritt
+E.TIP_DELAY = 10     -- erst so lange nach dem Laden beginnen
+
+function E.TipStart()
+    local acc = mod.acc
+    if type(acc.tipBox) ~= "table" then acc.tipBox = {} end
+    local d = ns.ManagerData()
+    local want = d and d.tipWant
+    if type(want) ~= "table" then want = {} end
+    for k in pairs(acc.tipBox) do
+        if want[k] == nil then acc.tipBox[k] = nil end
+    end
+    E.tipQueue, E.tipBusy, E.tipBusyN = {}, {}, 0
+    if not (rawget(_G, "C_TooltipInfo") and C_TooltipInfo.GetHyperlink) then return 0 end
+    for k, link in pairs(want) do
+        if acc.tipBox[k] == nil and type(link) == "string" then E.tipQueue[#E.tipQueue + 1] = { k = k, link = link } end
+    end
+    return #E.tipQueue
+end
+
+-- Ein Schritt. Rueckgabe: true, solange noch etwas zu tun ist
+function E.TipStep()
+    if not E.tipQueue then return false end
+    if Peon.InCombat() then return true end
+    local box = mod.acc.tipBox
+    local now = GetTime()
+    for k, b in pairs(E.tipBusy) do
+        local text = E.TipText(b.link)
+        if text or now - b.t >= E.TIP_WAIT then
+            box[k] = text or ""
+            E.tipBusy[k] = nil
+            E.tipBusyN = E.tipBusyN - 1
+        end
+    end
+    local CI = rawget(_G, "C_Item")
+    while E.tipBusyN < E.TIP_BATCH and #E.tipQueue > 0 do
+        local e = table.remove(E.tipQueue)
+        local id = tonumber(e.link:match("item:(%d+)"))
+        if CI and CI.RequestLoadItemDataByID and id then pcall(CI.RequestLoadItemDataByID, id) end
+        E.tipBusy[e.k] = { link = e.link, t = now }
+        E.tipBusyN = E.tipBusyN + 1
+    end
+    return E.tipBusyN > 0 or #E.tipQueue > 0
+end
+
+-- Im Hintergrund laufen lassen. Ein Fehler beendet nur diese Aufgabe, nie das Addon
+function E.TipRun()
+    local T = rawget(_G, "C_Timer")
+    if E.TipStart() == 0 or not (T and T.After) then return end
+    local function Tick()
+        local ok, more = pcall(E.TipStep)
+        if not ok then mod:ReportError("Genaue Werte", more); return end
+        if more then T.After(E.TIP_EVERY, Tick) end
+    end
+    T.After(E.TIP_DELAY, Tick)
 end
 
 -- Zeilen sammeln: gleiche zaehlen, Reihenfolge des ersten Auftretens behalten
@@ -129,7 +231,7 @@ end
 function E.ScanStart(info)
     info = type(info) == "table" and info or {}
     E.cur = { bag = NewBag(), market = info.market, t = info.t or time(), total = info.total,
-        variants = type(info.variants) == "table" and info.variants or {}, names = {} }
+        variants = type(info.variants) == "table" and info.variants or {}, names = {}, tips = {}, tipN = 0 }
 end
 
 -- Haendlerpreis je Stueck (ueber Broker, sonst vom Spiel), nil = unbekannt
@@ -174,6 +276,14 @@ function E.ScanRow(itemID, name, count, quality, buyout, minBid, bid, band, link
     if named and not mod.acc.nameIds[itemID] and not cur.names[itemID] then
         cur.names[itemID] = E.NameInfo(itemID, full and "" or name, quality)
     end
+    -- Genaue Werte fuer Ausruestung und Gegenstaende mit Zusatz, einmal je Schluessel
+    if Num(quality) and quality >= 2 and cur.tipN < E.TIP_MAX and link then
+        local tk = full and (Int(itemID) .. ":" .. Clean(full)) or Int(itemID)
+        if not cur.tips[tk] and not mod.acc.tipIds[tk] then
+            local text = E.TipText(link)
+            if text then cur.tips[tk] = text; cur.tipN = cur.tipN + 1 end
+        end
+    end
     local b = (Num(bid) and bid > 0) and bid or ((Num(minBid) and minBid > 0) and minBid or nil)
     local bo = Num(buyout) and buyout or 0
     Put(cur.bag, E.Line(itemID, bonus, full, count, bo, nil, b, band, nil))
@@ -189,6 +299,7 @@ function E.ScanEnd(info)
     e.partial = false
     e.rows = Text(cur.bag)
     if next(cur.names) then e.names = cur.names end
+    if next(cur.tips) then e.tips = cur.tips end
     E.Push(e)
     mod:Dbg(L.MSG_SCAN_ADDED:format(e.offers, e.lines))
     if ns.ShowButton then mod:Call("Knopf", ns.ShowButton) end
@@ -238,6 +349,10 @@ function E.Live(key, rows, t, info)
     e.key, e.partial, e.commodity = k, partial, info.commodity and true or false
     e.offers, e.lines = bag.offers, #bag.order
     e.rows = text   -- leer = keine Angebote
+    if rows.link and not mod.acc.tipIds[k] then
+        local tip = E.TipText(rows.link)
+        if tip then e.tips = { [k] = tip } end
+    end
     E.Push(e)
     return e
 end
@@ -269,11 +384,16 @@ end
 ---------------------------------------------------------------------------
 -- Werte des Managers fuer Broker (nur mit freigeschaltetem Kanal)
 ---------------------------------------------------------------------------
+-- Name des Markts im Manager: Forever hat keine Realms, andere interne Namen desselben Markts stehen in aliases (ab 0.6.0)
+function ns.MarketOf(d, market)
+    return type(d.aliases) == "table" and d.aliases[market] or market
+end
+
 -- Markt des Managers, nil ohne Freischaltung, ohne Werte oder wenn aelter als freshDays
 local function FreshMarket(market, field)
     if not ns.ChannelOn("broker") then return nil end
     local d = ns.ManagerData()
-    local m = d and type(d.markets) == "table" and type(market) == "string" and d.markets[market]
+    local m = d and type(d.markets) == "table" and type(market) == "string" and d.markets[ns.MarketOf(d, market)]
     if type(m) ~= "table" or type(m[field]) ~= "table" then return nil end
     local t = tonumber(m.t) or tonumber(d.t)
     if not t or time() - t > (tonumber(mod.db and mod.db.freshDays) or 7) * 86400 then return nil end
@@ -317,7 +437,7 @@ end
 -- Wie viele Gegenstaende hat der Manager fuer einen Markt (Anzeige)
 function ns.MarketCount(market)
     local d = ns.ManagerData()
-    local m = d and type(d.markets) == "table" and d.markets[market]
+    local m = d and type(d.markets) == "table" and d.markets[ns.MarketOf(d, market)]
     if type(m) ~= "table" or type(m.items) ~= "table" then return 0, nil, 0 end
     local n, s = 0, 0
     for _ in pairs(m.items) do n = n + 1 end
@@ -356,6 +476,13 @@ function ns.Hook()
     if not b or type(b.AddSnapshotListener) ~= "function" then return false end
     b:AddSnapshotListener(E.OnSnapshot)
     ns.hooked = true
+    E.TipRun()
+    -- Einkaufslisten aus dem Manager an Broker geben (ab 0.6.0)
+    local d = ns.ManagerData()
+    if d and type(d.shop) == "table" and type(b.MergeShop) == "function" then
+        local ok, err = pcall(b.MergeShop, b, d.shop)
+        if not ok then mod:ReportError("Einkaufslisten", err) end
+    end
     return true
 end
 

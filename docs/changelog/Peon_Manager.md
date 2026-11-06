@@ -2,6 +2,26 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.17.0
+
+Kurz: Seiten öffnen viel schneller, auch mit vielen Daten.
+Kurz: Neu: Vor und Zurück wie im Browser, offene Gegenstände als Untertab unter dem Reiter, von dem du kommst.
+Kurz: Neu: Favoriten mit Stern und eine Einkaufsliste, die sich mit dem Broker im Spiel abgleicht. Die Merkliste entfällt.
+Kurz: Das Gegenstandsfenster ist neu aufgeteilt, die Eigenschaften stehen gleich unter dem Namen. Die genauen Werte auch von Gegenständen mit Zusatz holt der Manager aus dem Spiel, ganz ohne Scan.
+Kurz: Märkte heißen jetzt einfach „PvE Allianz“. Die Kopfleiste sagt dir, wenn im Spiel ein /reload nötig ist.
+
+- 0.17.0 (06.11.2026, Wunsch KarloDerBaer): **Navigation, Einkaufsliste, Favoriten, Ladezeiten.**
+  - **Ladezeiten:** Gegenstand öffnen rechnet nur noch diesen Gegenstand statt alle. Die Gegenstandsliste wird einmal je neuem Stand gerechnet und in `list_cache` gemerkt, übliche Bereiche und Marktdaten ebenfalls einmal je Stand (`dataSig`, `bands`, `listOf`, `marketInfoCached`). Listen bleiben beim Seitenwechsel erhalten. Messung mit 5.000 Gegenständen und 14 Tagen stündlicher Stände (nur Abfragen, ohne Anzeige): Liste 6,2 Sek. auf unter 0,01 Sek., Gegenstand 5,4 Sek. auf 0,02 Sek., Übersicht und Chancen entsprechend. Die Rechnung läuft jetzt einmal je Stand beim Einlesen.
+  - **Navigation:** Vor und Zurück (Knöpfe, Alt+Pfeil, Seitentasten der Maus), Verlauf merkt Seite, Gegenstand und Markt. Untertab je Reiter mit Stern und Schließen, der Link „Zurück zu …“ entfällt.
+  - **Kopfleiste** auf allen Seiten: Pfeile, Hinweis auf wartende Eingaben, letzter Stand. „Jetzt einlesen“, die Schnellsuche mit Strg+K und der Eintrag im Infobereich entfallen, der Manager liest ohnehin von selbst ein. Der Manager prüft alle 30 Sek., ob WoW läuft (`noteGame`, `sync`), und erkennt daraus, ob das Spiel `Data.lua` gelesen hat.
+  - **Märkte** (`src/core/markets.js`): Anzeige „PvE Allianz“, Auswahl in der Seitenleiste und nur ab zwei Märkten, gewählter Markt bleibt gemerkt. Der interne Name steht unter Quellen. Ein anderer interner Name für denselben Regelsatz, dieselbe Fraktion und Region ergibt keinen zweiten Markt mehr (`market_alias`, `aliases` in `Data.lua`).
+  - **Gegenstandsfenster:** links die Eigenschaften, rechts Einschätzung in einem Satz, Kennzahlen, andere Märkte und Verlauf, darunter die Reiter Angebote jetzt, Wann günstig?, Absatz im Detail, Werte für Broker.
+  - **Genaue Werte:** Tabelle `item_tip` als Datenbank der Eigenschaften, gefüllt aus dem Tooltip des Spiels. Die Blizzard-API liefert sie nicht (geprüft, siehe `Peon_Blizzard_API.md`). Der Manager bestellt über `tipWant` in `Data.lua`, was fehlt (`tipWants`, höchstens 1.000 je Laden, Favoriten und Einkaufslisten zuerst), und liest die Antworten aus `tipBox`. Kennt das Spiel etwas nicht, fragt er erst nach 7 Tagen wieder. Unter Quellen steht, wie viele bekannt und offen sind.
+  - **Einkaufsliste** (`src/core/shopping.js`, Ansicht `Shopping.vue`): mehrere Listen, Rabatt je Liste, Menge und optionaler eigener Höchstpreis je Gegenstand, Vorrat aus Peon_Ledger, Treffer im letzten Stand, Meldung von Windows (`shopNotify`). Abgleich mit Broker je Eintrag nach der neueren Änderung. Ersetzt die **Merkliste**, sie wird ohne Übernahme entfernt (KarloDerBaer).
+  - **Favoriten:** Tabelle `favorites`, gelten für alle Märkte, eigener Reiter, Stern auch in der Liste.
+  - **Gegenstände:** Spalte „Zu üblich“, Spalten ein- und ausblendbar (`itemColumns`). **Übersicht:** Bereich „Jetzt kaufbar“. **Diagramm:** Legende überlappt die Achse nicht mehr.
+  - Im echten Programm mit Testdaten durchgeklickt (Untertabs, Stern, Einkaufsliste, Vor und Zurück, Data.lua). Der Abgleich und die genauen Werte sind im Spiel noch zu prüfen.
+
 ## 0.16.0
 
 Kurz: Die Reiter sind jetzt nach Modulen geordnet, der Broker hat seine eigene Gruppe.

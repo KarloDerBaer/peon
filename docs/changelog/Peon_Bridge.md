@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.6.0
+
+Kurz: Genaue Werte von Gegenständen, auch mit Zusatz, gehen an den Manager. Dafür ist kein Scan nötig.
+Kurz: Einkaufslisten aus dem Manager kommen beim Laden im Spiel an.
+
+- 0.6.0 (06.11.2026, Wunsch KarloDerBaer): **Genaue Werte:** Beim Komplettscan und bei Live-Abfragen liest die Bridge den Tooltip (`C_TooltipInfo.GetHyperlink`) von Gegenständen ab Qualität Selten, höchstens 400 je Scan, jeder Schlüssel einmal (`tipIds`, gilt nach der Bestätigung). Zusätzlich liest sie im Hintergrund, was der Manager bestellt (`tipWant` in `Data.lua`): je 8 auf einmal, ab 10 Sek. nach dem Laden, nie im Kampf, Ablage in `tipBox`. Der Link aus Nummer und Bonus liefert im Spiel den vollen Namen und die Werte des Zusatzes (KarloDerBaer, 06.11.2026). **Andere Marktnamen:** `aliases` in `Data.lua`, Werte werden auch unter einem anderen internen Namen gefunden. **Einkaufslisten:** `shop` in `Data.lua` geht beim Anmelden an Broker (`MergeShop`). **Im Spiel prüfen:** Bleibt das Spiel beim Lesen im Hintergrund flüssig, stimmen Farben und Werte, hängen die Werte von der Stufe im Link ab, wie lange dauert der Scan zusätzlich?
+
 ## 0.5.0
 
 Kurz: Im Manager geleerte Fehler verschwinden jetzt auch im Spiel.

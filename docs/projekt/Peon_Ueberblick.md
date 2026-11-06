@@ -35,8 +35,8 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 | Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
 | Peon_Fishing (früher FishingPlus) | 1.5.2 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
-| Peon_Broker (neu, Auktionshaus) | 0.33.1 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
-| Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.4.0 | `PeonBridgeDB` | /peon bridge |
+| Peon_Broker (neu, Auktionshaus) | 0.34.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
+| Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.6.0 | `PeonBridgeDB` | /peon bridge |
 | Peon_Feedback | 0.3.1 | `PeonFeedbackDB` | /feedback |
 | Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
 | Peon_Ledger (neu, Bestand und Buch) | 0.10.2 | `PeonLedgerDB` | /ledger |
@@ -172,6 +172,8 @@ Peon.NiceRange(lo, hi, schritte)
 - **Post-Rechnungen:** `GetInboxInvoiceInfo(i)` = Art („buyer“/„seller“), Name, Spieler, Gebot, Sofortkauf, Einzahlung, Anteil, …, Menge. Verkaufsbrief: Gold = Sofortkauf − Anteil + Einzahlung.
 - **Berufe nur modern:** `C_TradeSkillUI.GetAllRecipeIDs/GetRecipeInfo/GetRecipeSchematic/CraftRecipe`; alte `GetTradeSkill*`/`GetCraft*` fehlen. Händlerwaren über `C_MerchantFrame` (`GetMerchantItemInfo` fehlt).
 - **Fenster auf/zu:** zuverlässig über `PLAYER_INTERACTION_MANAGER_FRAME_SHOW/HIDE` (Typ: 3 Flugmeister, 5 Händler, 17 Post …); `MAIL_CLOSED` kam nicht.
+- **Forever hat keine Realms:** Je Region gibt es ein Auktionshaus je Regelsatz und Fraktion, dazu neutrale Häuser (laut API „Auktionshaus der Schwarzmeerräuber“, wenige Angebote). `GetRealmName()` liefert trotzdem einen internen Namen wie „CAMWOW EU4 Realm 3 PvE“. Er gehört zum Schlüssel von Broker, angezeigt wird im Manager nur „PvE Allianz“.
+- **Genaue Werte eines Gegenstands mit Zusatz** nennt nur das Spiel, die Blizzard-API nicht. `C_TooltipInfo.GetHyperlink("item:3192::::::::20:1488:::1:12723")` geht auch ohne echten Gegenstand (Feld 13 Anzahl der Boni, dahinter die Nummern), vorher `C_Item.RequestLoadItemDataByID` und kurz warten (im Spiel bestätigt 06.11.2026).
 - **Bank-Menge ohne offene Bank:** `C_Item.GetItemCount(itemID, true, false, true)` (mit Bank und Materiallager) minus `C_Item.GetItemCount(itemID)` – so zählt auch BagBrother für den eingeloggten Charakter. Andere Charaktere kennt das Spiel nicht. Höchstens 100 Abfragen pro Minute; nicht per `/run` aufrufbar. Bei Einzelgegenständen ist `buyoutAmount` schon der Preis je Stück, `quantity` die Anzahl gleicher Angebote.
 
 - **Blizzard-Code der Forever-Version** liegt öffentlich auf GitHub: `Gethe/wow-ui-source`, Zweig **`forever`** (Stand 1.60.1.70245). Damit lassen sich Abläufe nachlesen statt raten (z. B. `TooltipComparisonManager.lua`, `ContainerFrame.lua`, `SharedUIPanelTemplates.xml`). Mainline-Dateien (`…/Mainline/…`) sind die, die Forever nutzt.

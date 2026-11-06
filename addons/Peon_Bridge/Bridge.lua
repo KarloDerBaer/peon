@@ -8,7 +8,8 @@
 --   Ausloggen oder Beenden nach WTF (Peon_Bridge.lua), dort liest der Manager.
 -- Manager -> Spiel: Der Manager schreibt Data.lua in diesen Ordner (PeonBridgeData, nie mit ausgeliefert):
 --   fmt = 2, t, manager = Version, channels = { broker = true }, ack = { [id] = true }, markets = { ... } (Kanal broker),
---   errorsClearBefore = Zeitpunkt (Fehlerspeicher des Kerns bis dahin loeschen, ab 0.5.0)
+--   errorsClearBefore = Zeitpunkt (Fehlerspeicher des Kerns bis dahin loeschen, ab 0.5.0),
+--   aliases = andere interne Namen eines Markts, shop = Einkaufslisten fuer Broker, tipWant = bestellte genaue Werte (ab 0.6.0)
 --   Ohne channels (Platzhalter, altes Format, kein Manager) ist kein Kanal freigeschaltet.
 
 local ADDON_NAME, ns = ...
@@ -76,6 +77,7 @@ function ns.Prepare()
     local acc = mod.acc
     if type(acc.queue) ~= "table" then acc.queue = {} end
     if type(acc.nameIds) ~= "table" then acc.nameIds = {} end   -- itemIDs, deren Namen der Manager schon hat
+    if type(acc.tipIds) ~= "table" then acc.tipIds = {} end     -- Schluessel, deren Werte der Manager schon hat (ab 0.6.0)
     if type(acc.seq) ~= "number" then acc.seq = 0 end
     -- ab Peon_Client 0.3.0 haengen an jedem Namen Haendlerpreis und Warenart: alle Namen einmal neu schicken
     if acc.nameFmt ~= 2 then acc.nameIds, acc.nameFmt = {}, 2 end
@@ -98,6 +100,9 @@ function ns.ApplyAck()
     for _, e in ipairs(mod.acc.queue) do
         if type(e) == "table" and e.id ~= nil and ack[e.id] then
             n = n + 1
+            if type(e.tips) == "table" then
+                for k in pairs(e.tips) do mod.acc.tipIds[k] = true end
+            end
             -- als uebergeben gilt ein Name erst mit Haendlerpreis (sonst beim naechsten Scan nochmal, Spiel kannte ihn noch nicht)
             if type(e.names) == "table" then
                 for id, v in pairs(e.names) do

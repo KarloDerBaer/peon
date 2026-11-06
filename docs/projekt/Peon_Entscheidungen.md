@@ -2,6 +2,20 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 06.11.2026: Navigation, Einkaufsliste, Favoriten, Ladezeiten (Peon Manager 0.17.0, Broker 0.34.0, Bridge 0.6.0)
+
+- **Märkte heißen „PvE Allianz“**, der interne Name des Spiels steht nur noch unter Quellen. Die Auswahl sitzt in der Seitenleiste und erscheint erst ab zwei Märkten (KarloDerBaer). Der Schlüssel bleibt, weil Broker damit seine Werte findet (Claude).
+- Forever hat keine Realms, also darf es kein „PvE Allianz 2“ geben (KarloDerBaer). Ein anderer interner Name mit gleicher Region, gleichem Regelsatz und gleicher Fraktion führt deshalb in denselben Markt, `Data.lua` nennt ihn als Verweis (Claude). Schon getrennte Märkte werden nicht zusammengelegt, das gab es bisher nicht.
+- **Vor und Zurück wie im Browser, offener Gegenstand als Untertab am Herkunftsreiter** (KarloDerBaer). Je Reiter höchstens ein Untertab, er bleibt bis zum Schließen (Claude).
+- **Einkaufsliste ersetzt die Merkliste**, die Merkliste wird ohne Übernahme verworfen (KarloDerBaer, bisher nicht genutzt). Listen gelten accountweit (KarloDerBaer), damit der Manager sie ohne Charakter führen kann. Das ersetzt für diese Daten den Grundsatz „Der Manager führt, das Spiel liefert nur an“ vom 06.11.2026, weil hier beide Seiten eingeben. Je Eintrag gewinnt die neuere Änderung, Gelöschtes bleibt 60 Tage als Marke, damit es nicht zurückkommt (Claude).
+- Optionaler eigener Höchstpreis je Gegenstand (KarloDerBaer), er geht vor dem Rabatt der Liste (Claude). Die Meldung von Windows gilt für alle Einträge, weil jeder einen Höchstpreis hat, und ist abschaltbar (Claude).
+- **Kein Knopf zum Austausch und kein „Jetzt einlesen“:** Der Manager liest und schreibt von selbst, ein Knopf könnte im Spiel ohnehin kein /reload auslösen (KarloDerBaer). Die Kopfleiste nennt nur, was das Spiel noch nicht hat. Neue Preiswerte stehen dezent, sonst stünde der Hinweis stündlich da (Claude).
+- **Suche nur auf den Seiten**, die Schnellsuche mit Strg+K entfällt (KarloDerBaer).
+- **Favoriten** gelten für alle Märkte und bleiben im Manager, ohne Abgleich mit dem Spiel (Claude, zugestimmt).
+- **Datenbank der genauen Werte im Manager, gefüllt aus dem Spiel** (Idee KarloDerBaer): Die Blizzard-API liefert zu Zusätzen nichts (geprüft mit Parametern und Abfragewegen), Ledger speichert nur Name, Qualität und Symbol. Der Manager kennt aus der API Gegenstand und Bonus-Nummer, baut daraus den Link und bestellt die Werte über `Data.lua`. Die Bridge liest sie im Hintergrund, ein Scan ist nicht nötig. Der Befehl im Spiel bestätigte es am 06.11.2026: Der Link nennt den vollen Namen und „+1 Stärke“, „+1 Intelligenz“. Das ändert die Aussage vom 05.11.2026, dass es bei Zusätzen nur Grundwerte gibt (Claude, zugestimmt).
+- **Ladezeiten:** Rechnung einmal je Stand beim Einlesen statt bei jedem Öffnen, gespeichert als gepackte Liste je Markt. Eine Spalte je Wert in einer eigenen Tabelle wäre mehr Aufwand ohne Vorteil, weil die Liste immer ganz gebraucht wird (Claude).
+- Keine Vorabversion je Paket, alles zusammen (KarloDerBaer).
+
 ## 06.11.2026: Manager übersichtlicher (Peon Manager 0.16.0)
 
 - Der Reiter Module heißt Updates, oben stehen Kanal und Suche, darunter Module und Addons. Der Hinweis „WoW läuft“ steht klein bei den Addons (KarloDerBaer).

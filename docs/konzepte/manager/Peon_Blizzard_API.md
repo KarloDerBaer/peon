@@ -23,6 +23,8 @@ Was wir über die Schnittstelle wissen. Blizzard hat diese Bereiche weder dokume
 
 ## Häuser
 
+Das neutrale Haus heißt laut API „Auktionshaus der Schwarzmeerräuber“ und führt echte Angebote, aber wenige (Haus 117 am 05.11.2026: 356 Einzelgegenstände und 752 Massenware, Haus 111: über 59.000). Wo es im Spiel steht, ist nicht geprüft. Andere Seiten nennen die Goblinstädte wie früher, offiziell bestätigt ist das nicht. Ein Schwarzmarkt-Auktionshaus erscheint in der Liste der Häuser nicht.
+
 Vermutung: 5 Märkte mit je einem Allianz-, Horde- und Neutral-Haus. Angebote gesamt am 05.11.2026, Stand 07:47 UTC. Die Zuordnung zum Regelsatz ist **nicht bestätigt**, die API nennt sie nicht.
 
 | Gruppe | Allianz / Horde / Neutral | EU | US | Vermutung |
@@ -55,7 +57,7 @@ Vermutung: 5 Märkte mit je einem Allianz-, Horde- und Neutral-Haus. Angebote ge
 
 - **`preview_item` in `/data/wow/item/{id}` liefert fertige deutsche Tooltip-Zeilen:** `level`, `binding`, `unique_equipped`, `inventory_type`, `item_subclass`, `weapon` (Schaden, Tempo, Schaden je Sekunde), `armor`, `stats` (mit `display_string` und Farbe), `spells` (Beschreibung des Effekts), `requirements` (Stufe, Klassen, Beruf), `durability`, `charges`, `container_slots`, `set` (Name und Boni), `recipe` (Material), `description`, `crafting_reagent`, `sell_price`.
 - **`static-forever` kennt viele Gegenstände nicht**, auch ohne Zusatz (404 zum Beispiel bei 14097, 16802, 9449, 11996). `static-classic1x` kennt die meisten und hat denselben Aufbau, die Werte stammen aber aus Classic (zum Beispiel `static-1.15.9_68185-classic1x-eu`) und können in Forever abweichen. Bei ersten Einlesungen kam etwa die Hälfte aus den Classic-Daten. Einige fehlen in beiden (7779).
-- **Zusätze:** Die Abfrage kennt nur die Gegenstandsnummer. Die Werte eines Zusatzes wie „des Wolfs“ fehlen deshalb, die Antwort zeigt nur die Grundwerte.
+- **Zusätze:** Die Abfrage kennt nur die Gegenstandsnummer. Die Werte eines Zusatzes wie „des Wolfs“ fehlen deshalb, die Antwort zeigt nur die Grundwerte. Geprüft am 06.11.2026 mit `bonus`, `bonus_lists`, `bonusList`, `bonusLists`, `bonus_list`, `bl` und `context`: die Antwort bleibt Zeichen für Zeichen gleich. `item-bonus`, `item-suffix` und ähnliche Wege liefern 404. Peon_Bridge liest die Werte deshalb ab 0.6.0 im Spiel aus dem Tooltip. Im Spiel bestätigt (06.11.2026): `C_TooltipInfo.GetHyperlink("item:3192::::::::20:1488:::1:12723")` liefert nach `C_Item.RequestLoadItemDataByID` den vollen Namen und die Werte des Zusatzes. Davor kommt nur eine Zeile „Frage Gegenstandsinformationen ab“. Ein Link aus Gegenstand und `bonus_lists` der API reicht also, ein echter Gegenstand ist nicht nötig. Ob die Werte von der Stufe im Link abhängen (hier 20), ist noch offen.
 
 ## Offene Fragen
 

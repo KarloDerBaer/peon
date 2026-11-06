@@ -63,14 +63,16 @@ function keyInfo(key) {
 function importFile(db, file) {
   const g = parseLua(fs.readFileSync(file));
   const acc = g.PeonBrokerDB;
-  const res = { file, markets: [] };
+  const res = { file, markets: [], shop: acc && (acc.lists || acc.listsGone) ? { lists: acc.lists, gone: acc.listsGone } : null };
   if (!acc || typeof acc.markets !== 'object') return res;
+  const cleared = new Set();   // zwei Namen desselben Markts: den ersten nicht wieder loeschen
   const now = Math.floor(Date.now() / 1000);
   for (const [mkey, m] of Object.entries(acc.markets)) {
     if (!m || typeof m.items !== 'object' || !/ \/ /.test(mkey)) continue;
     const r = tx(db, () => {
       const mid = marketId(db, mkey, {});
-      db.prepare("DELETE FROM hist WHERE market_id = ? AND source = 'broker'").run(mid);
+      if (!cleared.has(mid)) db.prepare("DELETE FROM hist WHERE market_id = ? AND source = 'broker'").run(mid);
+      cleared.add(mid);
       const ins = db.prepare(`INSERT OR REPLACE INTO hist(market_id, item_key, source, period, num, t, min, median, qty, n)
           VALUES (?, ?, 'broker', ?, ?, ?, ?, ?, ?, ?)`);
       const up = db.prepare(`INSERT INTO items(key, item_id, variant, name, quality, updated) VALUES (?, ?, ?, ?, ?, ?)

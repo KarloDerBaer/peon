@@ -71,10 +71,10 @@ function compute(days, today) {
 }
 
 // Alle Gegenstaende eines Markts. Rueckgabe Map key -> Ergebnis
-function marketLongTerm(db, marketId, now = Math.floor(Date.now() / 1000)) {
+function marketLongTerm(db, marketId, now = Math.floor(Date.now() / 1000), known = null) {
   const today = dayOf(now);
   const out = new Map();
-  for (const [key, days] of dayValues(db, marketId, today)) {
+  for (const [key, days] of known || dayValues(db, marketId, today)) {
     const r = compute(days, today);
     if (r) out.set(key, r);
   }

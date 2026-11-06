@@ -11,7 +11,7 @@ const MODULES = [
     desc: 'Sammelt die Auktionsdaten von Broker, wertet sie aus (Verlauf, Chancen, Absatz) und gibt Broker bessere Preise zurück.',
     needs: ['Peon_Broker', 'Peon_Bridge'],
     channels: ['broker'],
-    views: ['overview', 'items', 'chances', 'watch', 'sources'],
+    views: ['overview', 'items', 'favorites', 'shopping', 'chances', 'sources'],
     dataFile: 'broker-client.db',
   },
 ];

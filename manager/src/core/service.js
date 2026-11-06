@@ -21,7 +21,9 @@ const DEFAULTS = {
   blizzard: { houses: {} },   // gewaehlte Auktionshaeuser: 'eu-111' -> { market, how }
   autostart: false,
   updateWindow: true,     // Update-Fenster beim Programmstart zeigen, wenn es Neues gibt
-  watchNotify: true,      // Preisalarm der Merkliste als Meldung von Windows
+  shopNotify: true,       // Einkaufsliste: Meldung von Windows, wenn ein Angebot unter dem Hoechstpreis liegt
+  market: '',             // gewaehlter Markt
+  itemColumns: [],        // Spalten unter Gegenstaende, leer = Standard
   checklistHidden: false, // Einrichtungsliste ausgeblendet
   theme: 'dark',
   keepDays: 14,           // Momentaufnahmen vollstaendig aufheben (Tage, 0 = unbegrenzt)
@@ -55,6 +57,7 @@ class Service {
     const moved = migrateSplit(dbDir);
     const raw = this.readSettings();
     delete raw.ahledger; delete raw.marketMap;   // AHledger ist entfernt
+    delete raw.watchNotify;                      // Merkliste ist entfernt
     this.settings = merge(DEFAULTS, raw);
     this.db = openManagerDb(dbDir);
     if (moved) log(this.db, 'manager', true, 'Daten des Peon Broker Client nach broker-client.db umgezogen');
@@ -279,7 +282,7 @@ class Service {
     }
     const b = this.broker.overview();
     const merged = [...b.log, ...own].sort((x, y) => y.t - x.t).slice(0, 40);
-    return { ...base, ...b, log: merged, pruning: !!this.broker.pruning };
+    return { ...base, ...b, log: merged, pruning: !!this.broker.pruning, sync: this.broker.sync() };
   }
 
   close() {

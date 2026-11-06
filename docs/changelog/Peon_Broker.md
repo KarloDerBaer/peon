@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.34.0
+
+Kurz: Einkaufslisten gelten jetzt für alle Charaktere und gleichen sich mit dem Peon Manager ab.
+Kurz: Neu: eigener Höchstpreis je Gegenstand auf der Einkaufsliste.
+
+- 0.34.0 (06.11.2026, Wunsch KarloDerBaer): **Einkaufslisten accountweit, Abgleich mit dem Manager.** Neue Datei `Shop.lua` (Regeln des Abgleichs, gleich wie `manager/src/core/shopping.js`). Listen liegen in `PeonBrokerDB.lists` mit Nummer und Änderungszeit, Löschmarken in `listsGone`, die gewählte Liste bleibt je Charakter. Listen eines Charakters werden beim ersten Laden übernommen, bei gleichem Namen in die vorhandene Liste. `mod:MergeShop(data)` mischt die Listen aus dem Manager ein. Eigener Höchstpreis in Gold je Gegenstand (`max` in Kupfer) geht vor dem Wert der Liste. **Im Spiel prüfen (WoW neu starten, neue Datei):** Listen werden übernommen, Feld „Max. Gold“ passt neben den Text im Reiter Einkaufsliste, Abgleich in beide Richtungen.
+
 ## 0.33.1
 
 Kurz: Fehlermeldung nach dem Scan im Radar behoben.

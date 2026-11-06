@@ -538,5 +538,96 @@ do
   PeonDB.errors, PeonBridgeData = nil, keepData
 end
 
+-- Ab 0.6.0: genaue Werte aus dem Tooltip, andere Namen eines Markts, Einkaufslisten an Broker
+do
+  local E, bridge = ns.Export, Peon:GetModule("bridge")
+  local GORILLA = "3192:Kurzes Bastardschwert des Gorillas"
+  local LINK = "|cnIQ2:|Hitem:3192::::::::20:1488:::1:12723|h[Kurzes Bastardschwert des Gorillas]|h|r"
+  check(E.TipText(LINK) == nil, "0.6.0: ohne C_TooltipInfo keine Werte")
+  C_TooltipInfo = { GetHyperlink = function() return { lines = {
+    { leftText = "Kurzes Bastardschwert des Gorillas" }, { leftText = "Zweihändig", rightText = "Schwert" },
+    { leftText = "+5 Ausdauer", leftColor = { r = 0.1, g = 1, b = 0.1 } }, { leftText = "|cffffffffStufe|r 7", leftColor = { r = 1, g = 0.82, b = 0 } },
+    { leftText = "Grau", leftColor = { r = 0.5, g = 0.5, b = 0.5 } }, { leftText = "" } } } end }
+  check(E.TipText(LINK) == "Zweihändig\tSchwert\t\n+5 Ausdauer\t\tg\nStufe 7\t\ty\nGrau\t\tm", "0.6.0: Zeilen ohne Namen, mit Art, ohne Farbcodes")
+  check(E.TipText(nil) == nil, "0.6.0: ohne Link nichts")
+
+  local function scan(rows)
+    E.ScanStart({ market = "M / Horde", t = clock, total = 1 })
+    for _, r in ipairs(rows) do E.ScanRow(r[1], r[2], 1, r[3], 500, nil, nil, 4, r[4]) end
+    return E.ScanEnd({})
+  end
+  local e = scan({ { 3192, "Kurzes Bastardschwert des Gorillas", 2, LINK }, { 2589, "Leinenstoff", 1, "|Hitem:2589|h" }, { 3192, "Kurzes Bastardschwert des Gorillas", 2, LINK } })
+  check(e.tips and e.tips[GORILLA] and e.tips["2589"] == nil, "0.6.0: Werte fuer Ausruestung mit vollem Schluessel, nicht fuer Stoff")
+  local data = PeonBridgeData
+  PeonBridgeData = { fmt = 2, t = clock, channels = { broker = true }, ack = { [e.id] = true } }
+  ns.ApplyAck()
+  check(PeonBridgeDB.tipIds[GORILLA] == true, "0.6.0: bestaetigte Werte gelten als uebergeben")
+  local e2 = scan({ { 3192, "Kurzes Bastardschwert des Gorillas", 2, LINK } })
+  check(e2.tips == nil, "0.6.0: kein zweites Mal")
+  PeonBridgeDB.tipIds = {}
+  E.TIP_MAX = 1
+  local e3 = scan({ { 3192, "Kurzes Bastardschwert des Gorillas", 2, LINK }, { 4000, "Anderes Teil", 3, "|Hitem:4000|h" } })
+  local n3 = 0 for _ in pairs(e3.tips) do n3 = n3 + 1 end
+  check(n3 == 1, "0.6.0: Obergrenze je Scan, der Rest kommt spaeter")
+  E.TIP_MAX = 400
+  C_TooltipInfo = { GetHyperlink = function() error("kaputt") end }
+  check(E.TipText(LINK) == nil, "0.6.0: Fehler im Spiel stoert nicht")
+  C_TooltipInfo = nil
+
+  -- Bestellte Werte: im Hintergrund lesen, wenige auf einmal, nie im Kampf
+  do
+    local loaded, combat = {}, false
+    C_Item = C_Item or {}
+    local keepReq, keepCombat = C_Item.RequestLoadItemDataByID, Peon.InCombat
+    C_Item.RequestLoadItemDataByID = function(id) loaded[id] = true end
+    Peon.InCombat = function() return combat end
+    C_TooltipInfo = { GetHyperlink = function(l)
+      local id = tonumber(l:match("item:(%d+)"))
+      if id == 666 or not loaded[id] then return { lines = { { leftText = "Frage" } } } end
+      return { lines = { { leftText = "Name" }, { leftText = "+1 Stärke " .. id } } } end }
+    local keep = PeonBridgeData
+    PeonBridgeDB.tipBox = { ["alt"] = "schon geliefert", ["1:Offen"] = "wartet noch" }
+    local want = { ["1:Offen"] = "item:1::::::::20:1488:::1:5" , [666] = "item:666" }
+    for i = 2, 21 do want[i] = "item:" .. i end
+    PeonBridgeData = { fmt = 2, t = clock, channels = { broker = true }, tipWant = want }
+    check(E.TipStart() == 21, "0.6.0: Bestellung ohne das, was schon bereitliegt")
+    check(PeonBridgeDB.tipBox.alt == nil and PeonBridgeDB.tipBox["1:Offen"] == "wartet noch", "0.6.0: Was der Manager nicht mehr bestellt, hat er bekommen")
+    combat = true
+    check(E.TipStep() == true and E.tipBusyN == 0, "0.6.0: im Kampf passiert nichts")
+    combat = false
+    E.TipStep()
+    check(E.tipBusyN == E.TIP_BATCH, "0.6.0: nur wenige auf einmal")
+    local steps = 0
+    while E.TipStep() and steps < 100 do steps = steps + 1; now = now + 1 end
+    check(steps < 100 and E.tipBusyN == 0 and #E.tipQueue == 0, "0.6.0: alles abgearbeitet")
+    check(PeonBridgeDB.tipBox[7] == "+1 Stärke 7\t\t", "0.6.0: Werte liegen bereit")
+    check(PeonBridgeDB.tipBox[666] == "", "0.6.0: Was das Spiel nicht nennt, kommt leer zurueck")
+    C_TooltipInfo = nil
+    check(E.TipStart() == 0, "0.6.0: ohne C_TooltipInfo keine Arbeit")
+    check(E.TipStep() == false, "0.6.0: und kein weiterer Schritt")
+    C_Item.RequestLoadItemDataByID, Peon.InCombat = keepReq, keepCombat
+    PeonBridgeDB.tipBox = nil
+    PeonBridgeData = keep
+  end
+
+  -- Anderer interner Name desselben Markts
+  PeonBridgeData = { fmt = 2, t = clock, channels = { broker = true }, aliases = { ["Realm 1 PvE / Horde"] = "Realm 3 PvE / Horde" },
+    markets = { ["Realm 3 PvE / Horde"] = { t = clock, day = 1, items = { [2770] = "100:500:120:5:e" }, sales = {} } },
+    shop = { lists = { { id = "m7_7", name = "Vom Manager", pct = 10, u = clock + 5, items = {} } } } }
+  local lt = bridge:LongTerm(2770, "Realm 1 PvE / Horde")
+  check(lt and lt.lang == 120, "0.6.0: Werte auch unter dem anderen Namen")
+  check(bridge:LongTerm(2770, "Realm 3 PvE / Horde").lang == 120, "0.6.0: und unter dem eigenen")
+  check(bridge:LongTerm(2770, "Realm 2 PvE / Horde") == nil, "0.6.0: fremder Name nicht")
+  check((ns.MarketCount("Realm 1 PvE / Horde")) == 1, "0.6.0: Zaehler auch")
+
+  -- Einkaufslisten gehen beim Anmelden an Broker
+  ns.hooked = nil
+  check(ns.Hook() == true, "0.6.0: Anmelden")
+  local found
+  for _, l in ipairs(PeonBrokerDB.lists or {}) do if l.id == "m7_7" then found = l end end
+  check(found and found.name == "Vom Manager", "0.6.0: Broker hat die Liste aus dem Manager")
+  PeonBridgeData = data
+end
+
 check(not said("Fehler in"), "keine Fehlermeldungen")
 print("ALLE TESTS OK")

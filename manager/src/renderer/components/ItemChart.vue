@@ -63,7 +63,7 @@ function draw() {
         return `${t}<br>${rows.filter(Boolean).join('<br>')}`;
       } },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
-    grid: [{ left: 64, right: 48, top: 34, height: '52%' }, { left: 64, right: 48, top: '70%', bottom: 28 }],
+    grid: [{ left: 64, right: 48, top: 56, height: '48%' }, { left: 64, right: 48, top: '70%', bottom: 28 }],
     xAxis: [axisX(0), axisX(1)],
     yAxis: [
       { type: 'value', gridIndex: 0, scale: true, axisLabel: { color: text, fontFamily: FONT, formatter: shortMoney }, splitLine: { lineStyle: { color: line } } },

@@ -8,8 +8,9 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
+const { sameMarket } = require('./markets');
 
-const SCHEMA = 6;   // 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
+const SCHEMA = 7;   // 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -68,9 +69,14 @@ CREATE TABLE IF NOT EXISTS variant_names (
   item_id INTEGER NOT NULL, bonus TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY (item_id, bonus));
 CREATE TABLE IF NOT EXISTS item_info (
   item_id INTEGER PRIMARY KEY, source TEXT NOT NULL, tip TEXT, t INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS watchlist (
-  market_id INTEGER NOT NULL, item_key TEXT NOT NULL, below REAL, added INTEGER NOT NULL, hit INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY (market_id, item_key));
+CREATE TABLE IF NOT EXISTS favorites (
+  item_key TEXT PRIMARY KEY, added INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS item_tip (
+  key TEXT PRIMARY KEY, lines TEXT NOT NULL, t INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS list_cache (
+  market_id INTEGER PRIMARY KEY, sig TEXT NOT NULL, data BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS market_alias (
+  alias TEXT PRIMARY KEY, market_id INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, kind TEXT NOT NULL, ok INTEGER NOT NULL, text TEXT);
 `;
@@ -111,6 +117,8 @@ function openDb(dir) {
   if (!cols.has('commodity')) db.exec('ALTER TABLE items ADD COLUMN commodity INTEGER');
   // Schema 4: AHledger ist entfernt (05.11.2026)
   db.exec('DROP TABLE IF EXISTS ext_ahledger; DROP TABLE IF EXISTS ext_fetch;');
+  // Schema 7: Die Merkliste ist entfernt, die Einkaufsliste ersetzt sie (06.11.2026)
+  db.exec('DROP TABLE IF EXISTS watchlist;');
   // Datei laesst sich schrittweise verkleinern, ohne das Programm anzuhalten. Einmalig umstellen, klappt es nicht, geht es ohne weiter
   if (db.prepare('PRAGMA auto_vacuum').get().auto_vacuum !== 2) {
     try { db.exec('PRAGMA auto_vacuum = INCREMENTAL; VACUUM;'); } catch { /* retention.js verkleinert dann im Ganzen */ }
@@ -190,6 +198,14 @@ function marketId(db, key, info = {}) {
   if (r) {
     if (info.region != null) db.prepare('UPDATE markets SET region = ? WHERE id = ?').run(info.region, r.id);
     return r.id;
+  }
+  // Anderer interner Name fuer denselben Markt: kein zweiter Markt, Data.lua nennt den Namen als Verweis
+  const al = db.prepare('SELECT market_id FROM market_alias WHERE alias = ?').get(key);
+  if (al) return al.market_id;
+  const twin = db.prepare('SELECT id, key, region FROM markets').all().find((m) => sameMarket(m.key, m.region, key, info.region));
+  if (twin) {
+    db.prepare('INSERT INTO market_alias(alias, market_id) VALUES (?, ?)').run(key, twin.id);
+    return twin.id;
   }
   const res = db.prepare('INSERT INTO markets(key, realm, faction, region, created) VALUES (?, ?, ?, ?, ?)')
     .run(key, info.realm ?? null, info.faction ?? null, info.region ?? null, Math.floor(Date.now() / 1000));

@@ -12,6 +12,7 @@ const { parseLua } = require('./lua');
 const { parseRows } = require('./stats');
 const { tx, log } = require('./db');
 const game = require('./game');
+const { GROUPS, FACTIONS, FACTION_LABEL, groupOf, regionOfRealm, rulesetOf, marketLabel } = require('./markets');
 const { fetchItem, QUALITY } = require('./item-info');
 
 const HOUR = 3600;
@@ -25,19 +26,7 @@ const MATCH_MIN = 0.5, MATCH_LEAD = 1.5;   // Scan-Vergleich: so viel muss gleic
 
 const STEP = { SHORT: 1, MEDIUM: 2, LONG: 3, VERY_LONG: 4 };
 const REGION_ID = { eu: 3, us: 1, tw: 4 };
-const REGION_OF_ID = { 3: 'eu', 1: 'us', 4: 'tw' };
 
-// Gruppen von je einem Allianz-, Horde- und Neutral-Haus. Nur Gruppe 2 ist belegt (Scan und Testangebot, 05.11.2026).
-const GROUPS = {
-  1: { houses: [110, 113, 116], name: 'PvP', sure: false, ruleset: 1 },
-  2: { houses: [111, 114, 117], name: 'Normal (PvE)', sure: true, ruleset: 2 },
-  3: { houses: [112, 115, 118], name: 'Leer', empty: true },
-  4: { houses: [119, 120, 121], name: 'Rollenspiel' },
-  5: { houses: [123, 124, 125], name: 'Rollenspiel' },
-};
-const FACTIONS = ['Alliance', 'Horde', 'Neutral'];
-const FACTION_LABEL = { Alliance: 'Allianz', Horde: 'Horde', Neutral: 'Neutral' };
-const groupOf = (house) => Object.keys(GROUPS).find((g) => GROUPS[g].houses.includes(house)) || null;
 const factionOfHouse = (house, name) => {
   if (/allianz|alliance/i.test(name || '')) return 'Alliance';
   if (/horde/i.test(name || '')) return 'Horde';
@@ -66,21 +55,6 @@ function dueAt(st) {
   if (st.error || !st.t) return st.checked + RETRY;
   const expected = st.t + HOUR + GRACE;
   return st.checked < expected ? expected : st.checked + RETRY;
-}
-
-function regionOfRealm(realm, regionId) {
-  const m = /\b(EU|US|NA|TW)\d*\b/i.exec(realm || '');
-  if (m) return m[1].toUpperCase() === 'NA' ? 'us' : m[1].toLowerCase();
-  return REGION_OF_ID[regionId] || null;
-}
-
-// Regelsatz aus dem Realm-Namen, zum Beispiel "CAMWOW EU4 Realm 3 PvE". Nummern wie unter /data/wow/ruleset/index.
-function rulesetOf(realm) {
-  const s = String(realm || '').toLowerCase();
-  const rp = /\brp\b|rppvp|rp-pvp|rollenspiel|roleplay/.test(s), pvp = /pvp/.test(s);
-  if (rp && pvp) return 15;
-  if (rp) return 3;
-  return pvp ? 1 : 2;
 }
 
 // Haus zu Regelsatz und Fraktion, wenn es dafuer eine Annahme gibt. Bei Rollenspiel hilft nur der Scan-Vergleich.
@@ -246,12 +220,12 @@ class BlizzardImport {
         const t = houseForRuleset(rulesetOf(m.realm), m.faction);
         if (t) pick = { house: t.house, how: t.sure ? 'ruleset' : 'guess' };
       }
-      if (!pick) { out.push({ market: m.key, house: null }); continue; }
+      if (!pick) { out.push({ market: m.key, label: marketLabel(m.key), house: null }); continue; }
       const key = `${client.region}-${pick.house}`;
       const old = houses[key];
       if (old && old.market !== m.key) this.renamePlaceholder(old.market, m);
       houses[key] = { market: m.key, how: pick.how, ...(pick.score != null ? { score: Math.round(pick.score * 1000) / 1000 } : {}) };
-      out.push({ market: m.key, house: pick.house, how: pick.how, score: pick.score ?? null });
+      out.push({ market: m.key, label: marketLabel(m.key), house: pick.house, how: pick.how, score: pick.score ?? null });
     }
     this.broker.saveSettings({ blizzard: { ...this.broker.settings.blizzard, houses } });
     log(this.db, 'blizzard', true, `Vorschlag: ${out.filter((x) => x.house).length} von ${out.length} Märkten zugeordnet`);
@@ -403,7 +377,7 @@ class BlizzardImport {
         const st = state[key] || {};
         return { id: h.id, faction: factionOfHouse(h.id, h.name), factionLabel: FACTION_LABEL[factionOfHouse(h.id, h.name)], group: g ? Number(g) : null,
           ruleset: group ? group.name : 'Unbekannt', sure: !!(group && group.sure), empty: !!(group && group.empty),
-          selected: !!sel[key], market: sel[key] ? sel[key].market : null, how: sel[key] ? sel[key].how : null, score: sel[key] ? sel[key].score ?? null : null,
+          selected: !!sel[key], market: sel[key] ? sel[key].market : null, marketLabel: sel[key] ? marketLabel(sel[key].market) : null, how: sel[key] ? sel[key].how : null, score: sel[key] ? sel[key].score ?? null : null,
           t: st.t || null, offers: st.offers ?? null, error: st.error || null, stands: count.get(`api-${client.region}-${h.id}-%`).n };
       }),
     };
