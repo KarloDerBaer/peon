@@ -21,6 +21,15 @@ async function load() {
   if (!props.market || !props.itemKey) return;
   d.value = await api.item(props.market.key, props.itemKey, range.value);
 }
+// Merkliste
+async function toggleWatch() {
+  if (d.value.watch) { await api.watchRemove(props.market.key, props.itemKey); d.value.watch = null; }
+  else d.value.watch = await api.watchSet(props.market.key, props.itemKey, null);
+}
+async function setLimit(value) {
+  const gold = parseFloat(String(value).replace(',', '.'));
+  d.value.watch = await api.watchSet(props.market.key, props.itemKey, gold > 0 ? gold * 10000 : null);
+}
 // Werte des Gegenstands (Blizzard-API), unabhaengig vom Zeitraum
 async function loadInfo() {
   info.value = null;
@@ -76,6 +85,11 @@ const levelsTop = computed(() => (d.value && d.value.levels ? d.value.levels.lis
     <button class="link back" @click="emit('back')">{{ backLabel }}</button>
     <div class="title">
       <h1 :style="{ color: qualityColor(d.quality) }">{{ itemName(d) }}</h1>
+      <div class="watchbar">
+        <button :class="{ primary: !d.watch }" @click="toggleWatch">{{ d.watch ? 'Von der Merkliste nehmen' : 'Merken' }}</button>
+        <label class="small" v-if="d.watch">Alarm unter <input class="limit" type="text" inputmode="decimal" :value="d.watch.below == null ? '' : d.watch.below / 10000" placeholder="kein Alarm" aria-label="Grenze in Gold" spellcheck="false" @change="setLimit($event.target.value)" /> Gold</label>
+        <span class="small accent" v-if="d.watch && d.watch.hit">Das günstigste Angebot liegt unter der Grenze.</span>
+      </div>
       <p class="muted small">Nummer {{ d.item }}<template v-if="d.variant">, Gegenstand mit Zusatz (eigener Preis je Variante)</template><template v-else-if="d.commodity === 1">, Massenware</template><template v-else-if="d.commodity === 0">, Einzelgegenstand</template><template v-if="d.vendor">, Händler <Gold :copper="d.vendor" /></template></p>
     </div>
 
@@ -164,6 +178,9 @@ const levelsTop = computed(() => (d.value && d.value.levels ? d.value.levels.lis
 </template>
 
 <style scoped>
+.watchbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 8px 0; }
+.limit { width: 100px; margin: 0 4px; text-align: right; }
+.accent { color: var(--accent); }
 .item { display: grid; gap: 20px; max-width: 1180px; }
 .back { justify-self: start; }
 .title { display: grid; gap: 2px; }

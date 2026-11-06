@@ -11,12 +11,15 @@ const { writeData, dataMatches, addonDir } = require('./datalua');
 const broker = require('./broker');
 const history = require('./history');
 const retention = require('./retention');
+const watch = require('./watch');
 const longterm = require('./longterm');
 const sales = require('./sales');
 const chances = require('./chances');
 const { BlizzardImport } = require('./blizzard-import');
 const { ItemInfo } = require('./item-info');
 const crypto = require('node:crypto');
+
+const MOVES_MIN_BANDS = 20;   // ab so vielen Gegenstaenden mit ueblichem Bereich zaehlt der als Vergleich
 
 class BrokerClient {
   constructor(host) {
@@ -251,6 +254,7 @@ class BrokerClient {
       const v = this.db.prepare('SELECT vendor, commodity FROM items WHERE key = ?').get(key);
       d.vendor = v ? v.vendor : null;
       d.commodity = v ? v.commodity : null;
+      d.watch = mid == null ? null : watch.get(this.db, mid, key);
     }
     return d;
   }
@@ -266,7 +270,7 @@ class BrokerClient {
       game: { files: this.lastFiles, lastImport: this.lastImport },
       api: this.api.summary(),
       back: ack ? { t: ack.t, count: ack.ids.length, file: ack.file, items: ack.items || 0, sales: ack.sales || 0, bytes: ack.bytes || 0, day: ack.day || null } : null,
-      log: db.prepare('SELECT t, kind, ok, text FROM log ORDER BY id DESC LIMIT 12').all(),
+      log: db.prepare('SELECT t, kind, ok, text FROM log ORDER BY id DESC LIMIT 40').all(),
       brokerHist: db.prepare("SELECT COUNT(DISTINCT item_key) AS items, COUNT(DISTINCT num) AS days, MIN(t) AS t0, MAX(t) AS t1 FROM hist WHERE source = 'broker' AND period = 'day'").get(),
     };
   }
@@ -283,12 +287,53 @@ class BrokerClient {
     return { key: m.key, region: m.region, lastScan: last || null, scans, stands, lives, items, history, moves: last ? this.moves(m.id, last) : null };
   }
 
-  // Groesste Bewegungen: Median des letzten Scans gegen einen Scan etwa einen Tag vorher (sonst den vorigen)
+  // ---------- Merkliste ----------
+  watchList(marketKey) {
+    const mid = this.marketId(marketKey);
+    if (mid == null) return [];
+    return watch.list(this.db, mid, longterm.marketLongTerm(this.db, mid, this.now()).items);
+  }
+
+  watchSet(marketKey, key, below) {
+    const mid = this.marketId(marketKey);
+    if (mid == null) throw new Error('Unbekannter Markt');
+    watch.set(this.db, mid, String(key), below, this.now());
+    return watch.get(this.db, mid, String(key));
+  }
+
+  watchRemove(marketKey, key) {
+    const mid = this.marketId(marketKey);
+    if (mid != null) watch.remove(this.db, mid, String(key));
+  }
+
+  // Nach neuen Daten: Was hat die Grenze gerade erreicht?
+  watchCheck() { return watch.check(this.db); }
+
+  // Groesste Bewegungen gegenueber dem ueblichen Preis, gerechnet einmal je Stand. In den ersten Tagen gibt es den noch nicht,
+  // dann gegen einen Scan etwa einen Tag vorher (sonst den vorigen).
   moves(marketId, last) {
+    const key = `${marketId}:${last.id}`;
+    if (!this.movesCache || this.movesCache.key !== key) this.movesCache = { key, value: this.computeMoves(marketId, last) };
+    return this.movesCache.value;
+  }
+
+  computeMoves(marketId, last) {
     const db = this.db;
+    const bands = longterm.marketLongTerm(db, marketId, this.now()).items;
+    if (bands.size >= MOVES_MIN_BANDS) {
+      const rows = [];
+      for (const r of db.prepare(`SELECT a.item_key AS key, a.median AS now, a.qty AS qty, i.name AS name, i.quality AS quality, i.item_id AS item
+          FROM item_snap a LEFT JOIN items i ON i.key = a.item_key WHERE a.snapshot_id = ? AND a.median >= 100 AND a.qty >= 3`).iterate(last.id)) {
+        const b = bands.get(r.key);
+        if (!b || !(b.lang > 0) || b.schw > 0.5) continue;   // zu unruhig: kein verlaesslicher Vergleich
+        rows.push({ ...r, before: b.lang, pct: r.now / b.lang - 1 });
+      }
+      return { mode: 'band', base: last.t, up: rows.filter((r) => r.pct > 0).sort((x, y) => y.pct - x.pct).slice(0, 6),
+        down: rows.filter((r) => r.pct < 0).sort((x, y) => x.pct - y.pct).slice(0, 6) };
+    }
     let base = db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' AND t <= ? ORDER BY t DESC LIMIT 1").get(marketId, last.t - 20 * 3600);
     if (!base) base = db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' AND t < ? ORDER BY t DESC LIMIT 1").get(marketId, last.t);
-    if (!base) return { base: null, up: [], down: [] };
+    if (!base) return { mode: 'scan', base: null, up: [], down: [] };
     const rows = db.prepare(`SELECT a.item_key AS key, a.median AS now, b.median AS before, a.qty AS qty, i.name AS name, i.quality AS quality, i.item_id AS item
         FROM item_snap a JOIN item_snap b ON b.snapshot_id = ? AND b.item_key = a.item_key
         LEFT JOIN items i ON i.key = a.item_key
@@ -296,7 +341,7 @@ class BrokerClient {
     for (const r of rows) r.pct = (r.now - r.before) / r.before;
     const up = rows.filter((r) => r.pct > 0).sort((x, y) => y.pct - x.pct).slice(0, 6);
     const down = rows.filter((r) => r.pct < 0).sort((x, y) => x.pct - y.pct).slice(0, 6);
-    return { base: base.t, up, down };
+    return { mode: 'scan', base: base.t, up, down };
   }
 
   close() { this.closed = true; try { this.db.close(); } catch { /* schon zu */ } }

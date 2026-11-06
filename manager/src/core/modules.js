@@ -7,10 +7,11 @@ const MODULES = [
   {
     key: 'broker-client',
     title: 'Peon Broker Client',
+    navTitle: 'Broker',   // Ueberschrift der Gruppe in der Seitenleiste
     desc: 'Sammelt die Auktionsdaten von Broker, wertet sie aus (Verlauf, Chancen, Absatz) und gibt Broker bessere Preise zurück.',
     needs: ['Peon_Broker', 'Peon_Bridge'],
     channels: ['broker'],
-    views: ['overview', 'items', 'chances', 'sources'],
+    views: ['overview', 'items', 'chances', 'watch', 'sources'],
     dataFile: 'broker-client.db',
   },
 ];

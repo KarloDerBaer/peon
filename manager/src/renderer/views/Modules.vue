@@ -2,9 +2,10 @@
 // Ansicht "Module" (Peon_GitHub_Design.md 5.3, 5.5): Addons und Manager-Module, Vorschlag beim ersten Start
 import { ref, computed, watch, onMounted } from 'vue';
 import { ago, bytes } from '../util.js';
+import Checklist from '../components/Checklist.vue';
 
-const props = defineProps({ data: Object, now: Number, stamp: Number });
-const emit = defineEmits(['changed', 'pickFolder', 'go', 'updates']);
+const props = defineProps({ data: Object, settings: Object, now: Number, stamp: Number });
+const emit = defineEmits(['changed', 'pickFolder', 'go', 'updates', 'save']);
 const api = window.peon;
 
 const st = ref(null);
@@ -29,7 +30,7 @@ const showSetup = computed(() => st.value && !st.value.setup.done && choosable.v
 const checkText = computed(() => {
   const c = st.value && st.value.check;
   if (!c) return 'Noch nicht gesucht.';
-  if (!c.ok) return `Suche fehlgeschlagen ${ago(c.t, props.now)}: ${c.error}`;
+  if (!c.ok) return `Suche fehlgeschlagen ${ago(c.t, props.now)}: ${c.error}.`;
   if (c.noRelease) return 'Es gibt noch kein Release.';
   return `Release ${st.value.release}, zuletzt gesucht ${ago(c.t, props.now)}.`;
 });
@@ -48,6 +49,8 @@ async function run(what, fn) {
   busy.value = what; error.value = ''; message.value = '';
   try { return await fn(); } catch (e) { error.value = String(e.message || e).replace(/^Error invoking remote method '[^']*': (Error: )?/, ''); return null; } finally { busy.value = ''; await load(); emit('changed'); }
 }
+
+const setChannel = (c) => run('check', () => api.setAddonChannel(c));
 
 // Ergebnis einer Installation in einem Satz
 function report(r) {
@@ -94,9 +97,9 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
 
 <template>
   <div class="mods" v-if="st">
-    <h1>Module</h1>
+    <h1>Updates</h1>
+    <Checklist v-if="!showSetup" :data="data" :settings="settings" :stamp="stamp" @go="emit('go', $event)" @save="emit('save', $event)" />
 
-    <p class="banner warn" v-if="st.wowRunning" role="status">WoW läuft. Aktualisieren geht trotzdem: Neue Dateien brauchen danach einen Neustart von WoW, sonst reicht <code>/reload</code>.</p>
     <p class="banner warn" v-if="st.tooOld" role="alert">{{ st.tooOld }}</p>
     <div class="banner warn" v-if="!st.wowValid" role="alert">
       <p>Im eingestellten Ordner liegt kein WoW Forever: {{ st.wowDir }}</p>
@@ -131,45 +134,16 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
       </div>
     </section>
 
-    <section class="group">
-      <div class="head">
-        <h2>Addons</h2>
-        <div class="row">
-          <button :disabled="!!busy" @click="check">{{ busy === 'check' ? 'Sucht' : 'Nach Updates suchen' }}</button>
-          <button class="primary" v-if="st.updates" :disabled="!!busy || !!st.tooOld" @click="emit('updates')">Alle aktualisieren ({{ st.updates }})</button>
-        </div>
-      </div>
-      <p class="small" :class="st.check && !st.check.ok ? 'warn' : 'muted'">
-        {{ checkText }} <template v-if="st.channel === 'test'">Kanal Test.</template>
-        Installiert wird nur, wenn du es auslöst.
-      </p>
-
-      <article v-for="a in shown" :key="a.name" class="card">
-        <div class="head">
-          <div>
-            <h3>{{ a.title }}</h3>
-            <span class="small" :class="{ ok: a.status === 'current', warn: a.status === 'update', muted: !['current', 'update'].includes(a.status) }">
-              {{ LABEL[a.status] }}
-              <template v-if="a.installed">{{ a.status === 'unknown' ? ' ' : ' · installiert ' }}{{ a.installed }}</template>
-              <template v-if="a.available && a.available !== a.installed"> · verfügbar {{ a.available }}</template>
-            </span>
-          </div>
-          <div class="row">
-            <button class="primary" v-if="a.status === 'update' || a.status === 'missing'" :disabled="!!busy || !!st.tooOld || !st.wowValid" @click="installOne(a)">
-              {{ busy === a.name ? 'Moment' : a.status === 'update' ? 'Aktualisieren' : 'Installieren' }}
-            </button>
-            <button v-if="a.removable" class="danger" :disabled="!!busy" @click="remove(a)">{{ confirmRemove === a.name ? 'Wirklich entfernen?' : 'Entfernen' }}</button>
-            <button v-if="confirmRemove === a.name" @click="confirmRemove = ''">Abbrechen</button>
-          </div>
-        </div>
-        <p v-if="a.desc">{{ a.desc }}</p>
-        <p class="small muted" v-if="a.managerOnly">Gehört fest zum Peon Manager und wird mit ihm aktualisiert.</p>
-        <button class="link small" v-if="a.news && a.news.length" @click="open = open === a.name ? '' : a.name">{{ open === a.name ? 'Was ist neu ausblenden' : 'Was ist neu' }}</button>
-        <div class="notes small" v-if="open === a.name">
-          <ul v-for="n in a.news" :key="n.version"><li v-for="s in n.short" :key="s">{{ s }}</li></ul>
-        </div>
-      </article>
-      <p class="small muted" v-if="!shown.length">Sobald es ein Release gibt, stehen die Addons hier.</p>
+    <section class="top">
+      <label class="channel">
+        <span>Kanal</span>
+        <select :value="st.channel" :disabled="!!busy" @change="setChannel($event.target.value)">
+          <option value="stable">Stabil</option><option value="test">Test (Vorabversionen)</option>
+        </select>
+      </label>
+      <button :disabled="!!busy" @click="check">{{ busy === 'check' ? 'Sucht' : 'Nach Updates suchen' }}</button>
+      <button class="primary" v-if="st.updates" :disabled="!!busy || !!st.tooOld" @click="emit('updates')">Alle aktualisieren ({{ st.updates }})</button>
+      <p class="small status" :class="st.check && !st.check.ok ? 'warn' : 'muted'">{{ checkText }} Installiert wird nur, wenn du es auslöst.</p>
     </section>
 
     <section class="group">
@@ -200,6 +174,38 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
       </article>
     </section>
 
+    <section class="group">
+      <h2>Addons</h2>
+      <p class="small muted" v-if="st.wowRunning" role="status">WoW läuft. Aktualisieren geht trotzdem, neue Dateien brauchen danach einen Neustart von WoW, sonst reicht /reload.</p>
+
+      <article v-for="a in shown" :key="a.name" class="card">
+        <div class="head">
+          <div>
+            <h3>{{ a.title }}</h3>
+            <span class="small" :class="{ ok: a.status === 'current', warn: a.status === 'update', muted: !['current', 'update'].includes(a.status) }">
+              {{ LABEL[a.status] }}
+              <template v-if="a.installed">{{ a.status === 'unknown' ? ' ' : ' · installiert ' }}{{ a.installed }}</template>
+              <template v-if="a.available && a.available !== a.installed"> · verfügbar {{ a.available }}</template>
+            </span>
+          </div>
+          <div class="row">
+            <button class="primary" v-if="a.status === 'update' || a.status === 'missing'" :disabled="!!busy || !!st.tooOld || !st.wowValid" @click="installOne(a)">
+              {{ busy === a.name ? 'Moment' : a.status === 'update' ? 'Aktualisieren' : 'Installieren' }}
+            </button>
+            <button v-if="a.removable" class="danger" :disabled="!!busy" @click="remove(a)">{{ confirmRemove === a.name ? 'Wirklich entfernen?' : 'Entfernen' }}</button>
+            <button v-if="confirmRemove === a.name" @click="confirmRemove = ''">Abbrechen</button>
+          </div>
+        </div>
+        <p v-if="a.desc">{{ a.desc }}</p>
+        <p class="small muted" v-if="a.managerOnly">Gehört fest zum Peon Manager und wird mit ihm aktualisiert.</p>
+        <button class="link small" v-if="a.news && a.news.length" @click="open = open === a.name ? '' : a.name">{{ open === a.name ? 'Was ist neu ausblenden' : 'Was ist neu' }}</button>
+        <div class="notes small" v-if="open === a.name">
+          <ul v-for="n in a.news" :key="n.version"><li v-for="s in n.short" :key="s">{{ s }}</li></ul>
+        </div>
+      </article>
+      <p class="small muted" v-if="!shown.length">Sobald es ein Release gibt, stehen die Addons hier.</p>
+    </section>
+
     <p class="small"><button class="link" @click="emit('go', 'reports')">Feedback und Fehler melden</button></p>
   </div>
   <div class="muted" v-else>Lade Module</div>
@@ -207,6 +213,9 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
 
 <style scoped>
 .mods { display: grid; gap: 26px; max-width: 760px; }
+.top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-bottom: 20px; border-bottom: 1px solid var(--line-soft); }
+.channel { display: flex; align-items: center; gap: 10px; }
+.status { flex-basis: 100%; }
 .group { display: grid; gap: 12px; padding-bottom: 24px; border-bottom: 1px solid var(--line-soft); }
 .card { border: 1px solid var(--line); border-radius: var(--radius-m); padding: 14px 18px; display: grid; gap: 8px; background: var(--panel); }
 .card.on { border-color: var(--accent); }

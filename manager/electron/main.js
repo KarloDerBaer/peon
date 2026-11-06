@@ -8,9 +8,11 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { execFile } = require('node:child_process');
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, session, safeStorage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, session, safeStorage, Notification } = require('electron');
 const { Service } = require('../src/core/service');
 const { createUpdater } = require('./updater');
+const backup = require('../src/core/backup');
+const { money: watchMoney } = require('../src/core/watch');
 const blizzard = require('../src/core/blizzard');
 const { BlizzardWatch } = require('../src/core/blizzard-watch');
 const { findWowDirs, REPO_URL } = require('../src/core/addons');
@@ -35,6 +37,8 @@ function dataDir() {
   if (BESIDE) return SIDE_DB;                            // <Programmordner>\Runtime\PeonManager.exe -> <Programmordner>\DB
   return path.join(app.getPath('userData'), 'Daten');    // installiert: %APPDATA%\Peon Manager\Daten
 }
+
+app.setAppUserModelId('de.peon.manager');   // sonst zeigt Windows keine Meldungen
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -89,6 +93,18 @@ if (!app.requestSingleInstanceLock()) {
     tray.setContextMenu(Menu.buildFromTemplate(items));
   }
 
+  // Preisalarm der Merkliste: Meldung von Windows, ein Klick oeffnet den Gegenstand
+  function notifyWatch() {
+    const hits = svc.broker.watchCheck();
+    if (!hits.length || !svc.settings.watchNotify || !Notification.isSupported()) return;
+    for (const h of hits.slice(0, 5)) {
+      const n = new Notification({ title: 'Peon Manager: Preisalarm', body: `${h.name} gibt es ab ${watchMoney(h.min)}, deine Grenze ist ${watchMoney(h.below)}.`, icon });
+      n.on('click', () => { showWindow(); send('openItem', { market: h.market, key: h.key }); });
+      n.show();
+    }
+    if (hits.length > 5) new Notification({ title: 'Peon Manager: Preisalarm', body: `Dazu ${hits.length - 5} weitere auf der Merkliste.`, icon }).show();
+  }
+
   // ---------- Einlesen ----------
   function runImport(why) {
     if (!svc.broker) { svc.syncBridge(); return { inactive: true }; }
@@ -101,6 +117,7 @@ if (!app.requestSingleInstanceLock()) {
         try { lastSeen.set(f.file, Math.floor(fs.statSync(f.file).mtimeMs / 1000)); } catch { /* weg */ }
       }
       if (r.imported > 0 && tray) tray.setToolTip(`Peon Manager: ${r.imported} neue Momentaufnahmen`);
+      notifyWatch();
       send('changed', { what: 'spiel', why, imported: r.imported });
       return r;
     } catch (e) {
@@ -314,6 +331,28 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('item', (_e, market, key, range) => (svc.broker ? svc.broker.itemDetail(String(market), String(key), String(range || '30d')) : null));
     ipcMain.handle('itemInfo', (_e, id) => (svc.broker ? svc.broker.info.get(Number(id), blizzardClient()) : null));
     ipcMain.handle('chances', (_e, market, days) => (svc.broker ? svc.broker.chances(String(market), Number(days) || null) : null));
+    ipcMain.handle('watchList', (_e, market) => (svc.broker ? svc.broker.watchList(String(market)) : []));
+    ipcMain.handle('watchSet', (_e, market, key, below) => { const r = svc.broker.watchSet(String(market), String(key), below == null ? null : Number(below)); notifyWatch(); send('changed', { what: 'merkliste' }); return r; });
+    ipcMain.handle('watchRemove', (_e, market, key) => { svc.broker.watchRemove(String(market), String(key)); send('changed', { what: 'merkliste' }); return true; });
+    ipcMain.handle('backupCreate', async () => {
+      const r = await dialog.showOpenDialog(win, { title: 'Wohin soll die Sicherung?', properties: ['openDirectory', 'createDirectory'] });
+      if (r.canceled || !r.filePaths[0]) return null;
+      const res = await svc.createBackup(r.filePaths[0]);
+      send('changed', { what: 'sicherung' });
+      return res;
+    });
+    ipcMain.handle('backupPick', async () => {
+      const r = await dialog.showOpenDialog(win, { title: 'Ordner der Sicherung wählen', properties: ['openDirectory'] });
+      if (r.canceled || !r.filePaths[0]) return null;
+      return { dir: r.filePaths[0], ...backup.inspect(r.filePaths[0]) };
+    });
+    ipcMain.handle('backupRestore', (_e, dir) => {
+      backup.request(svc.dbDir, String(dir));
+      quitting = true;
+      app.relaunch();
+      app.quit();
+      return true;
+    });
     ipcMain.handle('retention', (_e, keepDays, hourDays) => (svc.broker ? svc.broker.retention(keepDays == null ? null : Number(keepDays), hourDays == null ? null : Number(hourDays)) : null));
     // Manager-Module: Installieren schaltet ein, Entfernen schaltet aus, Daten loeschen nur ausgeschaltet
     ipcMain.handle('modules', () => svc.moduleList());

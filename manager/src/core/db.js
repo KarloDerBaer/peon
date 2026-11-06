@@ -9,7 +9,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
 
-const SCHEMA = 5;   // 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
+const SCHEMA = 6;   // 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -68,6 +68,9 @@ CREATE TABLE IF NOT EXISTS variant_names (
   item_id INTEGER NOT NULL, bonus TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY (item_id, bonus));
 CREATE TABLE IF NOT EXISTS item_info (
   item_id INTEGER PRIMARY KEY, source TEXT NOT NULL, tip TEXT, t INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS watchlist (
+  market_id INTEGER NOT NULL, item_key TEXT NOT NULL, below REAL, added INTEGER NOT NULL, hit INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (market_id, item_key));
 CREATE TABLE IF NOT EXISTS log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, kind TEXT NOT NULL, ok INTEGER NOT NULL, text TEXT);
 `;

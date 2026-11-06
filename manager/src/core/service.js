@@ -8,6 +8,7 @@ const path = require('node:path');
 const { openManagerDb, migrateSplit, fileSize, removeDb, log } = require('./db');
 const { writeData, addonDir } = require('./datalua');
 const modules = require('./modules');
+const backup = require('./backup');
 const { BrokerClient } = require('./broker-client');
 const { AddonManager } = require('./addons');
 const { ReportStore } = require('./reports');
@@ -20,6 +21,8 @@ const DEFAULTS = {
   blizzard: { houses: {} },   // gewaehlte Auktionshaeuser: 'eu-111' -> { market, how }
   autostart: false,
   updateWindow: true,     // Update-Fenster beim Programmstart zeigen, wenn es Neues gibt
+  watchNotify: true,      // Preisalarm der Merkliste als Meldung von Windows
+  checklistHidden: false, // Einrichtungsliste ausgeblendet
   theme: 'dark',
   keepDays: 14,           // Momentaufnahmen vollstaendig aufheben (Tage, 0 = unbegrenzt)
   retentionV: 2,          // Stand der Standardwerte der Aufbewahrung (Umstellung im Konstruktor)
@@ -48,12 +51,14 @@ class Service {
     this.now = now || (() => Math.floor(Date.now() / 1000));
     this.settingsFile = path.join(dbDir, 'settings.json');
     const existed = fs.existsSync(this.settingsFile);
+    this.restored = backup.applyPending(dbDir);   // eingespielte Sicherung, vor dem Oeffnen der Datenbanken
     const moved = migrateSplit(dbDir);
     const raw = this.readSettings();
     delete raw.ahledger; delete raw.marketMap;   // AHledger ist entfernt
     this.settings = merge(DEFAULTS, raw);
     this.db = openManagerDb(dbDir);
     if (moved) log(this.db, 'manager', true, 'Daten des Peon Broker Client nach broker-client.db umgezogen');
+    if (this.restored) log(this.db, 'sicherung', this.restored.ok, this.restored.ok ? 'Sicherung eingespielt, der bisherige Stand liegt im Datenordner unter vor-Wiederherstellung' : `Sicherung nicht eingespielt: ${this.restored.error}`);
     // Bis 0.6.0 gab es keine Module: Wer schon Einstellungen oder Daten hatte, nutzt den Broker Client weiter
     const on = new Set(enable || []);
     if (raw.modules === undefined && (existed || moved)) on.add('broker-client');
@@ -111,7 +116,7 @@ class Service {
     return modules.MODULES.map((m) => {
       const file = path.join(this.dbDir, m.dataFile);
       return {
-        key: m.key, title: m.title, desc: m.desc, needs: m.needs, channels: m.channels, views: m.views,
+        key: m.key, title: m.title, navTitle: m.navTitle, desc: m.desc, needs: m.needs, channels: m.channels, views: m.views,
         enabled: this.isActive(m.key),
         dataBytes: fileSize(file), hasData: fs.existsSync(file),
         addons: m.needs.map((n) => ({ name: n, present: this.addonPresent(n) })),
@@ -218,6 +223,15 @@ class Service {
     return res;
   }
 
+  // ---------- Datensicherung ----------
+  async createBackup(target) {
+    const open = { 'peon.db': this.db };
+    if (this.broker) open['broker-client.db'] = this.broker.db;
+    const r = await backup.create({ dbDir: this.dbDir, open, target, version: this.version, now: this.now() });
+    log(this.db, 'sicherung', true, `Sicherung angelegt (${Math.round(r.bytes / 1024 / 1024)} MB)`);
+    return r;
+  }
+
   // ---------- Update-Fenster ----------
   // Inhalt des Fensters. updater = Zustand des Selbst-Updates, ready = die erste Suche seit dem Start ist durch.
   // popup: beim Programmstart zeigen? Nur wenn etwas dabei ist, das dort noch nicht stand.
@@ -258,13 +272,13 @@ class Service {
       views: modules.views(this.settings),
       addonUpdates: this.addons.updates().length,
     };
-    const own = this.db.prepare('SELECT t, kind, ok, text FROM log ORDER BY id DESC LIMIT 12').all();
+    const own = this.db.prepare('SELECT t, kind, ok, text FROM log ORDER BY id DESC LIMIT 40').all();
     if (!this.broker) {
       return { ...base, dbSize: fileSize(this.db.file), markets: [], game: { files: [], lastImport: null }, back: null,
         log: own, brokerHist: null };
     }
     const b = this.broker.overview();
-    const merged = [...b.log, ...own].sort((x, y) => y.t - x.t).slice(0, 12);
+    const merged = [...b.log, ...own].sort((x, y) => y.t - x.t).slice(0, 40);
     return { ...base, ...b, log: merged, pruning: !!this.broker.pruning };
   }
 

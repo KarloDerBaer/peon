@@ -2,6 +2,28 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.16.0
+
+Kurz: Die Reiter sind jetzt nach Modulen geordnet, der Broker hat seine eigene Gruppe.
+Kurz: Die Übersicht zeigt die besten Chancen und was sich am meisten verkauft. Der Datenweg steht jetzt übersichtlich unter Quellen.
+Kurz: Neu: Merkliste mit Preisalarm, Schnellsuche mit Strg+K und Datensicherung per Knopf.
+Kurz: Der Reiter Module heißt jetzt Updates, dort stehen auch Kanal und Suche.
+
+- 0.16.0 (06.11.2026, Wunsch KarloDerBaer): **Manager übersichtlicher.**
+  - **Seitenleiste:** Je aktives Modul eine Gruppe mit Überschrift (`navTitle`, beim Broker Client „Broker“). Markt, Letzter Stand und „Jetzt einlesen“ stehen nur noch bei den Reitern des Brokers.
+  - **Reiter Updates** (bisher Module): oben Kanal und „Nach Updates suchen“, darunter Module, darunter Addons. Der Hinweis „WoW läuft“ steht klein bei den Addons. Der Kanal zieht aus den Einstellungen hierher.
+  - **Quellen:** Datenweg mit Lampe, Stand und wann die Daten kommen, Tabelle „Welche Daten wofür“, Auktionshäuser und Protokoll aufklappbar. Das Protokoll geht bei Fehlern von selbst auf und zeigt die letzten 40 Einträge. Offen sind die Auktionshäuser nur, wenn noch keines gewählt ist.
+  - **Übersicht:** Statuszeile, Kennzahlen mit Änderung zu gestern, Beste Chancen jetzt, Meistverkauft, darunter wie bisher die Preisänderungen.
+  - **Lampen:** Sie prüfen jetzt auch den Inhalt (`renderer\status.js`). Noch keine üblichen Bereiche ist gelb statt grün, „0 Momentaufnahmen“ heißt jetzt „Nichts wartet“.
+  - **Marktdiagramm:** Titel nach dem echten Zeitraum, bei unter 3 Tagen mit Uhrzeit auf der Achse, sonst höchstens ein Datum je Tag.
+  - **Preisänderungen:** Vergleich mit dem üblichen Preis, sobald es ihn für mindestens 20 Gegenstände gibt, ohne zu unruhige Gegenstände (`computeMoves`). Vorher wie bisher gegen den Stand davor, mit Hinweis. Einmal je Stand gerechnet.
+  - **Einrichtungsliste** (`components\Checklist.vue`): unter Übersicht und Updates, bis alles erledigt oder ausgeblendet ist (`checklistHidden`).
+  - **Merkliste** (`views\Watch.vue`, `core\watch.js`, Tabelle `watchlist`, Schema 6): Merken in der Detailansicht, Reiter im Broker. Grenze in Gold, Meldung von Windows einmal beim Erreichen und wieder, nachdem der Preis darüber lag. Abschaltbar (`watchNotify`). Ein Klick auf die Meldung öffnet den Gegenstand.
+  - **Schnellsuche** (`components\QuickSearch.vue`): Strg+K oder Knopf in der Kopfzeile, Gegenstände und Seiten.
+  - **Datensicherung** (`core\backup.js`): unter Einstellungen, Daten. Datenbanken und Einstellungen in einen Ordner, die Datenbanken laufen dabei weiter. Einspielen startet neu, der bisherige Stand bleibt in `vor-Wiederherstellung-<Datum>`. Der Zugang zur Blizzard-API ist nicht dabei.
+  - Zurück aus der Detailansicht führt jetzt immer dorthin, woher man kam.
+  - Geprüft im echten Programm mit Testordner und erfundenen Daten: Seitenleiste, Übersicht, Quellen, Updates, Schnellsuche, Merkliste samt Treffer. Sicherung und Einspielen über Tests. **Noch nicht geprüft:** Meldung von Windows in der installierten Fassung, Knöpfe der Sicherung mit dem Ordnerfenster, echte Daten auf den neuen Seiten.
+
 ## 0.15.1
 
 Kurz: Im Kanal Test findet der Manager jetzt zuverlässig die neueste Vorabversion.

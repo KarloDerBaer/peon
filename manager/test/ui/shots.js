@@ -27,6 +27,7 @@ srv.listen(0, async () => {
           { l: 'Gegenstandsstufe 61', c: 'level' }, { l: 'Wird beim Anlegen gebunden' }, { l: 'Kopf', r: 'Platte' }, { l: '565 Rüstung' }, { l: '+18 Stärke' },
           { l: '+20 Trefferwert', c: 'good' }, { l: 'Anlegen: Erhöht Eure Trefferchance um 2%.', c: 'good' }, { l: 'Benötigt Stufe 56' }, { l: 'Haltbarkeit 100 / 100' },
           { l: 'Ornat des Beispiels (0/8)', c: 'set' }, { l: '(3) Set: Erhöht den Schaden.', c: 'muted' } ] } }),
+        watchList: async () => [], watchSet: async () => ({ below: null, hit: false }), watchRemove: async () => true, addons: async () => ({ wowValid: true, wowRunning: false }), onOpenItem: () => {},
         updateInfo: async () => ({ manager: null, addons: [], count: 0, ready: true, popup: false }), updatesShown: async () => true,
         retention: async (d) => retention[d == null ? 30 : d] || retention[30],
         chances: async (m, d) => chances[d] || chances[7],

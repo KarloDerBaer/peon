@@ -2,6 +2,15 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 06.11.2026: Manager übersichtlicher (Peon Manager 0.16.0)
+
+- Der Reiter Module heißt Updates, oben stehen Kanal und Suche, darunter Module und Addons. Der Hinweis „WoW läuft“ steht klein bei den Addons (KarloDerBaer).
+- Reiter je Modul in einer Gruppe mit Überschrift, damit später Ledger sichtbar getrennt dazukommen kann (KarloDerBaer). Die Gruppen entstehen aus der Modulliste, ein neues Modul braucht dafür keinen eigenen Code in der Seitenleiste (Claude).
+- Die Merkliste ist ein eigener Reiter im Broker und gilt je Markt, weil Preise je Markt verschieden sind (Claude). Gemeldet wird einmal und wieder erst, nachdem der Preis über der Grenze lag, damit stündliche Stände nicht jede Stunde melden (Claude).
+- Eine Sicherung enthält den Zugang zur Blizzard-API nicht: Er ist für das Windows-Konto verschlüsselt und auf einem anderen Rechner wertlos (Claude). Eingespielt wird beim nächsten Start vor dem Öffnen der Datenbanken, der bisherige Stand bleibt liegen (Claude).
+- Preisänderungen vergleichen mit dem üblichen Preis, weil zwei einzelne Stände vor allem Ausreißer zeigten (Knappenhemd +1.900 %). In den ersten Tagen gibt es den noch nicht, dann bleibt der alte Vergleich mit Hinweis (Claude).
+- Meistverkauft zeigt den Absatz je Tag aus 14 Tagen statt der letzten 24 Stunden, weil nur dieser Wert sicher gemessen ist (Claude).
+
 ## 06.11.2026: Update-Fenster und kurze Texte (Peon Manager 0.15.0)
 
 - Das Update-Fenster kommt schon mit 0.15.0, nicht erst nach dem Umbau der Seitenleiste (KarloDerBaer). Es hängt nicht davon ab.

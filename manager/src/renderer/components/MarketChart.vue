@@ -1,4 +1,4 @@
-<!-- Angebote und Gegenstände je Komplettscan (letzte 30 Tage) -->
+<!-- Angebote und Gegenstände je Stand (bis 30 Tage) -->
 <script setup>
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import * as echarts from 'echarts/core';
@@ -17,6 +17,8 @@ function css(name) { return getComputedStyle(document.documentElement).getProper
 function draw() {
   if (!chart) return;
   const h = props.history || [];
+  const span = h.length > 1 ? h[h.length - 1].t - h[0].t : 0;
+  const short = span < 3 * 86400;   // kurzer Zeitraum: Uhrzeit dazu, sonst steht mehrmals dasselbe Datum
   const text = css('--muted'), line = css('--line-soft'), accent = css('--accent'), silver = css('--silver');
   chart.setOption({
     animation: false,
@@ -24,8 +26,8 @@ function draw() {
     legend: { top: 0, left: 0, textStyle: { color: text, fontFamily: 'Barlow, Segoe UI, sans-serif' }, itemWidth: 14, itemHeight: 3, icon: 'rect' },
     tooltip: { trigger: 'axis', backgroundColor: css('--raised'), borderColor: css('--line'), textStyle: { color: css('--text'), fontFamily: 'Barlow, Segoe UI, sans-serif' },
       valueFormatter: (v) => Number(v).toLocaleString('de-DE') },
-    xAxis: { type: 'time', axisLine: { lineStyle: { color: line } }, axisLabel: { color: text, fontFamily: 'Barlow, Segoe UI, sans-serif', hideOverlap: true,
-      formatter: (v) => new Date(v).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) }, splitLine: { show: false } },
+    xAxis: { type: 'time', minInterval: short ? 3600 * 1000 : 86400 * 1000, axisLine: { lineStyle: { color: line } }, axisLabel: { color: text, fontFamily: 'Barlow, Segoe UI, sans-serif', hideOverlap: true,
+      formatter: (v) => { const d = new Date(v), day = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }); return short ? `${day} ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : day; } }, splitLine: { show: false } },
     yAxis: [
       { type: 'value', name: '', axisLabel: { color: text, fontFamily: 'Barlow, Segoe UI, sans-serif', formatter: (v) => v.toLocaleString('de-DE') }, splitLine: { lineStyle: { color: line } } },
       { type: 'value', name: '', axisLabel: { color: text, fontFamily: 'Barlow, Segoe UI, sans-serif', formatter: (v) => v.toLocaleString('de-DE') }, splitLine: { show: false } },

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
-import { bytes } from '../util.js';
+import { bytes, when } from '../util.js';
 import BlizzardCheck from '../components/BlizzardCheck.vue';
 
 const props = defineProps({ data: Object, settings: Object, stamp: Number, broker: Boolean, now: Number });
@@ -14,7 +14,24 @@ async function pick() {
   if (p) { wowDir.value = p; emit('save', { wowDir: p }); }
 }
 function saveWow() { if (wowDir.value && wowDir.value !== props.settings.wowDir) emit('save', { wowDir: wowDir.value }); }
-async function setChannel(c) { await api.setAddonChannel(c); emit('save', {}); }
+
+// Datensicherung
+const backupBusy = ref('');
+const backupText = ref('');
+const backupError = ref('');
+const restore = ref(null);
+const cleanError = (e) => String((e && e.message) || e).replace(/^Error invoking remote method '[^']*': (Error: )?/, '');
+async function makeBackup() {
+  backupBusy.value = 'create'; backupText.value = ''; backupError.value = '';
+  try {
+    const r = await api.backupCreate();
+    if (r) backupText.value = `Sicherung angelegt (${bytes(r.bytes)}): ${r.dir}`;
+  } catch (e) { backupError.value = cleanError(e); } finally { backupBusy.value = ''; }
+}
+async function pickBackup() {
+  backupText.value = ''; backupError.value = ''; restore.value = null;
+  try { restore.value = await api.backupPick(); } catch (e) { backupError.value = cleanError(e); }
+}
 
 // Aufbewahrung: Stufen der Schieber (Tage, bei den Angeboten 0 = unbegrenzt). Erst "Übernehmen" speichert.
 const KEEP = [7, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365, 0];
@@ -70,15 +87,9 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
     </section>
 
     <section class="group">
-      <h2>Addons</h2>
-      <label class="field inline">
-        <span>Kanal</span>
-        <select :value="settings.addons.channel" @change="setChannel($event.target.value)">
-          <option value="stable">Stabil</option><option value="test">Test (Vorabversionen)</option>
-        </select>
-      </label>
+      <h2>Updates</h2>
       <label class="check"><input type="checkbox" :checked="settings.updateWindow" @change="emit('save', { updateWindow: $event.target.checked })" /> Beim Start zeigen, wenn es Neues gibt</label>
-      <p class="small muted">Der Manager sucht beim Start und alle 6 Stunden nach neuen Versionen. Installiert wird nur, wenn du es auslöst. Über „Nach Updates suchen“ und „Jetzt aktualisieren“ siehst du immer, was neu ist.</p>
+      <p class="small muted">Der Manager sucht beim Start und alle 6 Stunden nach neuen Versionen. Installiert wird nur, wenn du es auslöst. Kanal und Suche stehen im Reiter Updates.</p>
     </section>
 
     <div class="group">
@@ -104,6 +115,20 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
         <button @click="api.openFolder('db')">Ordner öffnen</button>
       </div>
       <p>{{ broker ? 'Datenbank des Broker Client' : 'Datenbank des Managers' }} {{ bytes(data.dbSize) }}</p>
+      <div class="row">
+        <button :disabled="!!backupBusy" @click="makeBackup">{{ backupBusy === 'create' ? 'Sichert' : 'Sicherung anlegen' }}</button>
+        <button :disabled="!!backupBusy" @click="pickBackup">Sicherung einspielen</button>
+      </div>
+      <p class="small muted">Eine Sicherung enthält Datenbanken und Einstellungen. Der Zugang zur Blizzard-API ist nicht dabei, auf einem anderen Rechner trägst du ihn neu ein.</p>
+      <p class="small ok" v-if="backupText" role="status">{{ backupText }}</p>
+      <p class="small warn" v-if="backupError" role="alert">{{ backupError }}</p>
+      <div class="apply" v-if="restore">
+        <p class="small warn" role="alert">Sicherung vom {{ when(restore.t) }} ({{ bytes(restore.bytes) }}) einspielen? Der Manager startet dafür neu. Der bisherige Stand bleibt im Datenordner unter „vor-Wiederherstellung“ liegen.</p>
+        <div class="row">
+          <button class="primary" @click="api.backupRestore(restore.dir)">Einspielen und neu starten</button>
+          <button @click="restore = null">Abbrechen</button>
+        </div>
+      </div>
     </section>
 
     <section class="group" v-if="broker">
