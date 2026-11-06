@@ -57,7 +57,7 @@ function report(r) {
   if (!r) return;
   const done = r.done.map((d) => `${d.name} ${d.version}`);
   if (r.failed.length) error.value = r.failed.map((f) => `${f.name}: ${f.error}`).join(' · ');
-  if (done.length) message.value = `Installiert: ${done.join(', ')}.${st.value && st.value.wowRunning ? ' WoW läuft: Neue Dateien brauchen einen Neustart von WoW, sonst reicht /reload.' : ''}`;
+  if (done.length) message.value = `Installiert: ${done.join(', ')}.${st.value && st.value.wowRunning ? ' WoW läuft: Nach /reload ist alles im Spiel.' : ''}`;
   else if (!r.failed.length) message.value = 'Nichts zu tun.';
 }
 
@@ -176,7 +176,7 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
 
     <section class="group">
       <h2>Addons</h2>
-      <p class="small muted" v-if="st.wowRunning" role="status">WoW läuft. Aktualisieren geht trotzdem, neue Dateien brauchen danach einen Neustart von WoW, sonst reicht /reload.</p>
+      <p class="small muted" v-if="st.wowRunning" role="status">WoW läuft. Aktualisieren geht trotzdem, danach reicht /reload.</p>
 
       <article v-for="a in shown" :key="a.name" class="card">
         <div class="head">

@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 07.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.14.0 / Broker 0.35.0 / Bridge 0.6.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.17.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.11.0 / Fishing 1.6.0 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.4.0 / Feedback 0.4.0 / Panel 0.1.0.
+Stand: 07.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.14.0 / Broker 0.35.0 / Bridge 0.6.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.17.1 (bis 0.5.0 Programm Peon Client) / Ledger 0.11.0 / Fishing 1.6.0 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.4.0 / Feedback 0.4.0 / Panel 0.1.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.14.0, API 14
@@ -58,7 +58,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.17.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.17.1
 
 - Quellcode: `manager\` (bisher `client\`), Anleitung in `manager\README.md`. Design: `docs\konzepte\manager\Peon_Client_Design.md` (Funktionen, jetzt Modul Peon Broker Client) und `Peon_GitHub_Design.md` (Peon Manager, Module, Installieren).
 - Programm bei KarloDerBaer: installiert wie bei allen anderen (ab 04.11.2026, siehe unten). Der frühere Ordner `<Programmordner>` mit Runtime und DB bleibt als Sicherung. Anderer Datenordner: Umgebungsvariable `PEON_MANAGER_DB`.
@@ -172,7 +172,7 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
 
 ### Neues Modul Peon_Panel (beschlossen 06.11.2026, Konzept `Peon_Panel_Konzept.md`)
 
-Gebaut mit Peon 0.14.0 und Peon_Panel 0.1.0, dazu Starter und Texte in Broker 0.35.0, Ledger 0.11.0, Fishing 1.6.0, Bags 0.4.0 und Feedback 0.4.0. Vorabversion `v2026.11.07.4-test` veröffentlicht (07.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im Spiel noch nicht geprüft (Konzept, Abschnitt 9). Neue Dateien, also WoW neu starten. Peon_Panel ist ein neues Addon: „Alles aktualisieren“ fügt es nicht von selbst hinzu, es hat im Manager einen eigenen Knopf.
+Gebaut mit Peon 0.14.0 und Peon_Panel 0.1.0, dazu Starter und Texte in Broker 0.35.0, Ledger 0.11.0, Fishing 1.6.0, Bags 0.4.0 und Feedback 0.4.0. Vorabversion `v2026.11.07.4-test` veröffentlicht (07.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im Spiel von KarloDerBaer getestet, es funktioniert (07.11.2026). Peon_Panel ist ein neues Addon: „Alles aktualisieren“ fügt es nicht von selbst hinzu, es hat im Manager einen eigenen Knopf.
 
 ### Peon_Bags: eigene Bereiche (beschlossen 06.11.2026, Konzept `Peon_Bags_Bereiche.md`)
 
@@ -190,7 +190,7 @@ Bis dahin gibt es nur Vorabversionen (zuletzt `v2026.11.07.4-test`), ein normale
 
 ### Navigation, Einkaufsliste, Favoriten, Ladezeiten (beschlossen 06.11.2026)
 
-Umgesetzt mit Manager 0.17.0, Broker 0.34.0, Bridge 0.6.0. Vorabversion `v2026.11.07.3-test` veröffentlicht (06.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. **Noch zu prüfen im Spiel (WoW neu starten, neue Datei Shop.lua):** Übernahme der Listen, Abgleich in beide Richtungen, Feld „Max. Gold“, genaue Werte im Hintergrund (bleibt das Spiel flüssig, hängen die Werte von der Stufe im Link ab), wie lange ein Scan dadurch zusätzlich dauert.
+Umgesetzt mit Manager 0.17.0, Broker 0.34.0, Bridge 0.6.0. Vorabversion `v2026.11.07.3-test` veröffentlicht (06.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. **Noch zu prüfen im Spiel:** Übernahme der Listen, Abgleich in beide Richtungen, Feld „Max. Gold“, genaue Werte im Hintergrund (bleibt das Spiel flüssig, hängen die Werte von der Stufe im Link ab), wie lange ein Scan dadurch zusätzlich dauert.
 
 **Noch offen, neutrales Auktionshaus:** Broker bildet den Markt aus Realm und Spielerfraktion. Ein Scan am neutralen Haus landet deshalb vermutlich im Markt der eigenen Fraktion und verfälscht dessen Preise. Wie das Spiel das neutrale Haus erkennbar macht, ist nicht geprüft. Klären, sobald KarloDerBaer an einem neutralen Auktionshaus ist. Die API-Daten betrifft das nicht.
 

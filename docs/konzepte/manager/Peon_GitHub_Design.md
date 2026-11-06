@@ -63,7 +63,7 @@ Nicht im Repo:
 ### 3.2 Repo als maßgebliche Quelle, Junctions zum Spiel
 
 - **Maßgeblich ist ab jetzt `addons\` im Repo**, nicht mehr der AddOns-Ordner des Spiels.
-- Im AddOns-Ordner wird jeder Peon-Ordner durch eine **Junction** ersetzt, die auf `addons\<Modul>` zeigt (`mklink /J`, braucht keine Administratorrechte). Änderungen im Repo sind damit sofort im Spiel, `/reload` genügt (neue Dateien: WoW neu starten).
+- Im AddOns-Ordner wird jeder Peon-Ordner durch eine **Junction** ersetzt, die auf `addons\<Modul>` zeigt (`mklink /J`, braucht keine Administratorrechte). Änderungen im Repo sind damit sofort im Spiel, `/reload` genügt.
 - WoW muss beim Anlegen der Junctions geschlossen sein. Vorher die Ordner im AddOns-Ordner mit `addons\` vergleichen (Prüfsummen), dann erst ersetzen.
 - `Peon_Feedback` bleibt als normaler Ordner im AddOns-Ordner liegen, wenn KarloDerBaer es selbst weiter nutzen will. Es ist nicht Teil des Repos.
 - Skript `scripts\junctions.cmd` legt die Junctions an und zeigt den Zustand. Der Manager erkennt Junctions später als **Entwicklermodus** und aktualisiert dort nichts (Abschnitt 5.4).
@@ -160,7 +160,7 @@ PeonBridgeData = {
 4. Alten Ordner nach `…\Peon Manager\backup\<Addon>-<Version>` verschieben, neuen an seine Stelle, **jede Datei nach dem Tausch prüfen** (Windows hat bei KarloDerBaer schon Schreiben verweigert). Bei Fehler zurücktauschen.
 5. `Peon_Bridge\Data.lua` bleibt immer erhalten. Fehlt sie, legt der Manager den Platzhalter an.
 6. Fremde Addons und SavedVariables werden nie angefasst. „Entfernen“ löscht nur den Addon-Ordner (mit Rückfrage), die Einstellungen in WTF bleiben.
-7. Läuft WoW, warnt der Manager: neue Dateien brauchen einen Neustart von WoW, sonst reicht `/reload`. Programmname von Forever beim Bau prüfen (Ordner `_forever_`).
+7. Läuft WoW, weist der Manager darauf hin, dass danach `/reload` nötig ist. Programmname von Forever beim Bau prüfen (Ordner `_forever_`).
 8. **Entwicklermodus:** Ist ein Addon-Ordner eine Junction, zeigt der Manager „Entwicklung (Repo)“ und aktualisiert ihn nie.
 
 ### 5.5 Erster Start bei Freunden

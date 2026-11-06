@@ -8,7 +8,6 @@ Kurz: Grundlage für das neue Addon Peon_Panel.
 
 - 0.14.0 (07.11.2026): API 14. Neue Datei `Launcher.lua`: Starter (`mod:NewLauncher`, `Peon.GetLaunchers`, `Peon.OnLauncherAdded`, `Peon.OnLauncherRefresh`), den `mod:NewMinimapButton` selbst anlegt, und kurze Zahlen (`Peon.ShortNumber`, `Peon.ShortGold`).
   - Der Kern merkt sich in `PeonDB.panelHid`, welche Minimap-Buttons Peon_Panel ausgeblendet hat, und schaltet sie wieder ein, wenn Panel beim Login nicht geladen ist.
-  - Neue Datei: WoW neu starten.
   - **Im Spiel prüfen:** Peon_Panel abschalten, die Buttons sind danach wieder da. Selbst ausgeblendete bleiben aus.
 
 ## 0.13.0

@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.17.1
+
+Kurz: Der Hinweis zum Neustart von WoW entfällt: Nach einem Update reicht im Spiel immer `/reload`.
+
+- 0.17.1 (07.11.2026, Hinweis KarloDerBaer): `/reload` hat bisher auch bei neuen Dateien und ganzen neuen Addons gereicht. Die Texte unter Updates und im Update-Fenster nennen deshalb keinen Neustart von WoW mehr.
+
 ## 0.17.0
 
 Kurz: Seiten öffnen viel schneller, auch mit vielen Daten.

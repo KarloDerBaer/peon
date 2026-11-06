@@ -67,7 +67,7 @@ Am einfachsten geht es mit dem **Peon Manager**. Er installiert und aktualisiert
 > [!IMPORTANT]
 > **Windows warnt beim ersten Start** („Der Computer wurde durch Windows geschützt“), weil das Programm nicht digital signiert ist. Klicke auf **„Weitere Informationen“** und dann auf **„Trotzdem ausführen“**.
 
-Neue Versionen zeigt der Manager unter **Module** an, installiert wird erst, wenn du auf **Aktualisieren** klickst. Läuft WoW dabei, reicht danach meist `/reload`, neue Dateien brauchen einen Neustart von WoW.
+Neue Versionen zeigt der Manager unter **Module** an, installiert wird erst, wenn du auf **Aktualisieren** klickst. Läuft WoW dabei, reicht danach `/reload`.
 
 ### Peon Broker Client
 

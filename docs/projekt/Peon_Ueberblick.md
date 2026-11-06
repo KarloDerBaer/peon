@@ -202,7 +202,7 @@ Peon.NiceRange(lo, hi, schritte)
 ## Arbeitsweise, die sich bewährt hat
 
 - **Testen:** lua5.1 mit einem kleinen WoW-Stub (nachgebaute API), bei Datenänderungen mit einer Kopie der echten SavedVariables. Lua liegt in `tools\`.
-- **Neue Dateien oder ein neuer Addon-Ordner:** WoW komplett neu starten; sonst reicht `/reload`.
+- **Neue Dateien oder ein neuer Addon-Ordner:** `/reload` reicht, ein Neustart von WoW ist nicht nötig (KarloDerBaer, 07.11.2026, zuletzt mit dem neuen Addon Peon_Panel).
 - **Umbenennen eines Addons:** Die Datei in WTF auf den neuen Ordnernamen kopieren (Account und alle Charaktere). Neue Variablennamen über `oldDB` / `oldCharDB` übernehmen; der alte Name steht dafür eine Version lang zusätzlich in der TOC (`## SavedVariables: NeuDB, AltDB`) und entfällt danach wieder.
 - **Tastenbelegungen umbenennen:** Die alten Namen eine Version lang versteckt (`hidden="true"`) in Bindings.xml behalten und beim Login per `GetBindingKey(alt)` → `SetBinding(taste, neu)` → `SaveBindings(GetCurrentBindingSet())` umlegen (nicht im Kampf). Erfahrung: Tastatur-Tasten zogen so um, Gamepad-Tasten (PAD1, PAD4) nicht; die wurden bei beendetem WoW direkt in `WTF\Account\<Konto>\bindings-cache.wtf` umbenannt. Danach die versteckten Einträge wieder entfernen. Belegungen von Peon_Fishing: `PEON_FISHING_TOGGLE`, `PEON_FISHING_ACTION`, `CLICK PeonFishingWeaponButton:LeftButton`.
 - **Beta beendet (25.10.2026):** KarloDerBaer fand die gesperrten Broker-Dateien im Beta-Ordner als schreibgeschützt markiert. Ob das von Battle.net nach dem Ende der Beta kommt, ist offen. Gearbeitet wird nur noch in `_forever_`.

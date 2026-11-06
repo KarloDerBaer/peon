@@ -6,7 +6,7 @@
 --   1. Ordner und TOC umbenennen (Peon_<Name>), in der TOC Titel, Notes, Icon, SavedVariables anpassen
 --   2. Hier key, title, db anpassen; "Beispiel"/"beispiel" ueberall ersetzen
 --   3. tests/test_<name>.lua aus vorlage/test_beispiel.lua anlegen
---   4. Neuer Addon-Ordner: WoW komplett neu starten (kein /reload)
+--   4. Im Spiel /reload
 
 local ADDON_NAME, ns = ...
 local L = ns.L

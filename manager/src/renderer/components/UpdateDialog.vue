@@ -27,7 +27,7 @@ function cleanError(e) { return String((e && e.message) || e).replace(/^Error in
 // Ergebnis einer Installation in einem Satz
 function report(r, what) {
   if (r.failed.length) error.value = r.failed.map((f) => `${f.name}: ${f.error}`).join(', ');
-  if (r.done.length) message.value = `${what}: ${r.done.map((d) => `${d.name} ${d.version}`).join(', ')}. ${wowRunning.value ? 'WoW läuft: Neue Dateien brauchen einen Neustart von WoW, sonst reicht /reload.' : 'Beim nächsten Start von WoW ist alles dabei.'}`;
+  if (r.done.length) message.value = `${what}: ${r.done.map((d) => `${d.name} ${d.version}`).join(', ')}. ${wowRunning.value ? 'WoW läuft: Nach /reload ist alles im Spiel.' : 'Beim nächsten Start von WoW ist alles dabei.'}`;
 }
 
 async function install(names, what, key) {
@@ -82,7 +82,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <button class="x" aria-label="Schließen" :disabled="!!busy" @click="close">×</button>
       </header>
 
-      <p class="banner small" v-if="wowRunning" role="status">WoW läuft. Aktualisieren geht trotzdem: Neue Dateien brauchen danach einen Neustart von WoW, sonst reicht <code>/reload</code>.</p>
+      <p class="banner small" v-if="wowRunning" role="status">WoW läuft. Aktualisieren geht trotzdem, danach reicht <code>/reload</code>.</p>
 
       <div class="list">
         <p class="muted" v-if="!anything">Alles ist aktuell.</p>

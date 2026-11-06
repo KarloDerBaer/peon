@@ -2,6 +2,10 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 07.11.2026: Kein Hinweis mehr auf einen Neustart von WoW (Peon Manager 0.17.1)
+
+- `/reload` hat bisher immer gereicht, auch bei neuen Dateien und einem ganzen neuen Addon. Der Hinweis auf einen Neustart entfällt deshalb künftig in Doku, Vorlage und Manager (KarloDerBaer). Das ersetzt die frühere Regel „neue Dateien: WoW neu starten“. Alte Einträge im Verlauf bleiben stehen (Claude).
+
 ## 06.11.2026: Neues Modul Peon_Panel (Peon_Panel 0.1.0, Peon 0.14.0, Konzept `Peon_Panel_Konzept.md`)
 
 - **Waagerechte Leiste an einer von 8 Stellen und zusätzlich ein quadratisches, frei verschiebbares Panel**, beide gleichzeitig möglich. Senkrechte Leisten vorerst nicht, weil der Text sie zu breit macht (KarloDerBaer).

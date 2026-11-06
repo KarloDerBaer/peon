@@ -11,7 +11,7 @@ Diese Notiz bündelt den Inhalt von `<Repo>\vorlage\` (dort liegen dieselben Dat
 3. In der TOC Titel, Notes (en/de), IconTexture und Version (0.1.0) anpassen. Pro-Charakter-Werte: `## SavedVariablesPerCharacter: PeonGathererCharDB` und in `NewModule` `charDB` + `charKeys` setzen.
 4. `test_beispiel.lua` als `tests\test_gatherer.lua` ablegen, Namen ersetzen, Prüfungen erweitern.
 5. Testen (`run_tests.sh`), in den AddOns-Ordner übertragen, Prüfsummen kontrollieren.
-6. **WoW komplett neu starten** (neuer Addon-Ordner, `/reload` reicht nicht).
+6. Im Spiel `/reload`.
 7. `Peon_Stand.md` und bei Bedarf `Peon_Entscheidungen.md` ergänzen.
 
 ## Aufbau
@@ -87,7 +87,7 @@ end
 --   1. Ordner und TOC umbenennen (Peon_<Name>), in der TOC Titel, Notes, Icon, SavedVariables anpassen
 --   2. Hier key, title, db anpassen; "Beispiel"/"beispiel" ueberall ersetzen
 --   3. tests/test_<name>.lua aus vorlage/test_beispiel.lua anlegen
---   4. Neuer Addon-Ordner: WoW komplett neu starten (kein /reload)
+--   4. Im Spiel /reload
 
 local ADDON_NAME, ns = ...
 local L = ns.L

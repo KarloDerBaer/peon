@@ -16,7 +16,7 @@ Kurz: In Taschen und Bank kannst du jetzt eigene Bereiche anlegen und Gegenstän
   - **Eigene Bereiche:** frei benennbar, oben im Fenster von Taschen und Bank, in beiden Anordnungen, accountweit. Bei „Taschenreihenfolge“ steht der Rest unter „Übrige“. Ohne Bereiche sieht das Fenster aus wie bisher. Die Gildenbank bleibt unverändert.
   - **Zuordnen:** Gegenstand auf die Überschrift ziehen oder mit dem Gegenstand am Mauszeiger darauf klicken. Er geht zurück in seinen Platz und steht im Bereich, auch weitere Stapel und Stapel aus der Reagenzientasche. Auf „Übrige“ oder eine feste Überschrift gelegt, verlässt er den Bereich. Gegenstände mit Zusatz werden je Variante getrennt.
   - **Verwalten:** Abschnitt „Eigene Bereiche“ auf der Optionsseite: neu, umbenennen, löschen (Rückfrage, wenn Gegenstände zugeordnet sind), nach oben und unten. „Standardwerte“ lässt Bereiche und Zuordnung stehen.
-  - Braucht jetzt Peon API 7 (Liste auf der Optionsseite). Neue Datei `Groups.lua`, deshalb WoW neu starten.
+  - Braucht jetzt Peon API 7 (Liste auf der Optionsseite). Neue Datei `Groups.lua`.
   - **Im Spiel prüfen:** Ablegen per Ziehen und per Klick (Gegenstand wieder im selben Platz, ohne Sperre und ohne Fehlermeldung), Teilstapel nach Umschalt+Klick, Zuordnen im Kampf (Plätze rücken danach, Tränke bleiben benutzbar), Bank, Reagenzientasche, Gegenstände mit Zusatz, Fenster ziehen an einer Überschrift, Eingabefelder der Rückfragen.
 
 ## 0.2.2
