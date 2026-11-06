@@ -31,6 +31,21 @@ function cmpVersion(a, b) {
   return 0;
 }
 
+// Neuestes Release aus der Liste von GitHub. Die Reihenfolge dort ist nicht nach Datum (v2026.11.06 steht vor
+// v2026.11.06.2-test), also zaehlt der Name: Datum, dann Nummer des Tages. Bei gleichem Stand geht das normale Release vor.
+function newestTag(list) {
+  const key = (tag) => {
+    const m = tag.match(/^v(\d{4})\.(\d{2})\.(\d{2})(?:\.(\d+))?(-test)?$/);
+    return [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4] || 1), m[5] ? 0 : 1];
+  };
+  const tags = list.filter((x) => x && !x.draft && TAG_RE.test(String(x.tag_name))).map((x) => x.tag_name);
+  return tags.sort((a, b) => {
+    const ka = key(a), kb = key(b);
+    for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return kb[i] - ka[i];
+    return 0;
+  })[0] || null;
+}
+
 // Manifest pruefen: Es kommt aus dem Netz, also jede Angabe, die in Pfade oder Adressen wandert
 function checkManifest(m) {
   if (!m || typeof m !== 'object' || m.fmt !== 1) throw new Error('Manifest hat ein unbekanntes Format');
@@ -186,8 +201,7 @@ class AddonManager {
     let tag = cache.tag || null;
     if (r.status === 200) {
       const list = JSON.parse(await r.text());
-      const rel = Array.isArray(list) ? list.find((x) => x && !x.draft && TAG_RE.test(String(x.tag_name))) : null;
-      tag = rel ? rel.tag_name : null;
+      tag = Array.isArray(list) ? newestTag(list) : null;
       const etag = r.headers && r.headers.get ? r.headers.get('etag') : null;
       this.host.meta('releasesCache', { etag: etag || null, tag });
     } else if (r.status !== 304 && r.status !== 404) {
@@ -427,4 +441,4 @@ class AddonManager {
   }
 }
 
-module.exports = { AddonManager, checkManifest, safeEntry, findWowDirs, cmpVersion, REPO_URL, PLACEHOLDER };
+module.exports = { AddonManager, newestTag, checkManifest, safeEntry, findWowDirs, cmpVersion, REPO_URL, PLACEHOLDER };

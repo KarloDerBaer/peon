@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.15.1
+
+Kurz: Im Kanal Test findet der Manager jetzt zuverlässig die neueste Vorabversion.
+
+- 0.15.1 (06.11.2026, Rückmeldung KarloDerBaer): **Kanal Test fand die Vorabversion nicht.** Der Manager nahm den ersten Eintrag aus GitHubs Liste, dort stand aber `v2026.11.06` vor `v2026.11.06.2-test`. Jetzt zählt der Name (`newestTag`: Datum, Nummer des Tages, bei gleichem Stand das normale Release). Der Test hatte die Liste nur in der passenden Reihenfolge.
+
 ## 0.15.0
 
 Kurz: Neues Fenster zeigt beim Start und vor dem Aktualisieren, was neu ist.

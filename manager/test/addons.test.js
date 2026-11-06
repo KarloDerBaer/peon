@@ -10,7 +10,7 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const { Service } = require('../src/core/service');
 const { makeZip, readZip } = require('../src/core/zip');
-const { checkManifest, safeEntry, findWowDirs, PLACEHOLDER } = require('../src/core/addons');
+const { newestTag, checkManifest, safeEntry, findWowDirs, PLACEHOLDER } = require('../src/core/addons');
 const { parseLua } = require('../src/core/lua');
 
 process.removeAllListeners('warning');
@@ -333,6 +333,26 @@ test('Kein Spiel im WoW-Ordner: nichts wird angelegt', async () => {
   assert.equal(w.svc.addonState().wowValid, false);
   await assert.rejects(() => w.svc.addons.install(['Peon']), /kein Spiel/);
   assert.deepEqual(fs.readdirSync(leer), []);
+  w.close();
+});
+
+test('Kanal Test: neuestes Release nach dem Namen, nicht nach der Reihenfolge von GitHub', async () => {
+  const t = (...names) => names.map((tag_name) => ({ tag_name }));
+  // So liefert GitHub es wirklich (06.11.2026): das normale Release vor der neueren Vorabversion
+  assert.equal(newestTag(t('v2026.11.06', 'v2026.11.06.2-test', 'v2026.11.05.3')), 'v2026.11.06.2-test');
+  assert.equal(newestTag(t('v2026.11.06.2', 'v2026.11.06.10-test')), 'v2026.11.06.10-test', 'Nummer als Zahl');
+  assert.equal(newestTag(t('v2026.11.06.2-test', 'v2026.11.06.2')), 'v2026.11.06.2', 'gleicher Stand: das normale Release');
+  assert.equal(newestTag(t('v2026.10.30', 'v2026.11.01-test', 'v2026.09.30')), 'v2026.11.01-test');
+  assert.equal(newestTag([{ tag_name: 'v2026.11.07', draft: true }, { tag_name: 'quatsch' }, null, { tag_name: 'v2026.11.01' }]), 'v2026.11.01');
+  assert.equal(newestTag([]), null);
+
+  const w = await world();
+  w.state.releases['v2026.11.04.2-test'] = makeRelease('v2026.11.04.2-test', BASE.map((a) => (a.name === 'Peon' ? { ...a, version: '0.12.0' } : a)));
+  w.state.list = [{ tag_name: 'v2026.11.04' }, { tag_name: 'v2026.11.04.2-test', prerelease: true }];
+  w.svc.saveSettings({ addons: { channel: 'test' } });
+  await w.svc.addons.check();
+  assert.equal(w.svc.addons.manifest.release, 'v2026.11.04.2-test');
+  assert.equal(w.svc.addons.list().find((a) => a.name === 'Peon').available, '0.12.0');
   w.close();
 });
 
