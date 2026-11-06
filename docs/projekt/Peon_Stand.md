@@ -163,7 +163,7 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
 
 ### Navigation, Einkaufsliste, Favoriten, Ladezeiten (beschlossen 06.11.2026)
 
-Umgesetzt mit Manager 0.17.0, Broker 0.34.0, Bridge 0.6.0, noch nicht veröffentlicht. **Noch zu prüfen im Spiel (WoW neu starten, neue Datei Shop.lua):** Übernahme der Listen, Abgleich in beide Richtungen, Feld „Max. Gold“, genaue Werte im Hintergrund (bleibt das Spiel flüssig, hängen die Werte von der Stufe im Link ab), wie lange ein Scan dadurch zusätzlich dauert.
+Umgesetzt mit Manager 0.17.0, Broker 0.34.0, Bridge 0.6.0. Vorabversion `v2026.11.07.3-test` veröffentlicht (06.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Nach der Prüfung derselbe Stand als `v2026.11.07.3`. **Noch zu prüfen im Spiel (WoW neu starten, neue Datei Shop.lua):** Übernahme der Listen, Abgleich in beide Richtungen, Feld „Max. Gold“, genaue Werte im Hintergrund (bleibt das Spiel flüssig, hängen die Werte von der Stufe im Link ab), wie lange ein Scan dadurch zusätzlich dauert.
 
 **Noch offen, neutrales Auktionshaus:** Broker bildet den Markt aus Realm und Spielerfraktion. Ein Scan am neutralen Haus landet deshalb vermutlich im Markt der eigenen Fraktion und verfälscht dessen Preise. Wie das Spiel das neutrale Haus erkennbar macht, ist nicht geprüft. Klären, sobald KarloDerBaer an einem neutralen Auktionshaus ist. Die API-Daten betrifft das nicht.
 
