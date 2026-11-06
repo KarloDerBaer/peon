@@ -7,7 +7,8 @@
 -- Spiel -> Manager: Kanaele legen Momentaufnahmen in PeonBridgeDB.queue. Das Spiel schreibt PeonBridgeDB bei Reload,
 --   Ausloggen oder Beenden nach WTF (Peon_Bridge.lua), dort liest der Manager.
 -- Manager -> Spiel: Der Manager schreibt Data.lua in diesen Ordner (PeonBridgeData, nie mit ausgeliefert):
---   fmt = 2, t, manager = Version, channels = { broker = true }, ack = { [id] = true }, markets = { ... } (Kanal broker)
+--   fmt = 2, t, manager = Version, channels = { broker = true }, ack = { [id] = true }, markets = { ... } (Kanal broker),
+--   errorsClearBefore = Zeitpunkt (Fehlerspeicher des Kerns bis dahin loeschen, ab 0.5.0)
 --   Ohne channels (Platzhalter, altes Format, kein Manager) ist kein Kanal freigeschaltet.
 
 local ADDON_NAME, ns = ...
@@ -114,6 +115,14 @@ function ns.ApplyAck()
     return n
 end
 
+-- Der Manager hat Fehler uebernommen: im Fehlerspeicher des Kerns loeschen (Kern ab API 12, sonst nichts zu tun)
+function ns.ApplyErrorClear()
+    local d = ns.ManagerData()
+    local upTo = d and d.errorsClearBefore
+    if type(upTo) ~= "number" or not Peon.ClearErrors then return 0 end
+    return Peon.ClearErrors(upTo)
+end
+
 -- Zaehler fuer Anzeige und Tests
 function ns.QueueInfo()
     local scans, live, bytes, last = 0, 0, 0, nil
@@ -180,6 +189,7 @@ mod:On("INIT", function()
     ns.Prepare()
     local n = ns.ApplyAck()
     if n > 0 then mod:Dbg(("Bestaetigt: %d Momentaufnahmen geloescht"):format(n)) end
+    ns.ApplyErrorClear()
     ns.StartChannels()
     if ns.CreateOptions then mod:Call("Options", ns.CreateOptions) end
 end)

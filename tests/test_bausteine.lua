@@ -124,8 +124,10 @@ bad:SetData({ { a = 1 } })
 check(bad.rowFrames[1].cells[1].text == "?", "Fehler in format -> ?")
 bad.rowFrames[1].scripts.OnClick(bad.rowFrames[1], "LeftButton")
 bad.rowFrames[1].scripts.OnClick(bad.rowFrames[1], "LeftButton")
-local n = 0 for _, l in ipairs(out) do if l:find("kaputt2") then n = n + 1 end end
+local n = 0 for _, l in ipairs(out) do if l:find("List onClick", 1, true) then n = n + 1 end end
 check(n == 1, "Fehler in onClick einmal gemeldet")
+local saved = false for _, e in ipairs(PeonDB.errors) do if e.where == "List onClick" and e.msg:find("kaputt2", 1, true) then saved = true end end
+check(saved, "Fehler in onClick im Fehlerspeicher")
 
 -- ===== Modul mit Minimap-Button und page:List =====
 TestMiniDB = { minimapAngle = 90 }
@@ -192,6 +194,6 @@ check(tp:GetTab() == "two", "unbekannter Reiter: nichts passiert")
 a1:Hide(); tp:SelectTab("one")
 check(not a1.shown and a2:IsVisible(), "eigenes Ausblenden eines Bausteins bleibt erhalten")
 
-local e = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("kaputt2") and not l:find("^ok ") then e = e + 1 end end
+local e = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("List onClick", 1, true) and not l:find("^ok ") then e = e + 1 end end
 check(e == 0, "keine weiteren Fehlermeldungen")
 print("ALLE TESTS OK")

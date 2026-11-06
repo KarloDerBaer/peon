@@ -79,13 +79,16 @@ function Module:Error(msg)
     if UIErrorsFrame then UIErrorsFrame:AddMessage(self.title .. ": " .. tostring(msg), 1, 0.25, 0.25) end
 end
 
--- Fehler nur einmal pro Sitzung melden, damit der Chat nicht vollaeuft
+-- Fehler immer speichern (Peon.RecordError), im Chat nur einmal pro Sitzung kurz nennen, damit er nicht vollaeuft.
+-- Den vollen Text zeigen /peon fehler und der Peon Manager.
 function Module:ReportError(where, err)
-    local key = tostring(where) .. tostring(err)
+    local text = Peon.S(err)
+    Peon.RecordError(self.addonName, where, text, self.version)
+    local key = tostring(where) .. text
     if self.reported[key] then return end
     self.reported[key] = true
-    self:Print(L.MSG_ERROR:format(tostring(where), tostring(err)))
-    self:Dbg("FEHLER " .. tostring(where) .. ": " .. tostring(err))
+    self:Print(L.MSG_ERROR_SAVED:format(tostring(where)))
+    self:Dbg("FEHLER " .. tostring(where) .. ": " .. text)
 end
 
 -- Funktion geschuetzt aufrufen; Fehler werden einmalig gemeldet

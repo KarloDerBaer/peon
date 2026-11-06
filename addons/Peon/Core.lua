@@ -13,7 +13,7 @@ ns.Peon = Peon
 Peon.name      = ADDON_NAME
 Peon.L         = L
 Peon.NewLocale = ns.NewLocale
-Peon.API       = 11         -- wird erhoeht, wenn Funktionen dazukommen (Module koennen pruefen)
+Peon.API       = 12         -- wird erhoeht, wenn Funktionen dazukommen (Module koennen pruefen)
 Peon.COLOR     = "ff8ccf4d" -- Peon-Gruen fuer Chat-Ausgaben
 Peon.modules   = {}         -- addonName -> Modul
 Peon.order     = {}         -- Module in Ladereihenfolge
@@ -76,6 +76,56 @@ function Peon.Clamp(value, range)
 end
 
 ---------------------------------------------------------------------------
+-- Fehlerspeicher (API 12): abgefangene Fehler aller Module in PeonDB.errors.
+-- Das Spiel schreibt sie bei Reload, Ausloggen oder Beenden nach WTF (Peon.lua), dort liest der Peon Manager.
+-- Gleiche Fehler zaehlen hoch. Der Manager loescht ueber Data.lua der Bridge (Peon.ClearErrors).
+---------------------------------------------------------------------------
+local MAX_ERRORS, MAX_ERROR_TEXT = 100, 1000
+
+local function BuildNumber()
+    if not GetBuildInfo then return nil end
+    local ok, _, build = pcall(GetBuildInfo)
+    if ok and not Peon.IsSecret(build) then return build end
+    return nil
+end
+
+function Peon.RecordError(addon, where, err, version)
+    local db = Peon.db
+    if type(db) ~= "table" then return end
+    if type(db.errors) ~= "table" then db.errors = {} end
+    addon, where = tostring(addon), Peon.S(where)
+    local msg = Peon.S(err):sub(1, MAX_ERROR_TEXT)
+    local now = time and time() or 0
+    for _, e in ipairs(db.errors) do
+        if e.addon == addon and e.where == where and e.msg == msg then
+            e.n, e.last, e.version = (e.n or 1) + 1, now, version or e.version
+            return
+        end
+    end
+    db.errors[#db.errors + 1] = { addon = addon, where = where, msg = msg, version = version,
+        build = BuildNumber(), first = now, last = now, n = 1 }
+    while #db.errors > MAX_ERRORS do table.remove(db.errors, 1) end
+end
+
+-- Fehler bis einschliesslich Zeitpunkt `upTo` loeschen, ohne Angabe alle. Rueckgabe: Anzahl geloescht
+function Peon.ClearErrors(upTo)
+    local db = Peon.db
+    if type(db) ~= "table" or type(db.errors) ~= "table" then return 0 end
+    local keep, n = {}, 0
+    for _, e in ipairs(db.errors) do
+        if upTo == nil or (e.last or 0) <= upTo then n = n + 1 else keep[#keep + 1] = e end
+    end
+    db.errors = keep
+    return n
+end
+
+-- Fehler im Kern selbst (Optionen, Bausteine): speichern und kurz im Chat nennen
+function Peon.ReportCoreError(where, err)
+    Peon.RecordError(ADDON_NAME, where, err, Peon.version)
+    Peon.Print(L.MSG_ERROR_SAVED:format(Peon.S(where)))
+end
+
+---------------------------------------------------------------------------
 -- Ereignisverteilung
 -- Kern-Ereignisse fuer Module: INIT (SavedVariables bereit), LOGIN, COMBAT_START, COMBAT_END,
 -- RESET (Standardwerte). Dazu beliebige WoW-Ereignisse ueber mod:RegisterEvent().
@@ -112,7 +162,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             Peon.db = PeonDB
             if ns.CreateOptions then
                 local ok, err = pcall(ns.CreateOptions)
-                if not ok then Peon.Print(L.MSG_ERROR:format("Options", tostring(err))) end
+                if not ok then Peon.ReportCoreError("Options", err) end
             end
         elseif Peon.modules[name] then
             Peon.modules[name]:_Init()
@@ -121,7 +171,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
         Peon.loggedIn = true
         if ns.FinishOptions then
             local ok, err = pcall(ns.FinishOptions)
-            if not ok then Peon.Print(L.MSG_ERROR:format("Options", tostring(err))) end
+            if not ok then Peon.ReportCoreError("Options", err) end
         end
         FireAll("LOGIN")
     elseif event == "PLAYER_REGEN_DISABLED" then

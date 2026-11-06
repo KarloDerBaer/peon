@@ -2,6 +2,14 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 06.11.2026: Fehlerspeicher im Kern, Reiter Debug, Berichte über einen Worker (Peon 0.12.0, Bridge 0.5.0, Manager 0.13.0)
+
+- Abgefangene Fehler speichert der Kern selbst, statt sie an BugSack weiterzugeben. Der Manager zeigt sie im Reiter Debug, für alle sichtbar, dazu BugGrabber-Einträge mit Peon-Bezug. Im Chat bleibt ein kurzer Hinweis (KarloDerBaer).
+- Berichte gehen ohne Konto und Token über einen Cloudflare Worker in ein privates GitHub-Repo, zusätzlich gibt es den Export als Text. Nach dem Senden oder auf Nachfrage beim Export wird der Speicher geleert (KarloDerBaer).
+- Das Leeren läuft über `Data.lua` der Bridge statt über eine eigene Austauschdatei des Kerns, weil dieser Weg schon besteht und der Manager SavedVariables nicht schreiben darf: Das Spiel überschreibt sie beim Ausloggen (Claude).
+- Geleert wird bis zum spätesten bekannten Fehler statt bis zur aktuellen Uhrzeit. So bleibt ein Fehler erhalten, der in der laufenden Sitzung entstand und noch nicht auf der Platte steht (Claude).
+- Namen und Pfade werden schon beim Einlesen ersetzt, die BugGrabber-Spalte `locals` wird nie übernommen, damit private Daten gar nicht erst in einen Bericht gelangen können (Claude).
+
 ## 05.11.2026: Gegenstands-Tooltip über die Blizzard-API (Peon Manager 0.12.0)
 
 - Der Broker Client zeigt einen Tooltip mit den Werten eines Gegenstands, Daten aus der Blizzard-API, wenn ein Zugang eingetragen ist (KarloDerBaer).

@@ -73,7 +73,7 @@ local function Call(chart, where, fn, ...)
         local k = tostring(where) .. tostring(err)
         if not chart.reported[k] then
             chart.reported[k] = true
-            Peon.Print(L.MSG_ERROR:format("Chart " .. tostring(where), tostring(err)))
+            Peon.ReportCoreError("Chart " .. tostring(where), err)
         end
     end
 end

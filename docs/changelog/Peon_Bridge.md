@@ -2,6 +2,11 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.5.0
+
+- 0.5.0 (06.11.2026, Wunsch KarloDerBaer): Reicht das neue Feld `errorsClearBefore` aus `Data.lua` beim Laden an den Kern weiter (`Peon.ClearErrors`), damit der Peon Manager den Fehlerspeicher auch im Spiel leeren kann. Mit älterem Kern passiert nichts. Format von `Data.lua` bleibt 2.
+  - **Im Spiel prüfen:** Nach dem Leeren im Manager und einem `/reload` meldet `/peon fehler` keine alten Fehler mehr.
+
 ## 0.4.0
 
 - 0.4.0 (31.10.2026, Design `Peon_GitHub_Design.md` Abschnitt 4): **Peon_Client heißt jetzt Peon_Bridge** und ist die allgemeine Verbindung zwischen Spiel und Peon Manager.

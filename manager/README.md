@@ -18,6 +18,10 @@ Design: `..\docs\konzepte\manager\Peon_Client_Design.md` (Funktionen) und `..\do
 - Liest `WTF\Account\<Konto>\SavedVariables\Peon_Bridge.lua` (`PeonBridgeDB.queue`).
 - Schreibt `Interface\AddOns\Peon_Bridge\Data.lua` (`PeonBridgeData`, Format 2): `fmt`, `t`, `manager` (Version), `channels = { broker = true }`, `ack`, `markets`. Ohne `channels` zeichnet die Bridge nichts auf.
 
+## Fehlerspeicher
+
+Der Reiter Debug zeigt Fehler aus `Peon.lua` und `!BugGrabber.lua` (`src/core/errors.js`). Berichte gehen über den Worker in `worker/peon-fehler` (Einrichtung in der README dort). Zum Ausprobieren eine andere Adresse: Umgebungsvariable `PEON_MANAGER_REPORT_URL`.
+
 ## Laufendes Programm
 
 - Programm: mit dem Installer unter `%LOCALAPPDATA%\Programs\peon-manager\PeonManager.exe`. Läuft danach im Infobereich.

@@ -1,0 +1,6 @@
+name = "peon-fehler"
+main = "worker.mjs"
+compatibility_date = "2026-10-01"
+
+[vars]
+GITHUB_REPO = "KarloDerBaer/peon-fehler"

@@ -31,7 +31,7 @@ Jeder Test endet mit `ALLE TESTS OK` oder bricht mit `FEHLER: …` ab.
 
 | Test | Prüft |
 |---|---|
-| test.lua | Peon-Kern: Module, SavedVariables (Account/Charakter, Standardwerte, Wertebereiche, Übernahme alter Namen), Ereignisse, Debug-Log, Slash, Optionsseiten |
+| test.lua | Peon-Kern: Fehlerspeicher (API 12), Module, SavedVariables (Account/Charakter, Standardwerte, Wertebereiche, Übernahme alter Namen), Ereignisse, Debug-Log, Slash, Optionsseiten |
 | test_tooltip.lua | Peon_Tooltip: Einstellungen, Optionsseite mit Reglern/Knöpfen, Reset, Slash, Kampf |
 | test_cp.lua | Peon_ComboPoints: Optionsseite, Vorschau, Farbwähler, nur für Schurken aktiv |
 | test_bausteine.lua | Kern-Bausteine ab API 7: Liste (Sortierung, leere Werte, Bildlauf, Mausrad, Auswahl, Fehler in Rückrufen, `page:List`) und Minimap-Button (Position, Ziehen, Tooltip, Klick, Ausblenden, Standardwerte) |

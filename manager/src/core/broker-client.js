@@ -70,9 +70,10 @@ class BrokerClient {
     const prev = this.meta('ack') || { ids: [] };
     const same = prev.ids.length === known.length && prev.ids.every((x, k) => x === known[k]);
     const hash = crypto.createHash('md5').update(JSON.stringify(markets.values)).digest('hex');
-    if (!same || !prev.t || prev.hash !== hash || !dataMatches(wow, this.host.channels())) {
+    const errorsClearBefore = this.host.errors.clearBefore();
+    if (!same || !prev.t || prev.hash !== hash || !dataMatches(wow, this.host.channels(), errorsClearBefore)) {
       try {
-        const w = writeData(wow, { ack: known, markets: markets.lua, channels: this.host.channels(), version: this.version, now: this.now() });
+        const w = writeData(wow, { ack: known, markets: markets.lua, channels: this.host.channels(), version: this.version, now: this.now(), errorsClearBefore });
         sum.ack = { t: this.now(), count: known.length, file: w.file, items: markets.count, bytes: w.bytes };
         this.meta('ack', { ids: known, t: this.now(), file: w.file, hash, items: markets.count, sales: markets.salesCount, bytes: w.bytes, day: markets.day });
       } catch (e) {

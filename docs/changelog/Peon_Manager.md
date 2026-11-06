@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.13.0
+
+- 0.13.0 (06.11.2026, Wunsch KarloDerBaer): **Reiter Debug mit Fehlerspeicher**, immer sichtbar, ein Zähler zeigt die Zahl der Fehler.
+  - **Einlesen:** Abgefangene Fehler aus `Peon.lua` und die BugGrabber-Einträge, die ein Peon-Addon nennen (ohne `locals`), einmal je Minute und beim Öffnen. Konto- und Charakternamen, Spieler-Kennungen und Pfade werden dabei ersetzt.
+  - **Weitergeben:** Export als lesbarer Text in die Zwischenablage, danach Frage, ob der Speicher geleert werden soll. Senden an KarloDerBaer über den Cloudflare Worker `worker/peon-fehler` (kein Konto, kein Token), mit Vorschau. Nach bestätigtem Senden wird automatisch geleert. Der Knopf bleibt gesperrt, bis die Adresse des Workers eingetragen ist.
+  - **Leeren:** Im Manager sofort, im Spiel über `errorsClearBefore` in `Data.lua` beim nächsten Laden. Neuere Fehler bleiben auf beiden Seiten erhalten. Tests: `test/errors.test.js`.
+
 ## 0.12.0
 
 - 0.12.0 (05.11.2026, Wunsch KarloDerBaer): **Gegenstands-Tooltip im Broker Client.**

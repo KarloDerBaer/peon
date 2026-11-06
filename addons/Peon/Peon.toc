@@ -3,7 +3,7 @@
 ## Notes: Shared core for the Peon addon collection. Work, work!
 ## Notes-deDE: Gemeinsamer Kern der Peon-Addonsammlung. Arbeit, Arbeit!
 ## Author: KarloDerBaer
-## Version: 0.11.1
+## Version: 0.12.0
 ## IconTexture: Interface\Icons\INV_Pick_02
 ## SavedVariables: PeonDB
 

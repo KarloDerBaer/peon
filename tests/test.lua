@@ -103,8 +103,9 @@ check(cats.Peon.registered and cats.Peon.subs[1] == "Test", "Kategorie Peon + Un
 fire("PLAYER_REGEN_ENABLED"); check(log[3] == "CEND", "COMBAT_END")
 fire("BAG_UPDATE", 2); check(log[4] == "BAG_UPDATE2", "WoW-Ereignis weitergereicht")
 mod:Fire("BOOM"); mod:Fire("BOOM")
-local n = 0 for _, l in ipairs(out) do if l:find("absichtlich") then n = n + 1 end end
+local n = 0 for _, l in ipairs(out) do if l:find("Fehler in BOOM", 1, true) then n = n + 1 end end
 check(n == 1, "Fehler nur einmal gemeldet")
+check(PeonDB.errors[1].msg:find("absichtlich", 1, true) and PeonDB.errors[1].n == 2, "Fehlertext im Fehlerspeicher, zweimal gezaehlt")
 
 -- Debug
 mod:Dbg("still")
@@ -144,4 +145,49 @@ fire("ADDON_LOADED", "Peon_Keep")
 keep.db.a, keep.db.b = 5, 6
 keep:ResetDefaults()
 check(keep.db.a == 1 and keep.db.b == 6, "keepOnReset")
+-- ===== Fehlerspeicher (API 12) =====
+do
+  check(Peon.API >= 12, "API 12")
+  local clock = 1000
+  time = function() return clock end
+  GetBuildInfo = function() return "1.15", "60000" end
+  PeonDB.errors = nil
+  local before = #out
+  mod.reported = {}
+  mod:ReportError("Teil", "kaputt.lua:1: Fehler")
+  clock = 1100
+  mod:ReportError("Teil", "kaputt.lua:1: Fehler")
+  local chatLines, chatLast = #out - before, out[#out]
+  local e = PeonDB.errors[1]
+  check(#PeonDB.errors == 1 and e.n == 2 and e.first == 1000 and e.last == 1100, "gleicher Fehler zaehlt hoch")
+  check(e.addon == "Peon_Test" and e.where == "Teil" and e.version == "9.9" and e.build == "60000", "Addon, Bereich, Version, Build")
+  check(chatLines == 1 and chatLast:find("Fehler in Teil", 1, true) and not chatLast:find("kaputt", 1, true), "Chat: nur einmal, kurzer Hinweis")
+
+  local isSecret = Peon.IsSecret
+  Peon.IsSecret = function(v) return v == "GEHEIMWERT" end
+  mod:ReportError("Geheim", "GEHEIMWERT")
+  Peon.IsSecret = isSecret
+  check(PeonDB.errors[2].msg == "<geheim>", "geheimer Fehlertext wird nicht ausgewertet")
+
+  Peon.RecordError("Peon_Test", "Lang", ("x"):rep(5000))
+  check(#PeonDB.errors[3].msg == 1000, "Text wird gekuerzt")
+  for i = 1, 120 do Peon.RecordError("Peon_Test", "Viele" .. i, "f") end
+  check(#PeonDB.errors == 100 and PeonDB.errors[100].where == "Viele120", "hoechstens 100, aelteste fallen weg")
+
+  PeonDB.errors = { { addon = "A", where = "alt", msg = "m", last = 500, n = 1 }, { addon = "A", where = "neu", msg = "m", last = 900, n = 3 } }
+  check(Peon.ClearErrors(500) == 1 and #PeonDB.errors == 1 and PeonDB.errors[1].where == "neu", "ClearErrors bis Zeitpunkt, neuere bleiben")
+  SlashCmdList.PEON("fehler")
+  check(out[#out]:find("neu (3x): m", 1, true), "/peon fehler zeigt den Text")
+  SlashCmdList.PEON("fehler leeren")
+  check(#PeonDB.errors == 0 and out[#out]:find("1 gespeicherte", 1, true), "/peon fehler leeren")
+  SlashCmdList.PEON("fehler")
+  check(out[#out]:find("Keine gespeicherten", 1, true), "/peon fehler ohne Eintraege")
+  PeonDB.errors = "kaputt"
+  Peon.RecordError("A", "B", "C")
+  check(type(PeonDB.errors) == "table" and #PeonDB.errors == 1, "kaputter Speicher wird neu angelegt")
+  PeonDB.errors = nil
+  check(Peon.ClearErrors() == 0, "ClearErrors ohne Speicher")
+  time, GetBuildInfo = nil, nil
+end
+
 print("ALLE TESTS OK")

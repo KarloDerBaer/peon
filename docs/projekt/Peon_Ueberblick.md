@@ -118,6 +118,11 @@ if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Bereich 1", "
 Peon.GetFeedbackAreas(addonName)   -- Kopie der Liste, leer wenn nichts gemeldet
 ```
   Neue Module sollten ihre Bereiche mitmelden (in `vorlage\Peon_Beispiel` noch nicht enthalten).
+- **Fehlerspeicher (API 12, Core.lua):** `mod:ReportError(where, err)` und `mod:Call` speichern abgefangene Fehler automatisch in `PeonDB.errors` und nennen sie einmal pro Sitzung kurz im Chat. Den Text zeigen `/peon fehler` und der Reiter Debug im Peon Manager.
+```lua
+Peon.RecordError(addonName, where, err, version)   -- speichern ohne Chat-Ausgabe, gleiche Fehler zaehlen hoch
+Peon.ClearErrors(upTo)                             -- bis Zeitpunkt loeschen, ohne Angabe alle. Rueckgabe: Anzahl
+```
 - **Diagramm (API 10, Chart.lua):** zwei Achsen, Linien/Stufen/Flächen/Balken/Punkte/Markierungen, Mauslinie, Legende, verknüpfte Diagramme.
 ```lua
 local ch = Peon.NewChart(parent, { width = 480, height = 130, left = 46, right = 46, grid = 2,

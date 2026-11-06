@@ -2,6 +2,11 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.12.0
+
+- 0.12.0 (06.11.2026, Wunsch KarloDerBaer, Anlass: Fehler von Peon_Tooltip im Dungeon, der nirgends gespeichert war): API 12 – **Fehlerspeicher.** Abgefangene Fehler aller Module (`mod:ReportError`, `mod:Call`) und des Kerns stehen jetzt in `PeonDB.errors` (Addon, Bereich, Text, Version, Build, erstes und letztes Auftreten, Anzahl, höchstens 100, gleiche Fehler zählen hoch). Im Chat steht nur noch einmal pro Sitzung ein kurzer Hinweis. Neu: `Peon.RecordError`, `Peon.ClearErrors`, `Peon.ReportCoreError`, Befehl `/peon fehler` (Text zeigen) und `/peon fehler leeren`. Geheime Fehlertexte werden nicht mehr ausgewertet. Bestehendes bleibt nutzbar, nur der Chat-Text von `ReportError` ist kürzer.
+  - **Im Spiel prüfen:** Löst ein Modul einen Fehler aus, zeigt `/peon fehler` den vollen Text, auch nach `/reload`.
+
 ## 0.11.1
 
 - 0.11.1 (05.11.2026): Diagramm: Ein Wert ohne Nachbarn erscheint bei Linien und Stufenlinien als Punkt. Eine Linie braucht zwei Punkte, deshalb blieb das Diagramm am ersten Tag mit Daten leer (gesehen in Ledger). API unverändert. **Im Spiel prüfen:** Punkte im Ledger-Reiter „Gegenstand“.

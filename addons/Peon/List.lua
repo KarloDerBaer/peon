@@ -183,7 +183,7 @@ function Peon._ListCall(list, where, fn, ...)
         list.reported = list.reported or {}
         if not list.reported[key] then
             list.reported[key] = true
-            Peon.Print(L.MSG_ERROR:format("List " .. tostring(where), tostring(err)))
+            Peon.ReportCoreError("List " .. tostring(where), err)
         end
     end
 end

@@ -1,6 +1,6 @@
 'use strict';
 // Peon Manager - Datenbanken (SQLite ueber node:sqlite) im Datenordner:
-//   peon.db           Manager: Zustand (meta) und Protokoll (log)
+//   peon.db           Manager: Zustand (meta), Protokoll (log) und Fehlerspeicher (errors)
 //   broker-client.db  Modul Peon Broker Client: Maerkte, Momentaufnahmen, Verlauf, Absatz, Chancen
 // Angebote einer Momentaufnahme liegen gepackt (zlib) in snapshots.rows, die Kennzahlen je Gegenstand
 // in item_snap. So bleibt die Datei klein und alles laesst sich spaeter neu berechnen.
@@ -75,6 +75,9 @@ const MANAGER_DDL = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, kind TEXT NOT NULL, ok INTEGER NOT NULL, text TEXT);
+CREATE TABLE IF NOT EXISTS errors (
+  key TEXT PRIMARY KEY, source TEXT NOT NULL, addon TEXT NOT NULL, version TEXT, build TEXT, place TEXT, msg TEXT NOT NULL, stack TEXT,
+  first INTEGER NOT NULL, last INTEGER NOT NULL, n INTEGER NOT NULL);
 `;
 
 const BROKER_FILE = 'broker-client.db';

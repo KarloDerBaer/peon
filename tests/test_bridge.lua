@@ -525,5 +525,18 @@ do
   check(e2.offers == 70000 and e2.lines <= 70000 and bytes < 2 * 1024 * 1024, "70.000 verschiedene Angebote unter 2 MB")
 end
 
+-- ===== Fehlerspeicher des Kerns leeren (Bridge 0.5.0) =====
+do
+  local keepData = PeonBridgeData
+  PeonDB.errors = { { addon = "A", where = "alt", msg = "m", last = 100, n = 1 }, { addon = "A", where = "neu", msg = "m", last = 300, n = 1 } }
+  PeonBridgeData = { fmt = 2, t = 1, channels = {} }
+  check(ns.ApplyErrorClear() == 0 and #PeonDB.errors == 2, "ohne Marke bleibt alles")
+  PeonBridgeData.errorsClearBefore = 200
+  check(ns.ApplyErrorClear() == 1 and #PeonDB.errors == 1 and PeonDB.errors[1].where == "neu", "Marke loescht bis zum Zeitpunkt")
+  PeonBridgeData = nil
+  check(ns.ApplyErrorClear() == 0, "ohne Data.lua nichts zu tun")
+  PeonDB.errors, PeonBridgeData = nil, keepData
+end
+
 check(not said("Fehler in"), "keine Fehlermeldungen")
 print("ALLE TESTS OK")
