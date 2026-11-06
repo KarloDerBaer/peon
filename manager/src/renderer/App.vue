@@ -8,6 +8,7 @@ import Item from './views/Item.vue';
 import Chances from './views/Chances.vue';
 import Modules from './views/Modules.vue';
 import Reports from './views/Reports.vue';
+import UpdateDialog from './components/UpdateDialog.vue';
 import { ago } from './util.js';
 
 const api = window.peon;
@@ -20,6 +21,13 @@ const note = ref('');
 const now = ref(Math.floor(Date.now() / 1000));
 const itemKey = ref(null);
 const stamp = ref(0);   // erhoeht sich bei neuen Daten, damit Listen neu laden
+const updates = ref(null);        // Inhalt des Update-Fensters
+const showUpdates = ref(false);
+let startChecked = false;
+async function closeUpdates() {
+  showUpdates.value = false;
+  await api.updatesShown();
+}
 
 // Ansichten der Manager-Module (nur wenn das Modul installiert ist), dazu immer Module und Einstellungen
 const ALL = [
@@ -41,9 +49,15 @@ const current = computed(() => {
 });
 
 async function load() {
-  const [o, s] = await Promise.all([api.overview(), api.settings()]);
+  const [o, s, u] = await Promise.all([api.overview(), api.settings(), api.updateInfo()]);
   data.value = o;
   settings.value = s;
+  updates.value = u;
+  // Von selbst nur einmal beim Programmstart, nach der ersten Suche. Die Suche alle 6 Stunden zeigt nur den Knopf.
+  if (u.ready && !startChecked) {
+    startChecked = true;
+    if (u.popup) showUpdates.value = true;
+  }
   if (!market.value && o.markets.length) market.value = o.markets[0].key;
   // Ansicht eines entfernten Moduls: zu den Modulen wechseln. Beim Start ohne Modul gleich dorthin.
   const ok = ALL.some((n) => n.key === view.value && (n.always || o.views.includes(n.key))) || (view.value === 'item' && o.views.includes('items'));
@@ -105,6 +119,9 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
         {{ n.label }}<span v-if="n.soon" class="soon">folgt</span>
       </button>
       <div class="rail-bottom">
+        <button class="primary rail-update" v-if="updates && updates.count" @click="showUpdates = true">
+          {{ updates.manager || updates.addons.some((a) => a.kind === 'update') ? 'Jetzt aktualisieren' : 'Neues ansehen' }}<span class="rail-count">{{ updates.count }}</span>
+        </button>
         <hr class="rail-sep" v-if="NAV.length">
         <button v-for="n in NAV_BOTTOM" :key="n.key" class="nav" :class="{ on: view === n.key }" @click="go(n.key)">
           {{ n.label }}<span v-if="n.key === 'modules' && data && data.addonUpdates" class="count" :title="`${data.addonUpdates} Updates verfügbar`">{{ data.addonUpdates }}</span>
@@ -136,12 +153,13 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
         <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @back="go(back === 'chances' ? 'chances' : 'items')" :back-label="back === 'chances' ? 'Zurück zu Chancen' : 'Alle Gegenstände'" />
         <Chances v-else-if="view === 'chances'" :market="current" :now="now" :stamp="stamp" :settings="settings" @open="openItem" @save="saveQuiet" />
         <Sources v-else-if="view === 'sources'" :data="data" :now="now" :stamp="stamp" @go="go($event)" />
-        <Modules v-else-if="view === 'modules'" :data="data" :now="now" :stamp="stamp" @changed="load" @pick-folder="pickWow" @go="go($event)" />
+        <Modules v-else-if="view === 'modules'" :data="data" :now="now" :stamp="stamp" @changed="load" @pick-folder="pickWow" @go="go($event)" @updates="load().then(() => { showUpdates = true; })" />
         <Reports v-else-if="view === 'reports'" :now="now" :stamp="stamp" @go="go($event)" @changed="load" />
         <Settings v-else-if="view === 'settings'" :data="data" :settings="settings" :stamp="stamp" :broker="broker" :now="now" @save="saveSettings" />
       </div>
       <div class="page muted" v-else>Lade Daten</div>
     </main>
+    <UpdateDialog v-if="showUpdates && updates && settings" :info="updates" :settings="settings" @close="closeUpdates" @changed="load" @save="saveQuiet" />
   </div>
 </template>
 
@@ -157,6 +175,8 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
 .soon { font-size: 12px; color: var(--faint); font-weight: 400; }
 .count { font-size: 12px; font-weight: 600; min-width: 18px; padding: 0 5px; border-radius: 9px; text-align: center; background: var(--accent); color: var(--accent-ink); }
 .rail-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 2px; }
+.rail-update { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 10px; padding: 8px 10px; text-align: left; }
+.rail-count { font-size: 12px; font-weight: 600; min-width: 18px; padding: 0 5px; border-radius: 9px; text-align: center; background: var(--accent-ink); color: var(--accent); }
 .rail-sep { width: 100%; border: none; border-top: 1px solid var(--line-soft); margin: 0 0 8px; }
 .rail-foot { padding: 12px 12px 0; }
 .main { display: flex; flex-direction: column; min-width: 0; height: 100%; }

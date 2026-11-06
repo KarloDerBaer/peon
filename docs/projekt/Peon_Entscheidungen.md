@@ -2,6 +2,21 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 06.11.2026: Update-Fenster und kurze Texte (Peon Manager 0.15.0)
+
+- Das Update-Fenster kommt schon mit 0.15.0, nicht erst nach dem Umbau der Seitenleiste (KarloDerBaer). Es hängt nicht davon ab.
+- Es öffnet sich beim Start, nach jeder Suche von Hand, wenn es etwas gibt, und über „Jetzt aktualisieren“, damit man vor einem Update immer sieht, was neu ist. „Was ist neu“ unter Module zeigt denselben kurzen Text (KarloDerBaer).
+- Die Suche alle 6 Stunden öffnet es nicht von selbst, sondern zeigt nur den Knopf, damit es nicht mitten in der Arbeit aufspringt (Claude, so aus dem Wunsch von KarloDerBaer verstanden). Der Knopf „Aktualisieren“ auf einer einzelnen Karte unter Module bleibt direkt, weil der Text dort danebensteht (Claude).
+- Die kurzen Texte stehen als Zeilen `Kurz:` im Changelog, nicht in einer eigenen Datei, damit sie beim Schreiben der Version nicht vergessen werden. Der Bau bricht ohne sie ab. Das Manifest führt sie je Version, damit auch sieht, wer Releases übersprungen hat, was seit seiner Version neu ist (Claude).
+- „Alles aktualisieren“ fügt neue Addons nicht ungefragt hinzu, sie haben einen eigenen Knopf. Vorgestellt wird ein neues Addon einmal, sonst käme ein bewusst nicht installiertes immer wieder (Claude).
+
+## 06.11.2026: Aufbewahrung im Hintergrund (Peon Manager 0.15.0)
+
+- Aufgeräumt wird in Zeitscheiben im Hauptprozess statt in einem eigenen Thread. Zwei Verbindungen zur Datenbank brächten Sperrfehler beim Einlesen, die Scheiben sind einfacher und reichen (Claude).
+- Die Datei schrumpft schrittweise (`auto_vacuum = INCREMENTAL`) statt mit `VACUUM`, das bei Gigabytes das Programm lange anhalten würde. Die einmalige Umstellung beim Öffnen kostet jetzt wenig, weil noch niemand große Datenbanken hat (Claude).
+- Die Regler speichern erst mit „Übernehmen“, weil Verdichten sich nicht rückgängig machen lässt. Die Warnung erscheint nur, wenn wirklich Daten betroffen sind, damit sie ernst genommen wird (Claude).
+- Das Muster „Wann ist es günstig?“ liest nur vollständige Momentaufnahmen und sieht mit dem neuen Standard 14 statt bis zu 60 Tage. Das steht unter dem Regler und bleibt so, wer mehr will, stellt mehr ein (Claude).
+
 ## 06.11.2026: Umbau des Peon Managers, Updates wie bei allen anderen
 
 - **KarloDerBaer bekommt Updates über den normalen Weg**, um zu erleben, was Freunde erleben (KarloDerBaer). Der Normalzustand im AddOns-Ordner sind echte Ordner, die der Manager im Kanal Test aktualisiert. Junctions gibt es nur noch beim Entwickeln, auch für einzelne Addons (`scripts\junctions.cmd manager` und `entwicklung`), weil sonst jede kleine Änderung einen Bau auf GitHub bräuchte (Claude, zugestimmt).

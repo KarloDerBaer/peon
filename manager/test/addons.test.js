@@ -29,16 +29,17 @@ function zipFor(name, version, extra = {}) {
 }
 
 // Release als Dateien: { tag: { 'manifest.json': Text, 'x.zip': Buffer } }
-function makeRelease(tag, addons, { minVersion = '0.1.0' } = {}) {
+function makeRelease(tag, addons, opt = {}) {
+  const { minVersion = '0.1.0' } = opt;
   const files = {};
   const list = addons.map((a) => {
     const zip = a.zip || zipFor(a.name, a.version);
     const file = a.file || `${a.name}-${a.version}.zip`;
     files[file] = zip;
     return { name: a.name, title: a.name.replace('Peon_', ''), version: a.version, desc: `Beschreibung ${a.name}`, deps: a.deps || (a.name === 'Peon' ? [] : ['Peon']),
-      api: 5, interface: 16001, file, sha256: a.sha256 || crypto.createHash('sha256').update(zip).digest('hex'), size: a.size || zip.length, notes: `Neu in ${a.version}`, managerOnly: !!a.managerOnly };
+      api: 5, interface: 16001, file, sha256: a.sha256 || crypto.createHash('sha256').update(zip).digest('hex'), size: a.size || zip.length, news: a.news || [{ version: a.version, short: [`Neu in ${a.version}`] }], managerOnly: !!a.managerOnly };
   });
-  files['manifest.json'] = JSON.stringify({ fmt: 1, release: tag, date: '2026-11-04', discord: null, manager: { version: '0.8.0', minVersion }, addons: list, managerModules: [] });
+  files['manifest.json'] = JSON.stringify({ fmt: 1, release: tag, date: '2026-11-04', discord: null, manager: { version: opt.managerVersion || '0.8.0', minVersion, news: opt.managerNews }, addons: list, managerModules: [] });
   return files;
 }
 
@@ -86,7 +87,7 @@ test('Suchen: Manifest laden, Liste mit Status, noch nichts installiert', async 
   assert.equal(st.missing, 4);
   assert.equal(st.wowRunning, true);
   assert.equal(st.items.find((a) => a.name === 'Peon_Bridge').managerOnly, true);
-  assert.equal(st.items[0].notes, 'Neu in 0.11.0');
+  assert.deepEqual(st.items[0].news, [{ version: '0.11.0', short: ['Neu in 0.11.0'] }]);
   w.close();
 });
 
@@ -450,4 +451,80 @@ test('WoW-Ordner suchen: Registrierung zuerst, dann uebliche Orte', () => {
   assert.deepEqual(r, ['X:\\Spiele\\Blizzard\\WoW\\_forever_', 'C:\\Program Files (x86)\\World of Warcraft\\_forever_', 'E:\\Games\\World of Warcraft\\_forever_']);
   assert.deepEqual(findWowDirs({ exists: () => false }), []);
   assert.equal(PLACEHOLDER.includes('PeonBridgeData ='), false, 'Platzhalter setzt keine Werte');
+});
+
+test('Was ist neu: nur kurze Texte seit der eigenen Version, fehlende Angabe stoert nicht', async () => {
+  const news = [{ version: '0.13.0', short: ['Drei'] }, { version: '0.12.0', short: ['Zwei'] }, { version: '0.11.0', short: ['Eins'] }];
+  const w = await world([{ name: 'Peon', version: '0.11.0' }, { name: 'Peon_Broker', version: '0.33.0', news: 'kaputt' }]);
+  await w.svc.addons.check();
+  await w.svc.addons.install(['Peon']);
+  w.state.releases['v2026.11.05'] = makeRelease('v2026.11.05', [{ name: 'Peon', version: '0.13.0', news }, { name: 'Peon_Broker', version: '0.33.0', news: 'kaputt' }]);
+  w.state.latest = 'v2026.11.05';
+  await w.svc.addons.check();
+  const items = w.svc.addons.list();
+  assert.deepEqual(items.find((a) => a.name === 'Peon').news.map((n) => n.version), ['0.13.0', '0.12.0'], 'uebersprungene Versionen zaehlen mit');
+  assert.deepEqual(items.find((a) => a.name === 'Peon_Broker').news, []);
+  await w.svc.addons.install(['Peon']);
+  assert.deepEqual(w.svc.addons.list().find((a) => a.name === 'Peon').news.map((n) => n.version), ['0.13.0'], 'aktuell: nur die neueste');
+  await w.close();
+});
+
+test('Update-Fenster: Inhalt, einmal beim Start, neue Addons nur einmal vorgestellt, Suche zeigt weiter', async () => {
+  const w = await world([{ name: 'Peon', version: '0.11.0' }, { name: 'Peon_Broker', version: '0.33.0' }, { name: 'Peon_Bridge', version: '0.4.0', managerOnly: true }]);
+  w.svc.saveSettings({ setup: { done: true } });
+  await w.svc.addons.check();
+  await w.svc.addons.install(['Peon', 'Peon_Broker']);
+  const off = { status: 'off' };
+  // Beim ersten Mal ist alles Vorhandene bekannt, nichts zu zeigen
+  let u = w.svc.updateInfo(off);
+  assert.deepEqual([u.count, u.popup, u.manager], [0, false, null]);
+
+  // Neues Release: ein Update, ein neues Addon, ein Hilfs-Addon wird nicht als neu angeboten
+  w.state.releases['v2026.11.05'] = makeRelease('v2026.11.05', [{ name: 'Peon', version: '0.12.0' }, { name: 'Peon_Broker', version: '0.33.0' }, { name: 'Peon_Bridge', version: '0.4.0', managerOnly: true },
+    { name: 'Peon_Neu', version: '0.1.0' }, { name: 'Peon_Hilfe', version: '0.1.0', managerOnly: true }]);
+  w.state.latest = 'v2026.11.05';
+  await w.svc.addons.check();
+  u = w.svc.updateInfo(off);
+  assert.deepEqual(u.addons.map((a) => [a.kind, a.name]), [['update', 'Peon'], ['new', 'Peon_Neu']]);
+  assert.equal(u.addons[0].installed, '0.11.0');
+  assert.equal(u.popup, true);
+  assert.equal(w.svc.updateInfo(off, false).popup, false, 'erst nach der ersten Suche');
+
+  // Abgeschaltet: von selbst nicht, der Inhalt bleibt fuer die Suche von Hand
+  w.svc.saveSettings({ updateWindow: false });
+  u = w.svc.updateInfo(off);
+  assert.deepEqual([u.popup, u.count], [false, 2]);
+  w.svc.saveSettings({ updateWindow: true });
+
+  // Geschlossen: nicht wieder von selbst. Das Update bleibt im Knopf, das neue Addon ist vorgestellt
+  w.svc.updatesShown(off);
+  u = w.svc.updateInfo(off);
+  assert.equal(u.popup, false);
+  assert.deepEqual(u.addons.map((a) => a.name), ['Peon']);
+
+  // Neue Version desselben Addons: wieder von selbst
+  w.state.releases['v2026.11.06'] = makeRelease('v2026.11.06', [{ name: 'Peon', version: '0.13.0' }, { name: 'Peon_Broker', version: '0.33.0' }, { name: 'Peon_Bridge', version: '0.4.0', managerOnly: true }, { name: 'Peon_Neu', version: '0.1.0' }]);
+  w.state.latest = 'v2026.11.06';
+  await w.svc.addons.check();
+  assert.equal(w.svc.updateInfo(off).popup, true);
+  w.svc.updatesShown(off);
+  // Nur noch ein Teil offen: nichts Neues, also nicht von selbst
+  await w.svc.addons.install(['Peon']);
+  assert.equal(w.svc.updateInfo(off).popup, false);
+  await w.close();
+});
+
+test('Update-Fenster: Manager mit Text, ohne Selbst-Update kein Eintrag, Ersteinrichtung ohne Fenster', async () => {
+  const opt = { managerVersion: '0.9.0', managerNews: [{ version: '0.9.0', short: ['Neu'] }, { version: '0.8.0', short: ['Laeuft schon'] }] };
+  const w = await world(BASE, opt);
+  await w.svc.addons.check();
+  assert.equal(w.svc.updateInfo({ status: 'off' }).manager, null, 'Entwicklung oder Ordner mit DB daneben');
+  const u = w.svc.updateInfo({ status: 'downloading', version: '0.9.0', percent: 40 });
+  assert.equal(u.manager.version, '0.9.0');
+  assert.equal(u.manager.percent, 40);
+  assert.deepEqual(u.manager.news.map((n) => n.version), ['0.9.0']);
+  assert.equal(u.popup, false, 'noch nichts eingerichtet: Der Willkommens-Vorschlag ist dran');
+  w.svc.saveSettings({ setup: { done: true } });
+  assert.equal(w.svc.updateInfo({ status: 'ready', version: '0.9.0' }).popup, true);
+  await w.close();
 });

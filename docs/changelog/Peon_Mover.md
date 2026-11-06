@@ -4,6 +4,8 @@ Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeig
 
 ## 0.1.0
 
+Kurz: Fenster verschieben und ihre Größe ändern, die Stellen bleiben gespeichert.
+
 - 0.1.0 (06.10.2026, Bauabschnitte M1–M3):
   - **Fenster finden:** feste Liste (Namen aus BlizzMoves Liste für Forever/Retail, ergänzt um Berufsbuch, Zauberbuch, Questlog u. a.) und alle Fenster aus Blizzards `UIPanelWindows` (nur gelesen); nur vorhandene Fenster, neu bei jedem `ADDON_LOADED` nach dem Login. Ausgelassen: Taschen, kleine Einblendungen, Weltkarte solange Leatrix_Maps geladen ist.
   - **Verschieben** an der Titelleiste (oberer Streifen 26 Punkte, nur Klicks auf das Fenster selbst – Knöpfe dort funktionieren normal), am Bildschirm gehalten; Blizzards Merker „vom Spieler platziert“ wird zurückgesetzt. Setzt Blizzard das Fenster neu (Öffnen, Anordnen), kommt es sofort an die gespeicherte Stelle.

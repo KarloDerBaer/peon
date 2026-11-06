@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 06.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.13.0 / Broker 0.33.1 / Bridge 0.5.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.14.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.2 / Fishing 1.5.2 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2 / Feedback 0.3.1.
+Stand: 06.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.13.0 / Broker 0.33.1 / Bridge 0.5.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.15.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.2 / Fishing 1.5.2 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2 / Feedback 0.3.1.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.13.0, API 13
@@ -58,7 +58,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.14.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.15.0
 
 - Quellcode: `manager\` (bisher `client\`), Anleitung in `manager\README.md`. Design: `docs\konzepte\manager\Peon_Client_Design.md` (Funktionen, jetzt Modul Peon Broker Client) und `Peon_GitHub_Design.md` (Peon Manager, Module, Installieren).
 - Programm bei KarloDerBaer: installiert wie bei allen anderen (ab 04.11.2026, siehe unten). Der frühere Ordner `<Programmordner>` mit Runtime und DB bleibt als Sicherung. Anderer Datenordner: Umgebungsvariable `PEON_MANAGER_DB`.
@@ -69,6 +69,8 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Blizzard-API (ab 0.11.0): Zugang, Anleitung und Prüfabruf unter Einstellungen für alle Module (`src\core\blizzard.js`). Einleser im Broker Client (`blizzard-import.js`), Auswahl der Häuser unter Quellen, Einstellung `blizzard.houses`. Beobachter nur in der Testfassung (`blizzard-watch.js`). Wissen und offene Fragen: `docs\konzepte\manager\Peon_Blizzard_API.md`.
 - Gegenstands-Tooltip (ab 0.12.0, `src\core\item-info.js`, Tabelle `item_info`): unter Gegenstände beim Überfahren und in der Detailansicht unter Eigenschaften, Daten aus der Blizzard-API. Wissen dazu: `docs\konzepte\manager\Peon_Blizzard_API.md`.
 - Reiter Rückmeldungen (ab 0.14.0, `src\core\reports.js`, Tabellen `errors` und `feedback` in `peon.db`): liest Fehler aus `Peon.lua` und `!BugGrabber.lua` und Rückmeldungen aus `Peon_Feedback.lua`, eigene Rückmeldungen schreiben, alles bearbeiten und löschen, Notizen zu Fehlern. Senden über den Worker (ein Issue je Eintrag, höchstens 20 je Senden). Das Spiel löscht Eingelesenes über `errorsClearBefore` und `feedbackClearBefore` in `Data.lua`. Worker: `worker\peon-fehler\` (Einrichtung in der README dort). Worker läuft unter `peon-fehler.karloderbaer.workers.dev`, Adresse steht in `REPORT_URL` (ab 0.13.1).
+- Aufbewahrung (ab 0.15.0, `srccoreetention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 14), Vorlagen in `PRESETS`, Aufräumen in Schritten über `pruneInBackground`, Datei mit `auto_vacuum = INCREMENTAL`.
+- Update-Fenster (ab 0.15.0, `components\UpdateDialog.vue`, Inhalt `Service.updateInfo`): beim Programmstart je Stand einmal und abschaltbar (`updateWindow`), immer nach „Nach Updates suchen“ und über „Jetzt aktualisieren“, die Suche alle 6 Stunden zeigt nur den Knopf. Merker `updatesShown` und `addonsSeen` in `peon.db`. Texte aus den Zeilen `Kurz:` der Changelogs, im Manifest als `news` je Version.
 - AHledger ist ab 0.11.0 entfernt.
 - Bauen: `npm ci`, `npm run dist:setup` (Installer) oder `npm run dist` (nur Ordner) (Ordner `manager\release\win-unpacked`), Selbsttest mit `PEON_MANAGER_SELFTEST=<Ordner>`.
 - Tests: `npm test` im Ordner `manager\` (Rechenkern, dazu der Vergleich mit Brokers Sales.lua über `tools\lua5.1.exe`).
@@ -161,10 +163,9 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
 In dieser Reihenfolge:
 
 1. **Updates wie bei allen anderen:** Umschalter `scripts\junctions.cmd manager` und `entwicklung` gebaut und in einem Testordner geprüft (`scripts\test\junctions.test.js`). Bei KarloDerBaer umgeschaltet (06.11.2026): alle 10 Addons sind echte Ordner, gleich dem Repo und dem Release `v2026.11.06`. **Noch offen:** Kanal Test einstellen, erste Vorabversion mit `-test` durchspielen (kommt mit der Aufbewahrung), auch die Rückkehr zu Stabil und „Jetzt neu starten“.
-2. **Aufbewahrung:** Vorlagen (Sparsam, Ausgewogen, Ausführlich, Alles) und zwei Regler, neuer Standard 14 und 60 Tage. Stundenwerte mindestens 14 Tage, weil der übliche Bereich keine Tageswerte liest. Datei verkleinern, auch wenn nur Stundenwerte wegfallen, Warnung vor dem Verdichten, Fenster friert dabei nicht ein. `hourDays` hatte bisher keinen Regler und wird bei allen umgestellt, solange noch niemand Stundenwerte hat (ab Tag 31 nach dem 04.11.). `keepDays` bleibt, wie eingestellt.
+2. **Aufbewahrung und Update-Fenster** (Update-Fenster vorgezogen, KarloDerBaer): Gebaut in Manager 0.15.0, im echten Programm mit Testordner geprüft, das Fenster gegen ein nachgebautes Release. **Noch offen:** Vorabversion, Eintrag des Managers im Fenster (nur in der installierten Fassung prüfbar, erlebbar erst beim Update auf die Version danach, also eine zweite kleine Vorabversion), Prüfung durch KarloDerBaer, normales Release.
 3. **Seitenleiste, Quellen, Übersicht:** Reiter je Modul in einer Gruppe mit Überschrift, Markt und „Jetzt einlesen“ nur bei den Broker-Reitern. Quellen mit Datenweg, Verwendung je Quelle, aufklappbaren Auktionshäusern und aufklappbarem Protokoll. Übersicht mit Statuszeile, Kennzahlen, besten Chancen und Meistverkauftem. Dazu ehrliche Lampen (0 Werte sind nicht grün), Diagrammachse und Titel nach echtem Zeitraum, Preisänderungen gegen den üblichen Bereich.
-4. **Update-Fenster:** beim ersten Öffnen, je Version einmal, Manager, Addon-Updates und neue Addons mit kurzem Text, einzeln oder alles auf einmal, abschaltbar. Texte aus einem Abschnitt `Kurz:` je Version im Changelog, Pflicht beim Bau des Release. Damit ist auch die Frage nach kürzeren Texten für Freunde beantwortet.
-5. **Weitere Ideen:** Einrichtungsliste für neue Nutzer, Merkliste mit Preisalarm, Schnellsuche mit Strg+K, Datensicherung per Knopf.
+4. **Weitere Ideen:** Einrichtungsliste für neue Nutzer, Merkliste mit Preisalarm, Schnellsuche mit Strg+K, Datensicherung per Knopf.
 
 ### Peon auf GitHub, Peon Manager, Peon_Bridge (beschlossen 31.10.2026, Design `Peon_GitHub_Design.md`)
 

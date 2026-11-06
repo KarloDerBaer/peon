@@ -19,10 +19,12 @@ const DEFAULTS = {
   setup: { done: false },                                            // erster Start (Vorschlag in der Ansicht Module)
   blizzard: { houses: {} },   // gewaehlte Auktionshaeuser: 'eu-111' -> { market, how }
   autostart: false,
+  updateWindow: true,     // Update-Fenster beim Programmstart zeigen, wenn es Neues gibt
   theme: 'dark',
-  keepDays: 30,           // Momentaufnahmen vollstaendig aufheben (Tage, 0 = unbegrenzt)
+  keepDays: 14,           // Momentaufnahmen vollstaendig aufheben (Tage, 0 = unbegrenzt)
+  retentionV: 2,          // Stand der Standardwerte der Aufbewahrung (Umstellung im Konstruktor)
   chances: { days: 7, minProfit: 1000, quality: 0 },   // Ansicht Chancen: Zeitraum, Mindestgewinn je Tag (Kupfer), Qualitaet ab
-  hourDays: 365,          // danach Stundenwerte bis zu so vielen Tagen, dann Tageswerte
+  hourDays: 60,           // danach Stundenwerte bis zu so vielen Tagen, dann Tageswerte (mindestens 14, retention.js)
 };
 
 function merge(def, cur) {
@@ -62,6 +64,11 @@ class Service {
     }
     // Wer schon Einstellungen hatte, sieht den Vorschlag fuer den ersten Start nicht
     if (raw.setup === undefined && existed) this.saveSettings({ setup: { done: true } });
+    // Bis 0.14.0 waren es fest 365 Tage Stundenwerte, ohne Einstellung dafuer: also von niemandem gewaehlt und einmalig neu.
+    // keepDays liess sich schon einstellen und bleibt.
+    if (raw.retentionV === undefined && existed) {
+      this.saveSettings(raw.hourDays === 365 ? { hourDays: DEFAULTS.hourDays, retentionV: DEFAULTS.retentionV } : { retentionV: DEFAULTS.retentionV });
+    }
     this.reports = new ReportStore(this);
     this.broker = this.isActive('broker-client') ? new BrokerClient(this) : null;
     this.addons = new AddonManager(this, releases || {});
@@ -211,6 +218,32 @@ class Service {
     return res;
   }
 
+  // ---------- Update-Fenster ----------
+  // Inhalt des Fensters. updater = Zustand des Selbst-Updates, ready = die erste Suche seit dem Start ist durch.
+  // popup: beim Programmstart zeigen? Nur wenn etwas dabei ist, das dort noch nicht stand.
+  updateInfo(updater = { status: 'off' }, ready = true) {
+    const a = this.addons;
+    const addons = a.newsEntries();
+    let manager = null;
+    const u = a.managerUpdate();
+    if (updater.status !== 'off' && (u || updater.status === 'ready')) {
+      const version = updater.status === 'ready' && updater.version ? updater.version : u.version;
+      manager = { kind: 'manager', name: 'Peon Manager', title: 'Peon Manager', version, installed: this.version, news: a.managerNews(),
+        status: updater.status, percent: updater.percent || 0, error: updater.error || null };
+    }
+    const keys = [...(manager ? [`Peon Manager@${manager.version}`] : []), ...addons.map((x) => `${x.name}@${x.version}`)];
+    const shown = this.meta('updatesShown') || [];
+    const setupDone = this.settings.setup.done || a.installed('Peon').present;
+    return { manager, addons, count: keys.length, ready, popup: !!(ready && setupDone && this.settings.updateWindow && keys.some((k) => !shown.includes(k))) };
+  }
+
+  // Das Fenster wurde geschlossen: Was drin stand, kommt beim naechsten Start nicht wieder von selbst
+  updatesShown(updater) {
+    const info = this.updateInfo(updater);
+    this.meta('updatesShown', [...(info.manager ? [`Peon Manager@${info.manager.version}`] : []), ...info.addons.map((x) => `${x.name}@${x.version}`)]);
+    this.addons.markSeen();
+  }
+
   // ---------- Daten fuer die Oberflaeche ----------
   overview() {
     this.reports.scan();
@@ -232,7 +265,7 @@ class Service {
     }
     const b = this.broker.overview();
     const merged = [...b.log, ...own].sort((x, y) => y.t - x.t).slice(0, 12);
-    return { ...base, ...b, log: merged };
+    return { ...base, ...b, log: merged, pruning: !!this.broker.pruning };
   }
 
   close() {

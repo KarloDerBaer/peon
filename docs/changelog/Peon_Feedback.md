@@ -4,6 +4,8 @@ Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeig
 
 ## 0.3.1
 
+Kurz: Einträge verschwinden nach „An Manager“ sofort aus der Liste.
+
 - 0.3.1 (06.11.2026, Rückmeldung von KarloDerBaer): Nach „An Manager“ verschwinden die Einträge sofort aus der Liste, statt erst nach dem nächsten Neuladen. Sie bleiben ausgeblendet in der Datei (`handed`), damit der Manager sie lesen kann, gelöscht wird wie bisher über die Marke. Das Fenster nennt die Zahl der übergebenen Einträge. Ohne Daten vom Manager wird nichts ausgeblendet, der Knopf weist darauf hin.
   - **Im Spiel prüfen:** Rückmeldung speichern, „An Manager“, nach dem Neuladen ist die Liste leer und der Hinweis steht im Fenster. Die Rückmeldung erscheint im Manager.
 

@@ -23,9 +23,9 @@ function fakeRepo({ brokerVersion = '0.33.0', bridgeExtra = '' } = {}) {
   w('addons/Peon_Bridge/Peon_Bridge.toc', `## Interface: 16001\n## Title: |cff8ccf4dPeon|r Bridge\n## Version: 0.4.0\n## Dependencies: Peon\n\nData.lua\nBridge.lua\n${bridgeExtra}`);
   w('addons/Peon_Bridge/Bridge.lua', '-- Bridge\n');
   w('addons/Peon_Bridge/Data.lua', 'PeonBridgeData = {}\n');   // vom Manager, nie ausliefern
-  w('docs/changelog/Peon.md', '# Peon\n\n## 0.11.0\n\n- Kern neu\n\n## 0.10.0\n\n- alt\n');
-  w('docs/changelog/Peon_Broker.md', '# Broker\n\n## 0.33.0\n\n- Bridge\n\n## 0.32.0\n\n- Absatz\n\n## 0.31.0\n\n- Bereich\n');
-  w('docs/changelog/Peon_Bridge.md', '# Bridge\n\n## 0.4.0\n\n- Kanaele\n');
+  w('docs/changelog/Peon.md', '# Peon\n\n## 0.11.0\n\nKurz: Kern ist schneller.\n\n- Kern neu\n\n## 0.10.0\n\n- alt\n');
+  w('docs/changelog/Peon_Broker.md', '# Broker\n\n## 0.33.0\n\nKurz: Preise kommen vom Manager.\nKurz: Weniger Fehler.\n\n- Bridge\n\n## 0.32.0\n\nKurz: Absatz im Tooltip.\n\n- Absatz\n\n## 0.31.0\n\n- Bereich\n');
+  w('docs/changelog/Peon_Bridge.md', '# Bridge\n\n## 0.4.0\n\nKurz: Verbindung zum Manager.\n\n- Kanaele\n');
   const config = {
     fmt: 1, discord: null, managerMinVersion: '0.6.0',
     addons: { Peon: { api: 'core' }, Peon_Broker: { api: 8 }, Peon_Bridge: { api: 5, managerOnly: true, exclude: ['Data.lua'] } },
@@ -60,7 +60,7 @@ test('Bauen: Zips, Manifest, Data.lua nie dabei', () => {
   assert.equal(m.release, 'v2026.11.04');
   assert.equal(m.date, '2026-11-04');
   assert.equal(m.prerelease, false);
-  assert.deepEqual(m.manager, { version: '0.6.0', minVersion: '0.6.0' });
+  assert.deepEqual(m.manager, { version: '0.6.0', minVersion: '0.6.0', news: [] });
   assert.deepEqual(m.addons.map((a) => a.name), ['Peon', 'Peon_Bridge', 'Peon_Broker']);
   const peon = m.addons[0], bridge = m.addons[1], broker = m.addons[2];
   assert.equal(peon.title, 'Peon');
@@ -113,6 +113,33 @@ test('Was ist neu: beim ersten Release leer, danach alles seitdem, neues Addon m
   assert.equal(p2.changed, false);
   assert.equal(p2.notes, '');
   assert.match(R.releaseNotes(second), /\| Peon \| 0\.11\.0 \| unverändert \|/);
+});
+
+test('Kurze Texte: je Version im Manifest, nicht im langen Verlauf, Pflicht bei neuer Version', () => {
+  const f = fakeRepo();
+  const broker = run(f).manifest.addons.find((a) => a.name === 'Peon_Broker');
+  assert.deepEqual(broker.news, [
+    { version: '0.33.0', short: ['Preise kommen vom Manager.', 'Weniger Fehler.'] },
+    { version: '0.32.0', short: ['Absatz im Tooltip.'] },
+  ]);
+  const zweites = run(f, { prev: { addons: [] } }).manifest.addons.find((a) => a.name === 'Peon_Broker');
+  assert.doesNotMatch(zweites.notes, /Kurz/);
+
+  // Neue Version ohne kurzen Text: Der Bau bricht ab, beim ersten Release nicht
+  const g = fakeRepo();
+  fs.writeFileSync(path.join(g.repo, 'docs/changelog/Peon.md'), '# Peon\n\n## 0.11.0\n\n- Kern neu\n');
+  assert.throws(() => run(g, { prev: { addons: [] } }), /Peon 0\.11\.0: keine Zeile "Kurz: \.\.\."/);
+  assert.doesNotThrow(() => run(g));
+  assert.doesNotThrow(() => run(g, { prev: { addons: [{ name: 'Peon', version: '0.11.0' }, { name: 'Peon_Broker', version: '0.33.0' }, { name: 'Peon_Bridge', version: '0.4.0' }] } }), 'unveraendert braucht keinen');
+
+  // Der Manager genauso
+  const h = fakeRepo();
+  const same = { addons: run(h).manifest.addons.map((a) => ({ name: a.name, version: a.version })) };
+  assert.throws(() => run(h, { prev: { ...same, manager: { version: '0.5.0' } } }), /Peon Manager 0\.6\.0: keine Zeile/);
+  assert.doesNotThrow(() => run(h, { prev: { ...same, manager: { version: '0.6.0' } } }));
+  fs.writeFileSync(path.join(h.repo, 'docs/changelog/Peon_Manager.md'), '# Manager\n\n## 0.6.0\n\nKurz: Neues Fenster.\n\n- lang\n');
+  const m = run(h, { prev: { ...same, manager: { version: '0.5.0' } } }).manifest;
+  assert.deepEqual(m.manager.news, [{ version: '0.6.0', short: ['Neues Fenster.'] }]);
 });
 
 test('Vorabversion: Tag mit -test', () => {

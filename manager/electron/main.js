@@ -44,6 +44,7 @@ if (!app.requestSingleInstanceLock()) {
   let lastSeen = new Map();
   let pending = null;
   let busy = false;
+  let addonsChecked = false;   // die erste Suche nach Updates seit dem Start ist durch (Update-Fenster)
 
   const icon = nativeImage.createFromPath(path.join(ROOT, 'electron', 'icon.png'));
 
@@ -176,6 +177,7 @@ if (!app.requestSingleInstanceLock()) {
   async function checkAddons() {
     const r = await svc.addons.check();
     updater.check();
+    addonsChecked = true;
     send('changed', { what: 'addons' });
     return r;
   }
@@ -259,11 +261,19 @@ if (!app.requestSingleInstanceLock()) {
     try { app.setLoginItemSettings({ openAtLogin: !!svc.settings.autostart, args: ['--hidden'] }); } catch { /* egal */ }
   }
 
+  // Aufbewahrung anwenden, ohne das Programm anzuhalten. Die Oberflaeche erfaehrt Anfang (pruning) und Ende.
+  function pruneNow() {
+    if (!svc.broker) return;
+    const run = svc.broker.pruneInBackground();
+    send('changed', { what: 'aufbewahrung' });
+    run.then(() => send('changed', { what: 'aufbewahrung' }));
+  }
+
   // Ein Modul wurde ein- oder ausgeschaltet: Hintergrundaufgaben und Menue nachziehen
   function moduleChanged() {
     setupWatch();
     updateTray();
-    if (svc.broker) { runImport('Modul installiert'); try { svc.broker.prune(); } catch { /* steht im Protokoll */ } }
+    if (svc.broker) { runImport('Modul installiert'); pruneNow(); }
     send('changed', { what: 'module' });
   }
 
@@ -304,7 +314,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('item', (_e, market, key, range) => (svc.broker ? svc.broker.itemDetail(String(market), String(key), String(range || '30d')) : null));
     ipcMain.handle('itemInfo', (_e, id) => (svc.broker ? svc.broker.info.get(Number(id), blizzardClient()) : null));
     ipcMain.handle('chances', (_e, market, days) => (svc.broker ? svc.broker.chances(String(market), Number(days) || null) : null));
-    ipcMain.handle('retention', (_e, keepDays) => (svc.broker ? svc.broker.retention(keepDays == null ? null : Number(keepDays)) : null));
+    ipcMain.handle('retention', (_e, keepDays, hourDays) => (svc.broker ? svc.broker.retention(keepDays == null ? null : Number(keepDays), hourDays == null ? null : Number(hourDays)) : null));
     // Manager-Module: Installieren schaltet ein, Entfernen schaltet aus, Daten loeschen nur ausgeschaltet
     ipcMain.handle('modules', () => svc.moduleList());
     ipcMain.handle('setModule', async (_e, key, on) => {
@@ -323,7 +333,6 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('addons', () => addonState());
     ipcMain.handle('checkAddons', () => checkAddons());
     ipcMain.handle('installAddons', async (_e, list) => afterInstall(await svc.addons.install(names(list))));
-    ipcMain.handle('updateAddons', async () => afterInstall(await svc.addons.install(svc.addons.updates())));
     ipcMain.handle('removeAddon', (_e, name) => { svc.addons.remove(String(name)); send('changed', { what: 'addons' }); return true; });
     ipcMain.handle('setAddonChannel', async (_e, channel) => {
       if (channel !== 'stable' && channel !== 'test') throw new Error('Unbekannter Kanal');
@@ -331,6 +340,8 @@ if (!app.requestSingleInstanceLock()) {
       return checkAddons();
     });
     ipcMain.handle('installManagerUpdate', () => updater.install());
+    ipcMain.handle('updateInfo', () => svc.updateInfo(updater.state(), addonsChecked));
+    ipcMain.handle('updatesShown', () => { svc.updatesShown(updater.state()); send('changed', { what: 'addons' }); return true; });
     ipcMain.handle('findWow', () => findWow());
     ipcMain.handle('finishSetup', async (_e, plan) => {
       const res = await svc.finishSetup({ addons: names(plan && plan.addons), modules: names(plan && plan.modules) });
@@ -343,10 +354,10 @@ if (!app.requestSingleInstanceLock()) {
       return list;
     });
     ipcMain.handle('saveSettings', (_e, patch) => {
-      const before = svc.settings.wowDir, keepBefore = svc.settings.keepDays;
+      const before = svc.settings.wowDir, keepBefore = svc.settings.keepDays, hourBefore = svc.settings.hourDays;
       const s = svc.saveSettings(patch || {});
       if (s.wowDir !== before) { setupWatch(); runImport('Ordner geändert'); }
-      if (s.keepDays !== keepBefore && svc.broker) { try { svc.broker.prune(); } catch (e) { /* steht im Protokoll */ } }
+      if (s.keepDays !== keepBefore || s.hourDays !== hourBefore) pruneNow();
       applyAutostart();
       send('changed', { what: 'settings' });
       return s;
@@ -380,11 +391,11 @@ if (!app.requestSingleInstanceLock()) {
     createWindow();
     if (!HIDDEN) win.__userOpened = true;
     runImport('Start');
-    if (svc.broker) { try { svc.broker.prune(); } catch { /* steht im Protokoll */ } }
+    pruneNow();
     setInterval(() => {
       if (!svc.broker) return;
       const t = svc.broker.meta('pruneAt') || 0;
-      if (svc.now() - t > 86400) { try { svc.broker.prune(); } catch { /* egal */ } }
+      if (svc.now() - t > 86400) pruneNow();
     }, 60 * 60 * 1000);
     setupWatch();
     setInterval(poll, 60 * 1000);

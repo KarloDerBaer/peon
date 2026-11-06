@@ -22,6 +22,8 @@ const { makeZip, readZip } = require('../manager/src/core/zip');
 
 const REPO = path.join(__dirname, '..');
 
+const MAX_NEWS = 20;   // so viele Versionen mit kurzem Text stehen im Manifest
+
 // ---------------------------------------------------------------------------
 // TOC und Changelog lesen
 // ---------------------------------------------------------------------------
@@ -47,18 +49,33 @@ function cmpVersion(a, b) {
   return 0;
 }
 
-// Abschnitte "## x.y.z" eines Changelogs: [{ version, text }]
+// Abschnitte "## x.y.z" eines Changelogs: [{ version, text, short }]. Zeilen "Kurz: ..." sind der Text fuer Nutzer
+// (Update-Fenster und "Was ist neu" im Manager), alles andere ist der Verlauf fuer Entwickler.
 function readChangelog(file) {
   if (!fs.existsSync(file)) return [];
   const out = [];
   let cur = null;
   for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
     const m = line.match(/^## (\d+\.\d+\.\d+)\s*$/);
-    if (m) { cur = { version: m[1], lines: [] }; out.push(cur); continue; }
-    if (line.startsWith('# ')) continue;
-    if (cur) cur.lines.push(line);
+    if (m) { cur = { version: m[1], lines: [], short: [] }; out.push(cur); continue; }
+    if (line.startsWith('# ') || !cur) continue;
+    const k = line.match(/^Kurz:\s*(.+?)\s*$/);
+    if (k) cur.short.push(k[1]);
+    else cur.lines.push(line);
   }
-  return out.map((s) => ({ version: s.version, text: s.lines.join('\n').trim() }));
+  return out.map((s) => ({ version: s.version, text: s.lines.join('\n').trim(), short: s.short }));
+}
+
+// Kurze Texte je Version, neueste oben. So sieht auch, wer Releases uebersprungen hat, was seit seiner Version neu ist.
+function newsFor(sections, version) {
+  return sections.filter((s) => s.short.length && cmpVersion(s.version, version) <= 0)
+    .sort((a, b) => cmpVersion(b.version, a.version)).slice(0, MAX_NEWS).map((s) => ({ version: s.version, short: s.short }));
+}
+
+// Eine neue Version braucht einen kurzen Text. Das erste Release (ohne Vorgaenger) ist davon ausgenommen.
+function requireShort(what, sections, version, file) {
+  const s = sections.find((x) => x.version === version);
+  if (!s || !s.short.length) throw new Error(`${what} ${version}: keine Zeile "Kurz: ..." im Abschnitt "## ${version}" in docs/changelog/${file}.md`);
 }
 
 // "Was ist neu": alle Versionen nach prev bis einschliesslich version, neueste oben
@@ -127,13 +144,15 @@ function build(opts = {}) {
   fs.mkdirSync(out, { recursive: true });
 
   const pkg = JSON.parse(fs.readFileSync(path.join(repo, 'manager', 'package.json'), 'utf8'));
+  const managerLog = readChangelog(path.join(changelogDir, 'Peon_Manager.md'));
+  if (prev && prev.manager && prev.manager.version !== pkg.version) requireShort('Peon Manager', managerLog, pkg.version, 'Peon_Manager');
   const manifest = {
     fmt: config.fmt || 1,
     release: tag,
     date,
     prerelease: tag.endsWith('-test'),
     discord: config.discord || null,
-    manager: { version: pkg.version, minVersion: config.managerMinVersion || pkg.version },
+    manager: { version: pkg.version, minVersion: config.managerMinVersion || pkg.version, news: newsFor(managerLog, pkg.version) },
     addons: [],
     managerModules: config.managerModules || [],
   };
@@ -157,6 +176,7 @@ function build(opts = {}) {
     }
     const sections = readChangelog(path.join(changelogDir, name + '.md'));
     if (!sections.some((s) => s.version === version)) throw new Error(`${name} ${version}: kein Abschnitt "## ${version}" in docs/changelog/${name}.md`);
+    if (prev && prevVersions[name] !== version) requireShort(name, sections, version, name);
     const zip = makeZip(entries);
     const file = `${name}-${version}.zip`;
     fs.writeFileSync(path.join(out, file), zip);
@@ -174,6 +194,7 @@ function build(opts = {}) {
       size: zip.length,
       // erstes Release: nichts "neu", die Changelogs sind fuer Erstinstallationen zu technisch
       notes: prev ? notesFor(sections, version, prevVersions[name]) : '',
+      news: newsFor(sections, version),
       managerOnly: !!cfg.managerOnly,
       changed: prevVersions[name] !== version,
     });

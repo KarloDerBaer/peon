@@ -4,6 +4,9 @@ Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeig
 
 ## 0.33.1
 
+Kurz: Fehlermeldung nach dem Scan im Radar behoben.
+Kurz: Der Schnellkauf für Massenware braucht jetzt zwei Klicks.
+
 - 0.33.1 (05.11.2026): **Radar: Fehlermeldung nach dem Scan behoben** (`ADDON_ACTION_BLOCKED`, `UNKNOWN()`). Der Preis vorab für den Schnellkauf (`StartCommoditiesPurchase` ab 0.24) lief ohne Klick, das Spiel erlaubt die Funktion aber nur direkt aus einem Klick (`HasRestrictions` in Blizzards Doku, `pcall` fängt die Meldung nicht ab). Preis vorab ist aus (`R.preOff`), der Schnellkauf für Massenware braucht zwei Klicks: 1. Klick Preis, 2. Klick bestätigen. Hinweis am Knopf angepasst. **Im Spiel prüfen:** Scan im Reiter Radar ohne Meldung, Kauf von Massenware mit zwei Klicks.
 
 ## 0.33.0

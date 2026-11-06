@@ -4,6 +4,8 @@ Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeig
 
 ## 0.2.2
 
+Kurz: Das Taschenbild wird wieder angezeigt und der Ring verdeckt die Taschenleiste nicht mehr.
+
 - 0.2.2 (05.11.2026, Fehler von KarloDerBaer beim ersten Test in Forever):
   - **Taschenbild fehlte:** Das runde Feld oben links war leer und durchsichtig, weil das Bild gesetzt wurde, bevor das Fenster seinen Rahmen kannte. Die Bank war nicht betroffen, sie setzt ihr Bild beim Öffnen erneut.
   - **Ring zu groß:** Das Fenster hatte den großen Ring von Blizzards Vorlage, der in die erste Schaltfläche der Taschenleiste ragte. Jetzt der kleine Ring von Blizzards Taschen (`HeldBagLayout`), die runde Maske liegt genau auf dem Bild.

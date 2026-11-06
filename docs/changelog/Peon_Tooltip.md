@@ -4,6 +4,8 @@ Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeig
 
 ## 0.7.4
 
+Kurz: Der Tooltip von Objekten wie Briefkästen verschwindet jetzt sofort, wenn die Maus sie verlässt.
+
 - 0.7.4 (05.11.2026, Wunsch von KarloDerBaer): Die Ausblendzeit gilt jetzt auch für Objekte in der Welt (z. B. Briefkasten), nicht nur für Einheiten. Standard also auch dort sofort. Erkannt über Blizzards Aufruf von `FadeOut` in `SetWorldCursor`, wenn die Maus das Objekt verlässt.
   - **Im Spiel prüfen:** Tooltip von Briefkasten oder Kräutern verschwindet sofort, kehrt beim erneuten Überfahren zurück und ist dann voll sichtbar.
 

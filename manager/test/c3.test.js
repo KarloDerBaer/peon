@@ -262,3 +262,112 @@ test('C4: Data.lua mit Langzeit-Teil, eigene Tage vor Broker, neu bei Aenderung'
   assert.equal(parseLua(fs.readFileSync(path.join(ad, 'Data.lua'))).PeonBridgeData.markets[M].day, day + 1);
   svc.close();
 });
+
+// Stundenwert von Hand, damit die Tests ohne viele Scans auskommen
+function addHour(db, key, t) {
+  db.prepare("INSERT OR REPLACE INTO item_hour(market_id, item_key, source, hour, t, min, median, p25, p75, qty, auctions, n) VALUES (1, ?, 'scan', ?, ?, 10, 10, 10, 10, 1, 1, 1)")
+    .run(key, Math.floor(t / 3600), t);
+}
+
+test('Aufbewahrung: Stundenwerte bleiben mindestens 14 Tage, auch bei kleinerem Wert in den Einstellungen', () => {
+  const { svc, day } = setup();
+  const db = svc.broker.db;
+  addHour(db, 'jung', at(day - 10, 12));
+  addHour(db, 'alt', at(day - 20, 12));
+  svc.saveSettings({ hourDays: 5 });
+  svc.broker.prune();
+  const keys = db.prepare('SELECT item_key FROM item_hour').all().map((r) => r.item_key);
+  assert.ok(keys.includes('jung'), 'der uebliche Bereich braucht ihn noch');
+  assert.ok(!keys.includes('alt'));
+  assert.equal(db.prepare("SELECT n FROM item_day WHERE item_key = 'alt'").get().n, 1);
+  svc.close();
+});
+
+test('Aufbewahrung im Hintergrund: gleiches Ergebnis wie am Stueck, anderes laeuft dazwischen, kein zweiter Lauf', async () => {
+  const a = setup(), b = setup();
+  for (const { svc, day } of [a, b]) {
+    for (let d = 20; d < 50; d++) addHour(svc.broker.db, 'k', at(day - d, 12));
+    svc.saveSettings({ hourDays: 30 });
+  }
+  const whole = a.svc.broker.prune();
+  let ticks = 0;
+  const timer = setInterval(() => { ticks++; }, 0);
+  const run = b.svc.broker.pruneInBackground();
+  assert.equal(b.svc.broker.pruning, true);
+  assert.equal(b.svc.overview().pruning, true);
+  assert.equal(await b.svc.broker.pruneInBackground(), null, 'laeuft schon');
+  const bg = await run;
+  clearInterval(timer);
+  assert.ok(ticks > 0, 'dazwischen kommt das Programm dran');
+  assert.equal(bg.hours, whole.hours);
+  assert.equal(b.svc.broker.pruning, false);
+  const days = (s) => s.broker.db.prepare("SELECT COUNT(*) AS n FROM item_day WHERE item_key = 'k'").get().n;
+  assert.equal(days(b.svc), days(a.svc));
+  assert.ok(days(b.svc) > 0);
+  a.svc.close(); b.svc.close();
+});
+
+test('Aufbewahrung: Beenden waehrend des Aufraeumens ist sicher', async () => {
+  const { svc, day } = setup();
+  for (let d = 70; d < 200; d++) addHour(svc.broker.db, 'k', at(day - d, 12));
+  const run = svc.broker.pruneInBackground();
+  svc.close();
+  await run;
+  assert.equal(svc.broker.pruning, false);
+});
+
+test('Aufbewahrung: Die Datei schrumpft, auch wenn nur Stundenwerte wegfallen', () => {
+  const { svc, day } = setup();
+  const db = svc.broker.db;
+  assert.equal(db.prepare('PRAGMA auto_vacuum').get().auto_vacuum, 2, 'neue Datenbank laesst sich schrittweise verkleinern');
+  const pad = 'x'.repeat(400);
+  db.exec('BEGIN');
+  for (let i = 0; i < 80000; i++) addHour(db, `${pad}${i}`, at(day - 100, 12));
+  db.exec('COMMIT');
+  db.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get();
+  const before = fs.statSync(db.file).size;
+  assert.ok(before > 30 * 1024 * 1024);
+  const r = svc.broker.prune();
+  assert.equal(r.snaps, 0);
+  assert.equal(r.hours, 80000);
+  // Die Tageswerte haben die gleichen langen Schluessel, also einmal ganz weg, damit der Platz wirklich frei wird
+  db.exec('DELETE FROM item_day');
+  svc.broker.prune();
+  assert.ok(fs.statSync(db.file).size < before / 2, 'Platz ist zurueck bei Windows');
+  svc.close();
+});
+
+test('Alte Datenbank wird beim Oeffnen umgestellt, Daten bleiben', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'peon-av-'));
+  const { DatabaseSync } = require('node:sqlite');
+  const old = new DatabaseSync(path.join(dir, 'broker-client.db'));
+  old.exec("PRAGMA journal_mode = WAL; CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT); INSERT INTO meta VALUES ('x', '1');");
+  old.close();
+  const db = require('../src/core/db').openDb(dir);
+  assert.equal(db.prepare('PRAGMA auto_vacuum').get().auto_vacuum, 2);
+  assert.equal(db.prepare("SELECT value FROM meta WHERE key = 'x'").get().value, '1');
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Schaetzung: Stundenwerte zaehlen, Vorlagen, Warnung nur wenn wirklich Daten betroffen sind', () => {
+  const { svc, day } = setup();
+  const b = svc.broker;
+  assert.ok(b.retention(14, 365).hour > b.retention(14, 60).hour);
+  assert.equal(b.retention(60, 60).hour, 0);
+  assert.ok(b.retention(14, 60).dayFirstYear > b.retention(14, 365).dayFirstYear);
+  assert.equal(b.retention(14, 365).dayFirstYear, 0, 'im ersten Jahr noch keine Tageswerte');
+  assert.ok(b.retention(14, 60).dayPerYear > 0);
+  const e = b.retention(14, 60);
+  assert.deepEqual(e.presets.map((p) => [p.key, p.keepDays, p.hourDays]), [['sparsam', 7, 30], ['ausgewogen', 14, 60], ['ausfuehrlich', 30, 180], ['alles', 30, 365]]);
+  const totals = e.presets.map((p) => p.total);
+  assert.deepEqual([...totals].sort((x, y) => x - y), totals, 'aufsteigend');
+  assert.equal(e.total, totals[1], 'gleiche Rechnung wie die Vorlage');
+  // Der aelteste Scan im Beispiel ist einen Tag alt
+  assert.equal(b.retention(30, 60).wouldCompact, false);
+  assert.equal(b.retention(0, 60).wouldCompact, false);
+  addHour(b.db, 'alt', at(day - 100, 12));
+  assert.equal(b.retention(30, 60).wouldCompact, true);
+  assert.equal(b.retention(30, 180).wouldCompact, false);
+  svc.close();
+});

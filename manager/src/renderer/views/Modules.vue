@@ -4,7 +4,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { ago, bytes } from '../util.js';
 
 const props = defineProps({ data: Object, now: Number, stamp: Number });
-const emit = defineEmits(['changed', 'pickFolder', 'go']);
+const emit = defineEmits(['changed', 'pickFolder', 'go', 'updates']);
 const api = window.peon;
 
 const st = ref(null);
@@ -58,8 +58,14 @@ function report(r) {
   else if (!r.failed.length) message.value = 'Nichts zu tun.';
 }
 
-const check = () => run('check', () => api.checkAddons());
-const updateAll = async () => report(await run('all', () => api.updateAddons()));
+// Suche von Hand: Gibt es etwas, zeigt das Fenster was, sonst reicht ein Satz
+async function check() {
+  const r = await run('check', () => api.checkAddons());
+  if (!r || !r.ok) return;
+  const u = await api.updateInfo();
+  if (u.count) emit('updates');
+  else message.value = 'Alles aktuell.';
+}
 const installOne = async (a) => report(await run(a.name, () => api.installAddons([a.name])));
 async function remove(a) {
   if (confirmRemove.value !== a.name) { confirmRemove.value = a.name; return; }
@@ -102,7 +108,7 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
 
     <div class="banner ok-line" v-if="st.manager && st.manager.status === 'ready'" role="status">
       <p>Peon Manager {{ st.manager.version }} ist bereit (jetzt {{ st.manager.version && data.version }}). Zum Einspielen startet das Programm neu.</p>
-      <button class="primary" @click="api.installManagerUpdate()">Jetzt neu starten</button>
+      <button class="primary" @click="emit('updates')">Jetzt aktualisieren</button>
     </div>
     <p class="small muted" v-else-if="st.manager && st.manager.status === 'downloading'" role="status">Peon Manager {{ st.manager.version }} wird geladen ({{ st.manager.percent }} %).</p>
     <p class="small warn" v-else-if="st.manager && st.manager.status === 'error'" role="status">Selbst-Update fehlgeschlagen: {{ st.manager.error }}</p>
@@ -130,7 +136,7 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
         <h2>Addons</h2>
         <div class="row">
           <button :disabled="!!busy" @click="check">{{ busy === 'check' ? 'Sucht' : 'Nach Updates suchen' }}</button>
-          <button class="primary" v-if="st.updates" :disabled="!!busy || !!st.tooOld" @click="updateAll">{{ busy === 'all' ? 'Aktualisiert' : `Alle aktualisieren (${st.updates})` }}</button>
+          <button class="primary" v-if="st.updates" :disabled="!!busy || !!st.tooOld" @click="emit('updates')">Alle aktualisieren ({{ st.updates }})</button>
         </div>
       </div>
       <p class="small" :class="st.check && !st.check.ok ? 'warn' : 'muted'">
@@ -158,8 +164,10 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
         </div>
         <p v-if="a.desc">{{ a.desc }}</p>
         <p class="small muted" v-if="a.managerOnly">Gehört fest zum Peon Manager und wird mit ihm aktualisiert.</p>
-        <button class="link small" v-if="a.notes" @click="open = open === a.name ? '' : a.name">{{ open === a.name ? 'Was ist neu ausblenden' : 'Was ist neu' }}</button>
-        <div class="notes small" v-if="open === a.name">{{ a.notes }}</div>
+        <button class="link small" v-if="a.news && a.news.length" @click="open = open === a.name ? '' : a.name">{{ open === a.name ? 'Was ist neu ausblenden' : 'Was ist neu' }}</button>
+        <div class="notes small" v-if="open === a.name">
+          <ul v-for="n in a.news" :key="n.version"><li v-for="s in n.short" :key="s">{{ s }}</li></ul>
+        </div>
       </article>
       <p class="small muted" v-if="!shown.length">Sobald es ein Release gibt, stehen die Addons hier.</p>
     </section>
@@ -211,7 +219,8 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
 .banner { border: 1px solid var(--warn); border-radius: var(--radius-m); padding: 10px 14px; display: grid; gap: 8px; justify-items: start; }
 .ok-line { border-color: var(--accent); }
 .setup { border: 1px solid var(--accent); border-radius: var(--radius-m); padding: 16px 18px; }
-.notes { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 280px; overflow: auto; color: var(--muted); border-top: 1px solid var(--line-soft); padding-top: 8px; }
+.notes { overflow-wrap: anywhere; color: var(--muted); border-top: 1px solid var(--line-soft); padding-top: 8px; }
+.notes ul { margin: 0; padding-left: 18px; }
 .data { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid var(--line-soft); }
 .data .muted { flex: 1; min-width: 240px; }
 button.danger { color: var(--bad); border-color: var(--bad); }

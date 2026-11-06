@@ -4,6 +4,8 @@ Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeig
 
 ## 0.13.0
 
+Kurz: Der Manager kennt jetzt die Bereiche aller Module für Rückmeldungen.
+
 - 0.13.0 (06.11.2026, Wunsch KarloDerBaer): API 13 – `Peon.SaveFeedbackAreas()`: Der Kern legt beim Einloggen alle gemeldeten Bereiche in `PeonDB.feedbackAreas` ab, damit der Peon Manager sie in seinem Formular anbieten kann. Bestehendes unverändert.
   - **Im Spiel prüfen:** Nach einem `/reload` bietet der Manager unter „Rückmeldungen“ die Bereiche der Module an.
 

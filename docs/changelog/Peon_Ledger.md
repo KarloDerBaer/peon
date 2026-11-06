@@ -4,6 +4,9 @@ Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeig
 
 ## 0.10.2
 
+Kurz: Diagramme zeigen auch bei Daten von nur einem Tag etwas an.
+Kurz: Abgeschnittene Texte behoben.
+
 - 0.10.2 (05.11.2026, Rückmeldung KarloDerBaer): Reiter „Gegenstand“: Liegen erst Daten von einem Tag vor, zeigen die Diagramme Punkte (braucht Peon 0.11.1) und unter dem Diagramm steht ein Hinweis, dass Linien ab dem zweiten Tag entstehen. Abgeschnittene Texte behoben: im Marge-Kasten nur noch „Kosten 0“, Suchhinweis kürzer, die Menge im Auktionshaus hat eine eigene Zeile statt im Untertitel zu stehen. „Üblich“ zeigt ohne Werte „–“ statt einer leeren Zeile. Die gespeicherten Werte waren richtig. **Im Spiel prüfen:** Punkte in beiden Diagrammen, alle Texte vollständig, Textspalte passt ins Fenster.
 
 ## 0.10.1

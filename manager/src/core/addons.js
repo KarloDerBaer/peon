@@ -18,6 +18,7 @@ const TAG_RE = /^v\d{4}\.\d{2}\.\d{2}(\.\d+)?(-test)?$/;
 const VERSION_RE = /^\d+\.\d+\.\d+$/;
 const MAX_ZIP = 64 * 1024 * 1024;
 const MAX_MANIFEST = 2 * 1024 * 1024;
+const MAX_NEWS_TEXT = 300;                             // Zeichen je Zeile "Was ist neu"
 const DATA_FILE = 'Data.lua';                          // gehoert dem Manager, siehe Peon_Bridge
 const PLACEHOLDER = '-- Peon_Bridge - Data.lua\n-- Platzhalter. Der Peon Manager ueberschreibt diese Datei mit seinen Werten (PeonBridgeData). Nie mit ausliefern.\n';
 
@@ -60,6 +61,16 @@ function safeEntry(name, addon) {
   if (dir) rest.pop();
   if (rest.some((p) => p === '' || p === '.' || p === '..')) throw new Error(`Ungültiger Pfad im Zip: ${name}`);
   return { rel: rest.join('/'), dir };
+}
+
+// Kurze Texte aus dem Manifest: nur, was wirklich Text ist. installed gesetzt: nur Neueres, sonst die neueste Version.
+// Ohne die Angabe news (Manifest von vor dem Update-Fenster) bleibt die Liste leer.
+function newsSince(news, installed) {
+  const clean = (Array.isArray(news) ? news : [])
+    .filter((n) => n && VERSION_RE.test(String(n.version)) && Array.isArray(n.short))
+    .map((n) => ({ version: n.version, short: n.short.filter((s) => typeof s === 'string' && s).map((s) => s.slice(0, MAX_NEWS_TEXT)) }))
+    .filter((n) => n.short.length);
+  return installed ? clean.filter((n) => cmpVersion(n.version, installed) > 0) : clean.slice(0, 1);
 }
 
 function readTocVersion(file) {
@@ -197,7 +208,7 @@ class AddonManager {
         if (i.dev) status = 'dev';
         else if (i.present) status = i.version && cmpVersion(i.version, a.version) >= 0 ? (i.version === a.version ? 'current' : 'newer') : 'update';
         out.push({ name: a.name, title: a.title, desc: a.desc, available: a.version, installed: i.version, present: i.present, dev: i.dev, status,
-          notes: a.notes || '', deps: a.deps, size: a.size, managerOnly: !!a.managerOnly, removable: this.removeBlock(a.name) === null });
+          news: newsSince(a.news, status === 'update' ? i.version : null), deps: a.deps, size: a.size, managerOnly: !!a.managerOnly, removable: this.removeBlock(a.name) === null });
       }
     } else {
       // ohne Manifest: nur zeigen, was da ist (Name mit Peon, eigene TOC)
@@ -206,7 +217,7 @@ class AddonManager {
       for (const n of names.sort()) {
         const i = this.installed(n);
         if (!i.version) continue;
-        out.push({ name: n, title: n, desc: '', available: null, installed: i.version, present: true, dev: i.dev, status: i.dev ? 'dev' : 'unknown', notes: '', deps: [], size: 0, managerOnly: false, removable: false });
+        out.push({ name: n, title: n, desc: '', available: null, installed: i.version, present: true, dev: i.dev, status: i.dev ? 'dev' : 'unknown', news: [], deps: [], size: 0, managerOnly: false, removable: false });
       }
     }
     return out;
@@ -383,6 +394,37 @@ class AddonManager {
 
   // Was laesst sich gerade aktualisieren (ohne fehlende Addons)
   updates() { return this.list().filter((a) => a.status === 'update').map((a) => a.name); }
+
+  // Kurze Texte der neuen Manager-Version seit der laufenden
+  managerNews() {
+    const m = this.manifest;
+    return m && m.manager ? newsSince(m.manager.news, this.host.version) : [];
+  }
+
+  // Inhalt des Update-Fensters: Updates und neue Addons. Ein Addon gilt als neu, bis es einmal vorgestellt wurde,
+  // sonst kaeme ein bewusst nicht installiertes immer wieder. Was das Manifest beim ersten Mal schon nennt, ist nicht neu.
+  newsEntries() {
+    const m = this.manifest;
+    if (!m) return [];
+    let seen = this.host.meta('addonsSeen');
+    if (!Array.isArray(seen)) {
+      seen = m.addons.map((a) => a.name);
+      this.host.meta('addonsSeen', seen);
+    }
+    const out = [];
+    for (const a of this.list()) {
+      if (a.status === 'update') out.push({ kind: 'update', name: a.name, title: a.title, version: a.available, installed: a.installed, desc: a.desc, news: a.news });
+      else if (a.status === 'missing' && !a.managerOnly && !seen.includes(a.name)) out.push({ kind: 'new', name: a.name, title: a.title, version: a.available, installed: null, desc: a.desc, news: a.news });
+    }
+    return out;
+  }
+
+  // Das Fenster hat alles gezeigt: Neue Addons sind ab jetzt bekannt
+  markSeen() {
+    const seen = new Set(this.host.meta('addonsSeen') || []);
+    for (const a of (this.manifest ? this.manifest.addons : [])) seen.add(a.name);
+    this.host.meta('addonsSeen', [...seen]);
+  }
 }
 
 module.exports = { AddonManager, checkManifest, safeEntry, findWowDirs, cmpVersion, REPO_URL, PLACEHOLDER };

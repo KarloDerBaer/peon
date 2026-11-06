@@ -4,6 +4,8 @@ Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeig
 
 ## 0.5.0
 
+Kurz: Im Manager geleerte Fehler verschwinden jetzt auch im Spiel.
+
 - 0.5.0 (06.11.2026, Wunsch KarloDerBaer): Reicht das neue Feld `errorsClearBefore` aus `Data.lua` beim Laden an den Kern weiter (`Peon.ClearErrors`), damit der Peon Manager den Fehlerspeicher auch im Spiel leeren kann. Mit älterem Kern passiert nichts. Format von `Data.lua` bleibt 2.
   - **Im Spiel prüfen:** Nach dem Leeren im Manager und einem `/reload` meldet `/peon fehler` keine alten Fehler mehr.
 

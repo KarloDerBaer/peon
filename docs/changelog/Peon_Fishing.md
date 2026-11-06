@@ -4,6 +4,8 @@ Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeig
 
 ## 1.5.2
 
+Kurz: Neue Angel-Sets nutzen nur noch Haupt- und Nebenhand und gehen beim Tausch von Rüstung nicht mehr kaputt.
+
 - 1.5.2 (05.11.2026, Rückmeldung KarloDerBaer): Ein neu angelegtes Angel-Set nutzt nur Haupt- und Nebenhand, alle anderen Plätze sind ignoriert. So geht es nicht kaputt, wenn man Rüstung tauscht oder verkauft. Eine Meldung erklärt, wie weitere Angelausrüstung ins Set kommt. Vorhandene Sets und das Rückkehr-Set bleiben unverändert. **Im Spiel prüfen:** Set neu anlegen, im Ausrüstungsmanager sind nur Haupt- und Nebenhand aktiv.
 
 ## 1.5.1

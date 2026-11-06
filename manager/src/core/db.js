@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS item_day (
   min REAL, median REAL, p25 REAL, p75 REAL, qty REAL, auctions REAL, n INTEGER NOT NULL,
   PRIMARY KEY (market_id, item_key, source, day));
 CREATE INDEX IF NOT EXISTS item_snap_t ON item_snap(t);
+CREATE INDEX IF NOT EXISTS item_hour_t ON item_hour(t);
 CREATE TABLE IF NOT EXISTS sales_pair (
   id INTEGER PRIMARY KEY AUTOINCREMENT, market_id INTEGER NOT NULL, a_id TEXT NOT NULL, b_id TEXT NOT NULL,
   ta INTEGER NOT NULL, tb INTEGER NOT NULL, src TEXT NOT NULL, item_key TEXT, folded INTEGER NOT NULL DEFAULT 0);
@@ -107,6 +108,10 @@ function openDb(dir) {
   if (!cols.has('commodity')) db.exec('ALTER TABLE items ADD COLUMN commodity INTEGER');
   // Schema 4: AHledger ist entfernt (05.11.2026)
   db.exec('DROP TABLE IF EXISTS ext_ahledger; DROP TABLE IF EXISTS ext_fetch;');
+  // Datei laesst sich schrittweise verkleinern, ohne das Programm anzuhalten. Einmalig umstellen, klappt es nicht, geht es ohne weiter
+  if (db.prepare('PRAGMA auto_vacuum').get().auto_vacuum !== 2) {
+    try { db.exec('PRAGMA auto_vacuum = INCREMENTAL; VACUUM;'); } catch { /* retention.js verkleinert dann im Ganzen */ }
+  }
   db.prepare("INSERT INTO meta(key, value) VALUES ('schema', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(SCHEMA));
   return db;
 }

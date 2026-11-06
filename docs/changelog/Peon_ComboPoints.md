@@ -4,4 +4,6 @@ Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeig
 
 ## 3.5.1
 
+Kurz: Rückmeldungen lassen sich jetzt auch zu Combo-Punkten geben.
+
 - 3.5.1 (02.10.2026): meldet Bereiche für Peon_Feedback (Anzeige, Farben, Optionen); eine Zeile am Ende von ComboPoints.lua, sonst unverändert.

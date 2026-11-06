@@ -38,5 +38,6 @@ Peon ist eine Addon-Sammlung von KarloDerBaer für WoW Forever, dazu das Windows
 
 - Alle Tests laufen lassen (`tests\run_tests.cmd` oder `sh tests/run_tests.sh`), alle müssen OK melden.
 - Version in der TOC des geänderten Moduls erhöhen.
+- Im Changelog beginnt jede neue Version mit mindestens einer Zeile `Kurz: ...` in einfacher Sprache für Nutzer (Update-Fenster und „Was ist neu“ im Manager). Der Bau des Release bricht ohne sie ab.
 - `docs/changelog/<Modul>.md`, `docs/projekt/Peon_Stand.md` und bei Bedarf `docs/projekt/Peon_Entscheidungen.md` aktualisieren.
 - Commit-Texte auf Deutsch, kurz, mit Modul und Version vorne, z. B. `Broker 0.33.0: Kanal broker über Peon_Bridge`.

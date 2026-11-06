@@ -169,19 +169,49 @@ class BrokerClient {
 
   // Aufbewahrung anwenden (beim Start, einmal am Tag, nach Aenderung der Einstellung)
   prune() {
-    const r = retention.prune(this.db, { keepDays: this.settings.keepDays, hourDays: this.settings.hourDays, now: this.now() });
-    r.pairs = sales.prune(this.db, this.now());
+    const res = { snaps: 0, hours: 0, blobs: 0 };
+    for (const _ of this.pruneSteps(res)) { /* alle Schritte am Stueck */ }
+    return res;
+  }
+
+  // Wie prune, aber zwischen den Schritten laeuft das Programm weiter. Laeuft es schon, gibt es keinen zweiten Lauf.
+  // Kommt eine neue Einstellung waehrend eines Laufs, wird danach erneut aufgeraeumt.
+  async pruneInBackground() {
+    if (this.pruning) { this.pruneAgain = true; return null; }
+    this.pruning = true;
+    const res = { snaps: 0, hours: 0, blobs: 0 };
+    try {
+      do {
+        this.pruneAgain = false;
+        for (const _ of this.pruneSteps(res)) {
+          await new Promise((done) => setImmediate(done));
+          if (this.closed) return res;
+        }
+      } while (this.pruneAgain);
+      return res;
+    } catch (e) {
+      if (!this.closed) log(this.db, 'aufbewahrung', false, `Aufräumen: ${e.message}`);
+      return null;
+    } finally {
+      this.pruning = false;
+    }
+  }
+
+  * pruneSteps(res) {
+    const hourDays = this.settings.hourDays > 0 ? Math.max(retention.MIN_HOUR_DAYS, this.settings.hourDays) : 0;
+    yield* retention.pruneSteps(this.db, { keepDays: this.settings.keepDays, hourDays, now: this.now() }, res);
+    res.pairs = sales.prune(this.db, this.now());
     pruneLogs(this.db, 30, this.now() * 1000);
     this.db.prepare('DELETE FROM opp_snap WHERE t < ?').run(this.now() - 30 * 86400);
     this.db.prepare('DELETE FROM opp_scan WHERE t < ?').run(this.now() - 30 * 86400);
-    if (r.snaps || r.hours) log(this.db, 'aufbewahrung', true, `${r.snaps} Kennzahlen zu Stundenwerten, ${r.hours} Stundenwerte zu Tageswerten verdichtet`);
+    if (res.snaps || res.hours) log(this.db, 'aufbewahrung', true, `${res.snaps} Kennzahlen zu Stundenwerten, ${res.hours} Stundenwerte zu Tageswerten verdichtet`);
     this.meta('pruneAt', this.now());
-    return r;
   }
 
-  retention(keepDays) {
+  retention(keepDays, hourDays) {
     const k = keepDays == null ? this.settings.keepDays : keepDays;
-    return retention.estimate(this.db, { keepDays: k, hourDays: this.settings.hourDays, now: this.now(), current: dbSize(this.db) });
+    const h = hourDays == null ? this.settings.hourDays : hourDays;
+    return retention.estimate(this.db, { keepDays: k, hourDays: h, now: this.now(), current: dbSize(this.db) });
   }
 
   itemList(marketKey) {
@@ -269,7 +299,7 @@ class BrokerClient {
     return { base: base.t, up, down };
   }
 
-  close() { try { this.db.close(); } catch { /* schon zu */ } }
+  close() { this.closed = true; try { this.db.close(); } catch { /* schon zu */ } }
 }
 
 module.exports = { BrokerClient };

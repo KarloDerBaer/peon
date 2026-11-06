@@ -179,3 +179,22 @@ test('Installieren, Entfernen, Daten loeschen, wieder installieren', () => {
   assert.throws(() => svc.setModule('gibt-es-nicht', true), /Unbekanntes Modul/);
   svc.close();
 });
+
+test('Aufbewahrung: Neue Nutzer 14 und 60 Tage, 365 Tage Stundenwerte werden einmalig umgestellt', () => {
+  const fresh = new Service({ dbDir: fs.mkdtempSync(path.join(os.tmpdir(), 'peon-ret-')), version: '0.15.0' });
+  assert.equal(fresh.settings.keepDays, 14);
+  assert.equal(fresh.settings.hourDays, 60);
+  fresh.close();
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'peon-ret-'));
+  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ wowDir: 'X:\WoW', keepDays: 30, hourDays: 365, modules: { 'broker-client': { enabled: false } } }));
+  let svc = new Service({ dbDir: dir, version: '0.15.0' });
+  assert.equal(svc.settings.hourDays, 60, 'hatte bisher keine Einstellung, also von niemandem gewaehlt');
+  assert.equal(svc.settings.keepDays, 30, 'liess sich einstellen und bleibt');
+  // Wer danach bewusst 365 waehlt, behaelt das
+  svc.saveSettings({ hourDays: 365 });
+  svc.close();
+  svc = new Service({ dbDir: dir, version: '0.15.0' });
+  assert.equal(svc.settings.hourDays, 365);
+  svc.close();
+});

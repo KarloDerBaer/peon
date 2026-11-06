@@ -16,21 +16,39 @@ async function pick() {
 function saveWow() { if (wowDir.value && wowDir.value !== props.settings.wowDir) emit('save', { wowDir: wowDir.value }); }
 async function setChannel(c) { await api.setAddonChannel(c); emit('save', {}); }
 
-// Aufbewahrung: Stufen des Schiebers (Tage, 0 = unbegrenzt)
-const STEPS = [7, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365, 0];
-const stepOf = (d) => { const i = STEPS.indexOf(d); return i >= 0 ? i : STEPS.indexOf(30); };
-const step = ref(stepOf(props.settings.keepDays));
+// Aufbewahrung: Stufen der Schieber (Tage, bei den Angeboten 0 = unbegrenzt). Erst "Übernehmen" speichert.
+const KEEP = [7, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365, 0];
+const HOUR = [14, 30, 60, 90, 120, 180, 270, 365];
+const keepOf = (d) => { const i = KEEP.indexOf(d); return i >= 0 ? i : KEEP.indexOf(14); };
+const hourOf = (d) => { const i = HOUR.findIndex((x) => x >= d); return i >= 0 ? i : HOUR.length - 1; };
+const keepStep = ref(keepOf(props.settings.keepDays));
+const hourStep = ref(hourOf(props.settings.hourDays));
+const keep = computed(() => KEEP[keepStep.value]);
+const hour = computed(() => HOUR[hourStep.value]);
 const est = ref(null);
-const days = computed(() => STEPS[step.value]);
 let timer = null;
-async function estimate() { est.value = props.broker ? await api.retention(days.value) : null; }
-watch(step, () => { clearTimeout(timer); timer = setTimeout(estimate, 120); });
+async function estimate() { est.value = props.broker ? await api.retention(keep.value, hour.value) : null; }
+watch([keepStep, hourStep], () => { clearTimeout(timer); timer = setTimeout(estimate, 120); });
 watch(() => props.stamp, estimate);
 watch(() => props.broker, estimate);
-watch(() => props.settings.keepDays, (v) => { step.value = stepOf(v); });
+watch([() => props.settings.keepDays, () => props.settings.hourDays], () => reset());
 onMounted(estimate);
-function saveKeep() { if (days.value !== props.settings.keepDays) emit('save', { keepDays: days.value }); }
-const daysText = computed(() => (days.value === 0 ? 'unbegrenzt' : days.value === 1 ? '1 Tag' : `${days.value} Tage`));
+
+// Stundenwerte entstehen erst, wenn die Angebote zusammengefasst werden: Beide Schieber bleiben in dieser Reihenfolge
+function onKeep() { if (keep.value > hour.value) hourStep.value = hourOf(keep.value); }
+function onHour() {
+  if (keep.value <= hour.value) return;
+  let i = keepStep.value;
+  while (KEEP[i] === 0 || KEEP[i] > hour.value) i--;
+  keepStep.value = i;
+}
+function reset() { keepStep.value = keepOf(props.settings.keepDays); hourStep.value = hourOf(props.settings.hourDays); }
+function usePreset(p) { keepStep.value = keepOf(p.keepDays); hourStep.value = hourOf(p.hourDays); }
+const changed = computed(() => keepStep.value !== keepOf(props.settings.keepDays) || hourStep.value !== hourOf(props.settings.hourDays));
+const isPreset = (p) => keep.value === p.keepDays && hour.value === p.hourDays;
+function saveRetention() { emit('save', { keepDays: keep.value, hourDays: hour.value }); }
+const daysText = (d) => (d === 0 ? 'unbegrenzt' : `${d} Tage`);
+const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 100}%` : '0%');
 </script>
 
 <template>
@@ -59,7 +77,8 @@ const daysText = computed(() => (days.value === 0 ? 'unbegrenzt' : days.value ==
           <option value="stable">Stabil</option><option value="test">Test (Vorabversionen)</option>
         </select>
       </label>
-      <p class="small muted">Der Manager sucht beim Start und alle 6 Stunden nach neuen Versionen. Installiert wird nur, wenn du es unter Module auslöst.</p>
+      <label class="check"><input type="checkbox" :checked="settings.updateWindow" @change="emit('save', { updateWindow: $event.target.checked })" /> Beim Start zeigen, wenn es Neues gibt</label>
+      <p class="small muted">Der Manager sucht beim Start und alle 6 Stunden nach neuen Versionen. Installiert wird nur, wenn du es auslöst. Über „Nach Updates suchen“ und „Jetzt aktualisieren“ siehst du immer, was neu ist.</p>
     </section>
 
     <div class="group">
@@ -89,20 +108,52 @@ const daysText = computed(() => (days.value === 0 ? 'unbegrenzt' : days.value ==
 
     <section class="group" v-if="broker">
       <h2>Aufbewahrung <span class="small muted">(Peon Broker Client)</span></h2>
+      <p class="small muted">Je länger der Manager genaue Daten aufhebt, desto mehr Platz braucht er. Ältere Daten fasst er zusammen, dein Preisverlauf bleibt dabei erhalten, nur gröber.</p>
+
+      <div class="presets" v-if="est" role="group" aria-label="Vorlagen">
+        <button v-for="p in est.presets" :key="p.key" :class="{ on: isPreset(p) }" :aria-pressed="isPreset(p)" @click="usePreset(p)">
+          <strong>{{ p.label }}</strong>
+          <span class="small muted">etwa {{ bytes(p.total) }}</span>
+        </button>
+      </div>
+
       <label class="field">
-        <span>Momentaufnahmen vollständig aufheben: <strong>{{ daysText }}</strong></span>
-        <input type="range" min="0" :max="STEPS.length - 1" step="1" v-model.number="step" @change="saveKeep" aria-label="Tage vollständig aufheben" />
+        <span>Alle Angebote: <strong>{{ daysText(keep) }}</strong></span>
+        <input type="range" min="0" :max="KEEP.length - 1" step="1" v-model.number="keepStep" @input="onKeep" aria-label="Alle Angebote aufheben" />
+        <span class="small muted">Jedes einzelne Angebot jedes Stands. Daraus zeigt der Manager auch das Muster „Wann ist es günstig?“, das bis zu 60 Tage nutzt.</span>
       </label>
-      <p class="small muted">Danach bleiben Stundenwerte {{ settings.hourDays }} Tage, ältere Daten als Tageswerte unbegrenzt. Kopfdaten jedes Scans (Zeit, Anzahl Angebote) bleiben immer.</p>
+      <label class="field">
+        <span>Stundenwerte bis: <strong>{{ keep === 0 ? 'nicht nötig' : daysText(hour) }}</strong></span>
+        <input type="range" min="0" :max="HOUR.length - 1" step="1" v-model.number="hourStep" :disabled="keep === 0" @input="onHour" aria-label="Stundenwerte aufheben bis" />
+        <span class="small muted">Preise und Mengen je Gegenstand und Stunde. Mindestens 14 Tage, weil Broker daraus den üblichen Preisbereich bekommt.</span>
+      </label>
+      <p class="small muted">Danach bleibt ein Wert je Tag, ohne Ende. Zeit und Anzahl der Angebote jedes Stands bleiben immer.</p>
+
       <div class="est" v-if="est">
         <div><span class="muted">Jetzt</span><strong>{{ bytes(est.current) }}</strong></div>
-        <div><span class="muted">Geschätzt nach einem Jahr</span><strong>{{ days === 0 ? 'wächst weiter' : bytes(est.total) }}</strong></div>
-        <div class="small muted wide" v-if="days !== 0">
-          davon vollständige Momentaufnahmen {{ bytes(est.fine) }}, Stundenwerte {{ bytes(est.hour) }}, Tageswerte {{ bytes(est.dayPerYear) }} im Jahr.
-          Gerechnet mit {{ est.scansPerDay.toLocaleString('de-DE') }} {{ est.scansPerDay === 1 ? 'Scan' : 'Scans' }} am Tag zu je etwa {{ bytes(est.perScan) }}{{ est.measured ? ' (aus deinen Daten)' : ' (Annahme, noch keine Scans)' }}.
-        </div>
+        <div><span class="muted">Geschätzt nach einem Jahr</span><strong>{{ keep === 0 ? 'wächst weiter' : bytes(est.total) }}</strong></div>
+        <template v-if="keep !== 0">
+          <div class="bar wide" aria-hidden="true">
+            <span class="b-fine" :style="{ width: share(est.fine) }"></span><span class="b-hour" :style="{ width: share(est.hour) }"></span><span class="b-day" :style="{ width: share(est.dayFirstYear) }"></span>
+          </div>
+          <div class="small muted wide legend">
+            <span><i class="b-fine"></i>Alle Angebote {{ bytes(est.fine) }}</span>
+            <span><i class="b-hour"></i>Stundenwerte {{ bytes(est.hour) }}</span>
+            <span><i class="b-day"></i>Tageswerte {{ bytes(est.dayFirstYear) }}, danach {{ bytes(est.dayPerYear) }} je weiteres Jahr</span>
+          </div>
+          <div class="small muted wide">Gerechnet mit {{ est.scansPerDay.toLocaleString('de-DE') }} {{ est.scansPerDay === 1 ? 'Stand' : 'Ständen' }} am Tag (Scans und Blizzard-API) zu je etwa {{ bytes(est.perScan) }}{{ est.measured ? ', aus deinen Daten' : ', geschätzt, weil es noch keine Daten gibt' }}.</div>
+        </template>
         <div class="small muted wide" v-else>Ohne Grenze wächst die Datenbank um etwa {{ bytes(est.perScan * est.scansPerDay * 30) }} im Monat.</div>
       </div>
+
+      <div class="apply" v-if="changed">
+        <p class="small warn" v-if="est && est.wouldCompact" role="alert">Daten, die älter sind als die neue Grenze, werden beim Übernehmen zusammengefasst. Die genauen Werte lassen sich danach nicht zurückholen.</p>
+        <div class="row">
+          <button class="primary" @click="saveRetention">Übernehmen</button>
+          <button @click="reset">Verwerfen</button>
+        </div>
+      </div>
+      <p class="small muted" v-if="data.pruning" role="status">Der Manager räumt gerade im Hintergrund auf.</p>
     </section>
   </div>
 </template>
@@ -121,5 +172,18 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .est > div { display: grid; gap: 2px; }
 .est strong { font-size: 18px; font-weight: 500; }
 .est .wide { grid-column: 1 / -1; display: block; }
+.presets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.presets button { display: grid; gap: 2px; padding: 8px 10px; text-align: left; }
+.presets button strong { font-weight: 500; }
+.presets button.on { border-color: var(--accent); background: var(--accent-soft); }
+.est .bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--raised); }
+.bar span { display: block; }
+.b-fine { background: var(--accent); }
+.b-hour { background: var(--silver); }
+.b-day { background: var(--faint); }
+.est .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; }
+.apply { display: grid; gap: 8px; }
+input[type="range"]:disabled { opacity: 0.4; }
 .warn { color: var(--warn); }
 </style>

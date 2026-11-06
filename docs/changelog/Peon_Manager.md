@@ -2,6 +2,24 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.15.0
+
+Kurz: Neues Fenster zeigt beim Start und vor dem Aktualisieren, was neu ist.
+Kurz: Du stellst genauer ein, wie lange der Manager Daten aufhebt. Der neue Standard braucht viel weniger Platz.
+
+- 0.15.0 (06.11.2026, Wunsch KarloDerBaer): **Aufbewahrung genauer einstellbar.**
+  - **Einstellungen:** Vorlagen (Sparsam, Ausgewogen, Ausführlich, Alles) mit geschätzter Größe und zwei Regler für alle Angebote und für Stundenwerte. Der Balken zeigt, was wie viel Platz braucht. Erst „Übernehmen“ speichert. Eine Warnung erscheint nur, wenn dabei wirklich Daten zusammengefasst würden.
+  - **Neuer Standard:** 14 Tage alle Angebote und 60 Tage Stundenwerte, vorher 30 und 365 Tage. Nach den Daten von KarloDerBaer sind das nach einem Jahr etwa 2,6 GB statt 12,7 GB. Die festen 365 Tage Stundenwerte werden einmalig bei allen auf 60 gestellt (`retentionV`), ein selbst gewählter Wert für alle Angebote bleibt.
+  - **Untergrenze:** Stundenwerte bleiben mindestens 14 Tage, weil der übliche Bereich für Broker keine Tageswerte liest.
+  - **Aufräumen im Hintergrund:** Verdichtet wird in Zeitscheiben von 6 Stunden, dazwischen arbeitet das Programm weiter. Index `item_hour_t`.
+  - **Datei wird kleiner:** Die Datenbank gibt freien Platz jetzt schrittweise zurück (`auto_vacuum = INCREMENTAL`, wird beim ersten Öffnen umgestellt), auch wenn nur Stundenwerte wegfallen. Bis 0.14.0 schrumpfte sie in diesem Fall nicht.
+  - **Schätzung:** Tageswerte zählen im ersten Jahr nur für die Tage nach den Stundenwerten, dazu steht der Zuwachs je weiteres Jahr. Der Text nennt „Stände“ (Scans und Blizzard-API) statt nur Scans.
+  - Geprüft im echten Programm mit einem Testordner: Umstellung, Vorlagen, Regler, Warnung, Verwerfen, Übernehmen. **Noch nicht geprüft:** Lauf mit wirklich großen Datenmengen und in der installierten Fassung.
+- **Update-Fenster** (Wunsch KarloDerBaer, `components\UpdateDialog.vue`): Manager, Addon-Updates und neue Addons mit kurzem Text, einzeln oder alles auf einmal.
+  - **Wann:** beim Programmstart, je Stand einmal und abschaltbar (`updateWindow`), immer nach „Nach Updates suchen“ und über „Jetzt aktualisieren“ in der Seitenleiste. Die Suche alle 6 Stunden öffnet es nicht von selbst.
+  - **Kurze Texte:** Zeilen `Kurz:` je Version im Changelog, das Manifest führt sie je Version (`news`), der Bau bricht ohne sie ab. „Was ist neu“ unter Module zeigt sie ebenfalls statt des Changelogs.
+  - **Neue Addons** werden einmal vorgestellt (`addonsSeen`), „Alles aktualisieren“ fügt sie nicht ungefragt hinzu.
+
 ## 0.14.0
 
 - 0.14.0 (06.11.2026, Wunsch KarloDerBaer): **Reiter „Rückmeldungen“ ersetzt „Debug“.** Der Manager ist jetzt der zentrale Ort für Fehler und Feedback (`src/core/reports.js`, Tabellen `errors` und `feedback`).
