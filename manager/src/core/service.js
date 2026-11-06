@@ -9,8 +9,8 @@ const { openManagerDb, migrateSplit, fileSize, removeDb, log } = require('./db')
 const { writeData, addonDir } = require('./datalua');
 const modules = require('./modules');
 const { BrokerClient } = require('./broker-client');
-const { AddonManager, ISSUES_URL } = require('./addons');
-const { ErrorStore } = require('./errors');
+const { AddonManager } = require('./addons');
+const { ReportStore } = require('./reports');
 
 const DEFAULTS = {
   wowDir: 'C:\\Program Files (x86)\\World of Warcraft\\_forever_',   // ueblicher Ort von Battle.net, in den Einstellungen aenderbar
@@ -62,7 +62,7 @@ class Service {
     }
     // Wer schon Einstellungen hatte, sieht den Vorschlag fuer den ersten Start nicht
     if (raw.setup === undefined && existed) this.saveSettings({ setup: { done: true } });
-    this.errors = new ErrorStore(this);
+    this.reports = new ReportStore(this);
     this.broker = this.isActive('broker-client') ? new BrokerClient(this) : null;
     this.addons = new AddonManager(this, releases || {});
   }
@@ -152,7 +152,7 @@ class Service {
     const wow = this.settings.wowDir;
     if (!fs.existsSync(path.join(addonDir(wow), 'Peon_Bridge.toc'))) return null;   // Bridge nicht installiert
     try {
-      const w = writeData(wow, { ack: [], markets: {}, channels: this.channels(), version: this.version, now: this.now(), errorsClearBefore: this.errors.clearBefore() });
+      const w = writeData(wow, { ack: [], markets: {}, channels: this.channels(), version: this.version, now: this.now(), ...this.reports.marks() });
       this.meta('bridge', 'leer');
       return w;
     } catch (e) {
@@ -191,7 +191,6 @@ class Service {
       wowRunning: !!wowRunning,
       wowValid: a.wowValid(),
       wowDir: this.settings.wowDir,
-      feedback: (m && m.discord) || ISSUES_URL,
       // Der Vorschlag fuer den ersten Start entfaellt, sobald Peon da ist (auch von Hand oder per Junction)
       setup: { done: this.settings.setup.done || a.installed('Peon').present },
       tooOld,
@@ -214,9 +213,9 @@ class Service {
 
   // ---------- Daten fuer die Oberflaeche ----------
   overview() {
-    this.errors.scan();
+    this.reports.scan();
     const base = {
-      errorCount: this.errors.count(),
+      reportCount: this.reports.count(),
       version: this.version,
       now: this.now(),
       dbDir: this.dbDir,

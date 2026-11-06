@@ -7,7 +7,7 @@ import Items from './views/Items.vue';
 import Item from './views/Item.vue';
 import Chances from './views/Chances.vue';
 import Modules from './views/Modules.vue';
-import Debug from './views/Debug.vue';
+import Reports from './views/Reports.vue';
 import { ago } from './util.js';
 
 const api = window.peon;
@@ -28,7 +28,7 @@ const ALL = [
   { key: 'chances', label: 'Chancen' },
   { key: 'sources', label: 'Quellen' },
   { key: 'modules', label: 'Module', always: true },
-  { key: 'debug', label: 'Debug', always: true },
+  { key: 'reports', label: 'Rückmeldungen', always: true },
   { key: 'settings', label: 'Einstellungen', always: true },
 ];
 const NAV = computed(() => ALL.filter((n) => !n.always && data.value && data.value.views.includes(n.key)));
@@ -108,7 +108,7 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
         <hr class="rail-sep" v-if="NAV.length">
         <button v-for="n in NAV_BOTTOM" :key="n.key" class="nav" :class="{ on: view === n.key }" @click="go(n.key)">
           {{ n.label }}<span v-if="n.key === 'modules' && data && data.addonUpdates" class="count" :title="`${data.addonUpdates} Updates verfügbar`">{{ data.addonUpdates }}</span>
-          <span v-if="n.key === 'debug' && data && data.errorCount" class="count" :title="`${data.errorCount} gespeicherte Fehler`">{{ data.errorCount }}</span>
+          <span v-if="n.key === 'reports' && data && data.reportCount" class="count" :title="`${data.reportCount} noch nicht gesendet`">{{ data.reportCount }}</span>
         </button>
         <div class="rail-foot faint small" v-if="data">Version {{ data.version }}</div>
       </div>
@@ -136,8 +136,8 @@ watch(note, (v) => { if (v) setTimeout(() => { if (note.value === v) note.value 
         <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @back="go(back === 'chances' ? 'chances' : 'items')" :back-label="back === 'chances' ? 'Zurück zu Chancen' : 'Alle Gegenstände'" />
         <Chances v-else-if="view === 'chances'" :market="current" :now="now" :stamp="stamp" :settings="settings" @open="openItem" @save="saveQuiet" />
         <Sources v-else-if="view === 'sources'" :data="data" :now="now" :stamp="stamp" @go="go($event)" />
-        <Modules v-else-if="view === 'modules'" :data="data" :now="now" :stamp="stamp" @changed="load" @pick-folder="pickWow" />
-        <Debug v-else-if="view === 'debug'" :now="now" :stamp="stamp" />
+        <Modules v-else-if="view === 'modules'" :data="data" :now="now" :stamp="stamp" @changed="load" @pick-folder="pickWow" @go="go($event)" />
+        <Reports v-else-if="view === 'reports'" :now="now" :stamp="stamp" @go="go($event)" @changed="load" />
         <Settings v-else-if="view === 'settings'" :data="data" :settings="settings" :stamp="stamp" :broker="broker" :now="now" @save="saveSettings" />
       </div>
       <div class="page muted" v-else>Lade Daten</div>

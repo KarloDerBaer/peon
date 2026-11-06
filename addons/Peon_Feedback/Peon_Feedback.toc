@@ -1,0 +1,16 @@
+## Interface: 16001
+## Title: |cff8ccf4dPeon|r Feedback
+## Notes: Collect bug reports and ideas for Peon modules in-game.
+## Notes-deDE: Rückmeldungen, Fehler und Ideen zu Peon-Modulen direkt im Spiel festhalten.
+## Author: KarloDerBaer
+## Version: 0.3.0
+## Dependencies: Peon
+## OptionalDeps: Peon_Bridge
+## Group: Peon
+## IconTexture: Interface\Icons\INV_Misc_Note_01
+## SavedVariables: PeonFeedbackDB
+
+Locales.lua
+Feedback.lua
+Window.lua
+Options.lua

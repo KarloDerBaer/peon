@@ -4,7 +4,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { ago, bytes } from '../util.js';
 
 const props = defineProps({ data: Object, now: Number, stamp: Number });
-const emit = defineEmits(['changed', 'pickFolder']);
+const emit = defineEmits(['changed', 'pickFolder', 'go']);
 const api = window.peon;
 
 const st = ref(null);
@@ -192,7 +192,7 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
       </article>
     </section>
 
-    <p class="small"><button class="link" @click="api.openLink(st.feedback)">Feedback und Fehler melden</button></p>
+    <p class="small"><button class="link" @click="emit('go', 'reports')">Feedback und Fehler melden</button></p>
   </div>
   <div class="muted" v-else>Lade Module</div>
 </template>

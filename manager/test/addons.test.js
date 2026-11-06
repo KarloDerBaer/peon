@@ -87,7 +87,6 @@ test('Suchen: Manifest laden, Liste mit Status, noch nichts installiert', async 
   assert.equal(st.wowRunning, true);
   assert.equal(st.items.find((a) => a.name === 'Peon_Bridge').managerOnly, true);
   assert.equal(st.items[0].notes, 'Neu in 0.11.0');
-  assert.ok(st.feedback.startsWith('https://github.com/KarloDerBaer/peon'), 'ohne Discord: Issues im Repo');
   w.close();
 });
 

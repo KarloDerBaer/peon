@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.14.0
+
+- 0.14.0 (06.11.2026, Wunsch KarloDerBaer): **Reiter „Rückmeldungen“ ersetzt „Debug“.** Der Manager ist jetzt der zentrale Ort für Fehler und Feedback (`src/core/reports.js`, Tabellen `errors` und `feedback`).
+  - **Neue Rückmeldung** direkt im Manager, gleicher Aufbau wie Peon_Feedback (Modul, Art, Bereich, Priorität, Beschreibung), dazu das Modul „Peon Manager“. Bereiche kommen aus `PeonDB.feedbackAreas`.
+  - **Bearbeiten und Löschen** aller Rückmeldungen, auch aus dem Spiel. **Fehler** bekommen ein Notizfeld und lassen sich einzeln löschen.
+  - **Der Manager führt:** Eingelesenes löscht das Spiel beim nächsten Laden (`errorsClearBefore`, `feedbackClearBefore` in `Data.lua`). Gleiche Fehler zählen weiter hoch, die Notiz bleibt. Gelöschte oder gesendete Fehler kommen nur zurück, wenn sie neu auftreten.
+  - **Senden:** Ein Issue je Eintrag, höchstens 20 je Senden, die ältesten zuerst. Gelöscht wird nur, was der Worker bestätigt. Namen und Pfade werden auch in selbst geschriebenen Texten ersetzt, die Vorschau zeigt genau das Gesendete.
+  - **Entfernt:** Export als Text. Der Link „Feedback und Fehler melden“ führt in den neuen Reiter statt zu den öffentlichen Issues.
+  - Tests: `test/reports.test.js`.
+
 ## 0.13.1
 
 - 0.13.1 (06.11.2026): Adresse des Workers eingetragen, das Senden im Reiter Debug ist damit freigeschaltet. `PEON_MANAGER_REPORT_URL` leer schaltet es ab (für Tests).

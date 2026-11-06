@@ -12,7 +12,6 @@ const { log } = require('./db');
 
 const REPO_URL = 'https://github.com/KarloDerBaer/peon';
 const API_URL = 'https://api.github.com/repos/KarloDerBaer/peon';
-const ISSUES_URL = `${REPO_URL}/issues`;
 const NAME_RE = /^Peon(_[A-Za-z0-9]+)?$/;              // nur Peon-Addons
 const FILE_RE = /^Peon(_[A-Za-z0-9]+)?-\d+\.\d+\.\d+\.zip$/;
 const TAG_RE = /^v\d{4}\.\d{2}\.\d{2}(\.\d+)?(-test)?$/;
@@ -386,4 +385,4 @@ class AddonManager {
   updates() { return this.list().filter((a) => a.status === 'update').map((a) => a.name); }
 }
 
-module.exports = { AddonManager, checkManifest, safeEntry, findWowDirs, cmpVersion, REPO_URL, ISSUES_URL, PLACEHOLDER };
+module.exports = { AddonManager, checkManifest, safeEntry, findWowDirs, cmpVersion, REPO_URL, PLACEHOLDER };

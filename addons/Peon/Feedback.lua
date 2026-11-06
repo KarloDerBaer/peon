@@ -29,6 +29,14 @@ function Peon.GetFeedbackAreas(addon)
     return copy
 end
 
+-- API 13: Alle gemeldeten Bereiche in PeonDB ablegen, damit sie der Peon Manager lesen kann
+function Peon.SaveFeedbackAreas()
+    if type(Peon.db) ~= "table" then return end
+    local saved = {}
+    for addon in pairs(areas) do saved[addon] = Peon.GetFeedbackAreas(addon) end
+    Peon.db.feedbackAreas = saved
+end
+
 -- Bereiche des Kerns selbst
 Peon.SetFeedbackAreas("Peon", (GetLocale() == "deDE")
     and { "Einstellungsseite", "Bausteine", "Liste", "Diagramm", "Minimap-Button", "Debug-Log", "Chatbefehle" }

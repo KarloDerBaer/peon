@@ -2,6 +2,11 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.13.0
+
+- 0.13.0 (06.11.2026, Wunsch KarloDerBaer): API 13 – `Peon.SaveFeedbackAreas()`: Der Kern legt beim Einloggen alle gemeldeten Bereiche in `PeonDB.feedbackAreas` ab, damit der Peon Manager sie in seinem Formular anbieten kann. Bestehendes unverändert.
+  - **Im Spiel prüfen:** Nach einem `/reload` bietet der Manager unter „Rückmeldungen“ die Bereiche der Module an.
+
 ## 0.12.0
 
 - 0.12.0 (06.11.2026, Wunsch KarloDerBaer, Anlass: Fehler von Peon_Tooltip im Dungeon, der nirgends gespeichert war): API 12 – **Fehlerspeicher.** Abgefangene Fehler aller Module (`mod:ReportError`, `mod:Call`) und des Kerns stehen jetzt in `PeonDB.errors` (Addon, Bereich, Text, Version, Build, erstes und letztes Auftreten, Anzahl, höchstens 100, gleiche Fehler zählen hoch). Im Chat steht nur noch einmal pro Sitzung ein kurzer Hinweis. Neu: `Peon.RecordError`, `Peon.ClearErrors`, `Peon.ReportCoreError`, Befehl `/peon fehler` (Text zeigen) und `/peon fehler leeren`. Geheime Fehlertexte werden nicht mehr ausgewertet. Bestehendes bleibt nutzbar, nur der Chat-Text von `ReportError` ist kürzer.

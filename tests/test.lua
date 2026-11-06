@@ -190,4 +190,13 @@ do
   time, GetBuildInfo = nil, nil
 end
 
+-- ===== Bereiche fuer den Manager (API 13) =====
+do
+  assert(loadfile("Peon/Feedback.lua"))("Peon", {})
+  check(Peon.API >= 13, "API 13")
+  Peon.SetFeedbackAreas("Peon_Test", { "Eins", "Zwei" })
+  Peon.SaveFeedbackAreas()
+  check(PeonDB.feedbackAreas.Peon_Test[2] == "Zwei" and PeonDB.feedbackAreas.Peon[1] == "Einstellungsseite", "Bereiche stehen in PeonDB")
+end
+
 print("ALLE TESTS OK")

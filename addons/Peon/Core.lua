@@ -13,7 +13,7 @@ ns.Peon = Peon
 Peon.name      = ADDON_NAME
 Peon.L         = L
 Peon.NewLocale = ns.NewLocale
-Peon.API       = 12         -- wird erhoeht, wenn Funktionen dazukommen (Module koennen pruefen)
+Peon.API       = 13         -- wird erhoeht, wenn Funktionen dazukommen (Module koennen pruefen)
 Peon.COLOR     = "ff8ccf4d" -- Peon-Gruen fuer Chat-Ausgaben
 Peon.modules   = {}         -- addonName -> Modul
 Peon.order     = {}         -- Module in Ladereihenfolge
@@ -169,6 +169,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
         end
     elseif event == "PLAYER_LOGIN" then
         Peon.loggedIn = true
+        if Peon.SaveFeedbackAreas then Peon.SaveFeedbackAreas() end
         if ns.FinishOptions then
             local ok, err = pcall(ns.FinishOptions)
             if not ok then Peon.ReportCoreError("Options", err) end

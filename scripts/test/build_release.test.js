@@ -140,13 +140,12 @@ test('Versionen vergleichen', () => {
 test('Echtes Repo: alle Addons, Bridge nur fuer den Manager, ohne Data.lua', () => {
   const { out, manifest: m } = R.build({ out: tmp('echt'), tag: 'v2026.11.04', dirty: true });
   const names = m.addons.map((a) => a.name);
-  for (const n of ['Peon', 'Peon_Broker', 'Peon_Bridge', 'Peon_Ledger', 'Peon_Tooltip']) assert.ok(names.includes(n), n);
-  assert.ok(!names.includes('Peon_Feedback'));
+  for (const n of ['Peon', 'Peon_Broker', 'Peon_Bridge', 'Peon_Feedback', 'Peon_Ledger', 'Peon_Tooltip']) assert.ok(names.includes(n), n);
   const bridge = m.addons.find((a) => a.name === 'Peon_Bridge');
   assert.equal(bridge.managerOnly, true);
   assert.ok(!R.readZip(fs.readFileSync(path.join(out, bridge.file))).some((e) => /Data\.lua$/.test(e.name)));
   assert.ok(m.addons.every((a) => a.notes === ''), 'erstes Release ohne Was ist neu');
   const spaeter = R.build({ out: tmp('echt2'), tag: 'v2026.11.04', dirty: true, prev: { addons: [] } }).manifest;
   assert.ok(spaeter.addons.every((a) => a.notes.startsWith(`### ${a.version}`)), 'jede Version hat einen Changelog-Abschnitt');
-  assert.equal(m.addons.find((a) => a.name === 'Peon').api, 11);
+  assert.equal(m.addons.find((a) => a.name === 'Peon').api, 13);
 });

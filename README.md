@@ -22,7 +22,7 @@
   &nbsp;·&nbsp;
   <a href="#-installation">Installation</a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/KarloDerBaer/peon/issues">Fehler melden</a>
+  <a href="#-feedback-und-fehler">Fehler melden</a>
   &nbsp;·&nbsp;
   <a href="https://buymeacoffee.com/karloderbaer">Kaffee spendieren</a>
 </p>
@@ -46,6 +46,7 @@ Alle Teile hängen an einem gemeinsamen Kern und haben ihre Einstellungen unter 
 | **Peon_Ledger** | Bestand aller Charaktere (Taschen, Bank, Post, Auktionen, Gold) und Buchführung über Einnahmen und Ausgaben. | `/ledger` |
 | **Peon_Bags** | Taschen, Bank und Gildenbank in je einem Fenster mit Suche und Sortierung. | `/peon bags` |
 | **Peon_Fishing** | Angelmodus mit Ausrüstungswechsel, Angeln per Doppelklick oder Taste, Köder, Warnton. | `/fp` |
+| **Peon_Feedback** | Fehler und Ideen direkt im Spiel festhalten, der Peon Manager sendet sie weiter. Optional. | `/feedback` |
 | **Peon_Mover** | Fenster von Blizzard und Peon verschieben und in der Größe ändern. | `/peon mover` |
 | **Peon_ComboPoints** | Runde Combo-Punkte über dem Namensschild des Gegners (nur Schurken). | `/peon combopoints` |
 
@@ -82,11 +83,7 @@ Die Addons gehen auch von Hand: Lade auf der Seite [Releases](https://github.com
 
 ## 🐞 Feedback und Fehler
 
-Fehler, Wünsche und Ideen bitte als [Issue](https://github.com/KarloDerBaer/peon/issues) hier im Repo melden. Hilfreich sind dabei:
-
-- welches Addon und welche Version (steht in der Addonliste und bei `/peon list`)
-- was du gemacht hast und was passiert ist
-- die Fehlermeldung, falls es eine gab (zum Beispiel aus BugSack)
+Fehler, Wünsche und Ideen meldest du am einfachsten im **Peon Manager** unter „Rückmeldungen“. Ein Konto brauchst du dafür nicht. Der Manager sammelt auch die Fehler der Addons, du kannst Notizen ergänzen und vor dem Senden alles ändern oder löschen. Im Spiel geht es zusätzlich mit dem Addon Peon_Feedback über `/feedback`.
 
 ## ☕ Peon unterstützen
 

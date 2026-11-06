@@ -12,7 +12,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
   - `docs\` Doku, Inhaltsverzeichnis in `docs\README.md`: `projekt\` (Überblick, Stand, Entscheidungen, Vorlage), `konzepte\<modul>\` (Konzepte und Designs), `changelog\<Modul>.md` (Verlauf der Versionen, neueste oben), `archiv\` (abgelöste Konzepte)
   - `tests\` (Testdateien, `run_tests.cmd` für Windows, `run_tests.sh` für Git Bash und Linux, beide laufen auf `addons\`), `tools\` (Lua 5.1), `vorlage\` (Vorlage für neue Module), `scripts\` (Junctions, Release-Bau)
   - `CLAUDE.md` Arbeitsregeln für Claude Code
-- Archiv außerhalb des Repos: `<Archiv>\` (alte Lieferungen `eingang\`, `Claude outputs\`, Peon_Feedback 0.2.0 mit Tests, Sicherungen)
+- Archiv außerhalb des Repos: `<Archiv>\` (alte Lieferungen `eingang\`, `Claude outputs\`, Peon_Feedback 0.2.0, Sicherungen)
 - AddOns-Ordner des Spiels: `<WoW-Ordner>\Interface\AddOns\` (ab 25.10.2026)
 - Einstellungen: `<WoW-Ordner>\WTF\Account\<Konto>\SavedVariables\` (accountweit) und `...\<Realm-Nummer>\<Charakter-Realm>\SavedVariables\` (pro Charakter, z. B. `93\<Charakter-Realm>`). Unter `WTF\Account` liegen bei KarloDerBaer mehrere Kontoordner, gespielt wird im Ordner mit Buchstaben-Namen (Stand 31.10.2026). Echte Konto- und Charakternamen stehen nicht im Repo, weil es öffentlich ist. Release-Server sind EU (`portal "EU"`, Stresstest 21.10.2026).
 - Beta (beendet, nur noch zum Nachsehen): `<WoW-Beta-Ordner>\`. Dort sind einige Dateien schreibgeschützt, nicht mehr hineinschreiben.
@@ -37,7 +37,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 | Peon_Fishing (früher FishingPlus) | 1.5.2 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
 | Peon_Broker (neu, Auktionshaus) | 0.33.1 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
 | Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.4.0 | `PeonBridgeDB` | /peon bridge |
-| Peon_Feedback (archiviert 31.10.2026, nicht im Repo) | 0.2.0 | `PeonFeedbackDB` | /feedback |
+| Peon_Feedback | 0.3.0 | `PeonFeedbackDB` | /feedback |
 | Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
 | Peon_Ledger (neu, Bestand und Buch) | 0.10.2 | `PeonLedgerDB` | /ledger |
 | Peon_Bags (neu, Taschen, Bank, Gildenbank) | 0.2.2 | `PeonBagsDB` | /peon bags |
@@ -112,13 +112,13 @@ page:Add(left, page:List(opts))   -- auf Optionsseiten; Container hat .list, eig
 mod:NewMinimapButton({ icon = "Interface\\Icons\\…", name = "PeonXyMinimapButton",
     onClick = function(mod, button) end, onTooltip = function(mod, tooltip) tooltip:AddLine("…") end, hint = "Linksklick: …" })
 ```
-- **Bereiche für Rückmeldungen (API 9, Feedback.lua):** Jedes Modul meldet seine Bereiche für Peon_Feedback mit einer Zeile (am Ende der ersten Code-Datei). Das `if` hält das Modul mit älterem Kern lauffähig; „Sonstiges“ hängt Feedback selbst an.
+- **Bereiche für Rückmeldungen (API 9, Feedback.lua):** Jedes Modul meldet seine Bereiche für Peon_Feedback und den Peon Manager (ab API 13 in `PeonDB.feedbackAreas`) mit einer Zeile (am Ende der ersten Code-Datei). Das `if` hält das Modul mit älterem Kern lauffähig; „Sonstiges“ hängt Feedback selbst an.
 ```lua
 if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Bereich 1", "Bereich 2", "Optionen" }) end
 Peon.GetFeedbackAreas(addonName)   -- Kopie der Liste, leer wenn nichts gemeldet
 ```
   Neue Module sollten ihre Bereiche mitmelden (in `vorlage\Peon_Beispiel` noch nicht enthalten).
-- **Fehlerspeicher (API 12, Core.lua):** `mod:ReportError(where, err)` und `mod:Call` speichern abgefangene Fehler automatisch in `PeonDB.errors` und nennen sie einmal pro Sitzung kurz im Chat. Den Text zeigen `/peon fehler` und der Reiter Debug im Peon Manager.
+- **Fehlerspeicher (API 12, Core.lua):** `mod:ReportError(where, err)` und `mod:Call` speichern abgefangene Fehler automatisch in `PeonDB.errors` und nennen sie einmal pro Sitzung kurz im Chat. Den Text zeigen `/peon fehler` und der Reiter Rückmeldungen im Peon Manager, der sie einliest und im Spiel löschen lässt.
 ```lua
 Peon.RecordError(addonName, where, err, version)   -- speichern ohne Chat-Ausgabe, gleiche Fehler zaehlen hoch
 Peon.ClearErrors(upTo)                             -- bis Zeitpunkt loeschen, ohne Angabe alle. Rueckgabe: Anzahl

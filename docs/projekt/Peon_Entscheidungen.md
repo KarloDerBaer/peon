@@ -2,6 +2,16 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 06.11.2026: Feedback zurück, der Manager führt (Peon 0.13.0, Peon_Feedback 0.3.0, Manager 0.14.0)
+
+- **Peon_Feedback kommt zurück und wird ausgeliefert.** Das löst die Entscheidung vom 31.10.2026 ab („Kein Feedback über GitHub oder das Programm“), weil der Weg über den Worker jetzt ohne Aufwand für Nutzer besteht (KarloDerBaer).
+- Das Addon ist nur noch ein Zusatz für Feedback im Spiel. Schreiben, Ändern und Löschen geht auch im Manager, Fehler bekommen dort Notizen und lassen sich löschen (KarloDerBaer).
+- Der Export als Text entfällt, alles läuft gesammelt im Repo `peon-fehler` zusammen (KarloDerBaer). Der Reiter heißt „Rückmeldungen“ (KarloDerBaer, Vorschlag Claude).
+- **Der Manager führt, das Spiel liefert nur an.** Zwei gleichberechtigte Listen abzugleichen wäre fehleranfällig. Was eingelesen ist, löscht das Spiel beim nächsten Laden (Claude).
+- **Ein Issue je Eintrag** statt eines Sammelberichts, damit sich Bearbeitetes einzeln schließen lässt. Höchstens 20 je Senden, der Rest bleibt für das nächste Mal (Claude, zugestimmt).
+- Der Charakter wird nicht übernommen, Zone und Markt schon, weil sie bei der Fehlersuche helfen (Claude, zugestimmt).
+- Die Bereiche speichert der Kern in `PeonDB`, statt sie im Manager fest einzutragen oder aus Lua-Dateien zu lesen, damit sie immer zu Version und Sprache passen (Claude).
+
 ## 06.11.2026: Fehlerspeicher im Kern, Reiter Debug, Berichte über einen Worker (Peon 0.12.0, Bridge 0.5.0, Manager 0.13.0)
 
 - Abgefangene Fehler speichert der Kern selbst, statt sie an BugSack weiterzugeben. Der Manager zeigt sie im Reiter Debug, für alle sichtbar, dazu BugGrabber-Einträge mit Peon-Bezug. Im Chat bleibt ein kurzer Hinweis (KarloDerBaer).

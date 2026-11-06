@@ -8,7 +8,7 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const { execFile } = require('node:child_process');
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, session, safeStorage, clipboard } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, session, safeStorage } = require('electron');
 const { Service } = require('../src/core/service');
 const { createUpdater } = require('./updater');
 const blizzard = require('../src/core/blizzard');
@@ -291,10 +291,14 @@ if (!app.requestSingleInstanceLock()) {
       return { result, view: await blizzardHouses() };
     });
     ipcMain.handle('blizzardFetch', async () => { const r = await runBlizzard(true); return { result: r, view: await blizzardHouses() }; });
-    ipcMain.handle('errors', () => svc.errors.state());
-    ipcMain.handle('errorsCopy', () => { const t = svc.errors.exportText(); clipboard.writeText(t); return t.length; });
-    ipcMain.handle('errorsClear', () => { const n = svc.errors.clear(); send('changed', { what: 'fehler-speicher' }); return n; });
-    ipcMain.handle('errorsSend', async () => { const r = await svc.errors.send(); send('changed', { what: 'fehler-speicher' }); return r; });
+    ipcMain.handle('reports', () => svc.reports.state());
+    ipcMain.handle('reportAdd', (_e, f) => svc.reports.addFeedback(f));
+    ipcMain.handle('reportUpdate', (_e, key, f) => svc.reports.updateFeedback(key, f));
+    ipcMain.handle('reportDelete', (_e, key) => svc.reports.deleteFeedback(key));
+    ipcMain.handle('errorNote', (_e, key, note) => svc.reports.setNote(key, note));
+    ipcMain.handle('errorDelete', (_e, key) => svc.reports.deleteError(key));
+    ipcMain.handle('reportsClear', () => svc.reports.deleteAll());
+    ipcMain.handle('reportsSend', () => svc.reports.send());
     ipcMain.handle('settings', () => svc.settings);
     ipcMain.handle('items', (_e, market) => (svc.broker ? svc.broker.itemList(String(market)) : null));
     ipcMain.handle('item', (_e, market, key, range) => (svc.broker ? svc.broker.itemDetail(String(market), String(key), String(range || '30d')) : null));
@@ -384,8 +388,8 @@ if (!app.requestSingleInstanceLock()) {
     }, 60 * 60 * 1000);
     setupWatch();
     setInterval(poll, 60 * 1000);
-    // Fehlerspeicher: gehoert zu keinem Modul, einmal je Minute nach neuen Fehlern sehen (liest nur geaenderte Dateien)
-    setInterval(() => { try { if (svc.errors.scan()) send('changed', { what: 'fehler-speicher' }); } catch { /* steht im Protokoll */ } }, 60 * 1000);
+    // Rueckmeldungen: gehoeren zu keinem Modul, einmal je Minute nach Neuem sehen (liest nur geaenderte Dateien)
+    setInterval(() => { try { if (svc.reports.scan()) send('changed', { what: 'rueckmeldungen' }); } catch { /* steht im Protokoll */ } }, 60 * 1000);
     // Tageswechsel: Werte fuer Broker neu rechnen (Alter der Tage verschiebt sich), schreibt nur bei Aenderung
     setInterval(() => {
       if (!svc.broker) return;

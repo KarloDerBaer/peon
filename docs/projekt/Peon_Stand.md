@@ -1,17 +1,17 @@
 # Peon: Stand je Modul
 
-Stand: 06.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.12.0 / Broker 0.33.1 / Bridge 0.5.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.13.1 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.2 / Fishing 1.5.2 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2. Peon_Feedback 0.2.0 ist archiviert (`<Archiv>\Peon_Feedback_0.2.0\`).
+Stand: 06.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.13.0 / Broker 0.33.1 / Bridge 0.5.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.14.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.2 / Fishing 1.5.2 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2 / Feedback 0.3.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
-## Peon (Kern) – 0.12.0, API 12
+## Peon (Kern) – 0.13.0, API 13
 
 - Dateien: Locales.lua, Core.lua, Feedback.lua (ab 0.9, direkt nach Core.lua), Module.lua, Options.lua, Widgets.lua, List.lua, Minimap.lua, Chart.lua (ab 0.10), Slash.lua
-- SavedVariables: `PeonDB`: `errors` (Fehlerspeicher ab 0.12.0: `addon`, `where`, `msg`, `version`, `build`, `first`, `last`, `n`, höchstens 100)
+- SavedVariables: `PeonDB`: `errors` (Fehlerspeicher ab 0.12.0: `addon`, `where`, `msg`, `version`, `build`, `first`, `last`, `n`, höchstens 100), `feedbackAreas` (Bereiche je Modul für den Manager, ab 0.13.0)
 - Fehlerspeicher (API 12): `Peon.RecordError`, `Peon.ClearErrors`, `Peon.ReportCoreError`, `mod:ReportError` speichert automatisch. Befehle `/peon fehler`, `/peon fehler leeren`.
 - Aufgaben: globales Objekt `Peon`, Modulverwaltung (`Peon:NewModule`), Einstellungen mit Standardwerten/Bereichen/erlaubten Werten, Übernahme alter Variablennamen (`oldDB`/`oldCharDB`), Ereignisse (INIT, LOGIN, COMBAT_START, COMBAT_END, RESET, CHANGED), Debug-Log, Einstellungsseite „Peon“ mit Modulübersicht, Optionsseite mit Bildlauf und Bausteinen (Header, Slider, Check mit Hinweis/eigenen Werten, Dropdown, Choice, PositionGrid, Color, Button, Text, Reset-Knopf, mitwachsende Anordnung), `keepOnReset`, `/peon`.
 - Noch nicht im Kern: `RegisterUnitEvent`.
 - Verlauf der Versionen: `docs/changelog/Peon.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.12.0, 0.11.1, 0.10.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.13.0, 0.12.0, 0.11.1, 0.10.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon_Tooltip – 0.7.4 (früher TooltipPlus)
 
@@ -58,7 +58,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.13.1
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.14.0
 
 - Quellcode: `manager\` (bisher `client\`), Anleitung in `manager\README.md`. Design: `docs\konzepte\manager\Peon_Client_Design.md` (Funktionen, jetzt Modul Peon Broker Client) und `Peon_GitHub_Design.md` (Peon Manager, Module, Installieren).
 - Programm bei KarloDerBaer: installiert wie bei allen anderen (ab 04.11.2026, siehe unten). Der frühere Ordner `<Programmordner>` mit Runtime und DB bleibt als Sicherung. Anderer Datenordner: Umgebungsvariable `PEON_MANAGER_DB`.
@@ -68,7 +68,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Installiert (ab 0.9.0): Installer `PeonManager-Setup-<Version>.exe` für den Benutzer, ohne Administratorrechte, Programm unter `%LOCALAPPDATA%\Programs`, Daten in `%APPDATA%\Peon Manager\Daten`. Selbst-Update über `electron/updater.js`: lädt im Hintergrund, fragt vor dem Neustart. Liegt ein Ordner `DB` neben dem Programmordner (Aufbau bei KarloDerBaer), gilt dieser, und es gibt kein Selbst-Update.
 - Blizzard-API (ab 0.11.0): Zugang, Anleitung und Prüfabruf unter Einstellungen für alle Module (`src\core\blizzard.js`). Einleser im Broker Client (`blizzard-import.js`), Auswahl der Häuser unter Quellen, Einstellung `blizzard.houses`. Beobachter nur in der Testfassung (`blizzard-watch.js`). Wissen und offene Fragen: `docs\konzepte\manager\Peon_Blizzard_API.md`.
 - Gegenstands-Tooltip (ab 0.12.0, `src\core\item-info.js`, Tabelle `item_info`): unter Gegenstände beim Überfahren und in der Detailansicht unter Eigenschaften, Daten aus der Blizzard-API. Wissen dazu: `docs\konzepte\manager\Peon_Blizzard_API.md`.
-- Reiter Debug (ab 0.13.0, `src\core\errors.js`, Tabelle `errors` in `peon.db`): Fehler aus `Peon.lua` und `!BugGrabber.lua`, Export als Text, Senden über den Worker, Leeren über `errorsClearBefore` in `Data.lua`. Worker: `worker\peon-fehler\` (Einrichtung in der README dort). Worker läuft unter `peon-fehler.karloderbaer.workers.dev`, Adresse steht in `REPORT_URL` (ab 0.13.1).
+- Reiter Rückmeldungen (ab 0.14.0, `src\core\reports.js`, Tabellen `errors` und `feedback` in `peon.db`): liest Fehler aus `Peon.lua` und `!BugGrabber.lua` und Rückmeldungen aus `Peon_Feedback.lua`, eigene Rückmeldungen schreiben, alles bearbeiten und löschen, Notizen zu Fehlern. Senden über den Worker (ein Issue je Eintrag, höchstens 20 je Senden). Das Spiel löscht Eingelesenes über `errorsClearBefore` und `feedbackClearBefore` in `Data.lua`. Worker: `worker\peon-fehler\` (Einrichtung in der README dort). Worker läuft unter `peon-fehler.karloderbaer.workers.dev`, Adresse steht in `REPORT_URL` (ab 0.13.1).
 - AHledger ist ab 0.11.0 entfernt.
 - Bauen: `npm ci`, `npm run dist:setup` (Installer) oder `npm run dist` (nur Ordner) (Ordner `manager\release\win-unpacked`), Selbsttest mit `PEON_MANAGER_SELFTEST=<Ordner>`.
 - Tests: `npm test` im Ordner `manager\` (Rechenkern, dazu der Vergleich mit Brokers Sales.lua über `tools\lua5.1.exe`).
@@ -115,6 +115,17 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 
 **5. Später:** Verkaufsquote (Ledger) und Absatzquote (Broker) verbinden; nach erfolgreichen Tests Ledger 1.0.
 
+## Peon_Feedback – 0.3.0 (Zusatz, Feedback im Spiel)
+
+- Dateien: Locales.lua, Feedback.lua, Window.lua, Options.lua. Symbol `INV_Misc_Note_01`. `## OptionalDeps: Peon_Bridge`
+- SavedVariables: `PeonFeedbackDB` (accountweit): `entries` (id, t, module, kind, area, prio, text, char, market, zone, ver, edited), `nextId`, `last`, `windowPos`, `minimapShow`, `minimapAngle`
+- Befehle: `/feedback` bzw. `/peon feedback` (Fenster), `/feedback optionen`, `/peon debug feedback`
+- Funktionen: Rückmeldungen im Spiel schreiben, ändern und löschen, Knopf „An Manager“ lädt neu und übergibt sie. Der Manager liest sie ein und führt sie weiter, das Addon löscht beim nächsten Laden, was er hat. Ohne Manager bleiben sie nur im Spiel.
+- Braucht Peon API 7, Bereiche ab API 9. Aus dem Archiv zurück (0.2.0 bleibt in `<Archiv>\Peon_Feedback_0.2.0\`).
+- **Noch offen bei KarloDerBaer:** Der AddOns-Ordner enthält noch den normalen Ordner 0.2.0. Ins Archiv verschieben und `scripts\junctions.cmd anlegen` ausführen, WoW muss dafür geschlossen sein.
+- Verlauf der Versionen: `docs/changelog/Peon_Feedback.md`
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.3.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+
 ## Peon_Mover – 0.1.0 (neu, Fenster verschieben)
 
 - Konzept: `Peon_Mover_Konzept.md` (abgestimmt 06.10.2026). Dateien: Locales.lua, Frames.lua, Mover.lua, Options.lua; Symbol `Ability_Rogue_Sprint`.
@@ -136,7 +147,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 ## Projektordner <Repo>
 
 - Git-Repo, Aufbau siehe `docs\projekt\Peon_Ueberblick.md` (Wo alles liegt) und `docs\README.md`.
-- `tests\`: eine Testdatei je Modul, Übersicht in `tests\README.md`. Die Tests für Peon_Feedback liegen im Archiv.
+- `tests\`: eine Testdatei je Modul, Übersicht in `tests\README.md`.
 - `tools\`: lua5.1.exe (Windows), lua5.1-linux (Linux, GitHub), LUA_COPYRIGHT.txt, gebaut aus dem offiziellen Quellcode Lua 5.1.5
 - `vorlage\`: Peon_Beispiel (fertiges Grundgerüst) und test_beispiel.lua
 - Alte Lieferungen aus dem Chat (`eingang\`) liegen im Archiv `<Archiv>\eingang\`.
