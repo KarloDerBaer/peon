@@ -94,7 +94,7 @@ local function Refresh()
     local extra = {}
     if #reagent > 0 then extra[#extra + 1] = { title = L.SEC_REAGENTBANK, items = reagent } end
     if #account > 0 then extra[#extra + 1] = { title = L.SEC_ACCOUNT, items = account } end
-    w:Arrange(ns.BuildSections(w:Layout(), main, extra), all)
+    w:Arrange(ns.BuildSections(w:Layout(), main, extra, true), all)
     w:UpdateLayoutButton()
     for _, bb in ipairs(barButtons) do bb:Refresh() end
     UpdateFooter()

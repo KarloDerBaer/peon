@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 06.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.13.0 / Broker 0.34.0 / Bridge 0.6.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.17.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.2 / Fishing 1.5.2 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.2.2 / Feedback 0.3.1.
+Stand: 06.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.13.0 / Broker 0.34.0 / Bridge 0.6.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.17.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.10.2 / Fishing 1.5.2 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.3.0 / Feedback 0.3.1.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.13.0, API 13
@@ -139,15 +139,15 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Befehle: `/peon mover` (Optionen), `/peon mover zuruecksetzen` (alle Fenster), `/peon debug mover` (Log: eingehängte Fenster, Verschieben, Größe).
 - Verlauf der Versionen: `docs/changelog/Peon_Mover.md`
 
-## Peon_Bags – 0.2.2 (neu, Taschen, Bank, Gildenbank)
+## Peon_Bags – 0.3.0 (neu, Taschen, Bank, Gildenbank)
 
-- Konzept: `Peon_Bags_Konzept.md` (abgestimmt 07.10.2026). Ersetzt Bagnon, Bagnon_Bank, Bagnon_GuildBank und BagBrother (Twinks zeigt Ledger).
-- Dateien: Locales.lua, Bags.lua, Slots.lua, Window.lua, Inventory.lua, Bank.lua, Guild.lua, Options.lua; Symbol `INV_Misc_Bag_08`.
-- SavedVariables: `PeonBagsDB` (accountweit): `replace` (Taschen und Bank ersetzen, an), `replaceGuild` (an), `bagCols` (10), `bagScale` (100 %), `bagLayout` (bags/type), `bagBar` (an), `bankCols`/`bankScale`/`bankLayout` (14, 100, bags), `guildCols`/`guildScale`/`guildLayout` (14, 100, bags), `quality`, `newGlow`, `junk` (an), `autoMerchant`, `autoBank`, `autoMail`, `autoAuction`, `autoTrade`, `autoGuild` (an), `pos[bag|bank|guild] = { x, y }` (bleibt bei „Standardwerte“). Spalten 6–24, Größe 50–200 % (5er).
-- Braucht Peon API 6 (Auswahlliste); Bereiche für Peon_Feedback ab API 9.
+- Konzept: `Peon_Bags_Konzept.md` (abgestimmt 07.10.2026), eigene Bereiche `Peon_Bags_Bereiche.md` (abgestimmt 06.11.2026). Ersetzt Bagnon, Bagnon_Bank, Bagnon_GuildBank und BagBrother (Twinks zeigt Ledger).
+- Dateien: Locales.lua, Bags.lua, Groups.lua (ab 0.3), Slots.lua, Window.lua, Inventory.lua, Bank.lua, Guild.lua, Options.lua; Symbol `INV_Misc_Bag_08`.
+- SavedVariables: `PeonBagsDB` (accountweit): `replace` (Taschen und Bank ersetzen, an), `replaceGuild` (an), `bagCols` (10), `bagScale` (100 %), `bagLayout` (bags/type), `bagBar` (an), `bankCols`/`bankScale`/`bankLayout` (14, 100, bags), `guildCols`/`guildScale`/`guildLayout` (14, 100, bags), `quality`, `newGlow`, `junk` (an), `autoMerchant`, `autoBank`, `autoMail`, `autoAuction`, `autoTrade`, `autoGuild` (an), `pos[bag|bank|guild] = { x, y }`, `groups` (eigene Bereiche: id, name, ab 0.3), `groupItems[itemID oder "itemID:voller Name"] = Bereich` (ab 0.3), alle drei bleiben bei „Standardwerte“. Spalten 6–24, Größe 50–200 % (5er).
+- Braucht Peon API 7 (Liste, ab 0.3); Bereiche für Peon_Feedback ab API 9.
 - Befehle: `/peon bags` (Taschenfenster ein/aus, geht immer – auch mit Bagnon), `/peon bags optionen`, `/peon bags debug`.
 - Verlauf der Versionen: `docs/changelog/Peon_Bags.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.2.2, 0.2.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.3.0, 0.2.2, 0.2.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Projektordner <Repo>
 
@@ -160,6 +160,10 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 ## Offene Punkte
 
 Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie beschlossen sind.
+
+### Peon_Bags: eigene Bereiche (beschlossen 06.11.2026, Konzept `Peon_Bags_Bereiche.md`)
+
+Erste Fassung gebaut mit Bags 0.3.0 (Bauabschnitte B1 bis B3), noch in keinem Release und im Spiel noch nicht geprüft. **Noch offen:** der Bereich zu Brokers Behalten-Liste (B4), nachdem die erste Fassung im Spiel läuft.
 
 ### Todo: Überarbeitung (KarloDerBaer, 06.11.2026)
 

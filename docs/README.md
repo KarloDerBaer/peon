@@ -27,6 +27,7 @@
 | Tooltip | [Peon_Tooltip_Konzept.md](konzepte/tooltip/Peon_Tooltip_Konzept.md) | Teile im Gegenstands-Tooltip |
 | Mover | [Peon_Mover_Konzept.md](konzepte/mover/Peon_Mover_Konzept.md) | Fenster verschieben |
 | Bags | [Peon_Bags_Konzept.md](konzepte/bags/Peon_Bags_Konzept.md) | Taschen, Bank, Gildenbank |
+| Bags | [Peon_Bags_Bereiche.md](konzepte/bags/Peon_Bags_Bereiche.md) | Eigene Bereiche in Taschen und Bank |
 
 ## Verlauf der Versionen (`changelog/`)
 

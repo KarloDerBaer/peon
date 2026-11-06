@@ -10,7 +10,7 @@
 local ADDON_NAME, ns = ...
 local L = ns.L
 
-if not Peon or (Peon.API or 0) < 6 then
+if not Peon or (Peon.API or 0) < 7 then
     if Peon and Peon.Print then Peon.Print("Peon_Bags: " .. L.MSG_OLD_PEON) end
     return
 end
@@ -44,13 +44,15 @@ local mod = Peon:NewModule(ADDON_NAME, {
         autoTrade    = true,
         autoGuild    = true,
         pos          = {},        -- [Fenster] = { x, y } linke obere Ecke in UIParent-Einheiten
+        groups       = {},        -- eigene Bereiche, siehe Groups.lua
+        groupItems   = {},        -- [Gegenstand] = Bereich
     },
     ranges = {
         bagCols = { 6, 24, 1 }, bankCols = { 6, 24, 1 }, guildCols = { 6, 24, 1 },
         bagScale = { 50, 200, 5 }, bankScale = { 50, 200, 5 }, guildScale = { 50, 200, 5 },
     },
     choices  = { bagLayout = LAYOUTS, bankLayout = LAYOUTS, guildLayout = LAYOUTS },
-    keepOnReset = { pos = true },
+    keepOnReset = { pos = true, groups = true, groupItems = true },
     onSlash  = function(m, cmd)
         if cmd == "optionen" or cmd == "options" or cmd == "config" then
             m:OpenOptions()
@@ -294,6 +296,6 @@ mod:On("CHANGED", ApplyAll)
 mod:On("RESET", ApplyAll)
 
 if Peon.SetFeedbackAreas then
-    Peon.SetFeedbackAreas(ADDON_NAME, { "Taschen", "Bank", "Gildenbank", "Anordnung", "Suche", "Plätze",
+    Peon.SetFeedbackAreas(ADDON_NAME, { "Taschen", "Bank", "Gildenbank", "Anordnung", "Bereiche", "Suche", "Plätze",
         "Öffnen/Schließen", "Taschenleiste", "Optionen" })
 end

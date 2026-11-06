@@ -34,8 +34,41 @@ ns.SortItems = SortItems
 
 -- Abschnitte fuer eine Liste von Plaetzen nach Anordnung bauen
 -- main = Plaetze (Taschenreihenfolge), extra = weitere Abschnitte { title, items } (bleiben eigene Abschnitte)
-function ns.BuildSections(layout, main, extra)
+-- useGroups = eigene Bereiche voranstellen (Taschen, Bank; ab 0.3). Sie ziehen ihre Gegenstaende auch aus den
+-- weiteren Abschnitten ab. Mit Bereichen nehmen alle Ueberschriften abgelegte Gegenstaende an (target).
+function ns.BuildSections(layout, main, extra, useGroups)
     local sections = {}
+    local target
+    local own = useGroups and ns.Groups() or nil
+    local hasGroups = own ~= nil and #own > 0
+    if hasGroups then
+        target = ns.GROUP_NONE
+        local byId = {}
+        for _, g in ipairs(own) do
+            local sec = { name = g.name, items = {}, target = g.id, keepEmpty = true }
+            byId[g.id] = sec
+            sections[#sections + 1] = sec
+        end
+        local function Split(list)
+            local rest = {}
+            for _, b in ipairs(list) do
+                local gid = ns.GroupOf(b.peonInfo)
+                local sec = gid and byId[gid]
+                if sec then table.insert(sec.items, b) else rest[#rest + 1] = b end
+            end
+            return rest
+        end
+        main = Split(main)
+        local restExtra = {}
+        for i, sec in ipairs(extra or {}) do
+            restExtra[i] = { title = sec.title, items = Split(sec.items) }
+        end
+        extra = restExtra
+        for _, sec in ipairs(sections) do
+            table.sort(sec.items, SortItems)
+            sec.title = #sec.items > 0 and sec.name or L.GROUP_EMPTY:format(sec.name)
+        end
+    end
     if layout == "type" then
         local groups = {}
         for _, c in ipairs(ns.CATS) do groups[c] = {} end
@@ -47,11 +80,11 @@ function ns.BuildSections(layout, main, extra)
             local g = groups[c]
             if #g > 0 then
                 table.sort(g, SortItems)
-                sections[#sections + 1] = { title = ns.CAT_TITLE[c], items = g }
+                sections[#sections + 1] = { title = ns.CAT_TITLE[c], items = g, target = target }
             end
         end
     else
-        sections[1] = { items = main }
+        sections[#sections + 1] = { title = hasGroups and L.SEC_OTHER or nil, items = main, target = target, keepEmpty = hasGroups }
     end
     for _, sec in ipairs(extra or {}) do
         local items = sec.items
@@ -60,7 +93,7 @@ function ns.BuildSections(layout, main, extra)
             for i, b in ipairs(sec.items) do items[i] = b end
             table.sort(items, SortItems)
         end
-        sections[#sections + 1] = { title = sec.title, items = items }
+        sections[#sections + 1] = { title = sec.title, items = items, target = target }
     end
     return sections
 end
@@ -129,7 +162,7 @@ local function Refresh()
         if not ns.queue["bags:refresh"] then mod:Print(L.MSG_COMBAT) end
         ns.Defer("bags:refresh", Refresh)
     end
-    w:Arrange(ns.BuildSections(w:Layout(), main, extra), all)
+    w:Arrange(ns.BuildSections(w:Layout(), main, extra, true), all)
     w:UpdateLayoutButton()
     UpdateFooter()
     UpdateBar()

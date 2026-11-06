@@ -2,6 +2,13 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 06.11.2026: Eigene Bereiche in Peon_Bags (Bags 0.3.0, Konzept `Peon_Bags_Bereiche.md`)
+
+- **Eigene, frei benennbare Bereiche** in Taschen und Bank, accountweit (KarloDerBaer, Vorschlag Claude). Die Gildenbank bleibt außen vor, weil sie allen in der Gilde gehört (Claude).
+- **Zuordnen per Ziehen auf die Überschrift**, weil alle Klicks auf Gegenstände schon belegt sind (KarloDerBaer, Vorschlag Claude).
+- **Brokers Behalten-Liste kommt als zweiter Schritt** in einen eigenen Bereich, nur lesend und abschaltbar (KarloDerBaer, Vorschlag Claude). Das lockert „vorerst keine Broker-Anzeigen“ vom 07.10.2026.
+- Gegenstände mit Zusatz werden je Variante getrennt, weil man oft nur eine davon behalten will (Claude).
+
 ## 06.11.2026: Navigation, Einkaufsliste, Favoriten, Ladezeiten (Peon Manager 0.17.0, Broker 0.34.0, Bridge 0.6.0)
 
 - **Märkte heißen „PvE Allianz“**, der interne Name des Spiels steht nur noch unter Quellen. Die Auswahl sitzt in der Seitenleiste und erscheint erst ab zwei Märkten (KarloDerBaer). Der Schlüssel bleibt, weil Broker damit seine Werte findet (Claude).

@@ -268,13 +268,39 @@ end
 
 ---------------------------------------------------------------------------
 -- Abschnitte anordnen
--- sections = { { title = Text oder nil, items = { Knopf, ... } }, ... }
+-- sections = { { title = Text oder nil, items = { Knopf, ... }, keepEmpty, target }, ... }
+-- keepEmpty = Ueberschrift auch ohne Gegenstaende zeigen
+-- target = nimmt abgelegte Gegenstaende an (Bereich-id oder ns.GROUP_NONE, siehe Groups.lua), nil = reine Schrift
 ---------------------------------------------------------------------------
 local function Header(w, i)
     local h = w.headers[i]
     if not h then
-        h = w.content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        h:SetJustifyH("LEFT")
+        -- Rahmen statt reiner Schrift (ab 0.3), nicht geschuetzt: darf sich auch im Kampf bewegen
+        h = CreateFrame("Button", nil, w.content)
+        h:SetHeight(HDR_H)
+        h.label = h:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        h.label:SetPoint("TOPLEFT", 0, 0)
+        h.label:SetPoint("TOPRIGHT", 0, 0)
+        h.label:SetJustifyH("LEFT")
+        h:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+        h:RegisterForClicks("LeftButtonUp")
+        h:RegisterForDrag("LeftButton")
+        local function Drop(self) mod:Call("Bereich", ns.DropOnHeader, self.target) end
+        h:SetScript("OnClick", Drop)
+        h:SetScript("OnReceiveDrag", Drop)
+        -- Ziehen an der Ueberschrift bewegt weiter das Fenster
+        h:SetScript("OnDragStart", function() w.frame:StartMoving() end)
+        h:SetScript("OnDragStop", function()
+            w.frame:StopMovingOrSizing()
+            w:SavePosition()
+        end)
+        h:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetText(self.text or "", 1, 1, 1)
+            GameTooltip:AddLine(self.target == ns.GROUP_NONE and L.GROUP_TIP_OUT or L.GROUP_TIP_IN, nil, nil, nil, true)
+            GameTooltip:Show()
+        end)
+        h:SetScript("OnLeave", function() GameTooltip:Hide() end)
         w.headers[i] = h
     end
     return h
@@ -297,13 +323,16 @@ function Window:Arrange(sections, allButtons)
     local shown = {}
     for _, sec in ipairs(sections) do
         local n = #sec.items
-        if n > 0 then
+        if n > 0 or sec.keepEmpty then
             if sec.title then
                 hi = hi + 1
                 local h = Header(self, hi)
                 h:ClearAllPoints()
                 h:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -y)
-                h:SetText(sec.title)
+                h:SetWidth(cols * step - GAP)
+                h.label:SetText(sec.title)
+                h.text, h.target = sec.title, sec.target
+                h:EnableMouse(sec.target ~= nil)
                 h:Show()
                 y = y + HDR_H
             end

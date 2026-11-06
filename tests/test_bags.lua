@@ -423,6 +423,154 @@ loadedAddons.Bagnon = nil
 SlashCmdList.PEON("bags optionen")
 check(out[#out] == "OPEN Peon/Bags", "/peon bags optionen oeffnet die Seite")
 
+-- ===== Eigene Bereiche (ab 0.3) =====
+local function headers(win)
+  local t = {}
+  for _, h in ipairs(win.headers) do if h.shown then t[#t + 1] = h.text end end
+  return table.concat(t, ",")
+end
+local function headerOf(win, text)
+  for _, h in ipairs(win.headers) do if h.shown and h.text == text then return h end end
+end
+local cursor, cleared = nil, 0
+function GetCursorInfo() if cursor then return unpack(cursor) end end
+function ClearCursor() cleared = cleared + 1; cursor = nil end
+local function drop(h, id, link, how)
+  cursor = { "item", id, link or ("|cnIQ1:|Hitem:" .. id .. "|h[x]|h|r") }
+  h.scripts[how or "OnReceiveDrag"](h)
+end
+local popupArgs
+function StaticPopup_Show(n, a, b, data) popupShown = n; popupArgs = { a, b, data } end
+
+check(ns.ItemKey(25, "|cnIQ2:|Hitem:25::::::::20:1488|h[Kurzschwert]|h|r") == 25, "Schluessel ohne Zusatz: nur die Nummer")
+check(ns.ItemKey(6611, "|cnIQ2:|Hitem:6611::::::::20:1488:::1:12731:::|h[Schwert des Wolfs]|h|r") == "6611:Schwert des Wolfs", "Schluessel mit Bonus-Nummer: je Variante")
+check(ns.ItemKey(6611, "|cnIQ2:|Hitem:6611::::::12:::::::|h[Schwert des Baeren]|h|r") == "6611:Schwert des Baeren", "Schluessel mit Zusatz in Feld 7: je Variante")
+check(ns.ItemKey(25, nil) == 25 and ns.ItemKey(nil, nil) == nil, "Schluessel ohne Link oder Nummer")
+
+check(PeonBagsDB.groups and #PeonBagsDB.groups == 0, "anfangs keine Bereiche")
+ns.ShowBags()
+check(headers(w) == "Reagenzientasche", "ohne Bereiche sieht das Fenster aus wie bisher: " .. headers(w))
+check(headerOf(w, "Reagenzientasche").target == nil, "ohne Bereiche nimmt keine Ueberschrift etwas an")
+
+local g1 = ns.AddGroup("  Behal|ten ")
+local g2 = ns.AddGroup("Farmen")
+check(g1.name == "Behalten" and g1.id == 1 and g2.id == 2, "Bereiche angelegt, Name bereinigt")
+check(ns.AddGroup("behalten") == nil and #PeonBagsDB.groups == 2, "gleicher Name abgelehnt")
+check(ns.AddGroup("   ") == nil and #PeonBagsDB.groups == 2, "leerer Name abgelehnt")
+check(headers(w) == "Behalten (Gegenstand hierher ziehen),Farmen (Gegenstand hierher ziehen),Übrige,Reagenzientasche", "leere Bereiche bleiben sichtbar: " .. headers(w))
+
+-- Ablegen
+local hb = headerOf(w, "Behalten (Gegenstand hierher ziehen)")
+check(hb.target == 1, "Ueberschrift kennt ihren Bereich")
+drop(hb, 2581)
+check(PeonBagsDB.groupItems[2581] == 1 and cleared == 1 and cursor == nil, "Ablegen ordnet zu und gibt den Gegenstand zurueck")
+check(headers(w):find("^Behalten,") ~= nil, "Bereich zeigt seinen Namen: " .. headers(w))
+check(ns.slots[0][2].points[1][4] == 0 and ns.slots[0][2].points[1][5] == -16, "Gegenstand steht unter der Ueberschrift")
+local before = cleared
+cursor = { "merchant", 5 }
+hb.scripts.OnClick(hb)
+check(cleared == before and cursor ~= nil, "anderes am Mauszeiger bleibt unberuehrt")
+cursor = nil
+hb.scripts.OnClick(hb)
+check(cleared == before, "Klick ohne Gegenstand tut nichts")
+drop(headerOf(w, "Farmen (Gegenstand hierher ziehen)"), 2581, nil, "OnClick")
+check(PeonBagsDB.groupItems[2581] == 2, "Klick mit Gegenstand: wechselt den Bereich")
+drop(headerOf(w, "Farmen"), 2589)
+check(ns.GroupOf(bags[0].items[1]) == 2 and ns.GroupOf(bags[0].items[4]) == 2, "alle Stapel eines Gegenstands im selben Bereich")
+-- Farmen steht unter der leeren Ueberschrift von Behalten (16 + 6 + 16 = 38)
+check(ns.slots[0][1].points[1][4] == 0 and ns.slots[0][4].points[1][4] == 41 and ns.slots[0][2].points[1][4] == 82 and ns.slots[0][2].points[1][5] == -38, "innerhalb des Bereichs sortiert")
+
+-- Reagenzientasche: eigene Zuordnung geht vor
+drop(headerOf(w, "Farmen"), 2770)
+check(ns.slots[1][2].points[1][4] == 0 and ns.slots[5][1].points[1][4] == 41 and ns.slots[5][1].points[1][5] == -38, "Stapel aus der Reagenzientasche steht im Bereich")
+check(w.footLeft.text:find("Reagenzien 11/12") ~= nil, "freie Plaetze unveraendert: " .. w.footLeft.text)
+
+-- Varianten getrennt
+bags[1].items[3] = Item(6611, "Schwert des Wolfs", 2, 1, { hyperlink = "|cnIQ2:|Hitem:6611::::::::20:1488:::1:12731|h[Schwert des Wolfs]|h|r" })
+bags[1].items[4] = Item(6611, "Schwert des Baeren", 2, 1, { hyperlink = "|cnIQ2:|Hitem:6611::::::::20:1488:::1:12732|h[Schwert des Baeren]|h|r" })
+drop(headerOf(w, "Behalten (Gegenstand hierher ziehen)"), 6611, bags[1].items[3].hyperlink)
+check(ns.GroupOf(bags[1].items[3]) == 1 and ns.GroupOf(bags[1].items[4]) == nil, "Varianten eines Gegenstands getrennt")
+
+-- Herausnehmen
+drop(headerOf(w, "Übrige"), 2589)
+check(PeonBagsDB.groupItems[2589] == nil, "Ablegen auf Uebrige nimmt heraus")
+drop(headerOf(w, "Farmen"), 2589)
+
+-- Anordnung nach Art: Bereiche bleiben oben, feste Ueberschriften nehmen heraus
+w.layoutBtn.scripts.OnClick(w.layoutBtn, "LeftButton")
+check(headers(w):find("^Behalten,Farmen,") ~= nil and headers(w):find("Übrige") == nil and headers(w):find("Ausrüstung") ~= nil, "nach Art: " .. headers(w))
+drop(headerOf(w, "Ausrüstung"), 6611, bags[1].items[3].hyperlink)
+check(PeonBagsDB.groupItems["6611:Schwert des Wolfs"] == nil, "Ablegen auf feste Ueberschrift nimmt heraus")
+w.layoutBtn.scripts.OnClick(w.layoutBtn, "LeftButton")
+
+-- Bank nutzt dieselben Bereiche
+fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 8)
+check(bw:IsShown() and headers(bw):find("^Behalten") ~= nil and headers(bw):find("Farmen,Übrige") ~= nil, "Bank zeigt die Bereiche: " .. headers(bw))
+check(ns.slots[6][1].points[1][5] == -38 and ns.slots[6][1].points[1][4] == 0, "Leinenstoff der Bank steht im Bereich")
+fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 8)
+ns.ShowBags()
+
+-- Gildenbank bleibt ohne Bereiche
+do
+  local secs = ns.BuildSections("bags", { ns.slots[0][1] })
+  check(#secs == 1 and secs[1].title == nil and secs[1].target == nil, "ohne useGroups keine Bereiche (Gildenbank)")
+end
+
+-- Kampf: Zuordnung sofort gespeichert, Plaetze danach
+for _, list in pairs(ns.slots) do for _, b in pairs(list) do b.protected = true end end
+combat = true
+drop(headerOf(w, "Behalten (Gegenstand hierher ziehen)"), 25)
+check(PeonBagsDB.groupItems[25] == 1 and ns.queue["arrange:bag"], "im Kampf: gespeichert, Anordnen vorgemerkt")
+combat = false
+fire("PLAYER_REGEN_ENABLED")
+check(not ns.queue["arrange:bag"] and headers(w):find("^Behalten,") ~= nil and ns.slots[0][3].points[1][5] == -16, "nach dem Kampf angeordnet")
+for _, list in pairs(ns.slots) do for _, b in pairs(list) do b.protected = nil end end
+
+-- Verwalten
+check(ns.MoveGroup(2, -1) and PeonBagsDB.groups[1].name == "Farmen" and headers(w):find("^Farmen,") ~= nil, "Bereich nach oben")
+check(not ns.MoveGroup(2, -1), "oben ist Schluss")
+check(ns.RenameGroup(2, "Gesammelt") and headers(w):find("^Gesammelt,") ~= nil, "umbenennen")
+check(not ns.RenameGroup(2, "behalten") and PeonBagsDB.groups[1].name == "Gesammelt", "umbenennen auf belegten Namen abgelehnt")
+check(ns.RenameGroup(2, "GESAMMELT") and ns.RenameGroup(2, "Gesammelt"), "eigener Name in anderer Schreibweise geht")
+
+-- Optionsseite
+local listC
+for _, c in ipairs(mod.page.controls) do if c.list and c.list.columns[2].key == "name" then listC = c end end
+check(listC, "Liste der Bereiche auf der Optionsseite")
+local rows = listC.list.data
+check(#rows == 2 and rows[1].name == "Gesammelt" and rows[1].pos == 1 and rows[1].count == ns.CountGroup(2) and rows[1].count >= 3, "Liste zeigt Bereiche und Anzahl")
+check(StaticPopupDialogs.PEON_BAGS_GROUP_NEW and StaticPopupDialogs.PEON_BAGS_GROUP_RENAME and StaticPopupDialogs.PEON_BAGS_GROUP_DELETE, "Rueckfragen vorhanden")
+do
+  local dialog = { editBox = W("EditBox"), data = 2 }
+  StaticPopupDialogs.PEON_BAGS_GROUP_RENAME.OnShow(dialog)
+  check(dialog.editBox.text == "Gesammelt", "Umbenennen zeigt den alten Namen")
+  dialog.editBox.text = "Ernte"
+  StaticPopupDialogs.PEON_BAGS_GROUP_RENAME.OnAccept(dialog, 2)
+  check(PeonBagsDB.groups[1].name == "Ernte" and listC.list.data[1].name == "Ernte", "Umbenennen uebernommen, Liste aktuell")
+  local fresh = { editBox = W("EditBox") }
+  StaticPopupDialogs.PEON_BAGS_GROUP_NEW.OnShow(fresh)
+  fresh.editBox.text = "Leer"
+  StaticPopupDialogs.PEON_BAGS_GROUP_NEW.OnAccept(fresh)
+  check(#PeonBagsDB.groups == 3 and PeonBagsDB.groups[3].name == "Leer" and listC.list:GetSelected().name == "Leer", "neuer Bereich angelegt und markiert")
+end
+
+-- Standardwerte lassen die Bereiche stehen
+mod:ResetDefaults()
+check(#PeonBagsDB.groups == 3 and PeonBagsDB.groupItems[25] == 1, "Standardwerte: Bereiche und Zuordnung bleiben")
+
+-- Loeschen
+popupShown = nil
+ns.AskDeleteGroup(PeonBagsDB.groups[3].id)
+check(popupShown == nil and #PeonBagsDB.groups == 2, "leerer Bereich geht ohne Rueckfrage")
+ns.AskDeleteGroup(2)
+check(popupShown == "PEON_BAGS_GROUP_DELETE" and #PeonBagsDB.groups == 2 and popupArgs[1] == "Ernte" and popupArgs[3] == 2, "Bereich mit Gegenstaenden fragt nach")
+StaticPopupDialogs.PEON_BAGS_GROUP_DELETE.OnAccept(nil, 2)
+check(#PeonBagsDB.groups == 1 and PeonBagsDB.groupItems[2581] == nil and PeonBagsDB.groupItems[2589] == nil and PeonBagsDB.groupItems[25] == 1, "Loeschen entfernt nur die eigenen Zuordnungen")
+check(bags[0].items[2] ~= nil, "Gegenstaende bleiben in der Tasche")
+ns.DeleteGroup(1)
+check(next(PeonBagsDB.groupItems) == nil and headers(w) == "Reagenzientasche", "ohne Bereiche wieder wie zuvor: " .. headers(w))
+ns.HideBags()
+
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end
 check(n == 0, "keine Fehlermeldungen")
 print("ALLE TESTS OK")
