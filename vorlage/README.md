@@ -8,7 +8,7 @@
 2. In allen Dateien ersetzen: `Beispiel` → `Gatherer`, `beispiel` → `gatherer`, `PeonBeispielDB` → `PeonGathererDB`.
 3. In der TOC Titel, Notes (en/de), IconTexture und Version (0.1.0) anpassen. Pro-Charakter-Werte: `## SavedVariablesPerCharacter: PeonGathererCharDB` und in `NewModule` `charDB` + `charKeys` setzen.
 4. `test_beispiel.lua` als `tests\test_gatherer.lua` ablegen, Namen ersetzen, Prüfungen erweitern.
-5. Testen (`tests\run_tests.cmd`), dann mit `scripts\junctions.cmd` die Junction im AddOns-Ordner anlegen (WoW geschlossen).
+5. Testen (`tests\run_tests.cmd`), dann mit `scripts\junctions.cmd entwicklung Peon_Gatherer` die Junction im AddOns-Ordner anlegen (WoW geschlossen).
 6. **WoW komplett neu starten** (neuer Addon-Ordner, `/reload` reicht nicht).
 7. `docs\changelog\Peon_Gatherer.md` anlegen, `docs\projekt\Peon_Stand.md` und bei Bedarf `Peon_Entscheidungen.md` ergänzen.
 

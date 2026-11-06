@@ -2,6 +2,15 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 06.11.2026: Umbau des Peon Managers, Updates wie bei allen anderen
+
+- **KarloDerBaer bekommt Updates über den normalen Weg**, um zu erleben, was Freunde erleben (KarloDerBaer). Der Normalzustand im AddOns-Ordner sind echte Ordner, die der Manager im Kanal Test aktualisiert. Junctions gibt es nur noch beim Entwickeln, auch für einzelne Addons (`scripts\junctions.cmd manager` und `entwicklung`), weil sonst jede kleine Änderung einen Bau auf GitHub bräuchte (Claude, zugestimmt).
+- **Jedes Release zuerst als Vorabversion** mit `-test`, nach der Prüfung durch KarloDerBaer derselbe Stand als normales Release (Claude, zugestimmt). Freunde im Kanal Stabil sehen im Manager nur normale Releases.
+- Beim Wechsel zu Entwicklung wandert der echte Ordner ins Archiv, auch wenn er vom Repo abweicht, denn dort geht nichts verloren. `anlegen` bleibt streng und ersetzt nur gleiche Ordner (Claude).
+- **Aufbewahrung neu:** Standard 14 Tage alle Angebote und 60 Tage Stundenwerte (etwa 2,7 GB statt 12,7 GB nach einem Jahr), Vorlagen und zwei Regler, Tageswerte bleiben unbegrenzt (KarloDerBaer, Vorschlag Claude).
+- **Seitenleiste nach Modulen**, die Gruppe des Broker Client heißt „Broker“ (KarloDerBaer).
+- Reihenfolge: Umschalter, Aufbewahrung, Seitenleiste mit Quellen und Übersicht, Update-Fenster (KarloDerBaer, Vorschlag Claude). Dazu alle vorgeschlagenen Ideen, siehe `Peon_Stand.md` (KarloDerBaer).
+
 ## 06.11.2026: Feedback zurück, der Manager führt (Peon 0.13.0, Peon_Feedback 0.3.0, Manager 0.14.0)
 
 - **Peon_Feedback kommt zurück und wird ausgeliefert.** Das löst die Entscheidung vom 31.10.2026 ab („Kein Feedback über GitHub oder das Programm“), weil der Weg über den Worker jetzt ohne Aufwand für Nutzer besteht (KarloDerBaer).

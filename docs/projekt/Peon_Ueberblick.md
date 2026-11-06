@@ -7,7 +7,7 @@ Stand: 25.10.2026. Addon-Sammlung von KarloDerBaer für **WoW Forever** (bis 23.
 Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, `<Archiv>`, `<WoW-Ordner>`, `<WoW-Beta-Ordner>`, `<Programmordner>`, `<alter Programmordner>`. Die echten Pfade stehen in `CLAUDE.local.md` (nur auf dem Rechner von KarloDerBaer, nicht im Repo).
 
 - **Repo (ab 31.10.2026):** `<Repo>\` ist ein Git-Repo und die maßgebliche Quelle für Code und Doku:
-  - `addons\` Addon-Code (maßgeblich). Im AddOns-Ordner des Spiels ist jeder Peon-Ordner eine Junction auf `addons\<Modul>`, angelegt mit `scripts\junctions.cmd`. Code nur in `addons\` ändern.
+  - `addons\` Addon-Code (maßgeblich). Im AddOns-Ordner des Spiels steht jeder Peon-Ordner auf einer von zwei Arten (`scripts\junctions.cmd`, siehe „Arbeitsweise“): Manager (echter Ordner, Normalzustand ab 06.11.2026) oder Entwicklung (Junction auf `addons\<Modul>`). Code nur in `addons\` ändern.
   - `manager\` Quellcode des Programms (bisher `client\`, Anleitung in `manager\README.md`)
   - `docs\` Doku, Inhaltsverzeichnis in `docs\README.md`: `projekt\` (Überblick, Stand, Entscheidungen, Vorlage), `konzepte\<modul>\` (Konzepte und Designs), `changelog\<Modul>.md` (Verlauf der Versionen, neueste oben), `archiv\` (abgelöste Konzepte)
   - `tests\` (Testdateien, `run_tests.cmd` für Windows, `run_tests.sh` für Git Bash und Linux, beide laufen auf `addons\`), `tools\` (Lua 5.1), `vorlage\` (Vorlage für neue Module), `scripts\` (Junctions, Release-Bau)
@@ -201,6 +201,8 @@ Peon.NiceRange(lo, hi, schritte)
 - Vor größeren Änderungen die Entscheidungen mit KarloDerBaer abstimmen; Texte deutsch und ohne Fachjargon.
 - **Release-Pakete bauen:** `node scripts/build_release.js` (Zips, Manifest, Text), Einstellungen in `scripts
 elease.json`. Ein neues Addon muss dort eingetragen werden, sonst bricht der Bau ab. Jede Version in einer TOC braucht einen Abschnitt `## <Version>` im Changelog.
+- **Manager oder Entwicklung (WoW geschlossen):** `scripts\junctions.cmd` zeigt den Zustand. `junctions.cmd manager [Module]` macht aus Junctions echte Ordner, der Peon Manager aktualisiert sie dann wie bei allen anderen. `junctions.cmd entwicklung [Module]` macht aus echten Ordnern Junctions, Änderungen im Repo sind dann nach `/reload` im Spiel, der Manager lässt diese Addons in Ruhe. Der echte Ordner wandert dabei ins Archiv.
+- **Release in zwei Schritten:** Erst ein Tag `vJJJJ.MM.TT-test` (Vorabversion, nur Kanal Test). KarloDerBaer aktualisiert im Manager und prüft. Danach derselbe Stand als `vJJJJ.MM.TT`. Vorabversionen sind öffentlich sichtbar, das Repo ist öffentlich. Veröffentlicht wird nur nach Rücksprache.
 - **Nach jeder Arbeit:** Version in der TOC erhöhen, `docs\changelog\<Modul>.md`, `Peon_Stand.md` und bei Bedarf `Peon_Entscheidungen.md` aktualisieren, Tests, Commit.
 
 ## Früher: Übertragen aus der Cloud (bis 31.10.2026)
