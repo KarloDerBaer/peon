@@ -172,11 +172,11 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
 
 ### Neues Modul Peon_Panel (beschlossen 06.11.2026, Konzept `Peon_Panel_Konzept.md`)
 
-Gebaut mit Peon 0.14.0 und Peon_Panel 0.1.0, dazu Starter und Texte in Broker 0.35.0, Ledger 0.11.0, Fishing 1.6.0, Bags 0.4.0 und Feedback 0.4.0. Noch in keinem Release und im Spiel noch nicht geprüft (Konzept, Abschnitt 9). Neue Dateien, also WoW neu starten.
+Gebaut mit Peon 0.14.0 und Peon_Panel 0.1.0, dazu Starter und Texte in Broker 0.35.0, Ledger 0.11.0, Fishing 1.6.0, Bags 0.4.0 und Feedback 0.4.0. Vorabversion `v2026.11.07.4-test` veröffentlicht (07.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im Spiel noch nicht geprüft (Konzept, Abschnitt 9). Neue Dateien, also WoW neu starten. Peon_Panel ist ein neues Addon: „Alles aktualisieren“ fügt es nicht von selbst hinzu, es hat im Manager einen eigenen Knopf.
 
 ### Peon_Bags: eigene Bereiche (beschlossen 06.11.2026, Konzept `Peon_Bags_Bereiche.md`)
 
-Erste Fassung gebaut mit Bags 0.3.0 (Bauabschnitte B1 bis B3), noch in keinem Release und im Spiel noch nicht geprüft. **Noch offen:** der Bereich zu Brokers Behalten-Liste (B4), nachdem die erste Fassung im Spiel läuft.
+Erste Fassung gebaut mit Bags 0.3.0 (Bauabschnitte B1 bis B3), enthalten in der Vorabversion `v2026.11.07.4-test` (dort Bags 0.4.0), im Spiel noch nicht geprüft. **Noch offen:** der Bereich zu Brokers Behalten-Liste (B4), nachdem die erste Fassung im Spiel läuft.
 
 ### Todo: Überarbeitung (KarloDerBaer, 06.11.2026)
 
@@ -186,7 +186,7 @@ Noch offen, wird in einer eigenen Sitzung bearbeitet. Vorher klären, was KarloD
 - **Reiter Preise** im Broker überarbeiten.
 - **Reiter Gegenstände und Gegenstand** in Ledger überarbeiten.
 
-Bis dahin bleibt es bei der Vorabversion `v2026.11.07.3-test`, ein normales Release gibt es vorerst nicht (KarloDerBaer).
+Bis dahin gibt es nur Vorabversionen (zuletzt `v2026.11.07.4-test`), ein normales Release gibt es vorerst nicht (KarloDerBaer).
 
 ### Navigation, Einkaufsliste, Favoriten, Ladezeiten (beschlossen 06.11.2026)
 
