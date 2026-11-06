@@ -134,10 +134,12 @@ test('Senden: leert erst nach Bestaetigung', async () => {
   const { svc, core } = setup({ fetchImpl: async (url, o) => { calls.push({ url, body: JSON.parse(o.body) }); return reply; } });
   core([err()]);
   svc.errors.scan();
-  await assert.rejects(svc.errors.send(), /noch nicht eingerichtet/);
-  assert.equal(calls.length, 0);
-  process.env.PEON_MANAGER_REPORT_URL = 'https://test.invalid/bericht';
+  process.env.PEON_MANAGER_REPORT_URL = '';
   try {
+    assert.equal(svc.errors.state().canSend, false);
+    await assert.rejects(svc.errors.send(), /noch nicht eingerichtet/);
+    assert.equal(calls.length, 0);
+    process.env.PEON_MANAGER_REPORT_URL = 'https://test.invalid/bericht';
     await assert.rejects(svc.errors.send(), /500/);
     assert.equal(svc.errors.count(), 1, 'Fehlschlag behaelt die Fehler');
     reply = { ok: false, status: 429 };

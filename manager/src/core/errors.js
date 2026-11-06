@@ -14,8 +14,8 @@ const path = require('node:path');
 const { parseLua } = require('./lua');
 const { log } = require('./db');
 
-// Adresse des Workers (worker/peon-fehler). Leer: Senden ist noch nicht eingerichtet, der Export geht trotzdem.
-const REPORT_URL = '';
+// Adresse des Workers (worker/peon-fehler). Leer: Senden ist nicht eingerichtet, der Export geht trotzdem.
+const REPORT_URL = 'https://peon-fehler.karloderbaer.workers.dev/bericht';
 const REPORT_FMT = 1;
 const MAX_REPORT_BYTES = 50000;   // der Worker nimmt hoechstens 64 KB an
 const MAX_STACK = 1500, MAX_MSG = 1000;
@@ -137,7 +137,7 @@ class ErrorStore {
 
   rows() { return this.db.prepare('SELECT * FROM errors ORDER BY last DESC').all(); }
   count() { return this.db.prepare('SELECT COUNT(*) AS n FROM errors').get().n; }
-  reportUrl() { return process.env.PEON_MANAGER_REPORT_URL || REPORT_URL; }
+  reportUrl() { return process.env.PEON_MANAGER_REPORT_URL ?? REPORT_URL; }
 
   state() {
     this.scan();

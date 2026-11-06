@@ -15,6 +15,9 @@ blizzard-zugang.dat
 # Release-Bau
 build/
 
+# Zwischenspeicher von wrangler: enthaelt Kontodaten von Cloudflare, nie ins Repo
+.wrangler/
+
 # Spieldaten und Archiv gehören nicht ins Repo
 /WTF/
 /eingang/

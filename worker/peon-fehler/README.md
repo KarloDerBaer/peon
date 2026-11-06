@@ -4,7 +4,7 @@ Der Peon Manager schickt Fehlerberichte an diesen Worker. Der Worker legt daraus
 
 Ablauf: Manager → `POST /bericht` → Prüfung von Format, Größe und Anzahl → Issue → Bestätigung → der Manager leert seinen Fehlerspeicher.
 
-Solange im Manager keine Adresse eingetragen ist, bleibt der Knopf „An KarloDerBaer senden“ gesperrt. Der Export als Text geht immer.
+Der Worker läuft unter `https://peon-fehler.karloderbaer.workers.dev`. Ohne eingetragene Adresse bleibt der Knopf „An KarloDerBaer senden“ gesperrt, der Export als Text geht immer.
 
 ## Einmalig einrichten (KarloDerBaer)
 
@@ -25,7 +25,8 @@ Solange im Manager keine Adresse eingetragen ist, bleibt der Knopf „An KarloDe
    npx wrangler deploy
    ```
 
-5. **Adresse eintragen:** Der letzte Befehl nennt die Adresse des Workers. In `manager/src/core/errors.js` die Konstante `REPORT_URL` auf `<Adresse>/bericht` setzen und den Manager neu bauen. Zum Ausprobieren ohne Neubau geht auch die Umgebungsvariable `PEON_MANAGER_REPORT_URL`.
+5. **Subdomain prüfen:** Cloudflare bildet die Adresse aus dem Konto und kann dabei den echten Namen verwenden. Dann die Subdomain im Dashboard unter Workers & Pages ändern, bevor die Adresse ins Repo kommt.
+6. **Adresse eintragen:** Der letzte Befehl nennt die Adresse des Workers. In `manager/src/core/errors.js` die Konstante `REPORT_URL` auf `<Adresse>/bericht` setzen und den Manager neu bauen. Zum Ausprobieren ohne Neubau geht auch die Umgebungsvariable `PEON_MANAGER_REPORT_URL`.
 
 ## Berichte lesen
 

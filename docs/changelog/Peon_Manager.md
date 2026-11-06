@@ -2,6 +2,10 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.13.1
+
+- 0.13.1 (06.11.2026): Adresse des Workers eingetragen, das Senden im Reiter Debug ist damit freigeschaltet. `PEON_MANAGER_REPORT_URL` leer schaltet es ab (für Tests).
+
 ## 0.13.0
 
 - 0.13.0 (06.11.2026, Wunsch KarloDerBaer): **Reiter Debug mit Fehlerspeicher**, immer sichtbar, ein Zähler zeigt die Zahl der Fehler.
