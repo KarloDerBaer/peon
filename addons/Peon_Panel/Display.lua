@@ -488,7 +488,7 @@ local function Anchor(s)
         elseif type(p.x) == "number" and type(p.y) == "number" then
             f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", p.x, p.y)
         else
-            f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+            f:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 8, -40)   -- ohne eigene Stelle oben links unter der Leiste
         end
     end
 end

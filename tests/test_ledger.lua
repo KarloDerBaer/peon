@@ -290,6 +290,10 @@ check(tt.lines[3] and tt.lines[3]:find("Mirel Dorna | Taschen 15, Bank 20, Aukti
 tt.lines = {}; tt.link = "item:99999"; ttPost(tt, {})
 check(#tt.lines == 0, "niemand hat ihn: keine Zeile")
 -- Fenster
+-- Gegenstaende und Gegenstand in Arbeit (0.13.0): Fuer die Pruefungen den Hinweis abschalten, am Ende pruefen
+check(ns.Window.WIP.catalog == true and ns.Window.WIP.item == true, "0.13: Gegenstaende und Gegenstand in Arbeit")
+local wipKeep = ns.Window.WIP
+ns.Window.WIP = {}
 SlashCmdList.PEON_LEDGER("")
 local W = ns.Window
 check(W.IsOpen() and W.current == "overview" and #ns.Overview.list:GetItems() == 2, "Fenster: Uebersicht mit zwei Charakteren")
@@ -1332,6 +1336,18 @@ end
 check(Plain(ns.PanelMoney(4567)) == "45s 67c", "0.12: unter 1g mit Kupfer")
 check(Plain(ns.PanelMoney(123456789)) == "12,3kg","0.12: ab 1000g gekuerzt: " .. Plain(ns.PanelMoney(123456789)))
 check(mod.launcher:GetText("goldMe"):find("UI-GoldIcon", 1, true),"0.12: Gold mit Muenzsymbol: " .. mod.launcher:GetText("goldMe"))
+
+-- ===== Gegenstaende und Gegenstand in Arbeit (0.13.0) =====
+W.WIP = wipKeep
+for _, key in ipairs({ "catalog", "item" }) do
+  if W.contents[key] then W.contents[key]:Hide() end
+  W.contents[key] = nil
+  W.Select(key)
+  check(W.current == key and W.contents[key].wipText and W.contents[key].wipText.text == ns.L.TAB_WIP, "0.13: Reiter " .. key .. " zeigt nur den Hinweis")
+end
+mod:ShowItem(2592)
+check(W.current == "item", "0.13: Gegenstand oeffnen fuehrt zum Hinweis")
+W.Refresh()
 
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end
 check(n == 0, "keine Fehlermeldungen")

@@ -35,13 +35,13 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 | Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
 | Peon_Fishing (früher FishingPlus) | 1.6.0 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
-| Peon_Broker (neu, Auktionshaus) | 0.36.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
+| Peon_Broker (neu, Auktionshaus) | 0.37.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
 | Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.7.0 | `PeonBridgeDB` | /peon bridge |
 | Peon_Feedback | 0.4.0 | `PeonFeedbackDB` | /feedback |
 | Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
-| Peon_Ledger (neu, Bestand und Buch) | 0.12.0 | `PeonLedgerDB` | /ledger |
+| Peon_Ledger (neu, Bestand und Buch) | 0.13.0 | `PeonLedgerDB` | /ledger |
 | Peon_Bags (neu, Taschen, Bank, Gildenbank) | 0.4.0 | `PeonBagsDB` | /peon bags |
-| Peon_Panel (neu, Leiste und Panel) | 0.3.0 | `PeonPanelDB` | /peon panel |
+| Peon_Panel (neu, Leiste und Panel) | 0.4.0 | `PeonPanelDB` | /peon panel |
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 

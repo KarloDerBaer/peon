@@ -68,7 +68,7 @@ const inGold = (c) => (c == null ? '' : c / 10000);
 <template>
   <div class="shop" v-if="view">
     <div class="head">
-      <h1>Einkaufsliste</h1>
+      <h1>Einkaufsliste <span class="muted">(WIP)</span></h1>
       <label class="check small"><input type="checkbox" :checked="settings.shopNotify" @change="emit('save', { shopNotify: $event.target.checked })" /> Meldung von Windows, wenn etwas unter dem Höchstpreis liegt</label>
     </div>
 

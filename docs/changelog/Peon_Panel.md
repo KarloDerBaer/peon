@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.4.0
+
+Kurz: Neue Standardeinstellung für Leiste und Panel: schlichter Stil, das Panel klappt oben links auf und zeigt die XP-Werte.
+
+- 0.4.0 (07.11.2026, Wunsch KarloDerBaer): Die Einstellung von KarloDerBaer ist der neue Standard. Stil Schlicht mit eigenen Farben, Leiste 65 % breit mit Abstand 18. Panel an, aufklappbar nach unten, eine Spalte, Symbolgröße 18. Ohne eigene Stelle steht es oben links unter der Leiste statt in der Mitte.
+  - **Einträge beim ersten Start** (`DEFAULT_ENTRIES`): auf der Leiste Peon und Fishing links, Feedback (nur Symbol), Broker, Zone und Koordinaten (nur Text) in der Mitte, Freunde, Gilde, Haltbarkeit, Taschen und Ledger rechts, bei den meisten ohne Beschriftung. Im Panel XP, XP pro Stunde und Zeit bis Level-Up als Text. Uhr, Reset-Zeiten, Leistung, Spielzeit, Lautstärke und Ruf zum Anhaken. Dazu die Reihenfolge von KarloDerBaer.
+  - Gilt nur für neue Einstellungen und für Einträge, die noch nie gesehen wurden. Wer Panel schon nutzt, behält seine Einstellung. „Standardwerte“ setzt die allgemeinen Einstellungen auf die neuen Werte, Einträge und Reihenfolge bleiben.
+
 ## 0.3.0
 
 Kurz: Die Leiste zeigt jetzt auch XP, XP pro Stunde, Zeit bis zum Level-Up, Uhr, Zone, Koordinaten und Haltbarkeit. Zum Anhaken gibt es Leistung, Spielzeit, Lautstärke, Freunde, Gilde, Ruf und Reset-Zeiten. Dazu kommen neue Stile im Blizzard-Look und viele Einstellungen zum Aussehen.

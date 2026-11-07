@@ -462,6 +462,10 @@ check(S.state == nil and said("keine Antwort"), "Zeitueberschreitung ohne Daten"
 
 -- ===== Broker-Fenster, Reiter "Preise" (0.7) =====
 local Win, P = ns.Window, ns.Prices
+-- Einkaufsliste in Arbeit (0.37.0): Fuer die Pruefungen der Liste den Hinweis abschalten, am Ende pruefen
+check(Win.WIP.buy == true, "0.37: Einkaufsliste in Arbeit")
+local wipKeep = Win.WIP
+Win.WIP = {}
 check(market.items[2770].nm == "Kupfererz" and market.items[2770].ql == 1, "Scan merkt Name und Qualitaet")
 check(market.items["15000:1047"].nm == "Schwert des Baeren" and market.items["15000:1047"].ql == 2, "Name bei Ausruestung mit Zusatz")
 check(D.LinkFromKey(2770) == "item:2770" and D.KeyFromLink(D.LinkFromKey("15000:1047")) == "15000:1047", "Link aus Schluessel und zurueck")
@@ -2529,6 +2533,18 @@ do
   mod:Fire("SCAN_DONE", "Markt")
   check(refreshed == 1, "0.35: Scan aktualisiert den Text")
 end
+
+-- ===== Einkaufsliste in Arbeit (0.37.0) =====
+Win.WIP = wipKeep
+if Win.contents.buy then Win.contents.buy:Hide() end
+Win.contents.buy = nil
+Win.Open("buy")
+check(Win.current == "buy" and Win.contents.buy.wipText and Win.contents.buy.wipText.text == ns.L.TAB_WIP
+  and ns.L.TAB_WIP:find("WIP", 1, true), "0.37: Reiter Einkaufsliste zeigt nur den Hinweis")
+local hasBuy = false
+for _, line in ipairs(ns.Start.Lines()) do if line.tab == "buy" then hasBuy = true end end
+check(not hasBuy, "0.37: Start ohne Zeile zur Einkaufsliste")
+Win.Refresh()
 
 -- Keine unerwarteten Fehlermeldungen
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("hat einen Fehler gemeldet", 1, true) then n = n + 1 end end  -- erwartete Meldung aus dem Verkaufen-Test

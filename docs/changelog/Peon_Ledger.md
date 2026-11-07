@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.13.0
+
+Kurz: Die Reiter Gegenstände und Gegenstand werden überarbeitet. Bis dahin zeigen sie nur einen Hinweis.
+
+- 0.13.0 (07.11.2026, Wunsch KarloDerBaer): Reiter Gegenstände (`catalog`) und Gegenstand (`item`) zeigen nur „WIP: Update kommt bald“ (`W.WIP`, `L.TAB_WIP`). Auch `/ledger <Name>`, Klicks in den Listen und der Knopf „Mehr…“ im Broker führen dorthin. Der Code bleibt und wird für die Überarbeitung weiter getestet.
+
 ## 0.12.0
 
 Kurz: Auf der Leiste von Peon_Panel kann Ledger jetzt auch zeigen, wie viel Gold du in dieser Sitzung gewonnen oder verloren hast.

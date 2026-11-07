@@ -28,6 +28,16 @@ W.TABS = {
 }
 W.pages = {}          -- key -> { build = fn(content), refresh = fn() }
 
+-- In Arbeit: Diese Reiter zeigen nur einen Hinweis, bis sie ueberarbeitet sind (Wunsch KarloDerBaer, 07.11.2026)
+W.WIP = { buy = true }
+
+local function BuildWip(c)
+    local t = c:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    t:SetPoint("CENTER", 0, 20)
+    t:SetText(L.TAB_WIP)
+    c.wipText = t
+end
+
 -- Farben der Qualitaetsstufen (Grau, Weiss, Gruen, Blau, Lila, Orange)
 W.QUALITY = { [0] = "ff9d9d9d", [1] = "ffffffff", [2] = "ff1eff00", [3] = "ff0070dd", [4] = "ffa335ee", [5] = "ffff8000" }
 
@@ -207,7 +217,7 @@ function W.IsOpen() return W.frame ~= nil and W.frame:IsShown() end
 -- Den bisherigen Reiter verlassen (z. B. Radar-Scan anhalten); next = neuer Reiter oder nil (Fenster zu)
 function W.Leave(next)
     local cur = W.current
-    if cur and cur ~= next and W.pages[cur] and W.pages[cur].leave then
+    if cur and cur ~= next and W.pages[cur] and W.pages[cur].leave and not W.WIP[cur] then
         mod:Call("Fenster", W.pages[cur].leave)
     end
 end
@@ -241,12 +251,12 @@ function W.Select(key)
         c:SetPoint("TOPLEFT", 12, -W.TOP)
         c:SetPoint("BOTTOMRIGHT", -12, 26)
         W.contents[key] = c
-        W.pages[key].build(c)
+        if W.WIP[key] then BuildWip(c) else W.pages[key].build(c) end
     end
     c:Show()
     if W.frame:IsShown() then W.Refresh() end
     -- Reiter neu gewaehlt: Blizzard-Fenster passend umschalten (ab 0.20)
-    if changed and W.pages[key].enter then mod:Call("Fenster", W.pages[key].enter) end
+    if changed and W.pages[key].enter and not W.WIP[key] then mod:Call("Fenster", W.pages[key].enter) end
 end
 
 function W.Refresh()
@@ -260,7 +270,7 @@ function W.Refresh()
     end
     W.footer:SetText(text)
     local page = W.current and W.pages[W.current]
-    if page and page.refresh then page.refresh() end
+    if page and page.refresh and not W.WIP[W.current] then page.refresh() end
 end
 
 ---------------------------------------------------------------------------

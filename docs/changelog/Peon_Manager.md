@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.18.1
+
+Kurz: Der Reiter Einkaufsliste ist als „WIP“ markiert, er wird bald überarbeitet.
+
+- 0.18.1 (07.11.2026, Wunsch KarloDerBaer): Reiter und Überschrift „Einkaufsliste (WIP)“.
+
 ## 0.18.0
 
 Kurz: Die Preise aus dem neuesten Stand der Blizzard-API gehen jetzt auch ins Spiel. Broker nutzt sie, wenn sie neuer sind als dein letzter Scan.

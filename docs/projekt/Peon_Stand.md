@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 07.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.36.0 / Bridge 0.7.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.18.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.12.0 / Fishing 1.6.0 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.4.0 / Feedback 0.4.0 / Panel 0.3.0.
+Stand: 07.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.37.0 / Bridge 0.7.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.18.1 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.0 / Fishing 1.6.0 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.4.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.15.0, API 15
@@ -47,8 +47,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.36.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.37.0 (neu, Auktionshaus-Helfer)
 
+- **Einkaufsliste in Arbeit (ab 0.37.0):** Der Reiter zeigt nur einen Hinweis (`W.WIP`), bis er überarbeitet ist.
 - Konzept: `Peon_Broker_Konzept.md` (freigegeben 29.09.2026) – Funktionsumfang, Preisvorschlag, Markttrennung, Bauabschnitte.
 - Dateien: Locales.lua, Broker.lua, Data.lua, Scan.lua, Tooltip.lua, Window.lua, Keep.lua, Sell.lua, Auctions.lua, Shop.lua (ab 0.34), Buy.lua, Radar.lua, Prices.lua, Probe.lua, Options.lua, Start.lua und Craft.lua (ab 0.24; Merchant.lua 0.19–0.23 entfernt), Media\trend_*.tga (5 Trend-Symbole, 32×32, selbst erstellt: dunkelgrün ↑, hellgrün ↗, blauer Balken, orange ↘, rot ↓), Media\dot_new.tga (grüner Punkt für neue Radar-Treffer, ab 0.19)
 - SavedVariables: `PeonBrokerCharDB` (je Charakter, ab 0.10): `keep[Schlüssel] = { n = Menge oder nil (alle), t, name, q, icon }` (Behalten), `listSel` (gewählte Einkaufsliste; `lists` bis 0.33, wird beim Laden nach `PeonBrokerDB.lists` übernommen), `recipes[Ergebnis-itemID] = { r, name, n, m = { [itemID] = Stück } }` (erlernte Rezepte, ab 0.24); `vendorFlip` entfällt ab 0.24 (wird beim Start gelöscht). `PeonBrokerDB` (accountweit): `lists` (Einkaufslisten ab 0.34: id, name, pct, u, items[Schlüssel] = { wish, max, name, q, icon, u }), `listsGone` (Löschmarken), Einstellungen `minimapShow`, `minimapAngle`, `tooltipShow`, `tooltipAvg`, `tooltipVendor`, `tooltipHint`, `trendNeutral` (5 %), `trendStrong` (20 %), `undercutMode`/`undercutValue` (Einzelgegenstände, 1 Kupfer), `undercutMassMode`/`undercutMassValue` (Massenware, 0), `dumpPct` (30 %), `duration` (2/8/24 Std., Standard 8), `dataDays` (14–90, Standard 30), `windowWithAH` (aus), `windowTab`, `windowPos`, `shortMass` (an), `shortMassMin` (20), `sellOnlyProfitable` (an), `dealMinVendor` (10c), `dealMinMarket` (50s), `dealScans` (10), `dealDays` (7), `radarMaxAge` (60 Min., 0 = unbegrenzt; ersetzt `dealMaxAge`), `radarSound` (an), `radarMute` (an), `radarOrder` (smart), `radarKind` (both), `radarShowExpensive` (aus), `dealMargin` (20 %), `dealDepth` (20 %), `radarSoundKey` (raid), `radarFlash` (5 Sek.), `radarReserve` (Goldreserve in Gold, 0), `dealHold` (Markt-Schnäppchen: verkaufen innerhalb, 48 Std., 6–168, ab 0.26); `dealMinVendor` in Kupfer bis 1000g, `dealMinMarket` in Silber (ab 0.19 größere Bereiche); Daten `dataVersion` = 2, `markets["Realm / Fraktion"]` (Aufbau siehe Data.lua), `commodity` (Warenart je Gegenstand), `sellMem` (je Gegenstand: gewählte Laufzeit/Menge, zuletzt eingestellter Preis), `owned` (letzter Stand der eigenen Auktionen je Markt), `itemKeys[itemID] = "Stufe:Zusatz"` (Schlüssel des Spiels für Gegenstände, die die normale Suche nicht findet, ab 0.24; ab 0.28 für Varianten `itemKeys["itemID:voller Name"]`), `markets[…].variants[itemID] = true` (Gegenstände mit Varianten, ab 0.28), `markets[…].mgrAt`, `mgrSrc`, `mgrItems` (zuletzt übernommener Stand vom Peon Manager: Zeit, `api` oder `scan`, Zahl der Gegenstände, ab 0.36), Varianten-Einträge mit `lk` (Link), `keyLog` (letzte 30 Schlüssel-Suchen; ab 0.28 wie `radarLog`, `showLog`, `aucLog`, `radarStats` nur mit `/broker debug`), `lastScanAt`, `probe`, `probeEvents`
@@ -58,8 +59,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.18.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.18.1
 
+- Reiter „Einkaufsliste (WIP)“ (ab 0.18.1), wird bald überarbeitet.
 - Quellcode: `manager\` (bisher `client\`), Anleitung in `manager\README.md`. Design: `docs\konzepte\manager\Peon_Client_Design.md` (Funktionen, jetzt Modul Peon Broker Client) und `Peon_GitHub_Design.md` (Peon Manager, Module, Installieren).
 - Programm bei KarloDerBaer: installiert wie bei allen anderen (ab 04.11.2026, siehe unten). Der frühere Ordner `<Programmordner>` mit Runtime und DB bleibt als Sicherung. Anderer Datenordner: Umgebungsvariable `PEON_MANAGER_DB`.
 - Liest `WTF\Account\<Konto>\SavedVariables\Peon_Bridge.lua` (`PeonBridgeDB`), schreibt `AddOns\Peon_Bridge\Data.lua` (`PeonBridgeData`, Format 2, `channels` aus den aktiven Manager-Modulen, ab 0.18.0 je Markt `cur` mit den Preisen des neuesten vollständigen Stands).
@@ -91,8 +93,9 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Verlauf der Versionen: `docs/changelog/Peon_Bridge.md`
 - Im Spiel prüfen (nach dem Start): Optionsseite zeigt „Kanal broker freigeschaltet“ und „Peon Manager: Werte vom … (Version 0.6.0)“.
 
-## Peon_Ledger – 0.12.0 (neu, Bestand und Buch)
+## Peon_Ledger – 0.13.0 (neu, Bestand und Buch)
 
+- **Gegenstände und Gegenstand in Arbeit (ab 0.13.0):** Beide Reiter zeigen nur einen Hinweis (`W.WIP`), bis sie überarbeitet sind.
 - Konzept: `Peon_Ledger_Konzept.md` (abgestimmt 02.10.2026). Bestand aller Charaktere, alle Bewegungen von Gegenständen und Gold mit Grund (nur ereignisgesteuert), Post einsammeln, Buch; Broker liest später nur daraus.
 - Dateien: Locales.lua, Ledger.lua, Inventory.lua, Moves.lua, Cost.lua (ab 0.7), Tooltip.lua, Window.lua, Overview.lua, Stock.lua, History.lua, Book.lua, Catalog.lua (ab 0.10), Item.lua (ab 0.9), Pick.lua und Bindings.xml (ab 0.9.1), Probe.lua, Options.lua; Symbol `INV_Scroll_03` (bis 0.9.1 `INV_Misc_Book_09`, das nutzt schon das Dungeon-Journal)
 - SavedVariables: `PeonLedgerDB` (accountweit): Einstellungen `minimapShow`, `minimapAngle`, `tooltipShow`, `windowPos`, `windowTab` (overview/stock/history/book/items), `historyMoves`, `historyOnlyMe`, `historyKind` (Filter Verlauf, ab 0.6), `bookPeriod` (today/d7/d30/all), `bookOnlyMe` (`worthEquip` ab 0.6, entfällt ab 0.7.3), ab 0.9 `itemPeriod` (7/30/90/0 = alles), `itemMarge`, `itemOff` (Linien aus), `itemLast`; ab 0.10 `catalogFilter` (all/stock/moved/ah) und `windowTab` auch `catalog`; ab 0.12 `session` (Gold zu Beginn der Sitzung); `windowTab` auch `item`; Bewegungen „Post von Twink“ ohne bekannten Versand merken `v` (Marktwert); `lotBase` ab 0.9 je Charakter `{ untilT, chars = { [Name] = { lots, fee } }, transit }`; `realms[Realm].chars[Vorname Nachname]` = { faction, class, level, money, moneyT, seen, places = { bags, bank, mail, auctions, equip } je { t, items = { [itemID] = Stück }, slots, used (Taschen/Bank: alle/belegte Plätze ab 0.2.1; Post: used = Anhänge, Auktionen: used = laufende Auktionen ab 0.2.2), … }, start = Inventur }; `realms[Realm].account.places.warband` (Accountbank, falls vorhanden); `realms[Realm].moves` = Bewegungen { t, c = Charakter, k = Art, id, n = Stück ±, m = Kupfer ±, x = Zusatz; Beute/Benutzt mit d = Tag, s = Vorzeichen, cnt } (älteste zuerst); `realms[Realm].weeks["JJJJ-WW"]["Charakter|Art|itemID"]` = { n, m } (Einträge älter als 90 Tage); `mailLog` (erste 40 verschiedene Briefe: Absender, Betreff, Gold, Rechnung – Fehlersuche); `items[itemID]` = { n, q, i }; `bankLog` (erste 5 Bankbesuche); `probe` (Ergebnis des Prüfbefehls), `probeEvents` (je Ereignis bekannt/Anzahl/letzte Zeit/3 Beispiele), `probeHooks` (mitgelesene Aufrufe: vorhanden, mitgelesen, Anzahl, Beispiele), `probeSnaps` (automatische Schnappschüsse je Fenster, höchstens 3)
@@ -140,15 +143,16 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Befehle: `/peon mover` (Optionen), `/peon mover zuruecksetzen` (alle Fenster), `/peon debug mover` (Log: eingehängte Fenster, Verschieben, Größe).
 - Verlauf der Versionen: `docs/changelog/Peon_Mover.md`
 
-## Peon_Panel – 0.3.0 (neu, Leiste und Panel)
+## Peon_Panel – 0.4.0 (neu, Leiste und Panel)
 
 - Konzept: `Peon_Panel_Konzept.md` (abgestimmt 06.11.2026, Überarbeitungen 07.11.2026 in den Abschnitten 12 und 13). Dateien: Locales.lua, Panel.lua, Skin.lua (ab 0.2), Display.lua, Menu.lua, Info.lua, InfoXP.lua, InfoPlace.lua, InfoSystem.lua, InfoSocial.lua (ab 0.3), Options.lua, Media\corner_fill.tga und corner_line.tga (ab 0.2, erzeugt mit `scripts\panel_media.js`); Symbol `INV_Misc_Spyglass_03`.
 - Allgemeine Einträge (ab 0.3): XP, XP pro Stunde, Zeit bis Level-Up, Zone, Koordinaten, Haltbarkeit, Uhr auf der Leiste, Leistung, Spielzeit, Lautstärke, Freunde, Gilde, Ruf, Reset-Zeiten zum Anhaken.
-- SavedVariables: `PeonPanelDB` (accountweit): `barShow` (an, immer oben in der Mitte), `barWidth` (30–100 %, 60), `barSize` (14–40, 18), `barHeight` (18–48, 26), `barGap` (4–30, 12), `barSeps` (aus), `barBg`, `barLabels` (Modulname vor dem Text, an), `barVis`, `style` (`tooltipDark`, `tooltip`, `metal`, `dialog`, `wood`, `plain`), `fontFace`, `fontStyle` (`none`, `shadow`, `outline`), `fontSize` (8–16, 11), `bgColor`, `lineColor`, `labelColor`, `valueColor`, `iconBorder` (aus), `highlight` (`soft`, `glow`, `none`), `xpLog` (Messung XP pro Stunde), `session` (Sitzung), `boxShow` (aus), `boxCols` (0–8, 0 = möglichst quadratisch), `boxSize` (16–48, 28), `boxBg`, `boxVis`, `boxLocked`, `boxPos` (x, y), `entries[Starter] = { bar, box, text, side, show }` (`side`: `left`, `center`, `right`, ohne Wahl Bags und Peon rechts, sonst links; `show`: `both`, `icon`, `text`), `barOrder`, `boxOrder`, `known`, `hintShown`. `barVis` und `boxVis`: `always`, `hover`, `combat`. Bei „Standardwerte“ bleiben `boxPos`, `entries`, die Reihenfolgen, die Merker, `xpLog` und `session`. `barPos`, `barX`, `barY` entfallen ab 0.2 (Übernahme über `migrate`).
+- SavedVariables: `PeonPanelDB` (accountweit): `barShow` (an, immer oben in der Mitte), `barWidth` (30–100 %, 65), `barSize` (14–40, 18), `barHeight` (18–48, 26), `barGap` (4–30, 18), `barSeps` (aus), `barBg`, `barLabels` (Modulname vor dem Text, an), `barVis`, `style` (`tooltipDark`, `tooltip`, `metal`, `dialog`, `wood`, `plain`), `fontFace`, `fontStyle` (`none`, `shadow`, `outline`), `fontSize` (8–16, 11), `bgColor`, `lineColor`, `labelColor`, `valueColor`, `iconBorder` (aus), `highlight` (`soft`, `glow`, `none`), `xpLog` (Messung XP pro Stunde), `session` (Sitzung), `boxShow` (an), `boxCols` (0–8, 1, 0 = möglichst quadratisch), `boxSize` (16–48, 18), `boxBg`, `boxVis`, `boxLocked`, `boxPos` (x, y, leer = oben links unter der Leiste), `entries[Starter] = { bar, box, text, side, show }` (`side`: `left`, `center`, `right`, ohne Wahl Bags und Peon rechts, sonst links; `show`: `both`, `icon`, `text`), `barOrder`, `boxOrder`, `known`, `hintShown`. `barVis` und `boxVis`: `always`, `hover`, `combat`. Bei „Standardwerte“ bleiben `boxPos`, `entries`, die Reihenfolgen, die Merker, `xpLog` und `session`. `barPos`, `barX`, `barY` entfallen ab 0.2 (Übernahme über `migrate`).
+- Standard ab 0.4.0 nach der Einstellung von KarloDerBaer: Stil `plain`, Panel an und aufklappbar (`fold`), Einträge beim ersten Start aus `DEFAULT_ENTRIES`, Reihenfolge als Standard von `barOrder` und `boxOrder`.
 - Braucht Peon API 15. Module melden sich als Starter (`mod:NewLauncher`, `mod:NewMinimapButton`). Der Peon-Starter kommt aus Panel, weil der Kern kein Modul ist.
 - Befehle: `/peon panel` (Optionen), `/peon debug panel`.
 - Verlauf der Versionen: `docs/changelog/Peon_Panel.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.3.0, 0.2.0, 0.1.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.4.0, 0.3.0, 0.2.0, 0.1.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon_Bags – 0.4.0 (neu, Taschen, Bank, Gildenbank)
 
@@ -188,13 +192,13 @@ Erste Fassung gebaut mit Bags 0.3.0 (Bauabschnitte B1 bis B3), enthalten in der 
 
 ### Todo: Überarbeitung (KarloDerBaer, 06.11.2026)
 
-Noch offen, wird in einer eigenen Sitzung bearbeitet. Vorher klären, was KarloDerBaer daran stört, das ist noch nicht besprochen.
+Noch offen, wird in einer eigenen Sitzung bearbeitet. Vorher klären, was KarloDerBaer daran stört, das ist noch nicht besprochen. Bis dahin zeigen die Einkaufsliste in Broker und Manager sowie Gegenstände und Gegenstand in Ledger einen WIP-Hinweis (Broker 0.37.0, Ledger 0.13.0, Manager 0.18.1).
 
 - **Einkaufsliste komplett überarbeiten**, im Spiel (Broker) und im Manager.
 - **Reiter Preise** im Broker überarbeiten.
 - **Reiter Gegenstände und Gegenstand** in Ledger überarbeiten.
 
-Bis dahin gibt es nur Vorabversionen (zuletzt `v2026.11.07.5-test`), ein normales Release gibt es vorerst nicht (KarloDerBaer).
+Normales Release `v2026.11.07.6` am 07.11.2026 auf Wunsch von KarloDerBaer, die Reiter in Arbeit zeigen dort einen WIP-Hinweis. Vorher gab es nur Vorabversionen (zuletzt `v2026.11.07.5-test`).
 
 ### Navigation, Einkaufsliste, Favoriten, Ladezeiten (beschlossen 06.11.2026)
 

@@ -31,46 +31,74 @@ local function Field(sk, name) return FIELD[sk == "box" and "box" or "bar"][name
 -- Bereich auf der Leiste, solange nichts gewaehlt wurde
 local DEFAULT_SIDE = { bags = "right", peon = "right" }
 
+-- Erster Start (ab 0.4.0): Eintraege nach der Einstellung von KarloDerBaer.
+-- Gilt nur fuer Starter, die noch nie gesehen wurden. Unbekannte Starter wie bisher.
+local DEFAULT_ENTRIES = {
+    peon       = { bar = true,  box = false, side = "left",  text = "none" },
+    fishing    = { bar = true,  box = false, side = "left",  text = "mode", label = false },
+    feedback   = { bar = true,  box = false, text = "count", show = "icon", label = false },
+    broker     = { bar = true,  box = false, text = "age" },
+    zone       = { bar = true,  box = false, text = "both" },
+    coords     = { bar = true,  box = false, text = "xy", show = "text" },
+    friends    = { bar = true,  box = false, side = "right", text = "online", label = false },
+    guild      = { bar = true,  box = false, side = "right", text = "online", label = false },
+    durability = { bar = true,  box = false, text = "low", label = false },
+    bags       = { bar = true,  box = false, text = "free", label = false },
+    ledger     = { bar = true,  box = false, side = "right", text = "goldMe", label = false },
+    xpRate     = { bar = false, box = true,  text = "rate", boxShow = "text", boxLabel = true },
+    xp         = { bar = false, box = true,  side = "center", text = "full", boxShow = "text" },
+    xpEta      = { bar = false, box = true,  text = "eta", boxShow = "text" },
+    clock      = { bar = false, box = false, text = "local" },
+    resets     = { bar = false, box = false, text = "daily" },
+    perf       = { bar = false, box = false, text = "both" },
+    playtime   = { bar = false, box = false, text = "session" },
+    volume     = { bar = false, box = false, text = "pct" },
+    rep        = { bar = false, box = false, text = "standing" },
+}
+
 local mod = Peon:NewModule(ADDON_NAME, {
     key      = "panel",
     title    = "Panel",
     db       = "PeonPanelDB",
     defaults = {
         barShow   = true,         -- immer oben in der Mitte
-        barWidth  = 60,           -- Prozent der Bildschirmbreite
+        barWidth  = 65,           -- Prozent der Bildschirmbreite
         barSize   = 18,
         barBg     = true,
         barLabels = true,         -- Modulname vor dem Text
         barVis    = "always",
         barRows   = 1,            -- zwei Zeilen moeglich (ab 0.3.0)
         fontSize  = 11,
-        bgColor   = { 0.05, 0.07, 0.10, 0.85 },
-        lineColor = { 0.70, 0.65, 0.50, 1 },
-        style     = "tooltipDark",
+        -- Standard ab 0.4.0 nach der Einstellung von KarloDerBaer
+        bgColor   = { 0.10, 0.10, 0.01, 0.85 },
+        lineColor = { 0.45, 0.40, 0.27, 0.9 },
+        style     = "plain",
         fontFace  = "default",
         fontStyle = "shadow",
         labelColor = { 0.91, 0.79, 0.373, 1 },
         valueColor = { 1, 1, 1, 1 },
         barHeight = 26,
-        barGap    = 12,
+        barGap    = 18,
         barSeps   = false,        -- feine Trennstriche
         iconBorder = false,
         highlight = "soft",
         xpLog     = {},           -- InfoXP.lua
         session   = {},           -- InfoSystem.lua
-        boxShow   = false,
-        boxCols   = 0,            -- 0 = moeglichst quadratisch
-        boxSize   = 28,
+        boxShow   = true,
+        boxCols   = 1,            -- 0 = moeglichst quadratisch
+        boxSize   = 18,
         boxBg     = true,
-        boxVis    = "always",
+        boxVis    = "fold",
         boxLabels = true,         -- Beschriftung vor dem Text im Panel (ab 0.3.0)
         boxLayout = "below",      -- Text unter dem Symbol oder rechts daneben (ab 0.3.0)
         boxFoldDir = "down",      -- Richtung beim Aufklappen (ab 0.3.0)
         boxLocked = false,
-        boxPos    = {},           -- x, y der linken oberen Ecke in UIParent-Einheiten
+        boxPos    = {},           -- x, y der linken oberen Ecke in UIParent-Einheiten, leer = oben links
         entries   = {},
-        barOrder  = {},
-        boxOrder  = {},
+        barOrder  = { "peon", "feedback", "broker", "fishing", "xpRate", "xpEta", "zone", "coords", "xp", "resets",
+                      "friends", "guild", "durability", "bags", "ledger", "clock", "perf", "playtime", "volume", "rep" },
+        boxOrder  = { "broker", "feedback", "ledger", "peon", "bags", "fishing", "xpRate", "xp", "xpEta", "clock",
+                      "zone", "coords", "resets", "durability", "perf", "playtime", "volume", "friends", "guild", "rep" },
         known     = {},
         hintShown = false,
     },
@@ -150,7 +178,8 @@ function ns.AddStarter(l)
         db.known[l.key] = true
         -- Allgemeine Eintraege nur, wenn sie als Standard vorgesehen sind, der Rest zum Anhaken
         local def = ns.InfoDef and ns.InfoDef[l.key]
-        db.entries[l.key] = db.entries[l.key] or { bar = not def or def.bar == true, box = not def, text = l.defaultText or ns.TEXT_NONE }
+        db.entries[l.key] = db.entries[l.key] or (DEFAULT_ENTRIES[l.key] and Peon.CopyTable(DEFAULT_ENTRIES[l.key]))
+            or { bar = not def or def.bar == true, box = not def, text = l.defaultText or ns.TEXT_NONE }
         if l:IsMinimapShown() then
             Peon.SetPanelHid(l.key, true)
             l:SetMinimapShown(false)

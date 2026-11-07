@@ -128,6 +128,7 @@ end
 
 -- Einkaufsliste: Gegenstaende unter dem Hoechstpreis (Stand Scan / letzte Abfrage), noch unter der Wunschmenge
 function St.BuyLine()
+    if W.WIP and W.WIP.buy then return nil end   -- Einkaufsliste wird ueberarbeitet
     local B = ns.Buy
     local list = B.CurrentList()
     if not list then return { tab = "buy", area = L.TAB_BUY, text = GREY .. L.START_BUY_NOLIST .. "|r", value = "", prio = 0 } end

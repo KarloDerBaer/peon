@@ -32,7 +32,7 @@
 </p>
 
 > [!NOTE]
-> Peon ist noch jung. Die Addons sind mit einem Nachbau des Spiels getestet und bis zum Ende der Beta im Spiel gelaufen. Nach dem Start von Forever kann es noch Fehler geben. [Rückmeldungen](#-feedback-und-fehler) helfen sehr.
+> Peon ist noch jung, es kann noch zu Fehlern kommen. [Rückmeldungen](#-feedback-und-fehler) helfen sehr.
 
 ## 🧩 Die Addons
 
@@ -42,13 +42,13 @@ Alle Teile hängen an einem gemeinsamen Kern und haben ihre Einstellungen unter 
 |---|---|---|
 | **Peon** | Gemeinsamer Kern. Wird von allen anderen gebraucht. | `/peon`, `/peon list` |
 | **Peon_Tooltip** | Tooltip folgt der Maus, mit Größe, Transparenz, Rahmenfarbe, PvP- und Quest-Symbol und Kampfmodus. Teile im Gegenstands-Tooltip lassen sich sortieren und ausblenden. | `/ttp` |
-| **Peon_Broker** | Helfer fürs Auktionshaus: Komplettscan, Preise je Markt, Preise im Tooltip, eigenes Fenster mit Verkaufen, Meine Auktionen, Einkaufsliste und Radar. | `/broker` |
+| **Peon_Broker** | Helfer fürs Auktionshaus: Komplettscan, Preise je Markt, Preise im Tooltip, eigenes Fenster mit Verkaufen, Meine Auktionen und Radar. Die Einkaufsliste wird gerade überarbeitet. | `/broker` |
 | **Peon_Ledger** | Bestand aller Charaktere (Taschen, Bank, Post, Auktionen, Gold) und Buchführung über Einnahmen und Ausgaben. | `/ledger` |
 | **Peon_Bags** | Taschen, Bank und Gildenbank in je einem Fenster mit Suche und Sortierung. | `/peon bags` |
 | **Peon_Fishing** | Angelmodus mit Ausrüstungswechsel, Angeln per Doppelklick oder Taste, Köder, Warnton. | `/fp` |
 | **Peon_Feedback** | Fehler und Ideen direkt im Spiel festhalten, der Peon Manager sendet sie weiter. Optional. | `/feedback` |
 | **Peon_Mover** | Fenster von Blizzard und Peon verschieben und in der Größe ändern. | `/peon mover` |
-| **Peon_Panel** | Leiste und verschiebbares Panel für die Symbole der Peon-Addons, mit kurzen Texten wie Gold oder freien Taschenplätzen. | `/peon panel` |
+| **Peon_Panel** | Leiste oben am Bildschirm und verschiebbares Panel für die Symbole der Peon-Addons, mit kurzen Texten wie Gold oder freien Taschenplätzen. Dazu Einträge wie XP, Zone, Koordinaten, Uhr und Haltbarkeit. Beide lassen sich aufklappbar machen. | `/peon panel` |
 | **Peon_ComboPoints** | Runde Combo-Punkte über dem Namensschild des Gegners (nur Schurken). | `/peon combopoints` |
 
 Jedes Addon außer Peon ist freiwillig. Nimm nur, was du willst, aber **Peon selbst muss immer dabei sein**.

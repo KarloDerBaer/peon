@@ -21,6 +21,16 @@ W.TABS = {
     { key = "item",     label = "TAB_ITEM" },     -- ab 0.9 (Item.lua)
 }
 W.pages = {}
+
+-- In Arbeit: Diese Reiter zeigen nur einen Hinweis, bis sie ueberarbeitet sind (Wunsch KarloDerBaer, 07.11.2026)
+W.WIP = { catalog = true, item = true }
+
+local function BuildWip(c)
+    local t = c:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    t:SetPoint("CENTER", 0, 20)
+    t:SetText(L.TAB_WIP)
+    c.wipText = t
+end
 W.QUALITY = { [0] = "ff9d9d9d", [1] = "ffffffff", [2] = "ff1eff00", [3] = "ff0070dd", [4] = "ffa335ee", [5] = "ffff8000" }
 
 local function TryFrame(kind, name, parent, template)
@@ -160,7 +170,7 @@ function W.Select(key)
         c:SetPoint("TOPLEFT", 12, -W.TOP)
         c:SetPoint("BOTTOMRIGHT", -12, 26)
         W.contents[key] = c
-        W.pages[key].build(c)
+        if W.WIP[key] then BuildWip(c) else W.pages[key].build(c) end
     end
     c:Show()
     if W.frame:IsShown() then W.Refresh() end
@@ -171,7 +181,7 @@ function W.Refresh()
     local total, n = ns.Inventory.TotalMoney()
     W.footer:SetText(L.FOOTER:format(ns.Realm(), n, ns.Money(total)))
     local page = W.current and W.pages[W.current]
-    if page and page.refresh then page.refresh() end
+    if page and page.refresh and not W.WIP[W.current] then page.refresh() end
 end
 
 -- Neue Daten (Bestand geaendert): offenes Fenster einmal je Bild auffrischen

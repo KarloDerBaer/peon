@@ -197,13 +197,28 @@ fire("PLAYER_ENTERING_WORLD", true, false)
 PeonPanelDB.boxShow = false
 check(friendsAsked == 1, "Freundesliste beim Login angefordert")
 local E = PeonPanelDB.entries
-for _, key in ipairs({ "xp", "xpRate", "xpEta", "zone", "coords", "durability", "clock" }) do
+-- Standard ab 0.4.0 nach der Einstellung von KarloDerBaer
+for _, key in ipairs({ "zone", "coords", "durability", "friends", "guild" }) do
   check(E[key].bar == true and E[key].box == false, key .. ": anfangs auf der Leiste")
 end
-for _, key in ipairs({ "perf", "playtime", "volume", "friends", "guild", "rep", "resets" }) do
+for _, key in ipairs({ "xp", "xpRate", "xpEta" }) do
+  check(E[key].bar == false and E[key].box == true and E[key].boxShow == "text", key .. ": anfangs im Panel, nur Text")
+end
+for _, key in ipairs({ "perf", "playtime", "volume", "rep", "resets", "clock" }) do
   check(E[key].bar == false and E[key].box == false, key .. ": nur zum Anhaken")
 end
-check(ns.SideOf("xp") == "left" and ns.SideOf("zone") == "center" and ns.SideOf("clock") == "right", "Standardbereiche")
+check(ns.SideOf("xp") == "center" and ns.SideOf("zone") == "center" and ns.SideOf("friends") == "right", "Standardbereiche")
+check(ns.LabelOf("friends") == false and ns.LabelOf("durability") == false and ns.ShowOf("coords") == "text", "Standard: Beschriftung und Anzeige")
+check(mod.opts.defaults.style == "plain" and mod.opts.defaults.boxVis == "fold" and mod.opts.defaults.boxShow == true
+  and mod.opts.defaults.barWidth == 65 and mod.opts.defaults.boxCols == 1 and mod.opts.defaults.boxSize == 18, "Standardwerte nach KarloDerBaer")
+check(mod.opts.defaults.barOrder[1] == "peon" and mod.opts.defaults.boxOrder[1] == "broker", "Standardreihenfolge")
+-- Fuer die weiteren Pruefungen alle Eintraege auf die Leiste wie vor 0.4.0
+for _, key in ipairs({ "xp", "xpRate", "xpEta", "clock" }) do E[key].bar, E[key].box = true, false end
+for _, key in ipairs({ "friends", "guild" }) do E[key].bar, E[key].label = false, nil end
+E.coords.show, E.xp.side = nil, nil
+ns.MoveEntry(PeonPanelDB.barOrder, "xp", "xpRate", false)
+PeonPanelDB.style, PeonPanelDB.barGap, PeonPanelDB.barWidth = "tooltipDark", 12, 60
+ns.ApplyAll()
 local function T(key, textKey) return ns.starters[key]:GetText(textKey) end
 local function Btn(key) return bar.buttons[key] end
 local function On(key) ns.SetOnSurface(ns.starters[key], "bar", true) end
@@ -557,7 +572,7 @@ check(bar.bg.used == "plain", "Fehler im Rahmen: eigene Stuecke")
 NineSliceUtil = nil
 PeonPanelDB.style = "kaputt"
 mod:ResetDefaults()
-check(PeonPanelDB.style == "tooltipDark" and PeonPanelDB.xpLog.who == "Player-1" and PeonPanelDB.session.who == "Player-1", "Standardwerte: Stil zurueck, Messung bleibt")
+check(PeonPanelDB.style == "plain" and PeonPanelDB.xpLog.who == "Player-1" and PeonPanelDB.session.who == "Player-1", "Standardwerte: Stil zurueck, Messung bleibt")
 
 -- Fehler im Spiel-Nachbau haetten sich hier gezeigt
 check(PeonDB.errors == nil or #PeonDB.errors == 0, "keine gespeicherten Fehler: " .. tostring(PeonDB.errors and PeonDB.errors[1] and PeonDB.errors[1].msg))

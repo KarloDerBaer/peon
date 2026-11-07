@@ -2,6 +2,12 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 07.11.2026: Normales Release, Reiter in Arbeit mit WIP, neuer Standard im Panel
+
+- **Normales Release** `v2026.11.07.6`, direkt ohne eigene Vorabversion für die letzten Änderungen (KarloDerBaer).
+- **Einkaufsliste (Broker, Manager), Gegenstände und Gegenstand (Ledger) zeigen „WIP“,** weil sie überarbeitet werden (KarloDerBaer). Im Spiel zeigt der Reiter nur den Hinweis, der Code bleibt und wird weiter getestet. Im Manager bleibt die Seite nutzbar, nur der Reiter ist markiert (Claude, nach dem Wortlaut des Wunsches).
+- **Einstellung von KarloDerBaer als Standard im Panel** (KarloDerBaer). Sie gilt nur für neue Einstellungen und neue Einträge, bestehende bleiben (Claude). Die Stelle des Panels wird nicht übernommen, weil sie von der Bildschirmgröße abhängt. Ohne eigene Stelle steht es oben links unter der Leiste (Claude).
+
 ## 07.11.2026: Panel und Leiste getrennt, aufklappbar, zweizeilig (Peon_Panel 0.3.0)
 
 - Text, Anzeige und Beschriftung gelten je Anzeige. Bestehende Einstellungen übernimmt das Panel einmal von der Leiste (Claude).

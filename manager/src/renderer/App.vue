@@ -37,7 +37,7 @@ const ALL = [
   { key: 'overview', label: 'Übersicht' },
   { key: 'items', label: 'Gegenstände' },
   { key: 'favorites', label: 'Favoriten' },
-  { key: 'shopping', label: 'Einkaufsliste' },
+  { key: 'shopping', label: 'Einkaufsliste (WIP)' },
   { key: 'chances', label: 'Chancen' },
   { key: 'sources', label: 'Quellen' },
   { key: 'modules', label: 'Updates', always: true },

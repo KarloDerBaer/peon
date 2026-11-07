@@ -126,9 +126,10 @@ function UnitLevel() return 10 end
 function UnitXP() return 100 end
 function UnitXPMax() return 1000 end
 function IsInGuild() return false end
-C_FriendList = { ShowFriends = function() end }
+C_FriendList = { ShowFriends = function() end, GetNumOnlineFriends = function() return 0 end, GetNumFriends = function() return 0 end }
 C_Map = { GetBestMapForUnit = function() return nil end }
 function GetZoneText() return "Zone" end
+function GetSubZoneText() return "" end
 function GetInventoryItemDurability() return nil end
 
 -- ===== Kern =====
@@ -162,6 +163,11 @@ check(tm.launcher:GetText("kaputt") == nil and #PeonDB.errors >= 1, "Fehler im T
 if PeonDB.errors then wipe(PeonDB.errors) end
 
 -- ===== Panel laden: Starter kommt nach =====
+-- Gespeicherte Einstellungen wie vor 0.4.0, damit die Pruefungen der Anzeige gleich bleiben.
+-- Die neuen Standardwerte prueft test_panel_info.lua.
+PeonPanelDB = { barWidth = 60, barGap = 12, style = "tooltipDark", boxShow = false, boxCols = 0, boxSize = 28,
+  boxVis = "always", bgColor = { 0.05, 0.07, 0.10, 0.85 }, lineColor = { 0.70, 0.65, 0.50, 1 },
+  barOrder = {}, boxOrder = {}, entries = { peon = { bar = true, box = true, text = "none" } } }
 local ns = loadToc("Peon_Panel", "Peon_Panel")
 fire("ADDON_LOADED", "Peon_Panel")
 local mod = ns.mod
@@ -483,7 +489,7 @@ check(PeonPanelDB.entries.test.bar == true and bt.shown and bp.shown, "wieder an
 -- ===== Panel =====
 PeonPanelDB.boxShow = true
 mod:Fire("CHANGED", "boxShow")
-check(box.frame.shown and box.frame.points[1][1] == "CENTER", "Panel an, anfangs in der Mitte")
+check(box.frame.shown and box.frame.points[1][1] == "TOPLEFT" and box.frame.points[1][3] == "TOPLEFT", "Panel an, anfangs oben links unter der Leiste")
 local xt, xp = box.buttons.test, box.buttons.peon
 check(xt.label.text == LABEL .. "12,3k g" and xt.label.points[1][1] == "TOP" and xt.label.points[1][3] == "BOTTOM", "Text mit Beschriftung unter dem Symbol")
 check(xt.w == xp.w and xt.h == 28 + 14, "alle Zellen gleich gross")
