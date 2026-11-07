@@ -44,6 +44,11 @@ Neu, Quest, Ausrüstung, Essen und Trinken, Tränke und Elixiere, Verbände, Ver
 
 Ein Klick auf eine Überschrift ohne Gegenstand am Mauszeiger klappt den Abschnitt ein oder aus. Eingeklappt steht die Anzahl hinter dem Namen. Mit Gegenstand am Mauszeiger bleibt der Klick das Ablegen.
 
+## 5a. Nebeneinander und Ziehen (ab 0.6.0, Wunsch KarloDerBaer)
+
+- Kleine Abschnitte teilen sich eine Zeile, wenn sie zusammen in die Breite passen. Abschaltbar je Fenster in der Leiste („Abschnitte nebeneinander“).
+- Eine Überschrift einer Kategorie oder eines eigenen Bereichs auf eine andere derselben Art ziehen ändert die Reihenfolge. Andere Überschriften bewegen weiter das Fenster.
+
 ## 6. Übernahme alter Einstellungen
 
 - Mit eigenen Bereichen wird aus „Taschenreihenfolge“ Individuell ohne Kategorien und aus „Nach Art“ Individuell mit allen bisherigen Kategorien (ohne Neu).

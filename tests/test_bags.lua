@@ -540,6 +540,7 @@ check(PeonBagsDB.groups and #PeonBagsDB.groups == 0, "anfangs keine Bereiche")
 local function allOff() local t = {} for _, c in ipairs(ns.CATS) do t[c] = true end return t end
 PeonBagsDB.bagCatsOff, PeonBagsDB.bankCatsOff = allOff(), allOff()
 PeonBagsDB.bagLayout, PeonBagsDB.bankLayout = "custom", "custom"
+PeonBagsDB.bagPack, PeonBagsDB.bankPack = false, false   -- Positionen untereinander pruefen (nebeneinander: unten)
 ns.ShowBags()
 check(headers(w) == "Reagenzientasche", "ohne Bereiche sieht das Fenster aus wie bisher: " .. headers(w))
 check(headerOf(w, "Reagenzientasche").target == nil, "ohne Bereiche nimmt keine Ueberschrift etwas an")
@@ -693,6 +694,54 @@ check(bags[0].items[2] ~= nil, "Gegenstaende bleiben in der Tasche")
 ns.DeleteGroup(1)
 check(next(PeonBagsDB.groupItems) == nil and headers(w) == "Reagenzientasche", "ohne Bereiche wieder wie zuvor: " .. headers(w))
 ns.HideBags()
+
+-- ===== Abschnitte nebeneinander und Ziehen an der Ueberschrift (ab 0.6) =====
+do
+  check(PeonBagsDB.guildPack == true, "nebeneinander ist Standard")
+  PeonBagsDB.bagPack = true
+  PeonBagsDB.bagCatsOff = {}
+  w:Set("Layout", "type")
+  ns.ShowBags()
+  local q, e = headerOf(w, "Quest"), headerOf(w, "Ausrüstung")
+  check(q.points[1][5] == e.points[1][5] and e.points[1][4] == q.points[1][4] + 37 + 14, "kleine Abschnitte nebeneinander: " .. headers(w))
+  check(ns.slots[0][6].points[1][4] == q.points[1][4] and ns.slots[0][6].points[1][5] == q.points[1][5] - 16, "Gegenstand unter seiner Ueberschrift")
+  local fr = headerOf(w, "Freie Plätze")
+  check(fr.points[1][4] == 0 and fr.points[1][5] < q.points[1][5], "volle Zeilen stehen allein")
+  check(w.setup and (w.setup.pack.checked == true or not w.setup:IsShown()), "Haken nebeneinander gesetzt")
+  w:Set("Pack", false)
+  q, e = headerOf(w, "Quest"), headerOf(w, "Ausrüstung")
+  check(q.points[1][4] == 0 and e.points[1][4] == 0 and e.points[1][5] < q.points[1][5], "ohne nebeneinander: untereinander")
+  w:Set("Pack", true)
+  -- Kategorie per Ziehen umsortieren: Muell auf Quest
+  local junk = headerOf(w, "Müll")
+  q = headerOf(w, "Quest")
+  check(ns.Movable(junk.key) == "cat" and ns.Movable("g3") == "group" and ns.Movable("other") == nil, "verschiebbare Ueberschriften erkannt")
+  junk.scripts.OnDragStart(junk)
+  check(junk.alpha == 0.4 and w.dragHeader == junk, "Ziehen beginnt")
+  q.IsMouseOver = function() return true end
+  junk.scripts.OnDragStop(junk)
+  q.IsMouseOver = nil
+  check(PeonBagsDB.catOrder[2] == "junk" and PeonBagsDB.catOrder[3] == "quest" and junk.alpha == 1, "Muell vor Quest einsortiert")
+  check(headers(w):find("Neu,Müll,Quest") ~= nil, "Fenster folgt der neuen Reihenfolge: " .. headers(w))
+  -- nach unten gezogen: dahinter
+  check(ns.MoveCatTo("junk", "equip") and PeonBagsDB.catOrder[2] == "quest" and PeonBagsDB.catOrder[3] == "equip" and PeonBagsDB.catOrder[4] == "junk", "nach unten gezogen: dahinter")
+  check(not ns.MoveCatTo("junk", "junk") and not ns.MoveCatTo("junk", "gibtsnicht"), "ungueltiges Ziel aendert nichts")
+  -- Ueberschrift ohne Kategorie bewegt weiter das Fenster
+  local rg = headerOf(w, "Reagenzientasche")
+  rg.scripts.OnDragStart(rg)
+  check(w.movingByHeader and not w.dragHeader, "Reagenzientasche: Ziehen bewegt das Fenster")
+  rg.scripts.OnDragStop(rg)
+  check(not w.movingByHeader, "Fenster losgelassen")
+  -- eigene Bereiche per Ziehen
+  local ga, gb2 = ns.AddGroup("Erster"), ns.AddGroup("Zweiter")
+  local before2 = #PeonBagsDB.groups
+  check(ns.MoveGroupTo(gb2.id, ga.id) and PeonBagsDB.groups[before2 - 1].name == "Zweiter" and PeonBagsDB.groups[before2].name == "Erster", "Bereich per Ziehen davor")
+  ns.DeleteGroup(ga.id); ns.DeleteGroup(gb2.id)
+  PeonBagsDB.catOrder = nil
+  ns.CatOrder()
+  w:Set("Layout", "classic")
+  ns.HideBags()
+end
 
 -- ===== Uebernahme der alten Anordnung (ab 0.5) =====
 do

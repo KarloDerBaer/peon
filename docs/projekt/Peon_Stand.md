@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 07.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.37.0 / Bridge 0.7.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.19.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.0 / Fishing 1.6.0 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.5.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 07.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.37.0 / Bridge 0.7.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.19.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.0 / Fishing 1.6.0 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.15.0, API 15
@@ -154,11 +154,11 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Verlauf der Versionen: `docs/changelog/Peon_Panel.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.4.0, 0.3.0, 0.2.0, 0.1.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Bags – 0.5.0 (neu, Taschen, Bank, Gildenbank)
+## Peon_Bags – 0.6.0 (neu, Taschen, Bank, Gildenbank)
 
 - Konzept: `Peon_Bags_Konzept.md` (abgestimmt 07.10.2026), eigene Bereiche `Peon_Bags_Bereiche.md` (abgestimmt 06.11.2026). Ersetzt Bagnon, Bagnon_Bank, Bagnon_GuildBank und BagBrother (Twinks zeigt Ledger).
 - Dateien: Locales.lua, Bags.lua, Groups.lua (ab 0.3), Slots.lua, Window.lua, Setup.lua (ab 0.5, Leiste „Einstellen“), Inventory.lua, Bank.lua, Guild.lua, Options.lua; Symbol `INV_Misc_Bag_08`.
-- SavedVariables: `PeonBagsDB` (accountweit): `replace` (Taschen und Bank ersetzen, an), `replaceGuild` (an), `bagCols` (10), `bagScale` (100 %), `bagLayout` (ab 0.5 classic/type/custom, vorher bags/type), `bagBar` (an), `bankCols`/`bankScale`/`bankLayout` (14, 100, classic), `guildCols`/`guildScale`/`guildLayout` (14, 100, classic, nur classic/type), `quality`, `newGlow`, `junk` (an), `autoMerchant`, `autoBank`, `autoMail`, `autoAuction`, `autoTrade`, `autoGuild` (an), `pos[bag|bank|guild] = { x, y }`, `groups` (eigene Bereiche: id, name, ab 0.3), `groupItems[itemID oder "itemID:voller Name"] = Bereich` (ab 0.3), alle drei bleiben bei „Standardwerte“. Ab 0.5 (Konzept `Peon_Bags_Anordnung.md`): `bagCatsOff`/`bankCatsOff`/`guildCatsOff` (abgewählte Kategorien je Fenster), `bagGroupsOff`/`bankGroupsOff` (abgewählte Bereiche je Fenster), `bagCollapsed`/`bankCollapsed`/`guildCollapsed` (eingeklappte Abschnitte: `g<id>`, `c:<Kategorie>`, `other`, `reagent`, `reagentbank`, `account`), `catOrder` (gemeinsame Reihenfolge der 17 Kategorien), `layoutVer` (2 = alte Anordnung übernommen). Abwahl, Reihenfolge und `layoutVer` bleiben bei „Standardwerte“. Spalten 6–24, Größe 50–200 % (5er).
+- SavedVariables: `PeonBagsDB` (accountweit): `replace` (Taschen und Bank ersetzen, an), `replaceGuild` (an), `bagCols` (10), `bagScale` (100 %), `bagLayout` (ab 0.5 classic/type/custom, vorher bags/type), `bagBar` (an), `bankCols`/`bankScale`/`bankLayout` (14, 100, classic), `guildCols`/`guildScale`/`guildLayout` (14, 100, classic, nur classic/type), `quality`, `newGlow`, `junk` (an), `autoMerchant`, `autoBank`, `autoMail`, `autoAuction`, `autoTrade`, `autoGuild` (an), `pos[bag|bank|guild] = { x, y }`, `groups` (eigene Bereiche: id, name, ab 0.3), `groupItems[itemID oder "itemID:voller Name"] = Bereich` (ab 0.3), alle drei bleiben bei „Standardwerte“. Ab 0.5 (Konzept `Peon_Bags_Anordnung.md`): `bagCatsOff`/`bankCatsOff`/`guildCatsOff` (abgewählte Kategorien je Fenster), `bagGroupsOff`/`bankGroupsOff` (abgewählte Bereiche je Fenster), `bagCollapsed`/`bankCollapsed`/`guildCollapsed` (eingeklappte Abschnitte: `g<id>`, `c:<Kategorie>`, `other`, `reagent`, `reagentbank`, `account`), `catOrder` (gemeinsame Reihenfolge der 17 Kategorien), `layoutVer` (2 = alte Anordnung übernommen). Abwahl, Reihenfolge und `layoutVer` bleiben bei „Standardwerte“. Ab 0.6: `bagPack`/`bankPack`/`guildPack` (Abschnitte nebeneinander, an). Spalten 6–24, Größe 50–200 % (5er).
 - Braucht Peon API 7 (Liste, ab 0.3); Bereiche für Peon_Feedback ab API 9.
 - Befehle: `/peon bags` (Taschenfenster ein/aus, geht immer – auch mit Bagnon), `/peon bags optionen`, `/peon bags debug`.
 - Verlauf der Versionen: `docs/changelog/Peon_Bags.md`
@@ -192,7 +192,7 @@ Erste Fassung gebaut mit Bags 0.3.0 (Bauabschnitte B1 bis B3), enthalten in der 
 
 ### Peon_Bags: Anordnung Klassisch, Nach Art, Individuell (beschlossen 07.11.2026, Konzept `Peon_Bags_Anordnung.md`)
 
-Knopf „Einstellen“ statt „Nach Art“, Leiste rechts neben dem Fenster mit den drei Anordnungen, automatischen Kategorien (wählbar, Reihenfolge änderbar) und eigenen Bereichen (je Fenster abwählbar). Dazu einklappbare Abschnitte und die Kategorie „Neu“. Gebaut mit Bags 0.5.0, enthalten in der Vorabversion `v2026.11.07.7-test` (07.11.2026, nur Kanal Test, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen). Im Spiel noch nicht geprüft.
+Knopf „Einstellen“ statt „Nach Art“, Leiste rechts neben dem Fenster mit den drei Anordnungen, automatischen Kategorien (wählbar, Reihenfolge änderbar) und eigenen Bereichen (je Fenster abwählbar). Dazu einklappbare Abschnitte und die Kategorie „Neu“. Gebaut mit Bags 0.5.0, enthalten in der Vorabversion `v2026.11.07.7-test` (07.11.2026, nur Kanal Test, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen). Von KarloDerBaer im Spiel geprüft, es funktioniert (07.11.2026). Danach gewünscht und gebaut mit Bags 0.6.0: kleine Abschnitte nebeneinander (abschaltbar) und Reihenfolge per Ziehen an der Überschrift, im Spiel noch nicht geprüft.
 
 ### Manager: Update mit sichtbarem Fortschritt und Senden im Dialog (beschlossen 07.11.2026)
 

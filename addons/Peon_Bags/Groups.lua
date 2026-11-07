@@ -113,6 +113,15 @@ function ns.MoveGroup(id, delta)
     return true
 end
 
+-- Bereich per Ziehen an der Ueberschrift auf die Stelle eines anderen legen (ab 0.6)
+function ns.MoveGroupTo(id, targetID)
+    local _, i = ns.GroupByID(id)
+    local _, j = ns.GroupByID(targetID)
+    if not ns.MoveInList(ns.Groups(), i, j) then return false end
+    Changed()
+    return true
+end
+
 -- Entfernt den Bereich und seine Zuordnungen, die Gegenstaende bleiben in der Tasche
 function ns.DeleteGroup(id)
     local _, i = ns.GroupByID(id)

@@ -11,7 +11,7 @@ if not mod then return end
 ns.windows = {}
 
 local SLOT, GAP, PAD = 37, 4, 10
-local HDR_H, SEC_GAP = 16, 6
+local HDR_H, SEC_GAP, PACK_GAP = 16, 6, 14
 local TOP_H, FOOT_H, MIN_W = 84, 28, 330
 ns.SLOT, ns.GAP = SLOT, GAP
 
@@ -283,6 +283,66 @@ end
 -- keepEmpty = Ueberschrift auch ohne Gegenstaende zeigen
 -- target = nimmt abgelegte Gegenstaende an (Bereich-id oder ns.GROUP_NONE, siehe Groups.lua), nil = reine Schrift
 ---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+-- Ueberschrift ziehen: Reihenfolge von Kategorien und eigenen Bereichen (ab 0.6)
+---------------------------------------------------------------------------
+-- Art und Schluessel einer verschiebbaren Ueberschrift: "c:<Kategorie>" oder "g<Bereich-id>"
+function ns.Movable(key)
+    if type(key) ~= "string" then return nil end
+    local cat = key:match("^c:(.+)$")
+    if cat then return "cat", cat end
+    local id = tonumber(key:match("^g(%d+)$") or "")
+    if id then return "group", id end
+    return nil
+end
+
+local ghost
+local function Ghost()
+    if ghost then return ghost end
+    ghost = CreateFrame("Frame", nil, UIParent)
+    ghost:SetFrameStrata("TOOLTIP")
+    ghost:SetSize(200, 16)
+    ghost.text = ghost:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    ghost.text:SetPoint("LEFT", 0, 0)
+    ghost:Hide()
+    ghost:SetScript("OnUpdate", function(self)
+        local gc = rawget(_G, "GetCursorPosition")
+        if type(gc) ~= "function" then return end
+        local cx, cy = gc()
+        local sc = UIParent:GetEffectiveScale()
+        if not ns.Num(cx) or not ns.Num(sc) or sc <= 0 then return end
+        self:ClearAllPoints()
+        self:SetPoint("LEFT", UIParent, "BOTTOMLEFT", cx / sc + 14, cy / sc)
+    end)
+    return ghost
+end
+
+function ns.StartHeaderDrag(w, h)
+    w.dragHeader = h
+    h:SetAlpha(0.4)
+    local g = Ghost()
+    g.text:SetText(h.text or "")
+    g:Show()
+end
+
+-- Loslassen ueber einer anderen Ueberschrift derselben Art: davor bzw. dahinter einsortieren
+function ns.StopHeaderDrag(w, h)
+    if ghost then ghost:Hide() end
+    h:SetAlpha(1)
+    w.dragHeader = nil
+    local kind, from = ns.Movable(h.key)
+    if not kind then return end
+    for _, other in ipairs(w.headers) do
+        if other ~= h and other:IsShown() and other:IsMouseOver() then
+            local k2, to = ns.Movable(other.key)
+            if k2 == kind then
+                if kind == "cat" then ns.MoveCatTo(from, to) else ns.MoveGroupTo(from, to) end
+            end
+            return
+        end
+    end
+end
+
 local PLUS = "|TInterface\\Buttons\\UI-PlusButton-Up:12:12:0:0|t "
 local MINUS = "|TInterface\\Buttons\\UI-MinusButton-Up:12:12:0:0|t "
 
@@ -311,12 +371,19 @@ local function Header(w, i)
             if self.key then w:ToggleCollapse(self.key) end
         end)
         h:SetScript("OnReceiveDrag", Drop)
-        -- Ziehen an der Ueberschrift bewegt weiter das Fenster
-        h:SetScript("OnDragStart", function() w.frame:StartMoving() end)
-        h:SetScript("OnDragStop", function()
-            w.frame:StopMovingOrSizing()
-            w:SavePosition()
-            if w.OnMoved then w:OnMoved() end
+        -- Ziehen an der Ueberschrift: Kategorien und eigene Bereiche umsortieren (ab 0.6), sonst das Fenster bewegen
+        h:SetScript("OnDragStart", function(self)
+            if ns.Movable(self.key) then ns.StartHeaderDrag(w, self) else w.frame:StartMoving(); w.movingByHeader = true end
+        end)
+        h:SetScript("OnDragStop", function(self)
+            if w.movingByHeader then
+                w.movingByHeader = nil
+                w.frame:StopMovingOrSizing()
+                w:SavePosition()
+                if w.OnMoved then w:OnMoved() end
+            else
+                ns.StopHeaderDrag(w, self)
+            end
         end)
         h:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -325,6 +392,7 @@ local function Header(w, i)
                 GameTooltip:AddLine(self.target == ns.GROUP_NONE and L.GROUP_TIP_OUT or L.GROUP_TIP_IN, nil, nil, nil, true)
             end
             if self.key then GameTooltip:AddLine(L.COLLAPSE_TIP, nil, nil, nil, true) end
+            if ns.Movable(self.key) then GameTooltip:AddLine(L.DRAG_TIP, nil, nil, nil, true) end
             GameTooltip:Show()
         end)
         h:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -333,6 +401,15 @@ local function Header(w, i)
     return h
 end
 
+-- Breite einer Ueberschrift in Pixeln (Text plus etwas Luft), 0, wenn das Spiel sie nicht misst
+local function TextWidth(h)
+    local ok, wdt = pcall(h.label.GetStringWidth, h.label)
+    return (ok and ns.Num(wdt)) and math.ceil(wdt) + 4 or 0
+end
+
+-- Abschnitte anordnen. Mit "nebeneinander" (ab 0.6, Einstellung <Fenster>Pack) teilen sich kleine Abschnitte
+-- eine Zeile, wenn sie zusammen in die Breite passen. Ein Abschnitt ist dann so breit wie seine Plaetze,
+-- mindestens aber wie seine Ueberschrift. Abschnitte ohne Ueberschrift und volle Zeilen stehen allein.
 function Window:Arrange(sections, allButtons)
     local f = self.frame
     -- im Kampf: geschuetzte Knoepfe nicht bewegen, spaeter nachholen
@@ -346,18 +423,24 @@ function Window:Arrange(sections, allButtons)
     end
     local cols = self:Cols()
     local step = SLOT + GAP
-    local y, hi, maxCols = 0, 0, 1
+    local full = cols * step - GAP
+    local pack = self:Setting("Pack") ~= false
+    local hi = 0
     local shown = {}
+
+    -- 1. Bloecke: Ueberschrift beschriften, Breite und Hoehe bestimmen
+    local blocks = {}
     for _, sec in ipairs(sections) do
         local n = #sec.items
         if n > 0 or sec.keepEmpty then
             local folded = sec.collapsed and sec.title ~= nil
+            local bl = { sec = sec, n = n, folded = folded }
+            local slots = folded and 0 or math.min(n, cols)
+            bl.width = slots > 0 and slots * step - GAP or 0
+            bl.rows = folded and 0 or math.ceil(n / cols)
             if sec.title then
                 hi = hi + 1
                 local h = Header(self, hi)
-                h:ClearAllPoints()
-                h:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -y)
-                h:SetWidth(cols * step - GAP)
                 -- Zeichen vor dem Namen zeigt, dass sich der Abschnitt einklappen laesst (ab 0.5)
                 local label = sec.title
                 if sec.key then label = (folded and PLUS or MINUS) .. label end
@@ -365,29 +448,59 @@ function Window:Arrange(sections, allButtons)
                 h.label:SetText(label)
                 h.text, h.target, h.key, h.folded = sec.title, sec.target, sec.key, folded
                 h:EnableMouse(sec.target ~= nil or sec.key ~= nil)
-                h:Show()
-                y = y + (folded and HDR_H + SEC_GAP or HDR_H)
+                bl.header = h
+                bl.width = math.max(bl.width, TextWidth(h))
             end
-            for i, b in ipairs(folded and {} or sec.items) do
-                local row, col = math.floor((i - 1) / cols), (i - 1) % cols
-                b:ClearAllPoints()
-                b:SetPoint("TOPLEFT", self.content, "TOPLEFT", col * step, -(y + row * step))
-                b:Show()
-                shown[b] = true
-            end
-            if not folded then
-                if n > maxCols then maxCols = math.min(n, cols) end
-                y = y + math.ceil(n / cols) * step + SEC_GAP
-            end
+            bl.width = math.min(full, math.max(bl.width, 1))
+            -- allein in der Zeile: ohne Ueberschrift, volle Zeilen, oder nicht packen
+            if not pack or not sec.title or n >= cols then bl.width, bl.alone = full, true end
+            bl.height = (bl.header and HDR_H or 0) + bl.rows * step
+            blocks[#blocks + 1] = bl
         end
     end
+
+    -- 2. Zeilen fuellen und setzen
+    local y, x, lineH, lineAlone, started = 0, 0, 0, false, false
+    for _, bl in ipairs(blocks) do
+        if started then
+            if bl.alone or lineAlone or x + PACK_GAP + bl.width > full then
+                y = y + lineH + SEC_GAP
+                x, lineH = 0, 0
+            else
+                x = x + PACK_GAP
+            end
+        end
+        started = true
+        local top = y
+        if bl.header then
+            local h = bl.header
+            h:ClearAllPoints()
+            h:SetPoint("TOPLEFT", self.content, "TOPLEFT", x, -top)
+            h:SetWidth(bl.width)
+            h:Show()
+            top = top + HDR_H
+        end
+        local c = bl.alone and cols or math.max(1, math.min(bl.n, cols))
+        for i, b in ipairs(bl.folded and {} or bl.sec.items) do
+            local row, col = math.floor((i - 1) / c), (i - 1) % c
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", self.content, "TOPLEFT", x + col * step, -(top + row * step))
+            b:Show()
+            shown[b] = true
+        end
+        x = x + bl.width
+        lineH = math.max(lineH, bl.height)
+        lineAlone = bl.alone
+    end
+    y = y + lineH
+
     for i = hi + 1, #self.headers do self.headers[i]:Hide() end
     for _, b in ipairs(allButtons or {}) do
         if not shown[b] then b:Hide() end
     end
-    local width = math.max(self.minW or MIN_W, PAD * 2 + cols * step - GAP)
-    local height = TOP_H + math.max(y - SEC_GAP, SLOT) + FOOT_H + 6
-    self.content:SetSize(cols * step - GAP, math.max(1, y))
+    local width = math.max(self.minW or MIN_W, PAD * 2 + full)
+    local height = TOP_H + math.max(y, SLOT) + FOOT_H + 6
+    self.content:SetSize(full, math.max(1, y))
     if not ns.Locked(f) then f:SetSize(width, height) end
     return true
 end

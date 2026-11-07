@@ -130,7 +130,9 @@ local function Refresh(w)
     for _, b in ipairs(p.layoutBtns) do ns.SetButtonOn(b, b.value == layout) end
     local y = -26
     p.modeText:SetText(L["MODE_" .. layout:upper()] or "")
-    y = Place(w, p.modeText, y, (p.modeText:GetStringHeight() or 12) + 12)
+    y = Place(w, p.modeText, y, (p.modeText:GetStringHeight() or 12) + 8)
+    p.pack:SetChecked(w:Setting("Pack") ~= false)
+    y = Place(w, p.packRow, y, ROW + 8)
 
     -- automatische Kategorien: bei Klassisch ausgegraut
     local catsOn = layout ~= "classic"
@@ -254,6 +256,14 @@ local function Build(w)
     end
     p.modeText = Text(c)
     p.modeText:SetWidth(INNER)
+    -- Abschnitte nebeneinander (ab 0.6)
+    p.packRow = CreateFrame("Frame", nil, c)
+    p.packRow:SetSize(INNER, ROW)
+    p.pack = Check(p.packRow, function(_, on) w:Set("Pack", on) end)
+    local pl = Text(p.packRow, "GameFontNormalSmall")
+    pl:SetPoint("LEFT", p.pack, "RIGHT", 2, 0)
+    pl:SetText(L.PACK)
+    Tip(p.pack, L.PACK, L.PACK_TIP)
 
     p.catHdr = Text(c, "GameFontNormal")
     p.catHdr:SetText(L.SETUP_CATS)

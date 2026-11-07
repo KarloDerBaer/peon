@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.6.0
+
+Kurz: Kleine Abschnitte stehen jetzt nebeneinander, so bleiben weniger Plätze leer. Abschalten kannst du das unter „Einstellen“.
+Kurz: Kategorien und eigene Bereiche sortierst du um, indem du eine Überschrift auf eine andere ziehst.
+
+- 0.6.0 (07.11.2026, Wunsch KarloDerBaer nach dem ersten Test von 0.5.0):
+  - **Nebeneinander:** Abschnitte mit weniger Gegenständen als Spalten teilen sich eine Zeile, wenn sie zusammen hineinpassen. Ein Abschnitt ist so breit wie seine Plätze, mindestens wie seine Überschrift. Volle Zeilen und Abschnitte ohne Überschrift stehen allein. Haken „Abschnitte nebeneinander“ in der Leiste, je Fenster (`bagPack`, `bankPack`, `guildPack`, Standard an).
+  - **Ziehen an der Überschrift:** Eine Kategorie auf eine andere ziehen legt sie an deren Stelle, nach oben gezogen davor, nach unten gezogen dahinter. Dasselbe für eigene Bereiche. Beim Ziehen folgt der Name dem Mauszeiger. Andere Überschriften („Übrige“, Reagenzientasche) bewegen weiter das Fenster. Gegenstände auf eine Überschrift ziehen geht wie bisher.
+  - **Im Spiel prüfen:** Abstände und Breiten nebeneinander (lange Namen wie „Tränke und Elixiere“), Ziehen einer Überschrift auf eine andere, Loslassen außerhalb (nichts passiert), Fenster weiter an „Übrige“ verschiebbar.
+
 ## 0.5.0
 
 Kurz: Neuer Knopf „Einstellen“ im Taschenfenster: Wähle Klassisch, Nach Art oder Individuell, hake die Kategorien an, die du sehen willst, und lege eigene Bereiche fest.

@@ -89,6 +89,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         bagGroupsOff = {}, bankGroupsOff = {},
         bagCollapsed = {}, bankCollapsed = {}, guildCollapsed = {},
         catOrder     = CatList(), -- gemeinsame Reihenfolge der Kategorien
+        bagPack      = true, bankPack = true, guildPack = true,   -- ab 0.6: Abschnitte nebeneinander
         layoutVer    = 2,
     },
     ranges = {
@@ -277,6 +278,27 @@ function ns.CatOrder()
     end
     mod.db.catOrder = res
     return res
+end
+
+-- Element einer Liste an die Stelle eines anderen schieben: nach unten gezogen dahinter, nach oben davor (ab 0.6)
+function ns.MoveInList(list, i, j)
+    if not i or not j or i == j then return false end
+    local v = table.remove(list, i)
+    table.insert(list, j, v)
+    return true
+end
+
+-- Kategorie per Ziehen an der Ueberschrift auf die Stelle einer anderen legen (ab 0.6)
+function ns.MoveCatTo(cat, target)
+    local list = ns.CatOrder()
+    local i, j
+    for k, c in ipairs(list) do
+        if c == cat then i = k end
+        if c == target then j = k end
+    end
+    if not ns.MoveInList(list, i, j) then return false end
+    mod:Fire("CHANGED", "catOrder")
+    return true
 end
 
 -- delta = -1 nach oben, 1 nach unten
