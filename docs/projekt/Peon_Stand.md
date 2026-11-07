@@ -176,11 +176,11 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
 
 Gebaut mit Peon 0.14.0 und Peon_Panel 0.1.0, dazu Starter und Texte in Broker 0.35.0, Ledger 0.11.0, Fishing 1.6.0, Bags 0.4.0 und Feedback 0.4.0. Vorabversion `v2026.11.07.4-test` veröffentlicht (07.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im Spiel von KarloDerBaer getestet, es funktioniert (07.11.2026). Peon_Panel ist ein neues Addon: „Alles aktualisieren“ fügt es nicht von selbst hinzu, es hat im Manager einen eigenen Knopf.
 
-**Überarbeitung nach dem Vorbild Titan Panel (beschlossen 07.11.2026, Konzept Abschnitte 12 und 13):** Gebaut mit Panel 0.2.0 (Leiste nur oben, runde Ecken, Bereiche, Menü auf freier Stelle, Anzeige je Modul, von KarloDerBaer im Spiel geprüft) und Panel 0.3.0, Peon 0.15.0, Ledger 0.12.0 (14 allgemeine Einträge, Stile, weitere Optionen, von KarloDerBaer im Spiel geprüft). Danach ergänzt und noch nicht im Spiel geprüft: Metall, Dialog und Holz verkleinert, Einstellungen der Leiste im Untermenü, Beschriftung je Eintrag, Gold mit Münzsymbolen, Leiste und Panel getrennt einstellbar, Panel mit Text rechts, Leiste und Panel aufklappbar, Leiste zweizeilig. Noch nicht committet und nicht veröffentlicht. KarloDerBaer prüft alles zusammen zum Schluss.
+**Überarbeitung nach dem Vorbild Titan Panel (beschlossen 07.11.2026, Konzept Abschnitte 12 und 13):** Gebaut mit Panel 0.2.0 (Leiste nur oben, runde Ecken, Bereiche, Menü auf freier Stelle, Anzeige je Modul, von KarloDerBaer im Spiel geprüft) und Panel 0.3.0, Peon 0.15.0, Ledger 0.12.0 (14 allgemeine Einträge, Stile, weitere Optionen, von KarloDerBaer im Spiel geprüft). Danach ergänzt und noch nicht im Spiel geprüft: Metall, Dialog und Holz verkleinert, Einstellungen der Leiste im Untermenü, Beschriftung je Eintrag, Gold mit Münzsymbolen, Leiste und Panel getrennt einstellbar, Panel mit Text rechts, Leiste und Panel aufklappbar, Leiste zweizeilig. Enthalten in der Vorabversion `v2026.11.07.5-test` (07.11.2026, nur Kanal Test, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen). KarloDerBaer prüft alles zusammen im Spiel.
 
 ### Neuere Preise aus dem Manager im Spiel (beschlossen 07.11.2026)
 
-Umgesetzt mit Manager 0.18.0, Bridge 0.7.0, Broker 0.36.0: Der Manager schickt die Preise des neuesten Stands (meist Blizzard-API) über `Data.lua`, Broker übernimmt sie beim Anmelden, wenn sie neuer sind als der eigene Scan. Auf der Leiste steht das Alter der neuesten Daten, der Tooltip nennt Scan und API getrennt. Alle Tests grün, im Spiel noch nicht geprüft. Noch nicht committet und nicht veröffentlicht.
+Umgesetzt mit Manager 0.18.0, Bridge 0.7.0, Broker 0.36.0: Der Manager schickt die Preise des neuesten Stands (meist Blizzard-API) über `Data.lua`, Broker übernimmt sie beim Anmelden, wenn sie neuer sind als der eigene Scan. Auf der Leiste steht das Alter der neuesten Daten, der Tooltip nennt Scan und API getrennt. Alle Tests grün. Enthalten in der Vorabversion `v2026.11.07.5-test` (07.11.2026, nur Kanal Test), im Spiel noch nicht geprüft.
 
 ### Peon_Bags: eigene Bereiche (beschlossen 06.11.2026, Konzept `Peon_Bags_Bereiche.md`)
 
@@ -194,7 +194,7 @@ Noch offen, wird in einer eigenen Sitzung bearbeitet. Vorher klären, was KarloD
 - **Reiter Preise** im Broker überarbeiten.
 - **Reiter Gegenstände und Gegenstand** in Ledger überarbeiten.
 
-Bis dahin gibt es nur Vorabversionen (zuletzt `v2026.11.07.4-test`), ein normales Release gibt es vorerst nicht (KarloDerBaer).
+Bis dahin gibt es nur Vorabversionen (zuletzt `v2026.11.07.5-test`), ein normales Release gibt es vorerst nicht (KarloDerBaer).
 
 ### Navigation, Einkaufsliste, Favoriten, Ladezeiten (beschlossen 06.11.2026)
 
