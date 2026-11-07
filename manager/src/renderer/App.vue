@@ -143,7 +143,7 @@ async function load() {
   data.value = o;
   settings.value = s;
   updates.value = u;
-  // Von selbst nur einmal beim Programmstart, nach der ersten Suche. Die Suche alle 6 Stunden zeigt nur den Knopf.
+  // Von selbst nur einmal beim Programmstart, nach der ersten Suche. Die Suche im eingestellten Abstand zeigt nur den Knopf und meldet sich ueber Windows.
   if (u.ready && !startChecked) {
     startChecked = true;
     if (u.popup) showUpdates.value = true;
@@ -174,6 +174,7 @@ onMounted(() => {
   load();
   api.onChanged(() => load());
   // Klick auf die Meldung der Einkaufsliste
+  api.onOpenUpdates(() => load().then(() => { showUpdates.value = true; }));
   api.onOpenItem(({ market: mk, key }) => { market.value = mk; push({ view: 'item', itemKey: key, origin: 'shopping' }); });
   setInterval(() => { now.value = Math.floor(Date.now() / 1000); }, 30000);
 });

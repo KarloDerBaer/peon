@@ -89,7 +89,15 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
     <section class="group">
       <h2>Updates</h2>
       <label class="check"><input type="checkbox" :checked="settings.updateWindow" @change="emit('save', { updateWindow: $event.target.checked })" /> Beim Start zeigen, wenn es Neues gibt</label>
-      <p class="small muted">Der Manager sucht beim Start und alle 6 Stunden nach neuen Versionen. Installiert wird nur, wenn du es auslöst. Kanal und Suche stehen im Reiter Updates.</p>
+      <label class="check"><input type="checkbox" :checked="settings.updateNotify" @change="emit('save', { updateNotify: $event.target.checked })" /> Meldung von Windows, wenn es Neues gibt</label>
+      <label class="field inline">
+        <span>Nach Updates suchen</span>
+        <select :value="settings.updateCheckMin" @change="emit('save', { updateCheckMin: Number($event.target.value) })">
+          <option :value="10">alle 10 Minuten</option><option :value="30">alle 30 Minuten</option>
+          <option :value="60">jede Stunde</option><option :value="360">alle 6 Stunden</option>
+        </select>
+      </label>
+      <p class="small muted">Der Manager sucht beim Start und dann im gewählten Abstand nach neuen Versionen. Installiert wird nur, wenn du es auslöst. Kanal und Suche stehen im Reiter Updates.</p>
     </section>
 
     <div class="group">

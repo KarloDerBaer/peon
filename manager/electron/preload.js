@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld('peon', {
   backupPick: () => ipcRenderer.invoke('backupPick'),
   backupRestore: (dir) => ipcRenderer.invoke('backupRestore', dir),
   onOpenItem: (fn) => { ipcRenderer.on('openItem', (_e, info) => fn(info)); },
+  onOpenUpdates: (fn) => { ipcRenderer.on('openUpdates', () => fn()); },
   updatesShown: () => ipcRenderer.invoke('updatesShown'),
   findWow: () => ipcRenderer.invoke('findWow'),
   finishSetup: (plan) => ipcRenderer.invoke('finishSetup', plan),

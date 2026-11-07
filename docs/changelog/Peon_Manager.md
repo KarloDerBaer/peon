@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.20.0
+
+Kurz: Der Manager sucht jetzt alle 10 Minuten nach Updates und meldet sich über Windows, wenn es Neues gibt. Beides stellst du unter Einstellungen ein.
+
+- 0.20.0 (07.11.2026, Wunsch KarloDerBaer, weil es gerade häufig Updates gibt):
+  - **Suche im eingestellten Abstand:** Einstellung `updateCheckMin` (10, 30, 60 oder 360 Minuten, Standard 10) unter Einstellungen, Abschnitt Updates. Bisher fest alle 6 Stunden. Der Manager sieht jede Minute nach, ob der Abstand um ist, eine geänderte Einstellung gilt also gleich.
+  - **Meldung von Windows:** Einstellung `updateNotify` (Standard an). Findet die Suche eine neue Version eines Addons, kommt eine Meldung mit Namen und Versionen. Der Manager selbst wird gemeldet, sobald er geladen ist und neu starten kann. Jede Version nur einmal je Programmlauf. Zeigt der Start ohnehin das Update-Fenster, meldet die erste Suche nichts. Ein Klick auf die Meldung öffnet das Fenster des Managers mit dem Update-Fenster.
+  - Neuer Test `test/updates.test.js`.
+
 ## 0.19.0
 
 Kurz: Beim Update des Peon Managers siehst du jetzt, was passiert: Ein Fenster zeigt den Fortschritt, danach startet der Manager von selbst neu.

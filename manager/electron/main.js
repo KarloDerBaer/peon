@@ -9,7 +9,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { execFile } = require('node:child_process');
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, session, safeStorage, Notification } = require('electron');
-const { Service } = require('../src/core/service');
+const { Service, updateCheckMs } = require('../src/core/service');
 const { createUpdater } = require('./updater');
 const backup = require('../src/core/backup');
 const { money: shopMoney } = require('../src/core/shopping');
@@ -23,7 +23,8 @@ process.removeAllListeners('warning');   // Hinweis "SQLite is experimental" nic
 const ROOT = path.join(__dirname, '..');
 const DEV = !app.isPackaged;
 const HIDDEN = process.argv.includes('--hidden');
-const ADDON_CHECK_MS = 6 * 60 * 60 * 1000;   // Addons: beim Start und alle 6 Stunden nach Updates suchen, installiert wird nur per Klick
+// Addons und Manager: beim Start und dann im eingestellten Abstand (updateCheckMin, Standard 10 Minuten) nach Updates suchen,
+// installiert wird nur per Klick
 // Beobachter der Blizzard-API, nur in der Testfassung: 1 = alle 10 Minuten, sonst Abstand in Millisekunden
 const WATCH_MS = process.env.PEON_MANAGER_BLIZZARD_WATCH ? (Number(process.env.PEON_MANAGER_BLIZZARD_WATCH) > 1 ? Number(process.env.PEON_MANAGER_BLIZZARD_WATCH) : 10 * 60 * 1000) : 0;
 
@@ -194,12 +195,34 @@ if (!app.requestSingleInstanceLock()) {
 
   async function addonState() { return { ...svc.addonState(await wowRunning()), manager: { version: svc.version, ...updater.state() } }; }
 
+  let lastAddonCheck = 0;
   async function checkAddons() {
+    lastAddonCheck = Date.now();
     const r = await svc.addons.check();
     updater.check();
+    const first = !addonsChecked;
     addonsChecked = true;
     send('changed', { what: 'addons' });
+    notifyUpdates(first);
     return r;
+  }
+
+  // Meldung von Windows, wenn die Suche etwas Neues findet (ab 0.20.0, abschaltbar mit updateNotify). Jede Version wird
+  // nur einmal gemeldet. Zeigt der Start das Update-Fenster ohnehin, meldet die erste Suche nichts. Der Manager selbst
+  // wird erst gemeldet, wenn er geladen ist und neu starten kann. Ein Klick oeffnet das Update-Fenster.
+  const notified = new Set();
+  function notifyUpdates(first = false) {
+    let info;
+    try { info = svc.updateInfo(updater.state(), addonsChecked); } catch { return; }
+    const list = [];
+    if (info.manager && info.manager.status === 'ready') list.push({ key: `Peon Manager@${info.manager.version}`, text: `Peon Manager ${info.manager.version}` });
+    for (const a of info.addons) list.push({ key: `${a.name}@${a.version}`, text: `${a.title} ${a.version}` });
+    const fresh = list.filter((x) => !notified.has(x.key));
+    for (const x of fresh) notified.add(x.key);
+    if (!fresh.length || (first && info.popup) || !svc.settings.updateNotify || !Notification.isSupported()) return;
+    const n = new Notification({ title: 'Peon Manager: Neues für Peon', body: `${fresh.map((x) => x.text).join(', ')}. Klick öffnet das Update-Fenster.`, icon });
+    n.on('click', () => { showWindow(); send('openUpdates'); });
+    n.show();
   }
 
   // Erster Start: stimmt der WoW-Ordner nicht, den gefundenen eintragen
@@ -433,7 +456,7 @@ if (!app.requestSingleInstanceLock()) {
     // PEON_MANAGER_RELEASES: nachgebautes Release statt GitHub (nur zum Testen)
     const rel = process.env.PEON_MANAGER_RELEASES;
     svc = new Service({ dbDir: dataDir(), version: app.getVersion(), releases: rel ? { releaseBase: rel, apiBase: `${rel}/api` } : undefined });
-    updater = createUpdater({ enabled: app.isPackaged && !BESIDE, svc, onChange: () => send('changed', { what: 'update' }), beforeInstall: () => { quitting = true; } });
+    updater = createUpdater({ enabled: app.isPackaged && !BESIDE, svc, onChange: () => { send('changed', { what: 'update' }); if (updater && updater.state().status === 'ready') notifyUpdates(); }, beforeInstall: () => { quitting = true; } });
     blizzardAccess = new blizzard.BlizzardAccess({ keyFile: path.join(svc.dbDir, 'blizzard-zugang.dat'), reportFile: path.join(svc.dbDir, 'blizzard-pruefung.json'),
       encrypt: (s) => safeStorage.encryptString(s), decrypt: (b) => safeStorage.decryptString(b), available: () => safeStorage.isEncryptionAvailable() });
     registerIpc();
@@ -461,7 +484,10 @@ if (!app.requestSingleInstanceLock()) {
     }, 60 * 60 * 1000);
     applyAutostart();
     firstStart().catch(() => {}).then(() => checkAddons()).catch(() => {});
-    setInterval(() => checkAddons().catch(() => {}), ADDON_CHECK_MS);
+    // Jede Minute nachsehen, ob der eingestellte Abstand um ist. So gilt eine geaenderte Einstellung gleich.
+    setInterval(() => {
+      if (Date.now() - lastAddonCheck >= updateCheckMs(svc.settings.updateCheckMin)) checkAddons().catch(() => {});
+    }, 60 * 1000);
     // Blizzard-API: einmal je Minute nachsehen, ob ein Haus dran ist. Abgefragt wird nur, wenn ein neuer Stand zu erwarten ist.
     runBlizzard().catch(() => {});
     setInterval(() => runBlizzard().catch(() => {}), 60 * 1000);

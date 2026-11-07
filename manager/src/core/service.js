@@ -21,6 +21,8 @@ const DEFAULTS = {
   blizzard: { houses: {} },   // gewaehlte Auktionshaeuser: 'eu-111' -> { market, how }
   autostart: false,
   updateWindow: true,     // Update-Fenster beim Programmstart zeigen, wenn es Neues gibt
+  updateCheckMin: 10,     // ab 0.20.0: so viele Minuten zwischen zwei Suchen nach Updates (UPDATE_CHECK_CHOICES)
+  updateNotify: true,     // ab 0.20.0: Meldung von Windows, wenn die Suche etwas Neues findet
   shopNotify: true,       // Einkaufsliste: Meldung von Windows, wenn ein Angebot unter dem Hoechstpreis liegt
   market: '',             // gewaehlter Markt
   itemColumns: [],        // Spalten unter Gegenstaende, leer = Standard
@@ -31,6 +33,12 @@ const DEFAULTS = {
   chances: { days: 7, minProfit: 1000, quality: 0 },   // Ansicht Chancen: Zeitraum, Mindestgewinn je Tag (Kupfer), Qualitaet ab
   hourDays: 60,           // danach Stundenwerte bis zu so vielen Tagen, dann Tageswerte (mindestens 14, retention.js)
 };
+
+// Abstand der Suche nach Updates in Minuten: nur diese Werte, sonst der Standard
+const UPDATE_CHECK_CHOICES = [10, 30, 60, 360];
+function updateCheckMs(min) {
+  return (UPDATE_CHECK_CHOICES.includes(min) ? min : DEFAULTS.updateCheckMin) * 60 * 1000;
+}
 
 function merge(def, cur) {
   const out = Array.isArray(def) ? [] : {};
@@ -291,4 +299,4 @@ class Service {
   }
 }
 
-module.exports = { Service, DEFAULTS, merge };
+module.exports = { Service, DEFAULTS, merge, updateCheckMs, UPDATE_CHECK_CHOICES };
