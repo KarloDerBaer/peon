@@ -2,6 +2,13 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 07.11.2026: Bags-Anordnung, sichtbares Update, Release v2026.11.07.9
+
+- **Bags: Einstellen mit Klassisch, Nach Art, Individuell**, automatische Kategorien wählbar, eigene Bereiche je Fenster abwählbar, einklappbar, Kategorie Neu (KarloDerBaer, Konzept `Peon_Bags_Anordnung.md`). Danach Abschnitte nebeneinander und Reihenfolge per Ziehen an der Überschrift (KarloDerBaer).
+- **Selbst-Update sichtbar** über den Installer mit Fortschritt statt eines eigenen Fensters im Peon-Look (KarloDerBaer: Installer reicht).
+- **Suche nach Updates alle 10 Minuten** mit Meldung von Windows, beides einstellbar, weil es gerade häufig Updates gibt (KarloDerBaer).
+- **Normales Release** `v2026.11.07.9` direkt, Manager 0.20.0 ohne eigene Vorabversion (KarloDerBaer).
+
 ## 07.11.2026: Normales Release, Reiter in Arbeit mit WIP, neuer Standard im Panel
 
 - **Normales Release** `v2026.11.07.6`, direkt ohne eigene Vorabversion für die letzten Änderungen (KarloDerBaer).
