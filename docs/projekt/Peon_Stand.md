@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 08.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.38.0 / Bridge 0.7.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.21.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 08.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.38.0 / Bridge 0.7.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.21.1 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.15.0, API 15
@@ -61,9 +61,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.21.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.21.1
 
-- **Bessere Vorschläge (ab 0.21.0, Rechenmodell Kapitel 10):** Kürzung nach unten erst ab 75 % (F37a), neues Preisniveau nach 12 bis 24 Std. unter oder über dem Bereich (F54), Wiederverkauf höchstens zum Median der Angebote und grüner Satz nur bei 20 % Abstand zu den anderen Angeboten (F50a), Trefferquote unter Chancen (F55). Grenzwerte in 2 bis 4 Wochen mit der Trefferquote prüfen, wenn der Markt nach dem Start ruhiger ist. Vorabversion `v2026.11.08-test` (08.11.2026, nur Kanal Test, zusammen mit Broker 0.38.0), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. **Noch zu prüfen durch KarloDerBaer:** Satz auf der Gegenstandsseite (zum Beispiel Magicusmantel), Pfeil bei „Zu üblich“, Trefferquote unter Chancen (erste Zahlen frühestens am 11.11.2026).
+- **Bessere Vorschläge (ab 0.21.0, Rechenmodell Kapitel 10):** Kürzung nach unten erst ab 75 % (F37a), neues Preisniveau nach 12 bis 24 Std. unter oder über dem Bereich (F54), Wiederverkauf höchstens zum Median der Angebote und grüner Satz nur bei 20 % Abstand zu den anderen Angeboten (F50a), Trefferquote unter Chancen (F55). Grenzwerte in 2 bis 4 Wochen mit der Trefferquote prüfen, wenn der Markt nach dem Start ruhiger ist. Vorabversion `v2026.11.08-test` (08.11.2026, nur Kanal Test, zusammen mit Broker 0.38.0), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. **Noch zu prüfen durch KarloDerBaer:** Satz auf der Gegenstandsseite (zum Beispiel Magicusmantel), Pfeil bei „Zu üblich“, Trefferquote unter Chancen (erste Zahlen frühestens am 11.11.2026). In 0.21.0 zeigte „Beste Chancen jetzt“ noch Treffer nach alten Regeln (Robuster Stein), behoben in 0.21.1: Bei neuen Regeln (`chances.RULES`) werden die Wiederverkaufs-Treffer neu gerechnet, die Trefferquote beginnt neu.
 
 - Reiter „Einkaufsliste (WIP)“ (ab 0.18.1), wird bald überarbeitet.
 - Quellcode: `manager\` (bisher `client\`), Anleitung in `manager\README.md`. Design: `docs\konzepte\manager\Peon_Client_Design.md` (Funktionen, jetzt Modul Peon Broker Client) und `Peon_GitHub_Design.md` (Peon Manager, Module, Installieren).

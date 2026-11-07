@@ -98,6 +98,19 @@ test('F55: Trefferquote der Wiederverkaufs-Vorschlaege', () => {
   d.close();
 });
 
+test('0.21.1: neue Regeln verwerfen alte Wiederverkaufs-Treffer, letzter Scan wird neu ausgewertet', () => {
+  const d = db();
+  const opp = (id, t, kind) => d.prepare('INSERT INTO opp_snap(snapshot_id, market_id, item_key, t, kind, qty, profit, cost, ref) VALUES (?, 1, ?, ?, ?, 1, 1, 1, 2)').run(id, 'a', t, kind);
+  const scan = (id, t) => d.prepare('INSERT INTO opp_scan(snapshot_id, market_id, t, vendor_n) VALUES (?, 1, ?, 0)').run(id, t);
+  opp('alt', NOW - 7200, 'r'); opp('alt', NOW - 7200, 'v'); scan('alt', NOW - 7200);
+  opp('neu', NOW - 60, 'r'); opp('neu', NOW - 60, 'v'); scan('neu', NOW - 60);
+  assert.equal(chances.resetRules(d, null), true);
+  assert.deepEqual(d.prepare('SELECT snapshot_id, kind FROM opp_snap').all().map((x) => x.snapshot_id + x.kind), ['altv']);
+  assert.deepEqual(d.prepare('SELECT snapshot_id FROM opp_scan').all().map((x) => x.snapshot_id), ['alt']);
+  assert.equal(chances.resetRules(d, chances.RULES), false);
+  d.close();
+});
+
 test('Satz auf der Gegenstandsseite: kein Schnaeppchen, wenn alle Angebote gleich tief liegen', async () => {
   const { verdict } = await import('../src/renderer/util.js');
   const lt = { lang: 4 * G, schw: 0.05 };

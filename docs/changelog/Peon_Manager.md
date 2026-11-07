@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.21.1
+
+Kurz: „Beste Chancen jetzt“ zeigte nach dem Update noch Chancen nach den alten Regeln, zum Beispiel Robuster Stein. Diese werden jetzt verworfen und neu gerechnet.
+
+- 0.21.1 (08.11.2026, Hinweis KarloDerBaer, Robuster Stein: Min 3s 85c, Median 3s 98c, trotzdem „Wiederverkauf, 1.987 Stück, 110g“): Die Treffer für Wiederverkauf werden je Scan einmal gerechnet und gespeichert (`opp_snap`). Der letzte Scan war noch mit 0.20.1 ausgewertet. Neu `chances.RULES` (Stand der Regeln, jetzt 2) und `resetRules`: Ändern sich die Regeln, löscht der Manager alle Wiederverkaufs-Treffer und wertet den letzten Scan jedes Markts neu aus (Eintrag im Protokoll). Die Trefferquote beginnt damit neu und misst nur die neuen Regeln. Die Ansicht Chancen und die Übersicht werten außerdem noch nicht ausgewertete Scans gleich aus.
+
 ## 0.21.0
 
 Kurz: Weniger falsche Schnäppchen. Liegen alle Angebote gleich tief oder ist ein Preis seit einem halben Tag gefallen, meldet der Manager kein Schnäppchen mehr, sondern sagt, dass der Preis gefallen ist.

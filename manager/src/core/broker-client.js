@@ -107,7 +107,16 @@ class BrokerClient {
 
   // Werte fuer Broker je Markt: Langzeit-Teil (Kapitel 8) und Absatz (Kapitel 9). Dabei Absatz-Vergleiche und
   // Chancen der neuen Scans rechnen. values ohne Zeitstempel (fuer den Vergleich)
+  // Neue Regeln fuer Chancen (chances.RULES): alte Wiederverkaufs-Treffer verwerfen
+  checkRules() {
+    if (chances.resetRules(this.db, this.meta('oppRules'))) {
+      this.meta('oppRules', chances.RULES);
+      log(this.db, 'chancen', true, 'Neue Regeln: Wiederverkauf neu gerechnet, die Trefferquote beginnt neu');
+    }
+  }
+
   buildMarkets() {
+    this.checkRules();
     const lua = {}, values = {};
     let count = 0, salesCount = 0;
     const now = this.now();
@@ -161,6 +170,9 @@ class BrokerClient {
     const now = this.now();
     const d = Math.max(1, Math.min(14, Number(days) || this.settings.chances.days || 7));
     const lt = this.bands(mid);
+    // noch nicht ausgewertete Scans (etwa nach neuen Regeln) gleich auswerten, damit „jetzt“ stimmt
+    this.checkRules();
+    try { chances.updateMarket(this.db, mid, lt.items, now, lt.shifts); } catch (e) { log(this.db, 'chancen', false, `${marketKey}: ${e.message}`); }
     const st = sales.marketStats(this.db, mid, now);
     const last = this.db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(mid);
     const resale = chances.summarizeOpp(this.db, mid, 'r', d, now, st, last && last.id);

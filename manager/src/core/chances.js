@@ -91,6 +91,23 @@ function updateMarket(db, marketId, bands, now, shifts = null) {
   return res;
 }
 
+// Stand der Regeln fuer Wiederverkauf. Gespeicherte Treffer (opp_snap) werden nur einmal je Scan gerechnet.
+// Aendern sich die Regeln, gelten die alten Treffer nicht mehr (Manager 0.21.1: sonst zeigte „Beste Chancen jetzt“
+// noch Treffer nach den Regeln vor 0.21.0, zum Beispiel Robuster Stein). Dann alle Wiederverkaufs-Treffer loeschen
+// und den letzten Scan jedes Markts neu auswerten lassen. Die Trefferquote beginnt damit neu, nur mit den neuen Regeln.
+const RULES = 2;
+function resetRules(db, current) {
+  if (current === RULES) return false;
+  tx(db, () => {
+    db.prepare("DELETE FROM opp_snap WHERE kind = 'r'").run();
+    for (const r of db.prepare('SELECT o.snapshot_id FROM opp_scan o WHERE o.t = (SELECT MAX(t) FROM opp_scan x WHERE x.market_id = o.market_id)').all()) {
+      db.prepare('DELETE FROM opp_snap WHERE snapshot_id = ?').run(r.snapshot_id);
+      db.prepare('DELETE FROM opp_scan WHERE snapshot_id = ?').run(r.snapshot_id);
+    }
+  });
+  return true;
+}
+
 function slotOf(t) { return Math.floor(new Date(t * 1000).getHours() / 3); }
 
 function itemInfo(db) {
@@ -204,4 +221,4 @@ function worth(db, bands, sales) {
   return out;
 }
 
-module.exports = { scanOpp, updateMarket, summarizeOpp, moves, worth, hitRate, low, high, CUT, MARGIN, SLOTS, HOLD };
+module.exports = { scanOpp, updateMarket, summarizeOpp, moves, worth, hitRate, resetRules, low, high, CUT, MARGIN, SLOTS, HOLD, RULES };
