@@ -206,7 +206,7 @@ function sourceText(s) {
             <template v-for="c in cols" :key="c.key">
               <span v-if="c.key === 'min'" class="cell num"><Gold :copper="it.min" compact /></span>
               <span v-else-if="c.key === 'median'" class="cell num"><Gold :copper="it.median" compact /></span>
-              <span v-else-if="c.key === 'vs'" class="cell num" :class="it.vs < -0.05 ? 'up' : it.vs > 0.05 ? 'down' : 'muted'">{{ pct(it.vs) }}</span>
+              <span v-else-if="c.key === 'vs'" class="cell num" :class="it.band && it.band.shift ? 'muted' : it.vs < -0.05 ? 'up' : it.vs > 0.05 ? 'down' : 'muted'" :title="it.band && it.band.shift ? (it.band.shift === 'down' ? 'Seit mindestens 12 Std. liegen alle Stände unter dem üblichen Bereich. Der Preis ist gefallen, der Bereich ist veraltet.' : 'Seit mindestens 12 Std. liegen alle Stände über dem üblichen Bereich. Der Preis ist gestiegen, der Bereich ist veraltet.') : null">{{ pct(it.vs) }}<template v-if="it.band && it.band.shift">{{ it.band.shift === 'down' ? ' ↓' : ' ↑' }}</template></span>
               <span v-else-if="c.key === 'qty'" class="cell num">{{ it.inLast ? num(it.qty) : 'weg' }}</span>
               <span v-else-if="c.key === 'auctions'" class="cell num">{{ it.inLast ? num(it.auctions) : '' }}</span>
               <span v-else-if="c.key === 'avg7'" class="cell num muted"><Gold :copper="it.avg7" compact /></span>

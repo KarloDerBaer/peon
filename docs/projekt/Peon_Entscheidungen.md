@@ -2,6 +2,12 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 08.11.2026: Bessere Vorschläge (Manager 0.21.0, Broker 0.38.0)
+
+- **Fehler im Rechenweg jetzt beheben, Grenzwerte später einstellen** (KarloDerBaer): Der Markt schwankt nach dem Start stark. Fehler, die nicht vom Markt abhängen (Kürzung, veralteter Bereich, gleich tiefe Angebote), werden gleich behoben. Die Zahlen (Prozent, Tage) werden in 2 bis 4 Wochen mit der Trefferquote geprüft.
+- **Kürzung nach unten erst ab 75 % unter der Mitte statt „Kürzung erst ab 7 Tagen“** (Claude): Nach oben bleibt die Kürzung, damit Mondpreise bei wenigen Tagen nichts verzerren. Nach unten schnitt sie echte Preisstürze ab.
+- **Trefferquote mit dem Median der Angebote**, nicht mit dem günstigsten Angebot (Claude): Das günstigste Angebot wäre ja gekauft und steht danach noch im Scan.
+
 ## 07.11.2026: Release v2026.11.07.10
 
 - **Hinweise zur Blizzard-API** im Manager: Link zum Entwicklerportal, Wartezeit bei neuen Zugängen, mindestens ein Haus unter Quellen (KarloDerBaer).

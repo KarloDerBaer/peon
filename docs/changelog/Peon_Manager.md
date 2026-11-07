@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.21.0
+
+Kurz: Weniger falsche Schnäppchen. Liegen alle Angebote gleich tief oder ist ein Preis seit einem halben Tag gefallen, meldet der Manager kein Schnäppchen mehr, sondern sagt, dass der Preis gefallen ist.
+Kurz: Unter Chancen steht beim Wiederverkauf jetzt eine Trefferquote: Wie oft ist der Preis nach einem Vorschlag wirklich wieder gestiegen?
+
+- 0.21.0 (08.11.2026, Wunsch KarloDerBaer, Beispiel Magicusmantel: Preis in 3 Tagen von 4g auf 1g 20s gefallen, Meldung „68 % unter dem üblichen Preis“, Rechenmodell Kapitel 10):
+  - **Kürzung nach unten (F37a, `longterm.js`):** Tageswerte werden nach unten erst ab 75 % unter der Mitte gekürzt. Bisher hat die Kürzung bei wenigen gleichen Tagen (Schwankung 5 %) einen echten Preissturz abgeschnitten. Gleich in Broker 0.38.0.
+  - **Neues Preisniveau (F54, `longterm.shifts`):** Liegen alle Stände der letzten 24 Std. unter (über) dem üblichen Bereich, mindestens 3 Stände über mindestens 12 Std., gilt der Bereich als veraltet. Die Gegenstandsseite sagt dann „Der Preis ist gefallen“ und vergleicht mit dem Median dieser Stände. In der Gegenstandsliste steht bei „Zu üblich“ ein Pfeil, die Farbe entfällt. Chancen zeigen für den Gegenstand keinen Wiederverkauf.
+  - **Abstand zu den anderen Angeboten (F50a):** Wiederverkauf unter Chancen höchstens zum Median der Angebote im selben Scan (wie Broker, das höchstens zum nächsten Angebot verkauft). Auf der Gegenstandsseite ist der Satz nur grün, wenn das günstigste Angebot mindestens 20 % unter dem Median der aktuellen Angebote liegt. Sonst heißt es „…, die anderen Angebote aber auch“.
+  - **Trefferquote (F55, `chances.hitRate`):** Unter Chancen, Wiederverkauf: Für die Vorschläge von vor 3 bis 17 Tagen (je Gegenstand einmal am Tag) wird geprüft, ob der Median der Angebote danach innerhalb von 3 Tagen das Verkaufsziel erreicht hat, nur Kaufpreis plus Gebühr oder nicht. Damit lassen sich die Grenzwerte später mit echten Ergebnissen einstellen.
+  - Tests: `test/vorschlag.test.js` neu, Chancen-Test angepasst (die meisten Angebote liegen jetzt im Bereich, Seidenstoff 900 auf 300 zählt jetzt als fallend).
+
 ## 0.20.1
 
 Kurz: Unter Einstellungen bei der Blizzard-API steht jetzt ein Link zum Beantragen des Zugangs. Nach dem Speichern erklärt ein Hinweis, dass ein neuer Zugang erst nach ein paar Minuten funktioniert und unter Quellen mindestens ein Auktionshaus gewählt sein muss.

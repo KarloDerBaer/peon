@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.38.0
+
+Kurz: Fällt ein Preis stark, folgt der übliche Bereich jetzt schneller. Bisher hat Broker einen echten Preissturz in den ersten Tagen teils als Ausreißer abgeschnitten.
+
+- 0.38.0 (08.11.2026, Wunsch KarloDerBaer, Beispiel Magicusmantel): **Kürzung nach unten (F37a):** Beim gleitenden Mittelwert werden Tageswerte nach unten erst ab 75 % unter der Mitte gekürzt (`D.BAND_CLIP_LOW_SCHW` = 25 %). Bisher galt auch nach unten das Dreifache der Schwankung. Bei wenigen, gleichen Tagen liegt die Schwankung bei 5 %, ein Sturz von 4g auf 1g 50s wurde so auf 3g 40s hochgesetzt. Nach oben bleibt die Kürzung, Mondpreise zählen weiter nicht. Gleiche Regel im Peon Manager 0.21.0, der Bereich ist also gleich, egal wer ihn rechnet.
+  - Den Abstand zum nächsten Angebot prüft das Radar schon seit 0.26 (Verkauf höchstens zum nächsten Angebot), bei fallendem Markt gibt es seit 0.21 kein Markt-Schnäppchen.
+
 ## 0.37.0
 
 Kurz: Die Einkaufsliste wird überarbeitet. Bis dahin zeigt der Reiter nur einen Hinweis.

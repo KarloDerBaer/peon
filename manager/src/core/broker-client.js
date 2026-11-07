@@ -115,7 +115,7 @@ class BrokerClient {
     for (const m of this.db.prepare('SELECT id, key FROM markets').all()) {
       try { sales.updateMarket(this.db, m.id, now); } catch (e) { log(this.db, 'absatz', false, `${m.key}: ${e.message}`); }
       const lt = this.bands(m.id);
-      try { chances.updateMarket(this.db, m.id, lt.items, now); } catch (e) { log(this.db, 'chancen', false, `${m.key}: ${e.message}`); }
+      try { chances.updateMarket(this.db, m.id, lt.items, now, lt.shifts); } catch (e) { log(this.db, 'chancen', false, `${m.key}: ${e.message}`); }
       const st = sales.marketStats(this.db, m.id, now);
       this.listOf(m.id, m.key);   // Liste fuer die Ansichten gleich mitrechnen, dann oeffnet sie sofort
       const cur = this.currentOf(m.id);
@@ -169,7 +169,7 @@ class BrokerClient {
     const vendorKnown = this.db.prepare('SELECT COUNT(*) AS n FROM items WHERE vendor IS NOT NULL').get().n;
     return { market: marketKey, days: d, now, lastScan: last ? last.t : null, bands: lt.items.size, salesItems: st.size,
       sure: [...st.values()].filter((s) => s.level >= 2).length, vendorKnown,
-      resale, vendor, up: mv.up, down: mv.down, worth: chances.worth(this.db, lt.items, st) };
+      resale, vendor, up: mv.up, down: mv.down, worth: chances.worth(this.db, lt.items, st), hits: chances.hitRate(this.db, mid, now) };
   }
 
   // Werte fuer einen Gegenstand (Anzeige im Manager)
@@ -266,6 +266,7 @@ class BrokerClient {
     if (c && c.sig === sig) return c.value;
     const days = longterm.dayValues(this.db, mid, broker.dayOf(this.now()));
     const value = { ...longterm.marketLongTerm(this.db, mid, this.now(), days), days };
+    value.shifts = longterm.shifts(this.db, mid, this.now(), value.items);   // F54
     this.bandCache.set(mid, { sig, value });
     return value;
   }
@@ -274,13 +275,16 @@ class BrokerClient {
   computeList(marketKey, mid) {
     const r = history.itemList(this.db, marketKey, this.now());
     const st = sales.marketStats(this.db, mid, this.now());
-    const lt = this.bands(mid).items;
+    const bd = this.bands(mid);
+    const lt = bd.items;
     const comm = new Map(this.db.prepare('SELECT key, commodity, variant FROM items').all().map((x) => [x.key, x.variant ? 0 : x.commodity]));
     for (const it of r.items) {
       const s = st.get(it.key);
       it.sales = s ? { perDay: s.perDay, level: s.level, rate: s.rate } : null;
       const b = lt.get(it.key);
       it.band = b ? { low: Math.max(0, b.lang * (1 - b.schw)), high: b.lang * (1 + b.schw), lang: b.lang, days: b.days } : null;
+      const sh = b && bd.shifts.get(it.key);   // F54: Bereich veraltet, Preis hat ein neues Niveau
+      if (sh) it.band.shift = sh.dir;
       it.commodity = comm.has(it.key) ? comm.get(it.key) : null;
     }
     return r;
@@ -317,6 +321,7 @@ class BrokerClient {
     if (d) {
       d.longterm = this.itemLongTerm(marketKey, key);
       const mid = this.marketId(marketKey);
+      d.shift = d.longterm ? longterm.shifts(this.db, mid, this.now(), new Map([[key, d.longterm]]), key).get(key) || null : null;   // F54
       const s = sales.marketStats(this.db, mid, this.now(), key).get(key) || null;
       d.sales = s;
       // Bereich und Absatz je Tag fuer das Diagramm, im gewaehlten Zeitraum (Alles: hoechstens ein Jahr)

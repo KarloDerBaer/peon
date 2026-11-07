@@ -108,15 +108,16 @@ test('Live-Abfragen mit Nummern nur ausserhalb von Scan-Paaren', () => {
 test('Chancen: Wiederverkauf, Haendler, Fallend, Lohnend', () => {
   const { svc, push } = world();
   const t0 = at(DAY, 10);
+  // ab Manager 0.21.0 (F50a): die meisten Angebote zu 1000, sonst waere das guenstigste kein Schnaeppchen
   push({ kind: 'scan', t: t0, names: NAMES, rows: [
-    '2589;;;20;10000;;;4;;3', '2589;;;20;12000;;;4;;1', '2589;;;20;30000;;;4;;1', '4306;;;5;1500;;;4;;1'].join('\n') });
+    '2589;;;20;10000;;;4;;3', '2589;;;20;12000;;;4;;1', '2589;;;20;20000;;;4;;5', '4306;;;5;1500;;;4;;1'].join('\n') });
   push({ kind: 'scan', t: t0 + 3 * 3600, rows: [
-    '2589;;;20;10000;;;4;;1', '2589;;;20;12000;;;4;;1', '4306;;;5;1500;;;4;;1'].join('\n') });
+    '2589;;;20;10000;;;4;;1', '2589;;;20;12000;;;4;;1', '2589;;;20;20000;;;4;;5', '4306;;;5;1500;;;4;;1'].join('\n') });
   svc.broker.importGame();
   const c = svc.broker.chances(M, 7);
   assert.equal(c.resale.scans, 2);
   const r = c.resale.list.find((x) => x.key === '2589');
-  // Untergrenze: LANG etwa 1000 (Broker-Tage 1000, heute 500 begrenzt), SCHW 5 % -> Verkauf zur Untergrenze, Einkauf 500 und 600
+  // Untergrenze: LANG 1000 (Broker-Tage und heute 1000), SCHW 5 % -> Verkauf zur Untergrenze, Einkauf 500 und 600
   assert.ok(r && r.hits === 2 && r.share === 1, 'in beiden Scans Treffer');
   assert.ok(r.buy >= 500 && r.buy <= 600 && r.perPiece > 100);
   // bisher nur zu 500 verkauft: zweifelhaft, kein Gewinn je Tag
@@ -124,9 +125,8 @@ test('Chancen: Wiederverkauf, Haendler, Fallend, Lohnend', () => {
   assert.ok(r.now && r.now.qty === 40, 'im letzten Scan noch 40 Stueck');
   const v = c.vendor.list.find((x) => x.key === '4306');
   assert.ok(v && v.perPiece === 200 && v.perScan === 5 && v.perDay === 1000, 'Seidenstoff 300 statt Haendler 500');
-  const d = c.down.find((x) => x.key === '2589');
-  assert.ok(d && d.change < -0.15 && d.dump && d.spark.length === 14);
-  assert.ok(c.up.length === 0);
+  // ab 0.21.0 (F37a): Seidenstoff 900 auf 300 wird nicht mehr weggekuerzt und zaehlt als fallend
+  assert.ok(c.up.length === 0 && c.down.length === 1 && c.down[0].key === '4306');
   assert.equal(c.worth.find((x) => x.key === '2589'), undefined, 'Lohnend: nur zu 500 verkauft, weit unter dem Bereich');
   // frueher am Tag zu 1000 verkauft (kein guenstigeres Angebot stand): jetzt glaubwuerdig
   push({ kind: 'scan', t: t0 - 2 * 3600, rows: ['2589;;;20;20000;;;4;;2'].join('\n') });
@@ -142,6 +142,10 @@ test('Chancen: Wiederverkauf, Haendler, Fallend, Lohnend', () => {
   const c2 = svc.broker.chances(M, 7);
   const v2 = c2.vendor.list.find((x) => x.key === '2589');
   assert.ok(v2 && v2.hits === 3, 'alle drei Scans mit dem neuen Haendlerpreis');
+  // im letzten Scan nur noch Angebote zu 500: Fallend mit Dumping
+  const d = c2.down.find((x) => x.key === '2589');
+  assert.ok(d && d.change < -0.15 && d.dump && d.spark.length === 14);
+  assert.ok(c2.hits && c2.hits.n === 0, 'Trefferquote: noch nichts aelter als 3 Tage');
   svc.close();
 });
 

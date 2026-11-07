@@ -6,6 +6,11 @@
 const { dayOf } = require('./broker');
 
 const DAYS = 14, MIN_DAYS = 3, HALF = 3, MIN_SCHW = 0.05;
+// Ab Manager 0.21.0 (KarloDerBaer 08.11.2026): nach unten wird erst bei mindestens 25 % Schwankung gekuerzt (F37a).
+// Sonst schneidet die Kuerzung bei wenigen, gleichen Tagen einen echten Preissturz einfach ab (Beispiel Magicusmantel).
+const CLIP_LOW_SCHW = 0.25;
+// Neues Preisniveau (F54): alle Staende der letzten 24 Std. unter bzw. ueber dem Bereich, mindestens 3 Staende ueber 12 Std.
+const SHIFT_WINDOW = 86400, SHIFT_SPAN = 12 * 3600, SHIFT_MIN = 3;
 
 function median(list) {
   const s = [...list].sort((a, b) => a - b);
@@ -64,7 +69,7 @@ function compute(days, today) {
   const mitte = median(xs);                                                   // F35
   if (!(mitte > 0)) return null;
   const schw = Math.max(1.4826 * median(xs.map((x) => Math.abs(x - mitte))) / mitte, MIN_SCHW);   // F36
-  const lo = mitte * (1 - 3 * schw), hi = mitte * (1 + 3 * schw);
+  const lo = Math.max(0, mitte * (1 - 3 * Math.max(schw, CLIP_LOW_SCHW))), hi = mitte * (1 + 3 * schw);   // F37a
   let sw = 0, sx = 0;                                                         // F37
   xs.forEach((x, i) => { const w = 0.5 ** (ages[i] / HALF); sw += w; sx += w * Math.max(lo, Math.min(hi, x)); });
   return { mitte, schw, lang: sx / sw, days: xs.length, src: (own ? 'e' : '') + (broker ? 'b' : '') };
@@ -94,6 +99,35 @@ function itemBandHistory(db, marketId, key, fromDay, toDay) {
   return out;
 }
 
+// F54 Neues Preisniveau: Liegen alle Staende der letzten 24 Std. unter (ueber) dem ueblichen Bereich, gilt der Bereich
+// als veraltet. bands = Map key -> Langzeit-Teil. Rueckgabe Map key -> { dir: 'down' | 'up', level, n, since }
+// level = Median der Staende im Fenster, since = Zeit des ersten Stands im Fenster
+function shifts(db, marketId, now, bands, key = null) {
+  const out = new Map();
+  if (!bands || !bands.size) return out;
+  const k1 = key == null ? '' : ' AND item_key = ?';
+  const by = new Map();
+  for (const r of db.prepare("SELECT item_key, t, median FROM item_snap WHERE market_id = ? AND source = 'scan' AND t > ? AND t <= ? AND median > 0" + k1)
+    .iterate(marketId, now - SHIFT_WINDOW, now, ...(key == null ? [] : [key]))) {
+    if (!bands.has(r.item_key)) continue;
+    let x = by.get(r.item_key);
+    if (!x) { x = { t0: r.t, t1: r.t, list: [] }; by.set(r.item_key, x); }
+    x.list.push(r.median);
+    if (r.t < x.t0) x.t0 = r.t;
+    if (r.t > x.t1) x.t1 = r.t;
+  }
+  for (const [k, x] of by) {
+    if (x.list.length < SHIFT_MIN || x.t1 - x.t0 < SHIFT_SPAN) continue;
+    const b = bands.get(k);
+    const lo = b.lang * (1 - b.schw), hi = b.lang * (1 + b.schw);
+    let dir = null;
+    if (x.list.every((m) => m < lo)) dir = 'down';
+    else if (x.list.every((m) => m > hi)) dir = 'up';
+    if (dir) out.set(k, { dir, level: median(x.list), n: x.list.length, since: x.t0 });
+  }
+  return out;
+}
+
 // Text fuer Data.lua: "MITTE:SCHW:LANG:TAGE:Quelle" (Kupfer gerundet, SCHW in Zehntausendsteln)
 function encode(r) {
   return `${Math.round(r.mitte)}:${Math.round(r.schw * 10000)}:${Math.round(r.lang)}:${r.days}:${r.src}`;
@@ -101,4 +135,4 @@ function encode(r) {
 
 // Hinweis: toLua schreibt reine Zahlen-Schluessel als [2770] (Zahl wie in Broker), alle anderen als Text.
 
-module.exports = { marketLongTerm, dayValues, itemBandHistory, compute, encode, median, DAYS, MIN_DAYS };
+module.exports = { marketLongTerm, dayValues, itemBandHistory, compute, shifts, encode, median, DAYS, MIN_DAYS, CLIP_LOW_SCHW };

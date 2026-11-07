@@ -448,10 +448,23 @@ Filter in allen Reitern: Mindestgewinn je Tag (Standard 10 Silber), Qualität ab
 
 Peon_Client hängt an jeden neuen Namen Händlerpreis und Warenart an: `names[itemID] = "Name|Qualität|Händlerpreis|Massenware"` (Händlerpreis leer = unbekannt, Massenware 1/0/leer). Einmalig nach dem Update werden alle Namen neu geschickt.
 
+## 10. Bessere Vorschläge (KarloDerBaer 08.11.2026, Manager 0.21.0, Broker 0.38.0)
+
+**Anlass:** Magicusmantel, Preis in 3 Tagen von etwa 4g auf 1g 20s gefallen, seit einem Tag dort, 12 Angebote dicht beieinander (Min 1g 20s, Median 1g 24s). Der Manager meldete „68 % unter dem üblichen Preis“. Gründe: Die Kürzung (F37) schnitt den neuen Tageswert ab, weil die Schwankung bei zwei gleichen Tagen nur 5 % betrug. Der Manager prüfte den Trend nicht (Broker hat ihn mit F38). Der Abstand zu den anderen Angeboten zählte nicht.
+
+| Nr. | Ergebnis | Formel |
+|---|---|---|
+| F37a | Kürzung | Wie F37, aber unten gekürzt auf MITTE × (1 − 3 × max(SCHW, 25 %)), höchstens bis 0. Oben bleibt MITTE × (1 + 3 × SCHW). Gilt in Broker (D.Band) und Manager (F42). |
+| F50a | Wiederverkauf | Verkaufsziel = min(UNTEN, Median der Angebote im selben Scan). Nicht bei neuem Preisniveau nach unten (F54). |
+| F54 | Neues Preisniveau (nur Manager) | Stände der letzten 24 Std. (mindestens 3, erster und letzter mindestens 12 Std. auseinander). Alle Mediane unter UNTEN: fällt. Alle über OBEN: steigt. Niveau = Median dieser Mediane. Die Gegenstandsseite vergleicht dann mit dem Niveau statt mit LANGc. |
+| F55 | Trefferquote (nur Manager) | Wiederverkaufs-Treffer von vor 3 bis 17 Tagen, je Gegenstand der erste des Tages. Höchster Median der Angebote in den 3 Tagen danach: mindestens Verkaufsziel = Treffer, mindestens Kaufpreis ÷ 0,95 = ohne Verlust, sonst daneben. Ohne Stand danach nicht gezählt. |
+
+Gegenstandsseite: grün („Schnäppchen“) nur, wenn das günstigste Angebot mindestens 5 % unter dem Vergleichspreis und mindestens 20 % unter dem Median der aktuellen Angebote liegt. Bei nur einem Stück zählt der Abstand nicht.
+
 ## Offene Fragen
 
 - Keine. Kapitel 1–7 sind abgestimmt (Kapitel 7 am 02.10.2026, umgesetzt in Broker 0.21.0).
-- Kapitel 9: Schwellen (20 % Abstand, 15 % Bewegung, 80 % Nachweis, 10 Silber Mindestgewinn) mit echten Daten nach dem Start prüfen.
+- Kapitel 9 und 10: Schwellen (20 % Abstand, 15 % Bewegung, 80 % Nachweis, 10 Silber Mindestgewinn, 25 % Kürzung, 12 Std. für ein neues Niveau) in 2 bis 4 Wochen mit der Trefferquote (F55) prüfen, wenn der Markt nach dem Start ruhiger ist.
 
 ## Entschieden (30.09.2026)
 

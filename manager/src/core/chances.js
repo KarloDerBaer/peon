@@ -4,7 +4,7 @@
 // oder beim Haendler lohnen (opp_snap). Die Reiter fassen das ueber den gewaehlten Zeitraum zusammen.
 
 const zlib = require('node:zlib');
-const { parseRows, itemKey, unitPrice } = require('./stats');
+const { parseRows, itemKey, unitPrice, summarize } = require('./stats');
 const { dayOf } = require('./broker');
 const { tx } = require('./db');
 
@@ -26,8 +26,12 @@ function vendorMap(db) {
 }
 
 // F50, F51 fuer einen Scan. bands = Map key -> Langzeit-Teil (longterm), vendors = Map key -> Haendlerpreis
-function scanOpp(rows, bands, vendors) {
+// shifts = Map key -> neues Preisniveau (F54): faellt der Preis gerade, kein Wiederverkauf
+// Ab Manager 0.21.0 (F50a): Wiederverkauf hoechstens zum Median der Angebote dieses Scans. Liegen alle Angebote
+// gleich tief, ist das guenstigste kein Schnaeppchen (wie Broker: Verkauf hoechstens zum naechsten Angebot).
+function scanOpp(rows, bands, vendors, shifts = null) {
   const res = new Map();   // "key|kind" -> { key, kind, qty, profit, cost, ref }
+  const sum = bands.size ? summarize(rows) : new Map();
   const add = (key, kind, q, g, p, ref) => {
     const k = key + '|' + kind;
     const x = res.get(k) || { key, kind, qty: 0, profit: 0, cost: 0, ref };
@@ -40,8 +44,10 @@ function scanOpp(rows, bands, vendors) {
     const key = itemKey(r);
     const q = r.qty * r.n;
     const b = bands.get(key);
-    if (b) {
-      const sell = low(b);
+    const sh = shifts && shifts.get(key);
+    if (b && !(sh && sh.dir === 'down')) {
+      const s = sum.get(key);
+      const sell = s && s.median > 0 ? Math.min(low(b), s.median) : low(b);
       const g = sell * (1 - CUT) - p;
       if (sell > 0 && g >= MARGIN * p && g > 0) add(key, 'r', q, g, p, sell);
     }
@@ -58,7 +64,7 @@ function rowsOf(db, id) {
 }
 
 // Neue Scans auswerten; bei neuen Haendlerpreisen die Haendler-Treffer der letzten 14 Tage neu rechnen
-function updateMarket(db, marketId, bands, now) {
+function updateMarket(db, marketId, bands, now, shifts = null) {
   const vendors = vendorMap(db);
   // Stand der Haendlerpreise (Anzahl und Summe): aendert sich einer, werden die Haendler-Treffer neu gerechnet
   let sum = 0;
@@ -75,7 +81,7 @@ function updateMarket(db, marketId, bands, now) {
       const rows = rowsOf(db, s.id);
       if (!rows) continue;
       const fresh = s.vendor_n == null;
-      let list = scanOpp(rows, fresh ? bands : new Map(), vendors);
+      let list = scanOpp(rows, fresh ? bands : new Map(), vendors, shifts);
       if (!fresh) { db.prepare("DELETE FROM opp_snap WHERE snapshot_id = ? AND kind = 'v'").run(s.id); res.vendor++; }
       else res.scans++;
       for (const x of list) ins.run(s.id, marketId, x.key, s.t, x.kind, x.qty, x.profit, x.cost, x.ref);
@@ -152,6 +158,35 @@ function moves(db, marketId, bands, dayValues, last, today) {
   return { up, down };
 }
 
+// F55 Treffer der Wiederverkaufs-Vorschlaege (ab Manager 0.21.0, KarloDerBaer 08.11.2026): Jeder Gegenstand zaehlt
+// hoechstens einmal je Tag (erster Treffer des Tages). Danach HOLD Tage lang geschaut, wie hoch das guenstigste Angebot
+// der Median der Angebote gestiegen ist (das guenstigste Angebot waere ja gekauft): bis zum Verkaufsziel (hit),
+// immerhin ueber Kaufpreis plus Gebuehr (even) oder nicht (miss).
+// Gezaehlt werden nur Vorschlaege, deren HOLD Tage vorbei sind, aus den letzten days Tagen davor.
+const HOLD = 3;
+function hitRate(db, marketId, now, days = 14) {
+  const to = now - HOLD * 86400, from = to - days * 86400;
+  const first = new Map();   // "key|tag" -> erster Treffer
+  for (const r of db.prepare("SELECT item_key, t, qty, cost, ref FROM opp_snap WHERE market_id = ? AND kind = 'r' AND t > ? AND t <= ? ORDER BY t").iterate(marketId, from, to)) {
+    const k = r.item_key + '|' + dayOf(r.t);
+    if (!first.has(k) && r.qty > 0) first.set(k, { key: r.item_key, t: r.t, buy: r.cost / r.qty, ref: r.ref });
+  }
+  const snap = db.prepare("SELECT MAX(median) AS m FROM item_snap WHERE market_id = ? AND item_key = ? AND source = 'scan' AND t > ? AND t <= ?");
+  const hour = db.prepare("SELECT MAX(median) AS m FROM item_hour WHERE market_id = ? AND item_key = ? AND source = 'scan' AND t > ? AND t <= ?");
+  const res = { days, hold: HOLD, n: 0, hit: 0, even: 0, miss: 0 };
+  for (const x of first.values()) {
+    const a = snap.get(marketId, x.key, x.t, x.t + HOLD * 86400).m;
+    const b = hour.get(marketId, x.key, x.t, x.t + HOLD * 86400).m;
+    const best = Math.max(a ?? -1, b ?? -1);
+    if (best < 0) continue;   // danach kein Stand mit Angeboten: nicht bewertbar
+    res.n++;
+    if (x.ref > 0 && best >= x.ref) res.hit++;
+    else if (best * (1 - CUT) >= x.buy) res.even++;
+    else res.miss++;
+  }
+  return res;
+}
+
 // F53 Lohnend
 function worth(db, bands, sales) {
   const info = itemInfo(db);
@@ -169,4 +204,4 @@ function worth(db, bands, sales) {
   return out;
 }
 
-module.exports = { scanOpp, updateMarket, summarizeOpp, moves, worth, low, high, CUT, MARGIN, SLOTS };
+module.exports = { scanOpp, updateMarket, summarizeOpp, moves, worth, hitRate, low, high, CUT, MARGIN, SLOTS, HOLD };

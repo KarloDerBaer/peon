@@ -132,7 +132,7 @@ function sortBy(c) {
 }
 
 const intro = computed(() => ({
-  resale: 'Angebote, die so tief unter dem üblichen Bereich liegen, dass sich Kaufen und zur Untergrenze wieder Einstellen lohnt (mindestens 20 % Gewinn nach Gebühr). Der Gewinn je Tag ist durch den Absatz begrenzt. „Zweifelhaft“: in 14 Tagen wurde nie nahe der Untergrenze verkauft.',
+  resale: 'Angebote, die so tief unter dem üblichen Bereich liegen, dass sich Kaufen und zur Untergrenze wieder Einstellen lohnt (mindestens 20 % Gewinn nach Gebühr). Verkauft wird höchstens zum Median der Angebote. Liegen alle Angebote gleich tief oder ist der Preis seit 12 Std. gefallen, ist es keine Chance. Der Gewinn je Tag ist durch den Absatz begrenzt. „Zweifelhaft“: in 14 Tagen wurde nie nahe der Untergrenze verkauft.',
   vendor: 'Angebote unter dem Händlerpreis: kaufen und beim Händler verkaufen. Keine Gebühr, kein Risiko.',
   down: 'Median im letzten Scan mindestens 15 % unter dem Langzeitwert und unter dem üblichen Bereich. Rotes ▼ bei Min jetzt: Dumping, das günstigste Angebot liegt mehr als 30 % unter dem Langzeitwert.',
   up: 'Median im letzten Scan mindestens 15 % über dem Langzeitwert und über dem üblichen Bereich.',
@@ -187,6 +187,10 @@ function counts(k) {
       <span class="small faint" v-if="loading">rechnet</span>
     </div>
     <p class="small muted intro">{{ intro }}</p>
+    <p class="small hits" v-if="tab === 'resale' && d && d.hits">
+      <template v-if="d.hits.n">Trefferquote der Vorschläge von vor {{ d.hits.hold }} bis {{ d.hits.hold + d.hits.days }} Tagen: Bei {{ num(d.hits.hit) }} von {{ num(d.hits.n) }} ({{ Math.round(d.hits.hit / d.hits.n * 100) }} %) stieg der Median der Angebote danach innerhalb von {{ d.hits.hold }} Tagen bis zum Verkaufsziel, bei {{ num(d.hits.even) }} immerhin über Kaufpreis plus Gebühr, bei {{ num(d.hits.miss) }} nicht. Jeder Gegenstand zählt einmal am Tag.</template>
+      <span v-else class="muted">Trefferquote: Noch keine Vorschläge, die älter als {{ d.hits.hold }} Tage sind. Jeder Gegenstand zählt einmal am Tag.</span>
+    </p>
 
     <table class="tbl" v-if="rows.length">
       <colgroup><col v-for="c in cols" :key="c.key" :style="{ width: ((c.w || 1) / widthSum * 100) + '%' }" /></colgroup>
@@ -250,6 +254,7 @@ function counts(k) {
 .filters label { display: flex; gap: 8px; align-items: center; color: var(--muted); }
 .short { width: 70px; }
 .intro { max-width: 90ch; }
+.hits { max-width: 90ch; margin-top: -4px; }
 .tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .tbl th { text-align: left; font-weight: 500; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); cursor: pointer; line-height: 1.25; vertical-align: bottom; }
 .tbl th.nosort { cursor: default; }

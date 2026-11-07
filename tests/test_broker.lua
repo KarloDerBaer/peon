@@ -2023,6 +2023,11 @@ end)()
     check(D.Band(efeu).trend == "down" and D.Band(efeu).rw == 1500, "Efeustoffschaerpe: neuer Preisstand erkannt")
     -- zu wenig Tage: kein Bereich, bisheriges Verfahren
     check(D.Band({ md = 10, d = today .. ":0:120:0:12" }) == nil, "weniger als 3 Tage: kein Bereich")
+    -- 0.38 (F37a): Magicusmantel 4g, 4g, heute 1g 50s. Nach unten erst bei 25 % Schwankung gekuerzt, der Sturz zaehlt voll
+    local bm = D.Band({ md = 12400, pmd = 12400, d = days(40000, 40000, 15000) })
+    local w1, w2 = 0.5 ^ (2 / 3), 0.5 ^ (1 / 3)
+    check(bm and math.abs(bm.lang - (40000 * (w1 + w2) + 15000) / (w1 + w2 + 1)) < 0.01 and bm.trend == "down",
+        "Magicusmantel: Preissturz nicht weggekuerzt, Markt faellt")
     -- Radar: im fallenden Markt kein Markt-Schnaeppchen, im ruhigen schon
     check(D.Deal(woll, { { price = 40, qty = 5, own = 0 }, { price = 80, qty = 50, own = 0 } }, nil, db, today) == nil, "Radar: Markt faellt -> kein Markt-Schnaeppchen")
     local dl = D.Deal(lein, { { price = 30, qty = 5, own = 0 }, { price = 89, qty = 50, own = 0 } }, nil, db, today)

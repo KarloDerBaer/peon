@@ -93,17 +93,29 @@ export function slotText(s) {
 }
 
 // Ein Satz zum Gegenstand: Lohnt sich der Kauf gerade? Vergleich des guenstigsten Angebots mit dem ueblichen Preis, sonst dem Mittel aus 7 Tagen
+// Ab Manager 0.21.0 (KarloDerBaer 08.11.2026):
+// - Hat der Preis ein neues Niveau (F54, d.shift), wird mit dem Preis der letzten 24 Std. verglichen statt mit dem veralteten Bereich.
+// - Gruen (Schnaeppchen) nur, wenn das guenstigste Angebot auch deutlich unter den anderen Angeboten liegt (SPREAD).
+//   Liegen alle Angebote gleich tief, ist der Preis gefallen und das guenstigste kein Schnaeppchen.
+export const SPREAD = 0.2;
 export function verdict(d) {
   if (!d) return null;
   const c = d.current;
   const parts = [];
-  let tone = '';
+  let tone = '', head = '';
   if (c && c.qty > 0 && c.min != null) {
-    const ref = d.longterm ? d.longterm.lang : d.median7;
-    const was = d.longterm ? 'dem üblichen Preis' : 'dem Mittel aus 7 Tagen';
+    const sh = d.longterm && d.shift;
+    const ref = sh ? sh.level : d.longterm ? d.longterm.lang : d.median7;
+    const was = sh ? 'dem Preis der letzten 24 Std.' : d.longterm ? 'dem üblichen Preis' : 'dem Mittel aus 7 Tagen';
+    if (sh) head = sh.dir === 'down'
+      ? 'Der Preis ist gefallen: Seit mindestens 12 Std. liegen alle Stände unter dem üblichen Bereich. '
+      : 'Der Preis ist gestiegen: Seit mindestens 12 Std. liegen alle Stände über dem üblichen Bereich. ';
     if (ref > 0) {
       const p = Math.round((c.min / ref - 1) * 100);
-      if (p <= -5) { parts.push(`Das günstigste Angebot liegt ${-p} % unter ${was}`); tone = 'good'; }
+      // Liegen die anderen Angebote fast genauso tief? Bei nur einem Stueck laesst sich das nicht sagen.
+      const same = c.qty > 1 && c.median > 0 && c.min >= c.median * (1 - SPREAD);
+      if (p <= -5 && same) parts.push(`Das günstigste Angebot liegt ${-p} % unter ${was}, die anderen Angebote aber auch`);
+      else if (p <= -5) { parts.push(`Das günstigste Angebot liegt ${-p} % unter ${was}`); tone = 'good'; }
       else if (p >= 5) { parts.push(`Das günstigste Angebot liegt ${p} % über ${was}`); tone = 'bad'; }
       else parts.push(`Das günstigste Angebot entspricht ${was}`);
     }
@@ -114,5 +126,5 @@ export function verdict(d) {
     const v = d.sales.perDay;
     parts.push(v >= 5 ? 'verkauft sich gut' : v >= 1 ? 'verkauft sich mäßig' : 'verkauft sich selten');
   }
-  return parts.length ? { text: `${parts.join(', ')}.`, tone } : null;
+  return parts.length ? { text: `${head}${parts.join(', ')}.`, tone } : null;
 }

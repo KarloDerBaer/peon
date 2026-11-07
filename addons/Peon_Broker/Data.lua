@@ -536,6 +536,9 @@ D.BAND_DAYS     = 14      -- Tageswerte der letzten 14 Tage (heute eingeschlosse
 D.BAND_MIN_DAYS = 3       -- darunter kein Bereich (Rueckfall F12-F15)
 D.BAND_HALF     = 3       -- Halbwertszeit in Tagen (gleitender Mittelwert LANG)
 D.BAND_MIN_SCHW = 0.05    -- Schwankung mindestens 5 %
+-- ab 0.38 (F37a, KarloDerBaer 08.11.2026): nach unten erst bei mindestens 25 % Schwankung kuerzen, sonst schneidet die
+-- Kuerzung bei wenigen gleichen Tagen einen echten Preissturz ab (gleich wie Peon Manager longterm.js)
+D.BAND_CLIP_LOW_SCHW = 0.25
 D.BAND_HEUTE    = 3       -- HEUTE zaehlt ab so vielen Scans heute
 
 local function Median(list)
@@ -587,7 +590,7 @@ function D.Band(e, jetzt, vor, today, key)
         for i, x in ipairs(xs) do dev[i] = math.abs(x - mitte) end
         schw = math.max(1.4826 * Median(dev) / mitte, D.BAND_MIN_SCHW)                -- F36
         local sw, sx = 0, 0                                                           -- F37
-        local lo, hi = mitte * (1 - 3 * schw), mitte * (1 + 3 * schw)
+        local lo, hi = math.max(0, mitte * (1 - 3 * math.max(schw, D.BAND_CLIP_LOW_SCHW))), mitte * (1 + 3 * schw)   -- F37a
         for i, x in ipairs(xs) do
             local w = 0.5 ^ (ages[i] / D.BAND_HALF)
             sw, sx = sw + w, sx + w * math.max(lo, math.min(hi, x))
