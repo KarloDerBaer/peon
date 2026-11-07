@@ -192,12 +192,13 @@ Erste Fassung gebaut mit Bags 0.3.0 (Bauabschnitte B1 bis B3), enthalten in der 
 
 ### Peon_Bags: Anordnung Klassisch, Nach Art, Individuell (beschlossen 07.11.2026, Konzept `Peon_Bags_Anordnung.md`)
 
-Knopf „Einstellen“ statt „Nach Art“, Leiste rechts neben dem Fenster mit den drei Anordnungen, automatischen Kategorien (wählbar, Reihenfolge änderbar) und eigenen Bereichen (je Fenster abwählbar). Dazu einklappbare Abschnitte und die Kategorie „Neu“. Gebaut mit Bags 0.5.0, im Spiel noch nicht geprüft.
+Knopf „Einstellen“ statt „Nach Art“, Leiste rechts neben dem Fenster mit den drei Anordnungen, automatischen Kategorien (wählbar, Reihenfolge änderbar) und eigenen Bereichen (je Fenster abwählbar). Dazu einklappbare Abschnitte und die Kategorie „Neu“. Gebaut mit Bags 0.5.0, enthalten in der Vorabversion `v2026.11.07.7-test` (07.11.2026, nur Kanal Test, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen). Im Spiel noch nicht geprüft.
 
 ### Manager: Update mit sichtbarem Fortschritt und Senden im Dialog (beschlossen 07.11.2026)
 
 - Beim Selbst-Update schließt sich der Manager nicht mehr ohne Hinweis: Vorher erklärt ein Dialog die Schritte, danach zeigt der Installer seinen Fortschritt und startet den Manager wieder.
 - Die Vorschau vor dem Senden im Reiter Rückmeldungen erscheint in einem eigenen Dialog.
+- Gebaut mit Manager 0.19.0, enthalten in der Vorabversion `v2026.11.07.7-test`. **Noch offen:** Update von 0.18.1 auf 0.19.0 im echten Programm. Erst das Update danach (von 0.19.0 aus) zeigt den Installer sichtbar, weil das Einspielen noch von der installierten Fassung gestartet wird.
 
 ### Todo: Überarbeitung (KarloDerBaer, 06.11.2026)
 
