@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.7.0
+
+Kurz: Die Bridge gibt Broker die Preise aus dem neuesten Stand des Managers, zum Beispiel aus der Blizzard-API.
+
+- 0.7.0 (07.11.2026, Wunsch KarloDerBaer): Neue Funktion `mod:Current(market)` für Broker: Zeit, Herkunft und Preise aus `cur` in `Data.lua` (Peon Manager 0.18.0). Nur mit freigeschaltetem Kanal broker.
+
 ## 0.6.0
 
 Kurz: Genaue Werte von Gegenständen, auch mit Zusatz, gehen an den Manager. Dafür ist kein Scan nötig.

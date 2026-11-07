@@ -370,11 +370,22 @@ local function CreateMinimapButton()
             else
                 tt:AddLine(L.MM_NO_SCAN, 0.8, 0.8, 0.8)
             end
+            -- Neuerer Stand vom Peon Manager (ab 0.36)
+            if market and market.mgrAt then
+                local fmt = market.mgrSrc == "api" and L.MM_API or L.MM_MANAGER
+                local newer = not market.lastScan or market.mgrAt > market.lastScan
+                tt:AddLine(fmt:format(ns.Scan.Age(market.mgrAt), market.mgrItems or 0), newer and 0.8 or 0.6, newer and 0.8 or 0.6, newer and 0.8 or 0.6)
+            end
             tt:AddLine(L.MM_PROBE:format(when), 0.6, 0.6, 0.6)
         end,
         -- Texte fuer Peon_Panel
         texts = {
-            { key = "age", label = L.TEXT_SCAN_AGE, get = function()
+            -- ab 0.36: "age" = neueste Daten (Scan oder Manager), der reine Scan steht unter "scanAge"
+            { key = "age", label = L.TEXT_DATA_AGE, get = function()
+                local at = ns.Data.DataAt(ns.Data.Market())
+                return at and ns.Scan.Age(at) or L.TEXT_NO_SCAN
+            end },
+            { key = "scanAge", label = L.TEXT_SCAN_AGE, get = function()
                 local market = ns.Data.Market()
                 return market and market.lastScan and ns.Scan.Age(market.lastScan) or L.TEXT_NO_SCAN
             end },
@@ -387,6 +398,14 @@ local function CreateMinimapButton()
     })
     mod:On("SCAN_DONE", function() if mod.launcher then mod.launcher:Refresh() end end)
 end
+
+-- Neuerer Stand vom Peon Manager (ab 0.36): Data.lua liest das Spiel nur beim Laden, also einmal je Login oder /reload
+mod:On("LOGIN", function()
+    if (Peon.API or 0) < 8 then return end
+    local n = ns.Data.ApplyManager()
+    if n > 0 then mod:Dbg(("Stand vom Manager: %d Gegenstaende neu"):format(n)) end
+    if mod.launcher then mod.launcher:Refresh() end
+end)
 
 mod:On("INIT", function()
     if (Peon.API or 0) < 8 then

@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.36.0
+
+Kurz: Broker nutzt jetzt auch die neueren Preise aus dem Peon Manager, zum Beispiel aus der Blizzard-API. Auf der Leiste steht das Alter der neuesten Daten.
+
+- 0.36.0 (07.11.2026, Wunsch KarloDerBaer): **Stand vom Manager:** Beim Anmelden und nach `/reload` holt Broker über Peon_Bridge 0.7.0 den neuesten Stand des Managers (`D.ApplyManager`). Ist er für einen Gegenstand neuer als Scan und Live-Abfrage, gilt er wie eine Live-Abfrage: aktueller Preis, Median, Menge und Angebote, Zeit in `e.lt`. Verlauf, Trend und Zahl der Scans bleiben reine Scan-Werte. Gegenstände, die im Stand fehlen, gelten als weg. Die günstigsten Stufen (`lv`) kennt der Manager nicht, sie fallen für diese Gegenstände weg, Schnäppchen kommen also weiter nur aus eigenen Scans und Live-Abfragen. Neue Felder im Markt: `mgrAt`, `mgrSrc`, `mgrItems`.
+  - **Peon_Panel:** Der Text „Alter der neuesten Daten“ (Schlüssel `age`, Standard) nimmt den neueren Wert aus Scan und Manager. Das reine Scan-Alter gibt es als „Alter des letzten Scans“ (`scanAge`). Der Tooltip zeigt zusätzlich „Blizzard-API: vor … (… Gegenstände)“.
+  - Das Spiel liest `Data.lua` nur beim Anmelden und nach `/reload`. Neuere Stände des Managers kommen also erst danach an.
+  - **Im Spiel prüfen:** Stimmen Tooltip-Preise und Vorschläge nach `/reload` mit dem API-Stand, bleibt das Laden flüssig?
+
 ## 0.35.0
 
 Kurz: Mit Peon_Panel zeigt Broker auf der Leiste das Alter des letzten Scans oder die Zahl der Angebote.

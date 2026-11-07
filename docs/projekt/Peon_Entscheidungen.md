@@ -2,6 +2,44 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 07.11.2026: Panel und Leiste getrennt, aufklappbar, zweizeilig (Peon_Panel 0.3.0)
+
+- Text, Anzeige und Beschriftung gelten je Anzeige. Bestehende Einstellungen übernimmt das Panel einmal von der Leiste (Claude).
+- **Zweite Zeile: Zeile je Eintrag** statt automatischem Umbruch (KarloDerBaer, Vorschlag Claude).
+- **Panel aufklappbar: der erste Eintrag bleibt sichtbar** (KarloDerBaer, Vorschlag Claude). Aufgeklappt stehen die Einträge in einer Reihe oder Spalte in der gewählten Richtung, die Spaltenzahl gilt dann nicht (Claude).
+- Leiste aufklappbar: zugeklappt nur der mittlere Bereich der oberen Zeile als Text ohne Symbole, sonst ein schmaler Streifen (KarloDerBaer, Auslegung Claude).
+
+## 07.11.2026: Neuere Preise aus dem Manager im Spiel (Manager 0.18.0, Bridge 0.7.0, Broker 0.36.0)
+
+- **Broker nutzt die Preise des neuesten Stands aus dem Manager**, meist aus der Blizzard-API, wenn sie neuer sind als der eigene Scan (KarloDerBaer). Der Manager schickt dafür je Markt den neuesten vollständigen Stand mit, egal ob API oder Scan (Claude).
+- Der Stand gilt in Broker wie eine Live-Abfrage: aktueller Preis ja, Verlauf, Trend und Zahl der Scans nein. Den Verlauf rechnet schon der Manager, sonst würde doppelt gezählt (Claude, zugestimmt).
+- Die günstigsten Preisstufen schickt der Manager nicht mit, weil `Data.lua` sonst stark wächst. Für übernommene Gegenstände fallen sie weg, damit keine alten Schnäppchen gemeldet werden (Claude).
+- Auf der Leiste steht das Alter der neuesten Daten (Text `age`), das reine Scan-Alter bleibt als eigener Text (Claude, zugestimmt).
+
+## 07.11.2026: Allgemeine Einträge und Blizzard-Stile (Peon_Panel 0.3.0, Peon 0.15.0, Ledger 0.12.0, Konzept Abschnitt 13)
+
+- **Alle vorgeschlagenen Einträge kommen rein**, auch Freunde, Gilde, Ruf und Reset-Zeiten (KarloDerBaer). Anfangs stehen nur sieben davon auf der Leiste, damit sie nicht überläuft, der Rest ist zum Anhaken (Claude).
+- **Alles in einem Zug, getestet wird zum Schluss** (KarloDerBaer). Vieles ist deshalb bis dahin nur mit dem Nachbau geprüft.
+- XP pro Stunde über die letzten 60 Minuten statt über die Sitzung, sonst drückt jede Pause den Wert auf Dauer (Claude, Vorschlag ohne Widerspruch).
+- Die Einträge liegen in Peon_Panel statt in einem eigenen Addon, weil sie nur dort angezeigt werden. Dafür erlaubt der Kern mehrere Starter je Modul (Claude).
+- Die Gesamtspielzeit fehlt, weil `/played` in den Chat schreibt und das Abfangen in Blizzards Chatfenster eingreifen würde (Claude).
+- **Standard ist der Stil Tooltip dunkel**, weil er schlank ist und zu Blizzard passt. Rahmen aus Blizzards eigenem Code statt eigener Grafik, die Fassung aus 0.2.0 bleibt als Schlicht und als Rückfall (Claude, nach dem Wunsch von KarloDerBaer nach Blizzard-Look).
+- Metall, Dialog und Holz behalten ihre Randfarben, weil das Einfärben ihre Grafik verdunkeln würde (Claude).
+
+## 07.11.2026: Umschalten der Addons auch bei laufendem WoW
+
+- `scripts\junctions.cmd` prüft nicht mehr, ob WoW läuft, auch eine Warnung gibt es nicht. Die frühere Regel war nur eine Vorsichtsmaßnahme, und beim Neueinloggen kann es Wartezeiten geben (KarloDerBaer). Im Spiel einmal bestätigt: Peon_Panel bei laufendem WoW umgeschaltet, es gab kein Problem (KarloDerBaer). Verweigert Windows das Verschieben, bricht das Skript mit einer Meldung ab (Claude).
+
+## 07.11.2026: Peon_Panel nach dem Vorbild Titan Panel (Peon_Panel 0.2.0, Konzept Abschnitt 12)
+
+- **Die Leiste steht nur noch oben**, mittig am Rand. Das ersetzt „an einer von 8 Stellen“ vom 06.11.2026, weil an anderen Stellen Blizzards Oberfläche verschoben werden müsste (KarloDerBaer).
+- **Nicht über den ganzen Bildschirm, mit runden Ecken**, in Optik und Bedienung wie Titan Panel. Auch das Panel bekommt runde Ecken und bleibt neben der Leiste bestehen (KarloDerBaer). So bleiben Minimap und Buffs frei, und es gibt keine Eingriffe in Blizzards Fenster (Claude).
+- Breite in Prozent, Standard 60 %, weil das nach dem Screenshot von KarloDerBaer auch auf einem 16:9-Bildschirm neben Minimap und Buffs passen sollte. Reicht der Platz nicht, geht der Inhalt vor (Claude).
+- Drei Bereiche mit Ziehen über die Drittel der Leiste, damit auch ein leerer Bereich erreichbar ist (Claude).
+- Der Hintergrund besteht aus Stücken ohne Überlappung statt aus einem Bild mit neun Feldern, weil dafür nur sicher vorhandene Funktionen nötig sind. Es wird kein Code und keine Grafik aus Titan Panel übernommen (Claude).
+- Die Leiste bleibt auch ohne Einträge sichtbar, sonst wäre das Menü zum Wiedereinblenden nicht erreichbar (Claude).
+- Ebene `LOW` statt `MEDIUM`, damit Fenster und Karte darüber liegen. Im Spiel zu prüfen (Claude).
+
 ## 07.11.2026: Kein Hinweis mehr auf einen Neustart von WoW (Peon Manager 0.17.1)
 
 - `/reload` hat bisher immer gereicht, auch bei neuen Dateien und einem ganzen neuen Addon. Der Hinweis auf einen Neustart entfällt deshalb künftig in Doku, Vorlage und Manager (KarloDerBaer). Das ersetzt die frühere Regel „neue Dateien: WoW neu starten“. Alte Einträge im Verlauf bleiben stehen (Claude).

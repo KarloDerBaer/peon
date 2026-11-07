@@ -118,17 +118,35 @@ class BrokerClient {
       try { chances.updateMarket(this.db, m.id, lt.items, now); } catch (e) { log(this.db, 'chancen', false, `${m.key}: ${e.message}`); }
       const st = sales.marketStats(this.db, m.id, now);
       this.listOf(m.id, m.key);   // Liste fuer die Ansichten gleich mitrechnen, dann oeffnet sie sofort
-      if (!lt.items.size && !st.size) continue;
+      const cur = this.currentOf(m.id);
+      if (!lt.items.size && !st.size && !cur) continue;
       const items = {}, sl = {};
       for (const [k, r] of lt.items) items[k] = longterm.encode(r);
       for (const [k, s] of st) sl[k] = sales.encode(s);
       lua[m.key] = { t: now, day: lt.day, items, sales: sl };
       values[m.key] = { day: lt.day, items, sales: sl };
+      if (cur) { lua[m.key].cur = cur; values[m.key].cur = cur; }
       count += lt.items.size;
       salesCount += st.size;
     }
     this.lastLua = lua;
     return { lua, values, count, salesCount, day };
+  }
+
+  // Aktueller Stand fuer Broker (ab Manager 0.18.0, Wunsch KarloDerBaer 07.11.2026): Preise des neuesten vollstaendigen
+  // Stands, Blizzard-API oder Scan. Broker nimmt sie, wenn sie neuer sind als sein eigener Scan.
+  // items[key] = "min:median:menge:angebote" (Kupfer je Stueck, gerundet), nur Gegenstaende mit Angeboten.
+  currentOf(mid) {
+    const last = this.db.prepare("SELECT id, t, art FROM snapshots WHERE market_id = ? AND source = 'scan' AND partial = 0 ORDER BY t DESC LIMIT 1").get(mid);
+    if (!last) return null;
+    const items = {};
+    let n = 0;
+    for (const r of this.db.prepare('SELECT item_key, min, median, qty, auctions FROM item_snap WHERE snapshot_id = ? AND qty > 0 AND min > 0').iterate(last.id)) {
+      items[r.item_key] = `${Math.round(r.min)}:${Math.round(r.median > 0 ? r.median : r.min)}:${r.qty}:${r.auctions || 0}`;
+      n++;
+    }
+    if (!n) return null;
+    return { t: last.t, src: last.art === 'api' ? 'api' : 'scan', items };
   }
 
   marketId(marketKey) {

@@ -31,21 +31,21 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 | Addon | Version | SavedVariables | Befehl |
 |---|---|---|---|
-| Peon | 0.14.0 | `PeonDB` | /peon |
+| Peon | 0.15.0 | `PeonDB` | /peon |
 | Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
 | Peon_Fishing (früher FishingPlus) | 1.6.0 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
-| Peon_Broker (neu, Auktionshaus) | 0.35.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
-| Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.6.0 | `PeonBridgeDB` | /peon bridge |
+| Peon_Broker (neu, Auktionshaus) | 0.36.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
+| Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.7.0 | `PeonBridgeDB` | /peon bridge |
 | Peon_Feedback | 0.4.0 | `PeonFeedbackDB` | /feedback |
 | Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
-| Peon_Ledger (neu, Bestand und Buch) | 0.11.0 | `PeonLedgerDB` | /ledger |
+| Peon_Ledger (neu, Bestand und Buch) | 0.12.0 | `PeonLedgerDB` | /ledger |
 | Peon_Bags (neu, Taschen, Bank, Gildenbank) | 0.4.0 | `PeonBagsDB` | /peon bags |
-| Peon_Panel (neu, Leiste und Panel) | 0.1.0 | `PeonPanelDB` | /peon panel |
+| Peon_Panel (neu, Leiste und Panel) | 0.3.0 | `PeonPanelDB` | /peon panel |
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
-## Kern-API (Peon.API = 14)
+## Kern-API (Peon.API = 15)
 
 Die API wird nur erweitert, nie geändert (sonst brechen alle Module). Bei neuen Funktionen `Peon.API` erhöhen.
 
@@ -118,6 +118,8 @@ mod:NewMinimapButton({ icon = "Interface\\Icons\\…", name = "PeonXyMinimapButt
 mod:NewLauncher({ icon = "...", showKey = "minimapShow", onClick = function(mod, button, owner) end,
     onTooltip = function(mod, tooltip) end, update = function(mod, iconTexture) end, menu = function(mod, root) end,
     texts = { { key = "free", label = "Freie Plätze", get = function(mod) return "23 frei" end } }, defaultText = "free" })
+mod:AddLauncher({ key = "uhr", ... })   -- API 15: weiterer Starter eines Moduls, key ist Pflicht
+-- API 15, neue Felder: onWheel = function(mod, delta, owner) end, available = function(mod) return true end
 ```
 - **Bereiche für Rückmeldungen (API 9, Feedback.lua):** Jedes Modul meldet seine Bereiche für Peon_Feedback und den Peon Manager (ab API 13 in `PeonDB.feedbackAreas`) mit einer Zeile (am Ende der ersten Code-Datei). Das `if` hält das Modul mit älterem Kern lauffähig; „Sonstiges“ hängt Feedback selbst an.
 ```lua
@@ -212,7 +214,7 @@ Peon.NiceRange(lo, hi, schritte)
 - Vor größeren Änderungen die Entscheidungen mit KarloDerBaer abstimmen; Texte deutsch und ohne Fachjargon.
 - **Release-Pakete bauen:** `node scripts/build_release.js` (Zips, Manifest, Text), Einstellungen in `scripts
 elease.json`. Ein neues Addon muss dort eingetragen werden, sonst bricht der Bau ab. Jede Version in einer TOC braucht einen Abschnitt `## <Version>` im Changelog.
-- **Manager oder Entwicklung (WoW geschlossen):** `scripts\junctions.cmd` zeigt den Zustand. `junctions.cmd manager [Module]` macht aus Junctions echte Ordner, der Peon Manager aktualisiert sie dann wie bei allen anderen. `junctions.cmd entwicklung [Module]` macht aus echten Ordnern Junctions, Änderungen im Repo sind dann nach `/reload` im Spiel, der Manager lässt diese Addons in Ruhe. Der echte Ordner wandert dabei ins Archiv.
+- **Manager oder Entwicklung (auch bei laufendem WoW, danach `/reload`):** `scripts\junctions.cmd` zeigt den Zustand. `junctions.cmd manager [Module]` macht aus Junctions echte Ordner, der Peon Manager aktualisiert sie dann wie bei allen anderen. `junctions.cmd entwicklung [Module]` macht aus echten Ordnern Junctions, Änderungen im Repo sind dann nach `/reload` im Spiel, der Manager lässt diese Addons in Ruhe. Der echte Ordner wandert dabei ins Archiv.
 - **Release in zwei Schritten:** Erst ein Tag `vJJJJ.MM.TT-test` (Vorabversion, nur Kanal Test). KarloDerBaer aktualisiert im Manager und prüft. Danach derselbe Stand als `vJJJJ.MM.TT`. Vorabversionen sind öffentlich sichtbar, das Repo ist öffentlich. Veröffentlicht wird nur nach Rücksprache.
 - **Nach jeder Arbeit:** Version in der TOC erhöhen, `docs\changelog\<Modul>.md`, `Peon_Stand.md` und bei Bedarf `Peon_Entscheidungen.md` aktualisieren, Tests, Commit.
 

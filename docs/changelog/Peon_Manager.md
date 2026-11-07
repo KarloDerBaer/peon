@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.18.0
+
+Kurz: Die Preise aus dem neuesten Stand der Blizzard-API gehen jetzt auch ins Spiel. Broker nutzt sie, wenn sie neuer sind als dein letzter Scan.
+
+- 0.18.0 (07.11.2026, Wunsch KarloDerBaer): `Data.lua` enthält je Markt zusätzlich `cur` mit den aktuellen Preisen des neuesten vollständigen Stands (Blizzard-API oder Scan): Zeit `t`, Herkunft `src` (`api` oder `scan`) und je Gegenstand `"min:median:menge:angebote"`. Ein neuer API-Stand ändert damit `Data.lua`, sie wird nach jedem Abruf neu geschrieben. Die Datei wird je nach Markt einige hundert KB größer. Braucht Peon_Bridge 0.7.0 und Peon_Broker 0.36.0, ältere Fassungen übergehen `cur`.
+
 ## 0.17.1
 
 Kurz: Der Hinweis zum Neustart von WoW entfällt: Nach einem Update reicht im Spiel immer `/reload`.

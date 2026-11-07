@@ -383,3 +383,18 @@ test('AHledger ist weg: alte Einstellungen und Tabellen verschwinden', () => {
   assert.deepEqual(tables, []);
   svc.close();
 });
+
+test('Rueckgabe an Broker: aktuelle Preise des neuesten Stands mit Zeit und Herkunft (ab 0.18.0)', async () => {
+  const { svc, world, client, api } = setup();
+  world.houses[111] = { single: SINGLE, mass: MASS };
+  api.setHouse('eu', 111, true, 'Allianz');
+  await api.tick(client);
+  const cur = svc.broker.buildMarkets().lua['Blizzard EU Haus 111 / Alliance'].cur;
+  assert.equal(cur.t, T0);
+  assert.equal(cur.src, 'api');
+  assert.equal(cur.items['2589'], '50:50:25:2');
+  assert.ok(cur.items['6611:Klinge des Wolfs'], 'Variante mit vollem Namen');
+  assert.equal(Object.values(cur.items).every((v) => /^\d+:\d+:\d+:\d+$/.test(v)), true);
+  assert.equal(cur.items['6611'], undefined, 'nur Gebot: kein Preis');
+  svc.close();
+});

@@ -314,6 +314,65 @@ function D.ApplyLive(key, rows, t, name, quality)
     return e
 end
 
+---------------------------------------------------------------------------
+-- Neuerer Stand vom Peon Manager (ab 0.36, Wunsch KarloDerBaer 07.11.2026)
+--   Der Manager schickt ueber Peon_Bridge die Preise seines neuesten vollstaendigen Stands (Blizzard-API oder Scan).
+--   Ist er neuer als Scan und Live-Abfrage eines Gegenstands, gilt er wie eine Live-Abfrage: aktueller Stand
+--   (m, md, q, n, gone), Zeit in e.lt. Verlauf, Trend und e.t bleiben reine Scan-Werte. Die guenstigsten Stufen (lv)
+--   kennt der Manager nicht, sie fallen weg, damit keine alten Schnaeppchen gemeldet werden.
+--   market.mgrAt, mgrSrc, mgrItems: Zeit, Herkunft und Zahl der Gegenstaende fuer die Anzeige.
+---------------------------------------------------------------------------
+function D.ManagerState()
+    local c = Peon:GetModule("bridge")
+    if not c or type(c.Current) ~= "function" then return nil end
+    local ok, t, src, items = pcall(c.Current, c, ns.MarketKey())
+    if ok and type(t) == "number" and type(items) == "table" then return t, src, items end
+    return nil
+end
+
+local function Seen(e) return math.max(e.t or 0, e.lt or 0) end
+
+-- Rueckgabe: Zahl der Gegenstaende, deren aktueller Stand neu ist
+function D.ApplyManager()
+    local t, src, items = D.ManagerState()
+    if not t then return 0 end
+    local market = D.Market(nil, true)
+    if market.mgrAt and market.mgrAt >= t then return 0 end   -- schon eingetragen
+    local cur, total, count = {}, 0, 0
+    for key, s in pairs(items) do
+        if type(key) == "string" and key:match("^%d+$") then key = tonumber(key) end
+        local mi, md, q, n
+        if type(s) == "string" then mi, md, q, n = s:match("^(%d+):(%d+):(%d+):(%d+)$") end
+        if mi and tonumber(q) > 0 then
+            cur[key] = true
+            total = total + 1
+            local e = market.items[key]
+            if type(e) ~= "table" then e = {}; market.items[key] = e; D.vIndex = nil end
+            if Seen(e) < t then
+                e.m, e.md, e.q, e.n, e.gone, e.lt, e.lv = tonumber(mi), tonumber(md), tonumber(q), tonumber(n), nil, t, nil
+                count = count + 1
+            end
+        end
+    end
+    -- Nicht mehr im Stand: keine Angebote mehr, letzte Preise bleiben (wie beim Scan)
+    for key, e in pairs(market.items) do
+        if type(e) == "table" and not cur[key] and not e.gone and e.m and Seen(e) < t then
+            e.q, e.n, e.lv, e.gone = 0, 0, nil, t
+        end
+    end
+    market.mgrAt, market.mgrSrc, market.mgrItems = t, src, total
+    D.liveStamp = (D.liveStamp or 0) + 1
+    return count
+end
+
+-- Zeit der neuesten Preise dieses Markts: eigener Scan oder Stand vom Manager
+function D.DataAt(market)
+    if type(market) ~= "table" then return nil end
+    local a, b = market.lastScan, market.mgrAt
+    if a and b then return math.max(a, b) end
+    return a or b
+end
+
 -- Zuletzt mit Angeboten gesehen (Scan oder live)
 function D.Seen(e)
     if type(e) ~= "table" then return nil end

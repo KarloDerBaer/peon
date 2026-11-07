@@ -434,6 +434,18 @@ function mod:Sales(key, market)
     return { perDay = a / 10, rate = q >= 0 and q / 100 or nil, minutes = mi, t = t }
 end
 
+-- Neuester vollstaendiger Stand des Managers fuer Broker (ab 0.7.0): Blizzard-API oder Scan.
+-- Rueckgabe t, src ("api" oder "scan"), items { [key] = "min:median:menge:angebote" } oder nil.
+-- Ohne Pruefung auf freshDays: Broker nimmt ihn nur, wenn er neuer ist als die eigenen Werte.
+function mod:Current(market)
+    if not ns.ChannelOn("broker") then return nil end
+    local d = ns.ManagerData()
+    local m = d and type(d.markets) == "table" and type(market) == "string" and d.markets[ns.MarketOf(d, market)]
+    local c = type(m) == "table" and m.cur
+    if type(c) ~= "table" or type(c.items) ~= "table" or not tonumber(c.t) then return nil end
+    return tonumber(c.t), c.src == "api" and "api" or "scan", c.items
+end
+
 -- Wie viele Gegenstaende hat der Manager fuer einen Markt (Anzeige)
 function ns.MarketCount(market)
     local d = ns.ManagerData()

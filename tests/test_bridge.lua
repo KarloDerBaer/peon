@@ -629,5 +629,43 @@ do
   PeonBridgeData = data
 end
 
+-- Neuester Stand des Managers (Bridge 0.7.0, Broker 0.36.0, Manager 0.18.0)
+do
+  local keep = PeonBridgeData
+  local D = nsb.Data
+  local mk = D.Market(nil, true)
+  local T = clock + 5000
+  mk.lastScan, mk.mgrAt = clock, nil
+  mk.items[90001] = { m = 100, md = 120, q = 10, n = 3, t = clock, d = "1:100:120:10:1", pm = 90, pmd = 110, pt = clock - 100 }
+  mk.items[90002] = { m = 500, md = 500, q = 2, n = 1, t = clock }
+  mk.items[90003] = { m = 700, md = 700, q = 1, n = 1, t = clock, lt = T + 10, lv = "700:1" }
+  mk.items["90004:Klinge des Affen"] = { m = 900, md = 900, q = 1, n = 1, t = clock }
+  PeonBridgeData = { fmt = 2, t = T, channels = { broker = false }, ack = {}, markets = { [nsb.MarketKey()] = { t = T, day = 1, items = {}, sales = {},
+    cur = { t = T, src = "api", items = { [90001] = "80:95:30:6", [90003] = "650:650:1:1", ["90004:Klinge des Affen"] = "850:860:2:2", [90005] = "40:40:5:1", [90006] = "kaputt" } } } } }
+  check(mod:Current(nsb.MarketKey()) == nil and D.ApplyManager() == 0, "0.7.0: ohne Freischaltung kein Stand vom Manager")
+  PeonBridgeData.channels.broker = true
+  local t, src, items = mod:Current(nsb.MarketKey())
+  check(t == T and src == "api" and items[90001] == "80:95:30:6", "0.7.0: Stand des Managers mit Zeit und Herkunft")
+  check(mod:Current("Anderer / Horde") == nil, "0.7.0: fremder Markt leer")
+  check(D.ApplyManager() == 3, "0.36: drei Gegenstaende neu (einer hat eine neuere Live-Abfrage)")
+  local e1 = mk.items[90001]
+  check(e1.m == 80 and e1.md == 95 and e1.q == 30 and e1.n == 6 and e1.lt == T, "0.36: aktueller Stand vom Manager")
+  check(e1.t == clock and e1.pm == 90 and e1.d == "1:100:120:10:1", "0.36: Verlauf, Trend und Scan-Zeit bleiben")
+  check(mk.items[90002].gone == T and mk.items[90002].q == 0 and mk.items[90002].m == 500, "0.36: fehlt im Stand: weg, letzter Preis bleibt")
+  check(mk.items[90003].m == 700 and mk.items[90003].lv == "700:1", "0.36: neuere Live-Abfrage bleibt")
+  check(mk.items["90004:Klinge des Affen"].m == 850, "0.36: Variante mit vollem Namen")
+  check(mk.items[90005] and mk.items[90005].m == 40 and mk.items[90006] == nil, "0.36: neuer Gegenstand, kaputter Wert ignoriert")
+  check(mk.mgrAt == T and mk.mgrSrc == "api" and mk.mgrItems == 4, "0.36: Zeit, Herkunft und Zahl fuer die Anzeige")
+  check(D.DataAt(mk) == T and D.DataAt({ lastScan = 5 }) == 5 and D.DataAt({}) == nil, "0.36: neueste Daten")
+  check(D.ApplyManager() == 0, "0.36: derselbe Stand nur einmal")
+  local lnc = nsb.mod.launcher
+  if lnc then
+    mk.lastScan, mk.mgrAt = clock - 20 * 3600, clock - 1800
+    local a, sa = lnc:GetText("age"), lnc:GetText("scanAge")
+    check(a:find("30", 1, true) and sa:find("20", 1, true), "0.36: Leiste zeigt die neuesten Daten, Scan-Alter getrennt: " .. tostring(a) .. " / " .. tostring(sa))
+  end
+  PeonBridgeData = keep
+end
+
 check(not said("Fehler in"), "keine Fehlermeldungen")
 print("ALLE TESTS OK")
