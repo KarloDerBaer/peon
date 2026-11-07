@@ -63,7 +63,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 
 ## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.21.0
 
-- **Bessere Vorschläge (ab 0.21.0, Rechenmodell Kapitel 10):** Kürzung nach unten erst ab 75 % (F37a), neues Preisniveau nach 12 bis 24 Std. unter oder über dem Bereich (F54), Wiederverkauf höchstens zum Median der Angebote und grüner Satz nur bei 20 % Abstand zu den anderen Angeboten (F50a), Trefferquote unter Chancen (F55). Grenzwerte in 2 bis 4 Wochen mit der Trefferquote prüfen, wenn der Markt nach dem Start ruhiger ist.
+- **Bessere Vorschläge (ab 0.21.0, Rechenmodell Kapitel 10):** Kürzung nach unten erst ab 75 % (F37a), neues Preisniveau nach 12 bis 24 Std. unter oder über dem Bereich (F54), Wiederverkauf höchstens zum Median der Angebote und grüner Satz nur bei 20 % Abstand zu den anderen Angeboten (F50a), Trefferquote unter Chancen (F55). Grenzwerte in 2 bis 4 Wochen mit der Trefferquote prüfen, wenn der Markt nach dem Start ruhiger ist. Vorabversion `v2026.11.08-test` (08.11.2026, nur Kanal Test, zusammen mit Broker 0.38.0), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. **Noch zu prüfen durch KarloDerBaer:** Satz auf der Gegenstandsseite (zum Beispiel Magicusmantel), Pfeil bei „Zu üblich“, Trefferquote unter Chancen (erste Zahlen frühestens am 11.11.2026).
 
 - Reiter „Einkaufsliste (WIP)“ (ab 0.18.1), wird bald überarbeitet.
 - Quellcode: `manager\` (bisher `client\`), Anleitung in `manager\README.md`. Design: `docs\konzepte\manager\Peon_Client_Design.md` (Funktionen, jetzt Modul Peon Broker Client) und `Peon_GitHub_Design.md` (Peon Manager, Module, Installieren).
