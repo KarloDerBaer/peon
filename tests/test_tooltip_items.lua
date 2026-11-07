@@ -572,6 +572,32 @@ do
   wipe(ord) for i, v in ipairs(o0) do ord[i] = v end
 end
 
+-- 17) 0.7.5: geheime Einheit (Forever in Instanzen) -> keine Einheiten-Funktion, kein Fehler, Rahmen Standard
+do
+  local oldGU, oldSel = GameTooltip.GetUnit, UnitSelectionColor
+  local calls, bm0 = 0, PeonTooltipDB.borderMode
+  UnitSelectionColor = function(u)
+    calls = calls + 1
+    if u == SECRET then error("bad argument #1 to 'UnitSelectionColor' (Secret values are only allowed during untainted execution)") end
+    return 1, 0, 0
+  end
+  UnitIsPlayer = UnitIsPlayer or function() return false end
+  GameTooltip.GetUnit = function() return "Gegner", SECRET end
+  PeonTooltipDB.borderMode = "reaction"
+  local errs = #out
+  GameTooltip.border = nil
+  ns.ApplyItemBorder(GameTooltip)
+  check(calls == 0, "0.7.5: geheime Einheit - UnitSelectionColor nicht aufgerufen")
+  local bad = false for i = errs + 1, #out do if out[i]:find("Border") then bad = true end end
+  check(not bad, "0.7.5: geheime Einheit - nichts gemeldet")
+  GameTooltip.GetUnit = function() return "Gegner", "mouseover" end
+  ns.ApplyItemBorder(GameTooltip)
+  check(calls == 1 and GameTooltip.border and GameTooltip.border[1] == 1 and GameTooltip.border[2] == 0, "0.7.5: normale Einheit - Rahmen in Haltungsfarbe")
+  GameTooltip.GetUnit, UnitSelectionColor = oldGU, oldSel
+  PeonTooltipDB.borderMode = bm0
+  ns.ApplyItemBorder(GameTooltip)
+end
+
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") or l:find("Error") then n = n + 1 end end
 check(n == 0, "keine Fehlermeldungen")
 print("ALLE TESTS OK")

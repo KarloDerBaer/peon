@@ -4,7 +4,7 @@ import { bytes, when } from '../util.js';
 import BlizzardCheck from '../components/BlizzardCheck.vue';
 
 const props = defineProps({ data: Object, settings: Object, stamp: Number, broker: Boolean, now: Number });
-const emit = defineEmits(['save']);
+const emit = defineEmits(['save', 'go']);
 const api = window.peon;
 const wowDir = ref(props.settings.wowDir);
 watch(() => props.settings.wowDir, (v) => { wowDir.value = v; });
@@ -101,7 +101,7 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
     </section>
 
     <div class="group">
-      <BlizzardCheck :now="now" :stamp="stamp" />
+      <BlizzardCheck :now="now" :stamp="stamp" :broker="broker" :houses="data && data.api ? data.api.selected : null" @go="emit('go', $event)" />
     </div>
 
     <section class="group">

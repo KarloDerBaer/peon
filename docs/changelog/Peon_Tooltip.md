@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.7.5
+
+Kurz: In Dungeons kommt beim Rahmen des Tooltips keine Fehlermeldung mehr.
+
+- 0.7.5 (07.11.2026, Fehlerbericht von KarloDerBaer über den Manager, 1796× nach dem Betreten eines Dungeons): `Style.lua:79: bad argument #1 to 'UnitSelectionColor' (... Secret values are only allowed during untainted execution for this argument.)`.
+  - Ursache: In Instanzen liefert `GetUnit` die Einheit des Tooltips als geheimen Wert. Für die Rahmenfarbe wurde sie trotzdem an `UnitSelectionColor` weitergegeben, und das lehnt geheime Einheiten ab, wenn der Aufruf von einem Addon kommt.
+  - Jetzt: Ist die Einheit geheim, bleibt der Rahmen in der Standardfarbe (wie schon bei Spielerinfos und Symbolen in `Units.lua` und `Icons.lua`). Außerhalb von Instanzen bleibt alles wie bisher.
+  - Test: `test_tooltip_items.lua` Abschnitt 17 (mit dem alten Code schlägt er fehl).
+  - **Im Spiel prüfen:** in einem Dungeon Gegner überfahren, keine neuen Meldungen „Border“, Rahmen dort in Standardfarbe.
+
 ## 0.7.4
 
 Kurz: Der Tooltip von Objekten wie Briefkästen verschwindet jetzt sofort, wenn die Maus sie verlässt.

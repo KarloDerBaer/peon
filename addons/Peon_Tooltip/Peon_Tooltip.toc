@@ -3,7 +3,7 @@
 ## Notes: Tooltip follows the cursor with adjustable offset, size, opacity, border colour, PvP/quest icons and combat mode; item tooltips with sortable and hideable parts.
 ## Notes-deDE: Tooltip folgt der Maus mit einstellbarem Abstand, Größe, Transparenz, Rahmenfarbe, PvP-/Quest-Symbol und Kampfmodus; Gegenstands-Tooltips mit sortierbaren und ausblendbaren Teilen.
 ## Author: KarloDerBaer
-## Version: 0.7.4
+## Version: 0.7.5
 ## Dependencies: Peon
 ## Group: Peon
 ## IconTexture: Interface\Icons\INV_Misc_Note_01

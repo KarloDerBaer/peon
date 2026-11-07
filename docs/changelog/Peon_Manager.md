@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.20.1
+
+Kurz: Unter Einstellungen bei der Blizzard-API steht jetzt ein Link zum Beantragen des Zugangs. Nach dem Speichern erklärt ein Hinweis, dass ein neuer Zugang erst nach ein paar Minuten funktioniert und unter Quellen mindestens ein Auktionshaus gewählt sein muss.
+
+- 0.20.1 (07.11.2026, Wunsch KarloDerBaer, `components/BlizzardCheck.vue`):
+  - **Link zum Entwicklerportal** immer sichtbar unter dem Einleitungstext, „Zugang bei Blizzard beantragen“ bzw. mit gespeichertem Zugang „Zugang bei Blizzard verwalten“. Bisher nur in Schritt 2 der Anleitung.
+  - **Hinweis Wartezeit:** Nach dem Speichern steht dort, dass ein neuer Zugang bei Blizzard oft erst nach ein paar Minuten funktioniert und eine Prüfung gleich danach fehlschlagen kann. Der Hinweis bleibt, bis eine Prüfung Angebote liefert. Ohne Prüfung zeigt er sich auch bei schon gespeichertem Zugang.
+  - **Hinweis Auktionshaus:** Ist ein Zugang gespeichert, aber unter Quellen kein Haus gewählt, steht dort, dass mindestens eines nötig ist, mit Knopf „Zu den Quellen“. Fehlt der Peon Broker Client, führt der Knopf zu Updates.
+
 ## 0.20.0
 
 Kurz: Der Manager sucht jetzt alle 10 Minuten nach Updates und meldet sich über Windows, wenn es Neues gibt. Beides stellst du unter Einstellungen ein.

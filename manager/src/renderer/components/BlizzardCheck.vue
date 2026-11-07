@@ -2,7 +2,9 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { ago } from '../util.js';
 
-const props = defineProps({ now: Number, stamp: Number });
+// houses: Zahl der unter Quellen gewählten Häuser (null, wenn der Broker Client fehlt), broker: Broker Client aktiv
+const props = defineProps({ now: Number, stamp: Number, houses: Number, broker: Boolean });
+const emit = defineEmits(['go']);
 const api = window.peon;
 
 const REGIONS = [{ id: 'eu', label: 'Europa' }, { id: 'us', label: 'Amerika' }, { id: 'tw', label: 'Taiwan' }];
@@ -17,6 +19,7 @@ const region = ref('eu');
 const busy = ref('');
 const error = ref('');
 const confirmClear = ref(false);
+const justSaved = ref(false);
 
 function apply(s) {
   st.value = s;
@@ -36,6 +39,7 @@ function save() {
   return run('save', async () => {
     const s = await api.blizzardSave({ clientId: clientId.value, clientSecret: clientSecret.value, region: region.value });
     clientId.value = ''; clientSecret.value = '';
+    justSaved.value = true;
     return s;
   });
 }
@@ -43,10 +47,14 @@ function check() { return run('check', () => api.blizzardCheck()); }
 function clear() {
   if (!confirmClear.value) { confirmClear.value = true; return undefined; }
   confirmClear.value = false;
+  justSaved.value = false;
   return run('clear', () => api.blizzardClear());
 }
 const report = computed(() => st.value && st.value.report);
 const good = computed(() => report.value && report.value.result === 'auctions');
+// Neue Zugänge brauchen bei Blizzard ein paar Minuten: Hinweis nach dem Speichern, bis eine Prüfung klappt
+const waitHint = computed(() => !!(st.value && st.value.saved) && !good.value && (justSaved.value || !report.value));
+const noHouse = computed(() => !!(st.value && st.value.saved) && !props.houses);
 const regionLabel = computed(() => (REGIONS.find((r) => r.id === (st.value && st.value.region)) || REGIONS[0]).label);
 </script>
 
@@ -57,12 +65,19 @@ const regionLabel = computed(() => (REGIONS.find((r) => r.id === (st.value && st
       <button class="primary" v-if="st.saved" :disabled="!!busy" @click="check">{{ busy === 'check' ? 'Prüft' : 'Zugang prüfen' }}</button>
     </div>
     <p class="muted lead">Mit einem eigenen Zugang kann der Manager Daten direkt bei Blizzard abfragen, zum Beispiel die Auktionshäuser von Forever. Welche Häuser er abruft, wählst du mit dem Peon Broker Client unter Quellen.</p>
+    <p class="small"><button class="link" @click="api.openLink(PORTAL)">{{ st.saved ? 'Zugang bei Blizzard verwalten' : 'Zugang bei Blizzard beantragen' }}</button> <span class="muted">(Entwicklerportal von Blizzard, auf Englisch)</span></p>
 
     <div v-if="st.saved" class="saved">
       <span>Zugang gespeichert (Client-ID endet auf {{ st.idEnd }}, {{ regionLabel }})</span>
       <button class="danger" :disabled="!!busy" @click="clear">{{ confirmClear ? 'Wirklich entfernen?' : 'Zugang entfernen' }}</button>
       <button v-if="confirmClear" @click="confirmClear = false">Abbrechen</button>
     </div>
+    <p v-if="waitHint" class="note">Ein neuer Zugang funktioniert bei Blizzard oft erst nach ein paar Minuten. Schlägt „Zugang prüfen“ gleich nach dem Speichern fehl, versuche es etwas später noch einmal.</p>
+    <p v-if="noHouse" class="note">
+      Wähle unter Quellen mindestens ein Auktionshaus aus, sonst ruft der Manager bei Blizzard nichts ab.
+      <button v-if="props.broker" class="link" @click="emit('go', 'sources')">Zu den Quellen</button>
+      <template v-else>Dafür brauchst du den Peon Broker Client. <button class="link" @click="emit('go', 'modules')">Unter Updates installieren</button></template>
+    </p>
     <template v-else>
       <p class="small warn" v-if="st.unreadable">Der gespeicherte Zugang lässt sich auf diesem Rechner nicht lesen. Bitte neu eintragen.</p>
       <div class="tutorial" aria-live="polite">
@@ -149,4 +164,5 @@ const regionLabel = computed(() => (REGIONS.find((r) => r.id === (st.value && st
 .steps td { padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line-soft); }
 .steps tr:last-child td { border-bottom: none; }
 .warn { color: var(--warn); }
+.note { margin: 0; max-width: 72ch; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--panel); border-radius: var(--radius-s); }
 </style>

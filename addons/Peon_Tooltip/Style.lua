@@ -100,7 +100,9 @@ ns.GetUnitColor = GetUnitColor
 local function ApplyBorder(tt, db)
     if db.borderMode ~= "none" and tt.GetUnit then
         local _, unit = tt:GetUnit()
-        if IsSecret(unit) or unit then
+        -- Geheime Einheit (z. B. in Instanzen): Einheiten-Funktionen lehnen sie ab, ausserhalb von
+        -- Blizzards eigenem Code gibt es dann keine Farbe. Rahmen bleibt Standard (wie Units/Icons).
+        if not IsSecret(unit) and unit then
             local ok, r, g, b = pcall(GetUnitColor, unit, db.borderMode)
             if ok and (IsSecret(r) or r) then
                 local ok2, err = pcall(SetBorder, tt, r, g, b)

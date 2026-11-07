@@ -1,6 +1,6 @@
 {
   "name": "peon-manager",
-  "version": "0.20.0",
+  "version": "0.20.1",
   "description": "Peon Manager: installiert die Peon-Addons, Modul Peon Broker Client erfasst und wertet Auktionsdaten aus",
   "main": "electron/main.js",
   "scripts": {

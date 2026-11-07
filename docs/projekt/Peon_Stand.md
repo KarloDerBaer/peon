@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 07.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.37.0 / Bridge 0.7.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.20.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.0 / Fishing 1.6.0 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 07.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.37.0 / Bridge 0.7.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.20.1 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.15.0, API 15
@@ -13,7 +13,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.14.0, 0.13.0, 0.12.0, 0.11.1, 0.10.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Tooltip – 0.7.4 (früher TooltipPlus)
+## Peon_Tooltip – 0.7.5 (früher TooltipPlus)
 
 - Dateien: Locales.lua, Tooltip.lua, Style.lua, Units.lua, Icons.lua, Items.lua (ab 0.6), Debug.lua, Options.lua
 - SavedVariables: `PeonTooltipDB`
@@ -21,7 +21,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Funktionen: Tooltip folgt der Maus (Ecke, Abstand X/Y, Kantenwechsel), Größe, Hintergrund-Deckkraft, Rahmenfarbe (keine/Haltung/Klasse), Spielerinfos (Name in Klassenfarbe, Gilde), eigenes Ausblenden, Kampfmodus (normal/durchsichtig/aus, Umschalt zeigt), PvP- und Quest-Symbol mit Position und Größe.
 - Optionsseite: Kern-Bausteine (braucht Peon API 6). Position der Tooltips und Symbole als Knopfraster, Rahmenfarbe und Kampfmodus als Auswahllisten.
 - Verlauf der Versionen: `docs/changelog/Peon_Tooltip.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.7.4, 0.7.3, 0.7.2, 0.7.1, 0.7.0, 0.6.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.7.5, 0.7.4, 0.7.3, 0.7.2, 0.7.1, 0.7.0, 0.6.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon_ComboPoints – 3.5.1 (früher Combo Point Display)
 
@@ -59,7 +59,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.20.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.20.1
 
 - Reiter „Einkaufsliste (WIP)“ (ab 0.18.1), wird bald überarbeitet.
 - Quellcode: `manager\` (bisher `client\`), Anleitung in `manager\README.md`. Design: `docs\konzepte\manager\Peon_Client_Design.md` (Funktionen, jetzt Modul Peon Broker Client) und `Peon_GitHub_Design.md` (Peon Manager, Module, Installieren).
@@ -68,7 +68,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Manager-Module (ab 0.7.0, Variante B): Liste in `manager\src\core\modules.js`, je Modul Schlüssel, Name, Beschreibung, nötige Addons, Kanäle, Ansichten, Datenbankdatei. Erstes Modul **Peon Broker Client** (`broker-client`, Code in `broker-client.js`), standardmäßig aus, bei KarloDerBaer aktiv. Ansicht „Module“ mit Installieren, Entfernen und Daten löschen.
 - Addons (ab 0.8.0, `src\core\addons.js`): Manifest des Release holen, Zip laden und prüfen, tauschen, bei Fehler zurücktauschen. Sucht beim Start und dann im eingestellten Abstand (`updateCheckMin`, ab 0.20.0, Standard 10 Minuten, vorher fest 6 Stunden), installiert nur per Klick. Meldung von Windows bei Neuem (`updateNotify`, ab 0.20.0). Junctions gelten als „Entwicklung (Repo)“ und bleiben unberührt, bei KarloDerBaer gibt es sie ab 06.11.2026 nur noch beim Entwickeln (`scripts\junctions.cmd`). Kanal Stabil oder Test in den Einstellungen. Quelle zum Testen: Umgebungsvariable `PEON_MANAGER_RELEASES`.
 - Installiert (ab 0.9.0): Installer `PeonManager-Setup-<Version>.exe` für den Benutzer, ohne Administratorrechte, Programm unter `%LOCALAPPDATA%\Programs`, Daten in `%APPDATA%\Peon Manager\Daten`. Selbst-Update über `electron/updater.js`: lädt im Hintergrund, fragt vor dem Neustart. Ab 0.19.0 zeigt das Update-Fenster vor dem Schließen die Schritte, danach läuft der Installer sichtbar mit deutschen Texten (`electron/installer.nsh`) und startet den Manager neu. Liegt ein Ordner `DB` neben dem Programmordner (Aufbau bei KarloDerBaer), gilt dieser, und es gibt kein Selbst-Update.
-- Blizzard-API (ab 0.11.0): Zugang, Anleitung und Prüfabruf unter Einstellungen für alle Module (`src\core\blizzard.js`). Einleser im Broker Client (`blizzard-import.js`), Auswahl der Häuser unter Quellen, Einstellung `blizzard.houses`. Beobachter nur in der Testfassung (`blizzard-watch.js`). Wissen und offene Fragen: `docs\konzepte\manager\Peon_Blizzard_API.md`.
+- Blizzard-API (ab 0.11.0): Zugang, Anleitung und Prüfabruf unter Einstellungen für alle Module (`src\core\blizzard.js`). Ab 0.20.1 dort immer ein Link zum Entwicklerportal, nach dem Speichern ein Hinweis auf die Wartezeit bei neuen Zugängen und, solange kein Haus gewählt ist, ein Hinweis auf Quellen. Einleser im Broker Client (`blizzard-import.js`), Auswahl der Häuser unter Quellen, Einstellung `blizzard.houses`. Beobachter nur in der Testfassung (`blizzard-watch.js`). Wissen und offene Fragen: `docs\konzepte\manager\Peon_Blizzard_API.md`.
 - Gegenstands-Tooltip (ab 0.12.0, `src\core\item-info.js`, Tabelle `item_info`): unter Gegenstände beim Überfahren und in der Detailansicht unter Eigenschaften, Daten aus der Blizzard-API. Wissen dazu: `docs\konzepte\manager\Peon_Blizzard_API.md`.
 - Reiter Rückmeldungen (ab 0.14.0, `src\core\reports.js`, Tabellen `errors` und `feedback` in `peon.db`): liest Fehler aus `Peon.lua` und `!BugGrabber.lua` und Rückmeldungen aus `Peon_Feedback.lua`, eigene Rückmeldungen schreiben, alles bearbeiten und löschen, Notizen zu Fehlern. Senden über den Worker (ein Issue je Eintrag, höchstens 20 je Senden), die Vorschau vor dem Senden steht ab 0.19.0 in einem Dialog (`components\SendDialog.vue`). Das Spiel löscht Eingelesenes über `errorsClearBefore` und `feedbackClearBefore` in `Data.lua`. Worker: `worker\peon-fehler\` (Einrichtung in der README dort). Worker läuft unter `peon-fehler.karloderbaer.workers.dev`, Adresse steht in `REPORT_URL` (ab 0.13.1).
 - Aufbewahrung (ab 0.15.0, `srccore
