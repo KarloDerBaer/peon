@@ -192,7 +192,7 @@ Erste Fassung gebaut mit Bags 0.3.0 (Bauabschnitte B1 bis B3), enthalten in der 
 
 ### Peon_Bags: Anordnung Klassisch, Nach Art, Individuell (beschlossen 07.11.2026, Konzept `Peon_Bags_Anordnung.md`)
 
-Knopf „Einstellen“ statt „Nach Art“, Leiste rechts neben dem Fenster mit den drei Anordnungen, automatischen Kategorien (wählbar, Reihenfolge änderbar) und eigenen Bereichen (je Fenster abwählbar). Dazu einklappbare Abschnitte und die Kategorie „Neu“. Gebaut mit Bags 0.5.0, enthalten in der Vorabversion `v2026.11.07.7-test` (07.11.2026, nur Kanal Test, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen). Von KarloDerBaer im Spiel geprüft, es funktioniert (07.11.2026). Danach gewünscht und gebaut mit Bags 0.6.0: kleine Abschnitte nebeneinander (abschaltbar) und Reihenfolge per Ziehen an der Überschrift, im Spiel noch nicht geprüft.
+Knopf „Einstellen“ statt „Nach Art“, Leiste rechts neben dem Fenster mit den drei Anordnungen, automatischen Kategorien (wählbar, Reihenfolge änderbar) und eigenen Bereichen (je Fenster abwählbar). Dazu einklappbare Abschnitte und die Kategorie „Neu“. Gebaut mit Bags 0.5.0, enthalten in der Vorabversion `v2026.11.07.7-test` (07.11.2026, nur Kanal Test, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen). Von KarloDerBaer im Spiel geprüft, es funktioniert (07.11.2026). Danach gewünscht und gebaut mit Bags 0.6.0: kleine Abschnitte nebeneinander (abschaltbar) und Reihenfolge per Ziehen an der Überschrift, enthalten in der Vorabversion `v2026.11.07.8-test` (07.11.2026, nur Kanal Test, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen), im Spiel noch nicht geprüft.
 
 ### Manager: Update mit sichtbarem Fortschritt und Senden im Dialog (beschlossen 07.11.2026)
 
