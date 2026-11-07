@@ -210,7 +210,8 @@ local ns = load("Peon_Bags", "Peon_Bags")
 fire("ADDON_LOADED", "Peon_Bags")
 local mod = ns.mod
 check(mod.initialized and mod.page, "Modul + Optionsseite")
-check(PeonBagsDB.bagCols == 24 and PeonBagsDB.bagLayout == "bags", "Einstellungen geprueft")
+check(PeonBagsDB.bagCols == 24 and PeonBagsDB.bagLayout == "classic", "Einstellungen geprueft")
+check(PeonBagsDB.layoutVer == 2 and #PeonBagsDB.catOrder == 17, "0.5: Kategorien und Reihenfolge angelegt")
 PeonBagsDB.bagCols = 10
 fire("PLAYER_LOGIN")
 check(cats.Peon and cats.Peon.subs[1] == "Bags", "Seite unter Peon > Bags")
@@ -249,21 +250,100 @@ check(ContainerFrame1:GetParent() ~= UIParent, "Blizzard-Rucksack umgehaengt (un
 ContainerFrame2:SetID(6)
 check(ContainerFrame2:GetParent() ~= UIParent, "Blizzard-Banktasche umgehaengt")
 
--- ===== Anordnung nach Art =====
-w.layoutBtn.scripts.OnClick(w.layoutBtn, "LeftButton")
-check(PeonBagsDB.bagLayout == "type", "Knopf schaltet auf 'nach Art'")
-hdr = {}
-for _, h in ipairs(w.headers) do if h.shown then hdr[#hdr + 1] = h.text end end
-check(table.concat(hdr, ",") == "Ausrüstung,Verbrauchbares,Handwerk,Quest,Müll,Frei,Reagenzientasche", "Abschnitte: " .. table.concat(hdr, ","))
-check(w.layoutBtn.text == "Nach Art" and w.layoutBtn.peonOn == true, "0.2: Umschalter 'Nach Art' farbig (an)")
+-- ===== Einstellen: Leiste mit Anordnung, Kategorien, Bereichen (ab 0.5) =====
+local function headers(win)
+  local t = {}
+  for _, h in ipairs(win.headers) do if h.shown then t[#t + 1] = h.text end end
+  return table.concat(t, ",")
+end
+local function headerOf(win, text)
+  for _, h in ipairs(win.headers) do if h.shown and h.text == text then return h end end
+end
+check(w.sortBtn and w.sortBtn.points[1][4] == 0, "Sortieren steht ganz links")
+check(w.setupBtn and w.setupBtn.text == "Einstellen" and w.setupBtn.points[1][1] == "TOPRIGHT", "Einstellen steht rechts")
+check(w.layoutBtn == nil, "kein Knopf 'Nach Art' mehr")
+w.setupBtn.scripts.OnClick(w.setupBtn, "LeftButton")
+local sp = w.setup
+check(sp and sp:IsShown() and #sp.layoutBtns == 3, "Einstellen oeffnet die Leiste mit drei Knoepfen")
+check(sp.points[1][1] == "TOPLEFT" and sp.points[1][3] == "TOPRIGHT", "Leiste rechts neben dem Fenster")
+check(sp.layoutBtns[1].peonOn and not sp.layoutBtns[2].peonOn, "Klassisch gewaehlt")
+check(sp.catRows[1].alpha == 0.45 and sp.catRows[1].check.enabled == false, "Klassisch: Kategorien ausgegraut")
+check(sp.grpHdr.alpha == 0.45 and sp.newBtn.enabled == false, "Klassisch: eigene Bereiche ausgegraut")
+check(sp.content.h > 17 * 22, "Inhalt hoeher als die Liste (rollt): " .. sp.content.h)
+sp.layoutBtns[2].scripts.OnClick(sp.layoutBtns[2], "LeftButton")
+check(PeonBagsDB.bagLayout == "type" and sp.layoutBtns[2].peonOn, "Knopf schaltet auf 'Nach Art'")
+check(sp.catRows[1].alpha == 1 and sp.catRows[1].check.enabled and sp.grpHdr.alpha == 0.45, "Nach Art: Kategorien waehlbar, Bereiche grau")
+check(headers(w) == "Neu,Quest,Ausrüstung,Verbrauchbares,Handwerkswaren,Müll,Freie Plätze,Reagenzientasche", "Abschnitte: " .. headers(w))
 -- Verbrauchbares: Heiltrank vor Verband (Name)? beide Qualitaet 1 -> nach Name: "Schwacher Heiltrank" > "Schwerer Leinenverband"
 local cons = {}
 for _, b in ipairs({ ns.slots[0][2], ns.slots[0][7] }) do cons[#cons + 1] = b.points[1][5] end
 check(cons[1] == cons[2], "Verbrauchbares in einer Reihe")
 check(ns.slots[0][7].points[1][4] < ns.slots[0][2].points[1][4], "nach Name sortiert (Heiltrank vor Verband)")
-w.layoutBtn.scripts.OnClick(w.layoutBtn, "LeftButton")
-check(PeonBagsDB.bagLayout == "bags", "zurueck auf Taschenreihenfolge")
-check(w.layoutBtn.text == "Nach Art" and w.layoutBtn.peonOn == false, "0.2: Umschalter grau (aus)")
+-- Kategorie abwaehlen: Muell landet unter Uebrige
+local junkRow
+for _, r in ipairs(sp.catRows) do if r.cat == "junk" then junkRow = r end end
+junkRow.check.checked = false
+junkRow.check.scripts.OnClick(junkRow.check)
+check(PeonBagsDB.bagCatsOff.junk == true and headers(w):find("Müll") == nil and headers(w):find("Verschiedenes") ~= nil, "Muell abgewaehlt, Hasenpfote nach ihrer Art: " .. headers(w))
+check(PeonBagsDB.bankCatsOff.junk == nil, "Abwahl gilt nur fuer dieses Fenster")
+junkRow.check.checked = true
+junkRow.check.scripts.OnClick(junkRow.check)
+check(PeonBagsDB.bagCatsOff.junk == nil and headers(w):find("Müll") ~= nil, "Muell wieder angehakt")
+-- Reihenfolge: Quest nach oben
+local questRow = sp.catRows[2]
+check(questRow.cat == "quest", "zweite Zeile ist Quest")
+questRow.up.scripts.OnClick(questRow.up)
+check(PeonBagsDB.catOrder[1] == "quest" and headers(w):find("^Quest,Neu,") ~= nil and sp.catRows[1].cat == "quest", "Quest nach oben: " .. headers(w))
+check(sp.catRows[1].up.enabled == false, "oberste Zeile: Pfeil hoch aus")
+sp.catRows[1].down.scripts.OnClick(sp.catRows[1].down)
+check(PeonBagsDB.catOrder[1] == "new", "und wieder zurueck")
+-- Kategorien des Spiels (Klasse und Unterklasse)
+do
+  local keepItem = C_Item
+  local cls, sub = 0, 1
+  C_Item = { GetItemInfoInstant = function(id) return id, "", "", "", "", cls, sub end }
+  local info = { itemID = 1, quality = 1 }
+  check(ns.Category(info) == "potion", "Trank: Traenke und Elixiere")
+  check(ns.Category(info, false, false, { potion = true }) == "consumable", "Traenke abgewaehlt: Verbrauchbares")
+  check(ns.Category(info, false, false, { potion = true, consumable = true }) == nil, "beide abgewaehlt: Uebrige")
+  sub = 5; check(ns.Category(info) == "food", "Essen und Trinken")
+  sub = 7; check(ns.Category(info) == "bandage", "Verband")
+  cls, sub = 6, 0; check(ns.Category(info) == "ammo", "Munition")
+  cls = 11; check(ns.Category(info) == "ammo", "Koecher")
+  cls = 1; check(ns.Category(info) == "bag", "Tasche")
+  cls = 13; check(ns.Category(info) == "key", "Schluessel")
+  cls = 9; check(ns.Category(info) == "recipe", "Rezept")
+  cls = 3; check(ns.Category(info) == "gem", "Edelstein")
+  cls = 5; check(ns.Category(info) == "reagent", "Reagenz")
+  cls = 12; check(ns.Category(info) == "quest" and ns.Category(info, false, false, { quest = true }) == nil, "Quest-Klasse")
+  cls = 2; check(ns.Category(info, false, true) == "new" and ns.Category(info, false, true, { new = true }) == "equip", "Neu geht vor, abgewaehlt gilt die Art")
+  check(ns.Category({ itemID = 1, quality = 0 }) == "junk" and ns.Category(nil) == "free" and ns.Category(nil, false, false, { free = true }) == nil, "Muell und freie Plaetze")
+  C_Item = keepItem
+end
+-- Neu bleibt bis zum Schliessen in "Neu"
+local nb = ns.slots[1][2]
+check(nb.peonIsNew and headers(w):find("Neu") ~= nil, "neuer Gegenstand unter Neu")
+local keepNew = C_NewItems.IsNewItem
+C_NewItems.IsNewItem = function() return false end
+nb.scripts.OnEnter(nb)
+fire("BAG_UPDATE", 0); fire("BAG_UPDATE_DELAYED")
+check(not nb.peonIsNew and headers(w):find("Neu") ~= nil, "gesehen, steht aber bis zum Schliessen unter Neu")
+w:Hide(); w:Show()
+check(headers(w):find("Neu") == nil, "nach dem Schliessen nicht mehr neu: " .. headers(w))
+C_NewItems.IsNewItem = keepNew
+w:Hide(); w:Show()
+-- Einklappen
+local eq = headerOf(w, "Ausrüstung")
+eq.scripts.OnClick(eq, "LeftButton")
+check(PeonBagsDB.bagCollapsed["c:equip"] and not ns.slots[0][3].shown, "Klick klappt Ausruestung ein")
+eq = headerOf(w, "Ausrüstung")
+check(eq.folded and eq.label.text:find("%(1%)") ~= nil, "eingeklappt mit Anzahl: " .. eq.label.text)
+eq.scripts.OnClick(eq, "LeftButton")
+check(not PeonBagsDB.bagCollapsed["c:equip"] and ns.slots[0][3].shown, "zweiter Klick klappt aus")
+sp.layoutBtns[1].scripts.OnClick(sp.layoutBtns[1], "LeftButton")
+check(PeonBagsDB.bagLayout == "classic" and headers(w) == "Reagenzientasche", "zurueck auf Klassisch")
+w:ToggleSetup()
+check(not sp:IsShown(), "Einstellen schliesst die Leiste wieder")
 check(w.frame.template == "PortraitFrameFlatTemplate" and w.template == "PortraitFrameFlatTemplate" and w.portrait, "0.2: Taschenfenster mit Blizzards Taschen-Rahmen")
 check(w.frame.portraitAsset == "Interface\\Icons\\INV_Misc_Bag_08", "0.2.2: Taschenbild im runden Rahmen gesetzt")
 check(w.frame.borderLayout == "HeldBagLayout" and w.frame.portraitSize[1] == 36, "0.2.2: kleiner Taschen-Ring wie Blizzards Taschen")
@@ -439,15 +519,7 @@ do
   check(not w:IsShown(), "Linksklick schliesst die Taschen")
 end
 
--- ===== Eigene Bereiche (ab 0.3) =====
-local function headers(win)
-  local t = {}
-  for _, h in ipairs(win.headers) do if h.shown then t[#t + 1] = h.text end end
-  return table.concat(t, ",")
-end
-local function headerOf(win, text)
-  for _, h in ipairs(win.headers) do if h.shown and h.text == text then return h end end
-end
+-- ===== Eigene Bereiche (ab 0.3, ab 0.5 nur bei Individuell) =====
 local cursor, cleared = nil, 0
 function GetCursorInfo() if cursor then return unpack(cursor) end end
 function ClearCursor() cleared = cleared + 1; cursor = nil end
@@ -464,6 +536,10 @@ check(ns.ItemKey(6611, "|cnIQ2:|Hitem:6611::::::12:::::::|h[Schwert des Baeren]|
 check(ns.ItemKey(25, nil) == 25 and ns.ItemKey(nil, nil) == nil, "Schluessel ohne Link oder Nummer")
 
 check(PeonBagsDB.groups and #PeonBagsDB.groups == 0, "anfangs keine Bereiche")
+-- Individuell ohne Kategorien (wie frueher "Taschenreihenfolge" mit Bereichen)
+local function allOff() local t = {} for _, c in ipairs(ns.CATS) do t[c] = true end return t end
+PeonBagsDB.bagCatsOff, PeonBagsDB.bankCatsOff = allOff(), allOff()
+PeonBagsDB.bagLayout, PeonBagsDB.bankLayout = "custom", "custom"
 ns.ShowBags()
 check(headers(w) == "Reagenzientasche", "ohne Bereiche sieht das Fenster aus wie bisher: " .. headers(w))
 check(headerOf(w, "Reagenzientasche").target == nil, "ohne Bereiche nimmt keine Ueberschrift etwas an")
@@ -488,7 +564,9 @@ hb.scripts.OnClick(hb)
 check(cleared == before and cursor ~= nil, "anderes am Mauszeiger bleibt unberuehrt")
 cursor = nil
 hb.scripts.OnClick(hb)
-check(cleared == before, "Klick ohne Gegenstand tut nichts")
+check(cleared == before and PeonBagsDB.bagCollapsed.g1, "Klick ohne Gegenstand klappt ein")
+headerOf(w, "Behalten").scripts.OnClick(headerOf(w, "Behalten"))
+check(not PeonBagsDB.bagCollapsed.g1, "und wieder aus")
 drop(headerOf(w, "Farmen (Gegenstand hierher ziehen)"), 2581, nil, "OnClick")
 check(PeonBagsDB.groupItems[2581] == 2, "Klick mit Gegenstand: wechselt den Bereich")
 drop(headerOf(w, "Farmen"), 2589)
@@ -512,23 +590,44 @@ drop(headerOf(w, "Übrige"), 2589)
 check(PeonBagsDB.groupItems[2589] == nil, "Ablegen auf Uebrige nimmt heraus")
 drop(headerOf(w, "Farmen"), 2589)
 
--- Anordnung nach Art: Bereiche bleiben oben, feste Ueberschriften nehmen heraus
-w.layoutBtn.scripts.OnClick(w.layoutBtn, "LeftButton")
-check(headers(w):find("^Behalten,Farmen,") ~= nil and headers(w):find("Übrige") == nil and headers(w):find("Ausrüstung") ~= nil, "nach Art: " .. headers(w))
+-- Individuell mit Kategorien: Bereiche bleiben oben und gehen vor, Kategorien nehmen heraus
+PeonBagsDB.bagCatsOff = {}
+mod:Fire("CHANGED", "bagCatsOff")
+check(headers(w):find("^Behalten,Farmen,") ~= nil and headers(w):find("Ausrüstung") ~= nil and headers(w):find("Übrige,Reagenzientasche$") ~= nil, "Individuell mit Kategorien: " .. headers(w))
+check(ns.slots[0][1].points[1][5] == headerOf(w, "Farmen").points[1][5] - 16, "Leinenstoff bleibt im eigenen Bereich, nicht unter Handwerkswaren")
 drop(headerOf(w, "Ausrüstung"), 6611, bags[1].items[3].hyperlink)
-check(PeonBagsDB.groupItems["6611:Schwert des Wolfs"] == nil, "Ablegen auf feste Ueberschrift nimmt heraus")
-w.layoutBtn.scripts.OnClick(w.layoutBtn, "LeftButton")
+check(PeonBagsDB.groupItems["6611:Schwert des Wolfs"] == nil, "Ablegen auf eine Kategorie nimmt heraus")
+-- Nach Art und Klassisch zeigen keine eigenen Bereiche, die Zuordnung bleibt
+w:Set("Layout", "type")
+check(headers(w):find("Behalten") == nil and headers(w):find("Farmen") == nil and PeonBagsDB.groupItems[2589] == 2, "Nach Art: keine eigenen Bereiche: " .. headers(w))
+check(headerOf(w, "Ausrüstung").target == nil, "Nach Art: Ueberschriften nehmen nichts an")
+w:Set("Layout", "classic")
+check(headers(w) == "Reagenzientasche", "Klassisch: keine eigenen Bereiche")
+w:Set("Layout", "custom")
+PeonBagsDB.bagCatsOff = allOff()
+mod:Fire("CHANGED", "bagCatsOff")
+-- Bereich je Fenster abwaehlen
+w:ToggleSetup()
+check(#sp.grpRows == 2 and sp.grpRows[1].name.text.text == "Behalten" and sp.grpRows[1].check.enabled, "Leiste zeigt die Bereiche, waehlbar")
+sp.grpRows[1].check.checked = false
+sp.grpRows[1].check.scripts.OnClick(sp.grpRows[1].check)
+check(PeonBagsDB.bagGroupsOff[1] and headers(w):find("Behalten") == nil and headers(w):find("^Farmen") ~= nil, "Behalten in den Taschen abgewaehlt: " .. headers(w))
+check(ns.slots[0][2].shown, "Gegenstand des abgewaehlten Bereichs steht bei den uebrigen")
 
 -- Bank nutzt dieselben Bereiche
 fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 8)
-check(bw:IsShown() and headers(bw):find("^Behalten") ~= nil and headers(bw):find("Farmen,Übrige") ~= nil, "Bank zeigt die Bereiche: " .. headers(bw))
+check(bw:IsShown() and headers(bw):find("^Behalten") ~= nil and headers(bw):find("Farmen,Übrige") ~= nil, "Bank zeigt die Bereiche (dort angehakt): " .. headers(bw))
 check(ns.slots[6][1].points[1][5] == -38 and ns.slots[6][1].points[1][4] == 0, "Leinenstoff der Bank steht im Bereich")
 fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 8)
 ns.ShowBags()
+if not sp:IsShown() then w:ToggleSetup() end
+sp.grpRows[1].check.checked = true
+sp.grpRows[1].check.scripts.OnClick(sp.grpRows[1].check)
+check(not PeonBagsDB.bagGroupsOff[1] and headers(w):find("^Behalten") ~= nil, "Behalten wieder angehakt")
 
 -- Gildenbank bleibt ohne Bereiche
 do
-  local secs = ns.BuildSections("bags", { ns.slots[0][1] })
+  local secs = ns.BuildSections("classic", { ns.slots[0][1] })
   check(#secs == 1 and secs[1].title == nil and secs[1].target == nil, "ohne useGroups keine Bereiche (Gildenbank)")
 end
 
@@ -574,10 +673,18 @@ end
 mod:ResetDefaults()
 check(#PeonBagsDB.groups == 3 and PeonBagsDB.groupItems[25] == 1, "Standardwerte: Bereiche und Zuordnung bleiben")
 
+-- Leiste: Umbenennen und Neu ueber die Zeile
+if not sp:IsShown() then w:ToggleSetup() end
+sp.grpRows[1].name.scripts.OnClick(sp.grpRows[1].name)
+check(popupShown == "PEON_BAGS_GROUP_RENAME" and popupArgs[3] == PeonBagsDB.groups[1].id, "Klick auf den Namen benennt um")
+sp.newBtn.scripts.OnClick(sp.newBtn)
+check(popupShown == "PEON_BAGS_GROUP_NEW", "Neuer Bereich aus der Leiste")
+PeonBagsDB.bagGroupsOff[3] = true
+
 -- Loeschen
 popupShown = nil
 ns.AskDeleteGroup(PeonBagsDB.groups[3].id)
-check(popupShown == nil and #PeonBagsDB.groups == 2, "leerer Bereich geht ohne Rueckfrage")
+check(popupShown == nil and #PeonBagsDB.groups == 2 and PeonBagsDB.bagGroupsOff[3] == nil, "leerer Bereich geht ohne Rueckfrage, Abwahl entfernt")
 ns.AskDeleteGroup(2)
 check(popupShown == "PEON_BAGS_GROUP_DELETE" and #PeonBagsDB.groups == 2 and popupArgs[1] == "Ernte" and popupArgs[3] == 2, "Bereich mit Gegenstaenden fragt nach")
 StaticPopupDialogs.PEON_BAGS_GROUP_DELETE.OnAccept(nil, 2)
@@ -586,6 +693,49 @@ check(bags[0].items[2] ~= nil, "Gegenstaende bleiben in der Tasche")
 ns.DeleteGroup(1)
 check(next(PeonBagsDB.groupItems) == nil and headers(w) == "Reagenzientasche", "ohne Bereiche wieder wie zuvor: " .. headers(w))
 ns.HideBags()
+
+-- ===== Uebernahme der alten Anordnung (ab 0.5) =====
+do
+  local migrate = mod.opts.migrate
+  local acc = { bagLayout = "bags", bankLayout = "type", guildLayout = "bags", groups = { { id = 1, name = "X" } } }
+  migrate(mod, acc)
+  check(acc.bagLayout == "custom" and acc.bagCatsOff.equip and acc.bagCatsOff.new and acc.bagCatsOff.free, "mit Bereichen: Taschenreihenfolge wird Individuell ohne Kategorien")
+  check(acc.bankLayout == "custom" and acc.bankCatsOff.new and not acc.bankCatsOff.equip and not acc.bankCatsOff.free, "mit Bereichen: Nach Art wird Individuell mit Kategorien ohne Neu")
+  check(acc.guildLayout == "classic" and acc.layoutVer == 2, "Gildenbank: Klassisch")
+  acc = { bagLayout = "bags", bankLayout = "type", guildLayout = "type", groups = {} }
+  migrate(mod, acc)
+  check(acc.bagLayout == "classic" and acc.bagCatsOff == nil and acc.bankLayout == "type" and acc.bankCatsOff.new and acc.guildLayout == "type", "ohne Bereiche: Klassisch bzw. Nach Art")
+  acc.bankLayout = "classic"
+  migrate(mod, acc)
+  check(acc.bankLayout == "classic", "nur einmal")
+end
+
+-- ===== Leiste links, wenn rechts kein Platz ist =====
+do
+  local f = w.frame
+  f.GetRight = function() return 1900 end
+  UIParent.GetRight = function() return 1920 end
+  w:Show()
+  if sp:IsShown() then sp:Hide() end
+  sp:Show()
+  check(sp.onLeft and sp.points[1][1] == "TOPRIGHT" and sp.points[1][3] == "TOPLEFT", "Leiste links neben dem Fenster")
+  f.GetRight = nil; UIParent.GetRight = nil
+  sp:Hide()
+  w:Hide()
+end
+
+-- ===== Gildenbank: Leiste ohne Individuell =====
+do
+  fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 10)
+  ShowUIPanel(GuildBankFrame)
+  check(gw:IsShown() and gw.setupBtn, "Gildenbank hat Einstellen")
+  gw:ToggleSetup()
+  check(#gw.setup.layoutBtns == 2 and gw.setup.grpHdr == nil, "Gildenbank: Klassisch und Nach Art, keine eigenen Bereiche")
+  gw.setup.layoutBtns[2].scripts.OnClick(gw.setup.layoutBtns[2])
+  check(PeonBagsDB.guildLayout == "type" and headers(gw) == "Freie Plätze", "Gildenbank nach Art (leeres Fach): " .. headers(gw))
+  gw:Hide()
+  fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 10)
+end
 
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end
 check(n == 0, "keine Fehlermeldungen")

@@ -122,6 +122,11 @@ function ns.DeleteGroup(id)
     for key, g in pairs(items) do
         if g == id then items[key] = nil end
     end
+    -- Die Nummer kann spaeter wieder vergeben werden: Abwahl und Einklappen je Fenster mit entfernen
+    for _, k in ipairs({ "bagGroupsOff", "bankGroupsOff", "bagCollapsed", "bankCollapsed" }) do
+        local t = mod.db[k]
+        if type(t) == "table" then t[id] = nil; t["g" .. id] = nil end
+    end
     Changed()
     return true
 end

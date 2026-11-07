@@ -46,9 +46,21 @@ async function install(names, what, key) {
 
 const one = (a) => install([a.name], a.kind === 'new' ? 'Hinzugefügt' : 'Aktualisiert', a.name);
 
+// Vor dem Neustart sagen, was passiert: Der Manager schliesst sich, der Installer zeigt seinen Fortschritt
+// und startet den Manager danach von selbst wieder
+const restarting = ref(false);
 async function restart() {
-  await api.updatesShown();
-  await api.installManagerUpdate();
+  restarting.value = true;
+  busy.value = 'restart';
+  try {
+    await api.updatesShown();
+    await new Promise((r) => setTimeout(r, 3000));
+    await api.installManagerUpdate();
+  } catch (e) {
+    error.value = cleanError(e);
+    restarting.value = false;
+    busy.value = '';
+  }
 }
 
 // Erst die Addons, dann der Manager: Er startet dafür neu
@@ -84,7 +96,18 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
       <p class="banner small" v-if="wowRunning" role="status">WoW läuft. Aktualisieren geht trotzdem, danach reicht <code>/reload</code>.</p>
 
-      <div class="list">
+      <div class="steps" v-if="restarting" role="status">
+        <p>Der Peon Manager {{ man ? man.version : '' }} wird jetzt eingespielt.</p>
+        <ol>
+          <li class="done">Neue Version geladen</li>
+          <li class="now">Manager wird geschlossen</li>
+          <li>Ein kleines Fenster zeigt, wie die neue Version eingespielt wird</li>
+          <li>Der Manager startet von selbst neu</li>
+        </ol>
+        <p class="small muted">Das dauert etwa eine halbe Minute. Du musst nichts tun.</p>
+      </div>
+
+      <div class="list" v-else>
         <p class="muted" v-if="!anything">Alles ist aktuell.</p>
 
         <article v-if="man">
@@ -120,7 +143,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       <p class="small warn" v-if="error" role="alert">{{ error }}</p>
       <p class="small ok" v-if="message" role="status">{{ message }}</p>
 
-      <footer>
+      <footer v-if="!restarting">
         <label class="small check">
           <input type="checkbox" :checked="!settings.updateWindow" @change="emit('save', { updateWindow: !$event.target.checked })" />
           Nicht mehr beim Start zeigen
@@ -155,4 +178,10 @@ p { margin: 0; }
 footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 4px; }
 .check { display: flex; gap: 8px; align-items: center; }
 .row { display: flex; gap: 10px; }
+.steps { display: grid; gap: 10px; }
+.steps ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+.steps li { color: var(--muted); }
+.steps li.done { color: var(--accent); }
+.steps li.done::after { content: ' ✓'; }
+.steps li.now { color: var(--text); font-weight: 500; }
 </style>

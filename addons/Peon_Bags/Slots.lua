@@ -50,7 +50,7 @@ local function NewButton(bag, slot, parent)
     -- neu: beim Ueberfahren als gesehen markieren
     b:HookScript("OnEnter", function(self)
         local CN = rawget(_G, "C_NewItems")
-        if self.peonNew and CN and CN.RemoveNewItem then
+        if self.peonIsNew and CN and CN.RemoveNewItem then
             pcall(CN.RemoveNewItem, self.peonBag, self.peonSlot)
             ns.UpdateSlot(self)
         end
@@ -124,7 +124,8 @@ function ns.UpdateSlot(b)
 
     -- neu
     local CN = rawget(_G, "C_NewItems")
-    local isNew = info and db.newGlow and CN and ns.Try(CN.IsNewItem, bag, slot) and true or false
+    b.peonIsNew = info and CN and ns.Try(CN.IsNewItem, bag, slot) and true or false   -- Kategorie "Neu" (ab 0.5)
+    local isNew = b.peonIsNew and db.newGlow and true or false
     b.peonNew = isNew
     if b.NewItemTexture then
         if isNew then

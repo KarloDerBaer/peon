@@ -36,10 +36,12 @@ function createUpdater({ enabled, svc, onChange, beforeInstall }) {
       autoUpdater.setFeedURL({ provider: 'generic', url: u.feed, useMultipleRangeRequest: false });
       autoUpdater.checkForUpdates().catch(() => { /* kommt auch als Ereignis error */ });
     },
+    // Mit Neustart laeuft der Installer sichtbar: Sein Fenster zeigt den Fortschritt, statt dass der Manager
+    // eine halbe Minute ohne Hinweis verschwindet. Ohne Neustart (Selbsttest) bleibt er unsichtbar.
     install(restart = true) {
       if (state.status !== 'ready') return;
       beforeInstall();
-      autoUpdater.quitAndInstall(true, restart);
+      autoUpdater.quitAndInstall(!restart, restart);
     },
   };
 }

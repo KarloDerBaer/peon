@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.5.0
+
+Kurz: Neuer Knopf „Einstellen“ im Taschenfenster: Wähle Klassisch, Nach Art oder Individuell, hake die Kategorien an, die du sehen willst, und lege eigene Bereiche fest.
+Kurz: Ein Klick auf eine Überschrift klappt den Abschnitt ein, und neue Gegenstände stehen auf Wunsch unter „Neu“.
+
+- 0.5.0 (07.11.2026, Wunsch KarloDerBaer, Konzept `Peon_Bags_Anordnung.md`):
+  - **Einstellen statt „Nach Art“:** „Sortieren“ steht links, „Einstellen“ rechts in der Knopfreihe (Taschen, Bank, Gildenbank). „Einstellen“ öffnet eine Leiste neben dem Fenster, rechts oder links, wenn rechts kein Platz ist. Sie ist so hoch wie das Fenster und rollt. Neue Datei `Setup.lua`.
+  - **Drei Anordnungen:** Klassisch (alle Taschen zusammen, ohne Kategorien und Bereiche), Nach Art (angehakte Kategorien, darunter „Übrige“), Individuell (eigene Bereiche, dann Kategorien, dann „Übrige“). In der Leiste sind bei Klassisch Kategorien und Bereiche ausgegraut, bei Nach Art die Bereiche. Die Gildenbank kennt nur Klassisch und Nach Art.
+  - **17 automatische Kategorien:** Neu, Quest, Ausrüstung, Essen und Trinken, Tränke und Elixiere, Verbände, Verbrauchbares, Handwerkswaren, Reagenzien, Rezepte, Edelsteine, Munition und Köcher, Taschen, Schlüssel, Verschiedenes, Müll, Freie Plätze. Je Fenster an- und abwählbar, die Reihenfolge gilt für alle Fenster. Ist eine Kategorie abgewählt, gilt die nächste passende (ein Trank ohne „Tränke und Elixiere“ steht unter „Verbrauchbares“), sonst „Übrige“.
+  - **Eigene Bereiche je Fenster abwählbar:** So kann ein Bereich in den Taschen genutzt werden und in der Bank nicht. Dort wird der Gegenstand dann automatisch einsortiert. In der Leiste: anhaken, umbenennen (Klick auf den Namen), verschieben, löschen, neu.
+  - **Einklappen:** Klick auf eine Überschrift ohne Gegenstand am Mauszeiger klappt den Abschnitt ein, eingeklappt steht die Anzahl dahinter. Mit Gegenstand am Mauszeiger bleibt der Klick das Ablegen.
+  - **Neu:** Frisch erhaltene Gegenstände bleiben unter „Neu“, bis das Fenster geschlossen wird, auch wenn man sie schon mit der Maus überfahren hat.
+  - **Übernahme:** Mit eigenen Bereichen wird aus „Taschenreihenfolge“ Individuell ohne Kategorien, aus „Nach Art“ Individuell mit Kategorien. Ohne Bereiche wird „Taschenreihenfolge“ zu Klassisch, „Nach Art“ bleibt. „Neu“ ist bei übernommenen Einstellungen anfangs aus.
+  - **Im Spiel prüfen:** Leiste neben Taschen, Bank und Gildenbank (Lage, Rollen, Ausgrauen, Pfeile, Häkchen), Fenster an den rechten Rand ziehen (Leiste wechselt nach links), Einklappen auch im Kampf, Kategorien mit echten Gegenständen (Tränke, Essen, Munition, Schlüssel), Neu nach Beute und nach dem Schließen, Übernahme der bisherigen Anordnung.
+
 ## 0.4.0
 
 Kurz: Mit Peon_Panel öffnest du die Taschen von der Leiste aus und siehst die freien Plätze.

@@ -92,10 +92,9 @@ local function Refresh()
     end
     if not complete then ns.Defer("bank:refresh", Refresh) end
     local extra = {}
-    if #reagent > 0 then extra[#extra + 1] = { title = L.SEC_REAGENTBANK, items = reagent } end
-    if #account > 0 then extra[#extra + 1] = { title = L.SEC_ACCOUNT, items = account } end
-    w:Arrange(ns.BuildSections(w:Layout(), main, extra, true), all)
-    w:UpdateLayoutButton()
+    if #reagent > 0 then extra[#extra + 1] = { title = L.SEC_REAGENTBANK, items = reagent, key = "reagentbank" } end
+    if #account > 0 then extra[#extra + 1] = { title = L.SEC_ACCOUNT, items = account, key = "account" } end
+    w:Arrange(ns.BuildSections(w:SectionConfig(), main, extra), all)
     for _, bb in ipairs(barButtons) do bb:Refresh() end
     UpdateFooter()
 end
@@ -158,7 +157,7 @@ function ns.InitBank()
             if ns.bankOpen and not byGame then CloseBank() end
         end,
     })
-    w:AddLayoutToggle()
+    w.useGroups = true
     local C = ns.C()
     if type(C.SortBankBags) == "function" then
         w:AddButton(L.BTN_SORT, 80, L.BTN_SORT_TIP, function()
@@ -172,6 +171,7 @@ function ns.InitBank()
         local bf = BankFrame()
         if bf and not bf:IsShown() and type(rawget(_G, "ShowUIPanel")) == "function" then pcall(ShowUIPanel, bf) end
     end)
+    w:AddSetupButton()
     w.OnSearch = function()
         if w.search and w.search:GetText() ~= ns.searchRaw then w.search:SetText(ns.searchRaw or "") end
         ForSlots(ns.UpdateMatch)

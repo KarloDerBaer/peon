@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 07.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.37.0 / Bridge 0.7.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.18.1 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.0 / Fishing 1.6.0 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.4.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 07.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.37.0 / Bridge 0.7.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.19.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.0 / Fishing 1.6.0 / Tooltip 0.7.4 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.5.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.15.0, API 15
@@ -59,7 +59,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.18.1
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.19.0
 
 - Reiter „Einkaufsliste (WIP)“ (ab 0.18.1), wird bald überarbeitet.
 - Quellcode: `manager\` (bisher `client\`), Anleitung in `manager\README.md`. Design: `docs\konzepte\manager\Peon_Client_Design.md` (Funktionen, jetzt Modul Peon Broker Client) und `Peon_GitHub_Design.md` (Peon Manager, Module, Installieren).
@@ -67,10 +67,10 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Liest `WTF\Account\<Konto>\SavedVariables\Peon_Bridge.lua` (`PeonBridgeDB`), schreibt `AddOns\Peon_Bridge\Data.lua` (`PeonBridgeData`, Format 2, `channels` aus den aktiven Manager-Modulen, ab 0.18.0 je Markt `cur` mit den Preisen des neuesten vollständigen Stands).
 - Manager-Module (ab 0.7.0, Variante B): Liste in `manager\src\core\modules.js`, je Modul Schlüssel, Name, Beschreibung, nötige Addons, Kanäle, Ansichten, Datenbankdatei. Erstes Modul **Peon Broker Client** (`broker-client`, Code in `broker-client.js`), standardmäßig aus, bei KarloDerBaer aktiv. Ansicht „Module“ mit Installieren, Entfernen und Daten löschen.
 - Addons (ab 0.8.0, `src\core\addons.js`): Manifest des Release holen, Zip laden und prüfen, tauschen, bei Fehler zurücktauschen. Sucht beim Start und alle 6 Stunden, installiert nur per Klick. Junctions gelten als „Entwicklung (Repo)“ und bleiben unberührt, bei KarloDerBaer gibt es sie ab 06.11.2026 nur noch beim Entwickeln (`scripts\junctions.cmd`). Kanal Stabil oder Test in den Einstellungen. Quelle zum Testen: Umgebungsvariable `PEON_MANAGER_RELEASES`.
-- Installiert (ab 0.9.0): Installer `PeonManager-Setup-<Version>.exe` für den Benutzer, ohne Administratorrechte, Programm unter `%LOCALAPPDATA%\Programs`, Daten in `%APPDATA%\Peon Manager\Daten`. Selbst-Update über `electron/updater.js`: lädt im Hintergrund, fragt vor dem Neustart. Liegt ein Ordner `DB` neben dem Programmordner (Aufbau bei KarloDerBaer), gilt dieser, und es gibt kein Selbst-Update.
+- Installiert (ab 0.9.0): Installer `PeonManager-Setup-<Version>.exe` für den Benutzer, ohne Administratorrechte, Programm unter `%LOCALAPPDATA%\Programs`, Daten in `%APPDATA%\Peon Manager\Daten`. Selbst-Update über `electron/updater.js`: lädt im Hintergrund, fragt vor dem Neustart. Ab 0.19.0 zeigt das Update-Fenster vor dem Schließen die Schritte, danach läuft der Installer sichtbar mit deutschen Texten (`electron/installer.nsh`) und startet den Manager neu. Liegt ein Ordner `DB` neben dem Programmordner (Aufbau bei KarloDerBaer), gilt dieser, und es gibt kein Selbst-Update.
 - Blizzard-API (ab 0.11.0): Zugang, Anleitung und Prüfabruf unter Einstellungen für alle Module (`src\core\blizzard.js`). Einleser im Broker Client (`blizzard-import.js`), Auswahl der Häuser unter Quellen, Einstellung `blizzard.houses`. Beobachter nur in der Testfassung (`blizzard-watch.js`). Wissen und offene Fragen: `docs\konzepte\manager\Peon_Blizzard_API.md`.
 - Gegenstands-Tooltip (ab 0.12.0, `src\core\item-info.js`, Tabelle `item_info`): unter Gegenstände beim Überfahren und in der Detailansicht unter Eigenschaften, Daten aus der Blizzard-API. Wissen dazu: `docs\konzepte\manager\Peon_Blizzard_API.md`.
-- Reiter Rückmeldungen (ab 0.14.0, `src\core\reports.js`, Tabellen `errors` und `feedback` in `peon.db`): liest Fehler aus `Peon.lua` und `!BugGrabber.lua` und Rückmeldungen aus `Peon_Feedback.lua`, eigene Rückmeldungen schreiben, alles bearbeiten und löschen, Notizen zu Fehlern. Senden über den Worker (ein Issue je Eintrag, höchstens 20 je Senden). Das Spiel löscht Eingelesenes über `errorsClearBefore` und `feedbackClearBefore` in `Data.lua`. Worker: `worker\peon-fehler\` (Einrichtung in der README dort). Worker läuft unter `peon-fehler.karloderbaer.workers.dev`, Adresse steht in `REPORT_URL` (ab 0.13.1).
+- Reiter Rückmeldungen (ab 0.14.0, `src\core\reports.js`, Tabellen `errors` und `feedback` in `peon.db`): liest Fehler aus `Peon.lua` und `!BugGrabber.lua` und Rückmeldungen aus `Peon_Feedback.lua`, eigene Rückmeldungen schreiben, alles bearbeiten und löschen, Notizen zu Fehlern. Senden über den Worker (ein Issue je Eintrag, höchstens 20 je Senden), die Vorschau vor dem Senden steht ab 0.19.0 in einem Dialog (`components\SendDialog.vue`). Das Spiel löscht Eingelesenes über `errorsClearBefore` und `feedbackClearBefore` in `Data.lua`. Worker: `worker\peon-fehler\` (Einrichtung in der README dort). Worker läuft unter `peon-fehler.karloderbaer.workers.dev`, Adresse steht in `REPORT_URL` (ab 0.13.1).
 - Aufbewahrung (ab 0.15.0, `srccore
 etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 14), Vorlagen in `PRESETS`, Aufräumen in Schritten über `pruneInBackground`, Datei mit `auto_vacuum = INCREMENTAL`.
 - Update-Fenster (ab 0.15.0, `components\UpdateDialog.vue`, Inhalt `Service.updateInfo`): beim Programmstart je Stand einmal und abschaltbar (`updateWindow`), immer nach „Nach Updates suchen“ und über „Jetzt aktualisieren“, die Suche alle 6 Stunden zeigt nur den Knopf. Merker `updatesShown` und `addonsSeen` in `peon.db`. Texte aus den Zeilen `Kurz:` der Changelogs, im Manifest als `news` je Version.
@@ -154,11 +154,11 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Verlauf der Versionen: `docs/changelog/Peon_Panel.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.4.0, 0.3.0, 0.2.0, 0.1.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Bags – 0.4.0 (neu, Taschen, Bank, Gildenbank)
+## Peon_Bags – 0.5.0 (neu, Taschen, Bank, Gildenbank)
 
 - Konzept: `Peon_Bags_Konzept.md` (abgestimmt 07.10.2026), eigene Bereiche `Peon_Bags_Bereiche.md` (abgestimmt 06.11.2026). Ersetzt Bagnon, Bagnon_Bank, Bagnon_GuildBank und BagBrother (Twinks zeigt Ledger).
-- Dateien: Locales.lua, Bags.lua, Groups.lua (ab 0.3), Slots.lua, Window.lua, Inventory.lua, Bank.lua, Guild.lua, Options.lua; Symbol `INV_Misc_Bag_08`.
-- SavedVariables: `PeonBagsDB` (accountweit): `replace` (Taschen und Bank ersetzen, an), `replaceGuild` (an), `bagCols` (10), `bagScale` (100 %), `bagLayout` (bags/type), `bagBar` (an), `bankCols`/`bankScale`/`bankLayout` (14, 100, bags), `guildCols`/`guildScale`/`guildLayout` (14, 100, bags), `quality`, `newGlow`, `junk` (an), `autoMerchant`, `autoBank`, `autoMail`, `autoAuction`, `autoTrade`, `autoGuild` (an), `pos[bag|bank|guild] = { x, y }`, `groups` (eigene Bereiche: id, name, ab 0.3), `groupItems[itemID oder "itemID:voller Name"] = Bereich` (ab 0.3), alle drei bleiben bei „Standardwerte“. Spalten 6–24, Größe 50–200 % (5er).
+- Dateien: Locales.lua, Bags.lua, Groups.lua (ab 0.3), Slots.lua, Window.lua, Setup.lua (ab 0.5, Leiste „Einstellen“), Inventory.lua, Bank.lua, Guild.lua, Options.lua; Symbol `INV_Misc_Bag_08`.
+- SavedVariables: `PeonBagsDB` (accountweit): `replace` (Taschen und Bank ersetzen, an), `replaceGuild` (an), `bagCols` (10), `bagScale` (100 %), `bagLayout` (ab 0.5 classic/type/custom, vorher bags/type), `bagBar` (an), `bankCols`/`bankScale`/`bankLayout` (14, 100, classic), `guildCols`/`guildScale`/`guildLayout` (14, 100, classic, nur classic/type), `quality`, `newGlow`, `junk` (an), `autoMerchant`, `autoBank`, `autoMail`, `autoAuction`, `autoTrade`, `autoGuild` (an), `pos[bag|bank|guild] = { x, y }`, `groups` (eigene Bereiche: id, name, ab 0.3), `groupItems[itemID oder "itemID:voller Name"] = Bereich` (ab 0.3), alle drei bleiben bei „Standardwerte“. Ab 0.5 (Konzept `Peon_Bags_Anordnung.md`): `bagCatsOff`/`bankCatsOff`/`guildCatsOff` (abgewählte Kategorien je Fenster), `bagGroupsOff`/`bankGroupsOff` (abgewählte Bereiche je Fenster), `bagCollapsed`/`bankCollapsed`/`guildCollapsed` (eingeklappte Abschnitte: `g<id>`, `c:<Kategorie>`, `other`, `reagent`, `reagentbank`, `account`), `catOrder` (gemeinsame Reihenfolge der 17 Kategorien), `layoutVer` (2 = alte Anordnung übernommen). Abwahl, Reihenfolge und `layoutVer` bleiben bei „Standardwerte“. Spalten 6–24, Größe 50–200 % (5er).
 - Braucht Peon API 7 (Liste, ab 0.3); Bereiche für Peon_Feedback ab API 9.
 - Befehle: `/peon bags` (Taschenfenster ein/aus, geht immer – auch mit Bagnon), `/peon bags optionen`, `/peon bags debug`.
 - Verlauf der Versionen: `docs/changelog/Peon_Bags.md`
@@ -188,7 +188,16 @@ Umgesetzt mit Manager 0.18.0, Bridge 0.7.0, Broker 0.36.0: Der Manager schickt d
 
 ### Peon_Bags: eigene Bereiche (beschlossen 06.11.2026, Konzept `Peon_Bags_Bereiche.md`)
 
-Erste Fassung gebaut mit Bags 0.3.0 (Bauabschnitte B1 bis B3), enthalten in der Vorabversion `v2026.11.07.4-test` (dort Bags 0.4.0), im Spiel noch nicht geprüft. **Noch offen:** der Bereich zu Brokers Behalten-Liste (B4), nachdem die erste Fassung im Spiel läuft.
+Erste Fassung gebaut mit Bags 0.3.0 (Bauabschnitte B1 bis B3), enthalten in der Vorabversion `v2026.11.07.4-test` (dort Bags 0.4.0). Von KarloDerBaer im Spiel geprüft, das Ziehen auf eine Überschrift funktioniert (07.11.2026). **Noch offen:** der Bereich zu Brokers Behalten-Liste (B4).
+
+### Peon_Bags: Anordnung Klassisch, Nach Art, Individuell (beschlossen 07.11.2026, Konzept `Peon_Bags_Anordnung.md`)
+
+Knopf „Einstellen“ statt „Nach Art“, Leiste rechts neben dem Fenster mit den drei Anordnungen, automatischen Kategorien (wählbar, Reihenfolge änderbar) und eigenen Bereichen (je Fenster abwählbar). Dazu einklappbare Abschnitte und die Kategorie „Neu“. Gebaut mit Bags 0.5.0, im Spiel noch nicht geprüft.
+
+### Manager: Update mit sichtbarem Fortschritt und Senden im Dialog (beschlossen 07.11.2026)
+
+- Beim Selbst-Update schließt sich der Manager nicht mehr ohne Hinweis: Vorher erklärt ein Dialog die Schritte, danach zeigt der Installer seinen Fortschritt und startet den Manager wieder.
+- Die Vorschau vor dem Senden im Reiter Rückmeldungen erscheint in einem eigenen Dialog.
 
 ### Todo: Überarbeitung (KarloDerBaer, 06.11.2026)
 

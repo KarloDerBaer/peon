@@ -2,6 +2,7 @@
 // Ansicht "Rueckmeldungen": eigene Rueckmeldungen schreiben, Eintraege aus dem Spiel bearbeiten, Fehler mit Notizen versehen, alles senden
 import { ref, computed, watch, onMounted } from 'vue';
 import { ago, pl } from '../util.js';
+import SendDialog from '../components/SendDialog.vue';
 
 const props = defineProps({ now: Number, stamp: Number });
 const emit = defineEmits(['go', 'changed']);
@@ -92,6 +93,11 @@ const send = () => run('send', async () => {
   note.value = parts.join(' ');
   previewOpen.value = false;
 });
+function openPreview() {
+  error.value = '';
+  note.value = '';
+  previewOpen.value = true;
+}
 </script>
 
 <template>
@@ -176,23 +182,14 @@ const send = () => run('send', async () => {
       <h2>Senden</h2>
       <p v-if="!total" class="muted">Es gibt nichts zu senden.</p>
       <template v-else>
-        <div class="actions" v-if="!previewOpen">
-          <button class="primary" :disabled="!!busy || !state.canSend" @click="previewOpen = true">Alles senden</button>
+        <div class="actions">
+          <button class="primary" :disabled="!!busy || !state.canSend" @click="openPreview">Alles senden</button>
           <button class="danger" :disabled="!!busy" @click="removeAll">{{ confirm === 'alle' ? 'Wirklich alles löschen?' : 'Alles löschen' }}</button>
           <button v-if="confirm === 'alle'" @click="confirm = ''">Abbrechen</button>
         </div>
         <p v-if="!state.canSend" class="small muted">Das Senden ist in dieser Fassung nicht eingerichtet.</p>
-
-        <div v-if="previewOpen" class="preview">
-          <p class="small muted">Das geht an KarloDerBaer: genau der Text unten, je Eintrag ein Bericht in einem nicht öffentlichen GitHub-Repo. Deine Konto- und Charakternamen sowie Pfade sind ersetzt, Namen anderer Spieler in deinem Text aber nicht. Der Bericht läuft über einen Cloudflare-Dienst, der deine IP-Adresse technisch sieht, aber nicht speichert. Ein Konto brauchst du nicht. Gesendete Einträge verschwinden danach aus dieser Liste.</p>
-          <pre class="stack">{{ state.preview.text }}</pre>
-          <p v-if="state.preview.left" class="small muted">{{ pl(state.preview.left, 'weiterer Eintrag', 'weitere Einträge') }} beim nächsten Senden.</p>
-          <div class="actions">
-            <button class="primary" :disabled="!!busy" @click="send">{{ busy === 'send' ? 'Sendet' : `${pl(state.preview.count, 'Eintrag', 'Einträge')} senden` }}</button>
-            <button :disabled="!!busy" @click="previewOpen = false">Abbrechen</button>
-          </div>
-        </div>
       </template>
+      <SendDialog v-if="previewOpen && total" :preview="state.preview" :busy="busy === 'send'" :error="error" @send="send" @close="previewOpen = false" />
     </section>
 
     <p v-if="error" class="err" role="alert">{{ error }}</p>
@@ -219,7 +216,6 @@ textarea { width: 100%; box-sizing: border-box; background: var(--raised); color
 .rowbtn button + button { margin-left: 6px; }
 .editing td { background: var(--accent-soft); }
 .stack { margin: 8px 0; padding: 10px; max-height: 300px; overflow: auto; background: var(--raised); border-radius: var(--radius-s); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.preview { display: flex; flex-direction: column; gap: 8px; }
 .err { color: var(--danger, #e5484d); }
 .ok { color: var(--accent); }
 .hint { margin-top: 8px; }

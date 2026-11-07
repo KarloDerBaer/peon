@@ -1,6 +1,6 @@
 -- Peon_Bags - Inventory.lua
--- Taschenfenster: alle Taschen in einem Fenster, Reagenzientasche als eigener Abschnitt, Anordnung
--- "Taschenreihenfolge" oder "nach Art", Taschenleiste, Suche, freie Plaetze, Gold.
+-- Taschenfenster: alle Taschen in einem Fenster, Reagenzientasche als eigener Abschnitt, Anordnung (ab 0.5)
+-- Klassisch, Nach Art oder Individuell, Taschenleiste, Suche, freie Plaetze, Gold.
 -- Oeffnen ueber Blizzards Taschen-Funktionen (nur mitgelesen) und automatisch an Haendler, Bank usw.
 
 local ADDON_NAME, ns = ...
@@ -32,20 +32,42 @@ local function SortItems(a, b)
 end
 ns.SortItems = SortItems
 
--- Abschnitte fuer eine Liste von Plaetzen nach Anordnung bauen
--- main = Plaetze (Taschenreihenfolge), extra = weitere Abschnitte { title, items } (bleiben eigene Abschnitte)
--- useGroups = eigene Bereiche voranstellen (Taschen, Bank; ab 0.3). Sie ziehen ihre Gegenstaende auch aus den
--- weiteren Abschnitten ab. Mit Bereichen nehmen alle Ueberschriften abgelegte Gegenstaende an (target).
-function ns.BuildSections(layout, main, extra, useGroups)
+-- Neu erhalten? Ein neuer Gegenstand bleibt in "Neu", bis das Fenster schliesst (keepNew), auch wenn das
+-- Ueberfahren mit der Maus ihn schon als gesehen markiert hat.
+local function IsNew(b, keepNew)
+    local info = b.peonInfo
+    if not info then return false end
+    if not b.peonBag or not keepNew then return b.peonIsNew and true or false end
+    local k = b.peonBag .. ":" .. b.peonSlot
+    if b.peonIsNew then keepNew[k] = info.itemID return true end
+    return keepNew[k] == info.itemID
+end
+
+-- Abschnitte fuer eine Liste von Plaetzen nach Anordnung bauen (ab 0.5)
+-- cfg = { layout = "classic" | "type" | "custom", catsOff, groupsOff, collapsed, useGroups, keepNew }
+--   (Window:SectionConfig), ein Text gilt als layout ohne weitere Einstellungen
+-- main = Plaetze (Taschenreihenfolge), extra = weitere Abschnitte { title, items, key } (bleiben eigene Abschnitte)
+-- Eigene Bereiche (nur "custom" mit useGroups) stehen oben und ziehen ihre Gegenstaende auch aus den weiteren
+-- Abschnitten ab. Mit Bereichen nehmen alle Ueberschriften abgelegte Gegenstaende an (target).
+-- Jeder Abschnitt hat einen Schluessel (key) fuers Einklappen: g<id>, c:<Kategorie>, other, reagent ...
+function ns.BuildSections(cfg, main, extra)
+    if type(cfg) ~= "table" then cfg = { layout = cfg } end
+    local layout = cfg.layout or "classic"
+    local catsOff, groupsOff, collapsed = cfg.catsOff or {}, cfg.groupsOff or {}, cfg.collapsed or {}
     local sections = {}
     local target
-    local own = useGroups and ns.Groups() or nil
-    local hasGroups = own ~= nil and #own > 0
+    local own = {}
+    if cfg.useGroups and layout == "custom" then
+        for _, g in ipairs(ns.Groups()) do
+            if not groupsOff[g.id] then own[#own + 1] = g end
+        end
+    end
+    local hasGroups = #own > 0
     if hasGroups then
         target = ns.GROUP_NONE
         local byId = {}
         for _, g in ipairs(own) do
-            local sec = { name = g.name, items = {}, target = g.id, keepEmpty = true }
+            local sec = { name = g.name, items = {}, target = g.id, keepEmpty = true, key = "g" .. g.id }
             byId[g.id] = sec
             sections[#sections + 1] = sec
         end
@@ -61,7 +83,7 @@ function ns.BuildSections(layout, main, extra, useGroups)
         main = Split(main)
         local restExtra = {}
         for i, sec in ipairs(extra or {}) do
-            restExtra[i] = { title = sec.title, items = Split(sec.items) }
+            restExtra[i] = { title = sec.title, items = Split(sec.items), key = sec.key }
         end
         extra = restExtra
         for _, sec in ipairs(sections) do
@@ -69,31 +91,40 @@ function ns.BuildSections(layout, main, extra, useGroups)
             sec.title = #sec.items > 0 and sec.name or L.GROUP_EMPTY:format(sec.name)
         end
     end
-    if layout == "type" then
-        local groups = {}
-        for _, c in ipairs(ns.CATS) do groups[c] = {} end
-        for _, b in ipairs(main) do
-            local cat = ns.Category(b.peonInfo, b.peonQuest)
-            table.insert(groups[cat], b)
-        end
+    if layout == "type" or layout == "custom" then
+        local groups, rest, anyCat = {}, {}, false
         for _, c in ipairs(ns.CATS) do
+            groups[c] = {}
+            if not catsOff[c] then anyCat = true end
+        end
+        for _, b in ipairs(main) do
+            local cat = ns.Category(b.peonInfo, b.peonQuest, IsNew(b, cfg.keepNew), catsOff)
+            if cat then table.insert(groups[cat], b) else rest[#rest + 1] = b end
+        end
+        for _, c in ipairs(ns.CatOrder()) do
             local g = groups[c]
-            if #g > 0 then
+            if g and #g > 0 then
                 table.sort(g, SortItems)
-                sections[#sections + 1] = { title = ns.CAT_TITLE[c], items = g, target = target }
+                sections[#sections + 1] = { title = ns.CAT_TITLE[c], items = g, target = target, key = "c:" .. c }
             end
         end
+        -- Uebrige: der Rest in Taschenreihenfolge, mit Ueberschrift nur, wenn es andere Abschnitte gibt
+        sections[#sections + 1] = { title = (hasGroups or anyCat) and L.SEC_OTHER or nil, items = rest,
+                                    target = target, keepEmpty = hasGroups, key = "other" }
     else
-        sections[#sections + 1] = { title = hasGroups and L.SEC_OTHER or nil, items = main, target = target, keepEmpty = hasGroups }
+        sections[#sections + 1] = { title = nil, items = main, key = "other" }
     end
     for _, sec in ipairs(extra or {}) do
         local items = sec.items
-        if layout == "type" then
+        if layout ~= "classic" then
             items = {}
             for i, b in ipairs(sec.items) do items[i] = b end
             table.sort(items, SortItems)
         end
-        sections[#sections + 1] = { title = sec.title, items = items, target = target }
+        sections[#sections + 1] = { title = sec.title, items = items, target = target, key = sec.key }
+    end
+    for _, sec in ipairs(sections) do
+        if sec.title and sec.key and collapsed[sec.key] then sec.collapsed = true end
     end
     return sections
 end
@@ -154,7 +185,7 @@ local function Refresh()
     if rb and ns.NumSlots(rb) > 0 then
         local r = {}
         if not BagSlots(rb, w.content, r, all) then complete = false end
-        extra[1] = { title = L.SEC_REAGENT, items = r }
+        extra[1] = { title = L.SEC_REAGENT, items = r, key = "reagent" }
     elseif rb then
         BagSlots(rb, w.content, {}, all)
     end
@@ -162,8 +193,7 @@ local function Refresh()
         if not ns.queue["bags:refresh"] then mod:Print(L.MSG_COMBAT) end
         ns.Defer("bags:refresh", Refresh)
     end
-    w:Arrange(ns.BuildSections(w:Layout(), main, extra, true), all)
-    w:UpdateLayoutButton()
+    w:Arrange(ns.BuildSections(w:SectionConfig(), main, extra), all)
     UpdateFooter()
     UpdateBar()
 end
@@ -397,13 +427,14 @@ function ns.InitInventory()
     })
     local name = UnitName and UnitName("player")
     if name then w.title:SetText(name .. " – " .. L.TITLE_BAGS) end
-    w:AddLayoutToggle()
+    w.useGroups = true
     local C = ns.C()
     if type(C.SortBags) == "function" then
         w.sortBtn = w:AddButton(L.BTN_SORT, 80, L.BTN_SORT_TIP, function()
             if not InCombatLockdown() then pcall(C.SortBags) end
         end)
     end
+    w:AddSetupButton()
     BuildBar()
     w.OnSearch = function()
         if w.search and w.search:GetText() ~= ns.searchRaw then w.search:SetText(ns.searchRaw or "") end

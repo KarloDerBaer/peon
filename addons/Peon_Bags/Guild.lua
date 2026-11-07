@@ -221,9 +221,8 @@ function ns.RefreshGuild()
         list[i] = b
     end
     w.note:SetText((info.viewable == false) and L.GUILD_NO_VIEW or "")
-    local sections = ns.BuildSections(w:Layout(), list)
+    local sections = ns.BuildSections(w:SectionConfig(), list)
     w:Arrange(sections, list)
-    w:UpdateLayoutButton()
     UpdateFooter()
 end
 
@@ -276,6 +275,7 @@ function ns.InitGuild()
     w = ns.NewWindow("guild", {
         title = L.TITLE_GUILD,
         point = { "TOPLEFT", 50, -120 },
+        minWidth = 370,   -- drei Knoepfe links und "Einstellen" rechts
         onHide = function()
             if ns.guildOpen and not byGame then CloseGuild() end
             if StaticPopup_Hide then pcall(StaticPopup_Hide, "PEON_BAGS_GB_DEPOSIT"); pcall(StaticPopup_Hide, "PEON_BAGS_GB_WITHDRAW") end
@@ -283,7 +283,6 @@ function ns.InitGuild()
     })
     w.note = w.content:CreateFontString(nil, "OVERLAY", "GameFontRedSmall")
     w.note:SetPoint("BOTTOMLEFT", w.content, "TOPLEFT", 0, 2)
-    w:AddLayoutToggle()
     w:AddButton(L.BTN_DEPOSIT, 80, nil, function()
         local amount = GetCursorMoney and GetCursorMoney() or 0
         if amount and amount > 0 and DepositGuildBankMoney then
@@ -300,6 +299,7 @@ function ns.InitGuild()
         local gb = GBFrame()
         if gb and not gb:IsShown() and type(rawget(_G, "ShowUIPanel")) == "function" then pcall(ShowUIPanel, gb) end
     end)
+    w:AddSetupButton()
     MoneyPopup("PEON_BAGS_GB_DEPOSIT", L.GB_DEPOSIT_Q, function(n) if DepositGuildBankMoney then DepositGuildBankMoney(n) end end)
     MoneyPopup("PEON_BAGS_GB_WITHDRAW", L.GB_WITHDRAW_Q, function(n) if WithdrawGuildBankMoney then WithdrawGuildBankMoney(n) end end)
 

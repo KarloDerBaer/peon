@@ -15,7 +15,45 @@ if not Peon or (Peon.API or 0) < 7 then
     return
 end
 
-local LAYOUTS = { bags = true, type = true }
+-- Anordnungen (ab 0.5): Klassisch, Nach Art, Individuell. Die Gildenbank kennt kein Individuell.
+local LAYOUTS = { classic = true, type = true, custom = true }
+local GUILD_LAYOUTS = { classic = true, type = true }
+
+-- Automatische Kategorien in ihrer Standardreihenfolge (ab 0.5, Konzept Peon_Bags_Anordnung.md)
+ns.CATS = { "new", "quest", "equip", "food", "potion", "bandage", "consumable", "trade", "reagent", "recipe",
+            "gem", "ammo", "bag", "key", "misc", "junk", "free" }
+-- bis 0.4: Kategorien von "Nach Art" (fuer die Uebernahme)
+local OLD_CATS = { equip = true, consumable = true, food = true, potion = true, bandage = true, trade = true,
+                   reagent = true, recipe = true, gem = true, ammo = true, bag = true, key = true,
+                   quest = true, misc = true, junk = true, free = true }
+
+-- Alte Anordnung "Taschenreihenfolge" / "Nach Art" in die neuen drei uebernehmen (einmal, layoutVer = 2).
+-- Mit eigenen Bereichen wird Individuell daraus, sonst Klassisch bzw. Nach Art. "Neu" bleibt anfangs aus.
+local function Migrate(_, acc)
+    if acc.layoutVer == 2 then return end
+    local hasGroups = type(acc.groups) == "table" and #acc.groups > 0
+    local function Off(keepOld)
+        local t = {}
+        for _, c in ipairs(ns.CATS) do
+            if not (keepOld and OLD_CATS[c]) then t[c] = true end
+        end
+        return t
+    end
+    for _, k in ipairs({ "bag", "bank", "guild" }) do
+        local key, old = k .. "Layout", acc[k .. "Layout"]
+        local groups = hasGroups and k ~= "guild"
+        if old == "bags" then
+            acc[key] = groups and "custom" or "classic"
+            if groups then acc[k .. "CatsOff"] = Off(false) end
+        elseif old == "type" then
+            acc[key] = groups and "custom" or "type"
+            acc[k .. "CatsOff"] = Off(true)
+        end
+    end
+    acc.layoutVer = 2
+end
+
+local function CatList() local t = {} for i, c in ipairs(ns.CATS) do t[i] = c end return t end
 
 local mod = Peon:NewModule(ADDON_NAME, {
     key      = "bags",
@@ -26,14 +64,14 @@ local mod = Peon:NewModule(ADDON_NAME, {
         replaceGuild = true,      -- Gildenbank ersetzen
         bagCols      = 10,
         bagScale     = 100,
-        bagLayout    = "bags",
+        bagLayout    = "classic",
         bagBar       = true,
         bankCols     = 14,
         bankScale    = 100,
-        bankLayout   = "bags",
+        bankLayout   = "classic",
         guildCols    = 14,
         guildScale   = 100,
-        guildLayout  = "bags",
+        guildLayout  = "classic",
         quality      = true,
         newGlow      = true,
         junk         = true,
@@ -46,13 +84,21 @@ local mod = Peon:NewModule(ADDON_NAME, {
         pos          = {},        -- [Fenster] = { x, y } linke obere Ecke in UIParent-Einheiten
         groups       = {},        -- eigene Bereiche, siehe Groups.lua
         groupItems   = {},        -- [Gegenstand] = Bereich
+        -- ab 0.5: je Fenster abgewaehlte Kategorien und Bereiche, eingeklappte Abschnitte
+        bagCatsOff   = {}, bankCatsOff = {}, guildCatsOff = {},
+        bagGroupsOff = {}, bankGroupsOff = {},
+        bagCollapsed = {}, bankCollapsed = {}, guildCollapsed = {},
+        catOrder     = CatList(), -- gemeinsame Reihenfolge der Kategorien
+        layoutVer    = 2,
     },
     ranges = {
         bagCols = { 6, 24, 1 }, bankCols = { 6, 24, 1 }, guildCols = { 6, 24, 1 },
         bagScale = { 50, 200, 5 }, bankScale = { 50, 200, 5 }, guildScale = { 50, 200, 5 },
     },
-    choices  = { bagLayout = LAYOUTS, bankLayout = LAYOUTS, guildLayout = LAYOUTS },
-    keepOnReset = { pos = true, groups = true, groupItems = true },
+    choices  = { bagLayout = LAYOUTS, bankLayout = LAYOUTS, guildLayout = GUILD_LAYOUTS },
+    migrate  = Migrate,
+    keepOnReset = { pos = true, groups = true, groupItems = true, catOrder = true, layoutVer = true,
+                    bagCatsOff = true, bankCatsOff = true, guildCatsOff = true, bagGroupsOff = true, bankGroupsOff = true },
     onSlash  = function(m, cmd)
         if cmd == "optionen" or cmd == "options" or cmd == "config" then
             m:OpenOptions()
@@ -174,30 +220,78 @@ function ns.ItemName(info)
 end
 
 ---------------------------------------------------------------------------
--- Art eines Gegenstands (Anordnung "nach Art")
+-- Art eines Gegenstands (automatische Kategorien, ab 0.5)
 ---------------------------------------------------------------------------
-ns.CATS = { "equip", "consumable", "trade", "quest", "misc", "junk", "free" }
-ns.CAT_TITLE = { equip = L.CAT_EQUIP, consumable = L.CAT_CONSUMABLE, trade = L.CAT_TRADE, quest = L.CAT_QUEST,
-                 misc = L.CAT_MISC, junk = L.CAT_JUNK, free = L.CAT_FREE }
--- Klassen-Nummern des Spiels (Enum.ItemClass): 0 Verbrauch, 2 Waffe, 3 Edelstein, 4 Ruestung, 5 Reagenz,
--- 7 Handwerkswaren, 8 Verbesserung, 9 Rezept, 12 Quest, 19 Beruf
-local CLASS_CAT = { [0] = "consumable", [2] = "equip", [4] = "equip", [3] = "trade", [5] = "trade", [7] = "trade",
-                    [8] = "trade", [9] = "trade", [19] = "trade", [12] = "quest" }
+ns.CAT_TITLE = {}
+for _, c in ipairs(ns.CATS) do ns.CAT_TITLE[c] = L["CAT_" .. c:upper()] end
 
+-- Klassen-Nummern des Spiels (Enum.ItemClass): 0 Verbrauch, 1 Behaelter, 2 Waffe, 3 Edelstein, 4 Ruestung,
+-- 5 Reagenz, 6 Projektil, 7 Handwerkswaren, 8 Verbesserung, 9 Rezept, 11 Koecher, 12 Quest, 13 Schluessel,
+-- 15 Verschiedenes, 19 Beruf
+local CLASS_CAT = { [1] = "bag", [2] = "equip", [3] = "gem", [4] = "equip", [5] = "reagent", [6] = "ammo",
+                    [7] = "trade", [8] = "trade", [9] = "recipe", [11] = "ammo", [13] = "key", [19] = "trade" }
+-- Verbrauchbares (Klasse 0) nach Unterklasse: 1 Trank, 2 Elixier, 3 Flaeschchen, 5 Essen und Trinken, 7 Verband
+local CONSUMABLE_SUB = { [1] = "potion", [2] = "potion", [3] = "potion", [5] = "food", [7] = "bandage" }
+
+-- Rueckgabe: Klasse, Unterklasse
 function ns.ItemClass(itemID)
     local CI = rawget(_G, "C_Item")
     local fn = CI and CI.GetItemInfoInstant or rawget(_G, "GetItemInfoInstant")
     local r = { ns.Try(fn, itemID) }
-    return r[6]
+    return r[6], r[7]
 end
 
--- quest = true, wenn das Spiel den Gegenstand als Quest-Gegenstand meldet
-function ns.Category(info, quest)
-    if not info then return "free" end
-    if quest then return "quest" end
-    if info.quality == 0 and not info.hasNoValue then return "junk" end
-    local cls = ns.ItemClass(info.itemID)
-    return cls and CLASS_CAT[cls] or "misc"
+-- Kategorie eines Platzes, off = abgewaehlte Kategorien, nil = keine (steht unter "Uebrige").
+-- Reihenfolge: Neu, Quest, Muell, dann die Art. Ist eine Kategorie abgewaehlt, gilt die naechste passende,
+-- ein Trank ohne "Traenke und Elixiere" zum Beispiel unter "Verbrauchbares".
+-- quest = true, wenn das Spiel den Gegenstand als Quest-Gegenstand meldet. isNew = neu erhalten.
+function ns.Category(info, quest, isNew, off)
+    off = off or {}
+    local function ok(c) return c ~= nil and not off[c] end
+    if not info then return ok("free") and "free" or nil end
+    if isNew and ok("new") then return "new" end
+    local cls, sub = ns.ItemClass(info.itemID)
+    if quest or cls == 12 then
+        if ok("quest") then return "quest" end
+    end
+    if info.quality == 0 and not info.hasNoValue and ok("junk") then return "junk" end
+    if cls == 12 then return nil end
+    if cls == 0 then
+        local c = CONSUMABLE_SUB[sub]
+        if ok(c) then return c end
+        return ok("consumable") and "consumable" or nil
+    end
+    local c = cls and CLASS_CAT[cls] or "misc"
+    return ok(c) and c or nil
+end
+
+-- gemeinsame Reihenfolge der Kategorien: jede genau einmal, unbekannte fallen weg, neue kommen hinten an
+function ns.CatOrder()
+    local order, seen, res, known = mod.db.catOrder, {}, {}, {}
+    for _, c in ipairs(ns.CATS) do known[c] = true end
+    for _, c in ipairs(type(order) == "table" and order or {}) do
+        if known[c] and not seen[c] then seen[c] = true; res[#res + 1] = c end
+    end
+    for _, c in ipairs(ns.CATS) do
+        if not seen[c] then res[#res + 1] = c end
+    end
+    mod.db.catOrder = res
+    return res
+end
+
+-- delta = -1 nach oben, 1 nach unten
+function ns.MoveCat(cat, delta)
+    local list = ns.CatOrder()
+    for i, c in ipairs(list) do
+        if c == cat then
+            local j = i + delta
+            if j < 1 or j > #list then return false end
+            list[i], list[j] = list[j], list[i]
+            mod:Fire("CHANGED", "catOrder")
+            return true
+        end
+    end
+    return false
 end
 
 ---------------------------------------------------------------------------
@@ -320,6 +414,6 @@ mod:On("CHANGED", ApplyAll)
 mod:On("RESET", ApplyAll)
 
 if Peon.SetFeedbackAreas then
-    Peon.SetFeedbackAreas(ADDON_NAME, { "Taschen", "Bank", "Gildenbank", "Anordnung", "Bereiche", "Suche", "Plätze",
+    Peon.SetFeedbackAreas(ADDON_NAME, { "Taschen", "Bank", "Gildenbank", "Anordnung", "Einstellen", "Kategorien", "Bereiche", "Suche", "Plätze",
         "Öffnen/Schließen", "Taschenleiste", "Optionen" })
 end

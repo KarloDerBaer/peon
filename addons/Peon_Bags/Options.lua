@@ -78,7 +78,8 @@ function ns.CreateOptions()
     local mod = ns.mod
     if not mod or mod.page then return end
     local page = mod:NewOptionsPage({ desc = L.DESC })
-    local layouts = { { "bags", L.LAYOUT_BAGS }, { "type", L.LAYOUT_TYPE } }
+    local layouts = { { "classic", L.LAYOUT_CLASSIC }, { "type", L.LAYOUT_TYPE }, { "custom", L.LAYOUT_CUSTOM } }
+    local guildLayouts = { { "classic", L.LAYOUT_CLASSIC }, { "type", L.LAYOUT_TYPE } }
 
     local left = page:Column(16, -60)
     page:Add(left, page:Header(L.HDR_GENERAL), 6)
@@ -110,7 +111,7 @@ function ns.CreateOptions()
     page:Add(right, page:Header(L.HDR_GUILD), 6)
     page:Add(right, page:Slider("guildCols", L.COLS))
     page:Add(right, page:Slider("guildScale", L.SCALE, nil, "%"))
-    page:Add(right, page:Dropdown("guildLayout", L.LAYOUT, layouts))
+    page:Add(right, page:Dropdown("guildLayout", L.LAYOUT, guildLayouts))
 
     page:Add(right, page:Header(L.HDR_AUTO), 6)
     page:Add(right, page:Check("autoMerchant", L.AUTO_MERCHANT), 20)

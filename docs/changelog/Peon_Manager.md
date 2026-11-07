@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.19.0
+
+Kurz: Beim Update des Peon Managers siehst du jetzt, was passiert: Ein Fenster zeigt den Fortschritt, danach startet der Manager von selbst neu.
+Kurz: Vor dem Senden deiner Rückmeldungen erscheint der Text in einem eigenen Fenster.
+
+- 0.19.0 (07.11.2026, Wunsch KarloDerBaer):
+  - **Selbst-Update sichtbar:** Nach „Neu starten“ zeigt das Update-Fenster drei Sekunden lang die Schritte (geladen, Manager wird geschlossen, neue Version wird eingespielt, Neustart). Danach läuft der Installer sichtbar mit seinem Fortschrittsbalken und deutschen Texten (`nsis.include` = `electron/installer.nsh`, `installerLanguages` de_DE) und startet den Manager wieder. Bisher lief er unsichtbar, und der Manager war eine halbe Minute ohne Hinweis weg. Der Selbsttest spielt weiter unsichtbar ein.
+  - **Senden im Dialog:** Die Vorschau vor dem Senden im Reiter Rückmeldungen erscheint in einem eigenen Dialog (`components\SendDialog.vue`) mit Hinweis, Text, Senden und Abbrechen. Ein Fehler beim Senden steht im Dialog.
+  - Lokal gebaut: Der Installer baut mit den neuen Einstellungen. **Noch nicht geprüft:** echtes Update von 0.18.1 auf 0.19.0 mit sichtbarem Installer (erst mit dem nächsten Release möglich), Dialog im echten Programm.
+
 ## 0.18.1
 
 Kurz: Der Reiter Einkaufsliste ist als „WIP“ markiert, er wird bald überarbeitet.

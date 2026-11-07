@@ -17,6 +17,7 @@ ns.SLOT, ns.GAP = SLOT, GAP
 
 local Window = {}
 Window.__index = Window
+ns.Window = Window   -- Setup.lua ergaenzt den Knopf "Einstellen"
 
 local function Rel(f)
     local p = UIParent:GetEffectiveScale()
@@ -46,7 +47,8 @@ ns.SmallButton = SmallButton
 -- key: "bag" | "bank" | "guild" (Praefix der Einstellungen bagCols, bagScale, bagLayout ...)
 -- opts: title, point = { Punkt, x, y } (Standardposition), onHide = fn(w), searchable = true
 function ns.NewWindow(key, opts)
-    local w = setmetatable({ key = key, opts = opts, headers = {}, used = {} }, Window)
+    local w = setmetatable({ key = key, opts = opts, headers = {}, used = {}, keepNew = {},
+                             minW = opts.minWidth or MIN_W }, Window)
     local name = "PeonBags" .. key:gsub("^%l", string.upper) .. "Frame"
     -- Rahmen wie Blizzards Fenster (ab 0.2): Taschen = PortraitFrameFlatTemplate (wie Blizzards Taschen),
     -- Bank = PortraitFrameTemplate (wie Blizzards Bank), Gildenbank = BasicFrameTemplate (wie Blizzards
@@ -101,8 +103,10 @@ function ns.NewWindow(key, opts)
     f:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         w:SavePosition()
+        if w.OnMoved then w:OnMoved() end
     end)
     f:SetScript("OnHide", function()
+        wipe(w.keepNew)   -- "Neu" gilt bis zum Schliessen
         if opts.onHide then mod:Call("Schliessen", opts.onHide, w) end
         if ns.focusBag then ns.focusBag = nil end
     end)
@@ -187,45 +191,41 @@ end
 function Window:Setting(name) return mod.db[self.key .. name] end
 
 function Window:Cols() return self:Setting("Cols") or 10 end
-function Window:Layout() return self:Setting("Layout") or "bags" end
+function Window:Layout() return self:Setting("Layout") or "classic" end
 
-function Window:ToggleLayout()
-    local k = self.key .. "Layout"
-    mod.db[k] = (mod.db[k] == "type") and "bags" or "type"
+-- Einstellung des Fensters aendern und alle benachrichtigen (Fenster, Leiste "Einstellen", Optionsseite)
+function Window:Set(name, value)
+    local k = self.key .. name
+    mod.db[k] = value
     mod:Fire("CHANGED", k)
-    self:UpdateLayoutButton()
     if mod.page and mod.page.Refresh then pcall(mod.page.Refresh, mod.page) end
 end
 
-function Window:LayoutText()
-    return L.LAYOUT_TYPE
+-- Tabelle des Fensters (CatsOff, GroupsOff, Collapsed), fehlt sie, wird sie angelegt
+function Window:Table(name)
+    local k = self.key .. name
+    if type(mod.db[k]) ~= "table" then mod.db[k] = {} end
+    return mod.db[k]
 end
 
--- Bild oben links (Datei/Icon); nur bei Portrait-Rahmen
-function Window:SetPortrait(asset)
-    local f = self.frame
-    if not self.portrait or not asset or not f then return end
-    if asset == "npc" and type(f.SetPortraitToUnit) == "function" then
-        pcall(f.SetPortraitToUnit, f, "npc")
-    elseif type(f.SetPortraitToAsset) == "function" then
-        pcall(f.SetPortraitToAsset, f, asset)
-    end
+-- Alles, was ns.BuildSections fuer dieses Fenster braucht (ab 0.5)
+function Window:SectionConfig()
+    local layout = self:Layout()
+    return { layout = layout, catsOff = self:Table("CatsOff"), groupsOff = self.useGroups and self:Table("GroupsOff") or {},
+             collapsed = self:Table("Collapsed"), useGroups = self.useGroups, keepNew = self.keepNew }
 end
 
--- Umschalter "Nach Art" (ab 0.2): grau = Taschenreihenfolge, farbig = nach Art
-function Window:AddLayoutToggle()
-    local b = self:AddButton(L.LAYOUT_TYPE, 84, L.BTN_LAYOUT_TIP, function() self:ToggleLayout() end)
-    self.layoutBtn = b
-    self:UpdateLayoutButton()
-    return b
+-- Abschnitt ein- oder ausklappen (Klick auf die Ueberschrift ohne Gegenstand am Mauszeiger)
+function Window:ToggleCollapse(key)
+    local t = self:Table("Collapsed")
+    t[key] = (not t[key]) or nil
+    mod:Fire("CHANGED", self.key .. "Collapsed")
 end
 
-function Window:UpdateLayoutButton()
-    local b = self.layoutBtn
+-- Knopf als gewaehlt (farbig) oder nicht (grau) zeigen
+function ns.SetButtonOn(b, on)
     if not b then return end
-    local on = self:Layout() == "type"
-    b.peonOn = on
-    b:SetText(L.LAYOUT_TYPE)
+    b.peonOn = on and true or false
     local fo = on and rawget(_G, "GameFontNormal") or rawget(_G, "GameFontDisable")
     if fo and b.SetNormalFontObject then pcall(b.SetNormalFontObject, b, fo) end
     -- Knopf-Grafik grau bzw. farbig (nur wenige Teile, kein Risiko mit vielen Rueckgabewerten)
@@ -236,6 +236,17 @@ function Window:UpdateLayoutButton()
     for _, get in ipairs({ "GetNormalTexture", "GetPushedTexture" }) do
         local t = type(b[get]) == "function" and b[get](b) or nil
         if type(t) == "table" and t.SetDesaturated then t:SetDesaturated(not on) end
+    end
+end
+
+-- Bild oben links (Datei/Icon); nur bei Portrait-Rahmen
+function Window:SetPortrait(asset)
+    local f = self.frame
+    if not self.portrait or not asset or not f then return end
+    if asset == "npc" and type(f.SetPortraitToUnit) == "function" then
+        pcall(f.SetPortraitToUnit, f, "npc")
+    elseif type(f.SetPortraitToAsset) == "function" then
+        pcall(f.SetPortraitToAsset, f, asset)
     end
 end
 
@@ -272,6 +283,9 @@ end
 -- keepEmpty = Ueberschrift auch ohne Gegenstaende zeigen
 -- target = nimmt abgelegte Gegenstaende an (Bereich-id oder ns.GROUP_NONE, siehe Groups.lua), nil = reine Schrift
 ---------------------------------------------------------------------------
+local PLUS = "|TInterface\\Buttons\\UI-PlusButton-Up:12:12:0:0|t "
+local MINUS = "|TInterface\\Buttons\\UI-MinusButton-Up:12:12:0:0|t "
+
 local function Header(w, i)
     local h = w.headers[i]
     if not h then
@@ -285,19 +299,32 @@ local function Header(w, i)
         h:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
         h:RegisterForClicks("LeftButtonUp")
         h:RegisterForDrag("LeftButton")
-        local function Drop(self) mod:Call("Bereich", ns.DropOnHeader, self.target) end
-        h:SetScript("OnClick", Drop)
+        local function Drop(self) if self.target ~= nil then mod:Call("Bereich", ns.DropOnHeader, self.target) end end
+        -- Klick: mit Gegenstand am Mauszeiger ablegen, mit leerem Mauszeiger ein- oder ausklappen (ab 0.5)
+        h:SetScript("OnClick", function(self)
+            local cursor = rawget(_G, "GetCursorInfo")
+            local kind = type(cursor) == "function" and cursor() or nil
+            if kind then
+                if kind == "item" then Drop(self) end
+                return
+            end
+            if self.key then w:ToggleCollapse(self.key) end
+        end)
         h:SetScript("OnReceiveDrag", Drop)
         -- Ziehen an der Ueberschrift bewegt weiter das Fenster
         h:SetScript("OnDragStart", function() w.frame:StartMoving() end)
         h:SetScript("OnDragStop", function()
             w.frame:StopMovingOrSizing()
             w:SavePosition()
+            if w.OnMoved then w:OnMoved() end
         end)
         h:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             GameTooltip:SetText(self.text or "", 1, 1, 1)
-            GameTooltip:AddLine(self.target == ns.GROUP_NONE and L.GROUP_TIP_OUT or L.GROUP_TIP_IN, nil, nil, nil, true)
+            if self.target ~= nil then
+                GameTooltip:AddLine(self.target == ns.GROUP_NONE and L.GROUP_TIP_OUT or L.GROUP_TIP_IN, nil, nil, nil, true)
+            end
+            if self.key then GameTooltip:AddLine(L.COLLAPSE_TIP, nil, nil, nil, true) end
             GameTooltip:Show()
         end)
         h:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -324,34 +351,41 @@ function Window:Arrange(sections, allButtons)
     for _, sec in ipairs(sections) do
         local n = #sec.items
         if n > 0 or sec.keepEmpty then
+            local folded = sec.collapsed and sec.title ~= nil
             if sec.title then
                 hi = hi + 1
                 local h = Header(self, hi)
                 h:ClearAllPoints()
                 h:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -y)
                 h:SetWidth(cols * step - GAP)
-                h.label:SetText(sec.title)
-                h.text, h.target = sec.title, sec.target
-                h:EnableMouse(sec.target ~= nil)
+                -- Zeichen vor dem Namen zeigt, dass sich der Abschnitt einklappen laesst (ab 0.5)
+                local label = sec.title
+                if sec.key then label = (folded and PLUS or MINUS) .. label end
+                if folded then label = label .. " (" .. n .. ")" end
+                h.label:SetText(label)
+                h.text, h.target, h.key, h.folded = sec.title, sec.target, sec.key, folded
+                h:EnableMouse(sec.target ~= nil or sec.key ~= nil)
                 h:Show()
-                y = y + HDR_H
+                y = y + (folded and HDR_H + SEC_GAP or HDR_H)
             end
-            for i, b in ipairs(sec.items) do
+            for i, b in ipairs(folded and {} or sec.items) do
                 local row, col = math.floor((i - 1) / cols), (i - 1) % cols
                 b:ClearAllPoints()
                 b:SetPoint("TOPLEFT", self.content, "TOPLEFT", col * step, -(y + row * step))
                 b:Show()
                 shown[b] = true
             end
-            if n > maxCols then maxCols = math.min(n, cols) end
-            y = y + math.ceil(n / cols) * step + SEC_GAP
+            if not folded then
+                if n > maxCols then maxCols = math.min(n, cols) end
+                y = y + math.ceil(n / cols) * step + SEC_GAP
+            end
         end
     end
     for i = hi + 1, #self.headers do self.headers[i]:Hide() end
     for _, b in ipairs(allButtons or {}) do
         if not shown[b] then b:Hide() end
     end
-    local width = math.max(MIN_W, PAD * 2 + cols * step - GAP)
+    local width = math.max(self.minW or MIN_W, PAD * 2 + cols * step - GAP)
     local height = TOP_H + math.max(y - SEC_GAP, SLOT) + FOOT_H + 6
     self.content:SetSize(cols * step - GAP, math.max(1, y))
     if not ns.Locked(f) then f:SetSize(width, height) end
