@@ -200,6 +200,7 @@ Knopf „Einstellen“ statt „Nach Art“, Leiste rechts neben dem Fenster mit
 - Die Vorschau vor dem Senden im Reiter Rückmeldungen erscheint in einem eigenen Dialog.
 - Gebaut mit Manager 0.19.0, enthalten in der Vorabversion `v2026.11.07.7-test`. **Noch offen:** Update von 0.18.1 auf 0.19.0 im echten Programm. Erst das Update danach (von 0.19.0 aus) zeigt den Installer sichtbar, weil das Einspielen noch von der installierten Fassung gestartet wird.
 - Dazu mit Manager 0.20.0 (Wunsch KarloDerBaer): Suche nach Updates einstellbar (Standard alle 10 Minuten) und Meldung von Windows bei Neuem. Ohne Vorabversion direkt im normalen Release `v2026.11.07.9` (07.11.2026, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen), im echten Programm noch nicht geprüft.
+- Dazu mit Manager 0.20.1 (Wunsch KarloDerBaer): unter Einstellungen bei der Blizzard-API immer ein Link zum Entwicklerportal, Hinweis auf die Wartezeit bei neuen Zugängen und auf die Auswahl eines Hauses unter Quellen. Zusammen mit Tooltip 0.7.5 (Rahmen ohne Fehler in Instanzen, Fehlerbericht 9) ohne Vorabversion direkt im normalen Release `v2026.11.07.10` (07.11.2026, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen), im Spiel und im echten Programm noch nicht geprüft.
 
 ### Todo: Überarbeitung (KarloDerBaer, 06.11.2026)
 
