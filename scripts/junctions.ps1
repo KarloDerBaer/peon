@@ -8,7 +8,7 @@
 #   junctions.cmd anlegen              legt fehlende Junctions an. Echte Ordner werden nur ersetzt, wenn alle
 #                                      Dateien gleich sind (Prüfsumme). Junctions auf Module, die es im Repo
 #                                      nicht mehr gibt, werden entfernt (nur der Verweis, der Inhalt bleibt).
-# Ohne Module gilt es für alle. Beim Ändern muss WoW geschlossen sein. Gelöscht wird nichts außer dem Verweis.
+# Ohne Module gilt es für alle. WoW darf dabei laufen, wirksam wird es mit /reload. Gelöscht wird nichts außer dem Verweis.
 # Der AddOns-Ordner kommt aus scripts\local.json ({ "addons": "X:\\...\\_forever_\\Interface\\AddOns" }, nicht im Repo),
 # sonst aus -AddOns, sonst der übliche Ort von Battle.net.
 [CmdletBinding(PositionalBinding = $false)]
@@ -17,7 +17,6 @@ param(
     [string]$AddOns = "",
     [string]$Archiv = "",
     [string]$Repo = "",
-    [switch]$OhneWowPruefung,
     [Parameter(ValueFromRemainingArguments = $true)][string[]]$Namen
 )
 $ErrorActionPreference = "Stop"
@@ -37,11 +36,6 @@ $Anlegen = $Aktion -eq "anlegen" -or $ZuEntwicklung
 $Ignorieren = @("Peon_Bridge\Data.lua", "Peon_Client\Data.lua")
 
 if (-not (Test-Path $AddOns)) { Write-Host "AddOns-Ordner nicht gefunden: $AddOns"; exit 1 }
-
-if (($Anlegen -or $ZuManager) -and -not $OhneWowPruefung) {
-    $wow = Get-Process | Where-Object { $_.ProcessName -match '^Wow' }
-    if ($wow) { Write-Host "WoW läuft ($($wow[0].ProcessName)). Bitte zuerst schließen."; exit 1 }
-}
 
 function Pruefsummen($ordner, $name) {
     $h = @{}

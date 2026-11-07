@@ -25,7 +25,7 @@ function setup(t) {
   fs.mkdirSync(addons);
   const run = (...args) => {
     const r = spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', SCRIPT, ...args,
-      '-AddOns', addons, '-Archiv', archiv, '-Repo', repo, '-OhneWowPruefung'], { encoding: 'utf8' });
+      '-AddOns', addons, '-Archiv', archiv, '-Repo', repo], { encoding: 'utf8' });
     return { code: r.status, out: r.stdout + r.stderr };
   };
   const isLink = (name) => fs.lstatSync(path.join(addons, name)).isSymbolicLink();
