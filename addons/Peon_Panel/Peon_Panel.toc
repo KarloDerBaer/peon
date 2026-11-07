@@ -3,7 +3,7 @@
 ## Notes: A bar and a movable panel for the symbols and short texts of the Peon modules.
 ## Notes-deDE: Leiste und verschiebbares Panel für Symbole und kurze Texte der Peon-Module.
 ## Author: KarloDerBaer
-## Version: 0.1.0
+## Version: 0.3.0
 ## Dependencies: Peon
 ## Group: Peon
 ## IconTexture: Interface\Icons\INV_Misc_Spyglass_03
@@ -11,6 +11,12 @@
 
 Locales.lua
 Panel.lua
+Skin.lua
 Display.lua
 Menu.lua
+Info.lua
+InfoXP.lua
+InfoPlace.lua
+InfoSystem.lua
+InfoSocial.lua
 Options.lua

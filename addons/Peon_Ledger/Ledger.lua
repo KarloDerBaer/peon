@@ -39,6 +39,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         itemOff       = {},      -- Reiter Gegenstand: an/aus je Linie (true = aus)
         itemLast      = 0,       -- Reiter Gegenstand: zuletzt gezeigter Gegenstand
         catalogFilter = "all",   -- Reiter Gegenstaende (ab 0.10): all / stock / moved / ah
+        session       = {},      -- Gold zu Beginn der Sitzung (ab 0.12): who, money, uebersteht /reload
     },
     ranges   = { minimapAngle = { 0, 359, 1 } },
     choices  = { windowTab = { overview = true, stock = true, history = true, book = true, items = true, catalog = true, item = true },
@@ -48,7 +49,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  historyKind = { all = true, ah = true, vendor = true, loot = true, use = true, quest = true, craft = true,
                                  trade = true, mail = true, travel = true, destroy = true, fix = true, other = true } },
     keepOnReset = { windowPos = true, windowTab = true, historyMoves = true, historyOnlyMe = true, bookPeriod = true, bookOnlyMe = true, historyKind = true,
-                    itemPeriod = true, itemMarge = true, itemOff = true, itemLast = true, catalogFilter = true },
+                    itemPeriod = true, itemMarge = true, itemOff = true, itemLast = true, catalogFilter = true, session = true },
     slash    = { "/ledger" },
     onSlash  = function(m, cmd, rest)
         if cmd == "pruefen" or cmd == "prüfen" or cmd == "check" or cmd == "probe" then
@@ -163,6 +164,15 @@ function ns.Money(c, short)
     return (neg and "-" or "") .. table.concat(parts, " ")
 end
 
+-- Kurzer Betrag mit Muenzsymbolen fuer Peon_Panel (ab 0.12): Gold und Silber, Kupfer nur unter 1g.
+-- Ab 1000g nur Gold, gekuerzt wie bei Peon.ShortNumber ("12,3k").
+function ns.PanelMoney(c)
+    if type(c) ~= "number" or Peon.IsSecret(c) then return "?" end
+    local g = math.floor(math.abs(c) / 10000)
+    if g >= 1000 then return (c < 0 and "-" or "") .. Peon.ShortNumber(g) .. GOLD end
+    return ns.Money(c, true)
+end
+
 -- Alter als kurzer Text: "jetzt", "5 Min.", "3 Std.", "2 T."
 function ns.Age(t)
     if type(t) ~= "number" then return "–" end
@@ -188,12 +198,35 @@ local function CreateMinimapButton()
         end,
         -- Texte fuer Peon_Panel
         texts = {
-            { key = "goldAll", label = L.TEXT_GOLD_ALL, get = function() return Peon.ShortGold((ns.Inventory.TotalMoney())) end },
-            { key = "goldMe", label = L.TEXT_GOLD_ME, get = function() return Peon.ShortGold(GetMoney()) end },
+            { key = "goldAll", label = L.TEXT_GOLD_ALL, get = function() return ns.PanelMoney((ns.Inventory.TotalMoney())) end },
+            { key = "goldMe", label = L.TEXT_GOLD_ME, get = function() return ns.PanelMoney(GetMoney()) end },
+            { key = "goldSession", label = L.TEXT_GOLD_SESSION, get = function() return ns.SessionGoldText() end },
         },
         defaultText = "goldAll",
     })
 end
+
+-- Gold der Sitzung (ab 0.12). Neu beim Einloggen und bei einem anderen Charakter, /reload zaehlt weiter.
+local function StartSession()
+    local s = mod.db.session
+    s.who, s.money = UnitGUID("player"), GetMoney()
+end
+
+function ns.SessionGold()
+    local s = mod.db.session
+    if s.who ~= UnitGUID("player") or type(s.money) ~= "number" then StartSession() end
+    return GetMoney() - s.money
+end
+
+function ns.SessionGoldText()
+    local delta = ns.SessionGold()
+    if delta < 0 then return "-" .. ns.PanelMoney(-delta) end
+    return "+" .. ns.PanelMoney(delta)
+end
+
+mod:RegisterEvent("PLAYER_ENTERING_WORLD", function(_, isLogin)
+    if isLogin and mod.db then StartSession() end
+end)
 
 mod:On("INIT", function()
     if (Peon.API or 0) < 10 then   -- ab 0.9: Diagramm-Baustein (API 10)

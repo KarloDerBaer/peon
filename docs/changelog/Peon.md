@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.15.0
+
+Kurz: Grundlage für die neuen Einträge von Peon_Panel.
+
+- 0.15.0 (07.11.2026): API 15. `mod:AddLauncher` legt weitere Starter eines Moduls an, neue Felder `onWheel` (Mausrad) und `available` (gerade nicht anzeigen), dazu `Launcher:IsAvailable` und `Launcher:Wheel`. Vorhandenes bleibt unverändert.
+
 ## 0.14.0
 
 Kurz: Grundlage für das neue Addon Peon_Panel.

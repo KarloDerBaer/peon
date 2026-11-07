@@ -1,10 +1,12 @@
 # Peon_Panel: Konzept (abgestimmt)
 
-Stand: 07.11.2026, mit KarloDerBaer abgestimmt, gebaut in Peon_Panel 0.1.0 und Peon 0.14.0, im Spiel noch nicht geprüft. Anlass ist eine Idee von KarloDerBaer: Module legen ihre Symbole gesammelt ab, damit weniger Minimap-Buttons nötig sind und zusätzliche Informationen Platz haben.
+Stand: 07.11.2026, mit KarloDerBaer abgestimmt, gebaut in Peon_Panel 0.1.0 und Peon 0.14.0, überarbeitet in Peon_Panel 0.2.0 (Abschnitt 12) und 0.3.0 (Abschnitt 13, im Spiel noch nicht geprüft). Anlass ist eine Idee von KarloDerBaer: Module legen ihre Symbole gesammelt ab, damit weniger Minimap-Buttons nötig sind und zusätzliche Informationen Platz haben.
+
+Ab 0.2.0 gilt für die Leiste Abschnitt 12. Wo die Abschnitte davor etwas anderes zu Lage, Breite oder Aussehen der Leiste sagen, beschreiben sie die Fassung 0.1.0.
 
 ## 1. Ziel
 
-- **Leiste:** waagerecht, an einer von 8 festen Stellen am Bildschirmrand.
+- **Leiste:** waagerecht, an einer von 8 festen Stellen am Bildschirmrand (ab 0.2.0 nur noch oben, Abschnitt 12).
 - **Panel:** ein annähernd quadratisches Fenster mit Symbolen im Raster, frei verschiebbar.
 - Frei einstellbar, welche Symbole dort stehen und ob und welchen Text sie zeigen.
 - Der Text lässt sich auch direkt im Kontextmenü des Symbols wählen.
@@ -198,3 +200,80 @@ Alles kommt zusammen.
 9. **Ziehen ändert nur die Reihenfolge**, Lücken gibt es nicht. Leiste und Panel haben je eine eigene Reihenfolge.
 
 Ergänzt von Claude: Wird Peon_Panel abgeschaltet, stellt der Kern die von Panel ausgeblendeten Buttons wieder her (Abschnitt 5).
+
+## 12. Überarbeitung nach dem Vorbild Titan Panel (abgestimmt 07.11.2026, Peon_Panel 0.2.0)
+
+Vorbild sind Optik und Bedienung von Titan Panel. Es wird kein Code und keine Grafik daraus übernommen.
+
+**Leiste**
+
+```
+ ________________________________________________________________________
+|                                                                        |
+ \_ [L] Ledger: 3g  [B] Broker: vor 15 Std.   [F] Aus      [T] 26 frei  _/
+```
+
+- **Nur oben**, mittig und direkt am oberen Rand. Andere Stellen entfallen, weil dort Blizzards Oberfläche verschoben werden müsste (KarloDerBaer). Positionsraster und Abstandsregler fallen weg, dafür gibt es den Haken „Leiste anzeigen“.
+- **Nicht über den ganzen Bildschirm**, die Breite ist einstellbar (30 bis 100 %, Standard 60 %). So bleiben Minimap und Buffs frei. Passt der Inhalt nicht, wird die Leiste breiter als eingestellt.
+- **Runde untere Ecken**, oben schließt sie mit dem Bildschirmrand ab (KarloDerBaer).
+- **Drei Bereiche:** links, Mitte, rechts. Ein Symbol zieht man in den gewünschten Bereich, das linke, mittlere oder rechte Drittel der Leiste entscheidet. Bereich auch im Kontextmenü und auf der Optionsseite wählbar. Anfangs stehen Bags und Peon rechts, alle anderen links.
+- **Modulname vor dem Text**, farbig abgesetzt, zum Beispiel „Ledger: 3g“. Abschaltbar, nur auf der Leiste.
+- **Rechtsklick auf eine freie Stelle:** Liste aller Module zum An- und Abhaken. Die Leiste bleibt deshalb auch ohne Einträge sichtbar.
+
+**Panel:** gleiches Aussehen, vier runde Ecken. Lage und Raster bleiben wie bisher.
+
+**Beide**
+
+- Dunkler Hintergrund mit feinem Rand, Farbe und Deckkraft einstellbar, dazu die Schriftgröße.
+- Je Modul wählbar: Symbol und Text, nur Symbol oder nur Text. Ohne Text bleibt das Symbol immer sichtbar. Im Panel bleibt das Symbol auch bei „nur Text“, weil das Raster davon lebt.
+- Ebene `LOW` statt `MEDIUM`, damit Fenster und Vollbildkarte darüber liegen. Bei Titan gab es dazu Meldungen, dass die Leiste die Karte verdeckt.
+
+**Technik:** Das Spiel rundet Farbflächen nicht ab. Der Hintergrund besteht aus Stücken ohne Überlappung (sonst sähe man bei durchscheinendem Hintergrund dunklere Streifen): Rechtecke für Flächen und Kanten, zwei eigene Bilder für die Ecken (`Media\corner_fill.tga`, `Media\corner_line.tga`, weiß und einfärbbar, erzeugt mit `scripts\panel_media.js`). Der Kern ändert sich nicht.
+
+**Alte Einstellungen:** `barPos`, `barX` und `barY` entfallen. Aus `barPos = "none"` wird `barShow = false`. Wer noch die alte Standardgröße 22 hatte, bekommt die neue (18).
+
+**Im Spiel geprüft (KarloDerBaer, 07.11.2026):** Funktion der Leiste passt. Noch offen: Lage über oder unter Blizzards Fenstern und der Karte, Breite nach Ändern der Fenstergröße.
+
+## 13. Allgemeine Einträge und Aussehen (abgestimmt 07.11.2026, Peon_Panel 0.3.0, Peon 0.15.0, Ledger 0.12.0)
+
+**Einträge**
+
+| Eintrag | Anfangs | Bereich | Texte | Klick |
+|---|---|---|---|---|
+| XP | Leiste | links | Stand und Prozent, nur Prozent, fehlende XP | |
+| XP pro Stunde | Leiste | links | Tempo | |
+| Zeit bis Level-Up | Leiste | links | Dauer | |
+| Zone | Leiste | Mitte | Zone, Unterzone, beides | Karte |
+| Koordinaten | Leiste | Mitte | x / y, in Instanzen „-“ | Karte |
+| Haltbarkeit | Leiste | rechts | niedrigster Wert | Charakter |
+| Uhr | Leiste | rechts | Ortszeit, Serverzeit | Kalender, sonst Zeitverwaltung |
+| Leistung | zum Anhaken | rechts | FPS und Latenz, FPS, Latenz | |
+| Spielzeit | zum Anhaken | rechts | Sitzung, seit dem letzten Level-Up | |
+| Lautstärke | zum Anhaken | rechts | Prozent | Ton an oder aus, Mausrad ändert |
+| Freunde | zum Anhaken | rechts | online und gesamt | Freundesliste |
+| Gilde | zum Anhaken | rechts | online und gesamt | Gildenfenster |
+| Ruf | zum Anhaken | links | Rang und Prozent, Fraktion und Prozent, Punkte | Ruf-Fenster |
+| Reset-Zeiten | zum Anhaken | rechts | täglich, wöchentlich | |
+
+Bei Ledger kommt der Text „Gold dieser Sitzung“ dazu. Vom früheren Vorschlag „Zeit auf dieser Stufe“ gibt es nur die Zeit seit dem letzten Level-Up in dieser Sitzung, weil die Gesamtzeit nur über `/played` kommt und das in den Chat schreibt.
+
+**Technik**
+
+- Der Kern erlaubt mit `mod:AddLauncher` mehrere Starter je Modul (API 15), dazu `onWheel` und `available`. Die Einträge stehen in `Info.lua`, `InfoXP.lua`, `InfoPlace.lua`, `InfoSystem.lua` und `InfoSocial.lua`.
+- XP pro Stunde zählt je Minute in `xpLog`, über die letzten 60 Minuten, frühestens ab einer Minute Messung. `/reload` misst weiter, Einloggen beginnt neu.
+- Ein Takt alle 0,5 Sekunden liest nur Angezeigtes. Ein Eintrag aktualisiert sich allein, neu angeordnet wird nur, wenn er mehr Platz braucht oder auf- oder abtaucht.
+- Namen von Freunden und Gilde stehen nur im Tooltip und werden nicht gespeichert.
+- Blizzard-Fenster öffnen sich nur außerhalb des Kampfes und nur, wenn es die Funktion gibt.
+
+**Aussehen:** neuer Reiter. Stile aus Blizzards `NineSliceLayouts`: Tooltip dunkel (Standard), Tooltip, Metall, Dialog, Holz, dazu Schlicht (die eigene Fassung aus 0.2.0). Bei der Leiste ragt der Rahmen 40 Punkte oben aus dem Bild, damit nur die unteren Ecken zu sehen sind. Rahmen mit großen Ecken (Metall, Dialog, Holz) werden als Ganzes verkleinert, bis eine Ecke auf der Leiste höchstens 14 und im Panel höchstens 24 Punkte groß ist. Fehlt ein Rahmen, bleibt es bei Schlicht. Dazu Schriftart, Rand der Buchstaben, Farbe von Beschriftung und Wert, Höhe, Abstand, Trennstriche, Rahmen um Symbole, Hervorhebung.
+
+**Im Spiel prüfen (vieles ging nur mit dem Nachbau)**
+
+- Alle 14 Einträge: Stimmen die Werte? Fehlt eine Funktion im Forever-Client, meldet Peon einen Fehler (`/peon fehler`).
+- Nicht am Forever-Code nachgelesen: `GetFramerate`, `GetGameTime`, `GetZoneText`, `GetXPExhaustion`, `GetInventoryItemDurability`, `ToggleCalendar`, `ToggleCharacter`, `ToggleGuildFrame`, Felder von `C_Reputation.GetWatchedFactionData`, `Sound_EnableAllSound`.
+- Stimmen die Symbole? Sie sind nach Namen aus Retail gewählt, ein fehlendes erscheint leer.
+- Getrennte Einstellungen, Panel mit Text rechts, aufklappbare Leiste und Panel in allen vier Richtungen, zweizeilige Leiste und Ziehen in die zweite Zeile.
+- Stile: Zeigt jeder einen Rahmen, passen Metall, Dialog und Holz auf die schmale Leiste und das Panel?
+- Bleibt das Spiel flüssig, auch mit Koordinaten und Leistung im Takt?
+- XP pro Stunde und Zeit bis Level-Up beim Questen, über einen Levelaufstieg und nach `/reload`.
+- Lautstärke: Mausrad, Klick. Gilde und Freunde: Stimmen die Zahlen, laden sie nach?

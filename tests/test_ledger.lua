@@ -1310,6 +1310,29 @@ check(mod.launcher and mod.launcher.showKey == "minimapShow", "0.11: Starter ueb
 check(mod.launcher.defaultText == "goldAll" and type(mod.launcher:GetText("goldAll")) == "string", "0.11: Text Gold aller Charaktere: " .. tostring(mod.launcher:GetText("goldAll")))
 check(type(mod.launcher:GetText("goldMe")) == "string", "0.11: Text Gold dieses Charakters: " .. tostring(mod.launcher:GetText("goldMe")))
 
+-- Gold der Sitzung (ab 0.12), mit Muenzsymbolen
+local function Plain(t) return (t:gsub("|T[^|]*UI%-(%a+)Icon[^|]*|t", function(k) return k:sub(1, 1):lower() end)) end
+do
+  local keepGuid = UnitGUID
+  UnitGUID = function() return "Player-1" end
+  fire("PLAYER_ENTERING_WORLD", true, false)
+  local function S() return Plain(mod.launcher:GetText("goldSession")) end
+  check(S() == "+0c", "0.12: Sitzung beginnt bei null: " .. S())
+  money = money + 123456
+  check(S() == "+12g 34s", "0.12: Gewinn mit Gold und Silber: " .. S())
+  money = money - 150000
+  check(S() == "-2g 65s", "0.12: Verlust: " .. S())
+  fire("PLAYER_ENTERING_WORLD", false, true)
+  check(S() == "-2g 65s", "0.12: /reload zaehlt weiter")
+  PeonLedgerDB.session.who = "jemand anders"
+  check(S() == "+0c", "0.12: anderer Charakter beginnt neu")
+  money = money + 30000
+  UnitGUID = keepGuid
+end
+check(Plain(ns.PanelMoney(4567)) == "45s 67c", "0.12: unter 1g mit Kupfer")
+check(Plain(ns.PanelMoney(123456789)) == "12,3kg","0.12: ab 1000g gekuerzt: " .. Plain(ns.PanelMoney(123456789)))
+check(mod.launcher:GetText("goldMe"):find("UI-GoldIcon", 1, true),"0.12: Gold mit Muenzsymbol: " .. mod.launcher:GetText("goldMe"))
+
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end
 check(n == 0, "keine Fehlermeldungen")
 print("ALLE TESTS OK")

@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.12.0
+
+Kurz: Auf der Leiste von Peon_Panel kann Ledger jetzt auch zeigen, wie viel Gold du in dieser Sitzung gewonnen oder verloren hast.
+Kurz: Gold steht auf der Leiste jetzt mit Münzsymbolen für Gold, Silber und Kupfer.
+
+- 0.12.0 (07.11.2026): Neuer Text für Peon_Panel „Gold dieser Sitzung“, zum Beispiel `+12g 34s`. Neue Einstellung `session`, sie zählt über `/reload` weiter und beginnt beim Einloggen und bei einem anderen Charakter neu.
+  - Alle Gold-Texte für Peon_Panel mit Münzsymbolen (`ns.PanelMoney`): Gold und Silber, Kupfer nur unter 1g, ab 1000g nur Gold gekürzt (`12,3k`). Wunsch KarloDerBaer.
+
 ## 0.11.0
 
 Kurz: Mit Peon_Panel zeigt Ledger auf der Leiste dein Gold.

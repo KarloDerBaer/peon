@@ -15,7 +15,10 @@
 --       texts = { { key = "free", label = "Freie Plaetze", get = function(mod) return "23 frei" end } },
 --       defaultText = "free",                         -- nil = anfangs kein Text
 --       openOptions = function() end,                 -- Standard: Optionsseite des Moduls
+--       onWheel = function(mod, delta, owner) end,    -- ab API 15: Mausrad ueber dem Eintrag
+--       available = function(mod) return true end,    -- ab API 15: false = gerade nicht anzeigen (z. B. XP auf Hoechststufe)
 --   })
+--   local e = mod:AddLauncher({ key = "uhr", ... })   -- ab API 15: weiterer Starter eines Moduls, key ist Pflicht
 --   s:Refresh()                     -- Symbol und Text neu zeichnen
 --   Peon.GetLaunchers()             -- Liste aller Starter
 --   Peon.OnLauncherAdded(fn)        -- fn(starter), auch fuer alle schon angelegten
@@ -61,20 +64,54 @@ end
 ---------------------------------------------------------------------------
 -- Starter
 ---------------------------------------------------------------------------
-function Module:NewLauncher(o)
-    if self.launcher then return self.launcher end
-    o = o or {}
+local function Create(self, o)
     local l = setmetatable({
         mod = self, key = o.key or self.key, title = o.title or self.title, icon = o.icon,
         showKey = o.showKey, onClick = o.onClick, onTooltip = o.onTooltip, hint = o.hint,
         update = o.update, menu = o.menu, texts = o.texts or {}, defaultText = o.defaultText,
-        openOptions = o.openOptions,
+        openOptions = o.openOptions, onWheel = o.onWheel, available = o.available,
     }, Launcher)
-    self.launcher = l
     launchers[#launchers + 1] = l
     Restore(l)
-    for _, fn in ipairs(addedFns) do self:Call("Starter", fn, l) end
     return l
+end
+
+local function Announce(self, l)
+    for _, fn in ipairs(addedFns) do self:Call("Starter", fn, l) end
+end
+
+function Module:NewLauncher(o)
+    if self.launcher then return self.launcher end
+    local l = Create(self, o or {})
+    self.launcher = l
+    Announce(self, l)
+    return l
+end
+
+-- Weiterer Starter eines Moduls (ab API 15). Gleicher Schluessel: derselbe Starter.
+function Module:AddLauncher(o)
+    assert(type(o) == "table" and type(o.key) == "string", "Peon: AddLauncher braucht einen Schluessel")
+    self.extraLaunchers = self.extraLaunchers or {}
+    if self.extraLaunchers[o.key] then return self.extraLaunchers[o.key] end
+    local l = Create(self, o)
+    self.extraLaunchers[o.key] = l
+    Announce(self, l)
+    return l
+end
+
+-- Ein Fehler in der Pruefung blendet den Eintrag nicht aus
+function Launcher:IsAvailable()
+    if not self.available then return true end
+    local ok, on = pcall(self.available, self.mod)
+    if not ok then
+        self.mod:ReportError("Starter", on)
+        return true
+    end
+    return on ~= false
+end
+
+function Launcher:Wheel(delta, owner)
+    if self.onWheel then self.mod:Call("Starter", self.onWheel, self.mod, delta, owner) end
 end
 
 function Launcher:HasMinimap() return self.showKey ~= nil end
