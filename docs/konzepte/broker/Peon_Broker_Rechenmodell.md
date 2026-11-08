@@ -461,10 +461,20 @@ Peon_Client hängt an jeden neuen Namen Händlerpreis und Warenart an: `names[it
 
 Gegenstandsseite: grün („Schnäppchen“) nur, wenn das günstigste Angebot mindestens 5 % unter dem Vergleichspreis und mindestens 20 % unter dem Median der aktuellen Angebote liegt. Bei nur einem Stück zählt der Abstand nicht.
 
+**Ab Manager 0.22.0** (KarloDerBaer 08.11.2026, Beispiele Robuster Stein und Umhang des Hügelwächters):
+
+| Nr. | Ergebnis | Formel |
+|---|---|---|
+| F50b | Menge unter dem Ziel | Stück unter dem Verkaufsziel (F50a) im Scan. Liegen dort mehr als 1 × Absatz je Tag (Absatz-Stufe ab 2), ist es kein Wiederverkauf. Gegenstandsseite: Stück unter UNTEN im letzten Scan, mehr als ein Tagesabsatz heißt „Das ist der Marktpreis“. |
+| F50c | Unsicherer Bereich | SCHW über 40 %: kein Wiederverkauf, keine Prozentzahl auf der Gegenstandsseite, „Zu üblich“ grau. |
+| F54 (neu) | Neues Preisniveau | Fenster 12 Std. statt 24 Std., mindestens 3 Stände, erster und letzter mindestens 6 Std. auseinander. |
+
+Die Ansicht Chancen (Wiederverkauf, Händler) zeigt nur die Treffer des letzten Scans. Über den Zeitraum wird nur gezählt, in wie vielen Scans der Gegenstand eine Chance war und zu welcher Tageszeit meistens.
+
 ## Offene Fragen
 
 - Keine. Kapitel 1–7 sind abgestimmt (Kapitel 7 am 02.10.2026, umgesetzt in Broker 0.21.0).
-- Kapitel 9 und 10: Schwellen (20 % Abstand, 15 % Bewegung, 80 % Nachweis, 10 Silber Mindestgewinn, 25 % Kürzung, 12 Std. für ein neues Niveau) in 2 bis 4 Wochen mit der Trefferquote (F55) prüfen, wenn der Markt nach dem Start ruhiger ist.
+- Kapitel 9 und 10: Schwellen (20 % Abstand, 15 % Bewegung, 80 % Nachweis, 10 Silber Mindestgewinn, 25 % Kürzung, 12 Std. für ein neues Niveau, 1 Tagesabsatz unter dem Ziel, 40 % unsichere Schwankung) in 2 bis 4 Wochen mit der Trefferquote (F55) prüfen, wenn der Markt nach dem Start ruhiger ist.
 
 ## Entschieden (30.09.2026)
 

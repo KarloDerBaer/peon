@@ -124,7 +124,7 @@ test('Chancen: Wiederverkauf, Haendler, Fallend, Lohnend', () => {
   assert.ok(r.sales && r.doubt && r.perDay === null, 'nie nahe der Untergrenze verkauft: zweifelhaft');
   assert.ok(r.now && r.now.qty === 40, 'im letzten Scan noch 40 Stueck');
   const v = c.vendor.list.find((x) => x.key === '4306');
-  assert.ok(v && v.perPiece === 200 && v.perScan === 5 && v.perDay === 1000, 'Seidenstoff 300 statt Haendler 500');
+  assert.ok(v && v.perPiece === 200 && v.qty === 5 && v.perDay === 1000, 'Seidenstoff 300 statt Haendler 500');
   // ab 0.21.0 (F37a): Seidenstoff 900 auf 300 wird nicht mehr weggekuerzt und zaehlt als fallend
   assert.ok(c.up.length === 0 && c.down.length === 1 && c.down[0].key === '4306');
   assert.equal(c.worth.find((x) => x.key === '2589'), undefined, 'Lohnend: nur zu 500 verkauft, weit unter dem Bereich');

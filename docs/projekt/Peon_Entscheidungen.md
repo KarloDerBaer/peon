@@ -2,6 +2,13 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 08.11.2026: Chancen für Massenware (Manager 0.22.0)
+
+- **Menge unter dem Ziel zählt** (KarloDerBaer): Liegt sehr viel Ware unter dem üblichen Bereich, ist das der Marktpreis. Man müsste den Markt leer kaufen, um den Preis zu bewegen. Grenze vorerst ein Tagesabsatz (Claude), später mit der Trefferquote prüfen.
+- **Chancen zeigen nur den letzten Scan** (KarloDerBaer, Variante A): Die Tabelle zeigt, was jetzt eine Chance ist. Der Zeitraum bleibt als Zusatzinfo (wie oft, wann meistens). Eine eigene Ansicht für wiederkehrende Gelegenheiten gibt es vorerst nicht.
+- **Bereich mit über 40 % Schwankung gilt als unsicher** (Claude): Nach mehreren Tagen Preisverfall wird die Schwankung so groß, dass der Bereich nichts mehr aussagt (Umhang des Hügelwächters: 10s bis 95s).
+- **Neues Preisniveau schon nach 12 Std.** (Claude): 24 Std. waren bei einem schnellen Absturz zu träge.
+
 ## 08.11.2026: Bessere Vorschläge (Manager 0.21.0, Broker 0.38.0)
 
 - **Fehler im Rechenweg jetzt beheben, Grenzwerte später einstellen** (KarloDerBaer): Der Markt schwankt nach dem Start stark. Fehler, die nicht vom Markt abhängen (Kürzung, veralteter Bereich, gleich tiefe Angebote), werden gleich behoben. Die Zahlen (Prozent, Tage) werden in 2 bis 4 Wochen mit der Trefferquote geprüft.

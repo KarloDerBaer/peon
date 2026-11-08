@@ -98,6 +98,8 @@ export function slotText(s) {
 // - Gruen (Schnaeppchen) nur, wenn das guenstigste Angebot auch deutlich unter den anderen Angeboten liegt (SPREAD).
 //   Liegen alle Angebote gleich tief, ist der Preis gefallen und das guenstigste kein Schnaeppchen.
 export const SPREAD = 0.2;
+// Schwankung ueber 40 %: kein verlaesslicher ueblicher Bereich (wie chances.UNSURE, Manager 0.22.0)
+export const UNSURE = 0.4;
 export function verdict(d) {
   if (!d) return null;
   const c = d.current;
@@ -105,15 +107,24 @@ export function verdict(d) {
   let tone = '', head = '';
   if (c && c.qty > 0 && c.min != null) {
     const sh = d.longterm && d.shift;
+    // Ab Manager 0.22.0: Bereich zu breit (F50c) oder mehr als ein Tagesabsatz unter dem Bereich (F50b)
+    const unsure = !sh && d.longterm && d.longterm.schw > UNSURE;
+    const perDay = d.sales && d.sales.level >= 2 ? d.sales.perDay : null;
+    const deep = !sh && !unsure && d.depth && perDay != null && d.depth.below > perDay;
     const ref = sh ? sh.level : d.longterm ? d.longterm.lang : d.median7;
-    const was = sh ? 'dem Preis der letzten 24 Std.' : d.longterm ? 'dem üblichen Preis' : 'dem Mittel aus 7 Tagen';
+    const was = sh ? 'dem Preis der letzten 12 Std.' : d.longterm ? 'dem üblichen Preis' : 'dem Mittel aus 7 Tagen';
     if (sh) head = sh.dir === 'down'
-      ? 'Der Preis ist gefallen: Seit mindestens 12 Std. liegen alle Stände unter dem üblichen Bereich. '
-      : 'Der Preis ist gestiegen: Seit mindestens 12 Std. liegen alle Stände über dem üblichen Bereich. ';
-    if (ref > 0) {
+      ? 'Der Preis ist gefallen: In den letzten 12 Std. lagen alle Stände unter dem üblichen Bereich. '
+      : 'Der Preis ist gestiegen: In den letzten 12 Std. lagen alle Stände über dem üblichen Bereich. ';
+    else if (deep) {
+      const n = d.depth.below / Math.max(perDay, 0.1);
+      head = `Das ist der Marktpreis: Unter dem üblichen Bereich liegen ${d.depth.below.toLocaleString('de-DE')} Stück, so viel wie in ${n >= 10 ? Math.round(n).toLocaleString('de-DE') : n.toLocaleString('de-DE', { maximumFractionDigits: 1 })} Tagen verkauft wird. `;
+    }
+    if (unsure) parts.push('Der Preis schwankt stark, einen verlässlichen üblichen Preis gibt es gerade nicht');
+    else if (ref > 0) {
       const p = Math.round((c.min / ref - 1) * 100);
       // Liegen die anderen Angebote fast genauso tief? Bei nur einem Stueck laesst sich das nicht sagen.
-      const same = c.qty > 1 && c.median > 0 && c.min >= c.median * (1 - SPREAD);
+      const same = deep || (c.qty > 1 && c.median > 0 && c.min >= c.median * (1 - SPREAD));
       if (p <= -5 && same) parts.push(`Das günstigste Angebot liegt ${-p} % unter ${was}, die anderen Angebote aber auch`);
       else if (p <= -5) { parts.push(`Das günstigste Angebot liegt ${-p} % unter ${was}`); tone = 'good'; }
       else if (p >= 5) { parts.push(`Das günstigste Angebot liegt ${p} % über ${was}`); tone = 'bad'; }

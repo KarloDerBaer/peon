@@ -14,6 +14,9 @@ const MOVE = 0.15;         // Fallend/Steigend: mindestens 15 % vom Langzeitwert
 const DUMP = 0.30;         // Dumping: Min unter 70 % vom Langzeitwert (wie Broker dumpPct)
 const SLOTS = 8;           // 3-Stunden-Abschnitte
 const PROOF = 0.8;         // in 14 Tagen mindestens einmal zu 80 % des Zielpreises verkauft, sonst zweifelhaft (Scherzpreise)
+// Ab Manager 0.22.0 (KarloDerBaer 08.11.2026, Beispiele Robuster Stein und Umhang des Huegelwaechters):
+const DEPTH = 1;           // F50b: unter dem Verkaufsziel hoechstens so viel Ware wie in DEPTH Tagen verkauft wird
+const UNSURE = 0.4;        // F50c: Schwankung ueber 40 %: Bereich zu breit, kein Wiederverkauf
 
 function low(b) { return Math.max(0, b.lang * (1 - b.schw)); }
 function high(b) { return b.lang * (1 + b.schw); }
@@ -29,9 +32,29 @@ function vendorMap(db) {
 // shifts = Map key -> neues Preisniveau (F54): faellt der Preis gerade, kein Wiederverkauf
 // Ab Manager 0.21.0 (F50a): Wiederverkauf hoechstens zum Median der Angebote dieses Scans. Liegen alle Angebote
 // gleich tief, ist das guenstigste kein Schnaeppchen (wie Broker: Verkauf hoechstens zum naechsten Angebot).
-function scanOpp(rows, bands, vendors, shifts = null) {
+// Ab Manager 0.22.0: F50b Menge unter dem Ziel (sales = Map key -> Absatz, nur ab Stufe 2 geprueft): Liegt unter dem
+// Verkaufsziel mehr Ware, als in einem Tag verkauft wird, muesste man den Markt leer kaufen. Das ist der Marktpreis,
+// keine Chance. F50c: Bei Schwankung ueber 40 % ist der Bereich zu breit fuer ein Verkaufsziel.
+function scanOpp(rows, bands, vendors, shifts = null, sales = null) {
   const res = new Map();   // "key|kind" -> { key, kind, qty, profit, cost, ref }
   const sum = bands.size ? summarize(rows) : new Map();
+  // Verkaufsziel je Gegenstand (F50a) und Menge darunter (F50b)
+  const target = new Map();
+  for (const [key, s] of sum) {
+    const b = bands.get(key);
+    const sh = shifts && shifts.get(key);
+    if (!b || b.schw > UNSURE || (sh && sh.dir === 'down')) continue;
+    target.set(key, { sell: s && s.median > 0 ? Math.min(low(b), s.median) : low(b), below: 0 });
+  }
+  for (const r of rows) {
+    const x = target.get(itemKey(r));
+    const p = unitPrice(r);
+    if (x && p != null && r.qty > 0 && p < x.sell) x.below += r.qty * r.n;
+  }
+  for (const [key, x] of target) {
+    const s = sales && sales.get(key);
+    if (s && s.level >= 2 && s.perDay != null && x.below > DEPTH * s.perDay) target.delete(key);
+  }
   const add = (key, kind, q, g, p, ref) => {
     const k = key + '|' + kind;
     const x = res.get(k) || { key, kind, qty: 0, profit: 0, cost: 0, ref };
@@ -43,11 +66,9 @@ function scanOpp(rows, bands, vendors, shifts = null) {
     if (p == null || !(r.qty > 0)) continue;
     const key = itemKey(r);
     const q = r.qty * r.n;
-    const b = bands.get(key);
-    const sh = shifts && shifts.get(key);
-    if (b && !(sh && sh.dir === 'down')) {
-      const s = sum.get(key);
-      const sell = s && s.median > 0 ? Math.min(low(b), s.median) : low(b);
+    const t = target.get(key);
+    if (t) {
+      const sell = t.sell;
       const g = sell * (1 - CUT) - p;
       if (sell > 0 && g >= MARGIN * p && g > 0) add(key, 'r', q, g, p, sell);
     }
@@ -64,7 +85,7 @@ function rowsOf(db, id) {
 }
 
 // Neue Scans auswerten; bei neuen Haendlerpreisen die Haendler-Treffer der letzten 14 Tage neu rechnen
-function updateMarket(db, marketId, bands, now, shifts = null) {
+function updateMarket(db, marketId, bands, now, shifts = null, sales = null) {
   const vendors = vendorMap(db);
   // Stand der Haendlerpreise (Anzahl und Summe): aendert sich einer, werden die Haendler-Treffer neu gerechnet
   let sum = 0;
@@ -81,7 +102,7 @@ function updateMarket(db, marketId, bands, now, shifts = null) {
       const rows = rowsOf(db, s.id);
       if (!rows) continue;
       const fresh = s.vendor_n == null;
-      let list = scanOpp(rows, fresh ? bands : new Map(), vendors, shifts);
+      let list = scanOpp(rows, fresh ? bands : new Map(), vendors, shifts, sales);
       if (!fresh) { db.prepare("DELETE FROM opp_snap WHERE snapshot_id = ? AND kind = 'v'").run(s.id); res.vendor++; }
       else res.scans++;
       for (const x of list) ins.run(s.id, marketId, x.key, s.t, x.kind, x.qty, x.profit, x.cost, x.ref);
@@ -95,7 +116,7 @@ function updateMarket(db, marketId, bands, now, shifts = null) {
 // Aendern sich die Regeln, gelten die alten Treffer nicht mehr (Manager 0.21.1: sonst zeigte „Beste Chancen jetzt“
 // noch Treffer nach den Regeln vor 0.21.0, zum Beispiel Robuster Stein). Dann alle Wiederverkaufs-Treffer loeschen
 // und den letzten Scan jedes Markts neu auswerten lassen. Die Trefferquote beginnt damit neu, nur mit den neuen Regeln.
-const RULES = 2;
+const RULES = 3;   // 3: Manager 0.22.0 (F50b, F50c)
 function resetRules(db, current) {
   if (current === RULES) return false;
   tx(db, () => {
@@ -115,34 +136,36 @@ function itemInfo(db) {
   return (key) => get.get(key) || { name: null, quality: null, item_id: Number(String(key).split(':')[0]), variant: null, vendor: null };
 }
 
-// Treffer eines Typs (r/v) zusammenfassen
+// Treffer eines Typs (r/v). Ab Manager 0.22.0 (KarloDerBaer 08.11.2026) nur, was der letzte Scan ergeben hat, mit
+// den Preisen aus diesem Scan. Der Zeitraum zeigt nur noch, wie oft der Gegenstand dabei war und wann meistens.
 function summarizeOpp(db, marketId, kind, days, now, sales, lastId) {
   const from = now - days * 86400;
   const scans = db.prepare('SELECT COUNT(*) AS n FROM opp_scan WHERE market_id = ? AND t >= ?').get(marketId, from).n;
-  if (!scans) return { scans: 0, list: [] };
+  if (!scans || !lastId) return { scans, list: [] };
   const by = new Map();
-  for (const r of db.prepare('SELECT snapshot_id, item_key, t, qty, profit, cost, ref FROM opp_snap WHERE market_id = ? AND kind = ? AND t >= ?').iterate(marketId, kind, from)) {
-    let x = by.get(r.item_key);
-    if (!x) { x = { key: r.item_key, hits: 0, qty: 0, profit: 0, cost: 0, ref: r.ref, refT: r.t, slots: new Array(SLOTS).fill(0), now: null }; by.set(r.item_key, x); }
-    x.hits++; x.qty += r.qty; x.profit += r.profit; x.cost += r.cost;
+  for (const r of db.prepare('SELECT item_key, qty, profit, cost, ref FROM opp_snap WHERE snapshot_id = ? AND kind = ?').iterate(lastId, kind)) {
+    if (r.qty > 0) by.set(r.item_key, { key: r.item_key, qty: r.qty, profit: r.profit, cost: r.cost, ref: r.ref, hits: 0, slots: new Array(SLOTS).fill(0) });
+  }
+  for (const r of db.prepare('SELECT item_key, t FROM opp_snap WHERE market_id = ? AND kind = ? AND t >= ?').iterate(marketId, kind, from)) {
+    const x = by.get(r.item_key);
+    if (!x) continue;
+    x.hits++;
     x.slots[slotOf(r.t)]++;
-    if (r.t >= x.refT) { x.ref = r.ref; x.refT = r.t; }
-    if (r.snapshot_id === lastId) x.now = { qty: r.qty, profit: r.profit, price: r.cost / r.qty };
   }
   const info = itemInfo(db);
   const list = [];
   for (const x of by.values()) {
     const s = sales.get(x.key) || null;
-    const perScan = x.qty / scans;
     const per = x.profit / x.qty;
     const best = x.slots.indexOf(Math.max(...x.slots));
     // Wiederverkauf nur, wenn zu diesem Preis auch verkauft wird (hoechster Verkauf in 14 Tagen mindestens 80 % des Ziels)
     const doubt = kind === 'r' && s && s.sold > 0 && (s.maxSold ?? 0) < PROOF * x.ref;
-    const value = kind === 'v' ? perScan * per : (s && s.perDay != null && !doubt ? Math.min(s.perDay, perScan) * per : null);
+    const value = kind === 'v' ? x.qty * per : (s && s.perDay != null && !doubt ? Math.min(s.perDay, x.qty) * per : null);
     const i = info(x.key);
-    list.push({ key: x.key, name: i.name, quality: i.quality, item: i.item_id, share: x.hits / scans, hits: x.hits, perScan,
-      perPiece: per, buy: x.cost / x.qty, sell: x.ref, perDay: value, rough: perScan * per,
-      sales: s ? { perDay: s.perDay, level: s.level, rate: s.rate, avgPrice: s.avgPrice, maxSold: s.maxSold } : null, doubt: !!doubt, slot: x.slots[best] ? best : null, now: x.now });
+    list.push({ key: x.key, name: i.name, quality: i.quality, item: i.item_id, share: Math.min(1, x.hits / scans), hits: x.hits, qty: x.qty,
+      perPiece: per, buy: x.cost / x.qty, sell: x.ref, perDay: value, rough: x.qty * per,
+      sales: s ? { perDay: s.perDay, level: s.level, rate: s.rate, avgPrice: s.avgPrice, maxSold: s.maxSold } : null, doubt: !!doubt, slot: x.slots[best] ? best : null,
+      now: { qty: x.qty, profit: x.profit, price: x.cost / x.qty } });
   }
   list.sort((a, b) => (b.perDay ?? -1) - (a.perDay ?? -1) || b.rough - a.rough);
   return { scans, list };
@@ -221,4 +244,4 @@ function worth(db, bands, sales) {
   return out;
 }
 
-module.exports = { scanOpp, updateMarket, summarizeOpp, moves, worth, hitRate, resetRules, low, high, CUT, MARGIN, SLOTS, HOLD, RULES };
+module.exports = { scanOpp, updateMarket, summarizeOpp, moves, worth, hitRate, resetRules, rowsOf, low, high, CUT, MARGIN, SLOTS, HOLD, RULES, DEPTH, UNSURE };

@@ -29,14 +29,20 @@ function draw() {
   const br = d.broker;
   const P = (arr, f) => arr.filter((x) => x[f] != null).map((x) => [x.t * 1000, x[f]]);
   const text = css('--muted'), line = css('--line-soft'), accent = css('--accent'), silver = css('--silver'), faint = css('--faint'), gold = css('--gold');
-  const axisX = (i) => ({ type: 'time', gridIndex: i, axisLine: { lineStyle: { color: line } }, splitLine: { show: false },
-    axisLabel: { show: i === 1, color: text, fontFamily: FONT, hideOverlap: true,
-      formatter: (v) => new Date(v).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) } });
   const band = own.filter((x) => x.p25 != null && x.p75 != null);
   // Ueblicher Bereich je Tag (wie Broker ihn an dem Tag bekommen haette), als Treppe ueber den Tag
   const bands = d.bands || [];
   const step = (f) => bands.flatMap((b) => [[(b.t - 12 * 3600) * 1000, b[f]], [(b.t + 12 * 3600 - 1) * 1000, b[f]]]);
   const sd = (d.salesDays || []).map((x) => [x.t * 1000, Math.round(x.perDay * 10) / 10]);
+  // Beide Diagramme auf derselben Zeitachse (Manager 0.22.0): sonst passt sich jede Achse ihren eigenen Daten an
+  // und Preis und Menge liegen gegeneinander verschoben
+  const xs = [...own, ...live, ...br].map((x) => x.t * 1000).concat(step('low').map((x) => x[0]), sd.map((x) => x[0]));
+  const x0 = xs.length ? Math.min(...xs) : null, x1 = xs.length ? Math.max(...xs) : null;
+  const short = x1 != null && x1 - x0 < 2 * 86400 * 1000;
+  const axisX = (i) => ({ type: 'time', gridIndex: i, min: x0, max: x1, axisLine: { lineStyle: { color: line } }, splitLine: { show: false },
+    axisLabel: { show: i === 1, color: text, fontFamily: FONT, hideOverlap: true,
+      formatter: (v) => short ? new Date(v).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+        : new Date(v).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) } });
   const warn = css('--warn');
   chart.setOption({
     animation: false,

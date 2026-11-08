@@ -9,8 +9,9 @@ const DAYS = 14, MIN_DAYS = 3, HALF = 3, MIN_SCHW = 0.05;
 // Ab Manager 0.21.0 (KarloDerBaer 08.11.2026): nach unten wird erst bei mindestens 25 % Schwankung gekuerzt (F37a).
 // Sonst schneidet die Kuerzung bei wenigen, gleichen Tagen einen echten Preissturz einfach ab (Beispiel Magicusmantel).
 const CLIP_LOW_SCHW = 0.25;
-// Neues Preisniveau (F54): alle Staende der letzten 24 Std. unter bzw. ueber dem Bereich, mindestens 3 Staende ueber 12 Std.
-const SHIFT_WINDOW = 86400, SHIFT_SPAN = 12 * 3600, SHIFT_MIN = 3;
+// Neues Preisniveau (F54): alle Staende der letzten 12 Std. unter bzw. ueber dem Bereich, mindestens 3 Staende ueber 6 Std.
+// (bis Manager 0.21.1: 24 Std. und 12 Std., bei einem schnellen Absturz zu traege, Beispiel Robuster Stein)
+const SHIFT_WINDOW = 12 * 3600, SHIFT_SPAN = 6 * 3600, SHIFT_MIN = 3;
 
 function median(list) {
   const s = [...list].sort((a, b) => a - b);
@@ -99,7 +100,7 @@ function itemBandHistory(db, marketId, key, fromDay, toDay) {
   return out;
 }
 
-// F54 Neues Preisniveau: Liegen alle Staende der letzten 24 Std. unter (ueber) dem ueblichen Bereich, gilt der Bereich
+// F54 Neues Preisniveau: Liegen alle Staende der letzten 12 Std. unter (ueber) dem ueblichen Bereich, gilt der Bereich
 // als veraltet. bands = Map key -> Langzeit-Teil. Rueckgabe Map key -> { dir: 'down' | 'up', level, n, since }
 // level = Median der Staende im Fenster, since = Zeit des ersten Stands im Fenster
 function shifts(db, marketId, now, bands, key = null) {
@@ -135,4 +136,4 @@ function encode(r) {
 
 // Hinweis: toLua schreibt reine Zahlen-Schluessel als [2770] (Zahl wie in Broker), alle anderen als Text.
 
-module.exports = { marketLongTerm, dayValues, itemBandHistory, compute, shifts, encode, median, DAYS, MIN_DAYS, CLIP_LOW_SCHW };
+module.exports = { marketLongTerm, dayValues, itemBandHistory, compute, shifts, encode, median, DAYS, MIN_DAYS, CLIP_LOW_SCHW, SHIFT_WINDOW };

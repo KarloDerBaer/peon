@@ -43,26 +43,24 @@ watch([search, quality, minSilver, days], () => { limit.value = 50; });
 const COLS = {
   resale: [
     { key: 'name', label: 'Gegenstand', w: 3 },
-    { key: 'buy', label: 'Einkauf Ø', num: true, gold: true },
-    { key: 'sell', label: 'Verkauf zu', num: true, gold: true, tip: 'Untergrenze des üblichen Bereichs, wie Broker bei Dumping' },
+    { key: 'buy', label: 'Einkauf Ø', num: true, gold: true, tip: 'Mittlerer Preis der lohnenden Angebote im letzten Scan' },
+    { key: 'sell', label: 'Verkauf zu', num: true, gold: true, tip: 'Untergrenze des üblichen Bereichs, höchstens der Median der Angebote' },
     { key: 'perPiece', label: 'Gewinn/Stück', num: true, gold: true, tip: 'Gewinn je Stück nach 5 % Gebühr' },
-    { key: 'perScan', label: 'Stück/Scan', num: true },
-    { key: 'share', label: 'Treffer', num: true, tip: 'Anteil der Scans mit solchen Angeboten' },
+    { key: 'qty', label: 'Stück', num: true, tip: 'Lohnende Stück im letzten Scan' },
     { key: 'sales', label: 'Absatz/Tag', num: true },
-    { key: 'perDay', label: 'Gewinn/Tag', num: true, gold: true, tip: 'Stück je Scan, höchstens Absatz je Tag, mal Gewinn je Stück' },
-    { key: 'nowQty', label: 'Jetzt', num: true, tip: 'Stück im letzten Scan' },
-    { key: 'slot', label: 'Meist', num: true, tip: 'Tageszeit mit den meisten Treffern' },
+    { key: 'perDay', label: 'Gewinn/Tag', num: true, gold: true, tip: 'Stück, höchstens Absatz je Tag, mal Gewinn je Stück' },
+    { key: 'share', label: 'In Scans', num: true, tip: 'Anteil der Scans im Zeitraum, in denen der Gegenstand eine Chance war' },
+    { key: 'slot', label: 'Meist', num: true, tip: 'Tageszeit, zu der er im Zeitraum am häufigsten eine Chance war' },
   ],
   vendor: [
     { key: 'name', label: 'Gegenstand', w: 3 },
-    { key: 'buy', label: 'Einkauf Ø', num: true, gold: true },
+    { key: 'buy', label: 'Einkauf Ø', num: true, gold: true, tip: 'Mittlerer Preis der lohnenden Angebote im letzten Scan' },
     { key: 'sell', label: 'Händler', num: true, gold: true },
     { key: 'perPiece', label: 'Gewinn/Stück', num: true, gold: true, tip: 'Gewinn je Stück' },
-    { key: 'perScan', label: 'Stück/Scan', num: true },
-    { key: 'share', label: 'Treffer', num: true, tip: 'Anteil der Scans mit solchen Angeboten' },
-    { key: 'perDay', label: 'Gewinn/Tag', num: true, gold: true, tip: 'Stück je Scan mal Gewinn je Stück' },
-    { key: 'nowQty', label: 'Jetzt', num: true, tip: 'Stück im letzten Scan' },
-    { key: 'slot', label: 'Meist', num: true, tip: 'Tageszeit mit den meisten Treffern' },
+    { key: 'qty', label: 'Stück', num: true, tip: 'Lohnende Stück im letzten Scan' },
+    { key: 'perDay', label: 'Gewinn', num: true, gold: true, tip: 'Stück mal Gewinn je Stück' },
+    { key: 'share', label: 'In Scans', num: true, tip: 'Anteil der Scans im Zeitraum, in denen der Gegenstand eine Chance war' },
+    { key: 'slot', label: 'Meist', num: true, tip: 'Tageszeit, zu der er im Zeitraum am häufigsten eine Chance war' },
   ],
   move: [
     { key: 'name', label: 'Gegenstand', w: 3 },
@@ -97,7 +95,6 @@ const raw = computed(() => {
 function sortVal(x, k) {
   if (k === 'name') return fold(itemName(x));
   if (k === 'sales') return x.sales ? x.sales.perDay : x.perDay ?? null;
-  if (k === 'nowQty') return x.now && typeof x.now === 'object' ? x.now.qty : null;
   if (k === 'perDay' && tab.value === 'worth') return x.perDay;
   return x[k];
 }
@@ -132,8 +129,8 @@ function sortBy(c) {
 }
 
 const intro = computed(() => ({
-  resale: 'Angebote, die so tief unter dem üblichen Bereich liegen, dass sich Kaufen und zur Untergrenze wieder Einstellen lohnt (mindestens 20 % Gewinn nach Gebühr). Verkauft wird höchstens zum Median der Angebote. Liegen alle Angebote gleich tief oder ist der Preis seit 12 Std. gefallen, ist es keine Chance. Der Gewinn je Tag ist durch den Absatz begrenzt. „Zweifelhaft“: in 14 Tagen wurde nie nahe der Untergrenze verkauft.',
-  vendor: 'Angebote unter dem Händlerpreis: kaufen und beim Händler verkaufen. Keine Gebühr, kein Risiko.',
+  resale: 'Chancen im letzten Scan: Angebote, die so tief unter dem üblichen Bereich liegen, dass sich Kaufen und zur Untergrenze wieder Einstellen lohnt (mindestens 20 % Gewinn nach Gebühr). Verkauft wird höchstens zum Median der Angebote. Keine Chance ist es, wenn alle Angebote gleich tief liegen, der Preis seit 12 Std. gefallen ist, unter dem Ziel mehr Ware liegt, als an einem Tag verkauft wird, oder der Preis zu stark schwankt. Der Gewinn je Tag ist durch den Absatz begrenzt. „Zweifelhaft“: in 14 Tagen wurde nie nahe der Untergrenze verkauft. Der Zeitraum zählt nur, wie oft der Gegenstand schon eine Chance war.',
+  vendor: 'Chancen im letzten Scan: Angebote unter dem Händlerpreis, kaufen und beim Händler verkaufen. Keine Gebühr, kein Risiko. Der Zeitraum zählt nur, wie oft der Gegenstand schon eine Chance war.',
   down: 'Median im letzten Scan mindestens 15 % unter dem Langzeitwert und unter dem üblichen Bereich. Rotes ▼ bei Min jetzt: Dumping, das günstigste Angebot liegt mehr als 30 % unter dem Langzeitwert.',
   up: 'Median im letzten Scan mindestens 15 % über dem Langzeitwert und über dem üblichen Bereich.',
   worth: 'Gegenstände mit sicherem Absatz (mindestens 1 Std. beobachtet), sortiert nach dem, was zwischen Unter- und Obergrenze am Tag zu holen ist.',
@@ -145,8 +142,8 @@ const emptyText = computed(() => {
   if ((t === 'resale' || t === 'up' || t === 'down') && !d.value.bands) return 'Dafür braucht es den üblichen Bereich, also Daten an mindestens 3 Tagen.';
   if (t === 'vendor' && !d.value.vendorKnown) return 'Händlerpreise kommen über Peon_Bridge aus dem Spiel, mit dem nächsten Komplettscan.';
   if (t === 'worth' && !d.value.sure) return 'Dafür braucht es Absatz, also Komplettscans höchstens 24 Std. auseinander, zusammen mindestens 1 Std. beobachtet.';
-  if (total.value && !rows.value.length) return 'Nichts über dem Mindestgewinn. Setz ihn tiefer oder wähle einen längeren Zeitraum.';
-  return 'Im Moment nichts.';
+  if (total.value && !rows.value.length) return 'Nichts über dem Mindestgewinn. Setz ihn tiefer.';
+  return 'Im letzten Scan nichts.';
 });
 
 function counts(k) {
@@ -208,11 +205,10 @@ function counts(k) {
             <td class="num"><Gold :copper="r.buy" compact /></td>
             <td class="num"><Gold :copper="r.sell" compact /></td>
             <td class="num"><Gold :copper="r.perPiece" compact /></td>
-            <td class="num">{{ r.perScan >= 10 ? num(Math.round(r.perScan)) : r.perScan.toLocaleString('de-DE', { maximumFractionDigits: 1 }) }}</td>
-            <td class="num muted">{{ Math.round(r.share * 100) }} %</td>
+            <td class="num">{{ num(r.qty) }}</td>
             <td class="num" v-if="tab === 'resale'"><Sales :s="r.sales" /></td>
             <td class="num strong"><Gold v-if="r.perDay != null" :copper="r.perDay" compact /><span v-else-if="r.doubt" class="faint" title="In 14 Tagen nie nahe der Untergrenze verkauft">zweifelhaft</span><span v-else class="faint" title="Absatz noch unbekannt">?</span></td>
-            <td class="num">{{ r.now ? num(r.now.qty) : '' }}</td>
+            <td class="num muted">{{ Math.round(r.share * 100) }} %</td>
             <td class="num muted small">{{ slotText(r.slot) }}</td>
           </template>
           <template v-else-if="tab === 'up' || tab === 'down'">

@@ -52,16 +52,16 @@ function snap(d, key, t, min, median) {
     .run(`s${t}-${key}`, key, t, min, median);
 }
 
-test('F54: neues Preisniveau, alle Staende der letzten 24 Std. unter dem Bereich', () => {
+test('F54: neues Preisniveau, alle Staende der letzten 12 Std. unter dem Bereich (ab 0.22.0)', () => {
   const d = db();
   const bands = new Map([['a', { lang: 4 * G, schw: 0.05 }], ['b', { lang: 4 * G, schw: 0.05 }], ['c', { lang: 4 * G, schw: 0.05 }]]);
-  for (const h of [20, 14, 8, 2]) snap(d, 'a', NOW - h * 3600, 12000, 12400);
-  // b: einer im Bereich, c: nur 6 Std. lang beobachtet
-  for (const h of [20, 14, 8]) snap(d, 'b', NOW - h * 3600, 12000, 12400);
+  for (const h of [11, 8, 4, 2]) snap(d, 'a', NOW - h * 3600, 12000, 12400);
+  // b: einer im Bereich, c: nur 4 Std. lang beobachtet
+  for (const h of [11, 8, 5]) snap(d, 'b', NOW - h * 3600, 12000, 12400);
   snap(d, 'b', NOW - 3600, 39000, 40000);
-  for (const h of [6, 3, 1]) snap(d, 'c', NOW - h * 3600, 12000, 12400);
-  // aelter als 24 Std. zaehlt nicht
-  snap(d, 'a', NOW - 30 * 3600, 40000, 40000);
+  for (const h of [5, 3, 1]) snap(d, 'c', NOW - h * 3600, 12000, 12400);
+  // aelter als 12 Std. zaehlt nicht (Robuster Stein: vor 23 Std. noch im Bereich)
+  snap(d, 'a', NOW - 23 * 3600, 40000, 40000);
   const s = longterm.shifts(d, 1, NOW, bands);
   assert.deepEqual([...s.keys()], ['a']);
   assert.equal(s.get('a').dir, 'down');
@@ -124,6 +124,64 @@ test('Satz auf der Gegenstandsseite: kein Schnaeppchen, wenn alle Angebote gleic
   assert.equal(v2.tone, 'good');
   // neues Preisniveau: Vergleich mit den letzten 24 Std.
   const v3 = verdict({ ...base, shift: { dir: 'down', level: 12400 }, current: { qty: 12, min: 12000, median: 12400 } });
-  assert.match(v3.text, /^Der Preis ist gefallen: .*\. Das günstigste Angebot (entspricht|liegt \d+ % unter) dem Preis der letzten 24 Std\./);
+  assert.match(v3.text, /^Der Preis ist gefallen: .*\. Das günstigste Angebot (entspricht|liegt \d+ % unter) dem Preis der letzten 12 Std\./);
   assert.equal(v3.tone, '');
+});
+
+test('F50b: kein Wiederverkauf, wenn unter dem Ziel mehr als ein Tagesabsatz liegt (Robuster Stein)', () => {
+  const bands = new Map([['7912', { lang: 900, schw: 0.05 }]]);
+  // ein Angebot tief, die anderen im Bereich
+  const rows = parseRows(['7912;;;20;6000;;;4;;10', '7912;;;20;18000;;;4;;10'].join('\n'));
+  const deal = (s) => chances.scanOpp(rows, bands, new Map(), null, new Map([['7912', s]])).find((x) => x.kind === 'r');
+  // 200 Stueck unter dem Ziel, verkauft werden 210 am Tag: Chance
+  assert.ok(deal({ perDay: 210, level: 3 }));
+  // nur 50 am Tag: man muesste den Markt leer kaufen
+  assert.equal(deal({ perDay: 50, level: 3 }), undefined);
+  // Absatz noch unsicher (Stufe 1) oder unbekannt: nicht geprueft
+  assert.ok(deal({ perDay: 50, level: 1 }));
+  assert.ok(chances.scanOpp(rows, bands, new Map()).find((x) => x.kind === 'r'));
+});
+
+test('F50c: kein Wiederverkauf bei Schwankung ueber 40 % (Umhang des Huegelwaechters)', () => {
+  const rows = parseRows(['3719;;;1;1700;;;4;;1', '3719;;;1;9000;;;4;;5'].join('\n'));
+  const r = (schw) => chances.scanOpp(rows, new Map([['3719', { lang: 5300, schw }]]), new Map()).filter((x) => x.kind === 'r').length;
+  assert.equal(r(0.3), 1);
+  assert.equal(r(0.8), 0);
+});
+
+test('Chancen-Tabelle nur aus dem letzten Scan, Zeitraum zaehlt nur die Haeufigkeit (0.22.0)', () => {
+  const d = db();
+  const opp = (id, t, key, qty, cost) => d.prepare("INSERT INTO opp_snap(snapshot_id, market_id, item_key, t, kind, qty, profit, cost, ref) VALUES (?, 1, ?, ?, 'r', ?, ?, ?, 2000)")
+    .run(id, key, t, qty, qty * 500, cost);
+  const scan = (id, t) => d.prepare('INSERT INTO opp_scan(snapshot_id, market_id, t, vendor_n) VALUES (?, 1, ?, 0)').run(id, t);
+  scan('s1', NOW - 7200); scan('s2', NOW - 60);
+  opp('s1', NOW - 7200, 'alt', 10, 10000);   // nur frueher eine Chance: nicht in der Liste
+  opp('s1', NOW - 7200, 'a', 4, 8000);       // frueher teurer
+  opp('s2', NOW - 60, 'a', 2, 2000);
+  const r = chances.summarizeOpp(d, 1, 'r', 7, NOW, new Map(), 's2');
+  assert.deepEqual(r.list.map((x) => x.key), ['a']);
+  const a = r.list[0];
+  assert.equal(a.buy, 1000, 'Preis aus dem letzten Scan, nicht das Mittel');
+  assert.equal(a.qty, 2);
+  assert.equal(a.hits, 2);
+  assert.equal(a.share, 1);
+  assert.deepEqual(a.now, { qty: 2, profit: 1000, price: 1000 });
+  d.close();
+});
+
+test('Satz auf der Gegenstandsseite: Marktpreis bei viel Ware unter dem Bereich, unsicherer Bereich', async () => {
+  const { verdict } = await import('../src/renderer/util.js');
+  // Robuster Stein: 1.680 Stueck unter dem Bereich, 210 am Tag verkauft
+  const v1 = verdict({ longterm: { lang: 928, schw: 0.1 }, sales: { perDay: 210, level: 3 }, depth: { below: 1680 },
+    current: { qty: 1680, min: 298, median: 320 } });
+  assert.equal(v1.tone, '');
+  assert.match(v1.text, /^Das ist der Marktpreis: Unter dem üblichen Bereich liegen 1\.680 Stück, so viel wie in 8 Tagen verkauft wird\./);
+  // wenig darunter: weiter Schnaeppchen
+  const v2 = verdict({ longterm: { lang: 928, schw: 0.1 }, sales: { perDay: 210, level: 3 }, depth: { below: 20 },
+    current: { qty: 200, min: 298, median: 900 } });
+  assert.equal(v2.tone, 'good');
+  // Umhang: Bereich 10s bis 95s
+  const v3 = verdict({ longterm: { lang: 5300, schw: 0.8 }, sales: { perDay: 187, level: 3 }, current: { qty: 47, min: 1700, median: 1700 } });
+  assert.equal(v3.tone, '');
+  assert.match(v3.text, /^Der Preis schwankt stark/);
 });

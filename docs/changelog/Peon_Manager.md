@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.22.0
+
+Kurz: Chancen zeigen nur noch, was der letzte Scan ergeben hat, mit den Preisen aus diesem Scan.
+Kurz: Keine Chance mehr, wenn man dafür den halben Markt leer kaufen müsste oder der Preis zu stark schwankt. Auf der Gegenstandsseite steht dann „Das ist der Marktpreis“.
+Kurz: Im Verlauf eines Gegenstands liegen Preis und Menge jetzt auf derselben Zeitachse.
+
+- 0.22.0 (08.11.2026, Wunsch KarloDerBaer, Beispiele Robuster Stein und Umhang des Hügelwächters, Rechenmodell Kapitel 10):
+  - **Menge unter dem Ziel (F50b):** Wiederverkauf nur, wenn unter dem Verkaufsziel höchstens so viel Ware liegt, wie an einem Tag verkauft wird (`chances.DEPTH`, geprüft ab Absatz-Stufe 2). Beispiel Robuster Stein: 1.680 Stück unter dem Bereich bei 210 am Tag, also 8 Tage Vorrat. Das ist der Marktpreis, keine Chance. Die Gegenstandsseite sagt dann „Das ist der Marktpreis: Unter dem üblichen Bereich liegen … Stück, so viel wie in … Tagen verkauft wird“ (`itemDepth` aus dem letzten Scan).
+  - **Unsicherer Bereich (F50c):** Bei einer Schwankung über 40 % (`chances.UNSURE`) gibt es keinen Wiederverkauf. Die Gegenstandsseite sagt „Der Preis schwankt stark …“ statt einer Prozentzahl, in der Gegenstandsliste ist „Zu üblich“ grau. Beispiel Umhang des Hügelwächters: Nach mehreren Tagen Preisverfall reichte der Bereich von 10s bis 95s.
+  - **Neues Preisniveau früher (F54):** Es reichen 12 Std. statt 24 Std. (mindestens 3 Stände über 6 Std.). Beim Robusten Stein lag 23 Std. vorher noch ein Stand im Bereich, deshalb griff die Regel nicht.
+  - **Chancen nur aus dem letzten Scan:** Wiederverkauf und Händler zeigen nur Gegenstände, die im letzten Scan eine Chance sind, mit Einkauf, Verkauf, Stück und Gewinn aus diesem Scan. Bisher waren es alle Treffer des Zeitraums mit Mittelwerten über alle Tage, dadurch standen Gegenstände mit alten Preisen in der Liste. Der Zeitraum zählt nur noch, wie oft der Gegenstand schon eine Chance war (Spalte „In Scans“, früher „Treffer“, nicht zu verwechseln mit der Trefferquote) und wann meistens.
+  - **Diagramm:** Preis und Menge haben dieselbe Zeitachse. Bisher passte sich jede Achse ihren eigenen Daten an (Bereich als Treppe bis Tagesende, Absatz je Tag als Tagespunkt), so lagen beide gegeneinander verschoben. Bei weniger als 2 Tagen stehen Uhrzeiten an der Achse.
+  - `chances.RULES` jetzt 3: Die Wiederverkaufs-Treffer werden nach dem Update neu gerechnet, die Trefferquote beginnt neu.
+  - Tests: `test/vorschlag.test.js` erweitert (F50b, F50c, Tabelle aus dem letzten Scan, Satz auf der Gegenstandsseite), F54-Test auf 12 Std. umgestellt.
+
 ## 0.21.1
 
 Kurz: „Beste Chancen jetzt“ zeigte nach dem Update noch Chancen nach den alten Regeln, zum Beispiel Robuster Stein. Diese werden jetzt verworfen und neu gerechnet.

@@ -124,8 +124,8 @@ class BrokerClient {
     for (const m of this.db.prepare('SELECT id, key FROM markets').all()) {
       try { sales.updateMarket(this.db, m.id, now); } catch (e) { log(this.db, 'absatz', false, `${m.key}: ${e.message}`); }
       const lt = this.bands(m.id);
-      try { chances.updateMarket(this.db, m.id, lt.items, now, lt.shifts); } catch (e) { log(this.db, 'chancen', false, `${m.key}: ${e.message}`); }
       const st = sales.marketStats(this.db, m.id, now);
+      try { chances.updateMarket(this.db, m.id, lt.items, now, lt.shifts, st); } catch (e) { log(this.db, 'chancen', false, `${m.key}: ${e.message}`); }
       this.listOf(m.id, m.key);   // Liste fuer die Ansichten gleich mitrechnen, dann oeffnet sie sofort
       const cur = this.currentOf(m.id);
       if (!lt.items.size && !st.size && !cur) continue;
@@ -172,8 +172,8 @@ class BrokerClient {
     const lt = this.bands(mid);
     // noch nicht ausgewertete Scans (etwa nach neuen Regeln) gleich auswerten, damit „jetzt“ stimmt
     this.checkRules();
-    try { chances.updateMarket(this.db, mid, lt.items, now, lt.shifts); } catch (e) { log(this.db, 'chancen', false, `${marketKey}: ${e.message}`); }
     const st = sales.marketStats(this.db, mid, now);
+    try { chances.updateMarket(this.db, mid, lt.items, now, lt.shifts, st); } catch (e) { log(this.db, 'chancen', false, `${marketKey}: ${e.message}`); }
     const last = this.db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(mid);
     const resale = chances.summarizeOpp(this.db, mid, 'r', d, now, st, last && last.id);
     const vendor = chances.summarizeOpp(this.db, mid, 'v', d, now, st, last && last.id);
@@ -297,6 +297,7 @@ class BrokerClient {
       it.band = b ? { low: Math.max(0, b.lang * (1 - b.schw)), high: b.lang * (1 + b.schw), lang: b.lang, days: b.days } : null;
       const sh = b && bd.shifts.get(it.key);   // F54: Bereich veraltet, Preis hat ein neues Niveau
       if (sh) it.band.shift = sh.dir;
+      if (b && b.schw > chances.UNSURE) it.band.unsure = true;   // F50c: Bereich zu breit
       it.commodity = comm.has(it.key) ? comm.get(it.key) : null;
     }
     return r;
@@ -336,6 +337,7 @@ class BrokerClient {
       d.shift = d.longterm ? longterm.shifts(this.db, mid, this.now(), new Map([[key, d.longterm]]), key).get(key) || null : null;   // F54
       const s = sales.marketStats(this.db, mid, this.now(), key).get(key) || null;
       d.sales = s;
+      d.depth = d.longterm ? this.itemDepth(mid, key, d.longterm) : null;
       // Bereich und Absatz je Tag fuer das Diagramm, im gewaehlten Zeitraum (Alles: hoechstens ein Jahr)
       const today = broker.dayOf(this.now());
       const first = [...d.own, ...d.hours, ...d.days, ...d.broker].reduce((m, x) => Math.min(m, x.t), this.now());
@@ -349,6 +351,23 @@ class BrokerClient {
       d.others = this.otherMarkets(mid, key);
     }
     return d;
+  }
+
+  // F50b fuer die Gegenstandsseite (Manager 0.22.0): wie viel Ware liegt im letzten Scan unter dem ueblichen Bereich?
+  // Rueckgabe { below, t } oder null (kein Scan, nichts darunter)
+  itemDepth(mid, key, b) {
+    const last = this.db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' AND rows IS NOT NULL ORDER BY t DESC LIMIT 1").get(mid);
+    if (!last) return null;
+    const rows = chances.rowsOf(this.db, last.id);
+    if (!rows) return null;
+    const lo = chances.low(b);
+    let below = 0;
+    for (const r of rows) {
+      if (itemKey(r) !== key || !(r.qty > 0)) continue;
+      const p = unitPrice(r);
+      if (p != null && p < lo) below += r.qty * r.n;
+    }
+    return below > 0 ? { below, t: last.t } : null;
   }
 
   // ---------- Daten fuer die Oberflaeche ----------
