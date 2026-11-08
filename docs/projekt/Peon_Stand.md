@@ -216,6 +216,8 @@ Noch offen, wird in einer eigenen Sitzung bearbeitet. Vorher klären, was KarloD
 - **Einkaufsliste komplett überarbeiten**, im Spiel (Broker) und im Manager.
 - **Reiter Preise** im Broker überarbeiten.
 - **Reiter Gegenstände und Gegenstand** in Ledger überarbeiten.
+- **Addon für den Dungeonbrowser** (KarloDerBaer, 08.11.2026). Noch nicht besprochen, was es können soll.
+- **Wertvollstes Item bei Questbelohnungen anzeigen** (KarloDerBaer, 08.11.2026). Noch nicht besprochen, in welchem Modul und nach welchem Preis.
 
 Normales Release `v2026.11.07.6` am 07.11.2026 auf Wunsch von KarloDerBaer, die Reiter in Arbeit zeigen dort einen WIP-Hinweis. Vorher gab es nur Vorabversionen (zuletzt `v2026.11.07.5-test`).
 
