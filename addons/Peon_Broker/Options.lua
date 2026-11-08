@@ -39,6 +39,9 @@ function ns.CreateOptions()
     local ttVendor = page:Add(left, page:Check("tooltipVendor", L.OPT_TT_VENDOR))
     local ttHint = page:Add(left, page:Check("tooltipHint", L.OPT_TT_HINT, L.OPT_TT_HINT_HINT), 16)
 
+    -- Berufsfenster (ab 0.39): gleiche Punkte wie im Zahnrad-Menue am Block
+    ns.Craft.AddOptions(page, left)
+
     -- Trend
     page:Add(left, page:Header(L.HDR_TREND), 6)
     page:Add(left, page:Slider("trendNeutral", L.OPT_TREND_NEUTRAL, L.OPT_TREND_NEUTRAL_HINT, " %"))

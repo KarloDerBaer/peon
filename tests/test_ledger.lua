@@ -919,6 +919,12 @@ check(#tt.lines == 1 and tt.lines[1]:find("Kosten 2", 1, true), "Tooltip: Kosten
 -- Schnittstelle fuer Broker
 local nx, av = mod:Cost(2447)
 check(nx and av and av >= nx, "mod:Cost fuer Broker")
+-- 0.13.1: letzter Kauf beim Haendler (fuer Brokers Berufsfenster)
+realm.moves = { { t = 1, k = "vendor", id = 2450, n = 5, m = -50 }, { t = 2, k = "vendor", id = 2450, n = -1, m = 3 },
+                { t = 3, k = "loot", id = 2450, n = 2 }, { t = 4, k = "vendor", id = 2450, n = 2, m = -30 },
+                { t = 5, k = "buyback", id = 2450, n = 1, m = -1 } }
+local vu, vt = mod:VendorBuy(2450)
+check(vu == 15 and vt == 4 and mod:VendorBuy(9999) == nil, "0.13.1: mod:VendorBuy = letzter Kauf beim Haendler je Stueck")
 realm.lotBase = nil
 me.start, realm.moves = savedStart, savedMoves
 Co.Invalidate()

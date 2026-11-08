@@ -92,6 +92,19 @@ function mod:Cost(id, char)
     return info.next, info.avg, info.n, info.value
 end
 
+-- Letzter Kauf beim Haendler (ab 0.13.1, fuer Brokers Berufsfenster): Preis je Stueck und Zeit, nil ohne Kauf
+function mod:VendorBuy(id)
+    if not ns.Moves or type(id) ~= "number" then return nil end
+    local list = ns.Moves.List()
+    for i = #list, 1, -1 do
+        local e = list[i]
+        if e.k == "vendor" and e.id == id and type(e.n) == "number" and e.n > 0 and type(e.m) == "number" and e.m < 0 then
+            return -e.m / e.n, e.t
+        end
+    end
+    return nil
+end
+
 -- Wert eines Gegenstands von Peon_Broker (Zeile 1 des Broker-Tooltips), nil ohne Broker oder ohne Preis
 function ns.Value(id, count)
     if not Peon.GetModule then return nil end

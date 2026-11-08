@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.13.1
+
+Kurz: Broker kann jetzt sehen, was du zuletzt beim Händler bezahlt hast, und rechnet im Berufsfenster damit.
+
+- 0.13.1 (08.11.2026): Neue Schnittstelle `mod:VendorBuy(id)` für Brokers Berufsfenster (Broker 0.39.0): Preis je Stück und Zeit des letzten Kaufs beim Händler, nil ohne Kauf. Nur lesend, sonst ändert sich nichts.
+
 ## 0.13.0
 
 Kurz: Die Reiter Gegenstände und Gegenstand werden überarbeitet. Bis dahin zeigen sie nur einen Hinweis.

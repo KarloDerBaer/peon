@@ -73,6 +73,19 @@ local mod = Peon:NewModule(ADDON_NAME, {
         salesCancelPct = 10,    -- Einzelgegenstaende: so viel % der vorzeitig verschwundenen Angebote gelten als abgebrochen
         salesGreenHours = 24,   -- Reichweite unter so vielen Stunden: "verkauft sich schnell"
         salesRedDays = 7,       -- Reichweite ueber so vielen Tagen: "Markt ist voll"
+        -- Berufsfenster (ab 0.39, KarloDerBaer 08.11.2026): Gewinn in der Rezeptliste, Block unter den Reagenzien
+        craftList    = true,    -- Gewinn rechts in der Rezeptliste
+        craftListWhich = "all", -- welche Rezepte: all, profit, top3, top5, top10
+        craftListMode = "money",-- Betrag oder Prozent vom Material (pct)
+        craftListBest = true,   -- bestes Rezept mit goldenem Strich
+        craftListLoss = true,   -- Verluste zeigen (nur bei "all")
+        craftListUnknown = true,-- Rezepte ohne Preis mit "?" (nur bei "all")
+        craftBlock   = true,    -- Block unter den Reagenzien
+        craftSummary = true,    -- Ergebniszeile Kosten, Ertrag, Gewinn
+        craftColSrc  = true,    -- Spalte Quelle (Vorrat, Haendler, AH)
+        craftColCost = true,    -- Spalte Kosten (Ledger oder Kaufpreis)
+        craftColSell = true,    -- Spalte Erloes (Vorrat im AH verkauft, nach Gebuehr)
+        craftHint    = true,    -- Hinweis: verkaufen oder herstellen
     },
     ranges   = { minimapAngle = { 0, 359, 1 }, dataDays = { 14, 90, 1 }, trendNeutral = { 1, 20, 1 },
                  trendStrong = { 10, 100, 5 }, undercutValue = { 0, 100, 1 }, undercutMassValue = { 0, 100, 1 },
@@ -84,6 +97,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
     choices  = { undercutMode = { copper = true, percent = true }, undercutMassMode = { copper = true, percent = true },
                  duration = { [2] = true, [8] = true, [24] = true },
                  radarKind = { both = true, vendor = true, market = true },
+                 craftListWhich = { all = true, profit = true, top3 = true, top5 = true, top10 = true },
+                 craftListMode = { money = true, pct = true },
                  radarSoundKey = { raid = true, ready = true, alarm = true, tell = true },
                  radarOrder = { smart = true, random = true, commodity = true, high = true, low = true },
                  windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true } },   -- ab 0.28 mit "start", ohne "book"
@@ -99,6 +114,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
             if r == "scan" then ns.Probe.ScanTest()
             elseif r == "abfrage" or r == "query" then ns.Probe.QueryTest()
             elseif r == "auktionen" or r == "auctions" or r == "felder" or r == "fields" then ns.Probe.FieldReport()
+            elseif r == "beruf" or r == "craft" then ns.Craft.Probe()
             else ns.Probe.Run() end
         elseif cmd == "absatz" or cmd == "sales" then
             ns.Sales.Report(rest)

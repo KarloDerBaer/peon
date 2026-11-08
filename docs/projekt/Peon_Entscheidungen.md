@@ -2,6 +2,17 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 08.11.2026: Broker im Berufsfenster (Broker 0.39.0)
+
+- **Block unter den Reagenzien statt Box daneben** (KarloDerBaer): Kosten, Vorrat und Gewinn stehen da, wo man beim Herstellen hinschaut. Die Box bleibt nur als Rückfall.
+- **Gewinn in der Rezeptliste** (KarloDerBaer): ersetzt die Entscheidung vom 03.10.2026 „keine Spalte in der Rezeptliste“. Das beste Rezept bekommt einen goldenen Strich, eine eigene Zeile „Bestes Rezept“ gibt es nicht.
+- **Vorrat als Gesamtmenge mit Tooltip** (KarloDerBaer): wo was liegt, steht im Tooltip. Twinks zählen nur mit Haken, gleiche Einstellung wie im Reiter Behalten.
+- **Eigene Kosten aus Ledger** (KarloDerBaer): Vorhandene Stück zählen mit dem, was sie gekostet haben, fehlende mit dem AH-Preis (Vorschlag Claude). Umschaltbar auf „immer AH-Preis“.
+- **Berufsfenster: Tabelle nach Quelle, ein Gewinn** (KarloDerBaer nach zwei Tests im Spiel, ersetzt die drei Rechnungen „Herstellen statt verkaufen“, „aus Vorrat“, „alles zu AH-Preisen“): Wer Material hat, kauft es nicht extra. Darum zeigt eine Tabelle je Material, woher es kommt (Vorrat, Händler oder AH), was es kostet (Vorrat laut Ledger) und was das Material aus dem Vorrat im AH bringen würde (Erlös). Darüber Kosten, Ertrag und Gewinn = Ertrag minus Kosten. Die Frage „lieber verkaufen?“ beantwortet ein Hinweis mit beiden Beträgen statt dem Abstand, in der Rezeptliste wird der Gewinn dann orange. Bei mehreren Materialien zählt das ganze Rezept.
+- **Händlerpreise aus drei Quellen** (KarloDerBaer): Die Spiel-API nennt den Kaufpreis beim Händler nur bei offenem Händlerfenster. Broker merkt sich die Angebote bei jedem Besuch, nimmt sonst den letzten Kauf laut Ledger und schätzt für bekannte Händler-Reagenzien den Ankaufspreis × 4 (markiert, bis ein echter Preis bekannt ist). Die Quelle ist Händler oder AH, je nachdem was günstiger ist.
+- **Tooltips zu jedem Wert** (KarloDerBaer): Material, Wert und Gewinn zeigen, wie sie sich ergeben, und die anderen Rechnungen zum Vergleich.
+- **Alles einstellbar** (KarloDerBaer): Zahnrad direkt im Block und die gleichen Punkte auf der Optionsseite. Einstellungen gelten fürs ganze Konto.
+
 ## 08.11.2026: Chancen für Massenware (Manager 0.22.0)
 
 - **Menge unter dem Ziel zählt** (KarloDerBaer): Liegt sehr viel Ware unter dem üblichen Bereich, ist das der Marktpreis. Man müsste den Markt leer kaufen, um den Preis zu bewegen. Grenze vorerst ein Tagesabsatz (Claude), später mit der Trefferquote prüfen.
