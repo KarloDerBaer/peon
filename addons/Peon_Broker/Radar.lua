@@ -636,7 +636,7 @@ end
 
 function R.Tick()
     if not R.loop then return end
-    if not (AHOpen() and W.IsOpen() and W.current == "radar") then R.Halt(); return end
+    if not (AHOpen() and R.Shown()) then R.Halt(); return end
     if ns.Scan.state then R.OnFullScan(); return end
     local ah = AHApi()
     local st = R.stats
@@ -974,7 +974,7 @@ function R.CancelPre()
 end
 
 function R.Prequote()
-    if R.preOff or R.job or not AHOpen() or not (W.IsOpen() and W.current == "radar") or ns.Scan.state then return end
+    if R.preOff or R.job or not AHOpen() or not R.Shown() or ns.Scan.state then return end
     local ah = AHApi()
     if not ah.StartCommoditiesPurchase then return end
     -- ab 0.28: kein Vorab-Preis, solange ein Treffer gewaehlt ist oder Blizzards Kaufansicht offen ist
@@ -1672,7 +1672,7 @@ end
 function R.Init()
     R.MuteOff()   -- nach Absturz/Reload waehrend des Radar-Scans: Tonkanaele zurueck
     mod:RegisterEvent("PLAYER_LOGOUT", function() R.MuteOff() end)
-    mod:RegisterEvent("PLAYER_MONEY", function() if R.list and W.IsOpen() and W.current == "radar" then R.Refresh() end end)
+    mod:RegisterEvent("PLAYER_MONEY", function() if R.list and R.Shown() then R.Refresh() end end)
     mod:RegisterEvent("COMMODITY_SEARCH_RESULTS_UPDATED", function(_, itemID) OnResults(true, itemID) end)
     mod:RegisterEvent("ITEM_SEARCH_RESULTS_UPDATED", function(_, itemKey) OnResults(false, itemKey) end)
     -- weitere Teile der Ergebnisse (ab 0.20.1)
@@ -1716,8 +1716,55 @@ function R.Init()
     mod:RegisterEvent("AUCTION_HOUSE_CLOSED", function() R.Halt(); R.job = nil end)
     mod:On("SCAN_DONE", function()
         R.CheckHidden()
-        if W.IsOpen() and W.current == "radar" then R.Open() end
+        if R.Shown() then R.Open() end
     end)
+end
+
+---------------------------------------------------------------------------
+-- Ab 0.48 (Umbau U7): Das Radar kann im Broker-Fenster oder im eigenen Reiter des Auktionshauses stehen
+-- (AHTabs.lua haengt die Flaeche um). R.Shown() = Radar ist gerade zu sehen.
+---------------------------------------------------------------------------
+function R.Shown()
+    local T = ns.AHTabs
+    if T and T.current == "radar" then return true end
+    if T and T.host and T.host.radar == "ah" then return false end
+    return W.IsOpen() and W.current == "radar"
+end
+
+-- Treffer, die das Radar gerade zeigen wuerde (fuer die Zahl am Reiter)
+function R.CountHits()
+    local n, budget = 0, R.Budget()
+    for _, d in pairs(R.entries) do
+        if R.Visible(d, budget) then n = n + 1 end
+    end
+    return n
+end
+
+-- Tastenbelegungen (Bindings.xml): gewaehlten Treffer kaufen, naechsten Treffer waehlen
+function R.SelectNext()
+    if not R.list then return false end
+    local rows = R.list:GetItems()
+    local start = 0
+    for i, r in ipairs(rows) do if R.selected and r.key == R.selected.key then start = i end end
+    for k = 1, #rows do
+        local r = rows[((start + k - 1) % #rows) + 1]
+        if r and not r.gone then
+            R.list:Select(r)
+            R.SelectRow(r)
+            return true
+        end
+    end
+    return false
+end
+
+function PeonBroker_RadarBuy()
+    if not R.Shown() or not R.selected then return end
+    mod:Call("Radar", R.BuyStep, R.selected, "stack")
+end
+
+function PeonBroker_RadarNext()
+    if not R.Shown() then return end
+    mod:Call("Radar", R.SelectNext)
 end
 
 W.pages.radar = {

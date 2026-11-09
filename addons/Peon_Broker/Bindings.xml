@@ -1,0 +1,9 @@
+<Bindings>
+    <!-- Radar im Auktionshaus (ab Broker 0.48, Umbau U7). Ein Tastendruck zaehlt fuer das Spiel wie ein Klick. -->
+    <Binding name="PEON_BROKER_RADAR_BUY" header="PEON_BROKER" category="ADDONS">
+        PeonBroker_RadarBuy()
+    </Binding>
+    <Binding name="PEON_BROKER_RADAR_NEXT" category="ADDONS">
+        PeonBroker_RadarNext()
+    </Binding>
+</Bindings>

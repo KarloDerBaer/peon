@@ -161,7 +161,7 @@ function W.Create()
     foot:SetJustifyH("LEFT")
     W.footer = foot
 
-    W.contents = {}
+    W.contents = W.contents or {}   -- ab 0.48: das Radar kann schon im Auktionshaus angelegt sein
     f:SetScript("OnShow", function() mod:Call("Fenster", W.Refresh) end)
     f:SetScript("OnHide", function() W.docked = false; W.Leave(nil) end)
     if type(UISpecialFrames) == "table" then tinsert(UISpecialFrames, "PeonBrokerFrame") end   -- Escape schliesst
@@ -245,7 +245,11 @@ function W.Select(key)
     W.current = key
     mod.db.windowTab = key
     for _, b in ipairs(W.tabButtons) do MarkTab(b, b.key == key) end
-    for k, c in pairs(W.contents) do if k ~= key then c:Hide() end end
+    for k, c in pairs(W.contents) do
+        if k ~= key and not (ns.AHTabs and ns.AHTabs.host[k] == "ah") then c:Hide() end   -- ab 0.48: Flaeche im Auktionshaus bleibt
+    end
+    -- ab 0.48: haengt die Flaeche gerade im Auktionshaus (Radar), zurueckholen
+    if ns.AHTabs and ns.AHTabs.Release then ns.AHTabs.Release(key, W.frame, W.TOP) end
     local c = W.contents[key]
     if not c then
         c = CreateFrame("Frame", nil, W.frame)

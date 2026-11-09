@@ -502,6 +502,9 @@ function B.ShowInAH(row, tries)
     local f = rawget(_G, "AuctionHouseFrame")
     if not AHOpen() or type(f) ~= "table" or not row then return false end
     if not ns.AHTouch() then return false end   -- ab 0.41: "Blizzard pur"
+    -- ab 0.48: Broker-Reiter im Auktionshaus offen (Radar, Einkaufen): Blizzards Ansicht nicht umschalten, sonst
+    -- schliesst sich der Reiter. Gekauft wird dort ueber Brokers eigene Knoepfe.
+    if ns.AHTabs and ns.AHTabs.current then return false end
     local ah = AHApi()
     local itemKey = type(row.itemKey) == "table" and row.itemKey or B.ItemKeyFor(row.key)
     if tries == nil then B.showToken = (B.showToken or 0) + 1 end

@@ -3090,6 +3090,80 @@ Win.Refresh()
   CreateFrame = origCreate
 end)()
 
+-- ===== Umbau U7 (0.48.0): Radar im Auktionshaus =====
+;(function()
+  local T, R = ns.AHTabs, ns.Radar
+  local origCreate = CreateFrame
+  CreateFrame = function(kind, name, parent, template)
+    local f = origCreate(kind, name, parent, template)
+    if template == "AuctionHouseFrameTabTemplate" or template == "PanelTabButtonTemplate" then
+      if parent then rawset(parent, "Tabs", rawget(parent, "Tabs") or {}); table.insert(parent.Tabs, f) end
+      for _, n in ipairs({ "Left", "Middle", "Right", "LeftActive", "MiddleActive", "RightActive", "Text" }) do rawset(f, n, origCreate("Frame")) end
+    end
+    return f
+  end
+  local origHook = rawget(_G, "hooksecurefunc")
+  hooksecurefunc = function(t, name, fn) local o = t[name]; t[name] = function(...) local x = o(...) fn(...) return x end end
+  local ah = CreateFrame("Frame", "AuctionHouseFrame")
+  ah.BuyTab, ah.SellTab, ah.AuctionsTab = CreateFrame("Button"), CreateFrame("Button"), CreateFrame("Button")
+  ah.Tabs = { ah.BuyTab, ah.SellTab, ah.AuctionsTab }
+  local display = 0
+  ah.SetDisplayMode = function() display = display + 1 end
+  ah.GetFrameLevel = function() return 5 end
+  T.built, T.tabs, T.page, T.plainButton, T.current = nil, {}, nil, nil, nil
+  mod.acc.ahPlain = false
+  fire("AUCTION_HOUSE_SHOW")
+  check(T.built and T.tabs.radar, "U7: Reiter da")
+  -- Radar im Auktionshaus oeffnen: die Flaeche des Broker-Fensters wandert in den Reiter
+  if Win.frame then Win.frame:Hide() end
+  T.tabs.radar.scripts.OnClick(T.tabs.radar)
+  local c = Win.contents.radar
+  check(c and c.points[1][2] == T.page and T.host.radar == "ah" and c.shown, "U7: Radar-Flaeche haengt im Reiter des Auktionshauses")
+  check(R.Shown() and not T.page.title.shown, "U7: Radar gilt als offen, Platzhalter weg")
+  check(ns.Buy.ShowInAH({ key = 2770 }) == false and display == 0, "U7: im Reiter schaltet Broker Blizzards Ansicht nicht um")
+  -- Blizzard wechselt die Ansicht: Reiter zu, Radar haelt an
+  local halted = 0
+  local oldHalt = R.Halt
+  R.Halt = function(...) halted = halted + 1; return oldHalt(...) end
+  ah:SetDisplayMode("Buy")
+  check(T.current == nil and not R.Shown() and halted >= 1, "U7: anderer Reiter -> Radar haelt an")
+  -- Broker-Fenster holt die Flaeche zurueck
+  T.tabs.radar.scripts.OnClick(T.tabs.radar)
+  Win.Open("radar")
+  check(T.host.radar == "window" and c.points[1][2] == Win.frame and T.current == nil and R.Shown(), "U7: Broker-Fenster holt das Radar zurueck")
+  Win.frame:Hide()
+  R.Halt = oldHalt
+  -- Zahl am Reiter nach einem Komplettscan, blinkt bis zum Oeffnen
+  local oldCount, oldLoad = R.CountHits, R.LoadFromScan
+  R.CountHits = function() return 3 end
+  R.LoadFromScan = function() end
+  mod:Fire("SCAN_DONE", "Markt")
+  check(T.badges.radar and T.badges.radar.n == 3 and T.badges.radar.blink and T.tabs.radar.text == ns.L.AHTAB_RADAR .. " (3)", "U7: Radar (3) nach dem Scan")
+  check(T.tabs.radar.scripts.OnUpdate ~= nil, "U7: Reiter blinkt")
+  T.tabs.radar.scripts.OnClick(T.tabs.radar)
+  check(T.badges.radar == nil and T.tabs.radar.text == ns.L.AHTAB_RADAR and T.tabs.radar.scripts.OnUpdate == nil, "U7: geoeffnet -> Zahl und Blinken weg")
+  R.CountHits = function() return 0 end
+  ah:SetDisplayMode("Buy")
+  mod:Fire("SCAN_DONE", "Markt")
+  check(T.badges.radar == nil, "U7: ohne Treffer keine Zahl")
+  R.CountHits, R.LoadFromScan = oldCount, oldLoad
+  -- Tastenbelegungen
+  check(type(PeonBroker_RadarBuy) == "function" and type(PeonBroker_RadarNext) == "function", "U7: Tastenbelegungen Kaufen und Naechster")
+  local sel
+  local oldList, oldSel, oldSelected = R.list, R.SelectRow, R.selected
+  local rows = { { key = 1 }, { key = 2, gone = true }, { key = 3 } }
+  R.list = { GetItems = function() return rows end, Select = function() end }
+  R.SelectRow = function(r) sel = r; R.selected = r end
+  R.selected = rows[1]
+  check(R.SelectNext() and sel.key == 3, "U7: naechster Treffer ueberspringt weggefallene")
+  check(R.SelectNext() and sel.key == 1, "U7: am Ende wieder von vorn")
+  R.list, R.SelectRow, R.selected = oldList, oldSel, oldSelected
+  hooksecurefunc = origHook
+  CreateFrame = origCreate
+  AuctionHouseFrame = {}
+  T.built, T.current = nil, nil
+end)()
+
 -- ===== Umbau U3 (0.44.0): Rat im Verkaufsfenster =====
 ;(function()
   local A = ns.Advice

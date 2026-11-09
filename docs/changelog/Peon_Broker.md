@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.48.0
+
+Kurz: Das Radar steht jetzt als eigener Reiter im Auktionshaus. Findet ein Komplettscan Schnäppchen, steht am Reiter die Zahl der Treffer und er blinkt. Mit zwei neuen Tasten kaufst du den gewählten Treffer oder springst zum nächsten.
+
+- 0.48.0 (09.11.2026): **Umbau U7, Radar im Auktionshaus** (Konzept Abschnitt 7.4).
+  - Der Reiter „Radar“ im Auktionshaus zeigt das vorhandene Radar mit allen Funktionen. Die Fläche wird zwischen Broker-Fenster und Auktionshaus umgehängt (`AHTabs.Attach`/`Release`), nichts wird doppelt gebaut. Öffnet man das Radar im Broker-Fenster, holt das Fenster es zurück.
+  - `R.Shown()` ersetzt die Prüfung „Broker-Fenster offen und Reiter Radar“: Radar-Scan, Gold-Anzeige und Auffrischen nach dem Scan laufen an beiden Orten.
+  - Im Reiter schaltet Broker Blizzards Kaufansicht nicht mehr um (`ShowInAH` gesperrt, solange ein Broker-Reiter offen ist), sonst würde sich der Reiter schließen. Gekauft wird über Brokers Knöpfe wie bisher.
+  - **Zahl am Reiter:** Nach jedem Komplettscan zählt Broker die Treffer, „Radar (3)“ blinkt, bis der Reiter geöffnet wird.
+  - **Tastenbelegungen** (Tastenbelegung > AddOns > Peon Broker): „Radar: gewählten Treffer kaufen“ (wie der mittlere Kaufknopf) und „Radar: nächster Treffer“ (überspringt weggefallene, am Ende wieder von vorn). Neue Datei `Bindings.xml`.
+  - Noch nicht: Aussehen der Liste wie Blizzards Kaufliste (kommt mit dem gemeinsamen Listen-Stil in U10), Auswahl springt nach einem Kauf von selbst weiter.
+  - **Im Spiel prüfen:** Reiter Radar im Auktionshaus: Passt die Fläche, läuft der Radar-Scan, klappt Kaufen? Komplettscan mit Treffern: Zahl und Blinken? Tasten belegen und ausprobieren.
+
 ## 0.47.0
 
 Kurz: Mit Umschalt zeigt der Tooltip jetzt ein kleines Preisdiagramm: das günstigste Angebot der letzten 14 Tage und den üblichen Bereich als grüne Fläche. Zeitraum (7, 14 oder 30 Tage) und Anzeige stellst du auf der Optionsseite ein.

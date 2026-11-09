@@ -758,6 +758,11 @@ L.TTO_FMT_CHART_D14 = "14 days"
 L.TTO_FMT_CHART_D7 = "7 days"
 L.TTO_FMT_CHART_D30 = "30 days"
 
+-- Umbau U7 (ab 0.48): Radar im Auktionshaus
+BINDING_HEADER_PEON_BROKER = "Peon Broker"
+BINDING_NAME_PEON_BROKER_RADAR_BUY = "Radar: buy selected hit"
+BINDING_NAME_PEON_BROKER_RADAR_NEXT = "Radar: next hit"
+
 if GetLocale() == "deDE" then
     L.SALES_PER_HOUR = "%s/Std."
     L.SALES_REACH_H = "reicht %s Std."
@@ -1486,4 +1491,7 @@ if GetLocale() == "deDE" then
     L.TTO_FMT_CHART_D14 = "14 Tage"
     L.TTO_FMT_CHART_D7 = "7 Tage"
     L.TTO_FMT_CHART_D30 = "30 Tage"
+    -- Umbau U7 (ab 0.48)
+    BINDING_NAME_PEON_BROKER_RADAR_BUY = "Radar: gewählten Treffer kaufen"
+    BINDING_NAME_PEON_BROKER_RADAR_NEXT = "Radar: nächster Treffer"
 end

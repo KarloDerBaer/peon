@@ -32,6 +32,10 @@ T.TAB_GAP = -7      -- Abstand zum Reiter davor. Blizzard nutzt -15, das sah bei
 T.tabs = {}          -- key -> Knopf
 T.current = nil      -- offener eigener Reiter oder nil (Blizzard-Ansicht)
 T.blocked = {}       -- gemeldete Blockaden dieser Sitzung: { t, event, fn }
+T.host = {}          -- ab 0.48: wo eine Flaeche gerade haengt ("ah" oder "window"), z. B. host.radar
+T.badges = {}        -- ab 0.48: Zahl am Reiter je key, blink = true solange nicht geoeffnet
+-- Flaechen, die aus dem Broker-Fenster in einen Reiter des Auktionshauses wandern (ab 0.48: Radar)
+T.HOSTED = { radar = { build = function(c) ns.Radar.Build(c) end, open = function() ns.Radar.Open() end, leave = function() ns.Radar.Halt() end } }
 
 local function AHFrame()
     local f = rawget(_G, "AuctionHouseFrame")
@@ -210,7 +214,10 @@ function T.Open(key)
     for _, tab in ipairs(BlizzardTabs(f)) do Deselect(tab) end
     T.page.title:SetText(L["AHTAB_" .. key:upper() .. "_TITLE"] or key)
     T.page:Show()
-    T.UpdateStatus()
+    local hosted = T.Attach(key)
+    for _, fs in ipairs({ T.page.title, T.page.text, T.page.status }) do fs:SetShown(not hosted) end
+    if not hosted then T.UpdateStatus() end
+    T.SetBadge(key, nil)
     if PlaySound and SOUNDKIT and SOUNDKIT.IG_CHARACTER_INFO_TAB then pcall(PlaySound, SOUNDKIT.IG_CHARACTER_INFO_TAB) end
     mod:Dbg("Eigener Reiter im Auktionshaus: " .. key)
     return true
@@ -221,6 +228,8 @@ function T.Close()
     local was = T.current
     T.current = nil
     T.page:Hide()
+    local h = was and T.HOSTED[was]
+    if h and h.leave and T.host[was] == "ah" then mod:Call("Auktionshaus-Reiter", h.leave) end
     for _, tab in pairs(T.tabs) do Deselect(tab) end
     if was then RestoreBlizzardTabs(AHFrame()) end
 end
@@ -350,6 +359,84 @@ function T.BuildPlainButton()
     T.plainButton = b
 end
 
+---------------------------------------------------------------------------
+-- Flaechen umhaengen (ab 0.48, U7): Die Flaeche des Broker-Fensters (W.contents[key]) wandert in den Reiter und
+-- zurueck. Alle Knoepfe und Listen bleiben dieselben.
+---------------------------------------------------------------------------
+function T.Attach(key)
+    local h = T.HOSTED[key]
+    local W = ns.Window
+    if not h or not W or not T.page then return false end
+    local c = W.contents and W.contents[key]
+    if not c then
+        c = CreateFrame("Frame", nil, T.page)
+        W.contents = W.contents or {}
+        W.contents[key] = c
+        h.build(c)
+    end
+    if W.IsOpen() and W.current == key and W.frame then W.frame:Hide() end   -- nicht an zwei Stellen zugleich
+    c:SetParent(T.page)
+    c:ClearAllPoints()
+    c:SetPoint("TOPLEFT", T.page, "TOPLEFT", 10, -8)
+    c:SetPoint("BOTTOMRIGHT", T.page, "BOTTOMRIGHT", -10, 8)
+    c:Show()
+    T.host[key] = "ah"
+    if h.open then mod:Call("Auktionshaus-Reiter", h.open) end
+    return true
+end
+
+-- Das Broker-Fenster will die Flaeche zurueck (W.Select)
+function T.Release(key, parent, top)
+    local W = ns.Window
+    local c = W and W.contents and W.contents[key]
+    if T.host[key] ~= "ah" or not c then return end
+    if T.current == key then T.Close() end
+    c:SetParent(parent)
+    c:ClearAllPoints()
+    c:SetPoint("TOPLEFT", parent, "TOPLEFT", 12, -top)
+    c:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -12, 26)
+    T.host[key] = "window"
+end
+
+---------------------------------------------------------------------------
+-- Zahl am Reiter (ab 0.48): "Radar (3)", blinkt bis zum Oeffnen (blink), "Einkaufen (5)" ohne Blinken
+---------------------------------------------------------------------------
+T.BLINK_SPEED = 2.5   -- Wechsel je Sekunde
+
+function T.SetBadge(key, n, blink)
+    local tab = T.tabs[key]
+    if n == nil or n <= 0 then T.badges[key] = nil else T.badges[key] = { n = n, blink = blink and T.current ~= key } end
+    if not tab then return end
+    local def
+    for _, d in ipairs(T.TABS) do if d.key == key then def = d end end
+    local b = T.badges[key]
+    tab:SetText(L[def.label] .. (b and (" (" .. b.n .. ")") or ""))
+    if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, tab, 20, nil, 70) end
+    if b and b.blink then
+        tab.blinkT = 0
+        tab:SetScript("OnUpdate", function(self, dt)
+            self.blinkT = (self.blinkT or 0) + (dt or 0)
+            local a = 0.55 + 0.45 * math.abs(math.sin(self.blinkT * T.BLINK_SPEED))
+            if self.Text and self.Text.SetAlpha then self.Text:SetAlpha(a) end
+        end)
+    else
+        tab:SetScript("OnUpdate", nil)
+        if tab.Text and tab.Text.SetAlpha then tab.Text:SetAlpha(1) end
+    end
+end
+
+-- Nach einem Komplettscan: Treffer im Radar zaehlen (blinkt), Einkaufen kommt mit U8
+function T.OnScanDone()
+    if not T.built or ns.AHPlain() then return end
+    local R = ns.Radar
+    if R and R.LoadFromScan and R.CountHits then
+        R.LoadFromScan()
+        local n = R.CountHits()
+        T.SetBadge("radar", n, n > 0)
+        T.lastScanHits = n
+    end
+end
+
 function T.OnAHShow()
     if ns.AHPlain() then return end
     T.BuildPlainButton()
@@ -361,5 +448,6 @@ function T.Init()
     mod:RegisterEvent("AUCTION_HOUSE_SHOW", function() mod:Call("Auktionshaus-Reiter", T.OnAHShow) end)
     mod:RegisterEvent("ADDON_ACTION_BLOCKED", function(_, addon, fn) mod:Call("Blizzard pur", T.OnBlocked, "ADDON_ACTION_BLOCKED", addon, fn) end)
     mod:RegisterEvent("ADDON_ACTION_FORBIDDEN", function(_, addon, fn) mod:Call("Blizzard pur", T.OnBlocked, "ADDON_ACTION_FORBIDDEN", addon, fn) end)
+    mod:On("SCAN_DONE", function() mod:Call("Auktionshaus-Reiter", T.OnScanDone) end)
     if ns.AHPlain() then mod:Print(L.AH_PLAIN_ACTIVE) end
 end
