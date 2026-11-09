@@ -2,6 +2,16 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 09.11.2026: Umbau Peon_Broker (Konzept `Peon_Broker_Umbau.md`, Broker 0.41.0)
+
+- **Broker wird schlank und berät** (KarloDerBaer): Verkauft wird über Blizzards Fenster, ausgewählt in der Tasche. Broker trägt keinen Preis ein, sondern sagt, ob man zu Blizzards Preis verkaufen soll. Grund: KarloDerBaer nutzt Brokers Reiter Verkaufen kaum.
+- **Aufteilung** (KarloDerBaer): Im Auktionshaus Verkaufen, Auktionen, Radar und Einkaufen. Im Broker-Fenster nur, was ohne Auktionshaus geht (Einkaufslisten, Markt, Händler, Gegenstände, Beobachtung, Quellen), aussehen wie das Auktionshaus, Inhalt wie der Manager.
+- **Heimatmarkt zuerst** (KarloDerBaer): Tooltip und Werte zeigen immer die eigene Fraktion. Das neutrale Haus kommt als einstellbare Zeile dazu (Ursache der „falschen Preise“ war die Regel aus 0.40.0, dass bei offenem neutralen Haus überall Neutral gilt).
+- **Behalten entfällt** (KarloDerBaer), weil nicht mehr halb automatisch verkauft wird. Damit entfällt auch Bags B4.
+- **Kontextmenü auf Gegenständen im Kern** mit Strg+Rechtsklick, änderbar (KarloDerBaer). Umschalt+Rechtsklick ist bei Blizzard belegt (Stapel teilen, mehrere Stapel kaufen), nachgelesen im Code der Forever-Version (Claude). Ledgers Alt+Klick entfällt später.
+- **Favoriten heißen Beobachtung**, mit Preisalarm und als eigene Liste im Reiter Einkaufen (KarloDerBaer).
+- **Erst ein Prüfaufbau (U0)** (Claude, zugestimmt): Eigene Reiter im Auktionshaus sind das größte Risiko. Broker ruft dafür `SetDisplayMode` nie auf und fügt Blizzards Tabellen nichts hinzu, sondern legt eine eigene Fläche darüber. Dazu der Notausgang „Blizzard pur“ mit Neuladen (KarloDerBaer), weil sich Taint nur so löst.
+
 ## 09.11.2026: Manager rechnet im Hintergrund (Manager 0.23.0)
 
 - **Modul Peon Broker Client im Arbeitsprozess** (KarloDerBaer, Vorschlag Claude): Das Fenster darf nie hängen. Die Werte erscheinen dafür ein paar Sekunden später.

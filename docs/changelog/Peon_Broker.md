@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.41.0
+
+Kurz: Im Auktionshaus gibt es zwei neue, noch leere Reiter „Radar“ und „Einkaufen“ zum Ausprobieren. Oben rechts schaltet der Knopf „Blizzard pur“ Broker im Auktionshaus ganz ab, falls einmal etwas blockiert.
+
+- 0.41.0 (09.11.2026): **Umbau U0, Prüfaufbau** (Konzept `docs/konzepte/broker/Peon_Broker_Umbau.md`, Abschnitte 7.1 und 7.7). Neue Datei `AHTabs.lua`.
+  - **Eigene Reiter im Auktionshaus:** „Radar“ und „Einkaufen“ rechts neben Blizzards „Auktionen“ (Vorlage `AuctionHouseFrameTabTemplate`). Broker fügt nichts zu `AuctionHouseFrameDisplayMode` oder `AuctionHouseFrame.Tabs` hinzu und ruft `SetDisplayMode` dafür nie auf. Ein Klick legt eine eigene Fläche über Blizzards Inhalt und stellt nur das Aussehen der Reiter um. Wechselt Blizzard die Ansicht (Reiter, Gegenstand aus der Tasche), blendet ein sicherer Anhang an `SetDisplayMode` die Fläche wieder aus. Die Fläche zeigt live, ob Blizzards Werte noch sauber sind (`issecurevariable`).
+  - **`/broker pruefen ah`:** gleiche Prüfung im Chat, Ergebnis in `PeonBrokerDB.ahProbe`.
+  - **Notausgang „Blizzard pur“** (`ahPlain`, bleibt bei „Standardwerte“): Knopf oben rechts im Auktionshaus, `/broker pur` oder Knopf auf der Optionsseite, jeweils mit Rückfrage und Neuladen. Danach legt Broker keine Reiter und Knöpfe am Auktionshaus an und legt nichts in Blizzards Fenster (Verkaufen, Kaufansicht, Ansicht umschalten). Tooltip, Broker-Fenster und `/broker scan` gehen weiter. Der Starter-Tooltip erinnert daran.
+  - **Blockierte Aktionen:** Meldet das Spiel `ADDON_ACTION_BLOCKED` oder `ADDON_ACTION_FORBIDDEN` für Peon_Broker, merkt Broker das (`PeonBrokerDB.ahBlocked`, Fehlerspeicher) und bietet bei offenem Auktionshaus einmal je Sitzung „Blizzard pur“ an.
+  - **Im Spiel prüfen:** Nach `/reload` ohne vorher das Broker-Fenster zu benutzen: Auktionshaus öffnen, Reiter Radar und Einkaufen anklicken, zurück zu Kaufen, Verkaufen und Auktionen. Dann etwas kaufen (Massenware und Einzelgegenstand), etwas einstellen und eine Auktion abbrechen. Kommt „Aktion wegen AddOn blockiert“? Danach `/broker pruefen ah`: Stehen alle Werte auf „sauber“? Sitzt die Fläche richtig (Suchleiste und Listen verdeckt, Porträt frei)? „Blizzard pur“ an und wieder aus.
+
 ## 0.40.0
 
 Kurz: Am neutralen Auktionshaus (zum Beispiel in Beutebucht) speichert Broker die Preise in einem eigenen Markt „Neutral“. Deine Preise aus dem Auktionshaus deiner Fraktion bleiben davon unberührt.

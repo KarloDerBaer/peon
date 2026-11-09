@@ -227,6 +227,7 @@ end
 function W.SetAHMode(name)
     local f, modes = rawget(_G, "AuctionHouseFrame"), rawget(_G, "AuctionHouseFrameDisplayMode")
     if not (ns.Scan.ahOpen and type(f) == "table" and type(modes) == "table" and modes[name]) then return false end
+    if not ns.AHTouch() then return false end   -- ab 0.41: "Blizzard pur"
     if type(f.SetDisplayMode) ~= "function" then return false end
     if type(f.GetDisplayMode) == "function" then
         local ok, m = pcall(f.GetDisplayMode, f)
@@ -300,7 +301,7 @@ end
 ---------------------------------------------------------------------------
 -- Knopf "Broker" links neben dem Scan-Knopf unter dem Auktionshausfenster
 function W.CreateAHButton()
-    if W.ahButton then return end
+    if W.ahButton or not ns.AHTouch() then return end
     local parent = rawget(_G, "AuctionHouseFrame")
     if not parent then return end
     local b = CreateFrame("Button", "PeonBrokerWindowButton", parent, "UIPanelButtonTemplate")

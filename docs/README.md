@@ -18,6 +18,7 @@
 | Broker | [Peon_Broker_Verkaufen.md](konzepte/broker/Peon_Broker_Verkaufen.md) | Reiter Verkaufen |
 | Broker | [Peon_Broker_Einkaufen.md](konzepte/broker/Peon_Broker_Einkaufen.md) | Reiter Einkaufsliste und Radar |
 | Broker | [Peon_Broker_Absatz.md](konzepte/broker/Peon_Broker_Absatz.md) | Absatzquote |
+| Broker | [Peon_Broker_Umbau.md](konzepte/broker/Peon_Broker_Umbau.md) | Entwurf Umbau: Aufteilung Fenster und Auktionshaus, Tooltip, Märkte, Einkaufslisten, Händler |
 | Ledger | [Peon_Ledger_Konzept.md](konzepte/ledger/Peon_Ledger_Konzept.md) | Bestand und Buch |
 | Ledger | [Peon_Ledger_Zuordnen.md](konzepte/ledger/Peon_Ledger_Zuordnen.md) | Kosten, Lagerwert und Handelsgewinn |
 | Ledger | [Peon_Ledger_Gegenstand.md](konzepte/ledger/Peon_Ledger_Gegenstand.md) | Reiter Gegenstand, Kosten je Charakter |

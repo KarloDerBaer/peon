@@ -336,7 +336,7 @@ function S.UpdateButton()
 end
 
 function S.CreateButton()
-    if S.button then return end
+    if S.button or not ns.AHTouch() then return end   -- ab 0.41: bei "Blizzard pur" nur /broker scan
     local parent = rawget(_G, "AuctionHouseFrame")
     if not parent then return end
     local b = CreateFrame("Button", "PeonBrokerScanButton", parent, "UIPanelButtonTemplate")

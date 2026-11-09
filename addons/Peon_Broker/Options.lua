@@ -31,6 +31,9 @@ function ns.CreateOptions()
     page:Add(left, page:Check("minimapShow", L.MINIMAP_SHOW))
     page:Add(left, page:Check("windowWithAH", L.OPT_WINDOW_AH, L.OPT_WINDOW_AH_HINT))
     page:Add(left, page:Button(L.BTN_WINDOW, function() ns.Window.Open() end), 16)
+    -- ab 0.41: "Blizzard pur" (Notausgang, laedt neu)
+    page:Add(left, page:Text(function() return ns.AHPlain() and L.AH_PLAIN_STATE_ON or L.AH_PLAIN_STATE_OFF end))
+    page:Add(left, page:Button(L.BTN_AH_PLAIN, function() ns.AHTabs.AskPlain(not ns.AHPlain()) end, L.AH_PLAIN_HINT), 16)
 
     -- Preise im Tooltip
     page:Add(left, page:Header(L.HDR_TOOLTIP), 6)

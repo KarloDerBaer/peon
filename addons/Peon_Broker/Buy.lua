@@ -501,6 +501,7 @@ B.GUARD_WAIT = 0.8   -- Sekunden: kommt bis dahin kein Ergebnis fuer den gezeigt
 function B.ShowInAH(row, tries)
     local f = rawget(_G, "AuctionHouseFrame")
     if not AHOpen() or type(f) ~= "table" or not row then return false end
+    if not ns.AHTouch() then return false end   -- ab 0.41: "Blizzard pur"
     local ah = AHApi()
     local itemKey = type(row.itemKey) == "table" and row.itemKey or B.ItemKeyFor(row.key)
     if tries == nil then B.showToken = (B.showToken or 0) + 1 end

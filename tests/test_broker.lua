@@ -2866,6 +2866,86 @@ for _, line in ipairs(ns.Start.Lines()) do if line.tab == "buy" then hasBuy = tr
 check(not hasBuy, "0.37: Start ohne Zeile zur Einkaufsliste")
 Win.Refresh()
 
+-- ===== Umbau U0 (0.41.0): eigene Reiter im Auktionshaus, "Blizzard pur" =====
+;(function()
+  local T = ns.AHTabs
+  local calls = { select = 0, deselect = 0, update = 0, reload = 0, display = 0 }
+  function PanelTemplates_SelectTab() calls.select = calls.select + 1 end
+  function PanelTemplates_DeselectTab() calls.deselect = calls.deselect + 1 end
+  function PanelTemplates_UpdateTabs() calls.update = calls.update + 1 end
+  function PanelTemplates_TabResize() end
+  function ReloadUI() calls.reload = calls.reload + 1 end
+  local hookedSecure = {}
+  function hooksecurefunc(t, name, fn)
+    local orig = t[name]; hookedSecure[name] = true
+    t[name] = function(...) local r = { orig(...) } fn(...) return unpack(r) end
+  end
+  local touched = {}
+  function issecurevariable(t, k) if type(t) == "string" then return true end if touched[k] then return false, "Peon_Broker" end return true end
+  -- Nachbau von Blizzards Auktionshaus: drei Reiter, SetDisplayMode
+  local ah = CreateFrame("Frame", "AuctionHouseFrame")
+  ah.BuyTab, ah.SellTab, ah.AuctionsTab = CreateFrame("Button"), CreateFrame("Button"), CreateFrame("Button")
+  ah.Tabs = { ah.BuyTab, ah.SellTab, ah.AuctionsTab }
+  ah.SetDisplayMode = function(self, m) calls.display = calls.display + 1; self.displayMode = m end
+  ah.GetFrameLevel = function() return 5 end
+  AuctionHouseFrameDisplayMode = { Buy = { "BrowseResultsFrame" } }
+  local modesBefore = 0 for _ in pairs(AuctionHouseFrameDisplayMode) do modesBefore = modesBefore + 1 end
+
+  mod.acc.ahPlain = false
+  fire("AUCTION_HOUSE_SHOW")
+  check(T.built and T.tabs.radar and T.tabs.shop and T.page and T.plainButton, "U0: zwei Reiter, Flaeche und Knopf Blizzard pur angelegt")
+  check(T.tabs.radar.points[1][2] == ah.AuctionsTab and T.tabs.shop.points[1][2] == T.tabs.radar, "U0: Reiter rechts neben Auktionen")
+  check(T.tabs.radar.text == ns.L.AHTAB_RADAR and T.tabs.shop.text == ns.L.AHTAB_SHOP, "U0: Reiter heissen Radar und Einkaufen")
+  check(#ah.Tabs == 3 and ah.numTabs == nil, "U0: Blizzards Reiterliste bleibt unberuehrt")
+  local modesAfter = 0 for _ in pairs(AuctionHouseFrameDisplayMode) do modesAfter = modesAfter + 1 end
+  check(modesAfter == modesBefore, "U0: keine eigenen Eintraege in AuctionHouseFrameDisplayMode")
+  check(hookedSecure.SetDisplayMode, "U0: sicherer Anhang an SetDisplayMode")
+  check(not T.page:IsShown(), "U0: Flaeche anfangs verborgen")
+
+  local dsel = calls.deselect
+  T.tabs.radar.scripts.OnClick(T.tabs.radar)
+  check(T.current == "radar" and T.page:IsShown() and T.page.title.text == ns.L.AHTAB_RADAR_TITLE, "U0: Klick auf Radar zeigt die Flaeche")
+  check(calls.display == 0, "U0: Broker ruft SetDisplayMode nie selbst auf")
+  check(calls.deselect - dsel >= 4 and calls.select >= 1, "U0: nur das Aussehen der Reiter wird umgestellt")
+  check(T.page.status.text and T.page.status.text:find("displayMode", 1, true), "U0: Flaeche zeigt den Zustand von Blizzards Werten")
+
+  ah:SetDisplayMode(AuctionHouseFrameDisplayMode.Buy)   -- wie Klick auf Blizzards Reiter Kaufen
+  check(T.current == nil and not T.page:IsShown() and calls.update >= 1, "U0: Blizzard wechselt die Ansicht -> Flaeche weg, Blizzards Reiter wieder richtig")
+
+  touched.displayMode = true
+  local r = T.Probe(true)
+  check(r.vars.displayMode:find("Peon_Broker", 1, true) and r.vars.selectedTab == "sauber" and mod.acc.ahProbe == r, "U0: Pruefung meldet beruehrte Werte und merkt das Ergebnis")
+  touched.displayMode = nil
+  SlashCmdList.PEON_BROKER("pruefen ah")
+  check(said(ns.L.AH_PROBE_BLOCKED:format(0)), "U0: /broker pruefen ah")
+
+  -- Blockierte Aktion: nur fuer Peon_Broker, Angebot einmal je Sitzung, nur bei offenem Auktionshaus
+  popupShown = nil
+  fire("ADDON_ACTION_BLOCKED", "AnderesAddon", "PlaceBid()")
+  check(popupShown == nil and #T.blocked == 0, "U0: fremde Blockaden werden ignoriert")
+  fire("ADDON_ACTION_BLOCKED", "Peon_Broker", "PlaceBid()")
+  check(popupShown and popupShown.name == "PEON_BROKER_AH_PLAIN_ON" and popupShown.text:find("PlaceBid", 1, true), "U0: Blockade durch Broker bietet Blizzard pur an")
+  check(mod.acc.ahBlocked and mod.acc.ahBlocked.fn == "PlaceBid()", "U0: Blockade gemerkt")
+  popupShown = nil
+  fire("ADDON_ACTION_FORBIDDEN", "Peon_Broker", "StartCommoditiesPurchase()")
+  check(popupShown == nil and #T.blocked == 2, "U0: nur einmal je Sitzung angeboten, aber weiter gezaehlt")
+
+  -- Blizzard pur einschalten (Rueckfrage annehmen)
+  StaticPopupDialogs.PEON_BROKER_AH_PLAIN_ON.OnAccept()
+  check(mod.acc.ahPlain == true and calls.reload == 1, "U0: Blizzard pur an, Oberflaeche wird neu geladen")
+  check(not ns.AHTouch() and Win.SetAHMode("Buy") == false and ns.Buy.ShowInAH({ key = 2770 }) == false, "U0: bei Blizzard pur kein Umschalten und kein Zeigen in Blizzards Fenster")
+  local built = T.built; T.built, T.plainButton = nil, nil
+  check(T.Build() == false and T.plainButton == nil, "U0: bei Blizzard pur keine Reiter")
+  T.built = built
+  mod:ResetDefaults()
+  check(mod.acc.ahPlain == true, "U0: Standardwerte lassen Blizzard pur stehen")
+  SlashCmdList.PEON_BROKER("pur")
+  check(popupShown and popupShown.name == "PEON_BROKER_AH_PLAIN_OFF", "U0: /broker pur fragt beim Zurueckschalten nach")
+  StaticPopupDialogs.PEON_BROKER_AH_PLAIN_OFF.OnAccept()
+  check(mod.acc.ahPlain == false and calls.reload == 2 and ns.AHTouch(), "U0: Broker im Auktionshaus wieder an")
+  AuctionHouseFrame = {}
+end)()
+
 -- Keine unerwarteten Fehlermeldungen
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("hat einen Fehler gemeldet", 1, true) then n = n + 1 end end  -- erwartete Meldung aus dem Verkaufen-Test
 check(n == 0, "keine Fehlermeldungen")

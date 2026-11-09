@@ -45,6 +45,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         duration     = 8,       -- LZ: Laufzeit in Stunden (2, 8, 24)
         dataDays     = 30,      -- AUFB: Tageswerte so lange aufbewahren, danach Wochenwerte
         windowWithAH = false,   -- Broker-Fenster mit dem Auktionshaus oeffnen
+        ahPlain      = false,   -- ab 0.41: "Blizzard pur", Broker laesst das Auktionshaus in Ruhe (AHTabs.lua)
         windowTab    = "prices",-- zuletzt gewaehlter Reiter
         windowPos    = {},      -- Position des Fensters, wenn es nicht am Auktionshaus angedockt ist
         shortMass    = true,    -- Massenware mit vielen Angeboten auf 2 Std. (F25)
@@ -102,7 +103,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  radarSoundKey = { raid = true, ready = true, alarm = true, tell = true },
                  radarOrder = { smart = true, random = true, commodity = true, high = true, low = true },
                  windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true } },   -- ab 0.28 mit "start", ohne "book"
-    keepOnReset = { windowPos = true, windowTab = true, keepAllChars = true },
+    keepOnReset = { windowPos = true, windowTab = true, keepAllChars = true, ahPlain = true },
     migrate  = function(m, acc)
         if ns.Data then ns.Data.Migrate(acc) end
         if ns.Sales then ns.Sales.Migrate(acc) end
@@ -115,7 +116,11 @@ local mod = Peon:NewModule(ADDON_NAME, {
             elseif r == "abfrage" or r == "query" then ns.Probe.QueryTest()
             elseif r == "auktionen" or r == "auctions" or r == "felder" or r == "fields" then ns.Probe.FieldReport()
             elseif r == "beruf" or r == "craft" then ns.Craft.Probe()
+            elseif r == "ah" then ns.AHTabs.Probe()
             else ns.Probe.Run() end
+        elseif cmd == "pur" or cmd == "blizzard" then
+            -- ab 0.41: "Blizzard pur" an oder aus (laedt neu, darum mit Rueckfrage)
+            ns.AHTabs.AskPlain(not ns.AHPlain())
         elseif cmd == "absatz" or cmd == "sales" then
             ns.Sales.Report(rest)
         elseif cmd == "scan" then
@@ -418,6 +423,7 @@ local function CreateMinimapButton()
                 tt:AddLine(fmt:format(ns.Scan.Age(market.mgrAt), market.mgrItems or 0), newer and 0.8 or 0.6, newer and 0.8 or 0.6, newer and 0.8 or 0.6)
             end
             tt:AddLine(L.MM_PROBE:format(when), 0.6, 0.6, 0.6)
+            if ns.AHPlain() then tt:AddLine(L.AH_PLAIN_TT, 1, 0.6, 0.3, true) end
         end,
         -- Texte fuer Peon_Panel
         texts = {
@@ -462,6 +468,7 @@ mod:On("INIT", function()
     mod:Call("Scan", ns.Scan.Init)
     mod:Call("Tooltip", ns.Tooltip.Init)
     mod:Call("Fenster", ns.Window.Init)
+    mod:Call("Auktionshaus-Reiter", ns.AHTabs.Init)
     mod:Call("Start", ns.Start.Init)
     mod:Call("Verkaufen", ns.Sell.Init)
     mod:Call("Behalten", ns.Keep.Init)

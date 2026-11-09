@@ -387,6 +387,7 @@ end
 function S.PutIntoAH(it)
     S.inAH = nil
     if not AHOpen() or not it or not it.locs[1] or not it.locs[1].loc then return false end
+    if not ns.AHTouch() then return false end   -- ab 0.41: "Blizzard pur"
     local f = BlizzAH()
     if not f then return false end
     local loc = it.locs[1].loc
