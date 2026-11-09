@@ -782,6 +782,17 @@ L.BUY_ADV_CHECK    = "CHECK"
 L.BUY_ADV_DONE     = "done"
 L.AHTAB_SHOP_HINT  = ""
 
+-- Umbau U9 (ab 0.50): Blizzards Reiter Auktionen
+L.AUCX_HEAD        = "%d running · %s undercut · value %s"
+L.AUCX_CHECKING    = "checking ..."
+L.AUCX_CHECK       = "Check"
+L.AUCX_CHECK_HINT  = "Checks all your items live (about 90 per minute). Without it the last scan counts."
+L.AUCX_BEST        = "cheapest"
+L.AUCX_EQUAL       = "tied"
+L.AUCX_UNDER       = "undercut: %s"
+L.AUCX_HIGH        = "too high: usual %s"
+L.AUCX_SOLD        = "sold"
+
 if GetLocale() == "deDE" then
     L.SALES_PER_HOUR = "%s/Std."
     L.SALES_REACH_H = "reicht %s Std."
@@ -1530,4 +1541,14 @@ if GetLocale() == "deDE" then
     L.BUY_ADV_EXPENSIVE = "ZU TEUER"
     L.BUY_ADV_CHECK    = "PRÜFEN"
     L.BUY_ADV_DONE     = "erledigt"
+    -- Umbau U9 (ab 0.50)
+    L.AUCX_HEAD        = "%d laufen · %s unterboten · Wert %s"
+    L.AUCX_CHECKING    = "prüfe ..."
+    L.AUCX_CHECK       = "Prüfen"
+    L.AUCX_CHECK_HINT  = "Prüft alle deine Gegenstände live (etwa 90 je Minute). Ohne Klick gilt der letzte Scan."
+    L.AUCX_BEST        = "Günstigstes"
+    L.AUCX_EQUAL       = "gleichauf"
+    L.AUCX_UNDER       = "unterboten: %s"
+    L.AUCX_HIGH        = "zu teuer: üblich %s"
+    L.AUCX_SOLD        = "verkauft"
 end

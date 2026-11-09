@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.50.0
+
+Kurz: Blizzards Reiter „Auktionen“ zeigt jetzt bei jeder deiner Auktionen, ob sie das günstigste Angebot ist, unterboten wurde oder zu teuer ist. Darüber stehen Anzahl, Unterbotene und Gesamtwert, mit „Prüfen“ fragt Broker alle live ab.
+
+- 0.50.0 (09.11.2026): **Umbau U9, Auktionen** (Konzept Abschnitt 7.3). Neue Datei `AuctionsAH.lua`.
+  - **Kopfzeile** über Blizzards Liste (links neben „Neu laden“): laufende Auktionen, davon unterboten, Wert zum Sofortkaufpreis. Knopf **„Prüfen“** startet die Live-Prüfung aller eigenen Gegenstände (`A.StartLive` aus dem bisherigen Reiter Meine Auktionen).
+  - **Status je Zeile** rechts in der Gegenstandsspalte: Günstigstes (grün), gleichauf (gelb), unterboten: Preis (orange), zu teuer: üblich (rot, Preis über dem üblichen Bereich), verkauft (grau).
+  - Broker schreibt nichts in Blizzards Liste: eine eigene Uhr liest alle 0,3 Sek. die sichtbaren Zeilen (`ScrollBox:ForEachFrame`, `rowData.auctionID`) und setzt eigene Texte. Die eigenen Auktionen liest Broker nach Blizzards Abfrage (`OWNED_AUCTIONS_UPDATED`) mit.
+  - Abbrechen und neu einstellen bleiben Blizzards Knöpfe. Bei „Blizzard pur“ nichts davon.
+  - **Im Spiel prüfen:** Reiter Auktionen: Sitzt der Status in der Gegenstandsspalte, ohne Namen zu überdecken? Kopfzeile neben „Neu laden“? „Prüfen“ aktualisiert die Angaben?
+
 ## 0.49.0
 
 Kurz: Die Einkaufsliste ist zurück und steht auch als Reiter „Einkaufen“ im Auktionshaus. Jede Zeile sagt, ob sich Kaufen lohnt, und die Zahl am Reiter zeigt, wie viel gerade kaufbar ist.

@@ -3226,6 +3226,56 @@ end)()
   Wt.Remove(2770)
 end)()
 
+-- ===== Umbau U9 (0.50.0): Blizzards Reiter Auktionen =====
+;(function()
+  local X, A = ns.AuctionsAH, ns.Auctions
+  local L = ns.L
+  -- Status je Auktion
+  check(select(1, X.Status({ sold = true })) == "sold", "U9: verkauft")
+  local k, t = X.Status({ status = "under", other = 100 })
+  check(k == "under" and plain(t):find("unterboten", 1, true), "U9: unterboten mit Preis")
+  check(X.Status({ status = "equal" }) == "equal", "U9: gleichauf")
+  local oldEval = ns.Data.Evaluate
+  ns.Data.Evaluate = function() return { band = { low = 90, high = 110, rw = 100 } } end
+  check(X.Status({ status = "best", key = 2770, itemID = 2770, price = 200 }) == "high", "U9: ueber dem ueblichen Bereich -> zu teuer")
+  check(X.Status({ status = "best", key = 2770, itemID = 2770, price = 100 }) == "best", "U9: sonst Guenstigstes")
+  ns.Data.Evaluate = oldEval
+  local n, under, value = X.Summary({ { status = "under", price = 10, qty = 2 }, { status = "best", price = 5 }, { sold = true, price = 99 } })
+  check(n == 2 and under == 1 and value == 25, "U9: Kopfzeile zaehlt laufende, unterbotene und den Wert")
+  -- Nachbau: Auktionshaus mit Liste der eigenen Auktionen
+  local ah = CreateFrame("Frame", "AuctionHouseFrame")
+  local af = CreateFrame("Frame"); af.shown = true
+  local list = CreateFrame("Frame")
+  local rowA, rowB = CreateFrame("Button"), CreateFrame("Button")
+  rowA.rowData = { auctionID = 11 }; rowB.rowData = { auctionID = 12 }
+  rowA.cells = { CreateFrame("Frame") }
+  list.ScrollBox = { ForEachFrame = function(_, fn) fn(rowA); fn(rowB) end }
+  af.AllAuctionsList = list
+  ah.AuctionsFrame = af
+  X.header = nil
+  check(X.Build() and X.header and X.header.check, "U9: Kopfzeile mit Knopf Pruefen")
+  A.rows = { { id = 11, key = 2770, itemID = 2770, status = "under", other = 50, price = 60 }, { id = 12, key = 2589, itemID = 2589, sold = true } }
+  X.Update()
+  check(plain(X.labels[rowA].text):find("unterboten", 1, true) and plain(X.labels[rowB].text) == L.AUCX_SOLD, "U9: Status je Zeile ueber auctionID")
+  check(X.labels[rowA].points[1][2] == rowA.cells[1], "U9: Status rechts in der Gegenstandsspalte")
+  check(plain(X.header.text.text):find("1 laufen", 1, true), "U9: Kopfzeile: " .. plain(X.header.text.text))
+  check(rawget(rowA, "peon") == nil and rowA.rowData.status == nil, "U9: nichts in Blizzards Zeilen geschrieben")
+  local started = 0
+  local oldStart = A.StartLive
+  A.StartLive = function() started = started + 1 end
+  X.header.check.scripts.OnClick(X.header.check)
+  check(started == 1, "U9: Pruefen startet die Live-Pruefung")
+  A.StartLive = oldStart
+  mod.acc.ahPlain = true
+  X.labels[rowA]:SetText("x")
+  X.Update()
+  check(X.labels[rowA].text == "x", "U9: Blizzard pur -> keine Aenderung")
+  mod.acc.ahPlain = false
+  A.rows = nil
+  X.header = nil
+  AuctionHouseFrame = {}
+end)()
+
 -- ===== Umbau U3 (0.44.0): Rat im Verkaufsfenster =====
 ;(function()
   local A = ns.Advice
