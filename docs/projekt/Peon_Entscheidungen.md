@@ -6,6 +6,7 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 
 - **Modul Peon Broker Client im Arbeitsprozess** (KarloDerBaer, Vorschlag Claude): Das Fenster darf nie hängen. Die Werte erscheinen dafür ein paar Sekunden später.
 - **Danach schneller rechnen** (KarloDerBaer): Nach einem neuen Stand nur das Neue verarbeiten statt den ganzen Verlauf.
+- **Normales Release** `v2026.11.09.2` direkt ohne Vorabversion (KarloDerBaer).
 
 ## 09.11.2026: Neutrales Auktionshaus als eigener Markt (Broker 0.40.0)
 
