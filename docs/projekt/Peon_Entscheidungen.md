@@ -2,6 +2,11 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 09.11.2026: Neutrales Auktionshaus als eigener Markt (Broker 0.40.0)
+
+- **Eigener Markt `<Realm> / Neutral`** (KarloDerBaer, schon im Konzept vorgesehen): Daten vom neutralen Haus dürfen sich nicht mit denen der eigenen Fraktion mischen.
+- **Erkennung über den Auktionator** (Claude, im Spiel geprüft): Der Auktionator in Beutebucht hat keine Fraktion. Gilt nur, solange das Auktionshaus offen ist. Danach zeigen Tooltips wieder den Markt der eigenen Fraktion, weil man dort meistens handelt.
+
 ## 08.11.2026: Broker im Berufsfenster (Broker 0.39.0)
 
 - **Block unter den Reagenzien statt Box daneben** (KarloDerBaer): Kosten, Vorrat und Gewinn stehen da, wo man beim Herstellen hinschaut. Die Box bleibt nur als Rückfall.

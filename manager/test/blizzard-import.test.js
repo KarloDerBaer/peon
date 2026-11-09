@@ -318,6 +318,17 @@ test('Vorschlag ueber den Scan: das richtige Haus, Daten landen im Markt des Sca
   svc.close();
 });
 
+test('Vorschlag: Scan am neutralen Auktionshaus findet das neutrale Haus', async () => {
+  const { svc, world, client, api, db } = setup();
+  world.houses[111] = { single: [{ id: 1, item: { id: 2589 }, buyout: 1, quantity: 1, time_left: 'LONG' }], mass: [] };
+  world.houses[117] = { single: SINGLE, mass: MASS };
+  game.importEntry(db, { id: 'n', kind: 'scan', market: 'CAMWOW EU4 Realm 3 PvE / Neutral', realm: 'CAMWOW EU4 Realm 3 PvE', faction: 'Neutral', region: 3, t: T0, rows: '2589;;;20;1000;;;3;;1\n2589;;;5;300;;;4;;1\n6611;12726;Klinge des Wolfs;1;5000;;;4;;1', offers: 3 }, null);
+  const r = await api.suggest(client);
+  assert.deepEqual(r.map((x) => [x.market, x.house, x.how]), [['CAMWOW EU4 Realm 3 PvE / Neutral', 117, 'scan']]);
+  assert.equal(svc.settings.blizzard.houses['eu-117'].market, 'CAMWOW EU4 Realm 3 PvE / Neutral');
+  svc.close();
+});
+
 test('Vorschlag ohne Scan: Charaktere aus Peon_Ledger, Regelsatz bestimmt das Haus, Region muss passen', async () => {
   const wow = tmp();
   const sv = path.join(wow, 'WTF', 'Account', 'KONTO', 'SavedVariables');

@@ -3,7 +3,7 @@
 ## Notes: Connection between the game and the Peon Manager on the PC. Content registers as channels, the manager enables them.
 ## Notes-deDE: Verbindung zwischen Spiel und Peon Manager auf dem PC. Inhalte melden sich als Kanäle an, der Manager schaltet sie frei.
 ## Author: KarloDerBaer
-## Version: 0.7.0
+## Version: 0.8.0
 ## Dependencies: Peon
 ## OptionalDeps: Peon_Broker
 ## Group: Peon

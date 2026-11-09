@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 08.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.39.0 / Bridge 0.7.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.22.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 09.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.40.0 / Bridge 0.8.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.22.1 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.15.0, API 15
@@ -47,7 +47,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.39.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.40.0 (neu, Auktionshaus-Helfer)
 
 - **Broker im Berufsfenster (ab 0.39.0):** Block unter den Reagenzien (Ergebniszeile Kosten/Ertrag/Gewinn, Tabelle je Material mit Quelle Vorrat/Händler/AH, Kosten laut Ledger oder Kaufpreis, Erlös im AH, Gesamt, Hinweis „Material verkaufen bringt mehr“ oder „Herstellen bringt mehr“ mit beiden Beträgen, Tooltips, Haken Twinks, Zahnrad), Händlerpreise aus Händlerbesuch, Ledger oder Schätzung, Gewinn in der Rezeptliste (orange, wenn Verkaufen mehr bringt) mit goldenem Strich am besten Rezept, alles einstellbar. Von KarloDerBaer im Spiel geprüft, danach nur noch der Hinweistext geändert. Zusammen mit Ledger 0.13.1 auf Wunsch von KarloDerBaer ohne Vorabversion direkt im normalen Release `v2026.11.08.3` (08.11.2026, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen). Damit sind auch Broker 0.38.0 und Manager 0.21.0 bis 0.22.0 im normalen Release. Bei Problemen `/broker pruefen beruf`.
 - **Kürzung nach unten erst ab 75 % unter der Mitte (ab 0.38.0, F37a):** Ein echter Preissturz zählt im üblichen Bereich gleich voll, gleich wie im Manager.
@@ -62,7 +62,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.22.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.22.1
 
 - **Chancen für Massenware und unruhige Preise (ab 0.22.0, Rechenmodell Kapitel 10):** Kein Wiederverkauf, wenn unter dem Ziel mehr als ein Tagesabsatz liegt (F50b) oder die Schwankung über 40 % liegt (F50c). Neues Preisniveau schon nach 12 Std. (F54). Chancen zeigen nur den letzten Scan, der Zeitraum zählt nur die Häufigkeit. Preis und Menge im Diagramm auf derselben Zeitachse. Vorabversion `v2026.11.08.2-test` (08.11.2026, nur Kanal Test, enthält auch 0.21.1), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im normalen Release `v2026.11.08.3` (08.11.2026, mit Broker 0.39.0). **Noch zu prüfen durch KarloDerBaer:** Chancen-Tabelle, Satz „Das ist der Marktpreis“ (Robuster Stein), „Der Preis schwankt stark“ (Umhang des Hügelwächters), gemeinsame Zeitachse im Diagramm.
 
@@ -88,7 +88,7 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Tests: `npm test` im Ordner `manager\` (Rechenkern, dazu der Vergleich mit Brokers Sales.lua über `tools\lua5.1.exe`).
 - Verlauf der Versionen: `docs/changelog/Peon_Manager.md`
 
-## Peon_Bridge – 0.6.0 (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager)
+## Peon_Bridge – 0.8.0 (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager)
 
 - Design: `Peon_GitHub_Design.md` Abschnitt 4 (Bridge, Kanäle, Format von Data.lua), vorher `Peon_Client_Design.md` Bauabschnitt C1.
 - Dateien: Data.lua (Platzhalter, vom Manager überschrieben, **nie mit ausgeliefert, nicht im Repo**), Locales.lua, Bridge.lua (Transport, Kanäle), Channel_Broker.lua (Kanal broker: Momentaufnahmen, Werte für Broker), Options.lua; Symbol `INV_Misc_Gear_01`. `## OptionalDeps: Peon_Broker`.
@@ -225,7 +225,7 @@ Normales Release `v2026.11.07.6` am 07.11.2026 auf Wunsch von KarloDerBaer, die 
 
 Umgesetzt mit Manager 0.17.0, Broker 0.34.0, Bridge 0.6.0. Vorabversion `v2026.11.07.3-test` veröffentlicht (06.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. **Noch zu prüfen im Spiel:** Übernahme der Listen, Abgleich in beide Richtungen, Feld „Max. Gold“, genaue Werte im Hintergrund (bleibt das Spiel flüssig, hängen die Werte von der Stufe im Link ab), wie lange ein Scan dadurch zusätzlich dauert.
 
-**Noch offen, neutrales Auktionshaus:** Broker bildet den Markt aus Realm und Spielerfraktion. Ein Scan am neutralen Haus landet deshalb vermutlich im Markt der eigenen Fraktion und verfälscht dessen Preise. Wie das Spiel das neutrale Haus erkennbar macht, ist nicht geprüft. Klären, sobald KarloDerBaer an einem neutralen Auktionshaus ist. Die API-Daten betrifft das nicht.
+**Neutrales Auktionshaus (Broker 0.40.0, Bridge 0.8.0, Manager 0.22.1, 09.11.2026):** Am Haus in Beutebucht hat der Auktionator keine Fraktion (`UnitFactionGroup("npc")` gibt nil, geprüft von KarloDerBaer). Broker speichert dort im eigenen Markt `<Realm> / Neutral`, der Manager zeigt ihn als „PvE Neutral“ und ordnet ihm beim Vorschlag das neutrale Haus zu. Vor dem ersten Scan hatte KarloDerBaer nur Kategorien angeklickt, das speichert keine Preise. **Noch zu prüfen:** Scan am neutralen Haus landet unter „Neutral“, Vergleich mit Haus 117 unter Quellen, am Haus der eigenen Fraktion bleibt alles beim Alten.
 
 ### Umbau des Peon Managers (beschlossen 06.11.2026)
 

@@ -188,6 +188,8 @@ local function Head(kind, market, t)
     if type(realm) == "string" and not Peon.IsSecret(realm) then e.realm = realm end
     local faction = UnitFactionGroup and UnitFactionGroup("player")
     if type(faction) == "string" and not Peon.IsSecret(faction) then e.faction = faction end
+    -- neutrales Auktionshaus (ab 0.8.0): die Fraktion steht im Markt
+    if type(market) == "string" and market:match(" / Neutral$") then e.faction = "Neutral" end
     local gr = rawget(_G, "GetCurrentRegion")
     if gr then
         local ok, r = pcall(gr)

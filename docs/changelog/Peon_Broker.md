@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.40.0
+
+Kurz: Am neutralen Auktionshaus (zum Beispiel in Beutebucht) speichert Broker die Preise in einem eigenen Markt „Neutral“. Deine Preise aus dem Auktionshaus deiner Fraktion bleiben davon unberührt.
+
+- 0.40.0 (09.11.2026, KarloDerBaer in Beutebucht): **Neutraler Markt.** Bisher bestand der Markt immer aus Realm-Name und Fraktion des Charakters, ein Scan am neutralen Haus wäre im Markt der eigenen Fraktion gelandet. Jetzt prüft `ns.MarketKey()` bei offenem Auktionshaus die Fraktion des Auktionators (`UnitFactionGroup("npc")`). Hat er keine, heißt der Markt `<Realm> / Neutral`. Geprüft im Spiel: „Auktionator O'reely“ in Beutebucht hat keine Fraktion. Ob das Auktionshaus offen ist, fragt `ns.AtNeutralAH()` beim Spiel nach (`C_PlayerInteractionManager`), damit es nicht von der Reihenfolge der Ereignisse abhängt. Nach dem Schließen gilt wieder der eigene Markt, Tooltips zeigen dann wieder die Preise der eigenen Fraktion.
+  - **Im Spiel prüfen:** Am neutralen Haus zeigt der Tooltip des Scan-Knopfs „… / Neutral“, am Haus der eigenen Fraktion weiter „… / Alliance“.
+
 ## 0.39.0
 
 Kurz: Im Berufsfenster stehen Kosten, Vorrat und Gewinn jetzt direkt unter den Reagenzien. In der Rezeptliste siehst du den Gewinn jedes Rezepts, das beste ist golden markiert. Alles lässt sich über das Zahnrad einstellen.

@@ -191,12 +191,37 @@ function ns.Notify(kind, ...)
     end
 end
 
+-- Ist das Auktionshaus gerade offen? Ohne Abhaengigkeit von der Reihenfolge der Ereignisse (ab 0.40)
+local function AHOpenNow()
+    local pim = rawget(_G, "C_PlayerInteractionManager")
+    local pt = Enum and Enum.PlayerInteractionType and Enum.PlayerInteractionType.Auctioneer
+    if pim and type(pim.IsInteractingWithNpcOfType) == "function" and pt then
+        local ok, v = pcall(pim.IsInteractingWithNpcOfType, pt)
+        if ok and v == true then return true end
+    end
+    if ns.Scan and ns.Scan.ahOpen then return true end
+    local f = rawget(_G, "AuctionHouseFrame")
+    return type(f) == "table" and type(f.IsShown) == "function" and f:IsShown() == true
+end
+
+-- Neutrales Auktionshaus (ab 0.40, KarloDerBaer 09.11.2026): Der Auktionator hat keine Fraktion.
+-- Geprueft in Beutebucht: UnitFactionGroup gibt fuer "Auktionator O'reely" nil.
+function ns.AtNeutralAH()
+    if not AHOpenNow() then return false end
+    if not (UnitExists and UnitExists("npc")) then return false end
+    local f = UnitFactionGroup and UnitFactionGroup("npc")
+    if Peon.IsSecret(f) then return false end
+    return f == nil or f == "" or f == "Neutral"
+end
+
 -- Markt = Regelsatz (Realm-Name) + Fraktion. Der Nachname des Charakters gehoert nicht dazu.
+-- Am neutralen Auktionshaus ist die Fraktion "Neutral", ein eigener Markt (ab 0.40).
 function ns.MarketKey()
     local realm = GetRealmName and GetRealmName() or nil
     local faction = UnitFactionGroup and UnitFactionGroup("player") or nil
     if Peon.IsSecret(realm) or type(realm) ~= "string" or realm == "" then realm = "?" end
     if Peon.IsSecret(faction) or type(faction) ~= "string" or faction == "" then faction = "?" end
+    if ns.AtNeutralAH() then faction = "Neutral" end
     return realm .. " / " .. faction
 end
 

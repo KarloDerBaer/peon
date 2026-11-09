@@ -160,7 +160,7 @@ class BlizzardImport {
       if (!out.has(key)) out.set(key, { key, realm, faction });
     };
     for (const m of this.db.prepare('SELECT key, region FROM markets').all()) {
-      const k = /^(.*) \/ (Alliance|Horde)$/.exec(m.key);
+      const k = /^(.*) \/ (Alliance|Horde|Neutral)$/.exec(m.key);
       if (k && !m.key.startsWith('Blizzard ')) add(k[1], k[2], m.region);
     }
     for (const c of ledgerMarkets(this.broker.settings.wowDir)) add(c.realm, c.faction);

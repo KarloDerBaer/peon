@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.22.1
+
+Kurz: Der neutrale Markt aus Broker erscheint als „PvE Neutral“ und bekommt beim Vorschlag unter Quellen das neutrale Haus.
+
+- 0.22.1 (09.11.2026): Der Vorschlag unter Quellen kennt jetzt auch Märkte `<Realm> / Neutral` (Broker 0.40.0). Mit eigenem Scan entscheidet der Vergleich mit den neutralen Häusern, sonst der Regelsatz (Normal: Haus 117 in der EU).
+  - Tests: `test/blizzard-import.test.js` um den Vorschlag für einen Scan am neutralen Haus erweitert.
+
 ## 0.22.0
 
 Kurz: Chancen zeigen nur noch, was der letzte Scan ergeben hat, mit den Preisen aus diesem Scan.

@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.8.0
+
+Kurz: Scans am neutralen Auktionshaus kommen im Manager als eigener Markt an.
+
+- 0.8.0 (09.11.2026): Momentaufnahmen aus dem Markt `<Realm> / Neutral` (Broker 0.40.0) melden dem Manager die Fraktion `Neutral` statt der des Charakters.
+
 ## 0.7.0
 
 Kurz: Die Bridge gibt Broker die Preise aus dem neuesten Stand des Managers, zum Beispiel aus der Blizzard-API.

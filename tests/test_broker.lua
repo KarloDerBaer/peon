@@ -402,6 +402,21 @@ check(#lines == 1 and lines[1]:find("noch kein Scan", 1, true), "anderer Markt: 
 check(D.Market() == nil and D.Markets()["Classic Beta PvE / Horde"] ~= nil, "Daten bleiben im eigenen Markt")
 UnitFactionGroup = function() return "Horde", "Horde" end
 
+-- ===== Neutrales Auktionshaus (ab 0.40) =====
+do
+    local oldOpen, oldExists, oldUFG = ns.Scan.ahOpen, rawget(_G, "UnitExists"), UnitFactionGroup
+    UnitExists = function(u) return u == "npc" end
+    UnitFactionGroup = function(u) if u == "npc" then return nil end return "Horde", "Horde" end
+    ns.Scan.ahOpen = false
+    check(ns.MarketKey() == "Classic Beta PvE / Horde", "neutral: ohne offenes Auktionshaus der eigene Markt")
+    ns.Scan.ahOpen = true
+    check(ns.MarketKey() == "Classic Beta PvE / Neutral", "neutral: Auktionator ohne Fraktion ergibt den Markt Neutral")
+    check(D.Market() == nil and D.Markets()["Classic Beta PvE / Horde"] ~= nil, "neutral: keine Preise aus dem eigenen Markt")
+    UnitFactionGroup = function(u) if u == "npc" then return "Horde", "Horde" end return "Horde", "Horde" end
+    check(ns.MarketKey() == "Classic Beta PvE / Horde", "neutral: Auktionator der eigenen Fraktion bleibt im eigenen Markt")
+    ns.Scan.ahOpen, UnitExists, UnitFactionGroup = oldOpen, oldExists, oldUFG
+end
+
 -- ===== Zweiter Scan am selben Tag: Tageswert und Trend =====
 clock = clock + 20 * 60
 LISTINGS[1][5] = 10 * 130
