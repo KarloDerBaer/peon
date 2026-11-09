@@ -31,11 +31,11 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 | Addon | Version | SavedVariables | Befehl |
 |---|---|---|---|
-| Peon | 0.15.0 | `PeonDB` | /peon |
+| Peon | 0.16.0 | `PeonDB` | /peon |
 | Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
 | Peon_Fishing (früher FishingPlus) | 1.6.0 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
-| Peon_Broker (neu, Auktionshaus) | 0.44.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
+| Peon_Broker (neu, Auktionshaus) | 0.45.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
 | Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.7.0 | `PeonBridgeDB` | /peon bridge |
 | Peon_Feedback | 0.4.0 | `PeonFeedbackDB` | /feedback |
 | Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
@@ -45,7 +45,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
-## Kern-API (Peon.API = 15)
+## Kern-API (Peon.API = 16)
 
 Die API wird nur erweitert, nie geändert (sonst brechen alle Module). Bei neuen Funktionen `Peon.API` erhöhen.
 
@@ -120,6 +120,13 @@ mod:NewLauncher({ icon = "...", showKey = "minimapShow", onClick = function(mod,
     texts = { { key = "free", label = "Freie Plätze", get = function(mod) return "23 frei" end } }, defaultText = "free" })
 mod:AddLauncher({ key = "uhr", ... })   -- API 15: weiterer Starter eines Moduls, key ist Pflicht
 -- API 15, neue Felder: onWheel = function(mod, delta, owner) end, available = function(mod) return true end
+```
+- **Gegenstandsmenü (API 16, ItemMenu.lua):** Strg+Rechtsklick (einstellbar, `PeonDB.itemMenuClick`) auf einen Gegenstand öffnet ein Menü. Module hängen Einträge an, zwischen Modulen eine Trennlinie. Tastenbelegung `PEON_ITEM_MENU`.
+```lua
+if Peon.AddItemMenu then Peon.AddItemMenu(ADDON_NAME, function(root, item)   -- item = { id, link, name }
+    root:CreateButton("Info", function() ... end)
+end, 10) end                                                                     -- order: kleiner zuerst
+Peon.OpenItemMenu(item, owner)   -- z. B. aus eigenen Listen
 ```
 - **Bereiche für Rückmeldungen (API 9, Feedback.lua):** Jedes Modul meldet seine Bereiche für Peon_Feedback und den Peon Manager (ab API 13 in `PeonDB.feedbackAreas`) mit einer Zeile (am Ende der ersten Code-Datei). Das `if` hält das Modul mit älterem Kern lauffähig; „Sonstiges“ hängt Feedback selbst an.
 ```lua

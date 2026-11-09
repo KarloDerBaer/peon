@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.45.0
+
+Kurz: Strg+Rechtsklick auf einen Gegenstand bietet jetzt „Info (Broker)“ und „Auf Einkaufsliste“ mit allen deinen Listen an.
+
+- 0.45.0 (09.11.2026): **Umbau U4, Einträge im Gegenstandsmenü** (Konzept Abschnitt 9, braucht Peon 0.16.0 mit API 16, sonst kein Menü). Neue Datei `Menu.lua`.
+  - „Info (Broker)“ öffnet das Broker-Fenster beim Reiter Preise mit dem Gegenstand (bis zum neuen Fenster in U10).
+  - „Auf Einkaufsliste“: Untermenü mit allen Listen und „Neue Liste …“.
+  - „Beobachten“ kommt mit U8.
+  - **Im Spiel prüfen:** Strg+Rechtsklick auf einen Gegenstand in der Tasche, „Auf Einkaufsliste“ und „Info (Broker)“ ausprobieren.
+
 ## 0.44.0
 
 Kurz: Legst du im Auktionshaus etwas ins Verkaufsfenster, sagt Broker darunter, ob du zu diesem Preis verkaufen solltest: Verkaufen, Lieber warten, Verkaufen (Preis fällt) oder Lieber zum Händler, jeweils mit kurzem Grund.

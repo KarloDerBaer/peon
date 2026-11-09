@@ -681,6 +681,12 @@ L.ADV_LINE_SALES   = "Sales: %s"
 L.ADV_LINE_NET     = "Proceeds: %s for %d"
 L.ADV_LINE_VENDOR  = "(vendor %s)"
 
+
+-- Umbau U4 (ab 0.45): Gegenstandsmenue
+L.MENU_INFO        = "Info (Broker)"
+L.MENU_SHOP        = "Add to shopping list"
+L.MENU_SHOP_NEW    = "New list ..."
+
 if GetLocale() == "deDE" then
     L.SALES_PER_HOUR = "%s/Std."
     L.SALES_REACH_H = "reicht %s Std."
@@ -1337,4 +1343,8 @@ if GetLocale() == "deDE" then
     L.ADV_LINE_SALES   = "Absatz: %s"
     L.ADV_LINE_NET     = "Erlös: %s für %d"
     L.ADV_LINE_VENDOR  = "(Händler %s)"
+    -- Umbau U4 (ab 0.45)
+    L.MENU_INFO        = "Info (Broker)"
+    L.MENU_SHOP        = "Auf Einkaufsliste"
+    L.MENU_SHOP_NEW    = "Neue Liste ..."
 end

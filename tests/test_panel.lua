@@ -135,7 +135,7 @@ function GetInventoryItemDurability() return nil end
 -- ===== Kern =====
 loadToc("Peon", "Peon")
 fire("ADDON_LOADED", "Peon")
-check(Peon.API == 15, "API 15")
+check(Peon.API >= 15, "API 15 oder neuer")
 check(Peon.ShortNumber(950) == "950" and Peon.ShortNumber(12345) == "12,3k" and Peon.ShortNumber(1200000) == "1,2M", "kurze Zahlen")
 check(Peon.ShortGold(4500) == "45s" and Peon.ShortGold(9500000) == "950g" and Peon.ShortGold(123450000) == "12,3k g", "kurzes Gold")
 check(Peon.ShortGold(30000000000000) == "3000,0M g", "sehr grosses Gold ohne Abbruch")

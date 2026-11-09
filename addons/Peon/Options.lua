@@ -86,6 +86,12 @@ function ns.CreateOptions()
         list:SetText(#lines > 0 and table.concat(lines, "\n") or L.MSG_NO_MODULES)
     end)
 
+    -- API 16: Gegenstandsmenue (Klick waehlen)
+    if ns.ItemMenu and ns.ItemMenu.AddOption then
+        local ok, err = pcall(ns.ItemMenu.AddOption, panel, list)
+        if not ok then Peon.ReportCoreError("Options", err) end
+    end
+
     if HasSettings then
         category = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
         Peon.category = category

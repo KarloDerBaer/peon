@@ -53,6 +53,19 @@ L.POS_BOTTOMRIGHT = "Bottom right"
 L.LIST_EMPTY      = "No entries."        -- API 7
 L.MINIMAP_DRAG    = "Drag: move button"   -- API 7
 
+
+-- Gegenstandsmenue (API 16)
+L.ITEMMENU_OPT        = "Item menu"
+L.ITEMMENU_OPT_HINT   = "Click on any item (bags, bank, vendor, quest, loot, chat links) opens a menu with entries of the Peon modules, for example \"Add to shopping list\". Shift+right-click is already used by Blizzard (split stack, buy several stacks). Additionally you can assign a key under Key Bindings > AddOns > Peon."
+L.ITEMMENU_CTRL_RIGHT = "Ctrl+right-click"
+L.ITEMMENU_ALT_RIGHT  = "Alt+right-click"
+L.ITEMMENU_SHIFT_RIGHT = "Shift+right-click (opens Blizzard's stack windows too)"
+L.ITEMMENU_CTRL_MIDDLE = "Ctrl+middle click"
+L.ITEMMENU_MIDDLE     = "Middle click"
+L.ITEMMENU_OFF        = "Off"
+BINDING_HEADER_PEON   = "Peon"
+BINDING_NAME_PEON_ITEM_MENU = "Item menu for the item under the mouse"
+
 if GetLocale() == "deDE" then
     L.MSG_ERROR          = "Fehler in %s: %s"
     L.MSG_ERROR_SAVED    = "Fehler in %s (gespeichert, /peon fehler zeigt den Text)."
@@ -91,4 +104,14 @@ if GetLocale() == "deDE" then
     L.POS_BOTTOMRIGHT = "Unten rechts"
     L.LIST_EMPTY      = "Keine Einträge."
     L.MINIMAP_DRAG    = "Ziehen: Button verschieben"
+    -- Gegenstandsmenue (API 16)
+    L.ITEMMENU_OPT        = "Gegenstandsmenü"
+    L.ITEMMENU_OPT_HINT   = "Klick auf einen Gegenstand (Taschen, Bank, Händler, Quest, Beute, Chat-Links) öffnet ein Menü mit Einträgen der Peon-Module, zum Beispiel „Auf Einkaufsliste“. Umschalt+Rechtsklick ist bei Blizzard schon belegt (Stapel teilen, mehrere Stapel kaufen). Zusätzlich lässt sich unter Tastenbelegung > AddOns > Peon eine Taste vergeben."
+    L.ITEMMENU_CTRL_RIGHT = "Strg+Rechtsklick"
+    L.ITEMMENU_ALT_RIGHT  = "Alt+Rechtsklick"
+    L.ITEMMENU_SHIFT_RIGHT = "Umschalt+Rechtsklick (öffnet auch Blizzards Stapel-Fenster)"
+    L.ITEMMENU_CTRL_MIDDLE = "Strg+Mittelklick"
+    L.ITEMMENU_MIDDLE     = "Mittelklick"
+    L.ITEMMENU_OFF        = "Aus"
+    BINDING_NAME_PEON_ITEM_MENU = "Gegenstandsmenü für den Gegenstand unter der Maus"
 end

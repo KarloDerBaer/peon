@@ -1,0 +1,6 @@
+<Bindings>
+    <!-- Kontextmenue fuer den Gegenstand unter der Maus (ItemMenu.lua, ab Peon 0.16) -->
+    <Binding name="PEON_ITEM_MENU" header="PEON" category="ADDONS">
+        Peon_OpenHoverItemMenu()
+    </Binding>
+</Bindings>

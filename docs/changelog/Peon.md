@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.16.0
+
+Kurz: Strg+Rechtsklick auf einen Gegenstand öffnet jetzt ein Menü mit Einträgen der Peon-Module, zum Beispiel „Auf Einkaufsliste“. Die Taste lässt sich auf der Peon-Seite der Einstellungen ändern.
+
+- 0.16.0 (09.11.2026): **Gegenstandsmenü, API 16** (Konzept `docs/konzepte/broker/Peon_Broker_Umbau.md`, Abschnitt 9). Neue Dateien `ItemMenu.lua` und `Bindings.xml`.
+  - `Peon.AddItemMenu(addon, fn(root, item), order)`: Module hängen Einträge an (`item = { id, link, name }`), zwischen Modulen eine Trennlinie. `Peon.OpenItemMenu(item, owner)`, `Peon.ItemMenuEntries()`.
+  - Erkennung wie Ledgers Alt+Klick: Mausklick (`GLOBAL_MOUSE_DOWN`) und Gegenstand im sichtbaren Tooltip, dazu `HandleModifiedItemClick` für Links. Nicht auf Aktionsleisten. Menü über `MenuUtil.CreateContextMenu`.
+  - Klick einstellbar auf der Peon-Seite (`PeonDB.itemMenuClick`, Standard Strg+Rechtsklick, auch Alt+Rechts, Umschalt+Rechts, Strg+Mitte, Mitte, aus). Umschalt+Rechtsklick ist bei Blizzard belegt (Stapel teilen, mehrere Stapel kaufen), das steht dabei.
+  - Tastenbelegung „Peon: Gegenstandsmenü für den Gegenstand unter der Maus“ (`PEON_ITEM_MENU`).
+  - **Im Spiel prüfen:** Strg+Rechtsklick in Taschen, Bank, beim Händler, auf Questbelohnungen und Chat-Links. Löst Blizzard dabei noch etwas anderes aus? Auswahl auf der Peon-Seite der Einstellungen.
+
 ## 0.15.0
 
 Kurz: Grundlage für die neuen Einträge von Peon_Panel.

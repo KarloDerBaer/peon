@@ -163,7 +163,7 @@ local function check(c, m) if not c then error("FEHLER: " .. m, 2) end print("ok
 -- ===== Kern: mehrere Starter =====
 loadToc("Peon", "Peon")
 fire("ADDON_LOADED", "Peon")
-check(Peon.API == 15, "API 15")
+check(Peon.API >= 15, "API 15 oder neuer")
 PeonMultiDB = {}
 local multi = Peon:NewModule("Peon_Multi", { key = "multi", title = "Multi", db = "PeonMultiDB", defaults = {} })
 fire("ADDON_LOADED", "Peon_Multi")

@@ -3108,6 +3108,76 @@ end)()
   AuctionHouseFrame = {}
 end)()
 
+-- ===== Umbau U4 (0.45.0, Peon 0.16.0): Gegenstandsmenue im Kern =====
+;(function()
+  check(Peon.API >= 16 and Peon.AddItemMenu and Peon.ItemMenuEntries() >= 1, "U4: Kern-API 16, Broker hat sich im Gegenstandsmenue angemeldet")
+  -- Nachbau von Blizzards Menue: merkt Titel und Knoepfe (mit Untermenues)
+  local function Node()
+    local n = { items = {} }
+    function n:CreateTitle(t) self.title = t end
+    function n:CreateDivider() self.items[#self.items + 1] = { divider = true } end
+    function n:CreateButton(text, fn) local c = Node(); c.text, c.fn = text, fn; self.items[#self.items + 1] = c; return c end
+    return n
+  end
+  local opened
+  MenuUtil = { CreateContextMenu = function(owner, gen) opened = Node(); gen(owner, opened) end }
+  local ctrl, alt, sh = false, false, false
+  IsControlKeyDown = function() return ctrl end
+  local oldAlt, oldShift = IsAltKeyDown, IsShiftKeyDown
+  IsAltKeyDown = function() return alt end
+  IsShiftKeyDown = function() return sh end
+  local link = "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r"
+  local M = Peon._itemMenu or nil
+  -- Klick ohne Strg: nichts
+  local oldTip = GameTooltip.GetItem
+  GameTooltip.IsShown = function() return true end
+  GameTooltip.GetItem = function() return "Kupfererz", link end
+  GameTooltip.GetOwner = function() return nil end
+  fire("GLOBAL_MOUSE_DOWN", "RightButton")
+  check(opened == nil, "U4: Rechtsklick ohne Strg oeffnet kein Menue")
+  ctrl = true
+  fire("GLOBAL_MOUSE_DOWN", "LeftButton")
+  check(opened == nil, "U4: Strg+Linksklick oeffnet kein Menue")
+  fire("GLOBAL_MOUSE_DOWN", "RightButton")
+  check(opened and opened.title == "Kupfererz", "U4: Strg+Rechtsklick auf einen Gegenstand oeffnet das Menue")
+  local info, shop = opened.items[1], opened.items[2]
+  check(info.text == ns.L.MENU_INFO and shop.text == ns.L.MENU_SHOP, "U4: Eintraege Info und Auf Einkaufsliste")
+  local lists = ns.Buy.Lists()
+  check(#shop.items == #lists + 1 and shop.items[#shop.items].text == ns.L.MENU_SHOP_NEW, "U4: Untermenue mit allen Listen und Neue Liste")
+  local before = #lists
+  shop.items[#shop.items].fn()
+  lists = ns.Buy.Lists()
+  check(#lists == before + 1 and lists[#lists].items[2770], "U4: Neue Liste mit dem Gegenstand")
+  info.fn()
+  check(ns.Window.current == "prices" and ns.Prices.selectedKey == 2770, "U4: Info zeigt den Gegenstand im Broker-Fenster")
+  -- Aktionsleiste: kein Menue
+  opened = nil
+  GameTooltip.GetOwner = function() return { action = 1 } end
+  clock = clock + 1; now = now + 1
+  fire("GLOBAL_MOUSE_DOWN", "RightButton")
+  check(opened == nil, "U4: auf Aktionsleisten kein Menue")
+  -- Einstellung aus
+  GameTooltip.GetOwner = function() return nil end
+  PeonDB.itemMenuClick = "off"
+  now = now + 1
+  fire("GLOBAL_MOUSE_DOWN", "RightButton")
+  check(opened == nil, "U4: Einstellung aus")
+  PeonDB.itemMenuClick = "ALT-RightButton"; ctrl, alt = false, true
+  now = now + 1
+  fire("GLOBAL_MOUSE_DOWN", "RightButton")
+  check(opened ~= nil, "U4: Klick einstellbar (Alt+Rechtsklick)")
+  PeonDB.itemMenuClick = "CTRL-RightButton"
+  -- Tastenbelegung
+  opened = nil; now = now + 1
+  Peon_OpenHoverItemMenu()
+  check(opened ~= nil, "U4: Tastenbelegung oeffnet das Menue fuer den Gegenstand unter der Maus")
+  ctrl, alt = false, false
+  IsAltKeyDown, IsShiftKeyDown = oldAlt, oldShift
+  GameTooltip.GetItem, GameTooltip.IsShown, GameTooltip.GetOwner = oldTip, nil, nil
+  ns.Buy.DeleteList(#ns.Buy.Lists())
+  MenuUtil = nil
+end)()
+
 -- Keine unerwarteten Fehlermeldungen
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("hat einen Fehler gemeldet", 1, true) then n = n + 1 end end  -- erwartete Meldung aus dem Verkaufen-Test
 check(n == 0, "keine Fehlermeldungen")
