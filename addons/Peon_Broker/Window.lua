@@ -17,14 +17,15 @@ ns.Window = W
 
 W.WIDTH, W.HEIGHT = 680, 540
 W.TOP = 64            -- Abstand der Reiter-Inhalte vom oberen Rand (Platz fuer Symbol und Titel)
+-- Ab 0.51 (Umbau U10, Konzept Abschnitt 8): nur noch, was ohne Auktionshaus geht. Verkaufen, Meine Auktionen und
+-- Radar sind ins Auktionshaus gewandert (U3, U9, U7), Start und Behalten entfallen (U12). Deren Seiten bleiben bis
+-- U12 angemeldet (W.Select geht weiter, das Radar haengt im Auktionshaus), haben aber keinen Reiter mehr.
 W.TABS = {
-    { key = "start",    label = "TAB_START" },      -- ab 0.24: Was steht an?
-    { key = "sell",     label = "TAB_SELL" },
-    { key = "keep",     label = "TAB_KEEP" },
-    { key = "auctions", label = "TAB_AUCTIONS" },
-    { key = "buy",      label = "TAB_BUY" },
-    { key = "radar",    label = "TAB_RADAR" },
-    { key = "prices",   label = "TAB_PRICES" },
+    { key = "buy",      label = "TAB_LISTS" },
+    { key = "market",   label = "TAB_MARKET" },
+    { key = "prices",   label = "TAB_ITEMS" },
+    { key = "watch",    label = "TAB_WATCH" },
+    { key = "sources",  label = "TAB_SOURCES" },
 }
 W.pages = {}          -- key -> { build = fn(content), refresh = fn() }
 
@@ -201,9 +202,14 @@ end
 function W.Open(tab)
     W.Create()
     W.Place()
-    -- am Auktionshaus standardmaessig "Start" (ab 0.24; vorher "Verkaufen"), sonst der zuletzt gewaehlte Reiter
-    if not tab and W.docked and W.pages.start then tab = "start" end
-    W.Select(tab or W.current or mod.db.windowTab)
+    -- der zuletzt gewaehlte Reiter; alte Reiter ohne Knopf (ab 0.51) fuehren zu Gegenstaende
+    local want = tab or W.current or mod.db.windowTab
+    if not tab then
+        local onBar = false
+        for _, t in ipairs(W.TABS) do if t.key == want then onBar = true end end
+        if not onBar then want = "prices" end
+    end
+    W.Select(want)
     W.frame:Show()
 end
 

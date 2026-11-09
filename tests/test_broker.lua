@@ -614,8 +614,10 @@ check(wf.shown and Win.docked and wf.points[1][2] == AuctionHouseFrame and wf.po
 check(UISpecialFrames[#UISpecialFrames] == "PeonBrokerFrame", "Escape schliesst das Fenster")
 local nTabs, open = 0, {}
 for _, b in ipairs(Win.tabButtons) do nTabs = nTabs + 1; if not b.disabled then open[#open + 1] = b.text end end
-check(nTabs == 7 and #open == 7 and open[1] == "Start" and open[5] == "Einkaufsliste" and open[6] == "Radar" and open[7] == "Preise", "sieben Reiter, Start vorne (ab 0.24)")
-check(Win.current == "start" and Win.tabButtons[1].locked, "am Auktionshaus: Reiter Start gewaehlt (ab 0.24)")
+check(nTabs == 5 and #open == 5 and open[1] == "Einkaufslisten" and open[2] == "Markt" and open[3] == "Gegenstände" and open[4] == "Beobachtung" and open[5] == "Quellen",
+  "U10: fuenf Reiter, nur was ohne Auktionshaus geht")
+check(Win.current == "prices" and Win.tabButtons[3].locked, "U10: Fenster oeffnet bei Gegenstaende (zuletzt gewaehlt)")
+Win.Select("start")   -- alte Seite ohne Reiter, bis U12 noch erreichbar
 -- Startseite: eine Zeile je Bereich, Klick springt zum Reiter
 local St = ns.Start
 local sLines = St.list:GetItems()
@@ -626,8 +628,8 @@ check(plain(byArea["Scan"].text):find("Letzter Scan", 1, true), "Scan-Stand")
 St.Click(byArea["Verkaufen"])
 check(Win.current == "sell", "Klick auf Verkaufen: Reiter Verkaufen")
 Win.Select("start")
-Win.tabButtons[7].scripts.OnClick(Win.tabButtons[7])
-check(Win.current == "prices" and Win.tabButtons[7].locked and not Win.tabButtons[1].locked, "Reiter Preise gewaehlt und markiert")
+Win.tabButtons[3].scripts.OnClick(Win.tabButtons[3])
+check(Win.current == "prices" and Win.tabButtons[3].locked and not Win.tabButtons[1].locked, "Reiter Gegenstaende gewaehlt und markiert")
 local items = P.list:GetItems()
 check(#items == 4 and items[1].name == "Kupfererz" and items[4].name == "Schwert des Baeren", "Liste: alle Gegenstaende nach Name")
 check(P.count.text == "4 von 4 Gegenständen", "Zaehler")
@@ -683,7 +685,7 @@ check(not wf.shown, "und schliesst mit ihm")
 -- ohne Scan im Markt: Hinweis
 PeonBrokerDB.markets["Classic Beta PvE / Horde"], P.cache = nil, nil
 SlashCmdList.PEON_BROKER("")
-check(Win.current == "start", "ohne Auktionshaus: zuletzt gewaehlter Reiter")
+check(Win.current == "prices", "U10: zuletzt gewaehlter Reiter ohne Knopf (Start) -> Gegenstaende")
 Win.Select("prices")
 check(#P.list:GetItems() == 0 and P.list.empty.text:find("Noch kein Scan", 1, true) and P.count.text == "0 von 0 Gegenständen", "ohne Scan: Hinweis in der Liste")
 SlashCmdList.PEON_BROKER("")
@@ -777,7 +779,8 @@ WithBlizzard(true)
 fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW")
 check(PeonBrokerDB.commodity["15000:1047"] == false and PeonBrokerDB.commodity[2770] == true, "Warenart der Taschen vom Spiel")
 Win.Toggle()
-check(wf.shown and Win.current == "start", "am Auktionshaus oeffnet Start (ab 0.24)")
+Win.Select("start")   -- ab 0.51 kein Reiter mehr, Seite bis U12 noch da
+check(wf.shown and Win.current == "start", "Startseite noch erreichbar (bis U12)")
 local sellLine for _, l in ipairs(ns.Start.list:GetItems()) do if l.tab == "sell" then sellLine = l end end
 check(sellLine and plain(sellLine.text):find("2 Gegenstände", 1, true), "Start: 2 lohnende Gegenstaende in den Taschen (" .. plain(sellLine and sellLine.text or "") .. ")")
 Win.Select("sell")
@@ -3274,6 +3277,51 @@ end)()
   A.rows = nil
   X.header = nil
   AuctionHouseFrame = {}
+end)()
+
+-- ===== Umbau U10 (0.51.0): Broker-Fenster neu =====
+;(function()
+  local G = ns.Pages
+  check(G.MarketLabel("CAMWOW EU4 Realm 3 PvE / Alliance") == "PvE Allianz" and G.MarketLabel("Classic Beta PvE / Neutral") == "PvE Neutral", "U10: Marktname kurz")
+  -- Markt: Datenstand und Vergleich
+  local hm = D.Markets()["Classic Beta PvE / Horde"]
+  local he = hm.items[2770]
+  local nm = D.Market("Classic Beta PvE / Neutral", true)
+  nm.lastScan = clock
+  nm.items[2770] = { m = he.m * 2, md = he.md, q = 5, n = 1, t = clock, nm = "Kupfererz" }
+  nm.items[2589] = { m = 1, md = 1, q = 5, n = 1, t = clock }
+  local rows = G.CompareRows(20, false)
+  local cu
+  for _, r in ipairs(rows) do if r.key == 2770 then cu = r end end
+  check(cu and cu.pct == 100 and cu.better == "neutral", "U10: Vergleich nach Gebuehr, neutral besser")
+  check(#G.CompareRows(500, false) == 0, "U10: Mindestabstand filtert")
+  Win.Select("market")
+  check(G.stand and plain(G.stand.text):find("PvE Horde", 1, true) and plain(G.stand.text):find("PvE Neutral", 1, true), "U10: Datenstand je Markt")
+  check(#G.compare:GetItems() >= 1, "U10: Liste Vergleich gefuellt")
+  D.DeleteMarket("Classic Beta PvE / Neutral")
+  Win.Refresh()
+  check(#G.compare:GetItems() == 0, "U10: ohne neutralen Markt leer")
+  -- Beobachtung
+  ns.Watch.Add(2770, { name = "Kupfererz" }); ns.Watch.SetLimit(2770, "abs", 5000)
+  Win.Select("watch")
+  local wr = G.watchList:GetItems()
+  check(#wr == 1 and wr[1].key == 2770 and wr[1].limit == 5000 and wr[1].hit, "U10: Beobachtung mit Grenze und Alarm")
+  G.watchList.onClick = nil
+  G.watchSel = wr[1]; G.UpdateWatchView()
+  check(G.watchBox.text == "0.5", "U10: Grenze in Gold zum Bearbeiten")
+  G.watchRemove.scripts.OnClick(G.watchRemove)
+  check(not ns.Watch.Is(2770) and #G.watchList:GetItems() == 0, "U10: Entfernen")
+  -- Quellen
+  Win.Select("sources")
+  local src = plain(G.sources.text)
+  check(src:find("Märkte", 1, true) and src:find("Anteil", 1, true) and src:find("Einkaufslisten", 1, true), "U10: Quellen mit Maerkten, Anteil und Listen")
+  -- Gegenstaende: Mein Bestand nur mit Ledger
+  check(#ns.Prices.StockLines(2770) == 0, "U10: ohne Ledger kein Abschnitt Mein Bestand")
+  Peon.modules.ledger = { ShowItem = function() end, Cost = function() return 42 end, SellRate = function() return 0.5, 1, 1 end, StockOthers = function() return 3 end }
+  local sl = ns.Prices.StockLines(2770)
+  check(#sl >= 3 and plain(sl[1]) == "Mein Bestand" and plain(table.concat(sl, " ")):find("42c", 1, true), "U10: Mein Bestand mit Vorrat und Kosten aus Ledger")
+  Peon.modules.ledger = nil
+  Win.Select("prices")
 end)()
 
 -- ===== Umbau U3 (0.44.0): Rat im Verkaufsfenster =====

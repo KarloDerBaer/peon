@@ -104,7 +104,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  radarSoundKey = { raid = true, ready = true, alarm = true, tell = true },
                  tooltipNeutral = { always = true, shift = true, off = true },
                  radarOrder = { smart = true, random = true, commodity = true, high = true, low = true },
-                 windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true } },   -- ab 0.28 mit "start", ohne "book"
+                 windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true,
+                              market = true, watch = true, sources = true, vendors = true } },   -- ab 0.51 neue Reiter   -- ab 0.28 mit "start", ohne "book"
     keepOnReset = { windowPos = true, windowTab = true, keepAllChars = true, ahPlain = true },
     migrate  = function(m, acc)
         if ns.Data then ns.Data.Migrate(acc) end

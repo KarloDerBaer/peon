@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.51.0
+
+Kurz: Das Broker-Fenster enthält jetzt nur noch, was ohne Auktionshaus geht: Einkaufslisten, Markt, Gegenstände, Beobachtung und Quellen. Verkaufen, Auktionen und Radar findest du im Auktionshaus selbst.
+Kurz: Neu sind der Vergleich deiner Fraktion mit dem neutralen Auktionshaus (Reiter Markt) und bei jedem Gegenstand dein Bestand mit Kosten aus Ledger.
+
+- 0.51.0 (09.11.2026): **Umbau U10, Broker-Fenster neu** (Konzept Abschnitt 8). Neue Datei `Pages.lua`.
+  - **Reiter:** Einkaufslisten, Markt, Gegenstände (bisher Preise), Beobachtung, Quellen. Start, Verkaufen, Behalten, Meine Auktionen und Radar haben keinen Reiter mehr. Ihre Seiten bleiben bis U12 angemeldet (das Radar hängt im Auktionshaus). Ein alter gemerkter Reiter öffnet Gegenstände.
+  - **Markt:** Datenstand je Markt (Fraktion und Neutral, grün bis 1 Tag, orange älter) und Vergleich Fraktion gegen Neutral nach Gebühr beider Häuser, Filter „Nur Bestand“ und Mindestabstand in %, Klick zeigt den Gegenstand.
+  - **Beobachtung:** günstigstes Angebot, Grenze, üblicher Bereich, Alarm, Grenze in Gold änderbar, Info, Entfernen.
+  - **Quellen:** Märkte mit Stand, Werte vom Manager (Quelle und Alter), woher üblicher Bereich und Absatz kommen, Anteil der Häuser, Listen, Knopf „An Manager übergeben“ (lädt neu).
+  - **Gegenstände:** Abschnitt „Mein Bestand“ mit Peon_Ledger (Vorrat gesamt, Taschen, Bank, Twinks, Kosten je Stück, eigene Verkäufe).
+  - Noch nicht: einheitlicher Listen-Stil wie Blizzards Kaufliste und Diagramm in der Gegenstandsansicht (das Diagramm gibt es im Tooltip).
+  - **Im Spiel prüfen:** alle fünf Reiter, Vergleich nach einem Scan in Beutebucht, Mein Bestand bei einem Gegenstand mit Vorrat.
+
 ## 0.50.0
 
 Kurz: Blizzards Reiter „Auktionen“ zeigt jetzt bei jeder deiner Auktionen, ob sie das günstigste Angebot ist, unterboten wurde oder zu teuer ist. Darüber stehen Anzahl, Unterbotene und Gesamtwert, mit „Prüfen“ fragt Broker alle live ab.

@@ -197,6 +197,28 @@ function P.Update()
 end
 
 -- Einzelheiten und Verlauf eines Gegenstands
+-- Abschnitt "Mein Bestand" (ab 0.51): nur mit Peon_Ledger
+function P.StockLines(key)
+    local out = {}
+    local led = P.Ledger()
+    if not led then return out end
+    local id = ns.Data.ItemID(key)
+    out[#out + 1] = "|cffffd100" .. L.PRICES_STOCK_HEAD .. "|r"
+    if ns.Keep then
+        local bags, bank, total, others = ns.Keep.Counts(id, nil)
+        out[#out + 1] = L.PRICES_STOCK:format(total or 0, bags or 0, bank or 0, others or 0)
+    end
+    if type(led.Cost) == "function" then
+        local ok, c = pcall(led.Cost, led, id)
+        if ok and type(c) == "number" then out[#out + 1] = L.PRICES_COST:format(Money(c)) end
+    end
+    local rate, sold, back = ns.Tooltip.SellRate(id)
+    if sold then
+        out[#out + 1] = L.TT_SELLRATE .. ": " .. L.TT_SELLRATE_N:format(sold, sold + back) .. (rate and (" (" .. math.floor(rate * 100 + 0.5) .. " %)") or "")
+    end
+    return out
+end
+
 function P.Show(it)
     if not P.detail then return end
     if P.addButton then if it then P.addButton:Enable() else P.addButton:Disable() end end
@@ -239,6 +261,8 @@ function P.Show(it)
     lines[#lines + 1] = GREY .. (D.IsCommodity(key) and L.KIND_COMMODITY or L.KIND_ITEM) .. "|r"
     if v.state == "falling" then lines[#lines + 1] = "|cffff9933" .. L.HINT_FALLING .. "|r"
     elseif v.dump then lines[#lines + 1] = "|cffff4040" .. (v.band and L.HINT_DUMP_RANGE or L.HINT_DUMP2) .. "|r" end
+    -- ab 0.51 (Umbau U10, Konzept 8.6): Mein Bestand aus Peon_Ledger (Vorrat, Kosten, eigene Verkaeufe)
+    for _, l in ipairs(P.StockLines(key)) do lines[#lines + 1] = l end
     P.detail:SetText(table.concat(lines, "\n"))
     P.history:SetData(D.History(e))
 end
