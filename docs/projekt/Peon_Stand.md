@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 09.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.41.1 / Bridge 0.8.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.23.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 09.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.41.2 / Bridge 0.8.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.23.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.15.0, API 15
@@ -47,7 +47,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.41.1 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.41.2 (neu, Auktionshaus-Helfer)
 
 - **Broker im Berufsfenster (ab 0.39.0):** Block unter den Reagenzien (Ergebniszeile Kosten/Ertrag/Gewinn, Tabelle je Material mit Quelle Vorrat/Händler/AH, Kosten laut Ledger oder Kaufpreis, Erlös im AH, Gesamt, Hinweis „Material verkaufen bringt mehr“ oder „Herstellen bringt mehr“ mit beiden Beträgen, Tooltips, Haken Twinks, Zahnrad), Händlerpreise aus Händlerbesuch, Ledger oder Schätzung, Gewinn in der Rezeptliste (orange, wenn Verkaufen mehr bringt) mit goldenem Strich am besten Rezept, alles einstellbar. Von KarloDerBaer im Spiel geprüft, danach nur noch der Hinweistext geändert. Zusammen mit Ledger 0.13.1 auf Wunsch von KarloDerBaer ohne Vorabversion direkt im normalen Release `v2026.11.08.3` (08.11.2026, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen). Damit sind auch Broker 0.38.0 und Manager 0.21.0 bis 0.22.0 im normalen Release. Bei Problemen `/broker pruefen beruf`.
 - **Kürzung nach unten erst ab 75 % unter der Mitte (ab 0.38.0, F37a):** Ein echter Preissturz zählt im üblichen Bereich gleich voll, gleich wie im Manager.
@@ -188,7 +188,7 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
 
 Broker wird schlank: Im Auktionshaus Rat beim Verkaufen, erweiterte Auktionen, Radar und Einkaufen als eigene Reiter. Im Broker-Fenster (Look wie das Auktionshaus) Einkaufslisten, Markt, Händler, Gegenstände, Beobachtung mit Preisalarm, Quellen. Tooltip frei einstellbar mit Diagramm, immer Heimatmarkt, Neutral als Zusatz. Kontextmenü auf Gegenständen im Kern (Strg+Rechtsklick). Behalten entfällt. Bauabschnitte U0 bis U12 in dieser Reihenfolge.
 
-- **U0 Prüfaufbau:** gebaut mit Broker 0.41.0 (eigene Reiter Radar und Einkaufen als leere Prüfflächen, „Blizzard pur“, `/broker pruefen ah`). Erster Test von KarloDerBaer im Spiel (09.11.2026): Prüfung sauber, keine Blockade. Oberfläche korrigiert mit 0.41.1 (Fläche über allem, gewählter Reiter, Knopf „Blizzard pur“ sichtbar, Knopf „Broker“ entfällt). **Noch zu prüfen:** Oberfläche 0.41.1 und „Blizzard pur“. Erst danach U1.
+- **U0 Prüfaufbau:** gebaut mit Broker 0.41.0 (eigene Reiter Radar und Einkaufen als leere Prüfflächen, „Blizzard pur“, `/broker pruefen ah`). Erster Test von KarloDerBaer im Spiel (09.11.2026): Prüfung sauber, keine Blockade. Oberfläche korrigiert mit 0.41.1 (Fläche über allem, gewählter Reiter, Knopf „Blizzard pur“ sichtbar, Knopf „Broker“ entfällt). Zweiter Test: Fläche und Knopf „Blizzard pur“ passen, Reiter noch nicht (Broker-Reiter standen in Blizzards Liste `AuctionHouseFrame.Tabs`), behoben mit 0.41.2. **Noch zu prüfen:** Reiter in 0.41.2 und „Blizzard pur“ an und aus. Erst danach U1.
 - U1 bis U12: offen.
 
 ### Neues Modul Peon_Panel (beschlossen 06.11.2026, Konzept `Peon_Panel_Konzept.md`)

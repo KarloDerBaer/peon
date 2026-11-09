@@ -2882,6 +2882,19 @@ Win.Refresh()
   local touched = {}
   function issecurevariable(t, k) if type(t) == "string" then return true end if touched[k] then return false, "Peon_Broker" end return true end
   -- Nachbau von Blizzards Auktionshaus: drei Reiter, SetDisplayMode
+  -- Blizzards Reiter-Vorlage traegt jeden Reiter in die Liste "Tabs" des Elternrahmens ein (parentArray) und hat
+  -- Seitenteile Left/Middle/Right und LeftActive/MiddleActive/RightActive (0.41.2)
+  local origCreate = CreateFrame
+  CreateFrame = function(kind, name, parent, template)
+    local f = origCreate(kind, name, parent, template)
+    if template == "AuctionHouseFrameTabTemplate" or template == "PanelTabButtonTemplate" then
+      if parent then rawset(parent, "Tabs", rawget(parent, "Tabs") or {}); table.insert(parent.Tabs, f) end
+      for _, n in ipairs({ "Left", "Middle", "Right", "LeftActive", "MiddleActive", "RightActive" }) do
+        rawset(f, n, origCreate("Frame")); f[n].shown = not n:find("Active")
+      end
+    end
+    return f
+  end
   local ah = CreateFrame("Frame", "AuctionHouseFrame")
   ah.BuyTab, ah.SellTab, ah.AuctionsTab = CreateFrame("Button"), CreateFrame("Button"), CreateFrame("Button")
   ah.Tabs = { ah.BuyTab, ah.SellTab, ah.AuctionsTab }
@@ -2896,6 +2909,8 @@ Win.Refresh()
   check(T.tabs.radar.points[1][2] == ah.AuctionsTab and T.tabs.shop.points[1][2] == T.tabs.radar, "U0: Reiter rechts neben Auktionen")
   check(T.tabs.radar.text == ns.L.AHTAB_RADAR and T.tabs.shop.text == ns.L.AHTAB_SHOP, "U0: Reiter heissen Radar und Einkaufen")
   check(#ah.Tabs == 3 and ah.numTabs == nil, "U0: Blizzards Reiterliste bleibt unberuehrt")
+  check(T.tabs.radar.parent == T.tabHolder and T.tabHolder.parent == ah and #T.tabHolder.Tabs == 2, "0.41.2: Reiter haengen am eigenen Rahmen, nicht an Blizzards Liste")
+  check(T.tabs.radar.points[1][4] == T.TAB_GAP and T.TAB_GAP > -15, "0.41.2: etwas mehr Abstand als Blizzards -15")
   local modesAfter = 0 for _ in pairs(AuctionHouseFrameDisplayMode) do modesAfter = modesAfter + 1 end
   check(modesAfter == modesBefore, "U0: keine eigenen Eintraege in AuctionHouseFrameDisplayMode")
   check(hookedSecure.SetDisplayMode, "U0: sicherer Anhang an SetDisplayMode")
@@ -2906,6 +2921,13 @@ Win.Refresh()
   check(T.current == "radar" and T.page:IsShown() and T.page.title.text == ns.L.AHTAB_RADAR_TITLE, "U0: Klick auf Radar zeigt die Flaeche")
   check(calls.display == 0, "U0: Broker ruft SetDisplayMode nie selbst auf")
   check(calls.deselect - dsel >= 4 and calls.select >= 1, "U0: nur das Aussehen der Reiter wird umgestellt")
+  local rt, st = T.tabs.radar, T.tabs.shop
+  check(rt.LeftActive.shown and rt.MiddleActive.shown and not rt.Left.shown and rt.disabled, "0.41.2: Radar sieht gewaehlt aus und bleibt es")
+  check(not st.LeftActive.shown and st.Left.shown, "0.41.2: Einkaufen sieht nicht gewaehlt aus")
+  check(T.Probe(true).vars["Tabs (Inhalt)"] == "sauber", "0.41.2: Pruefung sieht keinen Broker-Reiter in Blizzards Liste")
+  table.insert(ah.Tabs, rt)
+  check(T.Probe(true).vars["Tabs (Inhalt)"]:find("Peon_Broker", 1, true), "0.41.2: Pruefung meldet Broker-Reiter in Blizzards Liste")
+  table.remove(ah.Tabs)
   check(T.page.status.text and T.page.status.text:find("displayMode", 1, true), "U0: Flaeche zeigt den Zustand von Blizzards Werten")
 
   ah:SetDisplayMode(AuctionHouseFrameDisplayMode.Buy)   -- wie Klick auf Blizzards Reiter Kaufen
@@ -2943,6 +2965,7 @@ Win.Refresh()
   StaticPopupDialogs.PEON_BROKER_AH_PLAIN_OFF.OnAccept()
   check(mod.acc.ahPlain == false and calls.reload == 2 and ns.AHTouch(), "U0: Broker im Auktionshaus wieder an")
   AuctionHouseFrame = {}
+  CreateFrame = origCreate
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

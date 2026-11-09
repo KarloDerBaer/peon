@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.41.2
+
+Kurz: Die Reiter Radar und Einkaufen sind jetzt hervorgehoben, wenn du sie anklickst, und haben den gleichen Abstand wie Blizzards Reiter.
+
+- 0.41.2 (09.11.2026, nach dem zweiten Test von KarloDerBaer): **Ursache gefunden.** Blizzards Reiter-Vorlage (`PanelTabButtonTemplate`, `parentArray="Tabs"`) trägt jeden Reiter in die Liste `Tabs` seines Elternrahmens ein. Radar und Einkaufen hingen am Auktionshaus und standen deshalb in Blizzards Liste `AuctionHouseFrame.Tabs`. Folgen: Brokers „Blizzard-Reiter abwählen“ wählte auch Radar gleich wieder ab, und Blizzards Liste war verändert, ohne dass `issecurevariable` es meldet (es prüft nur den Eintrag, nicht den Inhalt).
+  - Die Reiter hängen jetzt an einem eigenen Rahmen `PeonBrokerAHTabHolder`. Blizzards Liste bleibt bei drei Reitern.
+  - Die Prüfung (`/broker pruefen ah`, Fläche) zeigt zusätzlich „Tabs (Inhalt)“: steht ein Broker-Reiter in Blizzards Liste?
+  - Abstand zum Reiter davor -7 statt -15 (`T.TAB_GAP`), auf den Bildern lagen Brokers Reiter enger als Blizzards.
+  - Der Test baut die Vorlage jetzt mit Eintrag in die Liste und Seitenteilen nach, so wäre der Fehler aufgefallen.
+  - **Im Spiel prüfen:** Radar anklicken: hervorgehoben wie Blizzards gewählter Reiter? Abstände gleichmäßig? `/broker pruefen ah`: auch „Tabs (Inhalt)“ sauber?
+
 ## 0.41.1
 
 Kurz: Die neuen Reiter Radar und Einkaufen decken das Auktionshaus jetzt ganz ab, der gewählte Reiter ist hervorgehoben, und der Knopf „Blizzard pur“ ist oben rechts in der Titelleiste zu sehen. Der Knopf „Broker“ unter dem Auktionshaus entfällt.

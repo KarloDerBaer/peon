@@ -28,6 +28,7 @@ T.TABS = {
     { key = "shop",  label = "AHTAB_SHOP" },
 }
 T.PAGE_LEVEL = 500  -- Abstand der Flaeche ueber dem Auktionshaus (Rahmenebene)
+T.TAB_GAP = -7      -- Abstand zum Reiter davor. Blizzard nutzt -15, das sah bei Brokers Reitern zu eng aus (0.41.2)
 T.tabs = {}          -- key -> Knopf
 T.current = nil      -- offener eigener Reiter oder nil (Blizzard-Ansicht)
 T.blocked = {}       -- gemeldete Blockaden dieser Sitzung: { t, event, fn }
@@ -111,6 +112,11 @@ function T.Probe(quiet)
         local ok, secure, by = pcall(isv, "AuctionHouseFrameDisplayMode")
         r.vars.AuctionHouseFrameDisplayMode = ok and (secure and "sauber" or ("beruehrt von " .. tostring(by))) or "?"
     end
+    -- Inhalt von Blizzards Reiterliste (issecurevariable prueft nur den Eintrag "Tabs", nicht was darin steht)
+    if f then
+        local n = T.OwnInBlizzardTabs(f)
+        r.vars["Tabs (Inhalt)"] = n == 0 and "sauber" or ("beruehrt von Peon_Broker (" .. n .. " Reiter)")
+    end
     mod.acc.ahProbe = r
     if not quiet then
         mod:Print(L.AH_PROBE_HEAD:format(r.plain and L.AH_PROBE_PLAIN or (r.built and L.AH_PROBE_BUILT or L.AH_PROBE_NOT_BUILT)))
@@ -173,12 +179,23 @@ local function RestoreBlizzardTabs(f)
     if PanelTemplates_UpdateTabs and f then pcall(PanelTemplates_UpdateTabs, f) end
 end
 
+-- Blizzards drei Reiter (ohne Brokers eigene, falls sie doch in der Liste stehen sollten)
 local function BlizzardTabs(f)
-    local list = {}
+    local list, own = {}, {}
+    for _, tab in pairs(T.tabs) do own[tab] = true end
     if type(f.Tabs) == "table" then
-        for _, tab in ipairs(f.Tabs) do list[#list + 1] = tab end
+        for _, tab in ipairs(f.Tabs) do if not own[tab] then list[#list + 1] = tab end end
     end
     return list
+end
+
+-- Steht ein Broker-Reiter in Blizzards Liste? (Pruefung, siehe T.Build)
+function T.OwnInBlizzardTabs(f)
+    if type(f) ~= "table" or type(f.Tabs) ~= "table" then return 0 end
+    local own, n = {}, 0
+    for _, tab in pairs(T.tabs) do own[tab] = true end
+    for _, tab in ipairs(f.Tabs) do if own[tab] then n = n + 1 end end
+    return n
 end
 
 function T.Open(key)
@@ -233,15 +250,22 @@ function T.Build()
     local f = AHFrame()
     if not f or type(f.AuctionsTab) ~= "table" or type(f.SetDisplayMode) ~= "function" then return false end
 
-    -- Reiter rechts neben "Auktionen", Abstand wie bei Blizzard (-15)
+    -- Reiter rechts neben "Auktionen". Sie haengen an einem eigenen Rahmen (T.tabHolder), nicht am Auktionshaus:
+    -- Blizzards Vorlage traegt jeden Reiter in die Liste "Tabs" seines Elternrahmens ein (parentArray). Bis 0.41.1
+    -- landeten Radar und Einkaufen so in AuctionHouseFrame.Tabs (Blizzards Liste veraendert, und Brokers eigener
+    -- Reiter wurde beim Abwaehlen der Blizzard-Reiter gleich wieder abgewaehlt).
+    local holder = CreateFrame("Frame", "PeonBrokerAHTabHolder", f)
+    holder:SetAllPoints(f)
+    if holder.SetFrameLevel and f.GetFrameLevel then holder:SetFrameLevel(f:GetFrameLevel() or 1) end
+    T.tabHolder = holder
     local prev = f.AuctionsTab
     for i, def in ipairs(T.TABS) do
-        local ok, tab = pcall(CreateFrame, "Button", "PeonBrokerAHTab" .. i, f, TabTemplate())
+        local ok, tab = pcall(CreateFrame, "Button", "PeonBrokerAHTab" .. i, holder, TabTemplate())
         if not ok or not tab then
-            tab = CreateFrame("Button", "PeonBrokerAHTab" .. i, f, "PanelTabButtonTemplate")
+            tab = CreateFrame("Button", "PeonBrokerAHTab" .. i, holder, "PanelTabButtonTemplate")
         end
         tab:SetText(L[def.label])
-        tab:SetPoint("LEFT", prev, "RIGHT", -15, 0)
+        tab:SetPoint("LEFT", prev, "RIGHT", T.TAB_GAP, 0)
         tab:SetScript("OnClick", function() mod:Call("Auktionshaus-Reiter", T.Open, def.key) end)
         if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, tab, 20, nil, 70) end
         Deselect(tab)
