@@ -641,6 +641,15 @@ L.AH_PROBE_NOT_BUILT = "own tabs not built yet (open the auction house)"
 L.AH_PROBE_NOT_LOADED = "  Blizzard's auction house is not loaded yet."
 L.AH_PROBE_BLOCKED = "Blocked actions this session: %d"
 
+
+-- Umbau U1 (ab 0.42): Heimatmarkt, Zeile "Neutral"
+L.TT_NEUTRAL       = "Neutral"
+L.OPT_TT_NEUTRAL   = "Line \"Neutral\" (neutral auction house)"
+L.OPT_TT_NEUTRAL_ALWAYS = "Always"
+L.OPT_TT_NEUTRAL_SHIFT = "Only with Shift"
+L.OPT_TT_NEUTRAL_OFF = "Off"
+L.OPT_TT_NEUTRAL_HINT = "Cheapest offer in the neutral auction house (for example Booty Bay) and the difference to your faction's auction house. Only shown once there are prices for the neutral market. Tooltips always show the prices of your own faction, also at the neutral auction house."
+
 if GetLocale() == "deDE" then
     L.SALES_PER_HOUR = "%s/Std."
     L.SALES_REACH_H = "reicht %s Std."
@@ -1263,4 +1272,11 @@ if GetLocale() == "deDE" then
     L.AH_PROBE_NOT_BUILT = "eigene Reiter noch nicht angelegt (Auktionshaus öffnen)"
     L.AH_PROBE_NOT_LOADED = "  Blizzards Auktionshaus ist noch nicht geladen."
     L.AH_PROBE_BLOCKED = "Blockierte Aktionen in dieser Sitzung: %d"
+    -- Umbau U1 (ab 0.42)
+    L.TT_NEUTRAL       = "Neutral"
+    L.OPT_TT_NEUTRAL   = "Zeile „Neutral“ (neutrales Auktionshaus)"
+    L.OPT_TT_NEUTRAL_ALWAYS = "Immer"
+    L.OPT_TT_NEUTRAL_SHIFT = "Nur mit Umschalt"
+    L.OPT_TT_NEUTRAL_OFF = "Aus"
+    L.OPT_TT_NEUTRAL_HINT = "Günstigstes Angebot im neutralen Auktionshaus (zum Beispiel Beutebucht) und der Abstand zum Auktionshaus deiner Fraktion. Erscheint erst, wenn es Preise für den neutralen Markt gibt. Der Tooltip zeigt immer die Preise deiner Fraktion, auch am neutralen Auktionshaus."
 end

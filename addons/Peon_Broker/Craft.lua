@@ -96,11 +96,13 @@ function C.ReadAll()
 end
 
 -- Kosten je Stueck eines Materials: guenstigstes Angebot (aktueller Stand), nil = unbekannt
-function C.UnitCost(id)
+function C.UnitCostHome(id)
     local e = ns.Data.Lookup(id)
     if type(e) == "table" and Num(e.m) and not e.gone then return e.m end
     return nil
 end
+-- ab 0.42 (Umbau U1): Materialpreise immer aus dem Heimatmarkt, auch am neutralen Auktionshaus
+function C.UnitCost(id) return ns.WithHome(C.UnitCostHome, id) end
 
 -- Rechnung fuer ein Rezept: { cost, missing (Anzahl Materialien ohne Preis), value, profit, n }
 function C.Calc(rec, outID)

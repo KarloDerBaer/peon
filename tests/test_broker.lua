@@ -417,6 +417,47 @@ do
     ns.Scan.ahOpen, UnitExists, UnitFactionGroup = oldOpen, oldExists, oldUFG
 end
 
+-- ===== Umbau U1 (ab 0.42): Heimatmarkt, Zeile "Neutral" =====
+;(function()
+    local oldOpen, oldExists, oldUFG = ns.Scan.ahOpen, rawget(_G, "UnitExists"), UnitFactionGroup
+    local home = D.Markets()["Classic Beta PvE / Horde"]
+    local he = home.items[2770]
+    local before = hover(KUPFER)
+    local valueBefore = ns.ItemValue(2770, 10)
+    check(not before[3] or not before[3]:find("Neutral", 1, true), "U1: ohne neutrale Daten keine Zeile Neutral")
+    -- neutraler Markt mit doppeltem Preis
+    local nm = D.Market("Classic Beta PvE / Neutral", true)
+    nm.lastScan = clock
+    nm.items[2770] = { m = he.m * 2, md = he.md * 2, q = 10, n = 2, t = clock }
+    -- am neutralen Auktionshaus
+    UnitExists = function(u) return u == "npc" end
+    UnitFactionGroup = function(u) if u == "npc" then return nil end return "Horde", "Horde" end
+    ns.Scan.ahOpen = true
+    check(ns.MarketKey() == "Classic Beta PvE / Neutral" and ns.HomeMarketKey() == "Classic Beta PvE / Horde", "U1: am neutralen Haus zwei Maerkte")
+    local at = hover(KUPFER)
+    check(at[1] == before[1], "U1: Tooltip zeigt am neutralen Haus den Preis der eigenen Fraktion (" .. tostring(at[1]) .. ")")
+    check(ns.ItemValue(2770, 10) == valueBefore, "U1: Wert fuer Ledger und Berufe aus dem Heimatmarkt")
+    check(ns.MarketKey() == "Classic Beta PvE / Neutral", "U1: nach dem Tooltip wieder der Markt am offenen Haus")
+    local function neutralLine(lines) for _, l in ipairs(lines) do if l:find("^Neutral = ") then return l end end end
+    check(neutralLine(at) == nil, "U1: Standard: ohne Umschalt keine Zeile Neutral")
+    shift = true
+    local nl = neutralLine(hover(KUPFER))
+    check(nl and nl:find("(+100 %)", 1, true), "U1: mit Umschalt Zeile Neutral mit Abstand: " .. tostring(nl))
+    mod.db.tooltipNeutral = "off"
+    check(neutralLine(hover(KUPFER)) == nil, "U1: Einstellung aus")
+    shift = false
+    mod.db.tooltipNeutral = "always"
+    check(neutralLine(hover(KUPFER)) ~= nil, "U1: Einstellung immer, auch ohne Umschalt")
+    nm.items[2770].gone = clock
+    check(neutralLine(hover(KUPFER)) == nil, "U1: neutral zurzeit keine Angebote: keine Zeile")
+    mod.db.tooltipNeutral = "shift"
+    ns.Scan.ahOpen, UnitExists, UnitFactionGroup = oldOpen, oldExists, oldUFG
+    D.DeleteMarket("Classic Beta PvE / Neutral")
+    check(ns.WithHome(function() return ns.MarketKey() end) == "Classic Beta PvE / Horde" and ns.marketOverride == nil, "U1: WithHome setzt den Markt zurueck")
+    local ok = pcall(ns.WithHome, function() error("x") end)
+    check(not ok and ns.marketOverride == nil, "U1: auch nach einem Abbruch")
+end)()
+
 -- ===== Zweiter Scan am selben Tag: Tageswert und Trend =====
 clock = clock + 20 * 60
 LISTINGS[1][5] = 10 * 130

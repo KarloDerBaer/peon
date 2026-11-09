@@ -152,26 +152,69 @@ function T.SellRateLine(tooltip, key)
     return true
 end
 
+-- Zeile "Neutral" (ab 0.42, Umbau U1, Konzept 5.2): guenstigstes Angebot im neutralen Auktionshaus je Stueck und
+-- Abstand zum Heimatmarkt. Nur wenn es fuer den neutralen Markt Daten gibt. Einstellung tooltipNeutral:
+-- "always" (auch ohne Umschalt), "shift" (Standard, nur erweitert), "off".
+T.NEUTRAL_OLD = 86400   -- aelter als ein Tag: Alter dazuschreiben
+
+function T.NeutralEntry(key)
+    local nk = ns.NeutralMarketKey()
+    if nk == ns.HomeMarketKey() then return nil end
+    local e = ns.WithMarket(nk, ns.Data.Lookup, key)
+    if type(e) ~= "table" or not e.m or e.gone then return nil end
+    return e
+end
+
+function T.NeutralText(ne, homeMin)
+    local text = T.Money(ne.m)
+    if type(homeMin) == "number" and homeMin > 0 then
+        local pct = math.floor((ne.m - homeMin) / homeMin * 100 + 0.5)
+        local color = pct > 0 and "|cff60e060" or (pct < 0 and "|cffff9933" or "|cffffffff")
+        text = text .. " " .. color .. "(" .. (pct > 0 and "+" or "") .. pct .. " %)|r"
+    end
+    local seen = ns.Data.Seen(ne)
+    if seen and time() - seen > T.NEUTRAL_OLD then
+        text = text .. " |cff999999" .. L.TT_SCAN_AGE:format(ns.Scan.Age(seen)) .. "|r"
+    end
+    return text
+end
+
+function T.NeutralLine(tooltip, key, homeEntry, details)
+    local mode = mod.db and mod.db.tooltipNeutral or "shift"
+    if mode == "off" or (mode == "shift" and not details) then return false end
+    local ne = T.NeutralEntry(key)
+    if not ne then return false end
+    local homeMin = type(homeEntry) == "table" and not homeEntry.gone and homeEntry.m or nil
+    Line(tooltip, L.TT_NEUTRAL, T.NeutralText(ne, homeMin))
+    return true
+end
+
+-- Ab 0.42 rechnet der Tooltip immer im Heimatmarkt, auch am neutralen Auktionshaus (KarloDerBaer)
 function T.AddLines(tooltip, link, count)
+    return ns.WithHome(T.AddLinesHome, tooltip, link, count)
+end
+
+function T.AddLinesHome(tooltip, link, count)
     local db = mod.db
     if not db or not db.tooltipShow then return false end
     local key = ns.Data.KeyFromLink(link)
     if key == nil then return false end
     local e, market = ns.Data.Lookup(key)
     local hp = T.VendorPrice(link)
-    if not market or not market.lastScan then
-        -- noch nie in diesem Markt gescannt: kurzer Hinweis bei verkaufbaren Gegenstaenden
-        if hp and hp > 0 then
+    local details = IsShiftKeyDown and IsShiftKeyDown() and true or false
+    if not market or not market.lastScan or type(e) ~= "table" or not e.m then
+        -- Heimatmarkt ohne Preis: Hinweis bei verkaufbaren Gegenstaenden, Behalten, Neutral (falls vorhanden)
+        local shown = false
+        if (not market or not market.lastScan) and hp and hp > 0 then
             tooltip:AddLine(("|c%sBroker|r %s"):format(Peon.COLOR, L.TT_NO_SCAN), GREY[1], GREY[2], GREY[3])
-            T.KeepLine(tooltip, key)
-            return true
+            shown = true
         end
-        return T.KeepLine(tooltip, key)
+        if T.KeepLine(tooltip, key) then shown = true end
+        if T.NeutralLine(tooltip, key, nil, details) then shown = true end
+        return shown
     end
-    if type(e) ~= "table" or not e.m then return T.KeepLine(tooltip, key) end
 
     count = (count and count > 1) and count or 1
-    local details = IsShiftKeyDown and IsShiftKeyDown() and true or false
     local v = ns.Data.Evaluate(e, key, count, hp, db)
 
     -- Z1: der bessere Wert fuer den Stapel
@@ -186,7 +229,10 @@ function T.AddLines(tooltip, link, count)
     end
     Line(tooltip, title, right, { 1, 1, 1 })
     T.KeepLine(tooltip, key)
-    if not details then return true end
+    if not details then
+        T.NeutralLine(tooltip, key, e, false)
+        return true
+    end
 
     -- Z2: Angebote
     Line(tooltip, L.TT_OFFERS2:format(e.q or 0, e.n or 0) .. T.Trend(e.q, e.pq),
@@ -213,6 +259,8 @@ function T.AddLines(tooltip, link, count)
     if v.eg then Line(tooltip, L.TT_DEPOSIT:format(ns.Data.Duration(db)), T.Money(v.eg)) end
     -- Z7: Haendler je Stueck (ab 0.19 immer, auch wenn Zeile 1 den Haendler zeigt)
     if db.tooltipVendor and hp and hp > 0 then Line(tooltip, L.TT_VENDOR, L.TT_PER_UNIT:format(T.Money(hp))) end
+    -- Neutrales Auktionshaus (ab 0.42)
+    T.NeutralLine(tooltip, key, e, true)
     -- Hinweise
     if db.tooltipHint then
         if e.gone then

@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.42.0
+
+Kurz: Der Tooltip zeigt jetzt immer die Preise des Auktionshauses deiner Fraktion, auch wenn du am neutralen Auktionshaus stehst. Die Preise des neutralen Hauses stehen in einer eigenen Zeile „Neutral“ mit dem Unterschied in Prozent.
+
+- 0.42.0 (09.11.2026): **Umbau U1, Heimatmarkt** (Konzept Abschnitt 5). Bisher galt bei offenem neutralen Auktionshaus überall der neutrale Markt (Regel aus 0.40.0), Tooltips zeigten dort die meist höheren neutralen Preise.
+  - **Zwei Märkte:** `ns.HomeMarketKey()` (immer eigene Fraktion) und `ns.AHMarketKey()` (Markt am offenen Haus). `ns.MarketKey()` ist der Markt am offenen Haus, außer innerhalb von `ns.WithHome(fn, …)`. Die Klammer wirkt bis in verschachtelte Abfragen (Lookup, Bereich und Absatz vom Manager) und setzt den Markt auch nach einem Fehler zurück.
+  - **Immer Heimatmarkt:** Tooltip, Wert für Ledger (`ItemValue`, `MarketInfo`, `History`, `MarketItems`), Materialpreise im Berufsfenster. Scan, Live-Abfragen, Verkaufen, Kaufen, Radar und Auktionen bleiben beim Markt am offenen Haus.
+  - **Zeile „Neutral“:** günstigstes Angebot im neutralen Haus je Stück, dahinter der Abstand zum Heimatmarkt in Prozent (grün höher, orange niedriger), bei Daten älter als ein Tag das Alter. Nur wenn es neutrale Daten mit Angeboten gibt. Einstellung `tooltipNeutral`: immer, nur mit Umschalt (Standard), aus. Die Gebühren beider Häuser stecken noch nicht im Vergleich (kommt mit U2).
+  - **Im Spiel prüfen:** In Beutebucht mit offenem Auktionshaus den Tooltip ansehen: Preis wie in Sturmwind? Mit Umschalt Zeile „Neutral“ mit Prozent? Einstellung „Zeile Neutral“ auf der Optionsseite.
+
 ## 0.41.2
 
 Kurz: Die Reiter Radar und Einkaufen sind jetzt hervorgehoben, wenn du sie anklickst, und haben den gleichen Abstand wie Blizzards Reiter.

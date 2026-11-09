@@ -35,6 +35,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         tooltipAvg   = true,    -- Zeile "7 Tage"
         tooltipVendor = true,   -- Zeile "Haendler"
         tooltipHint  = true,    -- Hinweise
+        tooltipNeutral = "shift", -- ab 0.42: Zeile "Neutral" immer, nur mit Umschalt oder aus
         trendNeutral = 5,       -- TG_gleich: bis +-5 % gleich geblieben
         trendStrong  = 20,      -- TG_stark: ab +-20 % stark gestiegen/gefallen
         undercutMode = "copper",-- UB (Einzelgegenstaende): fester Betrag (Kupfer) oder Prozent
@@ -101,6 +102,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  craftListWhich = { all = true, profit = true, top3 = true, top5 = true, top10 = true },
                  craftListMode = { money = true, pct = true },
                  radarSoundKey = { raid = true, ready = true, alarm = true, tell = true },
+                 tooltipNeutral = { always = true, shift = true, off = true },
                  radarOrder = { smart = true, random = true, commodity = true, high = true, low = true },
                  windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true } },   -- ab 0.28 mit "start", ohne "book"
     keepOnReset = { windowPos = true, windowTab = true, keepAllChars = true, ahPlain = true },
@@ -220,14 +222,54 @@ function ns.AtNeutralAH()
 end
 
 -- Markt = Regelsatz (Realm-Name) + Fraktion. Der Nachname des Charakters gehoert nicht dazu.
--- Am neutralen Auktionshaus ist die Fraktion "Neutral", ein eigener Markt (ab 0.40).
-function ns.MarketKey()
+-- Ab 0.42 (Umbau U1, Konzept Abschnitt 5.1) zwei Fragen:
+--   ns.HomeMarketKey(): Heimatmarkt, immer die eigene Fraktion. Fuer Tooltip, Wert fuer Ledger, Berufsfenster.
+--   ns.AHMarketKey():   Markt am offenen Haus, am neutralen Auktionshaus "Neutral" (ab 0.40), sonst Heimat.
+--                       Fuer Scan, Live-Abfragen und alles, was im Auktionshaus passiert.
+-- ns.MarketKey() ist der Markt, in dem gerade gerechnet wird: ns.AHMarketKey(), ausser innerhalb von
+-- ns.WithHome(...) (dann der Heimatmarkt). So greifen auch verschachtelte Abfragen (Lookup, Bereich vom Manager,
+-- Absatz) auf denselben Markt zu.
+local function RealmFaction()
     local realm = GetRealmName and GetRealmName() or nil
     local faction = UnitFactionGroup and UnitFactionGroup("player") or nil
     if Peon.IsSecret(realm) or type(realm) ~= "string" or realm == "" then realm = "?" end
     if Peon.IsSecret(faction) or type(faction) ~= "string" or faction == "" then faction = "?" end
+    return realm, faction
+end
+
+function ns.HomeMarketKey()
+    local realm, faction = RealmFaction()
+    return realm .. " / " .. faction
+end
+
+function ns.AHMarketKey()
+    local realm, faction = RealmFaction()
     if ns.AtNeutralAH() then faction = "Neutral" end
     return realm .. " / " .. faction
+end
+
+-- Neutraler Markt (fuer die Zeile "Neutral" im Tooltip), unabhaengig vom Ort
+function ns.NeutralMarketKey()
+    local realm = RealmFaction()
+    return realm .. " / Neutral"
+end
+
+function ns.MarketKey()
+    return ns.marketOverride or ns.AHMarketKey()
+end
+
+-- fn im Markt key ausfuehren (verschachtelt erlaubt). Hoechstens vier Rueckgabewerte, Fehler werden weitergereicht.
+function ns.WithMarket(key, fn, ...)
+    local old = ns.marketOverride
+    ns.marketOverride = key
+    local ok, a, b, c, d = pcall(fn, ...)
+    ns.marketOverride = old
+    if not ok then error(a, 0) end
+    return a, b, c, d
+end
+
+function ns.WithHome(fn, ...)
+    return ns.WithMarket(ns.HomeMarketKey(), fn, ...)
 end
 
 -- Gegenstandsinfos: im Forever-Client gibt es nur noch C_Item.GetItemInfo (globales GetItemInfo fehlt)
@@ -395,6 +437,15 @@ function ns.MoneyBox(parent, width, get, set, unit)
     b:SetScript("OnEscapePressed", function(self) b.Reset(); self:ClearFocus() end)
     b.Reset()
     return b
+end
+
+-- Ab 0.42 (Umbau U1): Werte fuer Ledger und Berufsfenster immer aus dem Heimatmarkt, auch am neutralen Auktionshaus
+do
+    local function Home(fn) return function(...) return ns.WithHome(fn, ...) end end
+    ns.ItemValue = Home(ns.ItemValue)
+    ns.MarketInfo = Home(ns.MarketInfo)
+    ns.ItemHistory = Home(ns.ItemHistory)
+    ns.MarketItems = Home(ns.MarketItems)
 end
 
 -- Minimap-Button (Kern-Baustein ab API 7): Linksklick Broker-Fenster, Rechtsklick Einstellungen

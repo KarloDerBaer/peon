@@ -40,7 +40,11 @@ function ns.CreateOptions()
     page:Add(left, page:Check("tooltipShow", L.OPT_TT_SHOW))
     local ttAvg = page:Add(left, page:Check("tooltipAvg", L.OPT_TT_AVG))
     local ttVendor = page:Add(left, page:Check("tooltipVendor", L.OPT_TT_VENDOR))
-    local ttHint = page:Add(left, page:Check("tooltipHint", L.OPT_TT_HINT, L.OPT_TT_HINT_HINT), 16)
+    local ttHint = page:Add(left, page:Check("tooltipHint", L.OPT_TT_HINT, L.OPT_TT_HINT_HINT))
+    -- ab 0.42 (Umbau U1): Zeile "Neutral" (neutrales Auktionshaus im Vergleich)
+    local ttNeutral = page:Add(left, page:Dropdown("tooltipNeutral", L.OPT_TT_NEUTRAL,
+        { { "always", L.OPT_TT_NEUTRAL_ALWAYS }, { "shift", L.OPT_TT_NEUTRAL_SHIFT }, { "off", L.OPT_TT_NEUTRAL_OFF } },
+        L.OPT_TT_NEUTRAL_HINT), 16)
 
     -- Berufsfenster (ab 0.39): gleiche Punkte wie im Zahnrad-Menue am Block
     ns.Craft.AddOptions(page, left)
@@ -193,7 +197,7 @@ function ns.CreateOptions()
     -- Tooltip-Unterpunkte ausgrauen, wenn die Tooltip-Preise aus sind
     page.onRefresh = function()
         local on = mod.db and mod.db.tooltipShow
-        for _, c in ipairs({ ttAvg, ttVendor, ttHint }) do c:SetAlpha(on and 1 or 0.4) end
+        for _, c in ipairs({ ttAvg, ttVendor, ttHint, ttNeutral }) do c:SetAlpha(on and 1 or 0.4) end
         shortMin:SetAlpha(mod.db and mod.db.shortMass and 1 or 0.4)
         local snd = mod.db and mod.db.radarSound
         soundKey:SetAlpha(snd and 1 or 0.4); soundTest:SetAlpha(snd and 1 or 0.4)
