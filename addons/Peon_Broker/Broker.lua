@@ -502,6 +502,7 @@ mod:On("LOGIN", function()
     if (Peon.API or 0) < 8 then return end
     local n = ns.Data.ApplyManager()
     if n > 0 then mod:Dbg(("Stand vom Manager: %d Gegenstaende neu"):format(n)) end
+    if ns.Watch then mod:Call("Beobachtung", ns.Watch.Check) end   -- ab 0.49: Preisalarm nach dem Stand vom Manager
     if mod.launcher then mod.launcher:Refresh() end
 end)
 
@@ -523,6 +524,7 @@ mod:On("INIT", function()
     mod:Call("Anteil", ns.Cut.Init)
     mod:Call("Rat beim Verkaufen", ns.Advice.Init)
     mod:Call("Menue", ns.Menu.Init)
+    mod:Call("Beobachtung", ns.Watch.Init)
     mod:Call("Start", ns.Start.Init)
     mod:Call("Verkaufen", ns.Sell.Init)
     mod:Call("Behalten", ns.Keep.Init)

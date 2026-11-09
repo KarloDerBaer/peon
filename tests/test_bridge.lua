@@ -613,7 +613,8 @@ do
   -- Anderer interner Name desselben Markts
   PeonBridgeData = { fmt = 2, t = clock, channels = { broker = true }, aliases = { ["Realm 1 PvE / Horde"] = "Realm 3 PvE / Horde" },
     markets = { ["Realm 3 PvE / Horde"] = { t = clock, day = 1, items = { [2770] = "100:500:120:5:e" }, sales = {} } },
-    shop = { lists = { { id = "m7_7", name = "Vom Manager", pct = 10, u = clock + 5, items = {} } } } }
+    shop = { lists = { { id = "m7_7", name = "Vom Manager", pct = 10, u = clock + 5, items = {} } } },
+    watch = { items = { ["2770"] = clock + 5 }, gone = {} } }
   local lt = bridge:LongTerm(2770, "Realm 1 PvE / Horde")
   check(lt and lt.lang == 120, "0.6.0: Werte auch unter dem anderen Namen")
   check(bridge:LongTerm(2770, "Realm 3 PvE / Horde").lang == 120, "0.6.0: und unter dem eigenen")
@@ -626,6 +627,7 @@ do
   local found
   for _, l in ipairs(PeonBrokerDB.lists or {}) do if l.id == "m7_7" then found = l end end
   check(found and found.name == "Vom Manager", "0.6.0: Broker hat die Liste aus dem Manager")
+  check(PeonBrokerDB.watch and PeonBrokerDB.watch[2770] and PeonBrokerDB.watch[2770].u == clock + 5, "0.9.0: Broker hat die Beobachtung aus dem Manager")
   PeonBridgeData = data
 end
 

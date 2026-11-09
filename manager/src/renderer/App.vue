@@ -36,7 +36,7 @@ async function closeUpdates() {
 const ALL = [
   { key: 'overview', label: 'Übersicht' },
   { key: 'items', label: 'Gegenstände' },
-  { key: 'favorites', label: 'Favoriten' },
+  { key: 'favorites', label: 'Beobachtung' },
   { key: 'shopping', label: 'Einkaufsliste (WIP)' },
   { key: 'chances', label: 'Chancen' },
   { key: 'sources', label: 'Quellen' },

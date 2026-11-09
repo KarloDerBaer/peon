@@ -497,6 +497,11 @@ function ns.Hook()
         local ok, err = pcall(b.MergeShop, b, d.shop)
         if not ok then mod:ReportError("Einkaufslisten", err) end
     end
+    -- Beobachtung aus dem Manager an Broker geben (ab 0.9.0, Broker ab 0.49)
+    if d and type(d.watch) == "table" and type(b.MergeWatch) == "function" then
+        local ok, err = pcall(b.MergeWatch, b, d.watch)
+        if not ok then mod:ReportError("Beobachtung", err) end
+    end
     return true
 end
 

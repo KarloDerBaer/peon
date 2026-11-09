@@ -3,7 +3,7 @@
 -- (Peon.AddItemMenu, API 16; Strg+Rechtsklick auf einen Gegenstand).
 --   Info               Gegenstand im Broker-Fenster zeigen (bis zum neuen Fenster U10 im Reiter Preise)
 --   Auf Einkaufsliste  Untermenue mit allen Listen und "Neue Liste"
---   Beobachten         kommt mit U8
+--   Beobachten         an/aus, Untermenue Preisgrenze (ab 0.49, U8)
 -- Ohne Kern ab API 16 gibt es kein Menue, sonst aendert sich nichts.
 
 local ADDON_NAME, ns = ...
@@ -51,6 +51,10 @@ function M.Build(root, item)
             sub:CreateButton(l.name or ("#" .. i), function() mod:Call("Menue", M.AddToList, idx, item) end)
         end
         sub:CreateButton(L.MENU_SHOP_NEW, function() mod:Call("Menue", M.AddToList, nil, item) end)
+    end
+    if ns.Watch then
+        local key = item.link and ns.Data.KeyFromLink(item.link) or item.id
+        ns.Watch.AddMenu(root, item, key)
     end
 end
 

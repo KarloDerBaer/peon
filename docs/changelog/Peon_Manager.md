@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.24.0
+
+Kurz: Favoriten heißen jetzt Beobachtung und werden mit dem Spiel abgeglichen: Was du im Spiel beobachtest, steht auch im Manager, und umgekehrt.
+
+- 0.24.0 (09.11.2026, Umbau Broker U8): **Beobachtung.** Seite, Stern und Texte heißen „Beobachtung“ statt „Favoriten“ (intern weiter `favorites`). Der Manager liest die Beobachtung aus `Peon_Broker.lua` (`watch`, `watchGone`) und schreibt seine als `watch = { items, gone }` in `Data.lua` (Bridge 0.9.0, Broker 0.49.0). Je Gegenstand gewinnt die neuere Änderung, entfernte Einträge bekommen eine Löschmarke (`meta` `watchGone`, verfällt nach 60 Tagen). Preisgrenzen und Alarm bleiben vorerst im Spiel.
+  - **Im echten Programm prüfen:** Stern setzen, Spiel neu laden: steht der Gegenstand in Brokers Beobachtung? Im Spiel beobachten, Reload: Stern im Manager gesetzt?
+
 ## 0.23.0
 
 Kurz: Der Manager bleibt jetzt flüssig, auch wenn er gerade neue Daten einliest und auswertet. Vorher hing das Fenster danach teils mehrere Sekunden.

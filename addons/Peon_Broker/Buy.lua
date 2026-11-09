@@ -15,6 +15,8 @@ ns.Buy = B
 
 B.LIVE_WAIT = 4
 local GREY, ORANGE, GREEN, RED = "|cff999999", "|cffff9933", "|cff60e060", "|cffff4040"
+B.ADVICE_COLOR = { buy = "|cff60e060", part = "|cffffd100", expensive = "|cffff4040", check = "|cff999999", done = "|cff999999" }
+B.ADVICE_ORDER = { buy = 1, part = 2, check = 3, expensive = 4, done = 5 }
 local function Money(v) return ns.Tooltip.Money(v) end
 local function AHApi() return rawget(_G, "C_AuctionHouse") end
 local function AHOpen() return ns.Scan.ahOpen and AHApi() ~= nil end
@@ -76,6 +78,8 @@ function B.Lists()
 end
 
 function B.CurrentList()
+    -- ab 0.49 (U8): Beobachtung als eigene Liste
+    if mod.char and mod.char.listSel == "watch" and ns.Watch then return ns.Watch.PseudoList(), "watch" end
     local lists = B.Lists()
     local i = tonumber(mod.char and mod.char.listSel) or 1
     return lists[i] or lists[1], lists[i] and i or 1
@@ -89,6 +93,7 @@ function B.NewList(name)
 end
 
 function B.DeleteList(i)
+    if i == "watch" then return end
     local lists = B.Lists()
     if not lists[i] then return end
     if lists[i].id then B.Gone().lists[lists[i].id] = Shop().NextU(time(), lists[i].u) end
@@ -99,6 +104,7 @@ end
 function B.AddItem(key, info)
     if key == nil then return false end
     local list = B.CurrentList() or B.NewList()
+    if list.watch then return ns.Watch.Add(key, info) end
     local e = list.items[key]
     if not e then
         local gk = tostring(list.id) .. "|" .. tostring(key)
@@ -118,6 +124,7 @@ end
 
 function B.RemoveItem(list, key)
     if not (list and list.items[key]) then return end
+    if list.watch then ns.Watch.Remove(key); return end
     if list.id then B.Gone().items[tostring(list.id) .. "|" .. tostring(key)] = Shop().NextU(time(), list.items[key].u) end
     list.items[key] = nil
 end
@@ -179,8 +186,18 @@ function B.Icon(id)
 end
 
 -- Zeilen der aktuellen Liste (F28-F30 mit Scan-Daten bzw. letzter Live-Abfrage)
-function B.ListRows()
-    local list = B.CurrentList()
+-- Rat je Zeile (ab 0.49, U8): "buy" genug unter dem Hoechstpreis, "part" nur ein Teil, "expensive" nichts
+-- darunter, "check" ohne Stand, "done" Ziel erreicht
+function B.Advice(r)
+    if r.need == 0 then return "done" end
+    if not r.cheapest and not r.hits then return "check" end
+    if (r.hits or 0) <= 0 then return r.cheapest and "expensive" or "check" end
+    if r.need and r.hits < r.need then return "part" end
+    return "buy"
+end
+
+function B.ListRows(list)
+    list = list or B.CurrentList()
     local rows = {}
     if not list then return rows end
     for key, it in pairs(list.items) do
@@ -195,11 +212,44 @@ function B.ListRows()
         local hitQty = limit and ns.Data.BelowLimit(levels, limit) or 0
         -- Vorrat (ab 0.24): Taschen + Bank, mit Umschalter "Vorrat aller Charaktere" auch die Twinks (Ledger)
         local _, _, stock = ns.Keep.Counts(ns.Data.ItemID(key), nil)
-        rows[#rows + 1] = { key = key, name = it.name or ns.Data.ItemName(key, e) or tostring(key), quality = it.q,
-            icon = it.icon, wish = it.wish, limit = limit, cheapest = cheapest, hits = hitQty, stock = stock,
-            live = live ~= nil, lname = W.Lower(it.name or "") }
+        local need = it.wish and math.max(0, it.wish - (stock or 0)) or nil   -- ab 0.49: Ziel minus Vorrat
+        local r = { key = key, name = it.name or ns.Data.ItemName(key, e) or tostring(key), quality = it.q,
+            icon = it.icon, wish = it.wish, limit = limit, cheapest = cheapest, hits = hitQty, stock = stock, need = need,
+            live = live ~= nil, lname = W.Lower(it.name or ""), list = list.name, watch = list.watch }
+        if not cheapest and type(e) ~= "table" then r.hits = nil end
+        r.advice = B.Advice(r)
+        rows[#rows + 1] = r
     end
     return rows
+end
+
+-- Zahl am Reiter Einkaufen (ab 0.49, U8): alle Zeilen aus Einkaufslisten und Beobachtung mit Rat Kaufen oder
+-- Teilweise, ohne Blinken
+function B.CountBuyable()
+    local n = 0
+    local lists = {}
+    for _, l in ipairs(B.Lists()) do lists[#lists + 1] = l end
+    if ns.Watch then lists[#lists + 1] = ns.Watch.PseudoList() end
+    for _, l in ipairs(lists) do
+        for _, r in ipairs(B.ListRows(l)) do
+            if r.advice == "buy" or r.advice == "part" then n = n + 1 end
+        end
+    end
+    return n
+end
+
+function B.UpdateBadge()
+    local T = ns.AHTabs
+    if not (T and T.SetBadge and T.built) then return end
+    T.SetBadge("shop", B.CountBuyable(), false)
+end
+
+-- Reiter gerade zu sehen (Broker-Fenster oder Auktionshaus)
+function B.Shown()
+    local T = ns.AHTabs
+    if T and T.current == "shop" then return true end
+    if T and T.host and T.host.shop == "ah" then return false end
+    return W.IsOpen() and W.current == "buy"
 end
 
 ---------------------------------------------------------------------------
@@ -814,10 +864,16 @@ function B.Refresh()
     local names = {}
     for i, l in ipairs(B.Lists()) do names[#names + 1] = { index = i, name = l.name, count = 0 } end
     for _, n in ipairs(names) do for _ in pairs(B.Lists()[n.index].items) do n.count = n.count + 1 end end
+    if ns.Watch then   -- ab 0.49: Beobachtung als letzte Liste
+        local wn = 0
+        for _ in pairs(ns.Watch.Store()) do wn = wn + 1 end
+        names[#names + 1] = { index = "watch", name = L.WATCH_LIST, count = wn }
+    end
     B.listList:SetData(names)
     local _, ci = B.CurrentList()
     for _, n in ipairs(names) do if n.index == ci then B.listList:Select(n) end end
     B.itemList:SetData(B.ListRows())
+    B.UpdateBadge()
     if B.allChars then
         local has = ns.Keep.Ledger() ~= nil
         B.allChars:SetShown(has); B.allChars.label:SetShown(has)
@@ -841,7 +897,9 @@ function B.UpdateView()
     B.nameBox:SetText(cur and cur.name or "")
     B.pctBox:SetText(cur and tostring(cur.pct or 0) or "")
     B.filling = false
-    if cur then B.deleteButton:Enable() else B.deleteButton:Disable() end
+    if cur and not cur.watch then B.deleteButton:Enable() else B.deleteButton:Disable() end
+    if B.nameBox.SetEnabled then B.nameBox:SetEnabled(not (cur and cur.watch)) end
+    if B.pctBox.SetEnabled then B.pctBox:SetEnabled(not (cur and cur.watch)) end
     -- Gewaehlter Gegenstand
     local row = B.selected
     local plan = B.Plan(row)
@@ -992,7 +1050,7 @@ function B.Build(c)
     right:SetPoint("TOPLEFT", leftW + 8, 0)
     right:SetPoint("BOTTOMRIGHT", 0, 0)
     local rw = total - leftW - 8 - 8 - 24
-    local fixed = 84 + 50 + 50 + 84 + 50
+    local fixed = 84 + 50 + 50 + 84 + 50 + 44 + 78   -- ab 0.49: Fehlt, Rat
     B.itemList = Peon.NewList(right, {
         columns = {
             NameCol(rw - fixed),
@@ -1008,6 +1066,11 @@ function B.Build(c)
               format = function(v, r) if not v then return "–" end return (r.live and "" or GREY) .. Money(v) .. (r.live and "" or "|r") end },
             { key = "hits", title = L.BUY_COL_HITS, width = 50, align = "RIGHT",
               format = function(v) return (v and v > 0) and (GREEN .. v .. "|r") or "–" end },
+            { key = "need", title = L.BUY_COL_NEED, width = 44, align = "RIGHT",
+              format = function(v) if v == nil then return "–" end return v == 0 and (GREY .. "0|r") or tostring(v) end },
+            { key = "advice", title = L.BUY_COL_ADVICE, width = 78, align = "RIGHT",
+              format = function(v) return (B.ADVICE_COLOR[v] or GREY) .. (L["BUY_ADV_" .. tostring(v):upper()] or "") .. "|r" end,
+              sortValue = function(r) return B.ADVICE_ORDER[r.advice] or 9 end },
         },
         rows = 12, rowHeight = 19, sortKey = "name",
         onClick = function(list, r) B.Select(r) end,
@@ -1058,6 +1121,12 @@ function B.Build(c)
     local function SetMax(self)
         local cur = B.CurrentList()
         if B.filling or not cur or not B.selected then return end
+        if cur.watch then   -- ab 0.49: Grenze der Beobachtung
+            local gold = tonumber((tostring(self:GetText() or ""):gsub(",", ".")))
+            ns.Watch.SetLimit(B.selected.key, (gold and gold > 0) and "abs" or nil, gold and math.floor(gold * 10000 + 0.5) or nil)
+            B.Refresh()
+            return
+        end
         local it = cur.items[B.selected.key]
         if it then
             local gold = tonumber((tostring(self:GetText() or ""):gsub(",", ".")))
@@ -1094,7 +1163,9 @@ function B.Init()
     mod:RegisterEvent("ITEM_SEARCH_RESULTS_UPDATED", function(_, itemKey) mod:Call("Schluessel", B.LearnFromResults, itemKey) end)
     pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function() B.OnBrowseResults() end)
     pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_BROWSE_RESULTS_ADDED", function() B.OnBrowseResults() end)
-    mod:On("SCAN_DONE", function() if W.IsOpen() and W.current == "buy" then B.Refresh() end end)
+    mod:On("SCAN_DONE", function()
+        if B.Shown() then B.Refresh() else mod:Call("Einkaufsliste", B.UpdateBadge) end
+    end)
 end
 
 W.pages.buy = {

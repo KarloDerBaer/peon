@@ -310,6 +310,7 @@ end
 ---------------------------------------------------------------------------
 -- Steht der Gegenstand auf einer Einkaufsliste?
 function T.OnShopList(key)
+    if ns.Watch and ns.Watch.Is(key) then return true end   -- ab 0.49: auch beobachtete Gegenstaende
     local B = ns.Buy
     if not B or not B.Lists then return false end
     local ok, lists = pcall(B.Lists)

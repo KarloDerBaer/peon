@@ -29,7 +29,7 @@ W.TABS = {
 W.pages = {}          -- key -> { build = fn(content), refresh = fn() }
 
 -- In Arbeit: Diese Reiter zeigen nur einen Hinweis, bis sie ueberarbeitet sind (Wunsch KarloDerBaer, 07.11.2026)
-W.WIP = { buy = true }
+W.WIP = {}   -- ab 0.49 (U8): Einkaufsliste wieder offen (0.37 bis 0.48 in Arbeit)
 
 local function BuildWip(c)
     local t = c:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")

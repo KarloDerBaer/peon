@@ -79,19 +79,21 @@ class BrokerClient {
     if (files.length === 0) sum.error = 'Keine Peon_Bridge.lua gefunden';
     sum.broker = this.importBroker();
     if (sum.broker.some((b) => b.shop)) this.shopFromGame(sum.broker);
+    if (sum.broker.some((b) => b.watch)) this.watchFromGame(sum.broker);
     const markets = this.buildMarkets();
     // Bestaetigen nur, was sicher in der Datenbank ist
     const known = ids.filter((id) => this.db.prepare('SELECT 1 FROM snapshots WHERE id = ?').get(id));
     const prev = this.meta('ack') || { ids: [] };
     const same = prev.ids.length === known.length && prev.ids.every((x, k) => x === known[k]);
     const shop = this.shopForGame();
+    const watch = this.watchForGame();
     const aliases = this.aliases();
     const tipWant = this.tipWants();
-    const hash = crypto.createHash('md5').update(JSON.stringify([markets.values, shop, aliases, tipWant])).digest('hex');
+    const hash = crypto.createHash('md5').update(JSON.stringify([markets.values, shop, aliases, tipWant, watch])).digest('hex');
     const marks = this.host.reports.marks();
     if (!same || !prev.t || prev.hash !== hash || !dataMatches(wow, this.host.channels(), marks)) {
       try {
-        const w = writeData(wow, { ack: known, markets: markets.lua, channels: this.host.channels(), version: this.version, now: this.now(), aliases, shop, tipWant, ...marks });
+        const w = writeData(wow, { ack: known, markets: markets.lua, channels: this.host.channels(), version: this.version, now: this.now(), aliases, shop, tipWant, watch, ...marks });
         sum.ack = { t: this.now(), count: known.length, file: w.file, items: markets.count, bytes: w.bytes };
         this.meta('ack', { ids: known, t: this.now(), file: w.file, hash, items: markets.count, sales: markets.salesCount, bytes: w.bytes, day: markets.day });
       } catch (e) {
@@ -206,7 +208,7 @@ class BrokerClient {
       try {
         const r = broker.importFile(this.db, f.file);
         seen[f.file] = mt;
-        out.push({ file: f.file, markets: r.markets, shop: r.shop });
+        out.push({ file: f.file, markets: r.markets, shop: r.shop, watch: r.watch });
         const n = r.markets.reduce((a, m) => a + m.items, 0);
         log(this.db, 'broker', true, `Broker-Verlauf: ${n} Gegenstände in ${r.markets.length} ${r.markets.length === 1 ? 'Markt' : 'Märkten'}`);
       } catch (e) {
@@ -442,13 +444,63 @@ class BrokerClient {
     return out;
   }
 
-  // ---------- Favoriten ----------
+  // ---------- Beobachtung (bis 0.23 Favoriten; intern weiter "favorites") ----------
   favorites() { return this.db.prepare('SELECT item_key AS key FROM favorites ORDER BY added').all().map((r) => r.key); }
 
+  watchGone() { return this.meta('watchGone') || {}; }
+
   setFavorite(key, on) {
-    if (on) this.db.prepare('INSERT OR IGNORE INTO favorites(item_key, added) VALUES (?, ?)').run(String(key), this.now());
-    else this.db.prepare('DELETE FROM favorites WHERE item_key = ?').run(String(key));
+    const k = String(key);
+    const gone = this.watchGone();
+    if (on) {
+      this.db.prepare('INSERT OR IGNORE INTO favorites(item_key, added) VALUES (?, ?)').run(k, this.now());
+      if (gone[k] !== undefined) { delete gone[k]; this.meta('watchGone', gone); }
+    } else {
+      const had = this.db.prepare('SELECT added FROM favorites WHERE item_key = ?').get(k);
+      this.db.prepare('DELETE FROM favorites WHERE item_key = ?').run(k);
+      if (had) { gone[k] = Math.max(this.now(), (had.added || 0) + 1); this.meta('watchGone', gone); }
+    }
     return this.favorites();
+  }
+
+  // Beobachtung aus dem Spiel einmischen (ab 0.24): je Gegenstand gewinnt die neuere Aenderung, Loeschmarken halten.
+  // Rueckgabe: true bei Aenderung
+  watchFromGame(results) {
+    const gone = this.watchGone();
+    let changed = false;
+    const fav = (k) => this.db.prepare('SELECT added FROM favorites WHERE item_key = ?').get(k);
+    for (const r of results) {
+      const w = r.watch;
+      if (!w) continue;
+      for (const [k, u] of Object.entries(w.items || {})) {
+        const f = fav(k);
+        const local = f ? f.added : (gone[k] || 0);
+        if (u > local || (!f && !gone[k])) {
+          this.db.prepare('INSERT INTO favorites(item_key, added) VALUES (?, ?) ON CONFLICT(item_key) DO UPDATE SET added = excluded.added').run(k, u || this.now());
+          if (gone[k] !== undefined) delete gone[k];
+          changed = true;
+        }
+      }
+      for (const [k, u] of Object.entries(w.gone || {})) {
+        const f = fav(k);
+        if (f && u > f.added) { this.db.prepare('DELETE FROM favorites WHERE item_key = ?').run(k); gone[k] = u; changed = true; }
+        else if (!f && u > (gone[k] || 0)) { gone[k] = u; changed = true; }
+      }
+    }
+    // Loeschmarken nach 60 Tagen vergessen (wie bei den Einkaufslisten)
+    const old = this.now() - 60 * 86400;
+    for (const [k, u] of Object.entries(gone)) if (u < old) { delete gone[k]; changed = true; }
+    if (changed) this.meta('watchGone', gone);
+    return changed;
+  }
+
+  // Beobachtung fuer Data.lua: { items: { Schluessel: u }, gone: { Schluessel: u } } oder null
+  watchForGame() {
+    const items = {};
+    for (const r of this.db.prepare('SELECT item_key, added FROM favorites').all()) items[r.item_key] = r.added || 0;
+    const gone = this.watchGone();
+    if (!Object.keys(items).length && !Object.keys(gone).length) return null;
+    return { items, gone };
   }
 
   // ---------- Einkaufslisten ----------

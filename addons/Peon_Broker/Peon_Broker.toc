@@ -3,7 +3,7 @@
 ## Notes: Auction house helper for the Peon addon collection: full scan, price database per market, prices in tooltips, Broker window (selling, my auctions, shopping list, radar).
 ## Notes-deDE: Auktionshaus-Helfer für Peon: Komplettscan, Preisdatenbank je Markt, Preise im Tooltip, Broker-Fenster (Verkaufen, Meine Auktionen, Einkaufsliste, Radar).
 ## Author: KarloDerBaer
-## Version: 0.48.0
+## Version: 0.49.0
 ## Dependencies: Peon
 ## Group: Peon
 ## IconTexture: Interface\Icons\INV_Misc_Coin_02
@@ -29,6 +29,7 @@ Advice.lua
 Auctions.lua
 Shop.lua
 Buy.lua
+Watch.lua
 Radar.lua
 Prices.lua
 Menu.lua

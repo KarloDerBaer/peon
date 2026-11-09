@@ -35,7 +35,10 @@ T.blocked = {}       -- gemeldete Blockaden dieser Sitzung: { t, event, fn }
 T.host = {}          -- ab 0.48: wo eine Flaeche gerade haengt ("ah" oder "window"), z. B. host.radar
 T.badges = {}        -- ab 0.48: Zahl am Reiter je key, blink = true solange nicht geoeffnet
 -- Flaechen, die aus dem Broker-Fenster in einen Reiter des Auktionshauses wandern (ab 0.48: Radar)
-T.HOSTED = { radar = { build = function(c) ns.Radar.Build(c) end, open = function() ns.Radar.Open() end, leave = function() ns.Radar.Halt() end } }
+T.HOSTED = {
+    radar = { build = function(c) ns.Radar.Build(c) end, open = function() ns.Radar.Open() end, leave = function() ns.Radar.Halt() end },
+    shop  = { build = function(c) ns.Buy.Build(c) end, open = function() ns.Buy.Refresh() end },   -- ab 0.49 (U8)
+}
 
 local function AHFrame()
     local f = rawget(_G, "AuctionHouseFrame")

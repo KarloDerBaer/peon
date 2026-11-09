@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.9.0
+
+Kurz: Die Beobachtung (früher Favoriten) aus dem Manager kommt jetzt auch im Spiel bei Broker an.
+
+- 0.9.0 (09.11.2026): `Data.lua` kann `watch = { items, gone }` enthalten (Manager 0.24.0). Beim Anmelden gibt die Bridge das wie die Einkaufslisten an Broker weiter (`mod:MergeWatch`, Broker ab 0.49). Fehler landen als „Beobachtung“ im Fehlerspeicher.
+
 ## 0.8.0
 
 Kurz: Scans am neutralen Auktionshaus kommen im Manager als eigener Markt an.

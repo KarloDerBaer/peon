@@ -117,6 +117,46 @@ test('Favoriten gelten marktuebergreifend', () => {
   svc.close();
 });
 
+test('Beobachtung (Manager 0.24): Abgleich mit dem Spiel, neuere Aenderung gewinnt, Loeschmarken halten', () => {
+  const { svc, b, clock } = setup();
+  // aus dem Spiel: zwei neue, eine Loeschmarke fuer etwas Unbekanntes
+  assert.equal(b.watchFromGame([{ watch: { items: { '2770': NOW - 50, '3192:Kurzes Bastardschwert des Gorillas': NOW - 40 }, gone: { '999': NOW - 10 } } }]), true);
+  assert.deepEqual(b.favorites().sort(), ['2770', '3192:Kurzes Bastardschwert des Gorillas']);
+  assert.equal(b.watchGone()['999'], NOW - 10);
+  // im Manager entfernt: Loeschmarke, das Spiel bringt es mit aelterer Zeit nicht zurueck
+  clock.t = NOW + 100;
+  b.setFavorite('2770', false);
+  assert.ok(b.watchGone()['2770'] >= NOW + 100);
+  b.watchFromGame([{ watch: { items: { '2770': NOW - 50 }, gone: {} } }]);
+  assert.ok(!b.favorites().includes('2770'));
+  // im Spiel spaeter wieder beobachtet: kommt zurueck
+  b.watchFromGame([{ watch: { items: { '2770': NOW + 200 }, gone: {} } }]);
+  assert.ok(b.favorites().includes('2770'));
+  // im Spiel entfernt (neuere Marke): weg
+  b.watchFromGame([{ watch: { items: {}, gone: { '3192:Kurzes Bastardschwert des Gorillas': NOW + 300 } } }]);
+  assert.ok(!b.favorites().includes('3192:Kurzes Bastardschwert des Gorillas'));
+  // fuer Data.lua
+  const w = b.watchForGame();
+  assert.equal(w.items['2770'], NOW + 200);
+  assert.equal(w.gone['3192:Kurzes Bastardschwert des Gorillas'], NOW + 300);
+  // alte Loeschmarken verfallen nach 60 Tagen
+  clock.t = NOW + 61 * 86400;
+  b.watchFromGame([{ watch: { items: {}, gone: {} } }]);
+  assert.equal(b.watchGone()['999'], undefined);
+  svc.close();
+});
+
+test('Beobachtung steht in Data.lua', () => {
+  const { svc, b, ad } = setup();
+  b.setFavorite('2770', true);
+  const datalua = require('../src/core/datalua');
+  const w = b.watchForGame();
+  datalua.writeData(path.dirname(path.dirname(path.dirname(ad))), { watch: w });
+  const g = parseLua(fs.readFileSync(path.join(ad, 'Data.lua')));
+  assert.equal(g.PeonBridgeData.watch.items['2770'], NOW);
+  svc.close();
+});
+
 test('Einkaufsliste: neuere Aenderung gewinnt, Loeschmarken halten, keine Wiederkehr', () => {
   const d = shopping.empty();
   const l = shopping.newList(d, 'Erze', 100);

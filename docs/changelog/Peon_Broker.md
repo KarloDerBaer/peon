@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.49.0
+
+Kurz: Die Einkaufsliste ist zurück und steht auch als Reiter „Einkaufen“ im Auktionshaus. Jede Zeile sagt, ob sich Kaufen lohnt, und die Zahl am Reiter zeigt, wie viel gerade kaufbar ist.
+Kurz: Neu ist die Beobachtung mit Preisalarm: Strg+Rechtsklick auf einen Gegenstand, „Beobachten“, Preisgrenze wählen. Fällt der Preis darunter, meldet Broker sich. Im Manager heißen die Favoriten jetzt ebenfalls Beobachtung und werden abgeglichen.
+
+- 0.49.0 (09.11.2026): **Umbau U8, Einkaufslisten und Beobachtung** (Konzept Abschnitte 7.5, 8.2, 8.7). Neue Datei `Watch.lua`.
+  - **Einkaufsliste nicht mehr in Arbeit** (WIP aus 0.37 entfernt). Die Menge wirkte schon als Ziel inklusive Vorrat (`B.Plan` kauft höchstens Wunsch minus Vorrat aller Charaktere), neu sind die Spalten **Fehlt** (Ziel minus Vorrat) und **Rat** (KAUFEN, TEILWEISE, ZU TEUER, PRÜFEN, erledigt), sortierbar.
+  - **Reiter „Einkaufen“ im Auktionshaus:** dieselbe Fläche, umgehängt wie das Radar. Zahl am Reiter: alle Zeilen aus allen Einkaufslisten und der Beobachtung mit Rat Kaufen oder Teilweise, ohne Blinken, neu nach Scan, Stand vom Manager und Live-Prüfung.
+  - **Beobachtung** (`PeonBrokerDB.watch`, Löschmarken `watchGone`): im Gegenstandsmenü „Beobachten“ (Haken) und „Preisgrenze“ (10/20/30 % unter dem Vergleichspreis, jetziger Preis, keine Grenze). In der Einkaufsliste als eigene Liste „Beobachtung“ (nicht löschbar, Grenze über „Max.“ änderbar). Zeichen in Zeile 1 des Tooltips wie bei Einkaufslisten.
+  - **Preisalarm:** liegt das günstigste Angebot auf oder unter der Grenze, einmal Meldung im Chat und Ton (Einstellung des Radars), wieder erst nach einem Preis darüber. Geprüft nach Komplettscan, Stand vom Manager und jeder Live-Abfrage.
+  - **Abgleich mit dem Manager** (`mod:MergeWatch`, über Bridge 0.9.0): je Gegenstand gewinnt die neuere Änderung, Löschmarken halten. Preisgrenzen bleiben im Spiel.
+  - Noch nicht: Liste im Look von Blizzards Kaufliste (U10), „Alles Lohnende kaufen“ als Ablauf, „Material auf Einkaufsliste“ aus dem Berufsfenster.
+  - **Im Spiel prüfen:** Reiter Einkaufen im Auktionshaus, Spalten Fehlt und Rat, Kaufen. Beobachten über das Menü, Preisgrenze setzen, Alarm nach einem Scan. Abgleich mit dem Manager (Stern dort, Haken im Spiel).
+
 ## 0.48.0
 
 Kurz: Das Radar steht jetzt als eigener Reiter im Auktionshaus. Findet ein Komplettscan Schnäppchen, steht am Reiter die Zahl der Treffer und er blinkt. Mit zwei neuen Tasten kaufst du den gewählten Treffer oder springst zum nächsten.

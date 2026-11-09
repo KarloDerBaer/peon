@@ -599,10 +599,8 @@ check(S.state == nil and said("keine Antwort"), "Zeitueberschreitung ohne Daten"
 
 -- ===== Broker-Fenster, Reiter "Preise" (0.7) =====
 local Win, P = ns.Window, ns.Prices
--- Einkaufsliste in Arbeit (0.37.0): Fuer die Pruefungen der Liste den Hinweis abschalten, am Ende pruefen
-check(Win.WIP.buy == true, "0.37: Einkaufsliste in Arbeit")
-local wipKeep = Win.WIP
-Win.WIP = {}
+-- Einkaufsliste war 0.37 bis 0.48 in Arbeit, ab 0.49 (U8) wieder offen
+check(next(Win.WIP) == nil, "0.49: Einkaufsliste nicht mehr in Arbeit")
 check(market.items[2770].nm == "Kupfererz" and market.items[2770].ql == 1, "Scan merkt Name und Qualitaet")
 check(market.items["15000:1047"].nm == "Schwert des Baeren" and market.items["15000:1047"].ql == 2, "Name bei Ausruestung mit Zusatz")
 check(D.LinkFromKey(2770) == "item:2770" and D.KeyFromLink(D.LinkFromKey("15000:1047")) == "15000:1047", "Link aus Schluessel und zurueck")
@@ -2975,16 +2973,9 @@ do
   check(refreshed == 1, "0.35: Scan aktualisiert den Text")
 end
 
--- ===== Einkaufsliste in Arbeit (0.37.0) =====
-Win.WIP = wipKeep
-if Win.contents.buy then Win.contents.buy:Hide() end
-Win.contents.buy = nil
+-- ===== Einkaufsliste wieder offen (0.49.0) =====
 Win.Open("buy")
-check(Win.current == "buy" and Win.contents.buy.wipText and Win.contents.buy.wipText.text == ns.L.TAB_WIP
-  and ns.L.TAB_WIP:find("WIP", 1, true), "0.37: Reiter Einkaufsliste zeigt nur den Hinweis")
-local hasBuy = false
-for _, line in ipairs(ns.Start.Lines()) do if line.tab == "buy" then hasBuy = true end end
-check(not hasBuy, "0.37: Start ohne Zeile zur Einkaufsliste")
+check(Win.current == "buy" and not Win.contents.buy.wipText and ns.Buy.itemList ~= nil, "0.49: Reiter Einkaufsliste mit Inhalt statt WIP-Hinweis")
 Win.Refresh()
 
 -- ===== Umbau U0 (0.41.0): eigene Reiter im Auktionshaus, "Blizzard pur" =====
@@ -3162,6 +3153,77 @@ end)()
   CreateFrame = origCreate
   AuctionHouseFrame = {}
   T.built, T.current = nil, nil
+end)()
+
+-- ===== Umbau U8 (0.49.0): Einkaufslisten und Beobachtung =====
+;(function()
+  local Wt, B = ns.Watch, ns.Buy
+  local mk = D.Market()
+  local e = mk.items[2770]
+  PeonBrokerDB.watch, PeonBrokerDB.watchGone = nil, nil
+  check(not Wt.Is(2770) and Wt.Add(2770, { name = "Kupfererz" }) and Wt.Is(2770), "U8: Gegenstand beobachten")
+  check(Wt.Limit(2770) == nil and Wt.Check() == 0, "U8: ohne Grenze kein Alarm")
+  local sounds = 0
+  local oldPlay = ns.Radar.PlayAlert
+  ns.Radar.PlayAlert = function() sounds = sounds + 1 end
+  mod.db.radarSound = true
+  Wt.SetLimit(2770, "abs", e.m)
+  check(PeonBrokerDB.watch[2770].hit and said("Preisalarm: Kupfererz") and sounds == 1, "U8: Preis auf der Grenze -> Alarm mit Ton")
+  check(Wt.Check() == 0 and sounds == 1, "U8: Alarm nur einmal")
+  Wt.SetLimit(2770, "abs", e.m - 1)
+  check(not PeonBrokerDB.watch[2770].hit, "U8: Preis ueber der Grenze -> Alarm wieder scharf")
+  Wt.SetLimit(2770, "abs", e.m + 1)
+  check(sounds == 2, "U8: danach wieder ein Alarm")
+  Wt.SetLimit(2770, "pct", 20)
+  check(Wt.Limit(2770) == D.MaxBuyPrice(e, 20) and Wt.LimitText(2770):find("20", 1, true), "U8: Grenze in Prozent unter dem Vergleichspreis")
+  ns.Radar.PlayAlert = oldPlay
+  -- Beobachtung als Liste im Reiter Einkaufen
+  mod.char.listSel = "watch"
+  local cur = B.CurrentList()
+  check(cur and cur.watch and cur.items[2770] and cur.items[2770].max == Wt.Limit(2770), "U8: Beobachtung als eigene Liste")
+  local rows = B.ListRows()
+  check(#rows == 1 and rows[1].key == 2770 and rows[1].advice ~= nil and rows[1].need == nil, "U8: Zeile mit Rat, ohne Wunschmenge")
+  B.DeleteList("watch")
+  check(Wt.Is(2770), "U8: Beobachtung laesst sich nicht als Liste loeschen")
+  mod.char.listSel = 1
+  -- Rat
+  check(B.Advice({ need = 0 }) == "done" and B.Advice({}) == "check" and B.Advice({ cheapest = 5, hits = 0 }) == "expensive"
+    and B.Advice({ cheapest = 5, hits = 3, need = 5 }) == "part" and B.Advice({ cheapest = 5, hits = 6, need = 5 }) == "buy", "U8: Rat Kaufen, Teilweise, Zu teuer, Pruefen, erledigt")
+  -- Zahl am Reiter (ohne Blinken)
+  local badge
+  local oldT = ns.AHTabs.SetBadge
+  ns.AHTabs.SetBadge = function(key, n, blink) badge = { key = key, n = n, blink = blink } end
+  local wasBuilt = ns.AHTabs.built
+  ns.AHTabs.built = true
+  local oldCount = B.CountBuyable
+  B.CountBuyable = function() return 5 end
+  B.UpdateBadge()
+  check(badge and badge.key == "shop" and badge.n == 5 and not badge.blink, "U8: Einkaufen (5) ohne Blinken")
+  B.CountBuyable = oldCount
+  check(type(B.CountBuyable()) == "number", "U8: Zaehlung ueber alle Listen und Beobachtung")
+  ns.AHTabs.SetBadge, ns.AHTabs.built = oldT, wasBuilt
+  -- Gegenstandsmenue und Tooltip-Zeichen
+  check(ns.Tooltip.OnShopList(2770), "U8: beobachtete Gegenstaende bekommen das Zeichen in Zeile 1")
+  local items = {}
+  local root = { CreateButton = function(_, t, fn) local c = { text = t, fn = fn, CreateButton = function(self2, t2, f2) items[#items + 1] = t2; return {} end }; items[#items + 1] = t; return c end }
+  Wt.AddMenu(root, { name = "Kupfererz" }, 2770)
+  check(items[1] == ns.L.MENU_UNWATCH and items[2] == ns.L.MENU_WATCH_LIMIT, "U8: Menue Nicht mehr beobachten und Preisgrenze")
+  check(Wt.Toggle(2770) == false and not Wt.Is(2770) and PeonBrokerDB.watchGone[2770], "U8: Beobachtung entfernen mit Loeschmarke")
+  -- Live-Abfrage prueft den Alarm
+  Wt.Add(2770, { name = "Kupfererz" }); Wt.SetLimit(2770, "abs", 1)
+  local checked = 0
+  local oldCheck = Wt.Check
+  Wt.Check = function(keys) checked = checked + 1; return 0 end
+  D.ApplyLive(2770, { { price = 100, qty = 1 } }, clock)
+  check(checked == 1, "U8: Live-Abfrage prueft den Alarm des Gegenstands")
+  Wt.Check = oldCheck
+  Wt.Remove(2770)
+  -- Abgleich mit dem Manager (ueber Peon_Bridge 0.9.0)
+  local gu = PeonBrokerDB.watchGone[2770]
+  check(mod:MergeWatch({ items = { ["2770"] = gu - 5 }, gone = {} }) == false and not Wt.Is(2770), "U8: aeltere Aenderung aus dem Manager bringt Geloeschtes nicht zurueck")
+  check(mod:MergeWatch({ items = { ["2770"] = gu + 5, ["2589"] = 10 }, gone = {} }) and Wt.Is(2770) and Wt.Is(2589), "U8: neuere Aenderung aus dem Manager gewinnt, Schluessel als Zahl")
+  check(mod:MergeWatch({ items = {}, gone = { ["2589"] = 20 } }) and not Wt.Is(2589) and PeonBrokerDB.watchGone[2589] == 20, "U8: Loeschung aus dem Manager")
+  Wt.Remove(2770)
 end)()
 
 -- ===== Umbau U3 (0.44.0): Rat im Verkaufsfenster =====

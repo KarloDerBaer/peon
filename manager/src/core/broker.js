@@ -64,6 +64,14 @@ function importFile(db, file) {
   const g = parseLua(fs.readFileSync(file));
   const acc = g.PeonBrokerDB;
   const res = { file, markets: [], shop: acc && (acc.lists || acc.listsGone) ? { lists: acc.lists, gone: acc.listsGone } : null };
+  // Beobachtung (ab Broker 0.49, Manager 0.24): { items: { Schluessel: u }, gone: { Schluessel: u } }
+  if (acc && (acc.watch || acc.watchGone)) {
+    const items = {};
+    for (const [k, w] of Object.entries(acc.watch || {})) items[String(k)] = Number(w && w.u) || 0;
+    const gone = {};
+    for (const [k, u] of Object.entries(acc.watchGone || {})) gone[String(k)] = Number(u) || 0;
+    res.watch = { items, gone };
+  }
   if (!acc || typeof acc.markets !== 'object') return res;
   const cleared = new Set();   // zwei Namen desselben Markts: den ersten nicht wieder loeschen
   const now = Math.floor(Date.now() / 1000);

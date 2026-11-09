@@ -19,7 +19,7 @@ function addonDir(wowDir) {
   return path.join(wowDir, 'Interface', 'AddOns', ADDON);
 }
 
-function writeData(wowDir, { ack = [], markets = {}, channels = { broker: true }, version = '0.0.0', now = Math.floor(Date.now() / 1000), errorsClearBefore = 0, feedbackClearBefore = 0, aliases = null, shop = null, tipWant = null } = {}) {
+function writeData(wowDir, { ack = [], markets = {}, channels = { broker: true }, version = '0.0.0', now = Math.floor(Date.now() / 1000), errorsClearBefore = 0, feedbackClearBefore = 0, aliases = null, shop = null, tipWant = null, watch = null } = {}) {
   const dir = addonDir(wowDir);
   if (!fs.existsSync(path.join(dir, ADDON + '.toc'))) {
     throw new Error(`${ADDON} nicht gefunden: ${dir}`);
@@ -33,6 +33,7 @@ function writeData(wowDir, { ack = [], markets = {}, channels = { broker: true }
   if (feedbackClearBefore) data.feedbackClearBefore = feedbackClearBefore;
   if (aliases && Object.keys(aliases).length) data.aliases = aliases;
   if (shop) data.shop = shop;
+  if (watch) data.watch = watch;   // Beobachtung (ab 0.24)
   if (tipWant && Object.keys(tipWant).length) data.tipWant = tipWant;
   const text = '-- Peon_Bridge - Data.lua\n'
     + '-- Geschrieben vom Peon Manager. Nicht von Hand aendern, nie mit ausliefern.\n'
