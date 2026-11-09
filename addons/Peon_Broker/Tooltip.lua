@@ -208,6 +208,7 @@ T.BLOCKS = {
     { key = "neutral", fmts = { "pct", "price" },               when = "shift" },
     { key = "craft",   fmts = nil,                               when = "shift" },
     { key = "own",     fmts = { "rate", "count" },              when = "shift" },
+    { key = "chart",   fmts = { "d14", "d7", "d30" },           when = "shift" },   -- ab 0.47 (U6)
     { key = "hint",    fmts = nil,                               when = "shift" },
 }
 T.BLOCK = {}
@@ -464,6 +465,8 @@ function T.Render(tooltip, ctx, details, lay)
             if l.key == "hint" then
                 local h = T.HintText(ctx)
                 if h then Hint(tooltip, h); any = true end
+            elseif l.key == "chart" then
+                if T.ChartLines(tooltip, ctx, l.fmt) then any = true end
             else
                 local left, right = T.BlockText(l.key, l.fmt, ctx)
                 if left then Line(tooltip, left, right); any = true end
@@ -471,6 +474,104 @@ function T.Render(tooltip, ctx, details, lay)
         end
     end
     return any
+end
+
+---------------------------------------------------------------------------
+-- Diagramm im Tooltip (ab 0.47, Umbau U6, Konzept 6.4): guenstigstes Angebot je Tag und der uebliche Bereich.
+-- Wie Blizzards GameTooltip_InsertFrame, aber ohne in den Tooltip zu schreiben (insertedFrames waere dort eine
+-- Aenderung an Blizzards Tabelle): Leerzeilen anfuegen, eigenen Rahmen an der ersten ausrichten, Mindestbreite
+-- setzen. Beim Leeren oder Schliessen des Tooltips (sicherer Anhang) verschwindet der Rahmen wieder.
+---------------------------------------------------------------------------
+T.CHART_W, T.CHART_H = 210, 54
+T.CHART_DAYS = { d7 = 7, d14 = 14, d30 = 30 }
+T.charts = {}       -- Tooltip -> { frame, chart, sig, minSet }
+
+-- Tageswerte der letzten n Tage, aelteste zuerst; Luecken = nil. Rueckgabe mins, Anzahl Tage mit Wert
+function T.ChartSeries(e, days, today)
+    today = today or ns.Data.Day()
+    local mins, got = {}, 0
+    local byDay = {}
+    for _, r in ipairs(ns.Data.History(e)) do
+        if r.day and not r.week then byDay[r.day] = r end
+    end
+    for i = 1, days do
+        local d = today - days + i
+        local r = byDay[d]
+        if r and type(r.min) == "number" then mins[i] = r.min; got = got + 1 end
+    end
+    return mins, got
+end
+
+local function ChartFor(tooltip)
+    local c = T.charts[tooltip]
+    if c then return c end
+    if not Peon.NewChart then return nil end
+    local f = CreateFrame("Frame", nil, tooltip)
+    f:SetSize(T.CHART_W, T.CHART_H)
+    local ch = Peon.NewChart(f, { width = T.CHART_W, height = T.CHART_H, left = 2, right = 2, top = 4, bottom = 4, grid = 0 })
+    if ch and ch.frame then ch.frame:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0) end
+    c = { frame = f, chart = ch }
+    T.charts[tooltip] = c
+    local function Clear()
+        f:Hide()
+        if c.minSet and tooltip.SetMinimumWidth then pcall(tooltip.SetMinimumWidth, tooltip, 0) end
+        c.minSet = nil
+    end
+    if tooltip.HookScript then
+        pcall(tooltip.HookScript, tooltip, "OnTooltipCleared", Clear)
+        pcall(tooltip.HookScript, tooltip, "OnHide", Clear)
+    end
+    f:Hide()
+    return c
+end
+
+function T.ChartLines(tooltip, ctx, fmt)
+    local days = T.CHART_DAYS[fmt] or 14
+    if ctx.preview then
+        tooltip:AddLine(L.TT_CHART_PREVIEW:format(days), 0.6, 0.6, 0.6)
+        return true
+    end
+    if not ctx.e or (tooltip ~= GameTooltip and tooltip ~= rawget(_G, "ItemRefTooltip")) then return false end
+    local mins, got = T.ChartSeries(ctx.e, days)
+    if got < 2 then return false end
+    local c = ChartFor(tooltip)
+    if not c or not c.chart then return false end
+    -- Platz schaffen: so viele Leerzeilen, wie das Diagramm hoch ist
+    local name = tooltip.GetName and tooltip:GetName()
+    local first = tooltip.NumLines and tooltip:NumLines() + 1 or nil
+    tooltip:AddLine(L.TT_CHART_TITLE:format(days), 0.6, 0.6, 0.6)
+    first = first and first + 1
+    local need = math.ceil(T.CHART_H / 14)
+    for _ = 1, need do tooltip:AddLine(" ") end
+    local anchor = name and first and rawget(_G, name .. "TextLeft" .. first)
+    if not anchor then return true end
+    local f = c.frame
+    f:ClearAllPoints()
+    f:SetPoint("TOPLEFT", anchor, "TOPLEFT", 0, 0)
+    if tooltip.GetMinimumWidth and tooltip.SetMinimumWidth then
+        local ok, w = pcall(tooltip.GetMinimumWidth, tooltip)
+        if ok and type(w) == "number" and w < T.CHART_W + 20 then
+            pcall(tooltip.SetMinimumWidth, tooltip, T.CHART_W + 20)
+            c.minSet = true
+        end
+    end
+    -- nur neu zeichnen, wenn sich Gegenstand, Zeitraum oder Werte geaendert haben
+    local b = ctx.band
+    local sig = tostring(ctx.key) .. "|" .. days .. "|" .. table.concat((function() local t = {} for i = 1, days do t[i] = tostring(mins[i]) end return t end)(), ",") .. "|" .. tostring(b and b.low) .. "|" .. tostring(b and b.high)
+    if c.sig ~= sig then
+        local series = {}
+        if b then
+            local hi, lo = {}, {}
+            for i = 1, days do hi[i], lo[i] = b.high, b.low end
+            series[#series + 1] = { key = "band", kind = "band", values = hi, values2 = lo, color = { 0.38, 0.88, 0.38, 0.18 } }
+        end
+        series[#series + 1] = { key = "min", kind = "line", values = mins, color = { 1, 0.82, 0.2, 1 }, width = 2, connect = true }
+        c.chart:SetData(days, series)
+        c.chart:Draw()
+        c.sig = sig
+    end
+    f:Show()
+    return true
 end
 
 function T.AddLinesHome(tooltip, link, count)

@@ -3151,6 +3151,43 @@ end)()
   AuctionHouseFrame = {}
 end)()
 
+-- ===== Umbau U6 (0.47.0): Diagramm im Tooltip =====
+;(function()
+  local TT = ns.Tooltip
+  local today = D.Day(clock)
+  local e = { m = 100, md = 110, q = 5, n = 2, t = clock,
+    d = (today - 3) .. ":90:100:5:1;" .. (today - 1) .. ":120:130:5:1;" .. today .. ":100:110:5:1" }
+  local mins, got = TT.ChartSeries(e, 7, today)
+  check(got == 3 and mins[7] == 100 and mins[6] == 120 and mins[5] == nil and mins[4] == 90, "U6: Tageswerte der letzten 7 Tage, Luecken bleiben leer")
+  -- nachgebauter Tooltip mit Zeilen
+  local tip = { lines = {}, minW = 0, hooks = {} }
+  function tip:GetName() return "PeonTestTip" end
+  function tip:NumLines() return #self.lines end
+  function tip:AddLine(t) self.lines[#self.lines + 1] = t; _G["PeonTestTipTextLeft" .. #self.lines] = CreateFrame("Frame") end
+  function tip:GetMinimumWidth() return self.minW end
+  function tip:SetMinimumWidth(w) self.minW = w end
+  function tip:HookScript(n, fn) self.hooks[n] = fn end
+  local oldGT = GameTooltip
+  GameTooltip = tip
+  tip:AddLine("Kupfererz")
+  local ok = TT.ChartLines(tip, { key = 2770, e = e, band = { low = 95, high = 115 } }, "d7")
+  local c = TT.charts[tip]
+  check(ok and c and c.frame.shown and c.frame.points[1][2] == _G.PeonTestTipTextLeft3, "U6: Diagramm unter der Ueberschrift im Tooltip")
+  check(tip.lines[2]:find("7", 1, true) and #tip.lines == 2 + math.ceil(TT.CHART_H / 14), "U6: Ueberschrift und Platz in Leerzeilen")
+  check(tip.minW == TT.CHART_W + 20 and c.minSet, "U6: Mindestbreite fuer das Diagramm")
+  check(rawget(tip, "insertedFrames") == nil, "U6: nichts in Blizzards Tooltip geschrieben")
+  local sig = c.sig
+  TT.ChartLines(tip, { key = 2770, e = e, band = { low = 95, high = 115 } }, "d7")
+  check(c.sig == sig, "U6: gleiche Werte, nicht neu gezeichnet")
+  tip.hooks.OnTooltipCleared()
+  check(not c.frame.shown and tip.minW == 0 and not c.minSet, "U6: Tooltip geleert -> Diagramm weg, Breite zurueck")
+  check(not TT.ChartLines(tip, { key = 2770, e = { m = 1, d = today .. ":1:1:1:1" } }, "d7"), "U6: unter zwei Tagen kein Diagramm")
+  check(not TT.ChartLines({ AddLine = function() end }, { key = 2770, e = e }, "d7"), "U6: nur im Gegenstands-Tooltip")
+  GameTooltip = oldGT
+  local found for _, l in ipairs(TT.PreviewLines(true)) do if l:find("14", 1, true) and l:find("[", 1, true) then found = true end end
+  check(found, "U6: Vorschau zeigt den Platz des Diagramms")
+end)()
+
 -- ===== Umbau U4 (0.45.0, Peon 0.16.0): Gegenstandsmenue im Kern =====
 ;(function()
   check(Peon.API >= 16 and Peon.AddItemMenu and Peon.ItemMenuEntries() >= 1, "U4: Kern-API 16, Broker hat sich im Gegenstandsmenue angemeldet")

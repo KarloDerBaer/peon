@@ -750,6 +750,14 @@ L.TTO_FMT_NEUTRAL_PRICE = "Price only"
 L.TTO_FMT_OWN_RATE = "Count and rate"
 L.TTO_FMT_OWN_COUNT = "Count only"
 
+-- Umbau U6 (ab 0.47): Diagramm im Tooltip
+L.TT_CHART_TITLE   = "Cheapest offer, %d days"
+L.TT_CHART_PREVIEW = "[price chart, %d days]"
+L.TTO_BLOCK_CHART  = "Chart"
+L.TTO_FMT_CHART_D14 = "14 days"
+L.TTO_FMT_CHART_D7 = "7 days"
+L.TTO_FMT_CHART_D30 = "30 days"
+
 if GetLocale() == "deDE" then
     L.SALES_PER_HOUR = "%s/Std."
     L.SALES_REACH_H = "reicht %s Std."
@@ -1471,4 +1479,11 @@ if GetLocale() == "deDE" then
     L.TTO_FMT_NEUTRAL_PRICE = "Nur Preis"
     L.TTO_FMT_OWN_RATE = "Anzahl und Quote"
     L.TTO_FMT_OWN_COUNT = "Nur Anzahl"
+    -- Umbau U6 (ab 0.47)
+    L.TT_CHART_TITLE   = "Günstigstes Angebot, %d Tage"
+    L.TT_CHART_PREVIEW = "[Preisdiagramm, %d Tage]"
+    L.TTO_BLOCK_CHART  = "Diagramm"
+    L.TTO_FMT_CHART_D14 = "14 Tage"
+    L.TTO_FMT_CHART_D7 = "7 Tage"
+    L.TTO_FMT_CHART_D30 = "30 Tage"
 end

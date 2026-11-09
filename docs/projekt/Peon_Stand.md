@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 09.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.16.0 / Broker 0.46.0 / Bridge 0.8.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.23.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 09.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.16.0 / Broker 0.47.0 / Bridge 0.8.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.23.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.16.0, API 16
@@ -47,7 +47,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.46.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.47.0 (neu, Auktionshaus-Helfer)
 
 - **Broker im Berufsfenster (ab 0.39.0):** Block unter den Reagenzien (Ergebniszeile Kosten/Ertrag/Gewinn, Tabelle je Material mit Quelle Vorrat/Händler/AH, Kosten laut Ledger oder Kaufpreis, Erlös im AH, Gesamt, Hinweis „Material verkaufen bringt mehr“ oder „Herstellen bringt mehr“ mit beiden Beträgen, Tooltips, Haken Twinks, Zahnrad), Händlerpreise aus Händlerbesuch, Ledger oder Schätzung, Gewinn in der Rezeptliste (orange, wenn Verkaufen mehr bringt) mit goldenem Strich am besten Rezept, alles einstellbar. Von KarloDerBaer im Spiel geprüft, danach nur noch der Hinweistext geändert. Zusammen mit Ledger 0.13.1 auf Wunsch von KarloDerBaer ohne Vorabversion direkt im normalen Release `v2026.11.08.3` (08.11.2026, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen). Damit sind auch Broker 0.38.0 und Manager 0.21.0 bis 0.22.0 im normalen Release. Bei Problemen `/broker pruefen beruf`.
 - **Kürzung nach unten erst ab 75 % unter der Mitte (ab 0.38.0, F37a):** Ein echter Preissturz zählt im üblichen Bereich gleich voll, gleich wie im Manager.
@@ -194,7 +194,8 @@ Broker wird schlank: Im Auktionshaus Rat beim Verkaufen, erweiterte Auktionen, R
 - **U3 Rat im Verkaufsfenster:** gebaut mit Broker 0.44.0 (`Advice.lua`, Kasten unter „Auktion erstellen“, Grenzwerte `A.WAIT_PCT` 15 %, `A.FULL_DAYS` 3). Im Spiel noch nicht geprüft.
 - **U4 Gegenstandsmenü:** gebaut mit Peon 0.16.0 (API 16, `ItemMenu.lua`, `Bindings.xml`, Strg+Rechtsklick einstellbar) und Broker 0.45.0 (`Menu.lua`: Info, Auf Einkaufsliste). Im Spiel noch nicht geprüft.
 - **U5 Tooltip neu:** gebaut mit Broker 0.46.0 (Bausteine frei einstellbar, Vorlagen, Vorschau, `tooltipLayout`). Im Spiel noch nicht geprüft.
-- U6 bis U12: offen.
+- **U6 Tooltip-Diagramm:** gebaut mit Broker 0.47.0 (Baustein Diagramm, 7/14/30 Tage, ohne Eintrag in Blizzards Tooltip). Im Spiel noch nicht geprüft.
+- U7 bis U12: offen.
 
 ### Neues Modul Peon_Panel (beschlossen 06.11.2026, Konzept `Peon_Panel_Konzept.md`)
 

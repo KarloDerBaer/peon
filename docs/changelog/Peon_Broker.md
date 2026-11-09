@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.47.0
+
+Kurz: Mit Umschalt zeigt der Tooltip jetzt ein kleines Preisdiagramm: das günstigste Angebot der letzten 14 Tage und den üblichen Bereich als grüne Fläche. Zeitraum (7, 14 oder 30 Tage) und Anzeige stellst du auf der Optionsseite ein.
+
+- 0.47.0 (09.11.2026): **Umbau U6, Diagramm im Tooltip** (Konzept Abschnitt 6.4). Neuer Baustein „Diagramm“ (Formate 14, 7, 30 Tage, Standard mit Umschalt).
+  - Linie: günstigstes Angebot je Tag aus Brokers Tageswerten (Lücken bleiben leer), Fläche: üblicher Bereich. Kern-Baustein `Peon.NewChart`, 210 × 54 Punkte.
+  - Wie Blizzards `GameTooltip_InsertFrame`, aber ohne in den Tooltip zu schreiben: Überschrift und Leerzeilen anfügen, eigenen Rahmen an der ersten Leerzeile ausrichten, Mindestbreite setzen. Beim Leeren oder Schließen des Tooltips (sicherer Anhang an `OnTooltipCleared` und `OnHide`) verschwindet der Rahmen und die Mindestbreite wird zurückgesetzt.
+  - Neu gezeichnet wird nur, wenn sich Gegenstand, Zeitraum oder Werte ändern (Blizzard baut Tooltips im Auktionshaus alle 0,2 Sek. neu auf).
+  - Erst ab zwei Tagen mit Werten. Nur im Gegenstands-Tooltip, nicht in der Vorschau (dort ein Platzhalter).
+  - **Im Spiel prüfen:** Tooltip mit Umschalt bei einem Gegenstand mit mehreren Tagen Daten. Sitzt das Diagramm sauber? Verträgt es sich mit Peon_Tooltip und Vergleichs-Tooltips? Flackert etwas im Auktionshaus?
+
 ## 0.46.0
 
 Kurz: Den Broker-Tooltip stellst du jetzt selbst zusammen: welche Zeilen, ob immer oder nur mit Umschalt, in welchem Format und in welcher Reihenfolge. Dazu gibt es die Vorlagen Schlank, Standard und Ausführlich und eine Vorschau auf der Optionsseite.
