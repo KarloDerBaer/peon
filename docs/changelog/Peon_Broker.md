@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.46.0
+
+Kurz: Den Broker-Tooltip stellst du jetzt selbst zusammen: welche Zeilen, ob immer oder nur mit Umschalt, in welchem Format und in welcher Reihenfolge. Dazu gibt es die Vorlagen Schlank, Standard und Ausführlich und eine Vorschau auf der Optionsseite.
+
+- 0.46.0 (09.11.2026): **Umbau U5, Tooltip neu** (Konzept Abschnitt 6). Neue Datei `TooltipOptions.lua`, `Tooltip.lua` umgebaut in Daten sammeln (`T.Context`), ausgeben (`T.Render`) und Einstellung (`T.Layout`).
+  - **Zeile 1:** Erlös für den Stapel und dahinter Stück × Preis (`18g 40s (20 × 95s)`), Farbe der Marktlage, ein Wort bei „fällt“, „Dumping“, „keine Angebote“, höchstens ein Pfeil. Ohne „AH:“ davor. Zeichen für Gegenstände auf einer Einkaufsliste (Taschen-Symbol). Formate: Stapel und je Stück, nur Stapel, nur je Stück.
+  - **Bausteine:** Markt (ab, Menge, Alter), Üblich, Absatz (am Tag), Einstellen (Vorschlag und Erlös), Händler, Neutral, Herstellen, Deine Verkäufe, Hinweis (nur der wichtigste). Je Baustein Wann (immer, mit Umschalt, aus), Format und Reihenfolge.
+  - **Entfällt:** Zeilen „Angebote“, „AH Min/Median“ und „7 Tage“ (gehen in Markt und Üblich auf), Einstellgebühr als eigene Zeile (Format „Mit Gebühr“), Pfeile an jedem Wert, der Hinweis „(Umschalt)“ (als Schalter weiter da, Standard aus).
+  - **Optionsseite:** Vorlagen Schlank (nur Zeile 1), Standard, Ausführlich (alles ohne Umschalt), Zeile 1, Liste der Bausteine mit Auswahllisten und Pfeilen, Vorschau mit Beispielwerten (mit und ohne Umschalt umschaltbar). Ersetzt die Schalter „7 Tage“, „Händler“, „Hinweise“ und „Zeile Neutral“. Deren Werte werden beim ersten Start übernommen.
+  - Gespeichert in `PeonBrokerDB.tooltipLayout`. Kaputte oder alte Einstellungen werden repariert, neue Bausteine späterer Versionen hängen sich aus an.
+  - **Im Spiel prüfen:** Tooltip ohne und mit Umschalt. Optionsseite: Auswahllisten, Pfeile, Vorlagen, Vorschau. Passt alles nebeneinander auf die Seite?
+
 ## 0.45.0
 
 Kurz: Strg+Rechtsklick auf einen Gegenstand bietet jetzt „Info (Broker)“ und „Auf Einkaufsliste“ mit allen deinen Listen an.

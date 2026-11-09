@@ -153,8 +153,7 @@ function T.SellRateLine(tooltip, key)
 end
 
 -- Zeile "Neutral" (ab 0.42, Umbau U1, Konzept 5.2): guenstigstes Angebot im neutralen Auktionshaus je Stueck und
--- Abstand zum Heimatmarkt. Nur wenn es fuer den neutralen Markt Daten gibt. Einstellung tooltipNeutral:
--- "always" (auch ohne Umschalt), "shift" (Standard, nur erweitert), "off".
+-- Abstand zum Heimatmarkt. Nur wenn es fuer den neutralen Markt Daten gibt. Ab 0.46 ein Baustein (tooltipLayout).
 T.NEUTRAL_OLD = 86400   -- aelter als ein Tag: Alter dazuschreiben
 
 function T.NeutralEntry(key)
@@ -185,19 +184,293 @@ function T.NeutralText(ne, homeMin)
     return text
 end
 
-function T.NeutralLine(tooltip, key, homeEntry, details)
-    local mode = mod.db and mod.db.tooltipNeutral or "shift"
-    if mode == "off" or (mode == "shift" and not details) then return false end
-    local ne = T.NeutralEntry(key)
-    if not ne then return false end
-    local homeMin = type(homeEntry) == "table" and not homeEntry.gone and homeEntry.m or nil
-    Line(tooltip, L.TT_NEUTRAL, T.NeutralText(ne, homeMin))
-    return true
-end
-
 -- Ab 0.42 rechnet der Tooltip immer im Heimatmarkt, auch am neutralen Auktionshaus (KarloDerBaer)
 function T.AddLines(tooltip, link, count)
     return ns.WithHome(T.AddLinesHome, tooltip, link, count)
+end
+
+---------------------------------------------------------------------------
+-- Ab 0.46 (Umbau U5, Konzept Abschnitt 6): Tooltip aus Bausteinen, frei einstellbar.
+-- Zeile 1 (Wert) steht immer oben, dahinter optional das Zeichen fuer Einkaufslisten und "(Umschalt)".
+-- Die uebrigen Bausteine haben je Wann (immer / mit Umschalt / aus), Format und Reihenfolge.
+-- Gespeichert in PeonBrokerDB.tooltipLayout = { value = fmt, mark = when, shifthint = when,
+--   lines = { { key, when, fmt }, ... } }. Neue Bausteine spaeterer Versionen haengen sich hinten an (aus).
+---------------------------------------------------------------------------
+T.WHEN = { "always", "shift", "off" }
+T.VALUE_FMT = { "both", "stack", "unit" }
+-- Bausteine der Zeilen: key, Text, Formate (erstes = Standard), Vorgabe Wann
+T.BLOCKS = {
+    { key = "market",  fmts = { "min", "both" },                when = "shift" },
+    { key = "range",   fmts = { "range", "mid", "midpct" },     when = "shift" },
+    { key = "sales",   fmts = { "day", "hour" },                when = "shift" },
+    { key = "sell",    fmts = { "net", "suggest", "deposit" },  when = "shift" },
+    { key = "vendor",  fmts = { "unit", "stack" },              when = "shift" },
+    { key = "neutral", fmts = { "pct", "price" },               when = "shift" },
+    { key = "craft",   fmts = nil,                               when = "shift" },
+    { key = "own",     fmts = { "rate", "count" },              when = "shift" },
+    { key = "hint",    fmts = nil,                               when = "shift" },
+}
+T.BLOCK = {}
+for _, b in ipairs(T.BLOCKS) do T.BLOCK[b.key] = b end
+
+-- Vorlagen
+function T.Preset(name)
+    local lay = { value = "both", mark = "always", shifthint = "off", lines = {} }
+    for _, b in ipairs(T.BLOCKS) do
+        local when, fmt = b.when, b.fmts and b.fmts[1] or nil
+        if name == "slim" then when = "off"
+        elseif name == "full" then
+            when = "always"
+            if b.key == "market" then fmt = "both" elseif b.key == "range" then fmt = "midpct" elseif b.key == "sell" then fmt = "deposit" end
+        end
+        lay.lines[#lay.lines + 1] = { key = b.key, when = when, fmt = fmt }
+    end
+    if name == "slim" then lay.value = "stack" end
+    return lay
+end
+
+local function Valid(list, v)
+    for _, x in ipairs(list or {}) do if x == v then return true end end
+    return false
+end
+
+-- Einstellung pruefen und ergaenzen (fehlende Bausteine hinten an, aus; unbekannte weg)
+function T.Normalize(lay)
+    if type(lay) ~= "table" then lay = T.Preset("standard") end
+    if not Valid(T.VALUE_FMT, lay.value) then lay.value = "both" end
+    if not Valid(T.WHEN, lay.mark) then lay.mark = "always" end
+    if not Valid(T.WHEN, lay.shifthint) then lay.shifthint = "off" end
+    local seen, lines = {}, {}
+    for _, l in ipairs(type(lay.lines) == "table" and lay.lines or {}) do
+        local b = type(l) == "table" and T.BLOCK[l.key]
+        if b and not seen[l.key] then
+            seen[l.key] = true
+            if not Valid(T.WHEN, l.when) then l.when = b.when end
+            if b.fmts and not Valid(b.fmts, l.fmt) then l.fmt = b.fmts[1] end
+            lines[#lines + 1] = l
+        end
+    end
+    for _, b in ipairs(T.BLOCKS) do
+        if not seen[b.key] then lines[#lines + 1] = { key = b.key, when = "off", fmt = b.fmts and b.fmts[1] or nil } end
+    end
+    lay.lines = lines
+    return lay
+end
+
+-- Aktuelle Einstellung. Beim ersten Mal aus den alten Schaltern (tooltipVendor, tooltipHint, tooltipNeutral)
+function T.Layout()
+    local acc = mod.acc
+    if type(acc) ~= "table" then return T.Preset("standard") end
+    if type(acc.tooltipLayout) ~= "table" then
+        local lay = T.Preset("standard")
+        local db = mod.db or {}
+        for _, l in ipairs(lay.lines) do
+            if l.key == "vendor" and db.tooltipVendor == false then l.when = "off" end
+            if l.key == "hint" and db.tooltipHint == false then l.when = "off" end
+            if l.key == "neutral" and Valid(T.WHEN, db.tooltipNeutral) then l.when = db.tooltipNeutral end
+        end
+        acc.tooltipLayout = lay
+    end
+    acc.tooltipLayout = T.Normalize(acc.tooltipLayout)
+    return acc.tooltipLayout
+end
+
+function T.SetPreset(name)
+    if not mod.acc then return end
+    mod.acc.tooltipLayout = T.Normalize(T.Preset(name))
+end
+
+-- Eintrag eines Bausteins in der Einstellung
+function T.LayoutLine(key)
+    for i, l in ipairs(T.Layout().lines) do if l.key == key then return l, i end end
+    return nil
+end
+
+-- Baustein eine Stelle nach oben (-1) oder unten (+1)
+function T.Move(key, dir)
+    local lines = T.Layout().lines
+    for i, l in ipairs(lines) do
+        if l.key == key then
+            local j = i + dir
+            if j < 1 or j > #lines then return false end
+            lines[i], lines[j] = lines[j], lines[i]
+            return true
+        end
+    end
+    return false
+end
+
+local function Shown(when, details)
+    return when == "always" or (when == "shift" and details)
+end
+
+---------------------------------------------------------------------------
+-- Daten eines Gegenstands fuer den Tooltip
+---------------------------------------------------------------------------
+-- Steht der Gegenstand auf einer Einkaufsliste?
+function T.OnShopList(key)
+    local B = ns.Buy
+    if not B or not B.Lists then return false end
+    local ok, lists = pcall(B.Lists)
+    if not ok then return false end
+    for _, l in ipairs(lists) do if type(l.items) == "table" and l.items[key] then return true end end
+    return false
+end
+
+function T.Context(key, link, count)
+    local db = mod.db
+    local e, market = ns.Data.Lookup(key)
+    local ctx = { key = key, count = (count and count > 1) and count or 1, hp = T.VendorPrice(link), market = market }
+    if type(e) == "table" and e.m then
+        ctx.e = e
+        ctx.v = ns.Data.Evaluate(e, key, ctx.count, ctx.hp, db)
+        ctx.band = ctx.v.band
+        ctx.sr = ns.Sales and ns.Sales.Stats(e, nil, key)
+        ctx.seen = ns.Data.Seen(e)
+        ctx.cut = ns.Data.Cut()
+        ctx.duration = ns.Data.Duration(db)
+    end
+    ctx.neutral = T.NeutralEntry(key)
+    ctx.craft = ns.Craft and ns.Craft.TooltipText(key)
+    local rate, sold, back = T.SellRate(ns.Data.ItemID(key))
+    if sold then ctx.rate = { rate = rate, sold = sold, back = back } end
+    ctx.onList = T.OnShopList(key)
+    return ctx
+end
+
+---------------------------------------------------------------------------
+-- Ausgabe
+---------------------------------------------------------------------------
+local SHOP_ICON = " |TInterface\\Icons\\INV_Misc_Bag_10:12:12:0:0|t"
+
+-- Zeile 1: "18g 40s (20 x 95s) [Pfeil]" in der Farbe der Marktlage
+function T.ValueText(ctx, fmt)
+    local v, n = ctx.v, ctx.count
+    if not v then return nil end
+    local text
+    if v.ah then
+        local unit = v.entry
+        if fmt == "unit" then
+            text = T.Money(unit) .. " " .. L.TT_EACH
+        else
+            text = T.Money(v.erl)
+            if fmt == "both" and n > 1 then text = text .. " |cffcccccc(" .. n .. " × " .. T.Money(unit) .. ")|r" end
+        end
+        text = T.StateColor(v.state) .. text .. "|r"
+        local e = ctx.e
+        if e.gone then text = text .. " |cff999999" .. L.TT_WORD_GONE .. "|r"
+        elseif v.state == "falling" then text = text .. " |cffff9933" .. L.TT_WORD_FALLING .. "|r"
+        elseif v.dump then text = text .. " |cffff4040" .. L.TT_WORD_DUMP .. "|r" end
+        text = text .. T.Trend(v.erl, v.erlVor)
+    else
+        if fmt == "unit" then text = L.TT_BEST_VENDOR .. " " .. T.Money(ctx.hp) .. " " .. L.TT_EACH
+        else
+            text = L.TT_BEST_VENDOR .. " " .. T.Money(v.hw)
+            if fmt == "both" and n > 1 then text = text .. " |cffcccccc(" .. n .. " × " .. T.Money(ctx.hp) .. ")|r" end
+        end
+    end
+    return text
+end
+
+-- Text eines Bausteins (links, rechts) oder nil
+function T.BlockText(key, fmt, ctx)
+    local e, v = ctx.e, ctx.v
+    if key == "market" then
+        if not e then return nil end
+        local parts = { (e.gone and L.TT_LAST or L.TT_FROM) .. " " .. T.Money(e.m) }
+        if fmt == "both" and e.md then parts[#parts + 1] = L.TT_MEDIAN .. " " .. T.Money(e.md) end
+        if not e.gone then parts[#parts + 1] = L.TT_PIECES:format(Peon.ShortNumber and Peon.ShortNumber(e.q or 0) or tostring(e.q or 0)) end
+        if ctx.seen then parts[#parts + 1] = "|cff999999" .. ns.Scan.Age(ctx.seen) .. "|r" end
+        return L.TT_MARKET, table.concat(parts, " · ")
+    elseif key == "range" then
+        local b = ctx.band
+        if not b then return nil end
+        if fmt == "mid" then return L.TT_USUAL, T.Money(b.rw) end
+        if fmt == "midpct" and e and e.m and b.rw and b.rw > 0 then
+            local pct = math.floor((e.m - b.rw) / b.rw * 100 + 0.5)
+            return L.TT_USUAL, T.Money(b.rw) .. " |cff999999" .. L.TT_NOW_PCT:format((pct > 0 and "+" or "") .. pct) .. "|r"
+        end
+        return L.TT_USUAL, T.RangeText(b)
+    elseif key == "sales" then
+        local s = ctx.sr
+        if not s then return nil end
+        if fmt == "hour" or not s.perHour then return L.TT_SALES, ns.Sales.TooltipText(s) end
+        local day = s.perHour * 24
+        if day < 0.05 then return L.TT_SALES, L.TT_SALES_NONE end
+        local txt = day >= 10 and tostring(math.floor(day + 0.5)) or ("%.1f"):format(day):gsub("%.", ",")
+        return L.TT_SALES, L.TT_PER_DAY:format(txt)
+    elseif key == "sell" then
+        if not v or not v.vp then return nil end
+        local txt = L.TT_PER_UNIT:format(T.Money(v.vp))
+        if fmt ~= "suggest" then
+            local net = v.vp * ctx.count * (1 - (ctx.cut or ns.Data.Cut()))
+            txt = txt .. ", " .. L.TT_NET:format(T.Money(net), ctx.duration or 8)
+        end
+        if fmt == "deposit" and v.eg then txt = txt .. ", " .. L.TT_FEE:format(T.Money(v.eg)) end
+        return L.TT_SELL, txt
+    elseif key == "vendor" then
+        if not ctx.hp or ctx.hp <= 0 then return nil end
+        if fmt == "stack" then return L.TT_VENDOR, T.Money(ctx.hp * ctx.count) end
+        return L.TT_VENDOR, L.TT_PER_UNIT:format(T.Money(ctx.hp))
+    elseif key == "neutral" then
+        local ne = ctx.neutral
+        if not ne then return nil end
+        if fmt == "price" then return L.TT_NEUTRAL, T.Money(ne.m) end
+        local homeMin = e and not e.gone and e.m or nil
+        return L.TT_NEUTRAL, T.NeutralText(ne, homeMin)
+    elseif key == "craft" then
+        if not ctx.craft then return nil end
+        return L.CRAFT_TT_LEFT, ctx.craft
+    elseif key == "own" then
+        local r = ctx.rate
+        if not r then return nil end
+        local txt = L.TT_SELLRATE_N:format(r.sold, r.sold + r.back)
+        if fmt ~= "count" and r.rate then txt = txt .. " (" .. math.floor(r.rate * 100 + 0.5) .. " %)" end
+        return L.TT_SELLRATE, txt
+    end
+    return nil
+end
+
+-- Wichtigster Hinweis (nur einer)
+function T.HintText(ctx)
+    local e, v = ctx.e, ctx.v
+    if not e then return nil end
+    if e.gone then return L.HINT_GONE:format(ns.Scan.Age(ctx.seen)) end
+    if v and v.dump then return v.band and L.HINT_DUMP_RANGE or L.HINT_DUMP2 end
+    if v and v.state == "falling" then return L.HINT_FALLING end
+    if (e.n or 0) < ns.Data.FEW then return L.HINT_FEW2 end
+    if ctx.seen and time() - ctx.seen > 3 * 86400 then return L.HINT_OLD end
+    return nil
+end
+
+-- Alles ausgeben. Rueckgabe: true, wenn etwas dazukam
+function T.Render(tooltip, ctx, details, lay)
+    lay = lay or T.Layout()
+    local any = false
+    if ctx.v then
+        local title = ("|c%sBroker|r"):format(Peon.COLOR)
+        if not details and Shown(lay.shifthint, true) then title = title .. " |cff777777" .. L.TT_SHIFT_HINT .. "|r" end
+        local right = T.ValueText(ctx, lay.value) or ""
+        if ctx.onList and Shown(lay.mark, details) then right = right .. SHOP_ICON end
+        Line(tooltip, title, right, { 1, 1, 1 })
+        any = true
+    elseif ctx.hp and ctx.hp > 0 and (not ctx.market or not ctx.market.lastScan) then
+        tooltip:AddLine(("|c%sBroker|r %s"):format(Peon.COLOR, L.TT_NO_SCAN), GREY[1], GREY[2], GREY[3])
+        any = true
+    end
+    if ctx.key ~= nil and not ctx.preview and T.KeepLine(tooltip, ctx.key) then any = true end
+    for _, l in ipairs(lay.lines) do
+        if Shown(l.when, details) then
+            if l.key == "hint" then
+                local h = T.HintText(ctx)
+                if h then Hint(tooltip, h); any = true end
+            else
+                local left, right = T.BlockText(l.key, l.fmt, ctx)
+                if left then Line(tooltip, left, right); any = true end
+            end
+        end
+    end
+    return any
 end
 
 function T.AddLinesHome(tooltip, link, count)
@@ -205,81 +478,31 @@ function T.AddLinesHome(tooltip, link, count)
     if not db or not db.tooltipShow then return false end
     local key = ns.Data.KeyFromLink(link)
     if key == nil then return false end
-    local e, market = ns.Data.Lookup(key)
-    local hp = T.VendorPrice(link)
     local details = IsShiftKeyDown and IsShiftKeyDown() and true or false
-    if not market or not market.lastScan or type(e) ~= "table" or not e.m then
-        -- Heimatmarkt ohne Preis: Hinweis bei verkaufbaren Gegenstaenden, Behalten, Neutral (falls vorhanden)
-        local shown = false
-        if (not market or not market.lastScan) and hp and hp > 0 then
-            tooltip:AddLine(("|c%sBroker|r %s"):format(Peon.COLOR, L.TT_NO_SCAN), GREY[1], GREY[2], GREY[3])
-            shown = true
-        end
-        if T.KeepLine(tooltip, key) then shown = true end
-        if T.NeutralLine(tooltip, key, nil, details) then shown = true end
-        return shown
-    end
+    return T.Render(tooltip, T.Context(key, link, count), details)
+end
 
-    count = (count and count > 1) and count or 1
-    local v = ns.Data.Evaluate(e, key, count, hp, db)
+---------------------------------------------------------------------------
+-- Vorschau fuer die Optionsseite: Beispielwerte, gleiche Ausgabe
+---------------------------------------------------------------------------
+function T.SampleContext()
+    local e = { m = 95, md = 102, q = 1240, n = 31, t = time and time() or 0 }
+    local band = { low = 90, high = 105, rw = 98, trend = "calm", days = 14 }
+    local v = { ah = true, erl = math.floor(95 * 20 * 0.95), entry = 95, vp = 95, eg = 20, state = "good", hw = 100, band = band }
+    return { preview = true, count = 20, hp = 5, e = e, v = v, band = band, seen = e.t - 720, cut = 0.05, duration = 8,
+        sr = { perHour = 12.5, rate = 0.7, level = 3 }, neutral = { m = 130, t = e.t }, craft = L.TT_SAMPLE_CRAFT,
+        rate = { rate = 0.67, sold = 4, back = 2 }, onList = true }
+end
 
-    -- Z1: der bessere Wert fuer den Stapel
-    local title = ("|c%sBroker|r"):format(Peon.COLOR)
-    if not details then title = title .. " |cff777777" .. L.TT_SHIFT_HINT .. "|r" end
-    local right
-    if v.ah then
-        -- ab 0.21: guenstigstes Angebot (so wird eingestellt), Farbe = Marktlage: gruen gut, orange faellt, rot Dumping
-        right = L.TT_BEST_AH .. " " .. T.StateColor(v.state) .. T.Money(v.erl) .. "|r" .. T.Trend(v.erl, v.erlVor)
-    else
-        right = L.TT_BEST_VENDOR .. " " .. T.Money(v.hw)
-    end
-    Line(tooltip, title, right, { 1, 1, 1 })
-    T.KeepLine(tooltip, key)
-    if not details then
-        T.NeutralLine(tooltip, key, e, false)
-        return true
-    end
-
-    -- Z2: Angebote
-    Line(tooltip, L.TT_OFFERS2:format(e.q or 0, e.n or 0) .. T.Trend(e.q, e.pq),
-        "|cff999999" .. L.TT_SCAN_AGE:format(ns.Scan.Age(market.lastScan)) .. "|r", { 1, 1, 1 })
-    -- Z3: AH je Stueck (bei "keine Angebote": zuletzt gesehen, grau)
-    Line(tooltip, e.gone and L.TT_AH_LAST or L.TT_AH, MinMedian(e.m, e.md, e.pm, e.pmd), nil, e.gone and GREY or nil)
-    -- Z4: 7 Tage je Stueck, ab 2 Tageswerten, Trend gegenueber Vortag
-    local w = v.week
-    if db.tooltipAvg and w.days >= 2 then
-        Line(tooltip, L.TT_7D_N:format(w.days), MinMedian(w.min, w.median, w.pmin, w.pmedian))
-    end
-    -- Ueblicher Bereich (Kapitel 7, ab 0.21)
-    if v.band then Line(tooltip, (v.band.src == "client" and L.TT_RANGE_CLIENT or L.TT_RANGE):format(v.band.days), T.RangeText(v.band)) end
-    -- Absatz des Marktes (ab 0.23.1): "Absatz (6 Std.)  ≈ 30/Std. · 70 % verkauft"
-    local sr = ns.Sales and ns.Sales.Stats(e, nil, key)
-    if sr then Line(tooltip, sr.src == "client" and L.TT_SALES_CLIENT or L.TT_SALES_NOW:format(tonumber(db.salesWindow) or 6), ns.Sales.TooltipText(sr)) end
-    -- Eigene Verkaufsquote aus Peon_Ledger (ab 0.22): "Deine Verkäufe (30 T.): 4 von 6 (67 %)"
-    T.SellRateLine(tooltip, key)
-    -- Herstellen (ab 0.24, Berufe): Materialkosten und Gewinn, wenn ein erlerntes Rezept das herstellt
-    local craft = ns.Craft and ns.Craft.TooltipText(key)
-    if craft then Line(tooltip, L.CRAFT_TT_LEFT, craft) end
-    -- Z5, Z6: Vorschlag je Stueck, Einstellgebuehr fuer den Stapel
-    Line(tooltip, L.TT_SUGGEST, L.TT_PER_UNIT:format(T.Money(v.vp)))
-    if v.eg then Line(tooltip, L.TT_DEPOSIT:format(ns.Data.Duration(db)), T.Money(v.eg)) end
-    -- Z7: Haendler je Stueck (ab 0.19 immer, auch wenn Zeile 1 den Haendler zeigt)
-    if db.tooltipVendor and hp and hp > 0 then Line(tooltip, L.TT_VENDOR, L.TT_PER_UNIT:format(T.Money(hp))) end
-    -- Neutrales Auktionshaus (ab 0.42)
-    T.NeutralLine(tooltip, key, e, true)
-    -- Hinweise
-    if db.tooltipHint then
-        if e.gone then
-            Hint(tooltip, L.HINT_GONE:format(ns.Scan.Age(ns.Data.Seen(e))))
-        else
-            if v.state == "falling" then Hint(tooltip, L.HINT_FALLING)
-            elseif v.dump then Hint(tooltip, v.band and L.HINT_DUMP_RANGE or L.HINT_DUMP2) end
-            if (e.n or 0) < ns.Data.FEW then Hint(tooltip, L.HINT_FEW2) end
-            local seen = ns.Data.Seen(e)
-            if seen and time() - seen > 3 * 86400 then Hint(tooltip, L.HINT_OLD) end
-        end
-    end
-    return true
+-- Zeilen der Vorschau als Text: "Links   Rechts"
+function T.PreviewLines(details, lay)
+    local out = {}
+    local fake = {
+        AddLine = function(_, text) out[#out + 1] = text end,
+        AddDoubleLine = function(_, a, b) out[#out + 1] = a .. "  |cffffffff" .. tostring(b) .. "|r" end,
+    }
+    T.Render(fake, T.SampleContext(), details, lay)
+    return out
 end
 
 function T.OnItem(tooltip, data)

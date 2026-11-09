@@ -357,35 +357,78 @@ check(said("Nächster Komplettscan in 15:00 möglich"), "15 Minuten Wartezeit")
 S.UpdateButton()
 check(sb.status.text == "Nächster Scan in 15:00", "Knopf zeigt Wartezeit")
 
--- ===== Tooltip (Kapitel 3) =====
+-- ===== Tooltip (Kapitel 3, ab 0.46 aus Bausteinen, Umbau U5) =====
+local TT = ns.Tooltip
+check(type(PeonBrokerDB.tooltipLayout) ~= "table" or PeonBrokerDB.tooltipLayout.lines, "U5: Einstellung als Bausteine")
 lines = hover(KUPFER)
-check(lines[1] == "Broker (Umschalt) = AH: 1s 14c" and #lines == 1, "Z1 ohne Umschalt: AH-Erloes fuer 1 Stueck")
+check(lines[1] == "Broker = 1s 14c" and #lines == 1, "Z1 ohne Umschalt: Erloes fuer 1 Stueck, ohne (Umschalt)")
 lines = hover(KUPFER, "Stapel20")
-check(lines[1] == "Broker (Umschalt) = AH: 22s 80c", "Z1: Erloes fuer den Stapel (Beispiel Rechenmodell)")
+check(lines[1] == "Broker = 22s 80c (20 × 1s 20c)", "Z1: Erloes fuer den Stapel und je Stueck (KarloDerBaer)")
 shift = true
 lines = hover(KUPFER, "Stapel20")
-check(lines[1] == "Broker = AH: 22s 80c", "Z1 mit Umschalt")
-check(lines[2] == "Angebote: 120 (4) = (Scan vor 1 Min.)", "Z2: Angebote (Anzahl)")
-check(lines[3] == "AH = Min 1s 20c   Median 1s 60c", "Z3: AH je Stueck")
-check(lines[4] == "Vorschlag = 1s 20c je Stück", "Z5: Vorschlag je Stueck (Z4 erst ab 2 Tagen)")
-check(lines[5] == "Einstellgebühr (8 Std.) = 20c", "Z6: Einstellgebuehr fuer den Stapel")
-check(lines[6] == "Händler = 5c je Stück" and #lines == 6, "Z7: Haendler je Stueck (ab 0.19), keine Hinweise")
+check(lines[1] == "Broker = 22s 80c (20 × 1s 20c)", "Z1 mit Umschalt")
+check(lines[2] == "Markt = ab 1s 20c · 120 Stück · vor 1 Min.", "U5: Markt mit Menge und Alter: " .. tostring(lines[2]))
+check(lines[3] == "Einstellen = 1s 20c je Stück, Erlös 22s 80c (8 Std.)", "U5: Einstellen mit Erloes fuer den Stapel")
+check(lines[4] == "Händler = 5c je Stück" and #lines == 4, "U5: Haendler je Stueck, ohne Bereich keine Zeile Ueblich, keine Hinweise")
 lines = hover(LEINEN)
-check(lines[1] == "Broker = Händler: 10c" and lines[4] == "Vorschlag = 3c je Stück", "Haendler besser")
-check(lines[6] == "Händler = 10c je Stück" and lines[7] == "Wenig Angebote." and #lines == 7, "Haendler je Stueck auch wenn Zeile 1 den Haendler zeigt (ab 0.19); Hinweis wenig Angebote")
+check(lines[1] == "Broker = Händler: 10c" and lines[3] == "Einstellen = 3c je Stück, Erlös 3c (8 Std.)", "Haendler besser")
+check(lines[4] == "Händler = 10c je Stück" and lines[5] == "Wenig Angebote." and #lines == 5, "Haendler auch wenn Zeile 1 den Haendler zeigt, ein Hinweis")
 lines = hover("|cff1eff00|Hitem:15000::::::1047::20:::::::::|h[x]|h|r")
-check(lines[1] == "Broker = AH: 47s 49c" and lines[4] == "Vorschlag = 49s 99c je Stück", "Einzelgegenstand: 1 Kupfer unterboten")
+check(lines[1] == "Broker = 47s 49c" and lines[3]:find("49s 99c je Stück", 1, true), "Einzelgegenstand: 1 Kupfer unterboten")
 -- Schwerer Leinenverband: Markt auf Haendlerniveau
 VENDOR[7777] = 20
 market.items[7777] = { m = 20, md = 20, q = 2420, n = 148, t = clock, d = D.Day(clock) .. ":20:20:2420:1" }
 lines = hover("|cffffffff|Hitem:7777::::::::20:1488:::::::::|h[Verband]|h|r", "Stapel20")
-check(lines[1] == "Broker = Händler: 4s", "Leinenverband: 20 x 20c x 0,95 = 3s 80c < 4s -> Haendler")
+check(lines[1] == "Broker = Händler: 4s (20 × 20c)", "Leinenverband: 20 x 20c x 0,95 = 3s 80c < 4s -> Haendler")
 market.items[7777] = nil
-mod.db.tooltipAvg, mod.db.tooltipVendor = false, false
-check(#hover(KUPFER) == 5, "Zeilen 7 Tage und Haendler abschaltbar")
+-- Bausteine: Wann, Format, Reihenfolge, Vorlagen
+;(function()
+local lay = TT.Layout()
+TT.LayoutLine("vendor").when = "off"
+check(#hover(KUPFER) == 3, "U5: Baustein aus")
+TT.LayoutLine("vendor").when = "always"
+shift = false
+lines = hover(KUPFER, "Stapel20")
+check(#lines == 2 and lines[2] == "Händler = 5c je Stück", "U5: Baustein immer, auch ohne Umschalt")
+TT.LayoutLine("vendor").fmt = "stack"
+check(hover(KUPFER, "Stapel20")[2] == "Händler = 1s", "U5: Format Haendler fuer den Stapel")
+lay.value = "unit"
+check(hover(KUPFER, "Stapel20")[1] == "Broker = 1s 20c je Stück", "U5: Zeile 1 nur je Stueck")
+lay.value = "stack"
+check(hover(KUPFER, "Stapel20")[1] == "Broker = 22s 80c", "U5: Zeile 1 nur Stapel")
+lay.shifthint = "always"
+check(hover(KUPFER)[1]:find("Broker (Umschalt)", 1, true), "U5: Hinweis (Umschalt) einstellbar")
+shift = true
+check(TT.Move("vendor", -1) and TT.Layout().lines[4].key == "vendor" and TT.Layout().lines[5].key == "sell", "U5: Reihenfolge aendern")
+lines = hover(KUPFER, "Stapel20")
+check(lines[2]:find("Markt", 1, true) and lines[3] == "Händler = 1s" and lines[4]:find("Einstellen", 1, true), "U5: Ausgabe in der neuen Reihenfolge")
+check(not TT.Move("market", -1) and not TT.Move("hint", 1), "U5: nicht ueber den Rand verschieben")
+TT.LayoutLine("market").fmt = "both"
+check(hover(KUPFER)[2] == "Markt = ab 1s 20c · Median 1s 60c · 120 Stück · vor 1 Min.", "U5: Markt mit Median")
+TT.SetPreset("slim")
+lines = hover(KUPFER, "Stapel20")
+check(#lines == 1 and lines[1] == "Broker = 22s 80c", "U5: Vorlage Schlank: nur Zeile 1, auch mit Umschalt")
+TT.SetPreset("full")
+shift = false
+check(#hover(KUPFER) == 4, "U5: Vorlage Ausfuehrlich: alles ohne Umschalt")
+TT.SetPreset("standard")
+shift = true
+check(#hover(KUPFER, "Stapel20") == 4 and #TT.PreviewLines(true) >= 9 and #TT.PreviewLines(false) == 1, "U5: Vorlage Standard, Vorschau mit Beispielwerten")
+check(plain(TT.PreviewLines(false)[1]):find("(20 × 95c)", 1, true), "U5: Vorschau Zeile 1 mit Stapel und je Stueck")
+-- Uebernahme alter Schalter beim ersten Start
+PeonBrokerDB.tooltipLayout = nil
+mod.db.tooltipVendor, mod.db.tooltipHint, mod.db.tooltipNeutral = false, false, "always"
+check(TT.LayoutLine("vendor").when == "off" and TT.LayoutLine("hint").when == "off" and TT.LayoutLine("neutral").when == "always", "U5: alte Schalter uebernommen")
+PeonBrokerDB.tooltipLayout = nil
+mod.db.tooltipVendor, mod.db.tooltipHint, mod.db.tooltipNeutral = true, true, "shift"
+PeonBrokerDB.tooltipLayout = { value = "quatsch", lines = { { key = "market", when = "x" }, { key = "gibtsnicht" } } }
+local nl = TT.Layout()
+check(nl.value == "both" and nl.lines[1].key == "market" and nl.lines[1].when == "shift" and #nl.lines == #TT.BLOCKS and nl.lines[2].when == "off", "U5: kaputte Einstellung repariert, fehlende Bausteine hinten an (aus)")
+TT.SetPreset("standard")
+end)()
 mod.db.tooltipShow = false
 check(#hover(KUPFER) == 0, "Tooltip ganz aus")
-mod.db.tooltipShow, mod.db.tooltipAvg, mod.db.tooltipVendor = true, true, true
+mod.db.tooltipShow = true
 local refreshed = 0
 GameTooltip.IsShown = function() return true end
 GameTooltip.RefreshData = function() refreshed = refreshed + 1 end
@@ -443,14 +486,14 @@ end
     shift = true
     local nl = neutralLine(hover(KUPFER))
     check(nl and nl:find("(+100 %)", 1, true), "U1: mit Umschalt Zeile Neutral mit Abstand: " .. tostring(nl))
-    mod.db.tooltipNeutral = "off"
+    ns.Tooltip.LayoutLine("neutral").when = "off"
     check(neutralLine(hover(KUPFER)) == nil, "U1: Einstellung aus")
     shift = false
-    mod.db.tooltipNeutral = "always"
+    ns.Tooltip.LayoutLine("neutral").when = "always"
     check(neutralLine(hover(KUPFER)) ~= nil, "U1: Einstellung immer, auch ohne Umschalt")
     nm.items[2770].gone = clock
     check(neutralLine(hover(KUPFER)) == nil, "U1: neutral zurzeit keine Angebote: keine Zeile")
-    mod.db.tooltipNeutral = "shift"
+    ns.Tooltip.LayoutLine("neutral").when = "shift"
     ns.Scan.ahOpen, UnitExists, UnitFactionGroup = oldOpen, oldExists, oldUFG
     D.DeleteMarket("Classic Beta PvE / Neutral")
     check(ns.WithHome(function() return ns.MarketKey() end) == "Classic Beta PvE / Horde" and ns.marketOverride == nil, "U1: WithHome setzt den Markt zurueck")
@@ -508,9 +551,9 @@ check(#dd == 1 and dd[1][2] == 250 and dd[1][5] == 2, "F7: zwei Scans am Tag -> 
 check(cu.pm == 120 and cu.m == 130 and cu.pmd == 160, "F6: Vorwerte gemerkt")
 shift = true
 lines = hover(KUPFER)
-check(lines[1] == "Broker = AH: 1s 24c [trend_up1]", "Trend Erloes gegenueber vorherigem Scan (+8 %)")
-check(lines[2] == "Angebote: 120 (4) [trend_flat] = (Scan vor 1 Min.)", "Trend Angebote")
-check(lines[3] == "AH = Min 1s 30c [trend_up1]   Median 1s 60c [trend_flat]", "Trend AH-Werte")
+check(lines[1] == "Broker = 1s 24c [trend_up1]", "Trend Erloes gegenueber vorherigem Scan (+8 %), nur ein Pfeil")
+check(lines[2] == "Markt = ab 1s 30c · 120 Stück · vor 1 Min." and not lines[2]:find("trend", 1, true), "U5: Markt ohne Pfeile")
+check(lines[3] == "Absatz = etwa 720 am Tag", "U5: Absatz am Tag")
 
 -- ===== Zweiter Tag: 7-Tage-Werte, verschwundener Gegenstand =====
 clock = clock + 86400
@@ -519,12 +562,12 @@ S.Start()
 fire("REPLICATE_ITEM_LIST_UPDATE")
 while S.state do S.Step() end
 lines = hover(KUPFER)
-check(lines[4] == "7 Tage (2) = Min 1s 28c [trend_flat]   Median 1s 60c [trend_flat]", "Z4: 7 Tage (2), Trend gegenueber Vortag")
+check(lines[3] == "Absatz = " .. ns.L.TT_SALES_NONE, "U5: ohne beobachteten Verkauf: " .. tostring(lines[3]))
 local le = market.items[2589]
 check(le.q == 0 and le.gone == clock and le.m == 3, "verschwundener Gegenstand: 0 Angebote, letzte Preise bleiben")
 lines = hover(LEINEN)
-check(lines[1] == "Broker = Händler: 10c" and lines[2]:find("Angebote: 0 (0) [trend_down2]", 1, true), "Tooltip: keine Angebote")
-check(lines[3]:find("AH (zuletzt) = Min 3c", 1, true) and lines[#lines]:find("Zurzeit keine Angebote", 1, true), "zuletzt gesehen + Hinweis")
+check(lines[1] == "Broker = Händler: 10c" and lines[2] == "Markt = zuletzt 3c · vor 24 Std.", "Tooltip: keine Angebote, zuletzt gesehen")
+check(lines[#lines]:find("Zurzeit keine Angebote", 1, true), "Hinweis keine Angebote")
 shift = false
 table.insert(LISTINGS, 5, leinen)
 
@@ -2328,8 +2371,8 @@ end)()
   Sa.Stats = function(x) if x == e then return savedStats(e, t0 + 12600) end return savedStats(x) end
   shift = true
   local lines = ttLines(KLINK)
-  local found for _, l in ipairs(lines) do if l:find("Absatz (6 Std.)", 1, true) then found = l end end
-  check(found and found:find("/Std.", 1, true), "Tooltip: Zeile Absatz (6 Std.)")
+  local found for _, l in ipairs(lines) do if l:find("^Absatz = ") then found = l end end
+  check(found and found:find("am Tag", 1, true), "Tooltip: Zeile Absatz (" .. tostring(found) .. ")")
   shift = false
   -- Chat
   SlashCmdList.PEON_BROKER("absatz Kupfererz")
