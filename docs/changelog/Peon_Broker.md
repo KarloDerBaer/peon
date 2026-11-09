@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.55.0
+
+Kurz: Aufgeräumt: Die alten Reiter Verkaufen, Behalten und Meine Auktionen sind ganz entfernt, ebenso deine Behalten-Liste. Verkaufen und Auktionen laufen über Blizzards Fenster mit Brokers Rat.
+
+- 0.55.0 (09.11.2026): **Umbau U12, Aufräumen Teil 2** (mit Zustimmung von KarloDerBaer).
+  - `Sell.lua` und `Keep.lua` entfernt. Ihre Bausteine liegen in `Live.lua` (Live-Ergebnisse lesen: `ReadCommodity`, `ReadItems`, `IsFull`, `RequestMore`, `Foreign`, `KeyText`) und `Stock.lua` (Vorrat zählen mit Taschen, Bank und auf Wunsch Twinks aus Ledger). Rat beim Verkaufen, Einkaufen, Radar, Auktionen, Info, Marktvergleich und Berufsfenster nutzen sie weiter.
+  - `Auctions.lua` behält nur Lesen, Bewerten und Live-Prüfung der eigenen Auktionen (für Blizzards Reiter Auktionen). Abbrechen, „Nächste unterbotene“ und „Neu einstellen“ der alten Oberfläche entfallen, dafür gibt es Blizzards Knöpfe.
+  - **Gelöscht beim Anmelden:** die Behalten-Liste je Charakter (`PeonBrokerCharDB.keep`) und das Gedächtnis des alten Reiters Verkaufen (`PeonBrokerDB.sellMem`).
+  - Option „Nur lohnende im Reiter Verkaufen“ entfernt.
+  - Tests der alten Oberflächen entfernt, die Bausteine sind weiter geprüft.
+
 ## 0.54.0
 
 Kurz: Im Auktionshaus liegen Radar und Einkaufen nicht mehr übereinander. Die Reiter heißen und stehen jetzt: Markt (bisher Kaufen), Verkaufen, Einkaufen, Radar, Auktionen.

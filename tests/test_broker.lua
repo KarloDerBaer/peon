@@ -686,7 +686,7 @@ PeonBrokerDB.markets["Classic Beta PvE / Horde"], P.cache = market, nil
 fire("AUCTION_HOUSE_SHOW")
 
 -- ===== Reiter "Verkaufen" (0.8, ab 0.10 ueber das Verkaufsfenster des Auktionshauses) =====
-local Sell = ns.Sell
+local Sell = ns.Live   -- ab 0.55 nur noch die Bausteine (Live-Ergebnisse lesen)
 check(D.MinPrice(5) == 6 and D.MinPrice(20) == 22 and D.MinPrice(0) == nil, "F19: Mindestpreis (5c -> 6c, 20c -> 22c)")
 local lvMin, lvMed, lvQty, lvOwn = D.LiveValues({ { price = 110, qty = 5, own = 5 }, { price = 115, qty = 8, own = 0 }, { price = 150, qty = 7, own = 2 } })
 check(lvMin == 115 and lvOwn == 110 and lvQty == 20 and lvMed == 115, "F21/F22: Min ohne eigene, Median ueber alle")
@@ -772,114 +772,10 @@ WithBlizzard(true)
 fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW")
 check(PeonBrokerDB.commodity["15000:1047"] == false and PeonBrokerDB.commodity[2770] == true, "Warenart der Taschen vom Spiel")
 if not wf.shown then Win.Toggle() end
-Win.Select("sell")
-local sl = Sell.list:GetItems()
-check(#sl == 2 and sl[1].name == "Kupfererz" and sl[1].count == 60 and #sl[1].locs == 2, "Taschen: Stapel zusammengefasst, nach Erloes sortiert")
-check(sl[2].key == "15000:1047", "Ausruestung mit Zusatz in der Liste")
-local names = {} for _, it in ipairs(sl) do names[it.name] = true end
-check(not names["Leinenstoff"] and not names["Seelengebunden"], "nur lohnende, gebundenes nie")
-check(Sell.list.rowFrames[1].cells[3].text:find("|cff60e060", 1, true), "Wert gruen (AH lohnt)")
-check(Sell.list.rowFrames[1].cells[4].text:find("trend_", 1, true), "Spalte Trend (wie Zeile 1 im Tooltip)")
-check(Sell.list.rowFrames[1].cells[1].text:find("|T", 1, true), "kleines Symbol vor dem Namen")
-Sell.onlyCheck:SetChecked(false); Sell.onlyCheck.scripts.OnClick(Sell.onlyCheck)
-check(#Sell.list:GetItems() == 3 and mod.db.sellOnlyProfitable == false, "Haken aus: auch Haendler-Gegenstaende")
-Sell.onlyCheck:SetChecked(true); Sell.onlyCheck.scripts.OnClick(Sell.onlyCheck)
-check(Sell.pick.shown and not Sell.panel.shown, "ohne Auswahl: Hinweis statt Verkaufsfeld")
-
--- Kupfererz waehlen: ins Auktionshaus legen, Live-Abfrage, Werte eintragen
-Sell.list.rowFrames[1].scripts.OnClick(Sell.list.rowFrames[1], "LeftButton")
-check(CSF.shown and CSF.loc and CSF.loc.slot == 1 and Sell.inAH == 2770, "Gegenstand liegt im Verkaufsfenster des Auktionshauses")
-check(query and query.normal and query.key.itemID == 2770 and query.key.itemLevel == 20 and query.separate == true and query.sorts[1].sortOrder == 0, "Live-Abfrage ueber die normale Suche mit dem Schluessel des Gegenstands")
-check(Sell.liveState == "wait" and Sell.liveText.text:find("wird geladen", 1, true), "wartet auf Live-Daten")
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
-check(#Sell.live == 4 and Sell.live[1].price == 115 and Sell.liveText.text:find("vor 0 Sek.", 1, true), "Live-Angebote gelesen (nur im Hintergrund)")
-check(CSF.price == 115 and CSF.qty == 60 and CSF.dur == 2, "eingetragen: 1s 15c je Stueck, alle 60, 8 Std.")
-CSF.price = 999                       -- das Auktionshaus setzt nach seiner Suche selbst einen Preis
-timers[#timers - 1](); timers[#timers]()
-check(CSF.price == 115, "Brokers Preis wird danach nochmal eingetragen")
-check(plain(Sell.priceValue.text) == "1s 15c" and plain(Sell.why.text):find("günstigstes Angebot", 1, true), "links: Vorschlag mit Stichwort")
-Sell.whyFrame.scripts.OnEnter(Sell.whyFrame)
-check(tt.lines[2] and tt.lines[2]:find("nicht unterboten", 1, true), "ausfuehrlicher Grund beim Ueberfahren")
-check(plain(Sell.proceedsValue.text) == "65s 55c" and Sell.proceedsFor.text:find("für 60 Stück, 8 Std.", 1, true), "Erloes fuer Menge und Dauer aus dem Auktionshaus")
-check(Sell.proceedsValue.text:find("|cff60e060", 1, true), "Erloes gruen (ueber Haendlerwert)")
-check(not plain(Sell.hints.text):find("nicht ins Auktionshaus eintragen", 1, true), "kein Hinweis zum Eintragen, wenn es geklappt hat")
-check(not Sell.post.disabled and not Sell.postNext.disabled and Sell.keepButton.text == "Nicht verkaufen", "Knoepfe: nicht verkaufen, einstellen")
-CSF.qty = 99; Sell.UpdatePanel()
-check(Sell.post.disabled and plain(Sell.hints.text):find("Nur 60 verfügbar", 1, true), "zu grosse Menge im Auktionshaus: gesperrt mit Hinweis")
-
--- im Auktionshaus geaendert, dann ueber Broker einstellen: es zaehlt, was dort steht
-CSF.price, CSF.qty, CSF.dur = 118, 30, 1
-Sell.UpdatePanel()
-check(plain(Sell.proceedsValue.text) == "33s 63c" and Sell.proceedsFor.text:find("für 30 Stück, 2 Std.", 1, true), "Erloes folgt den Werten im Auktionshaus")
-Sell.post.scripts.OnClick(Sell.post)
-check(CSF.clicked == 1 and #posted == 1 and posted[1][1] == "C" and posted[1][3] == 1 and posted[1][4] == 30 and posted[1][5] == 118, "eingestellt ueber den Knopf des Auktionshauses mit dessen Werten")
-check(Sell.busy and Sell.busy.blizzard and Sell.post.disabled, "wartet auf Rueckmeldung, Knopf gesperrt")
-Sell.post.scripts.OnClick(Sell.post)
-check(#posted == 1, "kein zweites Einstellen waehrend des Wartens")
-fire("AUCTION_HOUSE_AUCTION_CREATED", 123)
-local lastPlain = false for i = #out, math.max(1, #out - 12), -1 do if plain(out[i]):find("Eingestellt: 30× Kupfererz zu 1s 18c je Stück (2 Std.)", 1, true) then lastPlain = true end end
-check(lastPlain, "Meldung im Chat")
-check(PeonBrokerDB.posted == nil and PeonBrokerDB.sellMem[2770].last == 118 and PeonBrokerDB.sellMem[2770].dur == 2, "fuers Buch vermerkt; Preis und geaenderte Dauer gemerkt")
-check(Sell.item and Sell.item.key == 2770 and CSF.dur == 1, "Rest bleibt gewaehlt; gemerkte Dauer (2 Std.) eingetragen")
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
-local h = plain(Sell.hints.text)
-check(h:find("Zuletzt eingestellt zu 1s 18c", 1, true), "Hinweis: zuletzt eingestellt")
-PeonBrokerDB.sellMem[2770] = nil
-
--- Auktionshaus sperrt ("zu schnell"): Broker-Knoepfe folgen Blizzards Knopf
-CSF.enabled = false
-Sell.UpdatePanel()
-check(Sell.post.disabled and Sell.postNext.disabled and Sell.blockedText.text:find("zu schnell", 1, true), "Auktionshaus sperrt: Knoepfe gesperrt mit Hinweis")
-local nBefore = #posted
-Sell.Post(false)
-check(#posted == nBefore and not Sell.busy and said("kurz warten"), "Einstellen waehrend der Sperre: nichts passiert, kein Warten")
-CSF.enabled = true
-Sell.panel.scripts.OnUpdate(Sell.panel, 0.5)
-check(not Sell.post.disabled and Sell.blockedText.text == "", "Sperre vorbei: Knoepfe wieder frei, ohne selbst etwas einzustellen")
--- gerade eingestellte (gesperrte) Taschenplaetze zaehlen nicht; Rest erst nach dem Taschen-Update wieder ins Auktionshaus
-BAG[2].isLocked = true
-local lockedCount for _, it in ipairs(Sell.ScanBags()) do if it.key == 2770 then lockedCount = it.count end end
-check(lockedCount == 20, "gesperrter Stapel wird nicht mitgezaehlt")
-BAG[2].isLocked = nil
-local puts = 0
-local savedPut = AuctionHouseFrame.SetPostItem
-AuctionHouseFrame.SetPostItem = function(self, loc) puts = puts + 1; savedPut(self, loc) end
-CSF.price, CSF.qty, CSF.dur = 115, 20, 2
-Sell.post.scripts.OnClick(Sell.post)
-fire("AUCTION_HOUSE_AUCTION_CREATED", 125)
-check(puts == 0 and Sell.reselectKey == 2770, "nach dem Einstellen: Rest noch nicht ins Auktionshaus gelegt")
-fire("BAG_UPDATE_DELAYED")
-check(puts == 1 and Sell.reselectKey == nil and CSF.loc and CSF.loc.slot == 1, "nach dem Taschen-Update: Rest wieder im Auktionshaus")
-AuctionHouseFrame.SetPostItem = savedPut
--- Gegenstand verschwindet aus den Taschen: aus dem Verkaufsfenster nehmen
-local savedB1, savedB2 = BAG[1], BAG[2]
-BAG[1], BAG[2] = { itemID = 1, stackCount = 1, hyperlink = "x", isBound = true }, { itemID = 1, stackCount = 1, hyperlink = "x", isBound = true }
-fire("BAG_UPDATE_DELAYED")
-check(Sell.item == nil and CSF.loc == nil and Sell.inAH == nil, "Gegenstand weg: Verkaufsfenster geleert")
-BAG[1], BAG[2] = savedB1, savedB2
-fire("BAG_UPDATE_DELAYED")
-PeonBrokerDB.sellMem[2770] = nil
-local kuAgain for _, it in ipairs(Sell.list:GetItems()) do if it.key == 2770 then kuAgain = it end end
-Sell.Select(kuAgain)
-
--- Nicht verkaufen (je Charakter): Rechtsklick, Knopf, Alt+Klick zum Zuruecknehmen
-local swRow
-for i, it in ipairs(Sell.list:GetItems()) do if it.key == "15000:1047" then swRow = Sell.list.rowFrames[i] end end
-swRow.scripts.OnClick(swRow, "RightButton")
-check(type(PeonBrokerCharDB.keep["15000:1047"]) == "table" and PeonBrokerCharDB.keep["15000:1047"].n == nil and PeonBrokerCharDB.keep["15000:1047"].name == "Schwert des Baeren" and #Sell.list:GetItems() == 1 and said("nicht mehr zum Verkauf"), "Rechtsklick: nicht verkaufen, aus der Liste")
-check(Sell.item and Sell.item.key == 2770 and Sell.list:GetSelected() == Sell.item, "Auswahl bleibt beim Rechtsklick auf eine andere Zeile")
-check(PeonBrokerDB.keep == nil, "nicht in den accountweiten Daten")
-Sell.keepButton.scripts.OnClick(Sell.keepButton)
-check(type(PeonBrokerCharDB.keep[2770]) == "table" and #Sell.list:GetItems() == 0 and Sell.item and Sell.item.keep, "Knopf: gewaehlten Gegenstand nicht verkaufen")
-check(Sell.keepButton.text == "Wieder verkaufen" and Sell.post.disabled and plain(Sell.hints.text):find("nicht verkaufen", 1, true), "markierter Gegenstand: Knopf 'Wieder verkaufen', Einstellen gesperrt")
-Sell.keepButton.scripts.OnClick(Sell.keepButton)
-check(PeonBrokerCharDB.keep[2770] == nil and #Sell.list:GetItems() == 1 and said("wieder zum Verkauf"), "wieder verkaufen")
-Sell.SelectLink("|cff1eff00|Hitem:15000::::::1047::20:::::::::|h[Schwert des Baeren]|h|r")
-check(Sell.item and Sell.item.key == "15000:1047" and Sell.item.keep and ISF.shown, "Auswahl per Link auch fuer markierte Gegenstaende")
-Sell.keepButton.scripts.OnClick(Sell.keepButton)
-check(PeonBrokerCharDB.keep["15000:1047"] == nil and #Sell.list:GetItems() == 2, "und kann sie wieder freigeben")
-
--- Behalten mit Menge (0.11): Vorrat = Taschen + Bank, Tooltip, Reiter "Behalten"
+-- ab 0.55 (Umbau U12): Reiter Verkaufen, Behalten und Meine Auktionen entfallen, ihre Tests mit ihnen.
+-- Was weiter gilt: Rat im Verkaufsfenster (U3), Blizzards Reiter Auktionen (U9), Live.lua und Stock.lua.
+local Auc, K = ns.Auctions, ns.Stock
+-- Vorrat = Taschen + Bank (bis 0.54 im Behalten-Test aufgebaut, spaetere Abschnitte brauchen ihn)
 local BANK = { [2770] = 5 }
 C_Item.GetItemCount = function(id, bank)
   local n = 0
@@ -887,251 +783,18 @@ C_Item.GetItemCount = function(id, bank)
   if bank then n = n + (BANK[id] or 0) end
   return n
 end
-local K = ns.Keep
-PeonBrokerCharDB.keep[5] = true
-check(type(K.List()[5]) == "table" and K.List()[5].n == nil, "alte Markierung (0.10) wird zu 'alle behalten'")
-K.Remove(5)
-local b1, bk1, tot1 = K.Counts(2770)
-check(b1 == 60 and bk1 == 5 and tot1 == 65, "Vorrat = Taschen 60 + Bank 5 (vom Spiel, auch bei geschlossener Bank)")
-K.Set(2770, 50, { name = "Kupfererz", quality = 1 })
-check(K.Sellable(2770, 2770, 60) == 15, "Behalten 50: 15 zu verkaufen (65 - 50)")
-BANK[2770] = 0
-check(K.Sellable(2770, 2770, 60) == 10, "ohne Bank: 10 zu verkaufen")
-BANK[2770] = 5
-K.Set(2770, 3)
-check(K.Sellable(2770, 2770, 60) == 60, "hoechstens so viel wie in den Taschen")
-K.Set(2770, 50)
-Sell.Refresh()
-local kuRow for _, it in ipairs(Sell.list:GetItems()) do if it.key == 2770 then kuRow = it end end
-check(kuRow and kuRow.count == 15 and kuRow.bagCount == 60, "Verkaufen zeigt nur den Rest (15)")
-Sell.Select(kuRow)
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
-check(CSF.qty == 15 and Sell.have.text:find("60 in Taschen", 1, true), "im Auktionshaus 15 eingetragen, links 60 in Taschen")
-check(plain(Sell.hints.text):find("Behalten: 50 (15 zu verkaufen)", 1, true), "Hinweis Behalten links")
-CSF.qty = 20; Sell.UpdatePanel()
-check(plain(Sell.hints.text):find("Du wolltest 50 behalten", 1, true) and not Sell.post.disabled, "mehr eingetragen: Hinweis, Einstellen bleibt moeglich")
+local b0, k0, t0 = K.Counts(2770)
+check(b0 == 60 and k0 == 5 and t0 == 65, "U12: Vorrat zaehlen (Stock.lua): 60 Taschen, 5 Bank")
+local SWLINK = "|cff1eff00|Hitem:15000::::::1047::20:::::::::|h[Schwert des Baeren]|h|r"
+local KLINK = "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r"
 local function ttLines(link)
   tt.lines = {}
   ns.Tooltip.AddLines(GameTooltip, link, 1)
   return tt.lines
 end
-local KLINK = "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r"
-check(ttLines(KLINK)[2] == nil, "U12: Tooltip ohne Zeile Behalten")
-K.Set(2770, 70)
-Sell.Refresh()
-local vis = false for _, it in ipairs(Sell.list:GetItems()) do if it.key == 2770 then vis = true end end
-check(not vis, "Behalten-Menge ueber dem Vorrat: nicht mehr in der Liste")
-K.Set(2770, nil)
-check(ttLines(KLINK)[2] == nil, "U12: auch bei Behalten alle keine Zeile")
-
--- Reiter "Behalten"
-Win.Select("keep")
-local kr = K.list:GetItems()
-check(#kr == 1 and kr[1].key == 2770 and kr[1].total == 65 and kr[1].bags == 60 and kr[1].bank == 5, "Reiter Behalten: Vorrat, Taschen, Bank")
-check(K.list.rowFrames[1].cells[2].text == "alle" and K.list.rowFrames[1].cells[3].text == "65" and K.list.rowFrames[1].cells[4].text == "60" and K.list.rowFrames[1].cells[5].text == "5", "Spalten Menge, Vorrat, Taschen, Bank")
-check(K.list.rowFrames[1].cells[3].fontObject == "GameFontHighlight", "Vorrat hervorgehoben")
-check(K.list.rowFrames[1].cells[8].text:match("^%d%d%.%d%d%.$"), "Seit (Datum)")
-check(K.list.rowFrames[1].cells[6].text:find("–", 1, true) and (not K.allChars.shown or K.allChars.shown == false or not K.Ledger()), "ohne Ledger: Spalte Twinks leer, kein Umschalter")
-check(K.count.text:find("1 Gegenstände (nur dieser Charakter)", 1, true) and not K.bar.shown, "Anzahl unten, ohne Auswahl keine Mengenleiste")
-K.list.rowFrames[1].scripts.OnClick(K.list.rowFrames[1], "LeftButton")
-check(K.bar.shown and K.amount.text == "", "Zeile gewaehlt: Menge leer = alle")
-K.amount:SetText("30"); K.amount.scripts.OnEnterPressed(K.amount)
-check(PeonBrokerCharDB.keep[2770].n == 30 and K.list.rowFrames[1].cells[2].text == "30", "Menge gesetzt")
-K.allButton.scripts.OnClick(K.allButton)
-check(PeonBrokerCharDB.keep[2770].n == nil and K.list.rowFrames[1].cells[2].text == "alle", "Alle: wieder alles behalten")
-K.Set(8888, nil, { name = "Ruhestein", quality = 1 })
-K.Refresh()
-kr = K.list:GetItems()
-check(#kr == 2 and kr[2].name == "Ruhestein" and kr[2].bags == 0 and kr[2].total == 0, "auch Gegenstaende, die gerade nicht da sind (Vorrat 0)")
-K.list.rowFrames[2].scripts.OnClick(K.list.rowFrames[2], "RightButton")
-check(PeonBrokerCharDB.keep[8888] == nil and #K.list:GetItems() == 1, "Rechtsklick: wieder verkaufen")
-K.list.rowFrames[1].scripts.OnClick(K.list.rowFrames[1], "LeftButton")
-K.unkeepButton.scripts.OnClick(K.unkeepButton)
-check(PeonBrokerCharDB.keep[2770] == nil and #K.list:GetItems() == 0 and K.list.empty.shown and not K.bar.shown, "Knopf: wieder verkaufen, Liste leer")
-Win.Select("sell")
-for _, it in ipairs(Sell.ScanBags()) do if it.key == "15000:1047" then Sell.Select(it) end end
-
--- Ausruestung und "Erstellen & weiter"
-fire("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 15000 })
-check(ISF.price == 5199 and ISF.qty == 1 and ISF.dur == 2, "Einzelgegenstand: 1c unterboten, im Auktionshaus eingetragen")
-check(Sell.live[1].price == 5200 and Sell.live[1].qty == 3, "Einzelgegenstand: Preis je Stueck, nicht durch Anzahl geteilt")
-local ku for _, it in ipairs(Sell.list:GetItems()) do if it.key == 2770 then ku = it end end
-Sell.Select(ku)
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
-Sell.postNext.scripts.OnClick(Sell.postNext)
-BAG[1], BAG[2] = { itemID = 1, stackCount = 1, hyperlink = "x", isBound = true }, { itemID = 1, stackCount = 1, hyperlink = "x", isBound = true }
-fire("AUCTION_HOUSE_AUCTION_CREATED", 124)
-check(Sell.item and Sell.item.key == "15000:1047" and query.key.itemID == 15000 and ISF.shown and ISF.loc.slot == 4, "weiter: naechster Gegenstand gewaehlt, ins Auktionshaus gelegt und abgefragt")
-fire("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 15000 })
-Sell.post.scripts.OnClick(Sell.post)
-check(ISF.clicked == 1 and posted[#posted][1] == "I" and posted[#posted][5] == 5199 and posted[#posted][6] == nil and posted[#posted][4] == 1, "PostItem ueber das Auktionshaus: Sofortkauf, kein Gebot")
-fire("AUCTION_HOUSE_SHOW_ERROR")
-check(Sell.busy == nil and said("Fehler gemeldet"), "Meldung des Auktionshauses weitergegeben")
-BAG[1] = { itemID = 2770, stackCount = 20, hyperlink = "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r", quality = 1 }
-BAG[2] = { itemID = 2770, stackCount = 40, hyperlink = "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r", quality = 1 }
-fire("BAG_UPDATE_DELAYED")
-check(#Sell.list:GetItems() == 2, "Taschen aendern sich -> Liste neu")
-
--- Ohne Verkaufsfenster des Auktionshauses: Rueckfall auf Brokers eigene Werte
-WithBlizzard(false)
-LIVE[2770][1] = { unitPrice = 115, quantity = 60, containsOwnerItem = true, numOwnerItems = 60 }
-LIVE[2770][2] = { unitPrice = 120, quantity = 40 }
-Sell.Select(Sell.list:GetItems()[1])
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
-check(Sell.inAH == nil and plain(Sell.hints.text):find("nicht ins Auktionshaus eintragen", 1, true), "Hinweis, wenn das Eintragen nicht geht")
-check(Sell.sugg.source == "own" and Sell.GetPrice() == 115 and plain(Sell.why.text) == "dein Preis", "eigenes Angebot am guenstigsten: Preis bleibt")
-mod.db.shortMassMin = 3
-Sell.Select(Sell.list:GetItems()[1])
-check(Sell.duration == 2 and Sell.durWhy == "short", "viele Angebote: 2 Std.")
-mod.db.shortMassMin = 20
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
-Sell.price = 50; Sell.UpdatePanel()
-check(plain(Sell.hints.text):find("Unter dem Vorschlag 1s 15c (57 % weniger)", 1, true) and Sell.hints.text:find("|cffff4040Unter", 1, true), "Warnung bei zu niedrigem Preis (rot, mit Vorschlag)")
-popupShown = nil
-local nPosted = #posted
-Sell.post.scripts.OnClick(Sell.post)
-check(popupShown and popupShown.name == "PEON_BROKER_CONFIRM_POST" and #posted == nPosted, "Rueckfrage statt sofort einstellen")
-StaticPopupDialogs.PEON_BROKER_CONFIRM_POST.OnAccept(nil, popupShown.data)
-check(#posted == nPosted + 1 and posted[#posted][5] == 50 and posted[#posted][3] == 2 and posted[#posted][4] == 60, "nach Ja: selbst eingestellt (Brokers Werte)")
-Sell.busy = nil
-confirmNeeded = true
-Sell.price = 115; Sell.UpdatePanel()
-popupShown = nil
-Sell.post.scripts.OnClick(Sell.post)
-check(popupShown and popupShown.text:find("Das Spiel fragt", 1, true) and not Sell.busy, "Rueckfrage des Spiels weitergegeben")
-StaticPopupDialogs.PEON_BROKER_CONFIRM_POST.OnAccept(nil, popupShown.data)
-check(confirmed and confirmed[4] == 115 and Sell.busy, "nach Ja: bestaetigt, wartet")
-confirmNeeded = false
-timers[#timers]()
-check(Sell.busy == nil and said("Keine Rückmeldung"), "keine Rueckmeldung nach Wartezeit")
-
--- Live-Ergebnis ohne Ereignis (Spiel hat die Ergebnisse schon): Nachsehen nach kurzer Zeit
-local nT = #timers
-Sell.Select(Sell.list:GetItems()[1])
-check(Sell.liveState == "wait" and #timers >= nT + 6, "Abfrage mit Nachsehen und Zeitgrenze (nach 2 Eintrage-Zeitpunkten)")
-timers[nT + 3]()
-check(Sell.liveState == "done" and #Sell.live >= 1, "Ergebnis per Nachsehen uebernommen")
--- keine Ergebnisse, kein Ereignis: Zeitgrenze
-local savedLive = LIVE[2770]; LIVE[2770] = nil
-local savedNI = AHs.GetNumItemSearchResults; AHs.GetNumItemSearchResults = function() return 0 end
-nT = #timers
-Sell.Select(Sell.list:GetItems()[1])
-for i = nT + 3, nT + 5 do timers[i]() end
-check(Sell.liveState == "wait", "noch nichts da: wartet weiter")
-timers[nT + 6]()
-check(Sell.liveState == "timeout" and Sell.liveText.text:find("keine Antwort", 1, true) and plain(Sell.hints.text):find("Keine aktuellen Angebote", 1, true), "Zeitgrenze: keine Antwort, Vorschlag aus dem Scan")
-check(Sell.sugg.source == "scan", "Rueckfall auf den Scan")
-LIVE[2770] = savedLive; AHs.GetNumItemSearchResults = savedNI
--- Ereignis passt nicht zur vermuteten Warenart: trotzdem uebernehmen
-BAG[1] = { itemID = 2770, stackCount = 20, hyperlink = "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r", quality = 1 }
-PeonBrokerDB.commodity[2770] = false
-Sell.Refresh()
-local ku for _, it in ipairs(Sell.list:GetItems()) do if it.key == 2770 then ku = it end end
-Sell.Select(ku)
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
-check(Sell.liveState == "done" and Sell.live[1].price == 115, "Warenart falsch vermutet: Ereignis des Spiels gilt")
-PeonBrokerDB.commodity[2770] = true
-
--- Ergebnisse unter einem anderen Schluessel (Meldung "neue Ergebnisse" des Spiels)
-local savedNI2, savedII = AHs.GetNumItemSearchResults, AHs.GetItemSearchResultInfo
-AHs.GetNumItemSearchResults = function(k) return (type(k) == "table" and k.itemLevel == 99) and 1 or 0 end
-AHs.GetItemSearchResultInfo = function(k, i) return { buyoutAmount = 7000, quantity = 1 } end
-local swd for _, it in ipairs(Sell.ScanBags()) do if it.key == "15000:1047" then swd = it end end
-Sell.Select(swd)
-fire("AUCTION_HOUSE_NEW_RESULTS_RECEIVED", { itemID = 15000, itemLevel = 99, itemSuffix = 0 })
-check(Sell.liveState == "done" and Sell.live[1].price == 7000, "Ergebnisse unter anderem Schluessel gefunden")
-AHs.GetNumItemSearchResults, AHs.GetItemSearchResultInfo = savedNI2, savedII
-
--- Auswahl per Link (ab 0.27.1 kein Alt+Klick mehr in Broker - gehoert Peon_Ledger)
-Win.Select("prices")
-alt = true
-HandleModifiedItemClick("|cff1eff00|Hitem:15000::::::1047::20:::::::::|h[Schwert des Baeren]|h|r")
-check(Win.current == "prices", "Alt+Klick in den Taschen aendert in Broker nichts mehr")
-alt = false
-Sell.SelectLink("|cff1eff00|Hitem:15000::::::1047::20:::::::::|h[Schwert des Baeren]|h|r")
-check(Win.current == "sell" and Sell.item and Sell.item.key == "15000:1047", "Auswahl per Link waehlt den Gegenstand im Reiter Verkaufen")
-Sell.SelectLink("|cffffffff|Hitem:2589::::::::20:1488:::::::::|h[Leinenstoff]|h|r")
-check(Sell.item and Sell.item.key == 2589, "auch nicht lohnende Gegenstaende")
-check(plain(Sell.hints.text):find("Lieber beim Händler verkaufen (zahlt 1s)", 1, true), "Hinweis mit Haendlerpreis statt eigener Zeile")
-check(Sell.proceedsValue.text:find("|cffff9933", 1, true), "Erloes orange, wenn der Haendler mehr zahlt")
-HandleModifiedItemClick("|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r")
-check(Sell.item.key == 2589, "Klick mit Taste aendert die Auswahl nicht")
-
--- ===== Reiter "Meine Auktionen" (0.12) =====
-local Auc = ns.Auctions
-local SWLINK = "|cff1eff00|Hitem:15000::::::1047::20:::::::::|h[Schwert des Baeren]|h|r"
-local OWNED = {
-  { auctionID = 11, itemLink = "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r", itemKey = { itemID = 2770, itemLevel = 20 }, status = 0, quantity = 60, buyoutAmount = 118, timeLeftSeconds = 5 * 3600 },
-  { auctionID = 12, itemLink = SWLINK, itemKey = { itemID = 15000, itemLevel = 20 }, status = 0, quantity = 1, buyoutAmount = 5199, timeLeftSeconds = 20 * 3600 },
-  { auctionID = 13, itemLink = "|cffffffff|Hitem:2589::::::::20:1488:::::::::|h[Leinenstoff]|h|r", itemKey = { itemID = 2589 }, status = 1, quantity = 10, buyoutAmount = 3 },
-}
-local ownedQueried, cancelledIDs = 0, {}
-AHs.QueryOwnedAuctions = function() ownedQueried = ownedQueried + 1 end
-AHs.GetNumOwnedAuctions = function() return #OWNED end
-AHs.GetOwnedAuctionInfo = function(i) return OWNED[i] end
-AHs.GetCancelCost = function(id) return id == 11 and 60 or 400 end
-AHs.CanCancelAuction = function() return true end
-AHs.CancelAuction = function(id) cancelledIDs[#cancelledIDs + 1] = id end
-market.items["15000:1047"].m = 5000
-market.items[2770].m = 120   -- ab 0.15 schreiben Live-Abfragen (Verkaufen) den aktuellen Stand; hier ein Stand ohne Unterbieten
-Win.Select("auctions")
-check(Win.current == "auctions" and ownedQueried == 1, "Reiter oeffnen: eigene Auktionen abgefragt")
-fire("OWNED_AUCTIONS_UPDATED")
-local ar = Auc.list:GetItems()
-check(#ar == 3 and ar[1].id == 12 and ar[2].id == 11 and ar[3].id == 13, "Reihenfolge: unterboten, guenstigster, verkauft")
-check(ar[1].status == "under" and ar[1].other == 5000 and ar[1].source == "scan", "Schwert unterboten (Scan: 50s < 51s 99c)")
-check(ar[2].status == "best" and ar[3].status == "sold", "Kupfererz guenstigster, Leinenstoff verkauft")
-check(Auc.list.rowFrames[1].cells[5].text:find("unterboten", 1, true) and Auc.list.rowFrames[1].cells[5].text:find("|cffff9933", 1, true), "Status unterboten in Orange")
-check(Auc.list.rowFrames[2].cells[6].text == "5 Std." and Auc.list.rowFrames[3].cells[6].text == "–", "Restzeit")
-check(Auc.nextButton.text == "Nächste unterbotene (1)" and not Auc.nextButton.disabled, "Knopf naechste unterbotene mit Anzahl")
-check(Auc.liveRun and Auc.status.text:find("Prüfe live", 1, true), "ab 0.24: Reiter geoeffnet -> nach dem Neuladen automatisch live pruefen")
-check(PeonBrokerDB.owned and #PeonBrokerDB.owned.rows == 3, "Stand fuer die Anzeige ohne Auktionshaus gemerkt")
--- Live pruefen: nacheinander, eigene Angebote zaehlen nicht
-LIVEITEM[1] = { buyoutAmount = 5199, quantity = 1 }
-Auc.liveButton.scripts.OnClick(Auc.liveButton)   -- laeuft schon: kein zweiter Lauf
-check(Auc.liveRun and query.key.itemID == 2770 and Auc.status.text:find("Prüfe live 1 von 2", 1, true), "Live pruefen: erster Gegenstand")
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
-check(query.key.itemID == 15000 and Auc.live[2770].min == 120, "zweiter Gegenstand; Kupfererz: guenstigstes anderer 1s 20c (eigene 1s 15c zaehlen nicht)")
-fire("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 15000 })
-ar = Auc.list:GetItems()
-local byId = {} for _, r in ipairs(ar) do byId[r.id] = r end
-check(not Auc.liveRun and byId[12].status == "equal" and byId[11].status == "best" and Auc.status.text:find("Stand: live", 1, true), "nach Live: Schwert gleichauf, Kupfererz guenstigster")
--- Abbrechen mit Kosten
-for i, r in ipairs(ar) do if r.id == 12 then Auc.list.rowFrames[i].scripts.OnClick(Auc.list.rowFrames[i], "LeftButton") end end
-check(plain(Auc.selText.text):find("Abbrechen kostet 4s", 1, true) and not Auc.cancelButton.disabled, "Auswahl zeigt die Abbruchkosten")
-Auc.cancelButton.scripts.OnClick(Auc.cancelButton)
-check(#cancelledIDs == 1 and cancelledIDs[1] == 12 and Auc.busy, "abgebrochen, wartet auf das Spiel")
-table.remove(OWNED, 2)
-local q0 = ownedQueried
-fire("AUCTION_CANCELED", 12)
-check(ownedQueried == q0 + 1 and PeonBrokerDB.cancelled == nil, "fuers Buch vermerkt (Kosten), neu abgefragt")
-local cPlain = false for i = #out, math.max(1, #out - 6), -1 do if plain(out[i]):find("Abgebrochen: 1× Schwert des Baeren (Kosten 4s)", 1, true) then cPlain = true end end
-check(cPlain, "Meldung im Chat")
-fire("OWNED_AUCTIONS_UPDATED")
-check(#Auc.list:GetItems() == 2 and not Auc.repostButton.disabled, "Liste ohne die abgebrochene; Neu einstellen moeglich")
-Auc.repostButton.scripts.OnClick(Auc.repostButton)
-check(Win.current == "sell" and Sell.item and Sell.item.key == "15000:1047", "Neu einstellen: zu Verkaufen, Gegenstand gewaehlt")
--- Naechste unterbotene
-OWNED[1].buyoutAmount = 200
-Win.Select("auctions")
-fire("OWNED_AUCTIONS_UPDATED")
-check(Auc.list:GetItems()[1].id == 11 and Auc.list:GetItems()[1].status == "under", "Kupfererz jetzt unterboten (live 1s 20c < 2s)")
-Auc.nextButton.scripts.OnClick(Auc.nextButton)
-check(cancelledIDs[2] == 11, "Naechste unterbotene: abgebrochen")
-fire("AUCTION_CANCELED", 11)
-table.remove(OWNED, 1)
-fire("OWNED_AUCTIONS_UPDATED")
-check(Auc.nextButton.disabled, "keine unterbotenen mehr")
-Auc.CancelNextUnder()
-check(said("Keine unterbotenen Auktionen"), "Meldung, wenn keine unterboten sind")
--- ohne Auktionshaus: letzter Stand, nichts abbrechen
-fire("AUCTION_HOUSE_CLOSED")
-if not (PeonBrokerFrame and PeonBrokerFrame.shown) then SlashCmdList.PEON_BROKER("") end   -- ab 0.53 schliesst das Fenster nicht mehr mit
-Win.Select("auctions")
-check(#Auc.list:GetItems() == 1 and Auc.cancelButton.disabled and Auc.liveButton.disabled and Auc.status.text:find("Auktionshaus öffnen", 1, true), "ohne Auktionshaus: letzter Stand, Abbrechen gesperrt")
-SlashCmdList.PEON_BROKER("")
-fire("AUCTION_HOUSE_SHOW")
-Win.Select("sell")
+check(ns.Sell == nil and ns.Keep == nil and Win.pages.sell == nil and Win.pages.keep == nil and Win.pages.auctions == nil, "U12: Verkaufen, Behalten, Meine Auktionen entfallen")
+check(PeonBrokerCharDB.keep == nil and PeonBrokerDB.sellMem == nil, "U12: gespeicherte Behalten-Liste und Verkaufen-Gedaechtnis geloescht")
+check(type(ns.Live.ReadCommodity) == "function" and type(ns.Stock.Counts) == "function" and type(Auc.StartLive) == "function", "U12: Bausteine bleiben (Live, Stock, Auktionen)")
 
 -- ===== Reiter "Einkaufsliste" (0.13, ab 0.14 eigener Reiter) =====
 local Buy = ns.Buy
@@ -1203,21 +866,20 @@ check(#rowsL == 2, "zwei Gegenstaende in der Liste")
 local kuL for i, r in ipairs(rowsL) do if r.key == 2770 then kuL = i end end
 local lim = D.MaxBuyPrice(market.items[2770], 10)
 check(rowsL[kuL].limit == lim, "Hoechstpreis aus dem Median")
-Sell.pending = nil   -- (Live-Abfrage aus dem Verkaufen-Test haengt im Testaufbau noch; ab 0.21.1 wartet die Anzeige darauf)
 Buy.itemList.rowFrames[kuL].scripts.OnClick(Buy.itemList.rowFrames[kuL], "LeftButton")
 check(query.normal and query.key.itemID == 2770 and browse and browse.itemKey.itemID == 2770, "Anklicken: Live-Abfrage und im Auktionshaus geoeffnet")
 fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
 check(Buy.live[2770] and #Buy.live[2770].rows >= 2, "Live-Angebote gelesen")
-Buy.selected.limit = 130      -- feste Grenze fuer den Test: nur die Stufe 1s 20c (40 Stueck, eigene 1s 15c zaehlen nicht)
+Buy.selected.limit = 130      -- feste Grenze fuer den Test: Stufen 1s 15c (8) und 1s 20c (40); ab 0.55 ohne eigene Angebote aus dem Verkaufen-Test
 local plan = Buy.Plan(Buy.selected)
-check(plan.qty == 40 and plan.cost == 4800 and plan.commodity, "Kaufplan: 40 Stueck fuer 48s")
+check(plan.qty == 48 and plan.cost == 5720 and plan.commodity, "Kaufplan: 48 Stueck fuer 57s 20c")
 Buy.wishBox:SetText("100"); Buy.wishBox.scripts.OnEditFocusLost(Buy.wishBox)
 check(PeonBrokerDB.lists[1].items[2770].wish == 100, "Wunschmenge gesetzt")
 Buy.selected.limit = 130
 plan = Buy.Plan(Buy.selected)
-check(plan.qty == 35 and plan.cost == 4200, "Wunschmenge 100 minus Vorrat 65 = 35")
+check(plan.qty == 35 and plan.cost == 8 * 115 + 27 * 120, "Wunschmenge 100 minus Vorrat 65 = 35")
 Buy.UpdateView()
-check(plain(Buy.selText.text):find("35 kaufen für 42s", 1, true) and not Buy.buyButton.disabled, "Anzeige: was gekauft wuerde")
+check(plain(Buy.selText.text):find("35 kaufen für 41s 60c", 1, true) and not Buy.buyButton.disabled, "Anzeige: was gekauft wuerde")
 Buy.buyButton.scripts.OnClick(Buy.buyButton)
 check(purchaseStarted and purchaseStarted[1] == 2770 and purchaseStarted[2] == 35 and Buy.buying, "Kauf gestartet (Massenware)")
 popupShown = nil
@@ -1844,17 +1506,7 @@ check(#ql == 6 and ql[5]:find("Radar: gesendet ja, Antwort ja", 1, true) and ql[
     and ql[3]:find("Timer: gesendet nein, Antwort nein", 1, true) and ql[4]:find("OnUpdate: gesendet ja, Antwort ja", 1, true), "Ergebnis im Chat und in PeonBrokerDB.queryTest")
 Buy.deleteButton.scripts.OnClick(Buy.deleteButton)
 check(#PeonBrokerDB.lists == 0, "Liste geloescht")
-Win.Select("sell")
 
--- ohne Auktionshaus
-fire("AUCTION_HOUSE_CLOSED")
-if not (PeonBrokerFrame and PeonBrokerFrame.shown) then SlashCmdList.PEON_BROKER("") end   -- ab 0.53 schliesst das Fenster nicht mehr mit
-Win.Select("sell")
-Sell.Select(Sell.list:GetItems()[1])
-check(Sell.post.disabled and plain(Sell.hints.text):find("Auktionshaus öffnen", 1, true) and Sell.liveText.text:find("geschlossen", 1, true), "ohne Auktionshaus: nur ansehen")
-Sell.post.scripts.OnClick(Sell.post)
-check(said("Zum Einstellen das Auktionshaus öffnen"), "Einstellen verweigert")
-SlashCmdList.PEON_BROKER("")
 C_Container, AHs.IsSellItemValid, AHs.GetItemCommodityStatus, AHs.PostCommodity = savedContainer, savedValid, savedStatus, savedPostC
 AHs.PostItem = function() error("darf nie aufgerufen werden") end
 fire("AUCTION_HOUSE_SHOW")
@@ -1875,23 +1527,6 @@ fire("AUCTION_HOUSE_SHOW")
     check(sgP.median == 200 and sgP.dump, "Vorschlag mit Teil-Ergebnis: Median aus der Datenbank (Dumping erkannt)")
     market.items[4444], LIVE[4444] = nil, nil
     AHs.HasFullCommoditySearchResults = savedHF
-    -- 0.28: Teil-Ergebnis beim Verkaufen - Rest wird beim Spiel angefordert
-    WithBlizzard(true)
-    Win.Select("sell")
-    local savedL0, fullNow, asked = LIVE[2770], false, 0
-    AHs.HasFullCommoditySearchResults = function(id) return id ~= 2770 or fullNow end
-    AHs.RequestMoreCommoditySearchResults = function() asked = asked + 1; return false end
-    LIVE[2770] = { { unitPrice = 100, quantity = 5 } }
-    local ku0 for _, it in ipairs(Sell.ScanBags()) do if it.key == 2770 then ku0 = it end end
-    Sell.Select(ku0)
-    fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
-    check(asked == 1 and Sell.pending and Sell.live == nil, "0.28: Teil-Ergebnis - Rest angefordert, Broker wartet")
-    fullNow = true
-    LIVE[2770] = { { unitPrice = 100, quantity = 5 }, { unitPrice = 300, quantity = 60 } }
-    fire("COMMODITY_SEARCH_RESULTS_ADDED", 2770)
-    check(Sell.pending == nil and Sell.live and #Sell.live == 2 and not Sell.live.partial, "0.28: Rest da - vollstaendige Liste uebernommen")
-    AHs.RequestMoreCommoditySearchResults, LIVE[2770] = nil, savedL0
-
     -- Eintragspreis (F23a): guenstigstes Angebot minus Unterbieten, Vorschlag bleibt Richtwert
     local e = { m = 100, md = 300 }
     local sg = D.SuggestSell({ { price = 100, qty = 5, own = 0 }, { price = 300, qty = 20, own = 0 } }, e, 2770, 5, mod.db)
@@ -1900,43 +1535,6 @@ fire("AUCTION_HOUSE_SHOW")
     local ep2, why2 = D.EntryPrice({ source = "live", min = 4, vp = 4 }, nil, 2770, 5, mod.db)
     check(ep2 == 6 and why2 == "min", "unter dem Haendlerpreis: auf den Mindestpreis angehoben")
     check(D.EntryPrice({ source = "own", vp = 77, min = 77 }, nil, 2770, 5, mod.db) == 77, "eigenes Angebot am guenstigsten: Preis bleibt")
-    -- im Reiter: Hinweis "Unter dem Vorschlag"
-    WithBlizzard(true)
-    Win.Select("sell")
-    local savedL = LIVE[2770]
-    LIVE[2770] = { { unitPrice = 100, quantity = 5 }, { unitPrice = 300, quantity = 60 } }
-    local ku for _, it in ipairs(Sell.ScanBags()) do if it.key == 2770 then ku = it end end
-    Sell.Select(ku)
-    fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
-    check(Sell.price == 100 and CSF.price == 100 and plain(Sell.priceValue.text) == "1s", "Reiter Verkaufen: guenstigstes Angebot eingetragen")
-    check(plain(Sell.hints.text):find("Unter dem Vorschlag", 1, true) and plain(Sell.hints.text):find("Dumping", 1, true), "Hinweis: unter dem Vorschlag, mit Grund")
-    popupShown = nil
-    local nP, savedPC = 0, AHs.PostCommodity
-    AHs.PostCommodity = function(loc, dur, qty, price) nP = price end
-    Sell.post.scripts.OnClick(Sell.post)
-    AHs.PostCommodity = savedPC
-    check(popupShown == nil and nP == 100, "eingetragener Preis: keine Rueckfrage")
-    fire("AUCTION_HOUSE_AUCTION_CREATED", 1)
-    -- 0.21.2 (Feedback KarloDerBaer): Platz gesperrt, weil der Gegenstand im Verkaufsfenster liegt -> trotzdem einstellen
-    local savedCC = C_Container
-    C_Container = { GetContainerNumSlots = function(bag) return bag == 0 and 1 or 0 end,
-        GetContainerItemInfo = function(bag, slot) if bag == 0 and slot == 1 then return { itemID = 2770, stackCount = 5, isLocked = true,
-            hyperlink = "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r", quality = 1 } end end }
-    Sell.busy = nil
-    Sell.item = ku
-    local loc0, _, n0 = Sell.CurrentLocation(2770)
-    check(loc0 and n0 and n0 > 0, "gesperrter Platz wird trotzdem gefunden")
-    local posted2, savedPC2 = nil, AHs.PostCommodity
-    AHs.PostCommodity = function(loc, dur, qty, price) posted2 = price end
-    CSF.qty = 5
-    local nOut = #out
-    Sell.post.scripts.OnClick(Sell.post)
-    AHs.PostCommodity = savedPC2
-    check(posted2 == 100 and not said("nicht mehr in den Taschen"), "Gegenstand im Verkaufsfenster (Platz gesperrt): wird eingestellt, keine falsche Meldung")
-    fire("AUCTION_HOUSE_AUCTION_CREATED", 1)
-    C_Container = savedCC
-    LIVE[2770] = savedL
-
     -- Blizzard-Fenster: Daten noch nicht geladen -> warten, dann zeigen
     local modes = { Buy = {}, CommoditiesBuy = {}, ItemBuy = {}, Auctions = {}, ItemSell = {} }
     AuctionHouseFrameDisplayMode = modes
@@ -1992,23 +1590,6 @@ fire("AUCTION_HOUSE_SHOW")
     check(shown[#shown] == 6668, "Spiel bereit: umgeschaltet")
     Buy.showGuard = nil
     AHs.RefreshItemSearchResults, AHs.RefreshCommoditySearchResults = nil, nil
-    -- Reiter "Meine Auktionen": Blizzard auf "Auktionen", Klick zeigt die Angebote
-    Win.Select("auctions")
-    check(curMode == modes.Auctions, "Reiter Meine Auktionen: Blizzard zeigt Auktionen")
-    local myOwned = { { auctionID = 21, itemLink = "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r", itemKey = { itemID = 2770, itemLevel = 20 },
-        status = 0, quantity = 60, buyoutAmount = 118, timeLeftSeconds = 3600 } }
-    local savedNO, savedOI = AHs.GetNumOwnedAuctions, AHs.GetOwnedAuctionInfo
-    AHs.GetNumOwnedAuctions, AHs.GetOwnedAuctionInfo = function() return #myOwned end, function(i) return myOwned[i] end
-    Auc.Read()
-    Auc.UpdateView()
-    AHs.GetNumOwnedAuctions, AHs.GetOwnedAuctionInfo = savedNO, savedOI
-    local kuRow for i, r in ipairs(Auc.list:GetItems()) do if r.key == 2770 then kuRow = i end end
-    Auc.list.rowFrames[kuRow].scripts.OnClick(Auc.list.rowFrames[kuRow], "LeftButton")
-    check(shown[#shown] == 2770 and Auc.watch and Auc.watch.key == 2770, "Klick auf eigene Auktion: Angebote im Blizzard-Fenster")
-    LIVE[2770] = { { unitPrice = 110, quantity = 5 }, { unitPrice = 118, quantity = 60, containsOwnerItem = true, numOwnerItems = 60 } }
-    fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
-    check(Auc.watch == nil and Auc.live[2770].min == 110 and Auc.selected.status == "under", "Ergebnis des Blizzard-Fensters genutzt: unterboten")
-    LIVE[2770] = savedL
     Win.Select("radar")
     check(curMode == modes.Buy, "Reiter Radar ohne Auswahl: Blizzard Kaufen-Seite")
 
@@ -2224,21 +1805,10 @@ end)()
   mod.db.keepAllChars = false
   local _, _, tot, oth = K.Counts(2770)
   check(tot == 65 and oth == 0, "Umschalter aus: nur dieser Charakter")
-  Win.Select("keep"); K.Refresh()
-  check(K.allChars.shown ~= false, "mit Ledger: Umschalter sichtbar")
-  K.allChars:SetChecked(true); K.allChars.scripts.OnClick(K.allChars)
-  check(mod.db.keepAllChars == true, "Umschalter an")
+  mod.db.keepAllChars = true
   _, _, tot, oth = K.Counts(2770)
   check(tot == 85 and oth == 20, "Vorrat aller Charaktere: 65 + 20 bei Twinks")
-  K.Set(2770, 70)
-  check(K.Sellable(2770, 2770, 60) == 15, "Behalten 70 von 85: 15 zu verkaufen")
-  K.Refresh()
-  local kr = K.list:GetItems()
-  local r for _, x in ipairs(kr) do if x.key == 2770 then r = x end end
-  check(r and r.others == 20 and r.total == 85, "Reiter Behalten: Spalte Twinks")
-  K.allChars:SetChecked(false); K.allChars.scripts.OnClick(K.allChars)
-  check(K.Sellable(2770, 2770, 60) == 0, "Umschalter aus: 65 - 70 = nichts zu verkaufen")
-  K.Set(2770, nil); K.Remove(2770)
+  mod.db.keepAllChars = false
   -- 0.24: Einkaufsliste mit Spalte Vorrat und demselben Umschalter
   local savedLists, savedSel = PeonBrokerDB.lists, PeonBrokerCharDB.listSel
   PeonBrokerDB.lists, PeonBrokerCharDB.listSel = { { name = "T", pct = 10, items = { [2770] = { wish = 100, name = "Kupfererz" } } } }, 1
@@ -2250,31 +1820,6 @@ end)()
   check(mod.db.keepAllChars == true and br.stock == 85, "Einkaufsliste: Umschalter an -> Vorrat aller Charaktere (gleiche Einstellung wie Behalten)")
   ns.Buy.allChars:SetChecked(false); ns.Buy.allChars.scripts.OnClick(ns.Buy.allChars)
   PeonBrokerDB.lists, PeonBrokerCharDB.listSel = savedLists, savedSel
-  -- 0.24: Verkaufen zeigt die eigene Verkaufsquote als Hinweis
-  local savedItem = Sell.item
-  Sell.item = Sell.item or {}
-  local hasRate = false
-  local okH, errH = pcall(function()
-      local fakeIt = { key = 2770, count = 60, e = market.items[2770], hp = 5, locs = {} }
-      Sell.item = fakeIt
-      for _, h in ipairs(Sell.Hints()) do if plain(h):find("Deine Verkäufe (30 T.): 3 von 4 verkauft (75 %)", 1, true) then hasRate = true end end
-  end)
-  Sell.item = savedItem
-  if not okH then print("FEHLER", errH) end
-  check(okH and hasRate, "Verkaufen: Hinweis mit eigener Verkaufsquote")
-  -- 0.25: Kosten aus Ledger - Hinweis, wenn der Erloes je Stueck darunter liegt
-  Peon.modules.ledger.Cost = function(_, id) if id == 2770 then return 500, 450, 10, 4500 end end
-  local savedGP = Sell.GetPrice
-  Sell.GetPrice = function() return 300 end
-  local hasCost = false
-  Sell.item = { key = 2770, count = 60, e = market.items[2770], hp = 5, locs = {} }
-  local okC = pcall(function() for _, h in ipairs(Sell.Hints()) do if plain(h):find("Unter deinen Kosten (5s je Stück", 1, true) then hasCost = true end end end)
-  Sell.GetPrice = function() return 600 end
-  local noCost = true
-  pcall(function() for _, h in ipairs(Sell.Hints()) do if plain(h):find("Unter deinen Kosten", 1, true) then noCost = false end end end)
-  Sell.item, Sell.GetPrice = savedItem, savedGP
-  Peon.modules.ledger.Cost = nil
-  check(okC and hasCost and noCost, "Verkaufen: Hinweis unter deinen Kosten (nur wenn der Erloes darunter liegt)")
   -- Tooltip mit Umschalt: eigene Verkaufsquote
   shift = true
   local lines = ttLines(KLINK)
@@ -2860,7 +2405,7 @@ end)()
                 { buyoutAmount = 29900, quantity = 1, itemLink = AFFE,  itemKey = { itemID = 11996, itemLevel = 34, itemSuffix = 14340, battlePetSpeciesID = 0 } } }
   AH.GetNumItemSearchResults = function() return #RES end
   AH.GetItemSearchResultInfo = function(_, i) return RES[i] end
-  local rows = ns.Sell.ReadItems({ itemID = 11996 }, kA)
+  local rows = ns.Live.ReadItems({ itemID = 11996 }, kA)
   check(#rows == 1 and rows[1].price == 59900 and rows.other == 1, "0.28: Verkaufen liest nur die eigene Variante")
   local rows2 = ns.Buy.ReadItemRows({ itemID = 11996 }, kB)
   check(#rows2 == 1 and rows2[1].price == 29900 and PeonBrokerDB.itemKeys[kA] == "34:14331" and PeonBrokerDB.itemKeys[kB] == "34:14340",

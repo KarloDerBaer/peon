@@ -113,17 +113,6 @@ function T.RangeText(band)
     return text
 end
 
--- Zeile "Behalten" (nur aktueller Charakter), dezent hellblau
-local KEEP = { 0.55, 0.78, 1 }
-function T.KeepLine(tooltip, key)
-    local K = ns.Keep
-    if not K then return false end
-    local text = K.TooltipText(key, ns.Data.ItemID(key))
-    if not text then return false end
-    tooltip:AddLine(text, KEEP[1], KEEP[2], KEEP[3])
-    return true
-end
-
 -- Peon_Ledger (wenn geladen)
 function T.Ledger()
     if not Peon.GetModule then return nil end

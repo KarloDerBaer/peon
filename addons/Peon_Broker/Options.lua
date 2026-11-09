@@ -60,7 +60,6 @@ function ns.CreateOptions()
         { { 2, L.DUR_2 }, { 8, L.DUR_8 }, { 24, L.DUR_24 } }, L.OPT_DURATION_HINT))
     page:Add(left, page:Check("shortMass", L.OPT_SHORT_MASS, L.OPT_SHORT_MASS_HINT))
     local shortMin = page:Add(left, page:Slider("shortMassMin", L.OPT_SHORT_MASS_MIN, L.OPT_SHORT_MASS_MIN_HINT))
-    page:Add(left, page:Check("sellOnlyProfitable", L.SELL_ONLY), 16)
 
     -- Radar (Schnaeppchen)
     page:Add(left, page:Header(L.HDR_DEALS), 6)

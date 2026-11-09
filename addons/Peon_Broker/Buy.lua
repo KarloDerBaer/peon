@@ -211,7 +211,7 @@ function B.ListRows(list)
         end
         local hitQty = limit and ns.Data.BelowLimit(levels, limit) or 0
         -- Vorrat (ab 0.24): Taschen + Bank, mit Umschalter "Vorrat aller Charaktere" auch die Twinks (Ledger)
-        local _, _, stock = ns.Keep.Counts(ns.Data.ItemID(key), nil)
+        local _, _, stock = ns.Stock.Counts(ns.Data.ItemID(key), nil)
         local need = it.wish and math.max(0, it.wish - (stock or 0)) or nil   -- ab 0.49: Ziel minus Vorrat
         local r = { key = key, name = it.name or ns.Data.ItemName(key, e) or tostring(key), quality = it.q,
             icon = it.icon, wish = it.wish, limit = limit, cheapest = cheapest, hits = hitQty, stock = stock, need = need,
@@ -478,7 +478,7 @@ function B.ReadItemRows(itemKey, key)
     for i = 1, (ok and tonumber(n) or 0) do
         local okr, r = pcall(ah.GetItemSearchResultInfo, itemKey, i)
         if okr and ns.Probe and ns.Probe.Field then ns.Probe.Field("item", r) end
-        if okr and type(r) == "table" and ns.Sell.Foreign(r, want) then
+        if okr and type(r) == "table" and ns.Live.Foreign(r, want) then
             rows.foreign = (rows.foreign or 0) + 1   -- Ergebnis eines anderen Gegenstands (ab 0.21.1)
         elseif okr and type(r) == "table" and Num(r.buyoutAmount) then
             local k = r.itemLink and ns.Data.KeyFromLink(r.itemLink)
@@ -502,7 +502,7 @@ function B.ReadItemRows(itemKey, key)
         end
     end
     table.sort(rows, function(a, b) return a.price < b.price end)
-    if not ns.Sell.IsFull(false, itemKey) then rows.partial = true end
+    if not ns.Live.IsFull(false, itemKey) then rows.partial = true end
     return rows
 end
 
@@ -512,7 +512,7 @@ local function OnResults(commodity, arg)
     if not p then return end
     local id = commodity and arg or (type(arg) == "table" and arg.itemID)
     if id ~= p.itemID then return end
-    local rows = commodity and ns.Sell.ReadCommodity(p.itemID) or B.ReadItemRows(type(arg) == "table" and arg or p.itemKey, p.key)
+    local rows = commodity and ns.Live.ReadCommodity(p.itemID) or B.ReadItemRows(type(arg) == "table" and arg or p.itemKey, p.key)
     if #rows == 0 and (rows.partial or rows.foreign) then return end   -- Spiel laedt noch: weiter warten (ab 0.20.1)
     B.pending = nil
     B.live[p.key] = { rows = rows, t = time(), commodity = commodity }
@@ -603,7 +603,7 @@ end
 
 -- Laeuft gerade eine eigene Abfrage von Broker? (ab 0.21.1: Anzeige wartet, sonst ueberholen sich die Suchen)
 function B.QueryBusy()
-    local R, S, A = ns.Radar, ns.Sell, ns.Auctions
+    local R, S, A = ns.Radar, ns.Live, ns.Auctions
     if R and R.pending and not R.pending.viaAH then return true end
     if B.pending or B.keyJob or (S and S.pending) then return true end
     if A and A.liveRun and A.liveRun.pending then return true end
@@ -627,15 +627,15 @@ function B.CheckShown(g)
     if g.commodity then
         local ok, n = pcall(ah.GetNumCommoditySearchResults, g.itemID)
         n = ok and tonumber(n) or 0
-        if n == 0 then return ns.Sell.IsFull(true, g.itemID) and g.answered and "ok" or "empty", 0 end
+        if n == 0 then return ns.Live.IsFull(true, g.itemID) and g.answered and "ok" or "empty", 0 end
         local okr, r = pcall(ah.GetCommoditySearchResultInfo, g.itemID, 1)
         if okr and type(r) == "table" and Num(r.itemID) and r.itemID ~= g.itemID then return "foreign", n end
         return "ok", n
     end
-    local rows = ns.Sell.ReadItems(g.itemKey)
+    local rows = ns.Live.ReadItems(g.itemKey)
     if #rows > 0 then return "ok", #rows end
     if rows.foreign then return "foreign", rows.foreign end
-    return (ns.Sell.IsFull(false, g.itemKey) and g.answered) and "ok" or "empty", 0
+    return (ns.Live.IsFull(false, g.itemKey) and g.answered) and "ok" or "empty", 0
 end
 
 -- Nachsehen (ab 0.20.2, ueberarbeitet 0.21.1; KarloDerBaer: Titel richtig, Liste darunter noch vom vorherigen Gegenstand):
@@ -759,7 +759,7 @@ function B.Plan(row)
     if not limit then return nil end
     local qty, cost = ns.Data.BelowLimit(live.rows, limit)
     if row.wish then
-        local _, _, total = ns.Keep.Counts(ns.Data.ItemID(row.key), nil)
+        local _, _, total = ns.Stock.Counts(ns.Data.ItemID(row.key), nil)
         qty = math.min(qty, math.max(0, row.wish - (total or 0)))
         -- Kosten fuer die begrenzte Menge neu rechnen (guenstigste zuerst)
         cost = 0
@@ -875,7 +875,7 @@ function B.Refresh()
     B.itemList:SetData(B.ListRows())
     B.UpdateBadge()
     if B.allChars then
-        local has = ns.Keep.Ledger() ~= nil
+        local has = ns.Stock.Ledger() ~= nil
         B.allChars:SetShown(has); B.allChars.label:SetShown(has)
         B.allChars:SetChecked(mod.db.keepAllChars == true)
     end

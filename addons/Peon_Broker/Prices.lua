@@ -204,8 +204,8 @@ function P.StockLines(key)
     if not led then return out end
     local id = ns.Data.ItemID(key)
     out[#out + 1] = "|cffffd100" .. L.PRICES_STOCK_HEAD .. "|r"
-    if ns.Keep then
-        local bags, bank, total, others = ns.Keep.Counts(id, nil)
+    if ns.Stock then
+        local bags, bank, total, others = ns.Stock.Counts(id, nil)
         out[#out + 1] = L.PRICES_STOCK:format(total or 0, bags or 0, bank or 0, others or 0)
     end
     if type(led.Cost) == "function" then

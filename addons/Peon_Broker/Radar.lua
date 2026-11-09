@@ -739,7 +739,7 @@ local function OnResults(commodity, arg)
     if not p or p.browse then return end
     local id = commodity and arg or (type(arg) == "table" and arg.itemID)
     if id ~= p.itemID then return end
-    local rows = commodity and ns.Sell.ReadCommodity(p.itemID) or ns.Buy.ReadItemRows(type(arg) == "table" and arg or p.itemKey, p.key)
+    local rows = commodity and ns.Live.ReadCommodity(p.itemID) or ns.Buy.ReadItemRows(type(arg) == "table" and arg or p.itemKey, p.key)
     -- leer, aber das Spiel laedt noch (nicht vollstaendig): weiter warten (ab 0.20.1; KarloDerBaer 02.10.2026:
     -- Ausruestung stand als "weg", obwohl das Angebot noch da war)
     if #rows == 0 and (rows.partial or rows.foreign) then
@@ -752,7 +752,7 @@ local function OnResults(commodity, arg)
     R.stats.answered = R.stats.answered + 1
     if R.lastLog and R.lastLog.key == tostring(p.key) then R.lastLog.answered = true end
     R.stats.ansTime = R.stats.ansTime + (Now() - p.sent)
-    p.evKey = type(arg) == "table" and ns.Sell.KeyText(arg) or tostring(arg)
+    p.evKey = type(arg) == "table" and ns.Live.KeyText(arg) or tostring(arg)
     R.Apply(p, rows, commodity)
 end
 
@@ -761,7 +761,7 @@ function R.FromCache(p)
     -- beide Arten versuchen (unsere Vermutung zur Warenart kann falsch sein)
     for _, commodity in ipairs({ true, false }) do
         local ok, rows = pcall(function()
-            if commodity then return ns.Sell.ReadCommodity(p.itemID) end
+            if commodity then return ns.Live.ReadCommodity(p.itemID) end
             return ns.Buy.ReadItemRows(p.itemKey, p.key)
         end)
         if ok and type(rows) == "table" and #rows > 0 then

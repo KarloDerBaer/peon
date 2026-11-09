@@ -27,7 +27,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
     key      = "broker",             -- /peon broker ...
     title    = "Broker",
     db       = "PeonBrokerDB",
-    charDB   = "PeonBrokerCharDB",   -- je Charakter: keep = { [Schluessel] = { n = Menge oder nil (alle), t, name, q, icon } }
+    charDB   = "PeonBrokerCharDB",   -- je Charakter: listSel, recipes (keep bis 0.54, Behalten)
     defaults = {
         minimapShow  = true,
         minimapAngle = 225,
@@ -527,13 +527,15 @@ mod:On("INIT", function()
     mod:Call("Beobachtung", ns.Watch.Init)
     mod:Call("Auktionen", ns.AuctionsAH.Init)
     mod:Call("Haendler", ns.Vendors.Init)
-    mod:Call("Verkaufen", ns.Sell.Init)
-    mod:Call("Behalten", ns.Keep.Init)
     mod:Call("Meine Auktionen", ns.Auctions.Init)
     mod:Call("Einkaufsliste", ns.Buy.Init)
     mod:Call("Radar", ns.Radar.Init)
     mod:Call("Berufe", ns.Craft.Init)
     mod.char.vendorFlip = nil   -- Haendler-Knopf entfaellt (0.24, Feedback #8)
+    -- ab 0.55 (Umbau U12, mit Zustimmung von KarloDerBaer): Behalten entfaellt, die Liste je Charakter wird geloescht,
+    -- ebenso das Gedaechtnis des frueheren Reiters Verkaufen (Laufzeit und Menge je Gegenstand)
+    mod.char.keep = nil
+    mod.acc.sellMem = nil
     mod:Call("Minimap", CreateMinimapButton)
 end)
 

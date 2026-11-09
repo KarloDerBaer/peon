@@ -390,7 +390,7 @@ end
 
 -- Vorrat wie im Reiter Behalten: gesamt, Taschen, Bank, andere Charaktere (nur mit Haken "Twinks mitzaehlen")
 function C.Stock(id)
-    local K = ns.Keep
+    local K = ns.Stock
     if K and K.Counts then
         local ok, bags, bank, total, others = pcall(K.Counts, id)
         if ok and Num(total) then return total, bags or 0, bank or 0, others or 0 end
@@ -681,7 +681,7 @@ function C.StockLines(m)
         others[#others + 1] = L.CRAFT_ST_WARBAND .. ": " .. c.warband
         n = n + c.warband
     end
-    if ns.Keep and ns.Keep.AllChars and ns.Keep.AllChars() then
+    if ns.Stock and ns.Stock.AllChars and ns.Stock.AllChars() then
         for _, t in ipairs(others) do lines[#lines + 1] = t end
     elseif n > 0 then
         lines[#lines + 1] = GREY .. L.CRAFT_ST_OFF:format(n) .. "|r"
@@ -968,7 +968,7 @@ function C.UpdateBlock()
     if Num(fw) and fw > 100 then w = math.min(C.BLOCK_W, fw - 40) end
     b:SetWidth(w)
     -- Haken nur mit Ledger
-    local led = ns.Keep and ns.Keep.Ledger and ns.Keep.Ledger() ~= nil
+    local led = ns.Stock and ns.Stock.Ledger and ns.Stock.Ledger() ~= nil
     b.ck:SetShown(led and true or false)
     b.ckText:SetShown(led and true or false)
     b.ck:SetChecked(DB().keepAllChars == true)

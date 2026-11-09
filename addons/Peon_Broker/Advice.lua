@@ -212,7 +212,7 @@ end
 function A.OnResults(commodity, arg)
     local it = A.current
     if not it or not ns.AHTouch() then return end
-    local S = ns.Sell
+    local S = ns.Live
     if not S then return end
     local rows
     if commodity then

@@ -70,7 +70,7 @@ function G.CompareRows(minPct, onlyStock)
             if onlyStock then
                 local id = D.ItemID(key)
                 local total = 0
-                if ns.Keep then local _, _, t = ns.Keep.Counts(id, nil); total = t or 0 end
+                if ns.Stock then local _, _, t = ns.Stock.Counts(id, nil); total = t or 0 end
                 stockOk = total > 0
             end
             if math.abs(pct) >= (minPct or 0) and stockOk then
