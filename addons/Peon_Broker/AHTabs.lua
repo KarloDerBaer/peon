@@ -27,6 +27,7 @@ T.TABS = {
     { key = "radar", label = "AHTAB_RADAR" },
     { key = "shop",  label = "AHTAB_SHOP" },
 }
+T.PAGE_LEVEL = 500  -- Abstand der Flaeche ueber dem Auktionshaus (Rahmenebene)
 T.tabs = {}          -- key -> Knopf
 T.current = nil      -- offener eigener Reiter oder nil (Blizzard-Ansicht)
 T.blocked = {}       -- gemeldete Blockaden dieser Sitzung: { t, event, fn }
@@ -131,11 +132,40 @@ local function TabTemplate()
     return "AuctionHouseFrameTabTemplate"
 end
 
-local function Select(tab)
-    if PanelTemplates_SelectTab then pcall(PanelTemplates_SelectTab, tab) end
+-- Aussehen eines Reiters: gewaehlt (hell, tiefer) oder nicht. Wie PanelTemplates_SelectTab/DeselectTab, aber ohne
+-- deren Rest (Tooltip, Schrift), damit ein Fehler dort nicht das Aussehen verhindert (0.41.1: Radar sah nie gewaehlt aus).
+local function SideTextures(tab, active)
+    for _, n in ipairs({ "Left", "Middle", "Right" }) do
+        local a, b = tab[n], tab[n .. "Active"]
+        if type(a) == "table" and a.SetShown then a:SetShown(not active) end
+        if type(b) == "table" and b.SetShown then b:SetShown(active) end
+    end
 end
+
+local function Select(tab)
+    if PanelTemplates_SelectTab then
+        local ok, err = pcall(PanelTemplates_SelectTab, tab)
+        if not ok then mod:Dbg("PanelTemplates_SelectTab: " .. tostring(err)) end
+    end
+    SideTextures(tab, true)
+    if tab.Text and tab.Text.SetPoint then
+        tab.Text:ClearAllPoints()
+        tab.Text:SetPoint("CENTER", tab, "CENTER", 0, -3)
+    end
+    if tab.Disable then tab:Disable() end
+end
+
 local function Deselect(tab)
-    if PanelTemplates_DeselectTab then pcall(PanelTemplates_DeselectTab, tab) end
+    if PanelTemplates_DeselectTab then
+        local ok, err = pcall(PanelTemplates_DeselectTab, tab)
+        if not ok then mod:Dbg("PanelTemplates_DeselectTab: " .. tostring(err)) end
+    end
+    SideTextures(tab, false)
+    if tab.Text and tab.Text.SetPoint then
+        tab.Text:ClearAllPoints()
+        tab.Text:SetPoint("CENTER", tab, "CENTER", 0, 2)
+    end
+    if tab.Enable then tab:Enable() end
 end
 
 -- Blizzards Reiter so zeigen, wie Blizzard sie gesetzt hat (liest nur selectedTab)
@@ -224,7 +254,8 @@ function T.Build()
     local p = CreateFrame("Frame", "PeonBrokerAHPage", f)
     p:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -60)
     p:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4)
-    if p.SetFrameLevel and f.GetFrameLevel then p:SetFrameLevel((f:GetFrameLevel() or 1) + 20) end
+    -- Weit ueber Blizzards Inhalt: Teile des Verkaufsfensters (Gegenstand, Knopf, Haken) liegen sonst darueber (0.41.1)
+    if p.SetFrameLevel and f.GetFrameLevel then p:SetFrameLevel((f:GetFrameLevel() or 1) + T.PAGE_LEVEL) end
     if p.EnableMouse then p:EnableMouse(true) end
     local strip = CreateFrame("Frame", nil, p)
     strip:SetPoint("BOTTOMLEFT", p, "TOPLEFT", 58, 0)
@@ -274,8 +305,13 @@ function T.BuildPlainButton()
     local f = AHFrame()
     if not f then return end
     local b = CreateFrame("Button", "PeonBrokerAHPlainButton", f, "UIPanelButtonTemplate")
-    b:SetSize(96, 20)
-    b:SetPoint("TOPRIGHT", f, "TOPRIGHT", -28, -1)
+    b:SetSize(96, 18)
+    -- in der Titelleiste links neben dem Schliessen-Knopf, ueber Blizzards Rahmen (0.41.1: lag vorher darunter)
+    b:SetPoint("TOPRIGHT", f, "TOPRIGHT", -34, -3)
+    if b.SetFrameLevel and f.GetFrameLevel then b:SetFrameLevel((f:GetFrameLevel() or 1) + T.PAGE_LEVEL + 10) end
+    if b.GetFontString and b:GetFontString() and b:GetFontString().SetFontObject then
+        b:GetFontString():SetFontObject("GameFontNormalSmall")
+    end
     b:SetText(L.AH_PLAIN_BUTTON)
     b:SetScript("OnClick", function() mod:Call("Blizzard pur", T.AskPlain, true) end)
     b:SetScript("OnEnter", function(self)

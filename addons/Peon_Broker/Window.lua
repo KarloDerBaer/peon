@@ -1,7 +1,7 @@
 -- Peon_Broker - Window.lua
 -- Broker-Fenster mit Reitern (Bauabschnitt 4), ab 0.9 im Stil des Auktionshauses (Reiter unten). Dockt bei geoeffnetem Auktionshaus rechts an,
--- sonst frei verschiebbar (Position wird gemerkt). Oeffnen: /broker, Minimap-Button, Knopf "Broker"
--- unter dem Auktionshausfenster. Escape schliesst.
+-- sonst frei verschiebbar (Position wird gemerkt). Oeffnen: /broker, Minimap-Button, Peon_Panel
+-- (Knopf "Broker" am Auktionshaus bis 0.41.0). Escape schliesst.
 --
 -- Reiter: Start (ab 0.24), Verkaufen, Behalten, Meine Auktionen, Einkaufsliste, Radar (ab 0.14), Preise. Der Reiter "Buch"
 -- entfaellt ab 0.22 (Buch in Peon_Ledger).
@@ -299,22 +299,11 @@ end
 ---------------------------------------------------------------------------
 -- Ereignisse
 ---------------------------------------------------------------------------
--- Knopf "Broker" links neben dem Scan-Knopf unter dem Auktionshausfenster
-function W.CreateAHButton()
-    if W.ahButton or not ns.AHTouch() then return end
-    local parent = rawget(_G, "AuctionHouseFrame")
-    if not parent then return end
-    local b = CreateFrame("Button", "PeonBrokerWindowButton", parent, "UIPanelButtonTemplate")
-    b:SetSize(90, 22)
-    b:SetPoint("TOPLEFT", parent, "BOTTOMLEFT", 2, -2)
-    b:SetText(L.WINDOW_BUTTON)
-    b:SetScript("OnClick", function() mod:Call("Fenster", W.Toggle) end)
-    W.ahButton = b
-end
+-- Der Knopf "Broker" unter dem Auktionshaus entfaellt ab 0.41.1 (Umbau, Konzept Abschnitt 13): er lag hinter
+-- Blizzards Reitern. Das Fenster oeffnet der Minimap-Button, Peon_Panel oder /broker.
 
 function W.Init()
     mod:RegisterEvent("AUCTION_HOUSE_SHOW", function()
-        W.CreateAHButton()
         if W.IsOpen() then
             W.Place()                                     -- schon offen: ans Auktionshaus andocken
         elseif mod.db.windowWithAH then

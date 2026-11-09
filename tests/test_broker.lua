@@ -486,10 +486,9 @@ check(market.items["15000:1047"].nm == "Schwert des Baeren" and market.items["15
 check(D.LinkFromKey(2770) == "item:2770" and D.KeyFromLink(D.LinkFromKey("15000:1047")) == "15000:1047", "Link aus Schluessel und zurueck")
 check(Win.Lower("ÄÖÜ Erz") == "äöü erz", "Suche: Umlaute klein")
 fire("AUCTION_HOUSE_SHOW")
-local wb = _G.PeonBrokerWindowButton
-check(wb and wb.parent == AuctionHouseFrame and wb.text == "Broker", "Knopf Broker am Auktionshaus")
+check(_G.PeonBrokerWindowButton == nil, "0.41.1: kein Knopf Broker mehr am Auktionshaus")
 check(not (_G.PeonBrokerFrame and _G.PeonBrokerFrame.shown), "Fenster oeffnet nicht von selbst (Standard)")
-wb.scripts.OnClick(wb)
+Win.Open()
 local wf = _G.PeonBrokerFrame
 check(wf.shown and Win.docked and wf.points[1][2] == AuctionHouseFrame and wf.points[1][3] == "TOPRIGHT", "Knopf oeffnet Fenster, rechts am Auktionshaus angedockt")
 check(UISpecialFrames[#UISpecialFrames] == "PeonBrokerFrame", "Escape schliesst das Fenster")
@@ -657,7 +656,7 @@ WithBlizzard(true)
 
 fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW")
 check(PeonBrokerDB.commodity["15000:1047"] == false and PeonBrokerDB.commodity[2770] == true, "Warenart der Taschen vom Spiel")
-wb.scripts.OnClick(wb)
+Win.Toggle()
 check(wf.shown and Win.current == "start", "am Auktionshaus oeffnet Start (ab 0.24)")
 local sellLine for _, l in ipairs(ns.Start.list:GetItems()) do if l.tab == "sell" then sellLine = l end end
 check(sellLine and plain(sellLine.text):find("2 Gegenstände", 1, true), "Start: 2 lohnende Gegenstaende in den Taschen (" .. plain(sellLine and sellLine.text or "") .. ")")

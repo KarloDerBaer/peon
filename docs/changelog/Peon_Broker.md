@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.41.1
+
+Kurz: Die neuen Reiter Radar und Einkaufen decken das Auktionshaus jetzt ganz ab, der gewählte Reiter ist hervorgehoben, und der Knopf „Blizzard pur“ ist oben rechts in der Titelleiste zu sehen. Der Knopf „Broker“ unter dem Auktionshaus entfällt.
+
+- 0.41.1 (09.11.2026, nach dem ersten Test von KarloDerBaer): Die Prüfung war sauber (alle Werte „sauber“, keine Blockade), die Oberfläche hatte drei Fehler.
+  - **Fläche über alle Blizzard-Elemente:** Gegenstandsfeld, „Auktion erstellen“ und „Sofortkaufmodus“ aus dem Verkaufsfenster lagen über Brokers Fläche. Die Fläche liegt jetzt 500 Ebenen über dem Auktionshaus statt 20 (`T.PAGE_LEVEL`).
+  - **Gewählter Reiter hervorgehoben:** Radar und Einkaufen sahen nie gewählt aus. Broker stellt die Seitenteile der Reiter (`Left/Middle/Right` und `…Active`) jetzt selbst um, zusätzlich zu `PanelTemplates_SelectTab`. Fehler dort landen im Debug-Log.
+  - **Knopf „Blizzard pur“ sichtbar:** lag unter Blizzards Rahmen. Jetzt in der Titelleiste links neben dem Schließen-Knopf, über dem Rahmen, kleinere Schrift.
+  - **Knopf „Broker“ unter dem Auktionshaus entfällt** (laut Konzept ohnehin geplant): Er lag halb hinter Blizzards Reitern (roter Rest links neben „Kaufen“). Das Fenster öffnen Minimap-Button, Peon_Panel und `/broker`.
+  - **Im Spiel prüfen:** Verkaufen wählen, dann Radar: Ist nichts vom Verkaufsfenster mehr zu sehen? Ist Radar hervorgehoben wie Blizzards gewählter Reiter? Ist „Blizzard pur“ oben rechts zu sehen, und klappt an und aus (alternativ `/broker pur`)?
+
 ## 0.41.0
 
 Kurz: Im Auktionshaus gibt es zwei neue, noch leere Reiter „Radar“ und „Einkaufen“ zum Ausprobieren. Oben rechts schaltet der Knopf „Blizzard pur“ Broker im Auktionshaus ganz ab, falls einmal etwas blockiert.
