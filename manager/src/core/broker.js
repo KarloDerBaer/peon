@@ -72,6 +72,8 @@ function importFile(db, file) {
     for (const [k, u] of Object.entries(acc.watchGone || {})) gone[String(k)] = Number(u) || 0;
     res.watch = { items, gone };
   }
+  // Haendler (ab Broker 0.52, Manager 0.25): je NPC Name, Zone, Ort, Zeit und Angebote
+  if (acc && acc.vendors && typeof acc.vendors === 'object') res.vendors = acc.vendors;
   if (!acc || typeof acc.markets !== 'object') return res;
   const cleared = new Set();   // zwei Namen desselben Markts: den ersten nicht wieder loeschen
   const now = Math.floor(Date.now() / 1000);

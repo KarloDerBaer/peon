@@ -146,6 +146,24 @@ test('Beobachtung (Manager 0.24): Abgleich mit dem Spiel, neuere Aenderung gewin
   svc.close();
 });
 
+test('Haendler (Manager 0.25): aus dem Spiel, neuerer Besuch gewinnt, Ansicht mit AH-Preis', () => {
+  const { svc, b } = setup();
+  const v1 = { n: 'Gretta', z: 'Eisenschmiede', x: 50, y: 25, t: NOW - 100, items: { 2770: { p: 50, q: 1 }, 15000: { q: 1, c: [{ n: 25, name: 'Zeichen' }], req: 'Ehrfürchtig' } } };
+  assert.equal(b.vendorsFromGame([{ vendors: { 4241: v1 } }]), true);
+  assert.equal(b.vendorsFromGame([{ vendors: { 4241: { ...v1, t: NOW - 200, n: 'Alt' } } }]), false);
+  const v = b.vendorView(M);
+  assert.equal(v.vendors, 1);
+  assert.equal(v.offers, 2);
+  const cu = v.rows.find((r) => r.key === '2770');
+  assert.equal(cu.vendor, 'Gretta');
+  assert.equal(cu.price, 50);
+  const tab = v.rows.find((r) => r.key === '15000');
+  assert.equal(tab.price, null);
+  assert.equal(tab.costs[0].name, 'Zeichen');
+  assert.equal(tab.req, 'Ehrfürchtig');
+  svc.close();
+});
+
 test('Beobachtung steht in Data.lua', () => {
   const { svc, b, ad } = setup();
   b.setFavorite('2770', true);

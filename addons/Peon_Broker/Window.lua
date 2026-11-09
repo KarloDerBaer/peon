@@ -23,6 +23,7 @@ W.TOP = 64            -- Abstand der Reiter-Inhalte vom oberen Rand (Platz fuer 
 W.TABS = {
     { key = "buy",      label = "TAB_LISTS" },
     { key = "market",   label = "TAB_MARKET" },
+    { key = "vendors",  label = "TAB_VENDORS" },   -- ab 0.52 (U11)
     { key = "prices",   label = "TAB_ITEMS" },
     { key = "watch",    label = "TAB_WATCH" },
     { key = "sources",  label = "TAB_SOURCES" },

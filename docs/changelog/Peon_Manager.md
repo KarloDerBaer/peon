@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.25.0
+
+Kurz: Neue Seite „Händler“: Alles, was Broker im Spiel bei Händlern gesehen hat, mit Ort, Voraussetzungen und dem Preis im Auktionshaus.
+
+- 0.25.0 (09.11.2026, Umbau Broker U11): **Händler.** Der Manager liest `PeonBrokerDB.vendors` aus `Peon_Broker.lua` (Broker 0.52.0), je Händler gewinnt der neuere Besuch (`meta` `vendors`). Seite `views/Vendors.vue` unter Broker: Suche, Auswahl der Zone, „Nur mit AH-Gewinn“, Spalten Gegenstand, Preis (Gold oder andere Währung), Händler, Zone mit Koordinaten, Braucht, AH (grün, wenn das Auktionshaus nach 5 % Anteil mehr bringt). Klick öffnet den Gegenstand. Aufruf `vendors(market)`, `vendorView` im Broker Client.
+  - **Im echten Programm prüfen:** Nach einem Händlerbesuch und `/reload` im Spiel erscheint der Händler auf der Seite.
+
 ## 0.24.0
 
 Kurz: Favoriten heißen jetzt Beobachtung und werden mit dem Spiel abgeglichen: Was du im Spiel beobachtest, steht auch im Manager, und umgekehrt.

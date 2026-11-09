@@ -205,6 +205,7 @@ T.BLOCKS = {
     { key = "sales",   fmts = { "day", "hour" },                when = "shift" },
     { key = "sell",    fmts = { "net", "suggest", "deposit" },  when = "shift" },
     { key = "vendor",  fmts = { "unit", "stack" },              when = "shift" },
+    { key = "merchant", fmts = nil,                              when = "shift" },   -- ab 0.52 (U11): Kaufpreis beim Haendler
     { key = "neutral", fmts = { "pct", "price" },               when = "shift" },
     { key = "craft",   fmts = nil,                               when = "shift" },
     { key = "own",     fmts = { "rate", "count" },              when = "shift" },
@@ -337,6 +338,7 @@ function T.Context(key, link, count)
     local rate, sold, back = T.SellRate(ns.Data.ItemID(key))
     if sold then ctx.rate = { rate = rate, sold = sold, back = back } end
     ctx.onList = T.OnShopList(key)
+    if ns.Vendors then ctx.merchant = ns.Vendors.TooltipText(ns.Data.ItemID(key)) end
     return ctx
 end
 
@@ -420,6 +422,9 @@ function T.BlockText(key, fmt, ctx)
         if fmt == "price" then return L.TT_NEUTRAL, T.Money(ne.m) end
         local homeMin = e and not e.gone and e.m or nil
         return L.TT_NEUTRAL, T.NeutralText(ne, homeMin)
+    elseif key == "merchant" then
+        if not ctx.merchant then return nil end
+        return L.TT_MERCHANT, ctx.merchant
     elseif key == "craft" then
         if not ctx.craft then return nil end
         return L.CRAFT_TT_LEFT, ctx.craft
@@ -593,7 +598,7 @@ function T.SampleContext()
     local v = { ah = true, erl = math.floor(95 * 20 * 0.95), entry = 95, vp = 95, eg = 20, state = "good", hw = 100, band = band }
     return { preview = true, count = 20, hp = 5, e = e, v = v, band = band, seen = e.t - 720, cut = 0.05, duration = 8,
         sr = { perHour = 12.5, rate = 0.7, level = 3 }, neutral = { m = 130, t = e.t }, craft = L.TT_SAMPLE_CRAFT,
-        rate = { rate = 0.67, sold = 4, back = 2 }, onList = true }
+        rate = { rate = 0.67, sold = 4, back = 2 }, onList = true, merchant = L.TT_SAMPLE_MERCHANT }
 end
 
 -- Zeilen der Vorschau als Text: "Links   Rechts"

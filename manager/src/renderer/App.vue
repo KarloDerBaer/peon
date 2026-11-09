@@ -9,6 +9,7 @@ import Chances from './views/Chances.vue';
 import Modules from './views/Modules.vue';
 import Reports from './views/Reports.vue';
 import Shopping from './views/Shopping.vue';
+import Vendors from './views/Vendors.vue';
 import UpdateDialog from './components/UpdateDialog.vue';
 import Star from './components/Star.vue';
 import { ago, qualityColor } from './util.js';
@@ -38,6 +39,7 @@ const ALL = [
   { key: 'items', label: 'Gegenstände' },
   { key: 'favorites', label: 'Beobachtung' },
   { key: 'shopping', label: 'Einkaufsliste (WIP)' },
+  { key: 'vendors', label: 'Händler' },
   { key: 'chances', label: 'Chancen' },
   { key: 'sources', label: 'Quellen' },
   { key: 'modules', label: 'Updates', always: true },
@@ -238,6 +240,7 @@ onMounted(() => {
           <Items v-else-if="view === 'items'" key="items" :market="current" :now="now" :stamp="stampOf('items')" :settings="settings" @open="openItem" @save="saveQuiet" />
           <Items v-else-if="view === 'favorites'" key="favorites" favorites :market="current" :now="now" :stamp="stampOf('favorites')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />
           <Shopping v-else-if="view === 'shopping'" :market="current" :stamp="stampOf('shopping')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />
+          <Vendors v-else-if="view === 'vendors'" :market="current" :now="now" :stamp="stampOf('vendors')" @open="openItem" />
           <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @loaded="itemLoaded" @go="go($event)" @open="openItem" />
           <Chances v-else-if="view === 'chances'" :market="current" :now="now" :stamp="stampOf('chances')" :settings="settings" @open="openItem" @save="saveQuiet" />
           <Sources v-else-if="view === 'sources'" :data="data" :market="current" :now="now" :stamp="stamp" @go="go($event)" />

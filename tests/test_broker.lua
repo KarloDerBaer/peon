@@ -614,9 +614,9 @@ check(wf.shown and Win.docked and wf.points[1][2] == AuctionHouseFrame and wf.po
 check(UISpecialFrames[#UISpecialFrames] == "PeonBrokerFrame", "Escape schliesst das Fenster")
 local nTabs, open = 0, {}
 for _, b in ipairs(Win.tabButtons) do nTabs = nTabs + 1; if not b.disabled then open[#open + 1] = b.text end end
-check(nTabs == 5 and #open == 5 and open[1] == "Einkaufslisten" and open[2] == "Markt" and open[3] == "Gegenstände" and open[4] == "Beobachtung" and open[5] == "Quellen",
-  "U10: fuenf Reiter, nur was ohne Auktionshaus geht")
-check(Win.current == "prices" and Win.tabButtons[3].locked, "U10: Fenster oeffnet bei Gegenstaende (zuletzt gewaehlt)")
+check(nTabs == 6 and #open == 6 and open[1] == "Einkaufslisten" and open[2] == "Markt" and open[3] == "Händler" and open[4] == "Gegenstände" and open[5] == "Beobachtung" and open[6] == "Quellen",
+  "U10/U11: sechs Reiter, nur was ohne Auktionshaus geht")
+check(Win.current == "prices" and Win.tabButtons[4].locked, "U10: Fenster oeffnet bei Gegenstaende (zuletzt gewaehlt)")
 Win.Select("start")   -- alte Seite ohne Reiter, bis U12 noch erreichbar
 -- Startseite: eine Zeile je Bereich, Klick springt zum Reiter
 local St = ns.Start
@@ -628,8 +628,8 @@ check(plain(byArea["Scan"].text):find("Letzter Scan", 1, true), "Scan-Stand")
 St.Click(byArea["Verkaufen"])
 check(Win.current == "sell", "Klick auf Verkaufen: Reiter Verkaufen")
 Win.Select("start")
-Win.tabButtons[3].scripts.OnClick(Win.tabButtons[3])
-check(Win.current == "prices" and Win.tabButtons[3].locked and not Win.tabButtons[1].locked, "Reiter Gegenstaende gewaehlt und markiert")
+Win.tabButtons[4].scripts.OnClick(Win.tabButtons[4])
+check(Win.current == "prices" and Win.tabButtons[4].locked and not Win.tabButtons[1].locked, "Reiter Gegenstaende gewaehlt und markiert")
 local items = P.list:GetItems()
 check(#items == 4 and items[1].name == "Kupfererz" and items[4].name == "Schwert des Baeren", "Liste: alle Gegenstaende nach Name")
 check(P.count.text == "4 von 4 Gegenständen", "Zaehler")
@@ -3321,6 +3321,59 @@ end)()
   local sl = ns.Prices.StockLines(2770)
   check(#sl >= 3 and plain(sl[1]) == "Mein Bestand" and plain(table.concat(sl, " ")):find("42c", 1, true), "U10: Mein Bestand mit Vorrat und Kosten aus Ledger")
   Peon.modules.ledger = nil
+  Win.Select("prices")
+end)()
+
+-- ===== Umbau U11 (0.52.0): Haendler =====
+;(function()
+  local V = ns.Vendors
+  check(V.NpcID("Creature-0-4170-0-12-3178-0000AB12CD") == 3178 and V.NpcID("Player-1-0ABC") == nil, "U11: NPC-Nummer aus der GUID")
+  -- Nachbau eines Haendlers mit drei Angeboten: Gold, Stapel, andere Waehrung mit Voraussetzung
+  local offers = {
+    { id = 2770, price = 50, stack = 1, avail = -1 },
+    { id = 159, price = 25, stack = 5, avail = 3 },
+    { id = 15000, price = 0, stack = 1, avail = -1, ext = true },
+  }
+  local old = { GetMerchantNumItems, GetMerchantItemID, C_MerchantFrame, GetMerchantItemCostInfo, GetMerchantItemCostItem, C_TooltipInfo, UnitGUID, C_Map, UnitName }
+  GetMerchantNumItems = function() return #offers end
+  GetMerchantItemID = function(i) return offers[i].id end
+  C_MerchantFrame = { GetItemInfo = function(i) local o = offers[i]; return { price = o.price, stackCount = o.stack, numAvailable = o.avail, hasExtendedCost = o.ext } end }
+  GetMerchantItemCostInfo = function(i) return offers[i].ext and 1 or 0 end
+  GetMerchantItemCostItem = function(i, j) return "tex", 25, nil, "Zeichen der Dämmerung" end
+  C_TooltipInfo = { GetMerchantItem = function(i)
+    if i ~= 3 then return { lines = { { leftText = "x" } } } end
+    return { lines = { { leftText = "Wappenrock" }, { leftText = "Benötigt Argentumdämmerung - Ehrfürchtig", leftColor = { r = 1, g = 0.1, b = 0.1 } } } }
+  end }
+  UnitGUID = function(u) return u == "npc" and "Creature-0-1-2-3-4241-0001" or nil end
+  UnitName = function(u) if u == "npc" then return "Gretta Fingerfett" end return "Mirel" end
+  C_Map = { GetBestMapForUnit = function() return 87 end, GetMapInfo = function() return { name = "Eisenschmiede" } end,
+    GetPlayerMapPosition = function() return { GetXY = function() return 0.5, 0.25 end } end }
+  PeonBrokerDB.vendors = nil
+  fire("MERCHANT_SHOW")
+  local v = PeonBrokerDB.vendors and PeonBrokerDB.vendors[4241]
+  check(v and v.n == "Gretta Fingerfett" and v.z == "Eisenschmiede" and v.x == 50 and v.y == 25, "U11: Haendler mit Name, Zone und Ort")
+  check(v.items[2770].p == 50 and v.items[159].p == 5 and v.items[159].q == 5 and v.items[159].lim == 3, "U11: Preis je Stueck, Stapel, begrenzte Menge")
+  check(v.items[15000].p == nil and v.items[15000].c[1].n == 25 and v.items[15000].c[1].name == "Zeichen der Dämmerung", "U11: andere Waehrung")
+  check(v.items[15000].req and v.items[15000].req:find("Ehrfürchtig", 1, true), "U11: Voraussetzung aus roter Tooltip-Zeile")
+  -- hoechstens alle 2 Sek. (MERCHANT_UPDATE)
+  offers[1].price = 60
+  fire("MERCHANT_UPDATE")
+  check(PeonBrokerDB.vendors[4241].items[2770].p == 50, "U11: kurz danach nicht neu gelesen")
+  now = now + 3
+  fire("MERCHANT_UPDATE")
+  check(PeonBrokerDB.vendors[4241].items[2770].p == 60, "U11: nach 2 Sek. neu gelesen")
+  -- Tooltip-Baustein und Liste
+  check(plain(V.TooltipText(2770)) == "60c (Gretta Fingerfett, Eisenschmiede)", "U11: Beim Haendler: " .. plain(V.TooltipText(2770) or ""))
+  check(plain(V.PriceText(v.items[15000])) == "25 Zeichen der Dämmerung", "U11: Preistext andere Waehrung")
+  local rows = V.Rows("", false)
+  check(#rows == 3, "U11: Liste je Haendler und Gegenstand")
+  local cu for _, r in ipairs(rows) do if r.key == 2770 then cu = r end end
+  check(cu and cu.ah and cu.profit, "U11: AH nach Anteil teurer als beim Haendler -> Gewinn")
+  check(#V.Rows("gretta", true) >= 1 and #V.Rows("gibtsnicht", false) == 0, "U11: Suche und Filter")
+  Win.Select("vendors")
+  check(V.list and #V.list:GetItems() == 3 and plain(V.count.text):find("1 Händler", 1, true), "U11: Reiter Haendler")
+  check(plain(V.Summary()):find("3 Angeboten", 1, true), "U11: Zusammenfassung fuer Quellen")
+  GetMerchantNumItems, GetMerchantItemID, C_MerchantFrame, GetMerchantItemCostInfo, GetMerchantItemCostItem, C_TooltipInfo, UnitGUID, C_Map, UnitName = unpack(old, 1, 9)
   Win.Select("prices")
 end)()
 

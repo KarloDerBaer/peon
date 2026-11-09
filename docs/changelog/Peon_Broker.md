@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.52.0
+
+Kurz: Broker merkt sich jetzt alles, was du bei Händlern siehst: Ware, Preis (auch in Abzeichen oder Marken), begrenzte Menge, Voraussetzungen wie Ruf und den Ort. Der neue Reiter „Händler“ zeigt die Liste mit dem Preis im Auktionshaus, der Tooltip auf Wunsch den günstigsten Händler.
+
+- 0.52.0 (09.11.2026): **Umbau U11, Händler** (Konzept Abschnitt 8.4). Neue Datei `Vendors.lua`.
+  - Beim Öffnen eines Händlers (und bei Änderungen, höchstens alle 2 Sek.) liest Broker alle Angebote: Preis je Stück in Gold, Stück je Kauf, andere Währung oder Gegenstände (`GetMerchantItemCostInfo/Item`), begrenzte Menge, Voraussetzungen (rote Zeilen im Tooltip des Angebots), dazu Name, NPC-Nummer (aus der GUID), Zone und Koordinaten. Gespeichert in `PeonBrokerDB.vendors[npcID]`. Der Kaufpreis für das Berufsfenster (`merchant`) bleibt wie bisher.
+  - **Reiter „Händler“** im Broker-Fenster: Suche, „Nur mit AH-Gewinn“, Spalten Preis, Händler, Zone, Braucht, AH (grün mit „+“, wenn das Auktionshaus nach Anteil mehr bringt). Klick zeigt den Gegenstand.
+  - **Tooltip-Baustein „Beim Händler“:** günstigster Händler mit Preis, Name und Zone (Standard mit Umschalt).
+  - Quellen nennen Zahl der Händler, Angebote und den ältesten Besuch.
+  - Der Peon Manager liest die Händler aus `Peon_Broker.lua` (Manager 0.25.0), die Bridge braucht dafür nichts.
+  - **Im Spiel prüfen:** einige Händler öffnen (auch einen Rüstmeister mit Ruf und Marken), dann Reiter Händler und Tooltip mit Umschalt.
+
 ## 0.51.0
 
 Kurz: Das Broker-Fenster enthält jetzt nur noch, was ohne Auktionshaus geht: Einkaufslisten, Markt, Gegenstände, Beobachtung und Quellen. Verkaufen, Auktionen und Radar findest du im Auktionshaus selbst.

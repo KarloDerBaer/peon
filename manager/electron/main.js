@@ -360,6 +360,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('itemInfo', (_e, key) => (svc.broker ? svc.broker.itemTip(String(key), blizzardClient()) : null));
     ipcMain.handle('chances', (_e, market, days) => (svc.broker ? svc.broker.chances(String(market), Number(days) || null) : null));
     ipcMain.handle('favorites', () => (svc.broker ? svc.broker.favorites() : []));
+    ipcMain.handle('vendors', (_e, market) => (svc.broker ? svc.broker.vendorView(String(market)) : { rows: [], vendors: 0, offers: 0 }));
     ipcMain.handle('setFavorite', (_e, key, on) => svc.broker.setFavorite(String(key), !!on));
     const shopChanged = async (r) => { const v = await r; send('changed', { what: 'einkaufsliste' }); return v; };
     ipcMain.handle('shopView', (_e, market) => (svc.broker ? svc.broker.shopView(String(market)) : { lists: [] }));

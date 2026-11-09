@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('peon', {
   installManagerUpdate: () => ipcRenderer.invoke('installManagerUpdate'),
   updateInfo: () => ipcRenderer.invoke('updateInfo'),
   favorites: () => ipcRenderer.invoke('favorites'),
+  vendors: (market) => ipcRenderer.invoke('vendors', market),
   setFavorite: (key, on) => ipcRenderer.invoke('setFavorite', key, on),
   shopView: (market) => ipcRenderer.invoke('shopView', market),
   shopBuyable: (market) => ipcRenderer.invoke('shopBuyable', market),

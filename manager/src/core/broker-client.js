@@ -80,6 +80,7 @@ class BrokerClient {
     sum.broker = this.importBroker();
     if (sum.broker.some((b) => b.shop)) this.shopFromGame(sum.broker);
     if (sum.broker.some((b) => b.watch)) this.watchFromGame(sum.broker);
+    if (sum.broker.some((b) => b.vendors)) this.vendorsFromGame(sum.broker);
     const markets = this.buildMarkets();
     // Bestaetigen nur, was sicher in der Datenbank ist
     const known = ids.filter((id) => this.db.prepare('SELECT 1 FROM snapshots WHERE id = ?').get(id));
@@ -208,7 +209,7 @@ class BrokerClient {
       try {
         const r = broker.importFile(this.db, f.file);
         seen[f.file] = mt;
-        out.push({ file: f.file, markets: r.markets, shop: r.shop, watch: r.watch });
+        out.push({ file: f.file, markets: r.markets, shop: r.shop, watch: r.watch, vendors: r.vendors });
         const n = r.markets.reduce((a, m) => a + m.items, 0);
         log(this.db, 'broker', true, `Broker-Verlauf: ${n} Gegenstände in ${r.markets.length} ${r.markets.length === 1 ? 'Markt' : 'Märkten'}`);
       } catch (e) {
@@ -501,6 +502,47 @@ class BrokerClient {
     const gone = this.watchGone();
     if (!Object.keys(items).length && !Object.keys(gone).length) return null;
     return { items, gone };
+  }
+
+  // ---------- Haendler (ab 0.25, Umbau Broker U11) ----------
+  // Aus Peon_Broker.lua: je NPC gewinnt der neuere Besuch (t). Gespeichert in meta "vendors".
+  vendorsFromGame(results) {
+    const st = this.meta('vendors') || {};
+    let changed = false;
+    for (const r of results) {
+      for (const [npc, v] of Object.entries(r.vendors || {})) {
+        if (!v || typeof v !== 'object') continue;
+        const old = st[npc];
+        if (!old || (Number(v.t) || 0) > (Number(old.t) || 0)) { st[npc] = v; changed = true; }
+      }
+    }
+    if (changed) this.meta('vendors', st);
+    return changed;
+  }
+
+  // Ansicht: eine Zeile je Haendler und Gegenstand, mit dem guenstigsten Angebot im Markt
+  vendorView(marketKey) {
+    const st = this.meta('vendors') || {};
+    const mid = this.marketId(marketKey);
+    const list = mid == null ? { items: [] } : this.listOf(mid, marketKey);
+    const byKey = new Map(list.items.map((x) => [String(x.key), x]));
+    const rows = [];
+    let offers = 0, oldest = null;
+    for (const [npc, v] of Object.entries(st)) {
+      if (v.t && (!oldest || v.t < oldest)) oldest = v.t;
+      for (const [id, e] of Object.entries(v.items || {})) {
+        offers += 1;
+        const cur = byKey.get(String(id));
+        const info = this.db.prepare('SELECT name, quality FROM items WHERE key = ?').get(String(id));
+        const ah = cur && cur.min != null ? cur.min : null;
+        const price = e && e.p != null ? Number(e.p) : null;
+        rows.push({ npc, key: String(id), name: (cur && cur.name) || (info && info.name) || `Gegenstand ${id}`, quality: (cur && cur.quality) ?? (info && info.quality),
+          price, costs: Array.isArray(e && e.c) ? e.c : Object.values((e && e.c) || {}), req: e && e.req, lim: e && e.lim,
+          vendor: v.n || '?', zone: v.z || '', x: v.x ?? null, y: v.y ?? null, ah, profit: ah != null && price != null && ah * 0.95 > price });
+      }
+    }
+    rows.sort((a, b) => String(a.name).localeCompare(String(b.name), 'de'));
+    return { rows, vendors: Object.keys(st).length, offers, oldest };
   }
 
   // ---------- Einkaufslisten ----------

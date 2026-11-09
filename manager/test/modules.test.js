@@ -31,7 +31,7 @@ test('Liste der Module: Broker Client mit Addons, Kanal und Ansichten', () => {
   assert.equal(m.title, 'Peon Broker Client');
   assert.deepEqual(m.needs, ['Peon_Broker', 'Peon_Bridge']);
   assert.deepEqual(m.channels, ['broker']);
-  assert.deepEqual(m.views, ['overview', 'items', 'favorites', 'shopping', 'chances', 'sources']);
+  assert.deepEqual(m.views, ['overview', 'items', 'favorites', 'shopping', 'vendors', 'chances', 'sources']);
   assert.deepEqual(modules.channels({ modules: { 'broker-client': { enabled: true } } }), { broker: true });
   assert.deepEqual(modules.channels({ modules: { 'broker-client': { enabled: false } } }), {});
   assert.deepEqual(modules.views({}), []);
@@ -150,7 +150,7 @@ test('Installieren, Entfernen, Daten loeschen, wieder installieren', () => {
   let list = svc.setModule('broker-client', true);
   assert.equal(list[0].enabled, true);
   assert.ok(svc.broker && fs.existsSync(path.join(dir, 'broker-client.db')));
-  assert.deepEqual(svc.overview().views, ['overview', 'items', 'favorites', 'shopping', 'chances', 'sources']);
+  assert.deepEqual(svc.overview().views, ['overview', 'items', 'favorites', 'shopping', 'vendors', 'chances', 'sources']);
   svc.broker.importGame();
   assert.deepEqual(dataLua(wow).channels, { broker: true }, 'Kanal broker frei');
   svc.broker.db.prepare("INSERT INTO markets(key, created) VALUES ('Realm / Allianz', 1)").run();
