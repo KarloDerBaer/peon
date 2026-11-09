@@ -21,6 +21,7 @@ const sales = require('./sales');
 const chances = require('./chances');
 const { BlizzardImport } = require('./blizzard-import');
 const { ItemInfo } = require('./item-info');
+const { SnapIndex } = require('./snapindex');
 const crypto = require('node:crypto');
 
 const TIP_WANT_MAX = 1000;        // so viele genaue Werte je Laden im Spiel bestellen, der Rest kommt danach
@@ -39,6 +40,7 @@ class BrokerClient {
     this.lastFiles = [];
     this.info = new ItemInfo(this.db, () => this.now());
     this.api = new BlizzardImport(this);
+    this.snaps = new SnapIndex(this.db);   // ab 0.23.0: Verlauf einmal lesen, danach nur neue Staende
   }
 
   get settings() { return this.host.settings; }
@@ -124,7 +126,7 @@ class BrokerClient {
     for (const m of this.db.prepare('SELECT id, key FROM markets').all()) {
       try { sales.updateMarket(this.db, m.id, now); } catch (e) { log(this.db, 'absatz', false, `${m.key}: ${e.message}`); }
       const lt = this.bands(m.id);
-      const st = sales.marketStats(this.db, m.id, now);
+      const st = this.statsOf(m.id);
       try { chances.updateMarket(this.db, m.id, lt.items, now, lt.shifts, st); } catch (e) { log(this.db, 'chancen', false, `${m.key}: ${e.message}`); }
       this.listOf(m.id, m.key);   // Liste fuer die Ansichten gleich mitrechnen, dann oeffnet sie sofort
       const cur = this.currentOf(m.id);
@@ -250,6 +252,7 @@ class BrokerClient {
     const hourDays = this.settings.hourDays > 0 ? Math.max(retention.MIN_HOUR_DAYS, this.settings.hourDays) : 0;
     yield* retention.pruneSteps(this.db, { keepDays: this.settings.keepDays, hourDays, now: this.now() }, res);
     res.pairs = sales.prune(this.db, this.now());
+    this.snaps.reset();   // Zeilen sind verdichtet oder geloescht: beim naechsten Mal ganz neu lesen
     pruneLogs(this.db, 30, this.now() * 1000);
     this.db.prepare('DELETE FROM opp_snap WHERE t < ?').run(this.now() - 30 * 86400);
     this.db.prepare('DELETE FROM opp_scan WHERE t < ?').run(this.now() - 30 * 86400);
@@ -270,13 +273,24 @@ class BrokerClient {
     return `${broker.dayOf(this.now())}|${last ? last.id : ''}|${n}|${JSON.stringify(this.meta('brokerFiles') || {})}`;
   }
 
+  // Absatz aller Gegenstaende eines Markts, einmal je Stand gerechnet (ab 0.23.0, vorher zweimal je Einlesen)
+  statsOf(mid) {
+    const sig = this.dataSig(mid);
+    this.statsCache = this.statsCache || new Map();
+    const c = this.statsCache.get(mid);
+    if (c && c.sig === sig) return c.value;
+    const value = sales.marketStats(this.db, mid, this.now());
+    this.statsCache.set(mid, { sig, value });
+    return value;
+  }
+
   // Ueblicher Bereich aller Gegenstaende eines Markts, einmal je Stand gerechnet
   bands(mid) {
     const sig = this.dataSig(mid);
     this.bandCache = this.bandCache || new Map();
     const c = this.bandCache.get(mid);
     if (c && c.sig === sig) return c.value;
-    const days = longterm.dayValues(this.db, mid, broker.dayOf(this.now()));
+    const days = this.snaps.dayValues(mid, this.now(), longterm.DAYS);
     const value = { ...longterm.marketLongTerm(this.db, mid, this.now(), days), days };
     value.shifts = longterm.shifts(this.db, mid, this.now(), value.items);   // F54
     this.bandCache.set(mid, { sig, value });
@@ -285,8 +299,8 @@ class BrokerClient {
 
   // Ganze Gegenstandsliste rechnen (teuer, ueber alle Momentaufnahmen)
   computeList(marketKey, mid) {
-    const r = history.itemList(this.db, marketKey, this.now());
-    const st = sales.marketStats(this.db, mid, this.now());
+    const r = history.itemList(this.db, marketKey, this.now(), this.snaps.listParts(mid, this.now()));
+    const st = this.statsOf(mid);
     const bd = this.bands(mid);
     const lt = bd.items;
     const comm = new Map(this.db.prepare('SELECT key, commodity, variant FROM items').all().map((x) => [x.key, x.variant ? 0 : x.commodity]));

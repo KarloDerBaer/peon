@@ -44,27 +44,42 @@ function avgOf(dayMap, fromDay, toDay) {
   return n ? { value: s / n, days: n } : null;
 }
 
+// Broker-Tageswerte in die Tageswerte einmischen (nur Tage ohne eigene Werte), wie in dailyMedians
+function addHistDays(db, mid, from, out) {
+  for (const r of db.prepare("SELECT item_key, num, median FROM hist WHERE market_id = ? AND source = 'broker' AND period = 'day' AND t >= ?").iterate(mid, from)) {
+    if (r.median == null) continue;
+    let m = out.get(r.item_key);
+    if (!m) { m = new Map(); out.set(r.item_key, m); }
+    if (!m.has(r.num)) m.set(r.num, { sum: r.median, n: 1, own: false });
+  }
+  return out;
+}
+
 // Liste aller Gegenstaende eines Markts mit dem letzten Stand
-function itemList(db, marketKey, now = Math.floor(Date.now() / 1000)) {
+// parts (ab Manager 0.23.0): { seen, counts, daily } aus dem Zwischenspeicher (snapindex.js), dann ohne die teuren Abfragen
+function itemList(db, marketKey, now = Math.floor(Date.now() / 1000), parts = null) {
   const m = marketRow(db, marketKey);
   if (!m) return { market: marketKey, items: [], lastScan: null };
   const last = db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(m.id);
   const cur = new Map();
   if (last) for (const r of db.prepare('SELECT * FROM item_snap WHERE snapshot_id = ?').iterate(last.id)) cur.set(r.item_key, r);
   // zuletzt gesehen (mit Angeboten) je Gegenstand aus allen eigenen Daten und dem Broker-Verlauf
-  const seen = new Map();
+  const seen = new Map(parts ? parts.seen : []);
   const see = (k, t, row) => { const x = seen.get(k); if (!x || t > x.t) seen.set(k, { t, row }); };
-  for (const r of db.prepare('SELECT item_key, MAX(t) AS t, min, median, qty, auctions FROM item_snap WHERE market_id = ? AND qty > 0 GROUP BY item_key').iterate(m.id)) see(r.item_key, r.t, r);
+  if (!parts) for (const r of db.prepare('SELECT item_key, MAX(t) AS t, min, median, qty, auctions FROM item_snap WHERE market_id = ? AND qty > 0 GROUP BY item_key').iterate(m.id)) see(r.item_key, r.t, r);
   for (const r of db.prepare("SELECT item_key, MAX(t) AS t, min, median, qty FROM hist WHERE market_id = ? AND source = 'broker' GROUP BY item_key").iterate(m.id)) see(r.item_key, r.t, r);
   const counts = new Map();
-  for (const r of db.prepare('SELECT item_key, source, COUNT(*) AS n FROM item_snap WHERE market_id = ? GROUP BY item_key, source').iterate(m.id)) {
-    const c = counts.get(r.item_key) || {}; c[r.source] = r.n; counts.set(r.item_key, c);
+  if (parts) for (const [k, c] of parts.counts) counts.set(k, { ...c });
+  else {
+    for (const r of db.prepare('SELECT item_key, source, COUNT(*) AS n FROM item_snap WHERE market_id = ? GROUP BY item_key, source').iterate(m.id)) {
+      const c = counts.get(r.item_key) || {}; c[r.source] = r.n; counts.set(r.item_key, c);
+    }
   }
   for (const r of db.prepare("SELECT item_key, COUNT(*) AS n FROM hist WHERE market_id = ? AND source = 'broker' GROUP BY item_key").iterate(m.id)) {
     const c = counts.get(r.item_key) || {}; c.broker = r.n; counts.set(r.item_key, c);
   }
   const today = dayOf(now);
-  const daily = dailyMedians(db, m.id, now - 9 * 86400);
+  const daily = parts ? addHistDays(db, m.id, now - 9 * 86400, parts.daily) : dailyMedians(db, m.id, now - 9 * 86400);
   const names = new Map();
   for (const r of db.prepare('SELECT key, item_id, name, quality FROM items').iterate()) names.set(r.key, r);
   const keys = new Set([...cur.keys(), ...seen.keys()]);
