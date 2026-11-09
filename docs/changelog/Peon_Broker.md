@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.53.1
+
+Kurz: Behebt das Einfrieren des Spiels beim erweiterten Tooltip (mit Umschalt).
+
+- 0.53.1 (09.11.2026, gemeldet von KarloDerBaer): Das Preisdiagramm im Tooltip (0.47.0) nutzte `grid = 0`, damit hing der Diagramm-Baustein des Kerns bis Peon 0.16.0 in einer Endlosschleife. Broker nutzt jetzt `grid = 1`, der Kern ist mit Peon 0.16.1 ebenfalls abgesichert.
+
 ## 0.53.0
 
 Kurz: Aufgeräumt: Die Startseite, die Zeile „Behalten“ im Tooltip und das Andocken des Broker-Fensters am Auktionshaus sind weg. Das Fenster bleibt dort, wo du es hingeschoben hast, und öffnet und schließt sich nicht mehr mit dem Auktionshaus.

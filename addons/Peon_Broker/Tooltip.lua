@@ -514,7 +514,8 @@ local function ChartFor(tooltip)
     if not Peon.NewChart then return nil end
     local f = CreateFrame("Frame", nil, tooltip)
     f:SetSize(T.CHART_W, T.CHART_H)
-    local ch = Peon.NewChart(f, { width = T.CHART_W, height = T.CHART_H, left = 2, right = 2, top = 4, bottom = 4, grid = 0 })
+    -- grid = 1: mit grid = 0 hing der Kern bis Peon 0.16.0 in einer Endlosschleife (Spiel fror ein, Broker 0.53.1)
+    local ch = Peon.NewChart(f, { width = T.CHART_W, height = T.CHART_H, left = 2, right = 2, top = 4, bottom = 4, grid = 1 })
     if ch and ch.frame then ch.frame:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0) end
     c = { frame = f, chart = ch }
     T.charts[tooltip] = c

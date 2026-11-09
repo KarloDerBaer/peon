@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.16.1
+
+Kurz: Behebt ein Einfrieren des Spiels, wenn ein Diagramm ohne Hilfslinien gezeichnet wurde (Broker-Tooltip mit Umschalt).
+
+- 0.16.1 (09.11.2026, gemeldet von KarloDerBaer: Spiel friert beim erweiterten Tooltip ein, BugGrabber „insecure scripts exceeded execution limit“): `Peon.NiceRange` teilte bei `steps = 0` (Diagramm mit `grid = 0`) durch 0, die Schleife `while b < hi` endete nie. Jetzt mindestens 1 Schritt, ungültige Schrittweite gibt den Bereich unverändert zurück, die Schleife hat eine Obergrenze. `grid = 0` zeichnet keine Hilfslinien.
+
 ## 0.16.0
 
 Kurz: Strg+Rechtsklick auf einen Gegenstand öffnet jetzt ein Menü mit Einträgen der Peon-Module, zum Beispiel „Auf Einkaufsliste“. Die Taste lässt sich auf der Peon-Seite der Einstellungen ändern.

@@ -70,6 +70,11 @@ check(Peon.API >= 10 and Peon.NewChart and Peon.LinkCharts and Peon.NiceRange, "
 -- schoene Achsengrenzen
 local a, b = Peon.NiceRange(57, 93, 2)
 check(a <= 57 and b >= 93 and (b - a) / 2 == math.floor((b - a) / 2), "NiceRange 57..93 -> " .. a .. ".." .. b)
+-- 0.16.1: steps 0 (grid = 0) fuehrte zu einer Endlosschleife (Broker-Tooltip mit Diagramm fror das Spiel ein)
+local a0, b0 = Peon.NiceRange(90, 120, 0)
+check(a0 <= 90 and b0 >= 120, "0.16.1: NiceRange mit 0 Schritten endet: " .. a0 .. ".." .. b0)
+local a1, b1 = Peon.NiceRange(100, 100, 0)
+check(a1 <= 100 and b1 >= 100, "0.16.1: gleiche Werte mit 0 Schritten")
 a, b = Peon.NiceRange(0, 1234, 2)
 check(a == 0 and b >= 1234 and b <= 2000, "NiceRange 0..1234 -> " .. b)
 a, b = Peon.NiceRange(5, 5, 2)

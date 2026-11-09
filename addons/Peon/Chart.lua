@@ -44,7 +44,8 @@ local function Col(c) c = c or {}; return c[1] or 1, c[2] or 1, c[3] or 1, c[4] 
 
 -- "schoene" Achsengrenzen: Schritt 1/2/5 x 10^k
 function Peon.NiceRange(lo, hi, steps)
-    steps = steps or 2
+    -- ab 0.16.1: steps unter 1 (z. B. grid = 0) ergab eine Teilung durch 0 und eine Endlosschleife (Spiel fror ein)
+    steps = math.max(1, math.floor(tonumber(steps) or 2))
     if not Num(lo) or not Num(hi) then return 0, 1 end
     if hi < lo then lo, hi = hi, lo end
     if hi == lo then
@@ -59,9 +60,11 @@ function Peon.NiceRange(lo, hi, steps)
         step = m * p
         if math.floor(lo / step) * step + step * steps >= hi then break end
     end
+    if not Num(step) or step <= 0 then return lo, hi end
     local a = math.floor(lo / step) * step
     local b = a + step * steps
-    while b < hi do b = b + step end
+    local guard = 0
+    while b < hi and guard < 1000 do b = b + step; guard = guard + 1 end
     return a, b
 end
 
@@ -395,7 +398,7 @@ function Chart:Draw()
     if self.linkRange then self.linkRange(self) end
     -- Hilfslinien und Beschriftung
     local grid = self.o.grid or 2
-    for g = 0, grid do
+    for g = 0, (grid >= 1 and grid or -1) do   -- ab 0.16.1: grid = 0 heisst keine Hilfslinien
         local y = self.plotH * g / grid
         Rect(self, 0, y - 0.5, self.plotW, 1, { 1, 1, 1, 0.08 }, "BACKGROUND", 1)
         for _, side in ipairs({ "left", "right" }) do
