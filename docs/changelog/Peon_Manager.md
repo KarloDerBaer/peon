@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.23.0
+
+Kurz: Der Manager bleibt jetzt flüssig, auch wenn er gerade neue Daten einliest und auswertet. Vorher hing das Fenster danach teils mehrere Sekunden.
+
+- 0.23.0 (09.11.2026, KarloDerBaer: Fenster hing mehrere Sekunden, „Keine Rückmeldung“): **Arbeitsprozess.** Nach jedem neuen Stand (Blizzard-API stündlich, Scan, `/reload`, Ausloggen) rechnet das Modul Peon Broker Client alle Märkte neu: Absatz, üblicher Bereich, Chancen, Gegenstandsliste. Das lief im Hauptprozess, gemessen mit Kopien der echten Spieldaten und 120 Stunden nachgebildeter Blizzard-Stände (rund 57.000 Angebote je Stand) etwa 10 Sek. am Stück, solange reagierte das Fenster nicht. Jetzt läuft das ganze Modul in einem eigenen Thread (`src/core/broker-worker.js`), der Hauptprozess spricht über `src/core/broker-remote.js` mit ihm. Jeder Aufruf liefert ein Promise, Einstellungen gehen bei jedem Aufruf mit, gespeicherte Einstellungen (Blizzard-Häuser) kommen als Nachricht zurück. Ein Blizzard-Zugang geht als einfache Daten hinüber, der Thread baut seinen eigenen Client. Stürzt der Thread ab, startet er beim nächsten Aufruf neu, der Fehler steht im Protokoll.
+  - `Service` nimmt `brokerFactory` (Programm: Thread, Tests: direkt). `overviewAsync()` für das Programm, `overview()` bleibt für die Tests. Sicherung über `backupTo()` im Thread.
+  - Im fertigen Programm liegt `src/core` zusätzlich entpackt (`asarUnpack`), weil Threads nicht aus `app.asar` laden.
+  - Tests: `test/worker.test.js` (Einlesen, Data.lua, Ansichten, Übersicht, Einstellungen hin und zurück, Fehler, Sicherung, Hauptteil bleibt frei). Selbsttest im gebauten Programm mit den Testdaten erfolgreich.
+
 ## 0.22.1
 
 Kurz: Der neutrale Markt aus Broker erscheint als „PvE Neutral“ und bekommt beim Vorschlag unter Quellen das neutrale Haus.

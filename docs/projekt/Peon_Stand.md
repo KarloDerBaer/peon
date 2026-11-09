@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 09.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.40.0 / Bridge 0.8.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.22.1 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 09.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.15.0 / Broker 0.40.0 / Bridge 0.8.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.23.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.15.0, API 15
@@ -62,8 +62,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.22.1
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.23.0
 
+- **Arbeitsprozess (ab 0.23.0):** Das Modul Peon Broker Client läuft in einem eigenen Thread (`broker-worker.js`, `broker-remote.js`), das Fenster hängt nach neuen Daten nicht mehr. Vorher bis etwa 10 Sek. „Keine Rückmeldung“ (gemessen mit nachgebildeten 5 Tagen Blizzard-Daten). Noch nicht veröffentlicht. **Noch offen:** Neurechnen nur für den neuen Stand statt über den ganzen Verlauf (Lösung 2, beschlossen 09.11.2026).
 - **Chancen für Massenware und unruhige Preise (ab 0.22.0, Rechenmodell Kapitel 10):** Kein Wiederverkauf, wenn unter dem Ziel mehr als ein Tagesabsatz liegt (F50b) oder die Schwankung über 40 % liegt (F50c). Neues Preisniveau schon nach 12 Std. (F54). Chancen zeigen nur den letzten Scan, der Zeitraum zählt nur die Häufigkeit. Preis und Menge im Diagramm auf derselben Zeitachse. Vorabversion `v2026.11.08.2-test` (08.11.2026, nur Kanal Test, enthält auch 0.21.1), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im normalen Release `v2026.11.08.3` (08.11.2026, mit Broker 0.39.0). **Noch zu prüfen durch KarloDerBaer:** Chancen-Tabelle, Satz „Das ist der Marktpreis“ (Robuster Stein), „Der Preis schwankt stark“ (Umhang des Hügelwächters), gemeinsame Zeitachse im Diagramm.
 
 - **Bessere Vorschläge (ab 0.21.0, Rechenmodell Kapitel 10):** Kürzung nach unten erst ab 75 % (F37a), neues Preisniveau nach 12 bis 24 Std. unter oder über dem Bereich (F54, ab 0.22.0 nach 12 Std.), Wiederverkauf höchstens zum Median der Angebote und grüner Satz nur bei 20 % Abstand zu den anderen Angeboten (F50a), Trefferquote unter Chancen (F55). Grenzwerte in 2 bis 4 Wochen mit der Trefferquote prüfen, wenn der Markt nach dem Start ruhiger ist. Vorabversion `v2026.11.08-test` (08.11.2026, nur Kanal Test, zusammen mit Broker 0.38.0), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. **Noch zu prüfen durch KarloDerBaer:** Satz auf der Gegenstandsseite (zum Beispiel Magicusmantel), Pfeil bei „Zu üblich“, Trefferquote unter Chancen (erste Zahlen frühestens am 11.11.2026). In 0.21.0 zeigte „Beste Chancen jetzt“ noch Treffer nach alten Regeln (Robuster Stein), behoben in 0.21.1: Bei neuen Regeln (`chances.RULES`) werden die Wiederverkaufs-Treffer neu gerechnet, die Trefferquote beginnt neu.

@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const { execFile } = require('node:child_process');
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog, session, safeStorage, Notification } = require('electron');
 const { Service, updateCheckMs } = require('../src/core/service');
+const { BrokerRemote } = require('../src/core/broker-remote');
 const { createUpdater } = require('./updater');
 const backup = require('../src/core/backup');
 const { money: shopMoney } = require('../src/core/shopping');
@@ -92,8 +93,9 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   // Einkaufsliste: Meldung von Windows, wenn ein Angebot unter dem Hoechstpreis liegt. Ein Klick oeffnet den Gegenstand.
-  function notifyShop() {
-    const hits = svc.broker.shopCheck();
+  async function notifyShop() {
+    if (!svc.broker) return;
+    const hits = await svc.broker.shopCheck();
     if (!hits.length || !svc.settings.shopNotify || !Notification.isSupported()) return;
     for (const h of hits.slice(0, 5)) {
       const n = new Notification({ title: 'Peon Manager: Einkaufsliste', body: `${h.name} gibt es ab ${shopMoney(h.min)}, dein Höchstpreis ist ${shopMoney(h.limit)} (${h.label}).`, icon });
@@ -106,22 +108,23 @@ if (!app.requestSingleInstanceLock()) {
   // Laeuft WoW? Daraus folgt der Hinweis in der Kopfleiste
   async function watchGame() {
     if (!svc.broker) return;
-    if (svc.broker.noteGame(await wowRunning())) send('changed', { what: 'spielstand' });
+    if (await svc.broker.noteGame(await wowRunning())) send('changed', { what: 'spielstand' });
   }
 
   // ---------- Einlesen ----------
-  function runImport(why) {
+  // Ab 0.23.0 im Arbeitsprozess: das Fenster bleibt bedienbar, waehrend gerechnet wird
+  async function runImport(why) {
     if (!svc.broker) { svc.syncBridge(); return { inactive: true }; }
     if (busy) { pending = pending || setTimeout(() => { pending = null; runImport(why); }, 1000); return null; }
     busy = true;
     try {
-      const r = svc.broker.importGame();
+      const r = await svc.broker.importGame();
       for (const f of r.files) lastSeen.set(f.file, f.mtime);
       for (const f of require('../src/core/broker').findFiles(svc.settings.wowDir)) {
         try { lastSeen.set(f.file, Math.floor(fs.statSync(f.file).mtimeMs / 1000)); } catch { /* weg */ }
       }
       if (r.imported > 0 && tray) tray.setToolTip(`Peon Manager: ${r.imported} neue Momentaufnahmen`);
-      notifyShop();
+      notifyShop().catch(() => {});
       send('changed', { what: 'spiel', why, imported: r.imported });
       return r;
     } catch (e) {
@@ -309,7 +312,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!svc.broker) return;
     const run = svc.broker.pruneInBackground();
     send('changed', { what: 'aufbewahrung' });
-    run.then(() => send('changed', { what: 'aufbewahrung' }));
+    run.catch(() => null).then(() => send('changed', { what: 'aufbewahrung' }));
   }
 
   // Ein Modul wurde ein- oder ausgeschaltet: Hintergrundaufgaben und Menue nachziehen
@@ -322,7 +325,7 @@ if (!app.requestSingleInstanceLock()) {
 
   // ---------- Befehle fuer die Oberflaeche ----------
   function registerIpc() {
-    ipcMain.handle('overview', () => svc.overview());
+    ipcMain.handle('overview', () => svc.overviewAsync());
     ipcMain.handle('blizzardState', () => blizzardState());
     ipcMain.handle('blizzardSave', (_e, c) => { blizzardAccess.save(c); watchBlizzard().catch(() => {}); return blizzardState(); });
     ipcMain.handle('blizzardClear', () => { blizzardAccess.clear(); blizzardWatch = null; return blizzardState(); });
@@ -331,7 +334,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('blizzardSetHouse', async (_e, house, on, name) => {
       const client = svc.broker && blizzardClient();
       if (!client) throw new Error('Bitte zuerst den Zugang speichern.');
-      svc.broker.api.setHouse(client.region, Number(house), !!on, name == null ? null : String(name));
+      await svc.broker.api.setHouse(client.region, Number(house), !!on, name == null ? null : String(name));
       runBlizzard(false).catch(() => {});
       return blizzardHouses();
     });
@@ -358,16 +361,16 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('chances', (_e, market, days) => (svc.broker ? svc.broker.chances(String(market), Number(days) || null) : null));
     ipcMain.handle('favorites', () => (svc.broker ? svc.broker.favorites() : []));
     ipcMain.handle('setFavorite', (_e, key, on) => svc.broker.setFavorite(String(key), !!on));
-    const shopChanged = (r) => { send('changed', { what: 'einkaufsliste' }); return r; };
+    const shopChanged = async (r) => { const v = await r; send('changed', { what: 'einkaufsliste' }); return v; };
     ipcMain.handle('shopView', (_e, market) => (svc.broker ? svc.broker.shopView(String(market)) : { lists: [] }));
     ipcMain.handle('shopBuyable', (_e, market) => (svc.broker ? svc.broker.shopBuyable(String(market)) : []));
     ipcMain.handle('shopLists', (_e, key) => (svc.broker ? svc.broker.shopLists(key == null ? null : String(key)) : []));
     ipcMain.handle('shopNewList', (_e, name) => shopChanged(svc.broker.newShopList(name == null ? '' : String(name))));
     ipcMain.handle('shopDeleteList', (_e, id) => shopChanged(svc.broker.deleteShopList(id)));
     ipcMain.handle('shopUpdateList', (_e, id, patch) => shopChanged(svc.broker.updateShopList(id, patch || {})));
-    ipcMain.handle('shopAdd', (_e, id, key) => { const r = svc.broker.addShopItem(id, key); notifyShop(); return shopChanged(r); });
+    ipcMain.handle('shopAdd', async (_e, id, key) => { const r = await svc.broker.addShopItem(id, key); notifyShop().catch(() => {}); return shopChanged(r); });
     ipcMain.handle('shopRemove', (_e, id, key) => shopChanged(svc.broker.removeShopItem(id, key)));
-    ipcMain.handle('shopSet', (_e, id, key, patch) => { const r = svc.broker.setShopItem(id, key, patch || {}); notifyShop(); return shopChanged(r); });
+    ipcMain.handle('shopSet', async (_e, id, key, patch) => { const r = await svc.broker.setShopItem(id, key, patch || {}); notifyShop().catch(() => {}); return shopChanged(r); });
     ipcMain.handle('backupCreate', async () => {
       const r = await dialog.showOpenDialog(win, { title: 'Wohin soll die Sicherung?', properties: ['openDirectory', 'createDirectory'] });
       if (r.canceled || !r.filePaths[0]) return null;
@@ -455,7 +458,9 @@ if (!app.requestSingleInstanceLock()) {
     try { session.defaultSession.setSpellCheckerEnabled(false); session.defaultSession.setSpellCheckerLanguages([]); } catch { /* egal */ }
     // PEON_MANAGER_RELEASES: nachgebautes Release statt GitHub (nur zum Testen)
     const rel = process.env.PEON_MANAGER_RELEASES;
-    svc = new Service({ dbDir: dataDir(), version: app.getVersion(), releases: rel ? { releaseBase: rel, apiBase: `${rel}/api` } : undefined });
+    // Modul Peon Broker Client im Arbeitsprozess (ab 0.23.0), Fehler dort landen im Protokoll
+    const brokerFactory = (host) => new BrokerRemote(host, { onError: (e) => { try { host.logManager('manager', false, `Arbeitsprozess: ${e.message}`); } catch { /* egal */ } } });
+    svc = new Service({ dbDir: dataDir(), version: app.getVersion(), releases: rel ? { releaseBase: rel, apiBase: `${rel}/api` } : undefined, brokerFactory });
     updater = createUpdater({ enabled: app.isPackaged && !BESIDE, svc, onChange: () => { send('changed', { what: 'update' }); if (updater && updater.state().status === 'ready') notifyUpdates(); }, beforeInstall: () => { quitting = true; } });
     blizzardAccess = new blizzard.BlizzardAccess({ keyFile: path.join(svc.dbDir, 'blizzard-zugang.dat'), reportFile: path.join(svc.dbDir, 'blizzard-pruefung.json'),
       encrypt: (s) => safeStorage.encryptString(s), decrypt: (b) => safeStorage.decryptString(b), available: () => safeStorage.isEncryptionAvailable() });
@@ -465,9 +470,9 @@ if (!app.requestSingleInstanceLock()) {
     if (!HIDDEN) win.__userOpened = true;
     runImport('Start');
     pruneNow();
-    setInterval(() => {
+    setInterval(async () => {
       if (!svc.broker) return;
-      const t = svc.broker.meta('pruneAt') || 0;
+      const t = (await svc.broker.meta('pruneAt').catch(() => 0)) || 0;
       if (svc.now() - t > 86400) pruneNow();
     }, 60 * 60 * 1000);
     setupWatch();
@@ -477,9 +482,9 @@ if (!app.requestSingleInstanceLock()) {
     // Rueckmeldungen: gehoeren zu keinem Modul, einmal je Minute nach Neuem sehen (liest nur geaenderte Dateien)
     setInterval(() => { try { if (svc.reports.scan()) send('changed', { what: 'rueckmeldungen' }); } catch { /* steht im Protokoll */ } }, 60 * 1000);
     // Tageswechsel: Werte fuer Broker neu rechnen (Alter der Tage verschiebt sich), schreibt nur bei Aenderung
-    setInterval(() => {
+    setInterval(async () => {
       if (!svc.broker) return;
-      const a = svc.broker.meta('ack');
+      const a = await svc.broker.meta('ack').catch(() => null);
       if (!a || a.day !== require('../src/core/broker').dayOf(svc.now())) runImport('Tageswechsel');
     }, 60 * 60 * 1000);
     applyAutostart();
@@ -525,7 +530,7 @@ if (!app.requestSingleInstanceLock()) {
             const t0 = Date.now();
             const result = await win.webContents.executeJavaScript('window.peon.blizzardSuggest()');
             await new Promise((r) => setTimeout(r, 500));
-            while (svc.broker.api.busy) await new Promise((r) => setTimeout(r, 500));
+            while (await svc.broker.get('api.busy')) await new Promise((r) => setTimeout(r, 500));
             fs.writeFileSync(path.join(out, 'suggest.json'), JSON.stringify({ result, ms: Date.now() - t0, view: await blizzardHouses() }, null, 1));
           }
           if (process.env.PEON_MANAGER_SELFTEST_VIEW) {
@@ -538,7 +543,7 @@ if (!app.requestSingleInstanceLock()) {
           await new Promise((r) => setTimeout(r, 500));
           const img = await win.webContents.capturePage();
           fs.writeFileSync(path.join(out, 'electron.png'), img.toPNG());
-          const ov = svc.overview();
+          const ov = await svc.overviewAsync();
           fs.writeFileSync(path.join(out, 'electron.json'), JSON.stringify({ markets: ov.markets.length, back: ov.back, log: ov.log, view: await win.webContents.executeJavaScript(`(document.querySelector('button.nav.on') || {}).textContent`), peon: await win.webContents.executeJavaScript('typeof window.peon + "/" + typeof window.require'),
             ipc: await win.webContents.executeJavaScript(`(async () => { const o = await window.peon.overview(); const m = o.markets[0]; if (!m) return null;
               const l = await window.peon.items(m.key); const d = await window.peon.item(m.key, '2770', 'all'); const r = await window.peon.retention(30);

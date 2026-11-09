@@ -54,8 +54,11 @@ function merge(def, cur) {
 class Service {
   // enable: Liste von Modulen, die gleich eingeschaltet werden (fuer Tests)
   // releases: { releaseBase, apiBase, testHook } andere Quelle fuer Addons (Tests, nachgebautes Release)
-  constructor({ dbDir, version = '0.0.0', fetchImpl, now, enable, releases } = {}) {
+  // brokerFactory (ab 0.23.0): baut das Modul Peon Broker Client. Im Programm laeuft es im Arbeitsprozess (broker-remote.js),
+  // dann liefern seine Aufrufe Promises. Standard (Tests): direkt hier.
+  constructor({ dbDir, version = '0.0.0', fetchImpl, now, enable, releases, brokerFactory } = {}) {
     this.dbDir = dbDir;
+    this.brokerFactory = brokerFactory || ((host) => new BrokerClient(host));
     this.version = version;
     this.fetchImpl = fetchImpl || ((...a) => fetch(...a));
     this.now = now || (() => Math.floor(Date.now() / 1000));
@@ -86,7 +89,7 @@ class Service {
       this.saveSettings(raw.hourDays === 365 ? { hourDays: DEFAULTS.hourDays, retentionV: DEFAULTS.retentionV } : { retentionV: DEFAULTS.retentionV });
     }
     this.reports = new ReportStore(this);
-    this.broker = this.isActive('broker-client') ? new BrokerClient(this) : null;
+    this.broker = this.isActive('broker-client') ? this.brokerFactory(this) : null;
     this.addons = new AddonManager(this, releases || {});
   }
 
@@ -144,10 +147,10 @@ class Service {
     this.saveSettings({ modules: { ...this.settings.modules, [key]: { enabled: on } } });
     if (key === 'broker-client') {
       if (on) {
-        this.broker = new BrokerClient(this);
-        this.broker.meta('ack', null);   // Data.lua beim naechsten Einlesen neu schreiben (Kanal wieder frei)
+        this.broker = this.brokerFactory(this);
+        quiet(this.broker.meta('ack', null));   // Data.lua beim naechsten Einlesen neu schreiben (Kanal wieder frei)
       } else if (this.broker) {
-        this.broker.close();
+        quiet(this.broker.close());
         this.broker = null;
       }
     }
@@ -189,8 +192,8 @@ class Service {
   // Peon_Bridge wurde neu installiert oder aktualisiert: Data.lua passend zu den Modulen schreiben
   bridgeInstalled() {
     if (this.broker) {
-      this.broker.meta('ack', null);
-      this.broker.importGame();
+      quiet(this.broker.meta('ack', null));
+      quiet(this.broker.importGame());
     } else {
       this.syncBridge(true);
     }
@@ -237,7 +240,7 @@ class Service {
   // ---------- Datensicherung ----------
   async createBackup(target) {
     const open = { 'peon.db': this.db };
-    if (this.broker) open['broker-client.db'] = this.broker.db;
+    if (this.broker) open['broker-client.db'] = (to) => this.broker.backupTo(to);
     const r = await backup.create({ dbDir: this.dbDir, open, target, version: this.version, now: this.now() });
     log(this.db, 'sicherung', true, `Sicherung angelegt (${Math.round(r.bytes / 1024 / 1024)} MB)`);
     return r;
@@ -270,7 +273,16 @@ class Service {
   }
 
   // ---------- Daten fuer die Oberflaeche ----------
-  overview() {
+  overview() { return this.overviewFrom(this.broker && this.broker.overview(), this.broker && this.broker.get('pruning'), this.broker && this.broker.sync()); }
+
+  // Wie overview, fuer das Modul im Arbeitsprozess (ab 0.23.0)
+  async overviewAsync() {
+    if (!this.broker) return this.overviewFrom(null);
+    const [b, pruning, sync] = await Promise.all([this.broker.overview(), this.broker.get('pruning'), this.broker.sync()]);
+    return this.overviewFrom(b, pruning, sync);
+  }
+
+  overviewFrom(b, pruning, sync) {
     this.reports.scan();
     const base = {
       reportCount: this.reports.count(),
@@ -284,19 +296,21 @@ class Service {
       addonUpdates: this.addons.updates().length,
     };
     const own = this.db.prepare('SELECT t, kind, ok, text FROM log ORDER BY id DESC LIMIT 40').all();
-    if (!this.broker) {
+    if (!b) {
       return { ...base, dbSize: fileSize(this.db.file), markets: [], game: { files: [], lastImport: null }, back: null,
         log: own, brokerHist: null };
     }
-    const b = this.broker.overview();
     const merged = [...b.log, ...own].sort((x, y) => y.t - x.t).slice(0, 40);
-    return { ...base, ...b, log: merged, pruning: !!this.broker.pruning, sync: this.broker.sync() };
+    return { ...base, ...b, log: merged, pruning: !!pruning, sync };
   }
 
   close() {
-    if (this.broker) this.broker.close();
+    if (this.broker) quiet(this.broker.close());
     try { this.db.close(); } catch { /* schon zu */ }
   }
 }
+
+// Aufruf, dessen Ergebnis niemand braucht: Fehler aus dem Arbeitsprozess nicht unbehandelt lassen
+function quiet(r) { if (r && typeof r.catch === 'function') r.catch(() => {}); return r; }
 
 module.exports = { Service, DEFAULTS, merge, updateCheckMs, UPDATE_CHECK_CHOICES };

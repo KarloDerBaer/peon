@@ -713,6 +713,19 @@ class BrokerClient {
     return { mode: 'scan', base: base.t, up, down };
   }
 
+  // Wert eines Felds, auch verschachtelt ("api.busy"). Gleich wie beim Arbeitsprozess (broker-remote.js), dort als Nachricht.
+  get(name) {
+    return String(name).split('.').reduce((o, k) => (o == null ? undefined : o[k]), this);
+  }
+
+  // Sicherung der offenen Datenbank (ab Manager 0.23.0 auch aus dem Arbeitsprozess)
+  async backupTo(file) {
+    const sqlite = require('node:sqlite');
+    if (typeof sqlite.backup === 'function') await sqlite.backup(this.db, file);
+    else this.db.prepare('VACUUM INTO ?').run(file);
+    return true;
+  }
+
   close() { this.closed = true; try { this.db.close(); } catch { /* schon zu */ } }
 }
 

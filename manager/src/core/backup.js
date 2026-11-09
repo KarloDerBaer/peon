@@ -32,7 +32,9 @@ async function create({ dbDir, open = {}, target, version, now }) {
     for (const name of DBS) {
       const from = path.join(dbDir, name);
       const to = path.join(dir, name);
-      if (open[name]) {
+      if (typeof open[name] === 'function') {
+        await open[name](to);   // Datenbank im Arbeitsprozess (ab Manager 0.23.0)
+      } else if (open[name]) {
         if (typeof sqlite.backup === 'function') await sqlite.backup(open[name], to);
         else open[name].prepare('VACUUM INTO ?').run(to);
       } else if (fs.existsSync(from)) {
