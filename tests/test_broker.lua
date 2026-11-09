@@ -610,24 +610,15 @@ check(_G.PeonBrokerWindowButton == nil, "0.41.1: kein Knopf Broker mehr am Aukti
 check(not (_G.PeonBrokerFrame and _G.PeonBrokerFrame.shown), "Fenster oeffnet nicht von selbst (Standard)")
 Win.Open()
 local wf = _G.PeonBrokerFrame
-check(wf.shown and Win.docked and wf.points[1][2] == AuctionHouseFrame and wf.points[1][3] == "TOPRIGHT", "Knopf oeffnet Fenster, rechts am Auktionshaus angedockt")
+check(wf.shown and not Win.docked and wf.points[1][2] ~= AuctionHouseFrame, "U12: Fenster oeffnet frei, ohne Andocken am Auktionshaus")
 check(UISpecialFrames[#UISpecialFrames] == "PeonBrokerFrame", "Escape schliesst das Fenster")
 local nTabs, open = 0, {}
 for _, b in ipairs(Win.tabButtons) do nTabs = nTabs + 1; if not b.disabled then open[#open + 1] = b.text end end
 check(nTabs == 6 and #open == 6 and open[1] == "Einkaufslisten" and open[2] == "Markt" and open[3] == "Händler" and open[4] == "Gegenstände" and open[5] == "Beobachtung" and open[6] == "Quellen",
   "U10/U11: sechs Reiter, nur was ohne Auktionshaus geht")
 check(Win.current == "prices" and Win.tabButtons[4].locked, "U10: Fenster oeffnet bei Gegenstaende (zuletzt gewaehlt)")
-Win.Select("start")   -- alte Seite ohne Reiter, bis U12 noch erreichbar
--- Startseite: eine Zeile je Bereich, Klick springt zum Reiter
-local St = ns.Start
-local sLines = St.list:GetItems()
-local byArea = {} for _, l in ipairs(sLines) do byArea[l.area] = l end
-check(#sLines == 5 and byArea["Verkaufen"] and byArea["Meine Auktionen"] and not byArea["Post"] and byArea["Radar"] and byArea["Einkaufsliste"] and byArea["Scan"],
-    "Startseite: Meine Auktionen, Verkaufen, Radar, Einkaufsliste, Scan (ab 0.25.1 ohne Post)")
-check(plain(byArea["Scan"].text):find("Letzter Scan", 1, true), "Scan-Stand")
-St.Click(byArea["Verkaufen"])
-check(Win.current == "sell", "Klick auf Verkaufen: Reiter Verkaufen")
-Win.Select("start")
+check(ns.Start == nil and Win.pages.start == nil, "U12: Startseite entfaellt")
+Win.Select("buy")
 Win.tabButtons[4].scripts.OnClick(Win.tabButtons[4])
 check(Win.current == "prices" and Win.tabButtons[4].locked and not Win.tabButtons[1].locked, "Reiter Gegenstaende gewaehlt und markiert")
 local items = P.list:GetItems()
@@ -660,10 +651,10 @@ market.items[2589].nm = nil; P.cache = nil
 Win.Refresh()
 local lein for _, it in ipairs(P.list:GetItems()) do if it.key == 2589 then lein = it end end
 check(lein and lein.name == "Gegenstand2589", "ohne gemerkten Namen: Name vom Spiel")
--- Auktionshaus zu: angedocktes Fenster schliesst mit
+-- ab 0.53 (U12): kein Andocken mehr; Fenster schliessen und frei oeffnen, Position wird gemerkt
 fire("AUCTION_HOUSE_CLOSED")
-check(not wf.shown, "angedocktes Fenster schliesst mit dem Auktionshaus")
--- ohne Auktionshaus: frei, Position wird gemerkt
+SlashCmdList.PEON_BROKER("")
+check(not wf.shown, "/broker schliesst")
 SlashCmdList.PEON_BROKER("")
 check(wf.shown and not Win.docked and wf.points[1][1] == "CENTER", "/broker oeffnet das Fenster frei (Mitte)")
 wf.points = { { "TOPLEFT", UIParent, "TOPLEFT", 100.4, -80.6 } }
@@ -674,18 +665,14 @@ check(not wf.shown, "/broker schliesst das Fenster wieder")
 SlashCmdList.PEON_BROKER("")
 check(wf.points[1][1] == "TOPLEFT" and wf.points[1][4] == 100, "gemerkte Position beim Oeffnen")
 fire("AUCTION_HOUSE_SHOW")
-check(wf.shown and Win.docked, "offenes Fenster dockt beim Auktionshaus an")
+check(wf.shown and not Win.docked and wf.points[1][4] == 100, "U12: offenes Fenster bleibt beim Auktionshaus an seiner Stelle")
 fire("AUCTION_HOUSE_CLOSED")
-mod.db.windowWithAH = true
-fire("AUCTION_HOUSE_SHOW")
-check(wf.shown and Win.docked, "Einstellung: Fenster oeffnet mit dem Auktionshaus")
-mod.db.windowWithAH = false
-fire("AUCTION_HOUSE_CLOSED")
-check(not wf.shown, "und schliesst mit ihm")
+check(wf.shown and mod.db.windowWithAH == nil, "U12: schliesst nicht mit dem Auktionshaus, Einstellung entfaellt")
+SlashCmdList.PEON_BROKER("")
 -- ohne Scan im Markt: Hinweis
 PeonBrokerDB.markets["Classic Beta PvE / Horde"], P.cache = nil, nil
 SlashCmdList.PEON_BROKER("")
-check(Win.current == "prices", "U10: zuletzt gewaehlter Reiter ohne Knopf (Start) -> Gegenstaende")
+check(Win.current == "prices", "zuletzt gewaehlter Reiter")
 Win.Select("prices")
 check(#P.list:GetItems() == 0 and P.list.empty.text:find("Noch kein Scan", 1, true) and P.count.text == "0 von 0 Gegenständen", "ohne Scan: Hinweis in der Liste")
 SlashCmdList.PEON_BROKER("")
@@ -778,11 +765,7 @@ WithBlizzard(true)
 
 fire("AUCTION_HOUSE_CLOSED"); fire("AUCTION_HOUSE_SHOW")
 check(PeonBrokerDB.commodity["15000:1047"] == false and PeonBrokerDB.commodity[2770] == true, "Warenart der Taschen vom Spiel")
-Win.Toggle()
-Win.Select("start")   -- ab 0.51 kein Reiter mehr, Seite bis U12 noch da
-check(wf.shown and Win.current == "start", "Startseite noch erreichbar (bis U12)")
-local sellLine for _, l in ipairs(ns.Start.list:GetItems()) do if l.tab == "sell" then sellLine = l end end
-check(sellLine and plain(sellLine.text):find("2 Gegenstände", 1, true), "Start: 2 lohnende Gegenstaende in den Taschen (" .. plain(sellLine and sellLine.text or "") .. ")")
+if not wf.shown then Win.Toggle() end
 Win.Select("sell")
 local sl = Sell.list:GetItems()
 check(#sl == 2 and sl[1].name == "Kupfererz" and sl[1].count == 60 and #sl[1].locs == 2, "Taschen: Stapel zusammengefasst, nach Erloes sortiert")
@@ -927,14 +910,13 @@ local function ttLines(link)
   return tt.lines
 end
 local KLINK = "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r"
-check(ttLines(KLINK)[2] == "Behalten: 50 (15 zu verkaufen)", "Tooltip: Behalten direkt unter Zeile 1 (auch ohne Umschalt)")
+check(ttLines(KLINK)[2] == nil, "U12: Tooltip ohne Zeile Behalten")
 K.Set(2770, 70)
 Sell.Refresh()
 local vis = false for _, it in ipairs(Sell.list:GetItems()) do if it.key == 2770 then vis = true end end
 check(not vis, "Behalten-Menge ueber dem Vorrat: nicht mehr in der Liste")
 K.Set(2770, nil)
-check(ttLines(KLINK)[2] == "Behalten: alle", "Tooltip: Behalten alle")
-check(ttLines("|cff1eff00|Hitem:15000::::::1047::20:::::::::|h[Schwert des Baeren]|h|r")[2] ~= "Behalten: alle", "nicht markiert: keine Zeile")
+check(ttLines(KLINK)[2] == nil, "U12: auch bei Behalten alle keine Zeile")
 
 -- Reiter "Behalten"
 Win.Select("keep")
@@ -1138,7 +1120,7 @@ Auc.CancelNextUnder()
 check(said("Keine unterbotenen Auktionen"), "Meldung, wenn keine unterboten sind")
 -- ohne Auktionshaus: letzter Stand, nichts abbrechen
 fire("AUCTION_HOUSE_CLOSED")
-SlashCmdList.PEON_BROKER("")
+if not (PeonBrokerFrame and PeonBrokerFrame.shown) then SlashCmdList.PEON_BROKER("") end   -- ab 0.53 schliesst das Fenster nicht mehr mit
 Win.Select("auctions")
 check(#Auc.list:GetItems() == 1 and Auc.cancelButton.disabled and Auc.liveButton.disabled and Auc.status.text:find("Auktionshaus öffnen", 1, true), "ohne Auktionshaus: letzter Stand, Abbrechen gesperrt")
 SlashCmdList.PEON_BROKER("")
@@ -1860,7 +1842,7 @@ Win.Select("sell")
 
 -- ohne Auktionshaus
 fire("AUCTION_HOUSE_CLOSED")
-SlashCmdList.PEON_BROKER("")
+if not (PeonBrokerFrame and PeonBrokerFrame.shown) then SlashCmdList.PEON_BROKER("") end   -- ab 0.53 schliesst das Fenster nicht mehr mit
 Win.Select("sell")
 Sell.Select(Sell.list:GetItems()[1])
 check(Sell.post.disabled and plain(Sell.hints.text):find("Auktionshaus öffnen", 1, true) and Sell.liveText.text:find("geschlossen", 1, true), "ohne Auktionshaus: nur ansehen")

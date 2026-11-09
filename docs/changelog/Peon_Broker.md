@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.53.0
+
+Kurz: Aufgeräumt: Die Startseite, die Zeile „Behalten“ im Tooltip und das Andocken des Broker-Fensters am Auktionshaus sind weg. Das Fenster bleibt dort, wo du es hingeschoben hast, und öffnet und schließt sich nicht mehr mit dem Auktionshaus.
+
+- 0.53.0 (09.11.2026): **Umbau U12, Aufräumen Teil 1** (Konzept Abschnitt 13).
+  - `Start.lua` entfernt (Startseite, seit 0.51 ohne Reiter).
+  - Andocken ans Auktionshaus und Einstellung „Broker-Fenster mit dem Auktionshaus öffnen“ (`windowWithAH`) entfernt.
+  - Zeile „Behalten“ im Tooltip entfernt. Die gespeicherte Behalten-Liste (`PeonBrokerCharDB.keep`) bleibt vorerst unangetastet.
+  - Bereiche für Rückmeldungen nach dem neuen Aufbau (Verkaufen (Rat), Auktionen, Radar, Einkaufen, Einkaufslisten, Beobachtung, Markt, Händler, Gegenstände, Quellen, Berufe, Scan, Tooltip, Gegenstandsmenü, Optionen).
+  - Noch da: die Oberflächen der früheren Reiter Verkaufen, Behalten und Meine Auktionen (ohne Reiter). Ihre Bausteine (Live-Ergebnisse lesen, Vorrat zählen, eigene Auktionen lesen) brauchen Rat, Einkaufen, Radar und Auktionen weiter.
+
 ## 0.52.0
 
 Kurz: Broker merkt sich jetzt alles, was du bei Händlern siehst: Ware, Preis (auch in Abzeichen oder Marken), begrenzte Menge, Voraussetzungen wie Ruf und den Ort. Der neue Reiter „Händler“ zeigt die Liste mit dem Preis im Auktionshaus, der Tooltip auf Wunsch den günstigsten Händler.

@@ -45,7 +45,6 @@ local mod = Peon:NewModule(ADDON_NAME, {
         dumpPct      = 30,      -- DG: Dumping-Grenze in % unter dem Median
         duration     = 8,       -- LZ: Laufzeit in Stunden (2, 8, 24)
         dataDays     = 30,      -- AUFB: Tageswerte so lange aufbewahren, danach Wochenwerte
-        windowWithAH = false,   -- Broker-Fenster mit dem Auktionshaus oeffnen
         ahPlain      = false,   -- ab 0.41: "Blizzard pur", Broker laesst das Auktionshaus in Ruhe (AHTabs.lua)
         windowTab    = "prices",-- zuletzt gewaehlter Reiter
         windowPos    = {},      -- Position des Fensters, wenn es nicht am Auktionshaus angedockt ist
@@ -528,7 +527,6 @@ mod:On("INIT", function()
     mod:Call("Beobachtung", ns.Watch.Init)
     mod:Call("Auktionen", ns.AuctionsAH.Init)
     mod:Call("Haendler", ns.Vendors.Init)
-    mod:Call("Start", ns.Start.Init)
     mod:Call("Verkaufen", ns.Sell.Init)
     mod:Call("Behalten", ns.Keep.Init)
     mod:Call("Meine Auktionen", ns.Auctions.Init)
@@ -540,4 +538,5 @@ mod:On("INIT", function()
 end)
 
 -- Bereiche für Rückmeldungen in Peon_Feedback (Kern ab API 9; mit älterem Kern wird nichts gemeldet)
-if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Start", "Verkaufen", "Behalten", "Meine Auktionen", "Einkaufsliste", "Radar", "Preise", "Berufe", "Scan", "Tooltip", "Fenster", "Optionen" }) end
+-- ab 0.53 (Umbau U12): Bereiche nach dem neuen Aufbau
+if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Verkaufen (Rat)", "Auktionen", "Radar", "Einkaufen", "Einkaufslisten", "Beobachtung", "Markt", "Händler", "Gegenstände", "Quellen", "Berufe", "Scan", "Tooltip", "Gegenstandsmenü", "Optionen" }) end

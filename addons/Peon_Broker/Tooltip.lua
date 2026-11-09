@@ -465,7 +465,7 @@ function T.Render(tooltip, ctx, details, lay)
         tooltip:AddLine(("|c%sBroker|r %s"):format(Peon.COLOR, L.TT_NO_SCAN), GREY[1], GREY[2], GREY[3])
         any = true
     end
-    if ctx.key ~= nil and not ctx.preview and T.KeepLine(tooltip, ctx.key) then any = true end
+    -- ab 0.53 (U12): keine Zeile "Behalten" mehr (Behalten entfaellt)
     for _, l in ipairs(lay.lines) do
         if Shown(l.when, details) then
             if l.key == "hint" then

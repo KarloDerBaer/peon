@@ -181,16 +181,10 @@ local function MarkTab(b, on)
     if on then b:LockHighlight() else b:UnlockHighlight() end
 end
 
--- Andocken ans Auktionshaus oder an die gemerkte Stelle
+-- An die gemerkte Stelle (ab 0.53, Umbau U12: kein Andocken mehr ans Auktionshaus)
 function W.Place()
     local f = W.frame
     f:ClearAllPoints()
-    local ah = rawget(_G, "AuctionHouseFrame")
-    if ns.Scan.ahOpen and ah and (not ah.IsShown or ah:IsShown()) then
-        f:SetPoint("TOPLEFT", ah, "TOPRIGHT", 4, 0)
-        W.docked = true
-        return
-    end
     W.docked = false
     local p = mod.db.windowPos
     if type(p) == "table" and type(p.point) == "string" and type(p.x) == "number" and type(p.y) == "number" then
@@ -314,16 +308,7 @@ end
 -- Blizzards Reitern. Das Fenster oeffnet der Minimap-Button, Peon_Panel oder /broker.
 
 function W.Init()
-    mod:RegisterEvent("AUCTION_HOUSE_SHOW", function()
-        if W.IsOpen() then
-            W.Place()                                     -- schon offen: ans Auktionshaus andocken
-        elseif mod.db.windowWithAH then
-            W.Open()
-        end
-    end)
-    mod:RegisterEvent("AUCTION_HOUSE_CLOSED", function()
-        if W.IsOpen() and W.docked then W.frame:Hide() end   -- angedockt: schliesst mit dem Auktionshaus
-    end)
+    -- ab 0.53 (U12): Das Fenster oeffnet und schliesst nicht mehr mit dem Auktionshaus und dockt nicht an
     mod:On("SCAN_DONE", function() if W.IsOpen() then W.Refresh() end end)
     mod:On("CHANGED", function() if W.IsOpen() then W.Refresh() end end)
 end
