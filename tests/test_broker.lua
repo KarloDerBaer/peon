@@ -3047,6 +3047,67 @@ Win.Refresh()
   CreateFrame = origCreate
 end)()
 
+-- ===== Umbau U3 (0.44.0): Rat im Verkaufsfenster =====
+;(function()
+  local A = ns.Advice
+  local L = ns.L
+  local oldEval = ns.Data.Evaluate
+  local band = { low = 90, high = 110, trend = "calm", days = 5 }
+  ns.Data.Evaluate = function() return { band = band } end
+  local e = { m = 100, md = 100, q = 50 }
+  local r = A.Judge(e, 2770, 100, 10, 5, mod.db)
+  check(r.kind == "sell" and r.title == L.ADV_SELL and r.why == L.ADV_SELL_WHY, "U3: im ueblichen Bereich -> Verkaufen")
+  check(math.abs(r.net - 100 * 10 * 0.95) < 1e-9 and r.vendor == 50, "U3: Erloes nach Anteil, Haendler fuer die Menge")
+  check(A.Judge(e, 2770, 120, 1, 5, mod.db).kind == "high", "U3: ueber dem Bereich -> guter Zeitpunkt")
+  check(A.Judge(e, 2770, 85, 1, 5, mod.db).why == L.ADV_LOW_OK_WHY, "U3: knapp darunter -> noch Verkaufen")
+  local w = A.Judge(e, 2770, 60, 1, 5, mod.db)
+  check(w.kind == "wait" and w.why == L.ADV_WAIT_WHY:format(33), "U3: 33 % unter dem Bereich -> Lieber warten")
+  band.trend = "down"
+  check(A.Judge(e, 2770, 85, 1, 5, mod.db).kind == "fall", "U3: Preis faellt seit Laengerem -> Verkaufen, Preis faellt")
+  check(A.Judge(e, 2770, 60, 1, 5, mod.db).kind == "wait", "U3: weit darunter bleibt Lieber warten")
+  band.trend = "calm"
+  local v = A.Judge(e, 2770, 10, 1, 20, mod.db)
+  check(v.kind == "vendor" and v.title == L.ADV_VENDOR, "U3: Haendler zahlt mehr -> Lieber zum Haendler")
+  ns.Data.Evaluate = function() return {} end
+  check(A.Judge(e, 2770, 100, 1, 5, mod.db).kind == "none", "U3: ohne ueblichen Bereich keine Einschaetzung")
+  check(A.Judge(e, 2770, 0, 1, 5, mod.db).why == L.ADV_NO_PRICE, "U3: ohne Preis")
+  ns.Data.Evaluate = oldEval
+
+  -- Nachbau: Auktionshaus mit Verkaufsfenster fuer Einzelgegenstaende
+  local calls = 0
+  local origHook = rawget(_G, "hooksecurefunc")
+  hooksecurefunc = function(t, name, fn) local o = t[name]; t[name] = function(...) local x = o(...) fn(...) return x end end
+  local ah = CreateFrame("Frame", "AuctionHouseFrame")
+  local sf = CreateFrame("Frame"); sf.shown = true
+  sf.PostButton = CreateFrame("Button")
+  sf.loc = { bag = 0, slot = 1 }
+  sf.price, sf.qty = 100, 3
+  sf.GetItem = function(s) return s.loc end
+  sf.GetPrice = function(s) return s.price end
+  sf.GetQuantity = function(s) return s.qty end
+  sf.UpdatePostState = function() calls = calls + 1 end
+  ah.ItemSellFrame = sf
+  local oldLink = C_Item.GetItemLink
+  C_Item.GetItemLink = function(loc) return loc and "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r" end
+  ns.Advice.hooked = nil
+  fire("AUCTION_HOUSE_SHOW")
+  check(ns.Advice.hooked, "U3: Verkaufsfenster angehaengt")
+  sf:UpdatePostState()
+  local box = A.boxes[sf]
+  check(calls == 1 and box and box.shown and box.title.text ~= nil, "U3: Kasten nach UpdatePostState sichtbar: " .. tostring(box and box.title.text))
+  check(A.current and A.current.key == 2770 and A.current.price == 100 and A.current.qty == 3, "U3: Gegenstand, Preis und Menge aus Blizzards Fenster gelesen")
+  check(rawget(sf, "peonAdvice") == nil and box.points[1][2] == sf.PostButton, "U3: Kasten unter Auktion erstellen, nichts an Blizzards Rahmen gespeichert")
+  sf.price = 1
+  sf:UpdatePostState()
+  check(box.title.text == L.ADV_VENDOR, "U3: Preis von Hand geaendert -> neu gerechnet (" .. tostring(box.title.text) .. ")")
+  sf.loc = nil
+  sf:UpdatePostState()
+  check(not box.shown and A.current == nil, "U3: Fenster leer -> Kasten weg")
+  C_Item.GetItemLink = oldLink
+  hooksecurefunc = origHook
+  AuctionHouseFrame = {}
+end)()
+
 -- Keine unerwarteten Fehlermeldungen
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("hat einen Fehler gemeldet", 1, true) then n = n + 1 end end  -- erwartete Meldung aus dem Verkaufen-Test
 check(n == 0, "keine Fehlermeldungen")

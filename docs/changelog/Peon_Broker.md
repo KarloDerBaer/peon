@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.44.0
+
+Kurz: Legst du im Auktionshaus etwas ins Verkaufsfenster, sagt Broker darunter, ob du zu diesem Preis verkaufen solltest: Verkaufen, Lieber warten, Verkaufen (Preis fällt) oder Lieber zum Händler, jeweils mit kurzem Grund.
+
+- 0.44.0 (09.11.2026): **Umbau U3, Rat im Verkaufsfenster** (Konzept Abschnitt 7.2). Neue Datei `Advice.lua`.
+  - Kasten unter Blizzards Knopf „Auktion erstellen“: oben das Urteil groß und farbig, darunter ein Satz, warum, dann Üblich, Absatz und Erlös für die Menge (mit Händlerwert). Am neutralen Haus steht oben rechts „Neutral“.
+  - Broker trägt nichts in Blizzards Felder ein. Das Urteil gilt für den Preis, der gerade im Feld steht, und wird bei jeder Änderung neu gerechnet (sicherer Anhang an `UpdatePostState` beider Verkaufsfenster).
+  - Urteile: Verkaufen (im Bereich, knapp darunter oder darüber), Lieber warten (mehr als 15 % unter dem unteren Rand, `A.WAIT_PCT`), Verkaufen, Preis fällt (Bereich schon länger nach unten verschoben), Lieber zum Händler (Erlös nach Anteil unter dem Händlerpreis), Keine Einschätzung (kein üblicher Bereich). Zusatz „Viel Ware im Markt“, wenn die Angebote länger als 3 Tage Absatz reichen (`A.FULL_DAYS`). Die Grenzwerte sind ein erster Vorschlag.
+  - Blizzards Angebote für das Verkaufsfenster liest Broker mit und übernimmt sie als Live-Stand. Eine eigene Suche schickt er nicht ab.
+  - Bei „Blizzard pur“ kein Kasten und kein Anhang.
+  - **Im Spiel prüfen:** Gegenstand aus der Tasche ins Verkaufsfenster legen: Erscheint der Kasten unter „Auktion erstellen“, passt er über „Sofortkaufmodus“? Preis von Hand ändern: Wechselt das Urteil? Sind die Grenzwerte sinnvoll?
+
 ## 0.43.0
 
 Kurz: Broker liest aus deinen Verkaufsrechnungen in der Post, wie viel jedes Auktionshaus einbehält. Der Vergleich mit dem neutralen Auktionshaus im Tooltip rechnet damit, ein „?“ heißt: noch nicht gemessen.
