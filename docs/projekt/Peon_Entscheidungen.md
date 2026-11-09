@@ -6,6 +6,7 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 
 - **Eigener Markt `<Realm> / Neutral`** (KarloDerBaer, schon im Konzept vorgesehen): Daten vom neutralen Haus dürfen sich nicht mit denen der eigenen Fraktion mischen.
 - **Erkennung über den Auktionator** (Claude, im Spiel geprüft): Der Auktionator in Beutebucht hat keine Fraktion. Gilt nur, solange das Auktionshaus offen ist. Danach zeigen Tooltips wieder den Markt der eigenen Fraktion, weil man dort meistens handelt.
+- **Normales Release** `v2026.11.09` direkt ohne Vorabversion, weil das Update wichtig ist (KarloDerBaer).
 
 ## 08.11.2026: Broker im Berufsfenster (Broker 0.39.0)
 
