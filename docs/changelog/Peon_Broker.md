@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.43.0
+
+Kurz: Broker liest aus deinen Verkaufsrechnungen in der Post, wie viel jedes Auktionshaus einbehält. Der Vergleich mit dem neutralen Auktionshaus im Tooltip rechnet damit, ein „?“ heißt: noch nicht gemessen.
+
+- 0.43.0 (09.11.2026): **Umbau U2, Anteil je Markt** (Konzept Abschnitt 5.3). Neue Datei `Cut.lua`.
+  - Beim Öffnen des Briefkastens (`MAIL_INBOX_UPDATE`) liest Broker alle Verkaufsrechnungen (`GetInboxInvoiceInfo`, Art „seller“) und rechnet Anteil ÷ Verkaufspreis. Das Haus erkennt er am Absender („Auktionshaus der Allianz“ im Spiel gesehen): Allianz, Horde, jedes andere Auktionshaus gilt als neutral. Verkäufe unter 20 Silber zählen nicht (Rundung), jede Rechnung nur einmal je Sitzung. Gespeichert in `PeonBrokerDB.cut[Fraktion]` (Median der letzten 10).
+  - `D.Cut(markt)` ersetzt den festen Anteil `D.CUT` überall (Erlös, kleinster lohnender Preis, Radar, Verkaufen). Ohne Messung bleibt es bei 5 %. `D.CutSure(markt)`: Fraktionshäuser gelten als bestätigt, das neutrale erst nach einer Messung.
+  - Zeile „Neutral“ im Tooltip: Abstand jetzt nach Gebühr beider Häuser, graues „?“ solange der neutrale Anteil nicht gemessen ist.
+  - `/broker pruefen ah` nennt die gemessenen Anteile.
+  - **Im Spiel prüfen:** Nach einem Verkauf in Beutebucht den Briefkasten öffnen, dann `/broker pruefen ah`: Steht dort ein Anteil für Neutral? Verschwindet das „?“ im Tooltip?
+
 ## 0.42.0
 
 Kurz: Der Tooltip zeigt jetzt immer die Preise des Auktionshauses deiner Fraktion, auch wenn du am neutralen Auktionshaus stehst. Die Preise des neutralen Hauses stehen in einer eigenen Zeile „Neutral“ mit dem Unterschied in Prozent.

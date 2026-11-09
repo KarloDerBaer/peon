@@ -549,7 +549,7 @@ function S.Hints()
     if not AHOpen() then out[#out + 1] = GREY .. L.SELL_NEED_AH .. "|r"
     elseif S.filled == false then out[#out + 1] = ORANGE .. L.SELL_HINT_FILL .. "|r" end
     -- Haendler zahlt mehr - oder der Markt liegt so tief, dass Broker auf den Mindestpreis angehoben hat (ab 0.20)
-    if price and it.hp and it.hp > 0 and (price * (1 - ns.Data.CUT) <= it.hp or (S.entryWhy == "min" and price == S.entry)) then
+    if price and it.hp and it.hp > 0 and (price * (1 - ns.Data.Cut()) <= it.hp or (S.entryWhy == "min" and price == S.entry)) then
         out[#out + 1] = ORANGE .. L.SELL_HINT_VENDOR2:format(Money(it.hp * math.max(qty, 1))) .. "|r"
     end
     -- ueblicher Bereich und Marktlage (Kapitel 7, ab 0.21)
@@ -580,7 +580,7 @@ function S.Hints()
     local lg = ns.Tooltip.Ledger and ns.Tooltip.Ledger()
     if lg and type(lg.Cost) == "function" and price and price > 0 then
         local okc, nxt = pcall(lg.Cost, lg, ns.Data.ItemID(it.key))
-        if okc and type(nxt) == "number" and nxt > 0 and price * (1 - ns.Data.CUT) < nxt then
+        if okc and type(nxt) == "number" and nxt > 0 and price * (1 - ns.Data.Cut()) < nxt then
             out[#out + 1] = ORANGE .. L.SELL_HINT_COST:format(Money(math.floor(nxt + 0.5))) .. "|r"
         end
     end
@@ -675,7 +675,7 @@ function S.UpdatePanel()
     -- Erloes fuer die Menge im Auktionshaus (bzw. alles)
     local price, qty = S.GetPrice(), S.GetQty()
     if price and qty > 0 then
-        local erl = price * qty * (1 - ns.Data.CUT)
+        local erl = price * qty * (1 - ns.Data.Cut())
         local hw = it.hp and it.hp * qty or nil
         local vendorBetter = (hw and erl <= hw) or (S.entryWhy == "min" and price == S.entry)
         S.proceedsValue:SetText((vendorBetter and ORANGE or GREEN) .. Money(erl) .. "|r")

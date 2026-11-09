@@ -655,7 +655,7 @@ function D.Suggest(min, median, key, db, e, vor)
 end
 
 function D.Proceeds(vp, count)                                                       -- F16
-    return vp * (count or 1) * (1 - D.CUT)
+    return vp * (count or 1) * (1 - D.Cut())
 end
 
 -- Alles fuer die Anzeige eines Gegenstands; count = Stapelgroesse, hp = Haendlerpreis je Stueck
@@ -682,7 +682,7 @@ end
 -- F19: kleinster Preis je Stueck, bei dem der Erloes ueber dem Haendlerpreis liegt
 function D.MinPrice(hp)
     if type(hp) ~= "number" or hp <= 0 then return nil end
-    return math.floor(hp / (1 - D.CUT)) + 1
+    return math.floor(hp / (1 - D.Cut())) + 1
 end
 
 -- Live-Angebote { { price, qty, own }, ... } (je Stueck, own = eigene Menge dieser Stufe)
@@ -867,7 +867,7 @@ function D.ProfitOf(d, n)
     end
     local ref = d.refMedian or nextP or 0
     local sell = math.min(ref, nextP or ref)
-    return math.floor(sell * (1 - D.CUT) * got - cost), cost, got
+    return math.floor(sell * (1 - D.Cut()) * got - cost), cost, got
 end
 
 -- F31/F33 (ab 0.17 neu, mit KarloDerBaer abgestimmt 30.09.2026): Schnaeppchen aus Preisstufen
@@ -937,7 +937,7 @@ function D.Deal(e, rows, hp, db, today, key)
                 elseif all > listed then nextP = l.price     -- weitere Stufen unbekannt (nur gespeicherte Stufen): vorsichtig
                 else nextP = ref end                         -- sonst nichts im Angebot
                 local sell = math.min(ref, nextP)
-                local net = sell * (1 - D.CUT)
+                local net = sell * (1 - D.Cut())
                 if net >= l.price * (1 + margin) then
                     local gain = math.floor(net * bought - cost)
                     if not best or gain > best.gain then

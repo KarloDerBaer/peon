@@ -458,6 +458,44 @@ end
     check(not ok and ns.marketOverride == nil, "U1: auch nach einem Abbruch")
 end)()
 
+-- ===== Umbau U2 (ab 0.43): Anteil des Auktionshauses je Markt =====
+;(function()
+    local C = ns.Cut
+    check(C.FactionOfSender("Auktionshaus der Allianz") == "Alliance" and C.FactionOfSender("Horde Auction House") == "Horde"
+      and C.FactionOfSender("Auktionshaus der Schwarzmeerräuber") == "Neutral" and C.FactionOfSender("Mirel") == nil, "U2: Haus am Absender")
+    check(D.Cut("Classic Beta PvE / Neutral") == 0.05 and not D.CutSure("Classic Beta PvE / Neutral") and D.CutSure("Classic Beta PvE / Horde"), "U2: ohne Messung 5 %, Neutral ungeprueft")
+    -- Briefkasten mit drei Verkaufsrechnungen: zwei neutral (15 %), eine Allianz-Rechnung zu klein
+    local mails = {
+      { "Auktionshaus der Schwarzmeerräuber", "Auktion erfolgreich: A", { "seller", "A", "X", 10000, 10000, 0, 1500 } },
+      { "Auktionshaus der Schwarzmeerräuber", "Auktion erfolgreich: B", { "seller", "B", "Y", 0, 20000, 0, 3000 } },
+      { "Auktionshaus der Allianz", "Auktion erfolgreich: C", { "seller", "C", "Z", 1000, 1000, 0, 50 } },
+      { "Auktionshaus der Allianz", "Auktion gewonnen: D", { "buyer", "D", "Z", 50000, 50000, 0, 0 } },
+    }
+    GetInboxNumItems = function() return #mails end
+    GetInboxHeaderInfo = function(i) return nil, nil, mails[i][1], mails[i][2] end
+    GetInboxInvoiceInfo = function(i) return unpack(mails[i][3]) end
+    fire("MAIL_INBOX_UPDATE")
+    check(PeonBrokerDB.cut.Neutral and PeonBrokerDB.cut.Neutral.n == 2 and math.abs(D.Cut("Classic Beta PvE / Neutral") - 0.15) < 1e-9, "U2: Anteil neutral aus zwei Rechnungen 15 %")
+    check(D.CutSure("Classic Beta PvE / Neutral") and PeonBrokerDB.cut.Alliance == nil, "U2: kleine Verkaeufe und Kaeufe zaehlen nicht")
+    fire("MAIL_INBOX_UPDATE")
+    check(PeonBrokerDB.cut.Neutral.n == 2, "U2: dieselben Rechnungen zaehlen nur einmal")
+    check(D.Cut("Classic Beta PvE / Horde") == 0.05, "U2: Heimatmarkt bleibt 5 %")
+    -- Tooltip: Abstand nach Gebuehr (neutral doppelter Preis, 15 % statt 5 % -> +79 %)
+    local he = D.Markets()["Classic Beta PvE / Horde"].items[2770]
+    local nm = D.Market("Classic Beta PvE / Neutral", true)
+    nm.lastScan = clock
+    nm.items[2770] = { m = he.m * 2, md = he.md * 2, q = 10, n = 2, t = clock }
+    local text = plain(ns.Tooltip.NeutralText(nm.items[2770], he.m))
+    local expect = math.floor((he.m * 2 * 0.85 - he.m * 0.95) / (he.m * 0.95) * 100 + 0.5)
+    check(text:find("(+" .. expect .. " %)", 1, true) and not text:find("?", 1, true), "U2: Abstand nach Gebuehr beider Haeuser: " .. text)
+    PeonBrokerDB.cut = nil
+    check(plain(ns.Tooltip.NeutralText(nm.items[2770], he.m)):find("?", 1, true), "U2: ungemessen mit Fragezeichen")
+    check(ns.Cut.Report():find("Neutral noch nicht gemessen", 1, true), "U2: Bericht ohne Messung")
+    D.DeleteMarket("Classic Beta PvE / Neutral")
+    GetInboxNumItems, GetInboxHeaderInfo, GetInboxInvoiceInfo = nil, nil, nil
+    C.seen = {}
+end)()
+
 -- ===== Zweiter Scan am selben Tag: Tageswert und Trend =====
 clock = clock + 20 * 60
 LISTINGS[1][5] = 10 * 130

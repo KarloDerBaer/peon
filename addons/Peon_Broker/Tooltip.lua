@@ -165,12 +165,18 @@ function T.NeutralEntry(key)
     return e
 end
 
+-- Abstand in Prozent nach Gebuehr beider Haeuser (ab 0.43, U2). Ist der Anteil des neutralen Hauses noch nicht
+-- gemessen, steht ein graues "?" dahinter.
 function T.NeutralText(ne, homeMin)
     local text = T.Money(ne.m)
     if type(homeMin) == "number" and homeMin > 0 then
-        local pct = math.floor((ne.m - homeMin) / homeMin * 100 + 0.5)
+        local nk, hk = ns.NeutralMarketKey(), ns.HomeMarketKey()
+        local netN = ne.m * (1 - ns.Data.Cut(nk))
+        local netH = homeMin * (1 - ns.Data.Cut(hk))
+        local pct = math.floor((netN - netH) / netH * 100 + 0.5)
         local color = pct > 0 and "|cff60e060" or (pct < 0 and "|cffff9933" or "|cffffffff")
         text = text .. " " .. color .. "(" .. (pct > 0 and "+" or "") .. pct .. " %)|r"
+        if not ns.Data.CutSure(nk) then text = text .. " |cff999999?|r" end
     end
     local seen = ns.Data.Seen(ne)
     if seen and time() - seen > T.NEUTRAL_OLD then

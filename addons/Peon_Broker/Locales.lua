@@ -648,7 +648,16 @@ L.OPT_TT_NEUTRAL   = "Line \"Neutral\" (neutral auction house)"
 L.OPT_TT_NEUTRAL_ALWAYS = "Always"
 L.OPT_TT_NEUTRAL_SHIFT = "Only with Shift"
 L.OPT_TT_NEUTRAL_OFF = "Off"
-L.OPT_TT_NEUTRAL_HINT = "Cheapest offer in the neutral auction house (for example Booty Bay) and the difference to your faction's auction house. Only shown once there are prices for the neutral market. Tooltips always show the prices of your own faction, also at the neutral auction house."
+L.OPT_TT_NEUTRAL_HINT = "Cheapest offer in the neutral auction house (for example Booty Bay) and the difference to your faction's auction house. The difference counts the cut of both houses. \"?\" = the neutral cut is not measured yet (Broker reads it from your first sale invoice there). Only shown once there are prices for the neutral market. Tooltips always show the prices of your own faction, also at the neutral auction house."
+
+
+-- Umbau U2 (ab 0.43): Anteil des Auktionshauses je Markt
+L.CUT_HEAD         = "Auction house cut: %s"
+L.CUT_MEASURED     = "%s %s %% (%d invoices)"
+L.CUT_ALLIANCE     = "Alliance"
+L.CUT_HORDE        = "Horde"
+L.CUT_NEUTRAL      = "Neutral"
+L.CUT_NEUTRAL_UNKNOWN = "Neutral not measured yet (5 % assumed, \"?\" in the tooltip)"
 
 if GetLocale() == "deDE" then
     L.SALES_PER_HOUR = "%s/Std."
@@ -1278,5 +1287,12 @@ if GetLocale() == "deDE" then
     L.OPT_TT_NEUTRAL_ALWAYS = "Immer"
     L.OPT_TT_NEUTRAL_SHIFT = "Nur mit Umschalt"
     L.OPT_TT_NEUTRAL_OFF = "Aus"
-    L.OPT_TT_NEUTRAL_HINT = "Günstigstes Angebot im neutralen Auktionshaus (zum Beispiel Beutebucht) und der Abstand zum Auktionshaus deiner Fraktion. Erscheint erst, wenn es Preise für den neutralen Markt gibt. Der Tooltip zeigt immer die Preise deiner Fraktion, auch am neutralen Auktionshaus."
+    L.OPT_TT_NEUTRAL_HINT = "Günstigstes Angebot im neutralen Auktionshaus (zum Beispiel Beutebucht) und der Abstand zum Auktionshaus deiner Fraktion. Der Abstand rechnet mit dem Anteil beider Häuser. „?“ = Anteil des neutralen Hauses noch nicht gemessen (Broker liest ihn aus deiner ersten Verkaufsrechnung von dort). Erscheint erst, wenn es Preise für den neutralen Markt gibt. Der Tooltip zeigt immer die Preise deiner Fraktion, auch am neutralen Auktionshaus."
+    -- Umbau U2 (ab 0.43)
+    L.CUT_HEAD         = "Anteil des Auktionshauses: %s"
+    L.CUT_MEASURED     = "%s %s %% (%d Rechnungen)"
+    L.CUT_ALLIANCE     = "Allianz"
+    L.CUT_HORDE        = "Horde"
+    L.CUT_NEUTRAL      = "Neutral"
+    L.CUT_NEUTRAL_UNKNOWN = "Neutral noch nicht gemessen (5 % angenommen, „?“ im Tooltip)"
 end

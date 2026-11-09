@@ -126,6 +126,7 @@ function T.Probe(quiet)
         table.sort(names)
         for _, k in ipairs(names) do mod:Print(("  %s: %s"):format(k, r.vars[k])) end
         mod:Print(L.AH_PROBE_BLOCKED:format(r.blocked))
+        if ns.Cut then mod:Print(L.CUT_HEAD:format(ns.Cut.Report())) end   -- ab 0.43 (U2)
     end
     return r
 end
