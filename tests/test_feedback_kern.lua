@@ -103,7 +103,7 @@ check(Peon.NewList and Peon.ModulePrototype.NewMinimapButton and Peon.PageProtot
 
 -- Bereichs-Zeilen aus den echten Moduldateien ausfuehren
 local files = { Peon_Broker = "Broker.lua", Peon_Tooltip = "Tooltip.lua", Peon_Fishing = "Fishing.lua", Peon_ComboPoints = "ComboPoints.lua" }
-local expect = { Peon_Broker = 12, Peon_Tooltip = 8, Peon_Fishing = 9, Peon_ComboPoints = 3 }
+local expect = { Peon_Broker = 15, Peon_Tooltip = 8, Peon_Fishing = 9, Peon_ComboPoints = 3 }
 for addon, file in pairs(files) do
   local line
   for l in io.lines(addon .. "/" .. file) do if l:match("^if Peon%.SetFeedbackAreas then") then line = l end end
@@ -111,7 +111,7 @@ for addon, file in pairs(files) do
   assert(loadstring("local ADDON_NAME = ...\n" .. line))(addon)
   check(#Peon.GetFeedbackAreas(addon) == expect[addon], addon .. ": " .. expect[addon] .. " Bereiche gemeldet")
 end
-check(Peon.GetFeedbackAreas("Peon_Broker")[6] == "Radar" and Peon.GetFeedbackAreas("Peon_Fishing")[4] == "Schwimmer-Erkennung", "Bereiche in der richtigen Reihenfolge")
+check(Peon.GetFeedbackAreas("Peon_Broker")[3] == "Radar" and Peon.GetFeedbackAreas("Peon_Fishing")[4] == "Schwimmer-Erkennung", "Bereiche in der richtigen Reihenfolge")
 -- Zeile mit altem Kern (ohne API 9) ist harmlos
 do
   local save = Peon.SetFeedbackAreas; Peon.SetFeedbackAreas = nil
@@ -137,7 +137,7 @@ local mods = ns.Modules()
 check(#mods == 6 and mods[1][1] == "Peon" and mods[1][2] == "Peon (Kern)", "Module: Kern zuerst, fremde Addons weg")
 local titles = {} for i = 2, #mods do titles[#titles+1] = mods[i][2] end
 check(table.concat(titles, ",") == "Broker,ComboPoints,Feedback,Fishing,Tooltip", "Titel aus den echten TOCs: " .. table.concat(titles, ","))
-check(#ns.Areas("Peon_Broker") == 13 and ns.Areas("Peon_Broker")[13][1] == "Sonstiges", "Broker: 12 Bereiche + Sonstiges (ab 0.24 mit Start und Berufe, ohne Händler)")
+check(#ns.Areas("Peon_Broker") == 16 and ns.Areas("Peon_Broker")[16][1] == "Sonstiges", "Broker: 15 Bereiche + Sonstiges (ab 0.53 nach dem Umbau)")
 check(#ns.Areas("Peon_Feedback") == 1, "Feedback selbst: nur Sonstiges")
 
 -- Fenster mit neuer Menue-API
@@ -150,8 +150,8 @@ local sel = ns.GetSelection()
 check(sel.module == "Peon" and sel.area == "Einstellungsseite" and dd.module.txt == "Peon (Kern)", "Startauswahl angezeigt")
 check(#dd.module.radios == 6 and #dd.kind.radios == 4 and #dd.prio.radios == 3, "Eintraege der Auswahllisten")
 dd.module.radios[2].onSel()
-check(sel.module == "Peon_Broker" and sel.area == "Start" and #dd.area.radios == 13 and dd.area.txt == "Start", "Modulwechsel: Bereiche des Moduls")
-dd.area.radios[6].onSel(); dd.prio.radios[3].onSel(); dd.kind.radios[1].onSel()
+check(sel.module == "Peon_Broker" and sel.area == "Verkaufen (Rat)" and #dd.area.radios == 16 and dd.area.txt == "Verkaufen (Rat)", "Modulwechsel: Bereiche des Moduls")
+dd.area.radios[3].onSel(); dd.prio.radios[3].onSel(); dd.kind.radios[1].onSel()
 check(sel.area == "Radar" and sel.prio == "high" and sel.kind == "bug" and dd.area.txt == "Radar", "Bereich/Prioritaet/Art gewaehlt")
 
 -- Speichern, Liste (echt)
