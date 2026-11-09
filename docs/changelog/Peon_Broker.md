@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.54.0
+
+Kurz: Im Auktionshaus liegen Radar und Einkaufen nicht mehr übereinander. Die Reiter heißen und stehen jetzt: Markt (bisher Kaufen), Verkaufen, Einkaufen, Radar, Auktionen.
+Kurz: Das Broker-Fenster hat die Reiter Markt, Marktvergleich, Händler, Einkaufsliste, Beobachten, Info und Quellen. Markt und Info sind noch in Arbeit.
+
+- 0.54.0 (09.11.2026, nach dem Test von KarloDerBaer):
+  - **Auktionshaus:** Beim Wechsel zwischen Radar und Einkaufen blieb die vorige Fläche sichtbar, daher überlagerten sich Texte und Knöpfe. Jetzt wird die andere umgehängte Fläche versteckt. Fläche mit undurchsichtigem Grund (Blizzards Hintergrund ließ etwas durchscheinen).
+  - **Reihenfolge im Auktionshaus:** Markt, Verkaufen, Einkaufen, Radar, Auktionen. Blizzards „Auktionen“ wird nur neu verankert, „Kaufen“ bekommt den Text „Markt“ (keine Einträge in Blizzards Tabellen).
+  - **Broker-Fenster:** Reiter Markt (neu, WIP: soll wie Blizzards Kaufen mit Kategorien auf Basis der Scandaten werden), Marktvergleich (bisher Markt), Händler, Einkaufsliste, Beobachten, Info (bisher Gegenstände, WIP, wird neu gestaltet), Quellen. Ein gemerkter Reiter ohne Knopf öffnet Markt.
+  - **Im Spiel prüfen:** Reiter im Auktionshaus, Wechsel Radar und Einkaufen, Reiter im Broker-Fenster.
+
 ## 0.53.1
 
 Kurz: Behebt das Einfrieren des Spiels beim erweiterten Tooltip (mit Umschalt).

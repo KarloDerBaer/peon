@@ -599,8 +599,14 @@ check(S.state == nil and said("keine Antwort"), "Zeitueberschreitung ohne Daten"
 
 -- ===== Broker-Fenster, Reiter "Preise" (0.7) =====
 local Win, P = ns.Window, ns.Prices
--- Einkaufsliste war 0.37 bis 0.48 in Arbeit, ab 0.49 (U8) wieder offen
-check(next(Win.WIP) == nil, "0.49: Einkaufsliste nicht mehr in Arbeit")
+-- Einkaufsliste war 0.37 bis 0.48 in Arbeit, ab 0.49 (U8) wieder offen. Ab 0.54 sind Markt und Info in Arbeit:
+-- fuer die Pruefungen der bisherigen Gegenstandsansicht den Hinweis abschalten, am Ende pruefen
+check(not Win.WIP.buy and Win.WIP.browse and Win.WIP.prices, "0.54: Markt und Info in Arbeit, Einkaufsliste offen")
+local wipKeep = Win.WIP
+Win.WIP = {}
+for _, k in ipairs({ "browse", "prices" }) do   -- schon als Hinweis angelegte Seiten verwerfen
+  if Win.contents and Win.contents[k] then Win.contents[k]:Hide(); Win.contents[k] = nil end
+end
 check(market.items[2770].nm == "Kupfererz" and market.items[2770].ql == 1, "Scan merkt Name und Qualitaet")
 check(market.items["15000:1047"].nm == "Schwert des Baeren" and market.items["15000:1047"].ql == 2, "Name bei Ausruestung mit Zusatz")
 check(D.LinkFromKey(2770) == "item:2770" and D.KeyFromLink(D.LinkFromKey("15000:1047")) == "15000:1047", "Link aus Schluessel und zurueck")
@@ -614,13 +620,13 @@ check(wf.shown and not Win.docked and wf.points[1][2] ~= AuctionHouseFrame, "U12
 check(UISpecialFrames[#UISpecialFrames] == "PeonBrokerFrame", "Escape schliesst das Fenster")
 local nTabs, open = 0, {}
 for _, b in ipairs(Win.tabButtons) do nTabs = nTabs + 1; if not b.disabled then open[#open + 1] = b.text end end
-check(nTabs == 6 and #open == 6 and open[1] == "Einkaufslisten" and open[2] == "Markt" and open[3] == "Händler" and open[4] == "Gegenstände" and open[5] == "Beobachtung" and open[6] == "Quellen",
-  "U10/U11: sechs Reiter, nur was ohne Auktionshaus geht")
-check(Win.current == "prices" and Win.tabButtons[4].locked, "U10: Fenster oeffnet bei Gegenstaende (zuletzt gewaehlt)")
+check(nTabs == 7 and #open == 7 and table.concat(open, ",") == "Markt,Marktvergleich,Händler,Einkaufsliste,Beobachten,Info,Quellen",
+  "0.54: Reiter Markt, Marktvergleich, Haendler, Einkaufsliste, Beobachten, Info, Quellen")
+check(Win.current == "prices" and Win.tabButtons[6].locked, "Fenster oeffnet beim zuletzt gewaehlten Reiter")
 check(ns.Start == nil and Win.pages.start == nil, "U12: Startseite entfaellt")
 Win.Select("buy")
-Win.tabButtons[4].scripts.OnClick(Win.tabButtons[4])
-check(Win.current == "prices" and Win.tabButtons[4].locked and not Win.tabButtons[1].locked, "Reiter Gegenstaende gewaehlt und markiert")
+Win.tabButtons[6].scripts.OnClick(Win.tabButtons[6])
+check(Win.current == "prices" and Win.tabButtons[6].locked and not Win.tabButtons[1].locked, "Reiter Info gewaehlt und markiert")
 local items = P.list:GetItems()
 check(#items == 4 and items[1].name == "Kupfererz" and items[4].name == "Schwert des Baeren", "Liste: alle Gegenstaende nach Name")
 check(P.count.text == "4 von 4 Gegenständen", "Zaehler")
@@ -2958,6 +2964,14 @@ do
   check(refreshed == 1, "0.35: Scan aktualisiert den Text")
 end
 
+-- ===== Markt und Info in Arbeit (0.54) =====
+Win.WIP = wipKeep
+for _, k in ipairs({ "browse", "prices" }) do
+  if Win.contents[k] then Win.contents[k]:Hide() end
+  Win.contents[k] = nil
+  Win.Open(k)
+  check(Win.current == k and Win.contents[k].wipText and Win.contents[k].wipText.text == ns.L.TAB_WIP, "0.54: " .. k .. " zeigt nur den WIP-Hinweis")
+end
 -- ===== Einkaufsliste wieder offen (0.49.0) =====
 Win.Open("buy")
 check(Win.current == "buy" and not Win.contents.buy.wipText and ns.Buy.itemList ~= nil, "0.49: Reiter Einkaufsliste mit Inhalt statt WIP-Hinweis")
@@ -3004,7 +3018,9 @@ Win.Refresh()
   mod.acc.ahPlain = false
   fire("AUCTION_HOUSE_SHOW")
   check(T.built and T.tabs.radar and T.tabs.shop and T.page and T.plainButton, "U0: zwei Reiter, Flaeche und Knopf Blizzard pur angelegt")
-  check(T.tabs.radar.points[1][2] == ah.AuctionsTab and T.tabs.shop.points[1][2] == T.tabs.radar, "U0: Reiter rechts neben Auktionen")
+  check(T.tabs.shop.points[1][2] == ah.SellTab and T.tabs.radar.points[1][2] == T.tabs.shop and ah.AuctionsTab.points[#ah.AuctionsTab.points][2] == T.tabs.radar,
+    "0.54: Reihenfolge Markt, Verkaufen, Einkaufen, Radar, Auktionen")
+  check(ah.BuyTab.text == ns.L.AHTAB_MARKET, "0.54: Kaufen heisst Markt")
   check(T.tabs.radar.text == ns.L.AHTAB_RADAR and T.tabs.shop.text == ns.L.AHTAB_SHOP, "U0: Reiter heissen Radar und Einkaufen")
   check(#ah.Tabs == 3 and ah.numTabs == nil, "U0: Blizzards Reiterliste bleibt unberuehrt")
   check(T.tabs.radar.parent == T.tabHolder and T.tabHolder.parent == ah and #T.tabHolder.Tabs == 2, "0.41.2: Reiter haengen am eigenen Rahmen, nicht an Blizzards Liste")
@@ -3096,6 +3112,10 @@ end)()
   local c = Win.contents.radar
   check(c and c.points[1][2] == T.page and T.host.radar == "ah" and c.shown, "U7: Radar-Flaeche haengt im Reiter des Auktionshauses")
   check(R.Shown() and not T.page.title.shown, "U7: Radar gilt als offen, Platzhalter weg")
+  T.tabs.shop.scripts.OnClick(T.tabs.shop)
+  check(T.current == "shop" and Win.contents.shop.shown and not c.shown, "0.54: Einkaufen offen, Radar-Flaeche versteckt (nicht uebereinander)")
+  T.tabs.radar.scripts.OnClick(T.tabs.radar)
+  check(c.shown and not Win.contents.shop.shown, "0.54: zurueck zum Radar, Einkaufen versteckt")
   check(ns.Buy.ShowInAH({ key = 2770 }) == false and display == 0, "U7: im Reiter schaltet Broker Blizzards Ansicht nicht um")
   -- Blizzard wechselt die Ansicht: Reiter zu, Radar haelt an
   local halted = 0

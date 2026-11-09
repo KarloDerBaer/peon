@@ -23,9 +23,10 @@ local mod = ns.mod
 local T = {}
 ns.AHTabs = T
 
+-- Reihenfolge ab 0.54 (KarloDerBaer): Markt (Blizzards Kaufen), Verkaufen, Einkaufen, Radar, Auktionen
 T.TABS = {
-    { key = "radar", label = "AHTAB_RADAR" },
     { key = "shop",  label = "AHTAB_SHOP" },
+    { key = "radar", label = "AHTAB_RADAR" },
 }
 T.PAGE_LEVEL = 500  -- Abstand der Flaeche ueber dem Auktionshaus (Rahmenebene)
 T.TAB_GAP = -7      -- Abstand zum Reiter davor. Blizzard nutzt -15, das sah bei Brokers Reitern zu eng aus (0.41.2)
@@ -217,6 +218,12 @@ function T.Open(key)
     for _, tab in ipairs(BlizzardTabs(f)) do Deselect(tab) end
     T.page.title:SetText(L["AHTAB_" .. key:upper() .. "_TITLE"] or key)
     T.page:Show()
+    -- ab 0.54: andere umgehaengte Flaeche verstecken (Radar und Einkaufen lagen sonst uebereinander)
+    local W = ns.Window
+    for k in pairs(T.HOSTED) do
+        local c = W and W.contents and W.contents[k]
+        if k ~= key and c and T.host[k] == "ah" then c:Hide() end
+    end
     local hosted = T.Attach(key)
     for _, fs in ipairs({ T.page.title, T.page.text, T.page.status }) do fs:SetShown(not hosted) end
     if not hosted then T.UpdateStatus() end
@@ -271,7 +278,7 @@ function T.Build()
     holder:SetAllPoints(f)
     if holder.SetFrameLevel and f.GetFrameLevel then holder:SetFrameLevel(f:GetFrameLevel() or 1) end
     T.tabHolder = holder
-    local prev = f.AuctionsTab
+    local prev = type(f.SellTab) == "table" and f.SellTab or f.AuctionsTab
     for i, def in ipairs(T.TABS) do
         local ok, tab = pcall(CreateFrame, "Button", "PeonBrokerAHTab" .. i, holder, TabTemplate())
         if not ok or not tab then
@@ -284,6 +291,15 @@ function T.Build()
         Deselect(tab)
         T.tabs[def.key] = tab
         prev = tab
+    end
+    -- ab 0.54: Blizzards "Auktionen" ans Ende, "Kaufen" heisst "Markt" (nur Anker und Text, nichts in Blizzards Tabellen)
+    if prev ~= f.AuctionsTab and type(f.SellTab) == "table" then
+        f.AuctionsTab:ClearAllPoints()
+        f.AuctionsTab:SetPoint("LEFT", prev, "RIGHT", T.TAB_GAP, 0)
+    end
+    if type(f.BuyTab) == "table" and f.BuyTab.SetText then
+        f.BuyTab:SetText(L.AHTAB_MARKET)
+        if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, f.BuyTab, 20, nil, 70) end
     end
 
     -- Flaeche ueber Blizzards Inhalt, faengt die Maus ab. Oben links bleibt das Portraet frei, darum zwei Teile:
@@ -301,8 +317,12 @@ function T.Build()
     if strip.EnableMouse then strip:EnableMouse(true) end
     local sbg = strip:CreateTexture(nil, "BACKGROUND")
     sbg:SetAllPoints(strip)
-    sbg:SetColorTexture(0.05, 0.05, 0.05, 0.97)
-    local bg = p:CreateTexture(nil, "BACKGROUND")
+    sbg:SetColorTexture(0.05, 0.05, 0.05, 1)
+    -- ab 0.54: undurchsichtiger Grund, darueber Blizzards Hintergrund (der laesst sonst etwas durchscheinen)
+    local under = p:CreateTexture(nil, "BACKGROUND", nil, -8)
+    under:SetAllPoints(p)
+    under:SetColorTexture(0.05, 0.05, 0.05, 1)
+    local bg = p:CreateTexture(nil, "BACKGROUND", nil, 1)
     bg:SetAllPoints(p)
     local atlas = false
     if C_Texture and C_Texture.GetAtlasInfo and bg.SetAtlas then

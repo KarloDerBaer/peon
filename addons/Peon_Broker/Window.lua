@@ -20,18 +20,23 @@ W.TOP = 64            -- Abstand der Reiter-Inhalte vom oberen Rand (Platz fuer 
 -- Ab 0.51 (Umbau U10, Konzept Abschnitt 8): nur noch, was ohne Auktionshaus geht. Verkaufen, Meine Auktionen und
 -- Radar sind ins Auktionshaus gewandert (U3, U9, U7), Start und Behalten entfallen (U12). Deren Seiten bleiben bis
 -- U12 angemeldet (W.Select geht weiter, das Radar haengt im Auktionshaus), haben aber keinen Reiter mehr.
+-- Reihenfolge ab 0.54 (KarloDerBaer): Markt (wie Blizzards Kaufen auf Basis der Scandaten, in Arbeit),
+-- Marktvergleich, Haendler, Einkaufsliste, Beobachten, Info (Gegenstand, in Arbeit), Quellen
 W.TABS = {
+    { key = "browse",   label = "TAB_BROWSE" },
+    { key = "market",   label = "TAB_COMPARE" },
+    { key = "vendors",  label = "TAB_VENDORS" },
     { key = "buy",      label = "TAB_LISTS" },
-    { key = "market",   label = "TAB_MARKET" },
-    { key = "vendors",  label = "TAB_VENDORS" },   -- ab 0.52 (U11)
-    { key = "prices",   label = "TAB_ITEMS" },
     { key = "watch",    label = "TAB_WATCH" },
+    { key = "prices",   label = "TAB_ITEMS" },
     { key = "sources",  label = "TAB_SOURCES" },
 }
 W.pages = {}          -- key -> { build = fn(content), refresh = fn() }
 
 -- In Arbeit: Diese Reiter zeigen nur einen Hinweis, bis sie ueberarbeitet sind (Wunsch KarloDerBaer, 07.11.2026)
-W.WIP = {}   -- ab 0.49 (U8): Einkaufsliste wieder offen (0.37 bis 0.48 in Arbeit)
+-- ab 0.54: Markt (neu) und Info (bisher Gegenstaende) zeigen nur den Hinweis, bis sie gebaut sind (KarloDerBaer)
+W.WIP = { browse = true, prices = true }
+W.pages.browse = { build = function() end }
 
 local function BuildWip(c)
     local t = c:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
@@ -202,7 +207,7 @@ function W.Open(tab)
     if not tab then
         local onBar = false
         for _, t in ipairs(W.TABS) do if t.key == want then onBar = true end end
-        if not onBar then want = "prices" end
+        if not onBar then want = "browse" end
     end
     W.Select(want)
     W.frame:Show()
