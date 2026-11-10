@@ -602,12 +602,28 @@ function T.PreviewLines(details, lay)
     return out
 end
 
+-- Zusatzzeilen eines Broker-Rahmens (ab 0.57, z. B. Radar): stehen ganz unten und bleiben beim Neuaufbau
+-- (Umschalt) erhalten. owner = Rahmen, ueber dem die Maus ist, fn(tooltip) haengt Zeilen an. SetExtra(nil) beim Verlassen.
+function T.SetExtra(owner, fn)
+    if not owner then T.extra = nil; return nil end
+    T.extra = { owner = owner, fn = fn, done = false }
+    return T.extra
+end
+
 function T.OnItem(tooltip, data)
     if tooltip ~= GameTooltip and tooltip ~= rawget(_G, "ItemRefTooltip") then return end
     if not tooltip.GetItem then return end
     local _, link = tooltip:GetItem()
     if link == nil or Peon.IsSecret(link) then return end
-    if T.AddLines(tooltip, link, T.StackCount(data)) and tooltip.Show then tooltip:Show() end
+    local shown = T.AddLines(tooltip, link, T.StackCount(data))
+    local ex = T.extra
+    if ex and tooltip == GameTooltip and tooltip.GetOwner and tooltip:GetOwner() == ex.owner then
+        tooltip:AddLine(" ")
+        local ok, err = pcall(ex.fn, tooltip)
+        if not ok then mod:Dbg("Zusatzzeilen: " .. tostring(err)) end
+        ex.done, shown = true, true
+    end
+    if shown and tooltip.Show then tooltip:Show() end
 end
 
 -- Umschalt gedrueckt/losgelassen, waehrend ein Gegenstands-Tooltip offen ist: neu aufbauen

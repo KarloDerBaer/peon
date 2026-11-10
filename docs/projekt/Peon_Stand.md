@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 10.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.17.0 / Broker 0.56.0 / Bridge 0.9.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.25.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 10.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.17.0 / Broker 0.57.0 / Bridge 0.9.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.25.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.17.0, API 17
@@ -47,7 +47,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.56.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.57.0 (neu, Auktionshaus-Helfer)
 
 - **Broker im Berufsfenster (ab 0.39.0):** Block unter den Reagenzien (Ergebniszeile Kosten/Ertrag/Gewinn, Tabelle je Material mit Quelle Vorrat/Händler/AH, Kosten laut Ledger oder Kaufpreis, Erlös im AH, Gesamt, Hinweis „Material verkaufen bringt mehr“ oder „Herstellen bringt mehr“ mit beiden Beträgen, Tooltips, Haken Twinks, Zahnrad), Händlerpreise aus Händlerbesuch, Ledger oder Schätzung, Gewinn in der Rezeptliste (orange, wenn Verkaufen mehr bringt) mit goldenem Strich am besten Rezept, alles einstellbar. Von KarloDerBaer im Spiel geprüft, danach nur noch der Hinweistext geändert. Zusammen mit Ledger 0.13.1 auf Wunsch von KarloDerBaer ohne Vorabversion direkt im normalen Release `v2026.11.08.3` (08.11.2026, Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen). Damit sind auch Broker 0.38.0 und Manager 0.21.0 bis 0.22.0 im normalen Release. Bei Problemen `/broker pruefen beruf`.
 - **Kürzung nach unten erst ab 75 % unter der Mitte (ab 0.38.0, F37a):** Ein echter Preissturz zählt im üblichen Bereich gleich voll, gleich wie im Manager.
@@ -201,7 +201,7 @@ Broker wird schlank: Im Auktionshaus Rat beim Verkaufen, erweiterte Auktionen, R
 - **U10 Broker-Fenster neu:** gebaut mit Broker 0.51.0 (Reiter Einkaufslisten, Markt, Gegenstände, Beobachtung, Quellen, Mein Bestand). Einheitlicher Listen-Stil noch offen. Im Spiel noch nicht geprüft.
 - **U11 Händler:** gebaut mit Broker 0.52.0 (`Vendors.lua`, Reiter Händler, Tooltip-Baustein) und Manager 0.25.0 (Seite Händler). Im Spiel und im Programm noch nicht geprüft.
 - **U12 Aufräumen:** fertig mit Broker 0.53.0 (Start, Andocken, `windowWithAH`, Behalten im Tooltip) und 0.55.0 (Reiter Verkaufen, Behalten, Meine Auktionen, `Sell.lua`, `Keep.lua`, gespeicherte Behalten-Liste und `sellMem`, mit Zustimmung von KarloDerBaer).
-- **AH-Fenster fertig machen (Rückmeldung von KarloDerBaer, 10.11.2026):** Erst das Auktionshaus, danach das Broker-Fenster. Gebaut mit Broker 0.56.0 und Peon 0.17.0: Reiter mit gemessenem Blizzard-Abstand, Einkaufen und Radar im Blizzard-Aufbau (links Einstellungen, rechts Liste), Radar ohne Hänger beim Wechsel, Rat beim Verkaufen ohne Rahmen, Weiterverkauf beim Kauf von Massenware. Im Spiel noch nicht geprüft.
+- **AH-Fenster fertig machen (Rückmeldung von KarloDerBaer, 10.11.2026):** Erst das Auktionshaus, danach das Broker-Fenster. Gebaut mit Broker 0.56.0 und Peon 0.17.0: Reiter mit gemessenem Blizzard-Abstand, Einkaufen und Radar im Blizzard-Aufbau (links Einstellungen, rechts Liste), Radar ohne Hänger beim Wechsel, Rat beim Verkaufen ohne Rahmen, Weiterverkauf beim Kauf von Massenware. Von KarloDerBaer geprüft: Reiter passen. Nachbesserungen in Broker 0.57.0 (Radar-Tooltip, Namen, Neuladen nur nach Scan, helles Grau, Spalte Broker unter Auktionen), noch nicht im Spiel geprüft. Offen: Rat beim Verkaufen eines Einzelgegenstands überdeckt sich mit Blizzards Haken „Sofortkaufmodus“, Lösung mit KarloDerBaer abstimmen.
 - **Danach Broker-Fenster:** Reiter Markt wie Blizzards Kaufen auf Basis der Scandaten mit Marktauswahl, moderner Look, Info neu gestalten. Entwurf im Konzept Abschnitt 15, offene Fragen dort.
 
 ### Neues Modul Peon_Panel (beschlossen 06.11.2026, Konzept `Peon_Panel_Konzept.md`)

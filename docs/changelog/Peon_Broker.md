@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.57.0
+
+Kurz: Im Radar zeigt der Tooltip jetzt den normalen Gegenstand mit Brokers Preisen (Umschalt für mehr), die Radar-Angaben stehen ganz unten. Namen statt Nummern, kein Neuladen mehr ohne neuen Scan, Einkaufen und Radar im hellen Grau des Auktionshauses und eine eigene Spalte „Broker“ unter Auktionen.
+
+- 0.57.0 (10.11.2026, Rückmeldung von KarloDerBaer nach dem Test von 0.56):
+  - **Radar-Tooltip:** Blizzards normaler Tooltip mit Brokers Zeilen, Umschalt zeigt wie überall die erweiterte Ansicht. Die Radar-Angaben (Datenlage, Wiederverkauf, Absatz, ganzes Schnäppchen) hängt `Tooltip.lua` bei jedem Neuaufbau ganz unten an (`T.SetExtra`). Vorher verschwanden sie beim Drücken von Umschalt.
+  - **Namen statt Nummern im Radar:** Kennt das Spiel einen Gegenstand noch nicht, fordert Broker die Daten an und setzt den Namen ein, sobald `GET_ITEM_INFO_RECEIVED` kommt.
+  - **Radar lädt nur nach einem Scan neu** (oder bei anderem Markt oder anderer Altersgrenze), nicht mehr alle 2 Minuten.
+  - **Helles Grau:** Einkaufen und Radar übernehmen die Hintergründe direkt von Blizzards Rahmen (links wie die Kategorien, rechts wie die Liste unter Auktionen), die Fläche den Hintergrund des Auktionshauses. Ohne geöffnetes Auktionshaus Blizzards Grafiken nach Namen, sonst Marmor.
+  - **Auktionen:** Status in einer eigenen Spalte „Broker“ mit Kopf am rechten Ende der Gegenstandsspalte (Blizzards Tabelle bleibt unverändert). Ein Status erscheint nur, wenn der Gegenstand der Zeile zur Auktion passt (ein „unterboten“ von Golderz stand bei Wildblumen). Fehlt eine sichtbare Auktion in Brokers Liste, liest Broker die eigenen Auktionen neu (höchstens einmal je Sekunde), dadurch fehlt „Günstigstes“ nicht mehr.
+  - **Weiterverkauf:** „nach 5 % Anteil des Hauses“ in eigener Zeile.
+  - **Im Spiel prüfen:** Radar-Tooltip mit und ohne Umschalt, Namen im Radar, Farben von Einkaufen und Radar, Spalte Broker unter Auktionen.
+
 ## 0.56.0
 
 Kurz: Das Auktionshaus ist aufgeräumt: Reiter mit gleichen Abständen wie bei Blizzard, Einkaufen und Radar im Aufbau von Blizzards Fenstern (links Einstellungen, rechts die Liste), der Rat beim Verkaufen ist ganz lesbar, und beim Kauf von Massenware steht, was ein Weiterverkauf zum nächsten Preis bringen würde.

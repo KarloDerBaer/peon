@@ -1,7 +1,8 @@
 -- Peon_Broker - Look.lua
 -- Ab 0.56: Bausteine fuer Brokers Flaechen im Aufbau des Blizzard-Auktionshauses (KarloDerBaer): links eine Spalte mit
 -- allen Einstellungen, rechts die Liste, oben eine Leiste wie Blizzards Suchleiste. Die Rahmen sind Blizzards
--- InsetFrameTemplate mit dem Marmor-Hintergrund, den das Auktionshaus in WoW Forever nutzt. Listen bekommen
+-- InsetFrameTemplate mit Blizzards eigenen Hintergruenden des Auktionshauses (ab 0.57: Kategorien links,
+-- Ergebnisliste rechts, helle Grautoene wie im Original, vorher Marmor). Listen bekommen
 -- Peon.NewList mit style = "ah" (Kern-API 17) und passen sich der Groesse ihres Rahmens an.
 
 local ADDON_NAME, ns = ...
@@ -20,12 +21,59 @@ local function TryFrame(kind, name, parent, template)
     return nil
 end
 
--- Rahmen wie Blizzards Listen und Kategorien
-function U.Panel(parent)
+U.ATLAS_LEFT = "auctionhouse-background-categories"   -- wie Blizzards Kategorien
+U.ATLAS_LIST = "auctionhouse-background-index"        -- wie Blizzards Ergebnisliste
+
+local function HasAtlas(name)
+    if not (C_Texture and C_Texture.GetAtlasInfo) then return false end
+    local ok, info = pcall(C_Texture.GetAtlasInfo, name)
+    return ok and info ~= nil
+end
+
+-- Blizzards Vorbild-Rahmen im geoeffneten Auktionshaus: links die Kategorien, rechts die Liste unter "Auktionen"
+-- (die hellen Grautoene, die KarloDerBaer meint). Rueckgabe die Hintergrund-Grafik oder nil.
+U.SOURCES = {
+    [U.ATLAS_LEFT] = { "CategoriesList" },
+    [U.ATLAS_LIST] = { "AuctionsFrame", "AllAuctionsList" },
+}
+function U.SourceBg(kind)
+    local f = rawget(_G, "AuctionHouseFrame")
+    local path = U.SOURCES[kind]
+    if type(f) ~= "table" or not path then return nil end
+    for _, k in ipairs(path) do
+        f = type(f) == "table" and rawget(f, k) or nil
+    end
+    local bg = type(f) == "table" and rawget(f, "Background") or nil
+    return type(bg) == "table" and bg or nil
+end
+
+-- Grafik von Blizzards Rahmen uebernehmen (nur lesen): Atlas oder Datei mit Ausschnitt
+function U.CopyTexture(src, tex)
+    if type(src) ~= "table" or type(tex) ~= "table" then return false end
+    local okA, atlas = pcall(function() return src:GetAtlas() end)
+    if okA and type(atlas) == "string" and atlas ~= "" and tex.SetAtlas and pcall(tex.SetAtlas, tex, atlas) then return true end
+    local okT, file = pcall(function() return src:GetTexture() end)
+    if okT and file ~= nil and file ~= "" and pcall(tex.SetTexture, tex, file) then
+        local okC, a, b, c, d, e, g, h, i = pcall(function() return src:GetTexCoord() end)
+        if okC and type(a) == "number" and tex.SetTexCoord then pcall(tex.SetTexCoord, tex, a, b, c, d, e, g, h, i) end
+        return true
+    end
+    return false
+end
+
+-- Rahmen wie Blizzards Listen und Kategorien. atlas = Blizzards Hintergrund (U.ATLAS_LEFT, U.ATLAS_LIST)
+function U.Panel(parent, atlas)
     local f = TryFrame("Frame", nil, parent, "InsetFrameTemplate") or CreateFrame("Frame", nil, parent)
     local bg = f:CreateTexture(nil, "BACKGROUND", nil, -6)
     bg:SetPoint("TOPLEFT", 3, -3)
     bg:SetPoint("BOTTOMRIGHT", -3, 3)
+    f.marble = bg
+    atlas = atlas or U.ATLAS_LIST
+    if U.CopyTexture(U.SourceBg(atlas), bg) then f.copied = true; return f end
+    if bg.SetAtlas and HasAtlas(atlas) and pcall(bg.SetAtlas, bg, atlas) then
+        f.atlas = atlas
+        return f
+    end
     local ok = pcall(bg.SetTexture, bg, U.MARBLE, "REPEAT", "REPEAT")
     if ok then
         if bg.SetHorizTile then bg:SetHorizTile(true) end
@@ -33,7 +81,6 @@ function U.Panel(parent)
     else
         bg:SetColorTexture(0.12, 0.12, 0.12, 1)
     end
-    f.marble = bg
     return f
 end
 
@@ -85,11 +132,11 @@ function U.Layout(c)
     bar:SetPoint("TOPLEFT", 0, 0)
     bar:SetPoint("TOPRIGHT", 0, 0)
     bar:SetHeight(U.BAR_H)
-    local left = U.Panel(c)
+    local left = U.Panel(c, U.ATLAS_LEFT)
     left:SetPoint("TOPLEFT", 0, -(U.BAR_H + U.GAP))
     left:SetPoint("BOTTOMLEFT", 0, 0)
     left:SetWidth(U.LEFT_W)
-    local right = U.Panel(c)
+    local right = U.Panel(c, U.ATLAS_LIST)
     right:SetPoint("TOPLEFT", left, "TOPRIGHT", U.GAP, 0)
     right:SetPoint("BOTTOMRIGHT", 0, 0)
     return bar, left, right

@@ -323,6 +323,21 @@ function T.UpdateStatus()
     T.page.status:SetText(table.concat(lines, "\n"))
 end
 
+-- Hintergrund des Auktionshauses (Bg der Fenstervorlage) auf eine eigene Grafik uebernehmen. Liest nur.
+function T.CopyFrameBg(f, tex)
+    local src = type(f) == "table" and rawget(f, "Bg")
+    if type(src) ~= "table" then return false end
+    local atlas = src.GetAtlas and select(2, pcall(src.GetAtlas, src))
+    if type(atlas) == "string" and atlas ~= "" and tex.SetAtlas and pcall(tex.SetAtlas, tex, atlas) then return true end
+    local file = src.GetTexture and select(2, pcall(src.GetTexture, src))
+    if file ~= nil and file ~= "" and pcall(tex.SetTexture, tex, file, "REPEAT", "REPEAT") then
+        if tex.SetHorizTile then tex:SetHorizTile(true) end
+        if tex.SetVertTile then tex:SetVertTile(true) end
+        return true
+    end
+    return false
+end
+
 function T.Build()
     if T.built or ns.AHPlain() then return false end
     local f = AHFrame()
@@ -376,18 +391,16 @@ function T.Build()
     local sbg = strip:CreateTexture(nil, "BACKGROUND")
     sbg:SetAllPoints(strip)
     sbg:SetColorTexture(0.05, 0.05, 0.05, 1)
-    -- ab 0.54: undurchsichtiger Grund, darueber Blizzards Hintergrund (der laesst sonst etwas durchscheinen)
+    -- ab 0.54: undurchsichtiger Grund. Ab 0.57 darueber derselbe Hintergrund wie Blizzards Fenster (T.CopyFrameBg),
+    -- die Rahmen mit den hellen Grautoenen legt Look.lua darauf
     local under = p:CreateTexture(nil, "BACKGROUND", nil, -8)
     under:SetAllPoints(p)
     under:SetColorTexture(0.05, 0.05, 0.05, 1)
     local bg = p:CreateTexture(nil, "BACKGROUND", nil, 1)
     bg:SetAllPoints(p)
-    local atlas = false
-    if C_Texture and C_Texture.GetAtlasInfo and bg.SetAtlas then
-        local ok, info = pcall(C_Texture.GetAtlasInfo, "auctionhouse-background-index")
-        if ok and info then atlas = pcall(bg.SetAtlas, bg, "auctionhouse-background-index") end
-    end
-    if not atlas then bg:SetColorTexture(0.05, 0.05, 0.05, 0.97) end
+    local sbg2 = strip:CreateTexture(nil, "BACKGROUND", nil, 1)
+    sbg2:SetAllPoints(strip)
+    if not (T.CopyFrameBg(f, bg) and T.CopyFrameBg(f, sbg2)) then bg:SetColorTexture(0.08, 0.08, 0.08, 1); sbg2:Hide() end
     local title = p:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -14)
     p.title = title

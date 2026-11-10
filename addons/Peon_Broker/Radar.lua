@@ -77,8 +77,13 @@ function R.Evaluate(key, rows, live, commodity)
     local deal = D.Deal(e, rows, hp, mod.db, D.Day(), key)
     if not deal then return nil end
     deal.key = key
-    deal.name = (type(e) == "table" and e.nm) or D.ItemName(key, e) or tostring(key)
+    deal.name = (type(e) == "table" and e.nm) or D.ItemName(key, e)
     deal.quality = type(e) == "table" and e.ql or nil
+    -- ab 0.57: Name noch nicht im Spiel geladen: Nummer zeigen, Daten anfordern, Name kommt mit GET_ITEM_INFO_RECEIVED
+    if not deal.name then
+        deal.name, deal.noName = tostring(key), true
+        R.RequestName(D.ItemID(key))
+    end
     deal.icon = ns.Buy.Icon(D.ItemID(key))
     deal.scans = type(e) == "table" and D.ScanCount(e, tonumber(mod.db.dealDays) or 7) or 0
     deal.cost = D.CostOf(rows, deal.qty)
@@ -1387,10 +1392,62 @@ function R.KindDropdown(parent)
 end
 
 -- Tooltip einer Zeile: Gegenstand plus Datenlage und Rechnung
+-- Namen nachladen (ab 0.57): Das Spiel kennt Namen erst, wenn der Gegenstand einmal geladen wurde.
+function R.RequestName(id)
+    if not id or not (C_Item and C_Item.RequestLoadItemDataByID) then return end
+    R.nameWait = R.nameWait or {}
+    if R.nameWait[id] then return end
+    R.nameWait[id] = true
+    pcall(C_Item.RequestLoadItemDataByID, id)
+end
+
+function R.OnItemInfo(id)
+    if not R.nameWait or not R.nameWait[id] then return end
+    R.nameWait[id] = nil
+    local D, changed = ns.Data, false
+    for _, tbl in ipairs({ R.entries, R.gone }) do
+        for key, d in pairs(tbl or {}) do
+            if d.noName and D.ItemID(key) == id then
+                local name = D.ItemName(key, D.Lookup(key))
+                if name then
+                    d.name, d.noName = name, nil
+                    if not d.quality and C_Item and C_Item.GetItemQualityByID then
+                        local ok, q = pcall(C_Item.GetItemQualityByID, id)
+                        if ok and type(q) == "number" then d.quality = q end
+                    end
+                    d.icon = d.icon or ns.Buy.Icon(id)
+                    changed = true
+                end
+            end
+        end
+    end
+    if changed and R.list and not R.nameRefresh then
+        -- mehrere Namen kommen meist kurz nacheinander: einmal gesammelt auffrischen
+        R.nameRefresh = true
+        local function Go() R.nameRefresh = nil; if R.list then R.list:Refresh() end end
+        if C_Timer and C_Timer.After then C_Timer.After(0.2, Go) else Go() end
+    end
+end
+
+-- Tooltip einer Zeile (ab 0.57): Blizzards normaler Tooltip mit Brokers Zeilen (Umschalt fuer mehr), darunter die
+-- Angaben des Radars. Die Radar-Zeilen haengt Tooltip.lua bei jedem Neuaufbau unten an (T.SetExtra), auch nach Umschalt.
 function R.RowTooltip(row, r)
+    local T = ns.Tooltip
+    local extra = { done = false }
+    if T and T.SetExtra then
+        extra = T.SetExtra(row, function(tt) R.TipLines(tt, r) end)
+    end
     W.ShowItemTooltip(row, r.key)
     if not GameTooltip then return end
-    GameTooltip:AddLine(" ")
+    -- ohne Neuaufbau durch das Spiel (aeltere Fassung, Test): Zeilen direkt anhaengen
+    if not extra.done then
+        GameTooltip:AddLine(" ")
+        R.TipLines(GameTooltip, r)
+        GameTooltip:Show()
+    end
+end
+
+function R.TipLines(GameTooltip, r)
     if r.kind == "market" then
         GameTooltip:AddLine(L.RADAR_TT_DATA:format(r.scans or 0, tonumber(mod.db.dealDays) or 7), 0.7, 0.7, 0.7)
         GameTooltip:AddLine(L.RADAR_TT_RESALE2:format(Money(r.ref or 0)), 0.7, 0.7, 0.7)
@@ -1409,7 +1466,6 @@ function R.RowTooltip(row, r)
     GameTooltip:AddLine(L.RADAR_TT_TOTAL:format(r.qty or 0, Money(r.cost or 0), Money(r.gain or 0)), 0.7, 0.7, 0.7)
     if r.cant then GameTooltip:AddLine(L.RADAR_TT_CANT2, 1, 0.5, 0.2) end
     if r.gone then GameTooltip:AddLine(L.RADAR_TT_GONE:format(tostring(r.goneWhy)), 1, 0.6, 0.2, true) end
-    GameTooltip:Show()
 end
 
 -- Zeilenfarbe (Peon API 8): neue Treffer pulsieren gruen, Haendler-Schnaeppchen dezent gold
@@ -1483,7 +1539,10 @@ function R.Build(c)
             mod:Call("Radar", R.SelectRow, r)
         end,
         onEnter = function(list, r, row) R.RowTooltip(row, r) end,
-        onLeave = function() if GameTooltip then GameTooltip:Hide() end end,
+        onLeave = function()
+            if ns.Tooltip.SetExtra then ns.Tooltip.SetExtra(nil) end
+            if GameTooltip then GameTooltip:Hide() end
+        end,
         emptyText = L.BUY_NO_DEALS,
     })
     local BUY_H = 62   -- Kaufzeile unter der Liste
@@ -1661,14 +1720,14 @@ function R.ShowAgain(key)
 end
 
 -- Reiter geoeffnet: Treffer aus dem Scan laden und gleich einmal live pruefen
--- Ab 0.56: Treffer nur neu aus der Datenbank laden, wenn es einen neuen Scan gibt oder der letzte Stand aelter als
--- R.RELOAD_SECS ist. Das Laden geht alle Gegenstaende des Marktes durch und liess den Wechsel auf den Reiter kurz haengen.
-R.RELOAD_SECS = 120
+-- Ab 0.56: Treffer nur neu aus der Datenbank laden, wenn es einen neuen Scan gibt (oder Markt bzw. Altersgrenze
+-- gewechselt haben). Das Laden geht alle Gegenstaende des Marktes durch und liess den Wechsel auf den Reiter haengen.
+-- Bis 0.56 zusaetzlich alle 2 Minuten, ab 0.57 nur noch nach einem Scan (KarloDerBaer). Live gepruefte Treffer
+-- aktualisiert der Radar-Scan ohnehin selbst.
 function R.LoadIfStale()
     local market = ns.Data.Market()
     local l = R.loaded
-    if l and l.market == market and l.scan == (market and market.lastScan) and l.age == R.MaxAge()
-        and Now() - l.t < R.RELOAD_SECS then return false end
+    if l and l.market == market and l.scan == (market and market.lastScan) and l.age == R.MaxAge() then return false end
     R.LoadFromScan()
     return true
 end
@@ -1683,6 +1742,7 @@ end
 function R.Init()
     R.MuteOff()   -- nach Absturz/Reload waehrend des Radar-Scans: Tonkanaele zurueck
     mod:RegisterEvent("PLAYER_LOGOUT", function() R.MuteOff() end)
+    pcall(mod.RegisterEvent, mod, "GET_ITEM_INFO_RECEIVED", function(_, id) mod:Call("Radar", R.OnItemInfo, id) end)   -- ab 0.57
     mod:RegisterEvent("PLAYER_MONEY", function() if R.list and R.Shown() then R.Refresh() end end)
     mod:RegisterEvent("COMMODITY_SEARCH_RESULTS_UPDATED", function(_, itemID) OnResults(true, itemID) end)
     mod:RegisterEvent("ITEM_SEARCH_RESULTS_UPDATED", function(_, itemKey) OnResults(false, itemKey) end)

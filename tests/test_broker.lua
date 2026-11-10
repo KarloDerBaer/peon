@@ -2831,6 +2831,17 @@ end)()
   X.Update()
   check(plain(X.labels[rowA].text):find("unterboten", 1, true) and plain(X.labels[rowB].text) == L.AUCX_SOLD, "U9: Status je Zeile ueber auctionID")
   check(X.labels[rowA].points[1][2] == rowA.cells[1], "U9: Status rechts in der Gegenstandsspalte")
+  -- 0.57: Status gehoert zum Gegenstand der Zeile, fehlende Auktion fuehrt zum Neulesen
+  rowA.rowData = { auctionID = 11, itemKey = { itemID = 2589 } }   -- Zeile zeigt etwas anderes als Auktion 11
+  local reads, oldRead = 0, A.Read
+  A.Read = function() reads = reads + 1 end
+  X.lastReread = nil
+  X.Update()
+  check(X.labels[rowA].text == "" and reads == 1, "0.57: falscher Gegenstand: kein Status, Liste neu gelesen")
+  X.Update()
+  check(reads == 1, "0.57: nicht bei jedem Takt neu lesen")
+  A.Read = oldRead
+  rowA.rowData = { auctionID = 11 }
   check(plain(X.header.text.text):find("1 laufen", 1, true), "U9: Kopfzeile: " .. plain(X.header.text.text))
   check(rawget(rowA, "peon") == nil and rowA.rowData.status == nil, "U9: nichts in Blizzards Zeilen geschrieben")
   local started = 0
@@ -3157,6 +3168,50 @@ end)()
   ns.Advice.Show(sf, { kind = "sell", title = "Verkaufen", why = "ok" }, false)
   local box = ns.Advice.boxes[sf]
   check(box and box.head == nil and box.title.points[1][2] == box and box.title.points[1][5] == 0, "0.56: Rat ohne Rahmen und ohne Ueberschrift Broker")
+end)()
+
+-- 0.57: Radar-Tooltip, Namen nachladen, Neuladen nur nach Scan, Auktionen-Spalte
+;(function()
+  local TT = ns.Tooltip
+  local owner = CreateFrame("Frame")
+  local oldItem, oldOwner = GameTooltip.GetItem, GameTooltip.GetOwner
+  GameTooltip.GetItem = function() return "Kupfererz", "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r" end
+  GameTooltip.GetOwner = function() return owner end
+  local ex = TT.SetExtra(owner, function(t) t:AddLine("RADAR-ZUSATZ") end)
+  tt.lines = {}
+  TT.OnItem(GameTooltip)
+  local last = tt.lines[#tt.lines]
+  local lastText = type(last) == "table" and (last[1] or last.text) or last
+  check(ex.done and tostring(lastText):find("RADAR-ZUSATZ", 1, true), "0.57: Radar-Zeilen ganz unten im normalen Tooltip")
+  tt.lines = {}
+  TT.OnItem(GameTooltip)   -- Neuaufbau (z. B. Umschalt): Zusatz wieder da
+  last = tt.lines[#tt.lines]
+  lastText = type(last) == "table" and (last[1] or last.text) or last
+  check(tostring(lastText):find("RADAR-ZUSATZ", 1, true), "0.57: Zusatz bleibt beim Neuaufbau")
+  TT.SetExtra(nil)
+  tt.lines = {}
+  TT.OnItem(GameTooltip)
+  local found = false
+  for _, l in ipairs(tt.lines) do local x = type(l) == "table" and (l[1] or l.text) or l if tostring(x):find("RADAR-ZUSATZ", 1, true) then found = true end end
+  check(not found, "0.57: nach dem Verlassen kein Zusatz")
+  GameTooltip.GetItem, GameTooltip.GetOwner = oldItem, oldOwner
+  -- Namen nachladen
+  local saved, savedName = Rd.entries, ns.Data.ItemName
+  Rd.entries = { [99991] = { key = 99991, name = "99991", noName = true } }
+  Rd.nameWait = { [99991] = true }
+  ns.Data.ItemName = function(key) if key == 99991 then return "Testerz" end return savedName(key) end
+  Rd.OnItemInfo(99991)
+  check(Rd.entries[99991].name == "Testerz" and not Rd.entries[99991].noName, "0.57: Name kommt nach, statt Nummer")
+  ns.Data.ItemName, Rd.entries = savedName, saved
+  -- Radar laedt ohne neuen Scan nicht nach Zeit neu
+  local loads, orig = 0, Rd.LoadFromScan
+  Rd.LoadFromScan = function() loads = loads + 1; return orig() end
+  Rd.loaded = nil
+  Rd.LoadIfStale()
+  Rd.loaded.t = (Rd.loaded.t or 0) - 3600
+  Rd.LoadIfStale()
+  check(loads == 1, "0.57: nach einer Stunde ohne Scan kein Neuladen")
+  Rd.LoadFromScan = orig
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

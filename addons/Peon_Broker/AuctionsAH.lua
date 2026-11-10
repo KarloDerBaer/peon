@@ -18,6 +18,8 @@ ns.AuctionsAH = X
 X.TICK = 0.3
 X.TOO_HIGH = 1.0   -- "zu teuer": Preis ueber dem oberen Rand des ueblichen Bereichs
 X.labels = {}      -- Zeile -> FontString
+X.COL_W = 150      -- ab 0.57: Breite der Spalte "Broker" am rechten Ende der Gegenstandsspalte
+X.REREAD = 1       -- ab 0.57: hoechstens so oft (Sek.) neu lesen, wenn eine sichtbare Auktion fehlt
 
 local COLORS = { best = "|cff60e060", equal = "|cffffd100", under = "|cffff9933", high = "|cffff4040", sold = "|cff999999" }
 
@@ -86,9 +88,13 @@ local function LabelFor(row)
     fs = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     local cells = rawget(row, "cells")
     local nameCell = type(cells) == "table" and cells[1]
-    if type(nameCell) == "table" then fs:SetPoint("RIGHT", nameCell, "RIGHT", -6, 0)
-    else fs:SetPoint("RIGHT", row, "RIGHT", -300, 0) end
-    fs:SetJustifyH("RIGHT")
+    -- ab 0.57 als eigene Spalte: linksbuendig ab festem Abstand vor dem Ende der Gegenstandsspalte
+    if type(nameCell) == "table" then fs:SetPoint("LEFT", nameCell, "RIGHT", -X.COL_W, 0)
+    else fs:SetPoint("LEFT", row, "RIGHT", -300 - X.COL_W, 0) end
+    fs:SetWidth(X.COL_W - 6)
+    fs:SetJustifyH("LEFT")
+    if fs.SetWordWrap then fs:SetWordWrap(false) end
+    X.nameCell = type(nameCell) == "table" and nameCell or X.nameCell
     X.labels[row] = fs
     return fs
 end
@@ -98,10 +104,14 @@ function X.UpdateRows()
     local list = X.List()
     local box = list and rawget(list, "ScrollBox")
     if type(box) ~= "table" or type(box.ForEachFrame) ~= "function" then return 0 end
-    local map, n = X.ByID(), 0
+    local map, n, missing = X.ByID(), 0, false
     pcall(box.ForEachFrame, box, function(row)
         local d = RowData(row)
         local r = d and Num(d.auctionID) and map[d.auctionID]
+        -- ab 0.57: nur wenn der Gegenstand passt (ein Status stand sonst beim falschen Gegenstand)
+        local dk = d and type(d.itemKey) == "table" and d.itemKey.itemID
+        if r and Num(dk) and r.itemID and dk ~= r.itemID then r = nil end
+        if d and Num(d.auctionID) and not r then missing = true end
         local fs = LabelFor(row)
         if r then
             local kind, text = X.Status(r)
@@ -112,7 +122,39 @@ function X.UpdateRows()
             fs:SetText("")
         end
     end)
+    -- ab 0.57: sichtbare Auktion fehlt in Brokers Liste (neu eingestellt, Liste veraltet): neu lesen
+    local now = GetTime and GetTime() or 0
+    if missing and ns.Auctions and now - (X.lastReread or -99) >= X.REREAD then
+        X.lastReread = now
+        pcall(ns.Auctions.Read)
+    end
+    X.PlaceColumnHead(list)
     return n
+end
+
+-- Kopf der Spalte "Broker" ueber der Gegenstandsspalte (ab 0.57). Eigene Schrift, Blizzards Kopf bleibt unveraendert.
+function X.PlaceColumnHead(list)
+    local hc = list and rawget(list, "HeaderContainer")
+    local cell = X.nameCell
+    if type(hc) ~= "table" or type(cell) ~= "table" then return end
+    if not X.colHead then
+        local fs = hc:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        fs:SetJustifyH("LEFT")
+        fs:SetText(L.AUCX_COL)
+        X.colHead = fs
+        local line = hc:CreateTexture(nil, "OVERLAY")
+        line:SetColorTexture(1, 1, 1, 0.15)
+        line:SetWidth(1)
+        X.colLine = line
+    end
+    local r, l = cell.GetRight and cell:GetRight(), hc.GetLeft and hc:GetLeft()
+    if type(r) ~= "number" or type(l) ~= "number" then return end
+    local x = r - l - X.COL_W
+    X.colHead:ClearAllPoints()
+    X.colHead:SetPoint("LEFT", hc, "LEFT", x, 0)
+    X.colLine:ClearAllPoints()
+    X.colLine:SetPoint("TOP", hc, "TOPLEFT", x - 8, -3)
+    X.colLine:SetPoint("BOTTOM", hc, "BOTTOMLEFT", x - 8, 3)
 end
 
 function X.UpdateHeader()
