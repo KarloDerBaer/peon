@@ -1286,11 +1286,11 @@ C_CVar = nil
 end
 
 -- Beim Oeffnen: Treffer aus der Datenbank bis radarMaxAge (Standard 60 Min., 0 = unbegrenzt)
-Rd.entries = {}
+Rd.entries, Rd.loaded = {}, nil
 Win.Select("prices"); Win.Select("radar")
 check(Rd.entries[7778] == nil and Rd.entries[7777] ~= nil, "weggefallener Treffer kommt aus der Datenbank nicht wieder, gespeicherter Live-Treffer schon")
 Win.Select("prices")
-Rd.entries = {}
+Rd.entries, Rd.loaded = {}, nil
 market.items[7777].t, market.items[7777].lt = clock - 7200, nil
 check(mod.db.radarMaxAge == 60, "Standard: 60 Min.")
 Win.Select("radar")
@@ -1306,7 +1306,7 @@ market.lastScan = savedLast
 market.items[7777], market.items[7778], market.items[7779], VENDOR[7777], VENDOR[7779] = nil, nil, nil, nil, nil
 LIVEITEM = savedLI2
 VENDOR[2589] = savedV2589
-Rd.entries = {}
+Rd.entries, Rd.loaded = {}, nil
 
 -- ===== Radar 0.19: Gewinn mit meinem Gold, Mindestgewinn, Schnellkauf, mehrere Einzelgegenstaende, Auswahl, Ausblenden, voller Scan, Haendler =====
 do
@@ -2569,7 +2569,30 @@ Win.Refresh()
   check(T.tabs.radar.text == ns.L.AHTAB_RADAR and T.tabs.shop.text == ns.L.AHTAB_SHOP, "U0: Reiter heissen Radar und Einkaufen")
   check(#ah.Tabs == 3 and ah.numTabs == nil, "U0: Blizzards Reiterliste bleibt unberuehrt")
   check(T.tabs.radar.parent == T.tabHolder and T.tabHolder.parent == ah and #T.tabHolder.Tabs == 2, "0.41.2: Reiter haengen am eigenen Rahmen, nicht an Blizzards Liste")
-  check(T.tabs.radar.points[1][4] == T.TAB_GAP and T.TAB_GAP > -15, "0.41.2: etwas mehr Abstand als Blizzards -15")
+  check(T.tabs.radar.points[1][4] == T.TAB_GAP and T.TAB_GAP == -15, "0.56: Grundabstand wie Blizzard (-15)")
+  ;(function()
+    -- 0.56: sichtbaren Abstand von Blizzards Markt/Verkaufen messen und uebernehmen
+    local function geo(fr, l, r, dl, dr)
+      fr.GetLeft, fr.GetRight = function() return l end, function() return r end
+      if dl then
+        rawset(fr, "Left", rawget(fr, "Left") or origCreate("Frame")); rawset(fr, "Right", rawget(fr, "Right") or origCreate("Frame"))
+        fr.Left.GetLeft = function() return l + dl end
+        fr.Right.GetRight = function() return r + dr end
+      end
+    end
+    geo(ah.BuyTab, 0, 100, -3, 7)       -- sichtbar bis 107
+    geo(ah.SellTab, 85, 185, -3, 7)     -- sichtbar ab 82: Abstand -25
+    geo(T.tabs.shop, 180, 280, -10, 7)  -- ragt links weiter hinaus
+    geo(T.tabs.radar, 265, 365, -3, 7)
+    geo(ah.AuctionsTab, 350, 450, -3, 7)
+    check(T.AlignTabs() and T.tabGap == -25, "0.56: Abstand bei Blizzard gemessen")
+    local shopOff = T.tabs.shop.points[#T.tabs.shop.points][4]
+    local radarOff = T.tabs.radar.points[#T.tabs.radar.points][4]
+    local aucP = ah.AuctionsTab.points[#ah.AuctionsTab.points]
+    check(shopOff == -8 and radarOff == -15 and aucP[2] == T.tabs.radar and aucP[4] == -15,
+      "0.56: Reiter so gesetzt, dass die Grafiken denselben Abstand haben")
+    for _, t in ipairs({ ah.BuyTab, ah.SellTab, T.tabs.shop, T.tabs.radar, ah.AuctionsTab }) do t.GetLeft, t.GetRight = nil, nil end
+  end)()
   local modesAfter = 0 for _ in pairs(AuctionHouseFrameDisplayMode) do modesAfter = modesAfter + 1 end
   check(modesAfter == modesBefore, "U0: keine eigenen Eintraege in AuctionHouseFrameDisplayMode")
   check(hookedSecure.SetDisplayMode, "U0: sicherer Anhang an SetDisplayMode")
@@ -3090,6 +3113,50 @@ end)()
   GameTooltip.GetItem, GameTooltip.IsShown, GameTooltip.GetOwner = oldTip, nil, nil
   ns.Buy.DeleteList(#ns.Buy.Lists())
   MenuUtil = nil
+end)()
+
+-- 0.56: AH-Fenster fertig machen (Weiterverkauf, Blizzard-Aufbau, Radar ohne Haenger)
+;(function()
+  local Rs = ns.Resale
+  local rows = { { price = 26, qty = 11 }, { price = 27, qty = 475 }, { price = 28, qty = 3430 } }
+  local r = Rs.Calc(rows, 486, nil, 0.05)
+  check(r and r.next == 28 and r.cost == 11 * 26 + 475 * 27 and r.net == math.floor(486 * 28 * 0.95) and r.profit == r.net - r.cost,
+    "0.56: Weiterverkauf, 486 Stueck bis 27c kaufen, zu 28c einstellen")
+  r = Rs.Calc(rows, 11, 300, 0.05)
+  check(r and r.next == 27 and r.cost == 300 and r.profit == math.floor(11 * 27 * 0.95) - 300, "0.56: Gesamtpreis aus Blizzards Fenster, naechste Stufe 27c")
+  r = Rs.Calc(rows, 5, nil, 0.05)
+  check(r and r.next == 26, "0.56: Rest auf derselben Stufe: naechstes Angebot zum selben Preis")
+  check(Rs.Calc(rows, 5000, nil, 0.05) == nil and Rs.Calc(rows, 0) == nil, "0.56: zu wenig Angebote oder keine Menge: keine Rechnung")
+  -- Listen im Blizzard-Aufbau passen sich der Groesse an (Kern-API 17)
+  local lst = Rd.list
+  check(lst.o.style == "ah" and lst.o.flex == "name" and ns.Buy.itemList.o.style == "ah", "0.56: Radar und Einkaufen mit Blizzards Listen-Optik")
+  local fixed = 0 for _, col in ipairs(lst.columns) do if col.key ~= "name" then fixed = fixed + col.width end end
+  lst:SetSize(800, 400)
+  local nameW for _, col in ipairs(lst.columns) do if col.key == "name" then nameW = col.width end end
+  check(nameW == 800 - 8 - 16 - fixed and lst.rowsVisible == math.floor((400 - 22 - 8) / 20) and #lst.rowFrames >= lst.rowsVisible,
+    "0.56: Namensspalte waechst, Zeilen folgen der Hoehe")
+  lst:SetSize(500, 200)
+  check(lst.rowsVisible == math.floor((200 - 22 - 8) / 20) and not lst.rowFrames[lst.rowsVisible + 1].shown, "0.56: kleiner: ueberzaehlige Zeilen verborgen")
+  -- Radar laedt beim Oeffnen nur bei neuem Scan neu
+  local loads, orig = 0, Rd.LoadFromScan
+  Rd.LoadFromScan = function() loads = loads + 1; return orig() end
+  Rd.loaded = nil
+  Rd.LoadIfStale(); Rd.LoadIfStale()
+  check(loads == 1, "0.56: Radar zweimal geoeffnet, Datenbank nur einmal durchsucht")
+  local m = ns.Data.Market()
+  if m then
+    local last = m.lastScan
+    m.lastScan = (last or 0) + 1
+    Rd.LoadIfStale()
+    check(loads == 2, "0.56: neuer Scan: Treffer neu geladen")
+    m.lastScan = last
+  end
+  Rd.LoadFromScan = orig
+  -- Rat beim Verkaufen ohne Rahmen und ohne Ueberschrift
+  local sf = CreateFrame("Frame")
+  ns.Advice.Show(sf, { kind = "sell", title = "Verkaufen", why = "ok" }, false)
+  local box = ns.Advice.boxes[sf]
+  check(box and box.head == nil and box.title.points[1][2] == box and box.title.points[1][5] == 0, "0.56: Rat ohne Rahmen und ohne Ueberschrift Broker")
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

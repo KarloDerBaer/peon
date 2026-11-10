@@ -22,7 +22,7 @@ ns.Advice = A
 -- Grenzwerte (Konzept: beim Bauen abzustimmen; erster Vorschlag, hier zentral aenderbar)
 A.WAIT_PCT = 15      -- "Lieber warten": Preis mehr als 15 % unter dem unteren Rand des ueblichen Bereichs
 A.FULL_DAYS = 3      -- "Viel Ware im Markt": Angebote reichen laenger als 3 Tage Absatz
-A.WIDTH, A.HEIGHT = 330, 118
+A.WIDTH, A.HEIGHT = 340, 96
 A.boxes = {}         -- Verkaufsfenster -> Kasten (nicht am Blizzard-Rahmen gespeichert)
 
 A.COLORS = {
@@ -134,37 +134,28 @@ end
 ---------------------------------------------------------------------------
 -- Kasten
 ---------------------------------------------------------------------------
+-- ab 0.56: ohne Rahmen und ohne Ueberschrift "Broker", dichter unter dem Knopf (KarloDerBaer: Text war abgeschnitten)
 local function Box(sf)
     if A.boxes[sf] then return A.boxes[sf] end
-    local b = CreateFrame("Frame", nil, sf, "BackdropTemplate")
+    local b = CreateFrame("Frame", nil, sf)
     b:SetSize(A.WIDTH, A.HEIGHT)
     local anchor = rawget(sf, "PostButton")
-    if type(anchor) == "table" then b:SetPoint("TOP", anchor, "BOTTOM", 0, -14)
+    if type(anchor) == "table" then b:SetPoint("TOP", anchor, "BOTTOM", 0, -6)
     else b:SetPoint("BOTTOM", sf, "BOTTOM", 0, 40) end
-    if b.SetBackdrop then
-        pcall(b.SetBackdrop, b, { bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            tile = true, tileSize = 16, edgeSize = 12, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
-        pcall(b.SetBackdropColor, b, 0, 0, 0, 0.55)
-        pcall(b.SetBackdropBorderColor, b, 0.6, 0.6, 0.6, 0.8)
-    end
-    local head = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    head:SetPoint("TOPLEFT", b, "TOPLEFT", 10, -8)
-    head:SetText(("|c%sBroker|r"):format(Peon.COLOR))
-    b.head = head
-    local market = b:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    market:SetPoint("TOPRIGHT", b, "TOPRIGHT", -10, -8)
-    b.market = market
     local title = b:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -4)
+    title:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 0)
     b.title = title
+    local market = b:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    market:SetPoint("TOPRIGHT", b, "TOPRIGHT", 0, -3)
+    b.market = market
     local why = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     why:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
-    why:SetPoint("RIGHT", b, "RIGHT", -10, 0)
+    why:SetPoint("RIGHT", b, "RIGHT", 0, 0)
     why:SetJustifyH("LEFT")
     b.why = why
     local lines = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    lines:SetPoint("TOPLEFT", why, "BOTTOMLEFT", 0, -6)
-    lines:SetPoint("RIGHT", b, "RIGHT", -10, 0)
+    lines:SetPoint("TOPLEFT", why, "BOTTOMLEFT", 0, -4)
+    lines:SetPoint("RIGHT", b, "RIGHT", 0, 0)
     lines:SetJustifyH("LEFT")
     b.lines = lines
     A.boxes[sf] = b
@@ -187,7 +178,6 @@ function A.Show(sf, r, isNeutral)
         parts[#parts + 1] = erl
     end
     b.lines:SetText(table.concat(parts, "\n"))
-    if b.SetBackdropBorderColor then pcall(b.SetBackdropBorderColor, b, c[1], c[2], c[3], 0.9) end
     b:Show()
     A.last = r
 end

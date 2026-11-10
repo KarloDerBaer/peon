@@ -31,11 +31,11 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 | Addon | Version | SavedVariables | Befehl |
 |---|---|---|---|
-| Peon | 0.16.1 | `PeonDB` | /peon |
+| Peon | 0.17.0 | `PeonDB` | /peon |
 | Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
 | Peon_Fishing (früher FishingPlus) | 1.6.0 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
-| Peon_Broker (neu, Auktionshaus) | 0.55.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
+| Peon_Broker (neu, Auktionshaus) | 0.56.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
 | Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.9.0 | `PeonBridgeDB` | /peon bridge |
 | Peon_Feedback | 0.4.0 | `PeonFeedbackDB` | /feedback |
 | Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
@@ -45,7 +45,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
-## Kern-API (Peon.API = 16)
+## Kern-API (Peon.API = 17)
 
 Die API wird nur erweitert, nie geändert (sonst brechen alle Module). Bei neuen Funktionen `Peon.API` erhöhen.
 
@@ -106,6 +106,7 @@ local list = Peon.NewList(parent, {
     onClick = function(list, item, button) end, onEnter = function(list, item, row) end, onLeave = fn, emptyText = "…",
     rowColor = function(item) return r, g, b, a end })   -- API 8: Hintergrundfarbe je Zeile (nil = keine)
 list.frame:SetPoint(...); list:SetData(items); list:Refresh(); list:Sort(key, desc); list:Select(item); list:GetSelected(); list:GetItems(); list:UpdateColors() -- API 8: nur Zeilenfarben (z. B. jedes Bild zum Pulsieren)
+-- API 17: style = "ah" (Aussehen wie Blizzards Auktionshaus), flex = "name" (Spalte waechst), list:SetSize(breite, hoehe)
 page:Add(left, page:List(opts))   -- auf Optionsseiten; Container hat .list, eigene Daten über container.Refresh = function() ... end
 ```
 - **Minimap-Button (API 7, Minimap.lua):** wie der Fishing-Button, verschiebbar, Winkel und Sichtbarkeit in den Moduleinstellungen (Standardnamen `minimapAngle`, `minimapShow`; müssen in `defaults` stehen), aktualisiert sich bei CHANGED und RESET.

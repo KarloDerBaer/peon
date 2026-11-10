@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.56.0
+
+Kurz: Das Auktionshaus ist aufgeräumt: Reiter mit gleichen Abständen wie bei Blizzard, Einkaufen und Radar im Aufbau von Blizzards Fenstern (links Einstellungen, rechts die Liste), der Rat beim Verkaufen ist ganz lesbar, und beim Kauf von Massenware steht, was ein Weiterverkauf zum nächsten Preis bringen würde.
+
+- 0.56.0 (10.11.2026, Rückmeldung von KarloDerBaer nach dem Test im Spiel, braucht Peon 0.17 für die Listen-Optik):
+  - **Reiter im Auktionshaus:** Broker misst den sichtbaren Abstand zwischen Blizzards Markt und Verkaufen und setzt Einkaufen, Radar und Auktionen genauso (`T.AlignTabs`, nach dem Öffnen und wenn sich eine Zahl am Reiter ändert). Grundabstand jetzt wie bei Blizzard (-15).
+  - **Einkaufen und Radar im Blizzard-Aufbau** (neue Datei `Look.lua`): oben eine Leiste wie Blizzards Suchleiste (Einkaufen: Hinzufügen und „Liste durchsuchen“, Radar: Stand und „Radar-Scan starten“), links eine Spalte mit allen Einstellungen, rechts die Liste in Blizzards Optik, die den Platz ausfüllt. Radar: Anzeige, Reihenfolge, Mindestgewinn Händler und Auktionshaus, Nur Warnton, Ausblenden und Schnellkauf links, Kaufzeile unter der Liste. Einkaufen: Listen, Name, Höchstpreis der Liste, gewählter Gegenstand (Höchstpreis, Menge, Entfernen) und Vorrat aller Charaktere links, Kaufen unter der Liste.
+  - **Radar ohne Hänger beim Wechsel:** Die Treffer werden nur neu aus der Datenbank geladen, wenn es einen neuen Scan gibt, die Altersgrenze geändert wurde oder der letzte Stand älter als 2 Minuten ist (`R.LoadIfStale`). Vorher ging jeder Wechsel auf den Reiter alle Gegenstände des Marktes durch.
+  - **Rat beim Verkaufen** ohne Rahmen und ohne Überschrift „Broker“, dichter unter „Auktion erstellen“, damit der Text nicht mehr abgeschnitten wird.
+  - **Weiterverkauf beim Kauf von Massenware** (neue Datei `Resale.lua`): Unter „Kaufen“ steht, was man verdient oder verliert, wenn man die gewählte Menge kauft und zum günstigsten verbleibenden Angebot wieder einstellt, nach dem Anteil des Hauses. Sicherer Anhang an `SetPrice` der Kaufanzeige, Broker liest nur.
+  - **Im Spiel prüfen:** Abstände der fünf Reiter (auch mit Zahl am Radar), Einkaufen und Radar bei verschiedener Fenstergröße, Wechsel auf Radar ohne Hänger, Weiterverkauf bei Leinenstoff und Co., Rat beim Verkaufen vollständig lesbar.
+
 ## 0.55.0
 
 Kurz: Aufgeräumt: Die alten Reiter Verkaufen, Behalten und Meine Auktionen sind ganz entfernt, ebenso deine Behalten-Liste. Verkaufen und Auktionen laufen über Blizzards Fenster mit Brokers Rat.

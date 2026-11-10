@@ -566,3 +566,27 @@ Jeder Schritt als eigene Version, zuerst als Vorabversion zum Prüfen im Spiel. 
 - „Material auf Einkaufsliste“ aus dem Berufsfenster: gewünscht?
 - Weitere Einträge im Kontextmenü (Ledger, Bags), wenn diese Module überarbeitet werden.
 - Prüfung von U0 im Spiel (Broker 0.41.0), danach U1.
+
+## 15. Nachtrag: Reiter Markt wie Blizzards Kaufen und moderner Look (Entwurf, noch nicht freigegeben)
+
+Wunsch von KarloDerBaer nach dem ersten Test: Der Reiter Markt im Broker-Fenster soll aussehen und funktionieren wie Blizzards Reiter Kaufen (im AH jetzt Markt), aber auf Basis der Scandaten und mit Auswahl des Marktes. Alle Broker-Flächen bekommen den hellen, aufgeräumten Look des modernen Auktionshauses.
+
+### 15.1 Aufbau des Reiters Markt
+
+- **Oben:** Suchfeld, Knopf Filter (Stufe, Qualität, nur mit Angeboten), Auswahl des Marktes (Heimatmarkt, Neutral, jeder gescannte Markt) mit Datenstand daneben („Scan vor 3 Std.“).
+- **Links:** Kategorieliste wie bei Blizzard (Waffen, Rüstung, Behälter, Edelsteine, Verbesserungen, Verbrauchbares, Glyphen, Handwerkswaren, Rezepte, Questgegenstände, Verschiedenes), aufklappbar in Unterkategorien. Die Namen kommen vom Spiel selbst (`GetItemClassInfo`, `GetItemSubClassInfo`), sind also immer in der Sprache des Spiels. Die Zuordnung eines Gegenstands holt `C_Item.GetItemInfoInstant` (geht ohne Zwischenspeicher des Spiels).
+- **Rechts:** Ergebnisliste mit Symbol, Name in Qualitätsfarbe, Preis (Minimum), Menge, Angebote, Trend und Alter der Daten. Sortierbar per Klick auf die Spaltenköpfe wie bei Blizzard.
+- **Klick auf eine Zeile:** Detailansicht wie Blizzards Angebotsliste. Gezeigt werden die günstigsten fünf Preisstufen des letzten Scans (diese speichert Broker bereits), dazu Diagramm, Median, Neutral-Vergleich und die Knöpfe Beobachten und Auf Einkaufsliste. Einzelne Angebote mit Verkäufer gibt es aus dem Scan nicht.
+- **Ohne Suche und Kategorie:** Startseite wie bei Blizzard mit Beobachtung und Einkaufsliste als Liste.
+
+### 15.2 Moderner Look
+
+- Fenster und Flächen nutzen Blizzards eigene Grafiken des Auktionshauses (Atlas `auctionhouse-background-*`, `auctionhouse-nav-button*`, `auctionhouse-itemicon-small-border`, `auctionhouse-ui-sortarrow`, Favoritenstern). Dadurch kein Nachbau mit eigenen Farben, sondern exakt die hellen Grautöne des Originals.
+- Gilt für das Broker-Fenster (alle Reiter) und die Flächen Einkaufen und Radar im AH. Abstände und Spaltenköpfe wie bei Blizzard, Knöpfe unten rechts.
+- Umsetzung schrittweise: zuerst ein gemeinsamer Baukasten (Hintergrund, Liste mit Spaltenköpfen, Kategorieknopf), dann Markt, danach die übrigen Reiter.
+
+### 15.3 Offene Fragen an KarloDerBaer
+
+1. Startseite ohne Suche: Beobachtung und Einkaufsliste zeigen, oder leer wie bei Blizzard?
+2. Marktauswahl: nur Heimat und Neutral, oder jeder gescannte Markt (auch andere Realms)?
+3. Reihenfolge: erst Look-Baukasten plus Markt, die übrigen Reiter danach?

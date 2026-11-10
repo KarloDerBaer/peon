@@ -118,6 +118,7 @@ function R.LoadFromScan()
     R.entries = keep
     local D, db = ns.Data, mod.db
     local market = D.Market()
+    R.loaded = { market = market, scan = market and market.lastScan, age = R.MaxAge(), t = Now() }   -- ab 0.56: fuer R.LoadIfStale
     if not market then return end
     local maxAge = R.MaxAge()
     local now = time()
@@ -1430,14 +1431,15 @@ local function Hint(frame, text)
 end
 
 function R.Build(c)
-    local inset = W.Inset(c)
-    inset:SetAllPoints()
-    local total = W.WIDTH - 24 - 8 - 24
-    local fixed = 34 + 74 + 74 + 56 + 84 + 52
+    -- ab 0.56: Aufbau wie Blizzards Auktionshaus (Look.lua): oben Scan-Knopf und Stand, links alle Einstellungen,
+    -- rechts die Treffer und darunter die Kaufzeile
+    local U = ns.Look
+    local bar, left, right = U.Layout(c)
+    local inset = right
     local function Dim(r, text) if r.cant or r.gone then return GREY .. text .. "|r" end return text end
-    R.list = Peon.NewList(inset, {
+    R.list = Peon.NewList(right, {
         columns = {
-            { key = "name", title = L.COL_ITEM, width = total - fixed,
+            { key = "name", title = L.COL_ITEM, width = 200,
               format = function(v, r)
                   local isNew = r.newUntil and Now() < r.newUntil
                   local mark = isNew and ("|T" .. R.DOT .. ":10:10:0:0|t ") or ""
@@ -1469,7 +1471,7 @@ function R.Build(c)
               end,
               sortValue = function(r) return r.checked and -r.checked or 0 end },
         },
-        rows = 14, rowHeight = 19, sortKey = "showGain", sortDesc = true,
+        rows = 14, rowHeight = 20, sortKey = "showGain", sortDesc = true, style = "ah", flex = "name",
         rowColor = R.RowColor,
         onClick = function(list, r, button)
             if button == "RightButton" then
@@ -1484,100 +1486,97 @@ function R.Build(c)
         onLeave = function() if GameTooltip then GameTooltip:Hide() end end,
         emptyText = L.BUY_NO_DEALS,
     })
-    R.list.frame:SetPoint("TOPLEFT", 4, -4)
-    local y = -(R.list:GetHeight() + 8)
-    -- Kaufzeile direkt unter der Liste: Auswahl links, Knoepfe 1 Stueck / ab Gewinn bzw. Stapel / alle mit Kosten und Gewinn
-    R.selText = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    R.selText:SetPoint("TOPLEFT", 10, y - 2)
-    R.selText:SetWidth(total - 3 * 116 - 10)
-    R.selText:SetJustifyH("LEFT")
+    local BUY_H = 62   -- Kaufzeile unter der Liste
+    U.Fit(R.list, right, { 4, 4, 4, BUY_H })
+
+    -- Obere Leiste: Stand links neben dem Scan-Knopf (wie Blizzards Suchleiste mit "Suchen")
+    R.scanButton = U.Button(bar, L.RADAR_START, 160, function() if R.running then R.Stop() else mod:Call("Radar", R.Start) end end)
+    R.scanButton:SetPoint("RIGHT", bar, "RIGHT", -2, 0)
+    R.status = bar:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    R.status:SetPoint("RIGHT", R.scanButton, "LEFT", -12, 0)
+    R.status:SetPoint("LEFT", bar, "LEFT", U.LEFT_W + 8, 0)
+    R.status:SetJustifyH("RIGHT")
+    if R.status.SetWordWrap then R.status:SetWordWrap(false) end
+
+    -- Kaufzeile: Auswahl links, Knoepfe 1 Stueck / ab Gewinn bzw. Stapel / alle mit Kosten und Gewinn
+    R.selText = U.Note(right)
+    R.selText:SetPoint("BOTTOMLEFT", right, "BOTTOMLEFT", 10, 12)
+    R.selText:SetPoint("RIGHT", right, "RIGHT", -(3 * 112 + 16), 0)
     if R.selText.SetSpacing then R.selText:SetSpacing(3) end
     R.modeButtons, R.modeInfo = {}, {}
     for i, mode in ipairs({ "one", "stack", "all" }) do
-        local b = CreateFrame("Button", nil, inset, "UIPanelButtonTemplate")
-        b:SetSize(110, 22)
-        b:SetPoint("TOPRIGHT", -8 - (3 - i) * 116, y)
-        b:SetScript("OnClick", function() mod:Call("Radar", R.BuyStep, R.selected, mode) end)
-        local info = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        local b = U.Button(right, "", 106, function() mod:Call("Radar", R.BuyStep, R.selected, mode) end)
+        b:SetPoint("BOTTOMRIGHT", right, "BOTTOMRIGHT", -8 - (3 - i) * 112, 32)
+        local info = right:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
         info:SetPoint("TOP", b, "BOTTOM", 0, -2)
-        info:SetWidth(110)
+        info:SetWidth(106)
         info:SetJustifyH("CENTER")
         R.modeButtons[mode], R.modeInfo[mode] = b, info
     end
     R.buyButton, R.buyStackButton, R.buyAllButton = R.modeButtons.one, R.modeButtons.stack, R.modeButtons.all
-    -- unten, drei Reihen:
-    --   Schnellkauf (Haendler) + Info | Mindestgewinn H [ ] AH [ ]
-    --   Stand | Anzeige | Reihenfolge | Scan
-    --   gerade geprueft | Alle ausblenden | Ausgeblendet (n) | Nur Warnton
-    R.quickButton = CreateFrame("Button", nil, inset, "UIPanelButtonTemplate")
-    R.quickButton:SetSize(150, 22)
-    R.quickButton:SetPoint("BOTTOMLEFT", 8, 58)
-    R.quickButton:SetScript("OnClick", function() mod:Call("Radar", R.BuyStep, R.quickTarget, "best") end)
-    Hint(R.quickButton, L.RADAR_QUICK_HINT)
-    R.quickInfo = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    R.quickInfo:SetPoint("LEFT", R.quickButton, "RIGHT", 6, 0)
-    R.quickInfo:SetWidth(total - 150 - 280)
-    R.quickInfo:SetJustifyH("LEFT")
-    if R.quickInfo.SetWordWrap then R.quickInfo:SetWordWrap(false) end
+
+    -- Linke Spalte: Einstellungen von oben nach unten
+    local x, w = 12, U.LEFT_W - 24
+    local lKind = U.Label(left, L.RADAR_LBL_SHOW)
+    lKind:SetPoint("TOPLEFT", x, -12)
+    R.kindBox = R.KindDropdown(left)
+    R.kindBox:SetPoint("TOPLEFT", lKind, "BOTTOMLEFT", 0, -6)
+    local lOrder = U.Label(left, L.RADAR_LBL_ORDER)
+    lOrder:SetPoint("TOPLEFT", R.kindBox, "BOTTOMLEFT", 0, -12)
+    R.orderBox = R.OrderDropdown(left)
+    R.orderBox:SetPoint("TOPLEFT", lOrder, "BOTTOMLEFT", 0, -6)
     -- Mindestgewinn je Art (Geldbetrag: "50s", "1g 20s", "10c"; Zahl ohne Einheit = Silber)
-    R.minMarketBox = ns.MoneyBox(inset, 64, function() return R.MinGain("market") end,
-        function(c) mod.db.dealMinMarket = math.max(0, math.floor(c / 100)); R.Refresh() end, 100)
-    R.minMarketBox:SetPoint("BOTTOMRIGHT", -10, 59)
-    local lAH = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    lAH:SetText(L.RADAR_KIND_SHORT_MARKET)
-    lAH:SetPoint("RIGHT", R.minMarketBox, "LEFT", -8, 0)
-    R.minVendorBox = ns.MoneyBox(inset, 64, function() return R.MinGain("vendor") end,
-        function(c) mod.db.dealMinVendor = math.max(0, math.floor(c)); R.Refresh() end, 100)
-    R.minVendorBox:SetPoint("RIGHT", lAH, "LEFT", -12, 0)
-    local lH = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    lH:SetText(GOLD .. L.RADAR_KIND_SHORT_VENDOR .. "|r")
-    lH:SetPoint("RIGHT", R.minVendorBox, "LEFT", -8, 0)
-    local lMin = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    lMin:SetText(L.RADAR_MIN_GAIN)
-    lMin:SetPoint("RIGHT", lH, "LEFT", -6, 0)
+    local lMin = U.Label(left, L.RADAR_MIN_GAIN)
+    lMin:SetPoint("TOPLEFT", R.orderBox, "BOTTOMLEFT", 0, -14)
+    local lH = left:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    lH:SetText(GOLD .. L.RADAR_KIND_VENDOR_LONG .. "|r")
+    lH:SetPoint("TOPLEFT", lMin, "BOTTOMLEFT", 0, -10)
+    R.minVendorBox = ns.MoneyBox(left, 70, function() return R.MinGain("vendor") end,
+        function(v) mod.db.dealMinVendor = math.max(0, math.floor(v)); R.Refresh() end, 100)
+    R.minVendorBox:SetPoint("RIGHT", left, "TOPRIGHT", -14, 0)
+    R.minVendorBox:SetPoint("TOP", lH, "TOP", 0, 4)
+    local lAH = left:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    lAH:SetText(L.RADAR_KIND_MARKET_LONG)
+    lAH:SetPoint("TOPLEFT", lH, "BOTTOMLEFT", 0, -14)
+    R.minMarketBox = ns.MoneyBox(left, 70, function() return R.MinGain("market") end,
+        function(v) mod.db.dealMinMarket = math.max(0, math.floor(v / 100)); R.Refresh() end, 100)
+    R.minMarketBox:SetPoint("RIGHT", left, "TOPRIGHT", -14, 0)
+    R.minMarketBox:SetPoint("TOP", lAH, "TOP", 0, 4)
     R.moneyBoxes = { R.minVendorBox, R.minMarketBox }
     Hint(R.minVendorBox, L.RADAR_MIN_GAIN_HINT)
     Hint(R.minMarketBox, L.RADAR_MIN_GAIN_HINT)
-    R.scanButton = CreateFrame("Button", nil, inset, "UIPanelButtonTemplate")
-    R.scanButton:SetSize(140, 22)
-    R.scanButton:SetPoint("BOTTOMRIGHT", -8, 34)
-    R.scanButton:SetScript("OnClick", function() if R.running then R.Stop() else mod:Call("Radar", R.Start) end end)
-    R.orderBox = R.OrderDropdown(inset)
-    R.orderBox:SetPoint("TOPRIGHT", R.scanButton, "TOPLEFT", -6, 0)
-    R.kindBox = R.KindDropdown(inset)
-    R.kindBox:SetPoint("TOPRIGHT", R.orderBox, "TOPLEFT", -6, 0)
-    R.status = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    R.status:SetPoint("BOTTOMLEFT", 10, 40)
-    R.status:SetWidth(total - 140 - 140 - 120 - 20)
-    R.status:SetJustifyH("LEFT")
-    R.muteLabel = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    R.muteLabel:SetText(L.RADAR_MUTE)
-    R.muteLabel:SetPoint("BOTTOMRIGHT", -12, 15)
-    R.muteCheck = CreateFrame("CheckButton", nil, inset, "UICheckButtonTemplate")
-    R.muteCheck:SetSize(22, 22)
-    R.muteCheck:SetPoint("RIGHT", R.muteLabel, "LEFT", -2, 0)
+    R.muteCheck = CreateFrame("CheckButton", nil, left, "UICheckButtonTemplate")
+    R.muteCheck:SetSize(24, 24)
+    R.muteCheck:SetPoint("TOPLEFT", lAH, "BOTTOMLEFT", -4, -12)
     R.muteCheck:SetScript("OnClick", function(self) mod:Call("Radar", R.SetMute, self:GetChecked()) end)
     Hint(R.muteCheck, L.RADAR_MUTE_HINT)
-    R.hiddenButton = CreateFrame("Button", nil, inset, "UIPanelButtonTemplate")
-    R.hiddenButton:SetSize(125, 22)
-    R.hiddenButton:SetPoint("RIGHT", R.muteCheck, "LEFT", -10, 0)
-    R.hiddenButton:SetScript("OnClick", function() mod:Call("Radar", R.ToggleHiddenPanel) end)
-    Hint(R.hiddenButton, L.RADAR_HIDDEN_HINT)
-    R.hideAllButton = CreateFrame("Button", nil, inset, "UIPanelButtonTemplate")
-    R.hideAllButton:SetSize(110, 22)
-    R.hideAllButton:SetPoint("RIGHT", R.hiddenButton, "LEFT", -6, 0)
-    R.hideAllButton:SetText(L.RADAR_HIDE_ALL)
-    R.hideAllButton:SetScript("OnClick", function() mod:Call("Radar", R.HideAll) end)
+    R.muteLabel = left:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    R.muteLabel:SetText(L.RADAR_MUTE)
+    R.muteLabel:SetPoint("LEFT", R.muteCheck, "RIGHT", 2, 0)
+    -- Ausblenden
+    local lHide = U.Label(left, L.RADAR_LBL_HIDE)
+    lHide:SetPoint("TOPLEFT", R.muteCheck, "BOTTOMLEFT", 4, -12)
+    R.hideAllButton = U.Button(left, L.RADAR_HIDE_ALL, w, function() mod:Call("Radar", R.HideAll) end)
+    R.hideAllButton:SetPoint("TOPLEFT", lHide, "BOTTOMLEFT", 0, -6)
     Hint(R.hideAllButton, L.RADAR_HIDE_ALL_HINT)
-    R.nowText = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    R.nowText:SetPoint("BOTTOMLEFT", 10, 16)
-    R.nowText:SetWidth(total - 110 - 125 - 110 - 30)
-    R.nowText:SetJustifyH("LEFT")
+    R.hiddenButton = U.Button(left, "", w, function() mod:Call("Radar", R.ToggleHiddenPanel) end)
+    R.hiddenButton:SetPoint("TOPLEFT", R.hideAllButton, "BOTTOMLEFT", 0, -4)
+    Hint(R.hiddenButton, L.RADAR_HIDDEN_HINT)
+    -- unten: Schnellkauf beim Haendler und was gerade geprueft wird
+    R.nowText = U.Note(left, w)
+    R.nowText:SetPoint("BOTTOMLEFT", left, "BOTTOMLEFT", x, 12)
     if R.nowText.SetWordWrap then R.nowText:SetWordWrap(false) end
-    R.inset = inset
+    R.quickInfo = U.Note(left, w)
+    R.quickInfo:SetPoint("BOTTOMLEFT", R.nowText, "TOPLEFT", 0, 10)
+    R.quickButton = U.Button(left, L.RADAR_QUICK_BTN, w, function() mod:Call("Radar", R.BuyStep, R.quickTarget, "best") end)
+    R.quickButton:SetPoint("BOTTOMLEFT", R.quickInfo, "TOPLEFT", 0, 6)
+    Hint(R.quickButton, L.RADAR_QUICK_HINT)
+    local lQuick = U.Label(left, L.RADAR_LBL_QUICK)
+    lQuick:SetPoint("BOTTOMLEFT", R.quickButton, "TOPLEFT", 0, 6)
+    R.inset = right
     -- Anzeige der Zeiten jede Sekunde auffrischen, pulsierende Zeilen jedes Bild
     local acc = 0
-    inset:SetScript("OnUpdate", function(_, dt)
+    c:SetScript("OnUpdate", function(_, dt)
         acc = acc + (dt or 0)
         if acc >= 1 then
             acc = 0
@@ -1603,7 +1602,7 @@ function R.ToggleHiddenPanel()
     if not p then
         p = CreateFrame("Frame", nil, R.inset, BackdropTemplateMixin and "BackdropTemplate" or nil)
         p:SetSize(320, 270)
-        p:SetPoint("BOTTOMRIGHT", R.hiddenButton, "TOPRIGHT", 0, 4)
+        p:SetPoint("BOTTOMLEFT", R.hiddenButton, "BOTTOMRIGHT", 12, 0)
         p:SetFrameStrata("DIALOG")
         if p.SetBackdrop then
             p:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -1662,8 +1661,20 @@ function R.ShowAgain(key)
 end
 
 -- Reiter geoeffnet: Treffer aus dem Scan laden und gleich einmal live pruefen
-function R.Open()
+-- Ab 0.56: Treffer nur neu aus der Datenbank laden, wenn es einen neuen Scan gibt oder der letzte Stand aelter als
+-- R.RELOAD_SECS ist. Das Laden geht alle Gegenstaende des Marktes durch und liess den Wechsel auf den Reiter kurz haengen.
+R.RELOAD_SECS = 120
+function R.LoadIfStale()
+    local market = ns.Data.Market()
+    local l = R.loaded
+    if l and l.market == market and l.scan == (market and market.lastScan) and l.age == R.MaxAge()
+        and Now() - l.t < R.RELOAD_SECS then return false end
     R.LoadFromScan()
+    return true
+end
+
+function R.Open()
+    R.LoadIfStale()
     if R.selected and R.entries[R.selected.key] then R.focus = { key = R.selected.key, at = 0, show = true } end
     R.Wake()
     R.Refresh()

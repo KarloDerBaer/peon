@@ -29,7 +29,8 @@ T.TABS = {
     { key = "radar", label = "AHTAB_RADAR" },
 }
 T.PAGE_LEVEL = 500  -- Abstand der Flaeche ueber dem Auktionshaus (Rahmenebene)
-T.TAB_GAP = -7      -- Abstand zum Reiter davor. Blizzard nutzt -15, das sah bei Brokers Reitern zu eng aus (0.41.2)
+T.TAB_GAP = -15     -- Abstand zum Reiter davor wie bei Blizzard. Ab 0.56 misst T.AlignTabs den sichtbaren Abstand nach
+T.BAR_UP = 30        -- ab 0.56: Flaeche ragt so weit nach oben in den Streifen der Suchleiste
 T.tabs = {}          -- key -> Knopf
 T.current = nil      -- offener eigener Reiter oder nil (Blizzard-Ansicht)
 T.blocked = {}       -- gemeldete Blockaden dieser Sitzung: { t, event, fn }
@@ -233,6 +234,63 @@ function T.Open(key)
     return true
 end
 
+---------------------------------------------------------------------------
+-- Abstaende der Reiter (ab 0.56): Der sichtbare Abstand zwischen Blizzards "Markt" und "Verkaufen" ist das Mass.
+-- Broker misst, wie weit die Grafik eines Reiters ueber seinen Rahmen hinausragt, und setzt jeden weiteren Reiter so,
+-- dass zwischen den Grafiken genau derselbe Abstand bleibt. Nur Anker der Reiter, nichts in Blizzards Tabellen.
+---------------------------------------------------------------------------
+local function Edges(tab)
+    local fl, fr = tab.GetLeft and tab:GetLeft(), tab.GetRight and tab:GetRight()
+    if type(fl) ~= "number" or type(fr) ~= "number" then return nil end
+    local l = type(tab.Left) == "table" and tab.Left.GetLeft and tab.Left:GetLeft() or nil
+    local r = type(tab.Right) == "table" and tab.Right.GetRight and tab.Right:GetRight() or nil
+    if type(l) ~= "number" or type(r) ~= "number" then l, r = fl, fr end
+    return l - fl, r - fr, l, r   -- Ueberstand links, Ueberstand rechts, sichtbare Kanten
+end
+
+-- Reihenfolge der Reiter unten (ab 0.54): Markt, Verkaufen, Einkaufen, Radar, Auktionen
+function T.TabOrder(f)
+    local list = {}
+    if type(f.BuyTab) == "table" then list[#list + 1] = f.BuyTab end
+    if type(f.SellTab) == "table" then list[#list + 1] = f.SellTab end
+    for _, def in ipairs(T.TABS) do if T.tabs[def.key] then list[#list + 1] = T.tabs[def.key] end end
+    if type(f.AuctionsTab) == "table" then list[#list + 1] = f.AuctionsTab end
+    return list
+end
+
+function T.AlignTabs()
+    local f = AHFrame()
+    if not T.built or not f or type(f.BuyTab) ~= "table" or type(f.SellTab) ~= "table" then return false end
+    local _, _, _, buyR = Edges(f.BuyTab)
+    local _, _, sellL = Edges(f.SellTab)
+    if not buyR or not sellL then return false end
+    local gap = sellL - buyR   -- sichtbarer Abstand bei Blizzard
+    local order = T.TabOrder(f)
+    T.tabGaps = {}
+    for i = 3, #order do
+        local prev, tab = order[i - 1], order[i]
+        local _, dr = Edges(prev)
+        local dl = Edges(tab)
+        if dr and dl then
+            local off = gap + dr - dl
+            tab:ClearAllPoints()
+            tab:SetPoint("LEFT", prev, "RIGHT", off, 0)
+            T.tabGaps[#T.tabGaps + 1] = off
+        end
+    end
+    T.tabGap = gap
+    return true
+end
+
+-- nach dem Aufbau des Bildes messen (vorher kennt das Spiel die Kanten noch nicht)
+function T.AlignSoon()
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, function() mod:Call("Auktionshaus-Reiter", T.AlignTabs) end)
+    else
+        mod:Call("Auktionshaus-Reiter", T.AlignTabs)
+    end
+end
+
 function T.Close()
     if not T.built then return end
     local was = T.current
@@ -400,8 +458,10 @@ function T.Attach(key)
     if W.IsOpen() and W.current == key and W.frame then W.frame:Hide() end   -- nicht an zwei Stellen zugleich
     c:SetParent(T.page)
     c:ClearAllPoints()
-    c:SetPoint("TOPLEFT", T.page, "TOPLEFT", 10, -8)
+    -- ab 0.56: oben bis in den Streifen der Suchleiste, dort sitzt die obere Leiste (Look.lua) wie bei Blizzard
+    c:SetPoint("TOPLEFT", T.page, "TOPLEFT", 10, T.BAR_UP)
     c:SetPoint("BOTTOMRIGHT", T.page, "BOTTOMRIGHT", -10, 8)
+    if c.SetFrameLevel and T.page.GetFrameLevel then c:SetFrameLevel((T.page:GetFrameLevel() or 1) + 5) end
     c:Show()
     T.host[key] = "ah"
     if h.open then mod:Call("Auktionshaus-Reiter", h.open) end
@@ -435,6 +495,7 @@ function T.SetBadge(key, n, blink)
     local b = T.badges[key]
     tab:SetText(L[def.label] .. (b and (" (" .. b.n .. ")") or ""))
     if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, tab, 20, nil, 70) end
+    T.AlignSoon()
     if b and b.blink then
         tab.blinkT = 0
         tab:SetScript("OnUpdate", function(self, dt)
@@ -464,6 +525,7 @@ function T.OnAHShow()
     if ns.AHPlain() then return end
     T.BuildPlainButton()
     T.Build()
+    T.AlignSoon()
 end
 
 function T.Init()

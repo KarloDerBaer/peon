@@ -523,6 +523,7 @@ mod:On("INIT", function()
     mod:Call("Auktionshaus-Reiter", ns.AHTabs.Init)
     mod:Call("Anteil", ns.Cut.Init)
     mod:Call("Rat beim Verkaufen", ns.Advice.Init)
+    mod:Call("Weiterverkauf", ns.Resale.Init)   -- ab 0.56
     mod:Call("Menue", ns.Menu.Init)
     mod:Call("Beobachtung", ns.Watch.Init)
     mod:Call("Auktionen", ns.AuctionsAH.Init)

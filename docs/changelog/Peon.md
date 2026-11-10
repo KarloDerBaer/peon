@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.17.0
+
+Kurz: Grundlage für Listen im Aussehen des Blizzard-Auktionshauses.
+
+- 0.17.0 (10.11.2026): **Listen wie im Auktionshaus, API 17** (für Broker 0.56).
+  - `Peon.NewList` mit `style = "ah"`: Spaltenköpfe wie in Blizzards Listen, Zeilen mit Streifen, Markierung und Hervorhebung des Auktionshauses, größere Schrift (`Number14FontWhite`). Ohne die Grafiken Rückfall auf schlichte Farben.
+  - `flex = Spaltenname` und `list:SetSize(breite, hoehe)`: Die Spalte wächst mit der Breite, die Zahl der Zeilen folgt der Höhe (fehlende Zeilen werden angelegt, überzählige verborgen).
+  - Bestehende Listen ohne die neuen Angaben sehen aus wie bisher.
+
 ## 0.16.1
 
 Kurz: Behebt ein Einfrieren des Spiels, wenn ein Diagramm ohne Hilfslinien gezeichnet wurde (Broker-Tooltip mit Umschalt).
