@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.58.0
+
+Kurz: Einkaufen und Radar sehen jetzt aus wie Blizzards Reiter Verkaufen (hellgrau statt schwarzem Marmor). Im Verkaufsfenster stehen Dauer, Einzahlen, Gesamtpreis und „Auktion erstellen“ dichter, damit Brokers Rat auch neben dem Haken „Sofortkaufmodus“ Platz hat.
+
+- 0.58.0 (10.11.2026, abgestimmt mit KarloDerBaer):
+  - **Look wie Verkaufen:** `Look.lua` nimmt die Hintergründe von Blizzards Reiter Verkaufen (links das Verkaufsfenster, rechts dessen Angebotsliste), zuerst die Grafik, die Blizzard dort gerade zeigt, sonst `auctionhouse-background-sell-left` und `-sell-right`. 0.57 hatte von Kategorien und Auktionsliste kopiert, die in WoW Forever den schwarzen Marmor zeigen.
+  - **Dichtere Zeilen im Verkaufsfenster** (`A.Compact`, Einzelgegenstand und Massenware): Nach Blizzards Anordnung (sicherer Anhang an `Layout`) rücken Dauer, Einzahlen, Gesamtpreis und „Auktion erstellen“ je 18 Punkte näher. Broker setzt nur deren Anker neu und schreibt keine Werte in Blizzards Fenster.
+  - **Prüfung:** `/broker pruefen ah` zeigt jetzt auch, ob `spacing`, `Layout`, `UpdatePostState` und `PostItem` der beiden Verkaufsfenster sauber sind.
+  - **Im Spiel prüfen:** Farben von Einkaufen und Radar. Verkaufsfenster mit und ohne Sofortkaufmodus, Rat vollständig lesbar. Einige Auktionen einstellen (Einzelgegenstand, Massenware, Dauer geändert), keine Meldung „Aktion blockiert“, danach `/broker pruefen ah`.
+
 ## 0.57.0
 
 Kurz: Im Radar zeigt der Tooltip jetzt den normalen Gegenstand mit Brokers Preisen (Umschalt für mehr), die Radar-Angaben stehen ganz unten. Namen statt Nummern, kein Neuladen mehr ohne neuen Scan, Einkaufen und Radar im hellen Grau des Auktionshauses und eine eigene Spalte „Broker“ unter Auktionen.

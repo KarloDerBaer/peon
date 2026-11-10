@@ -21,8 +21,10 @@ local function TryFrame(kind, name, parent, template)
     return nil
 end
 
-U.ATLAS_LEFT = "auctionhouse-background-categories"   -- wie Blizzards Kategorien
-U.ATLAS_LIST = "auctionhouse-background-index"        -- wie Blizzards Ergebnisliste
+-- ab 0.58 wie Blizzards Reiter Verkaufen (KarloDerBaer): links hellgrau mit Verlauf, rechts glattes Dunkelgrau.
+-- 0.57 kopierte von Kategorien und Auktionsliste, die in WoW Forever die schwarze Marmor-Grafik zeigen.
+U.ATLAS_LEFT = "auctionhouse-background-sell-left"
+U.ATLAS_LIST = "auctionhouse-background-sell-right"
 
 local function HasAtlas(name)
     if not (C_Texture and C_Texture.GetAtlasInfo) then return false end
@@ -30,11 +32,11 @@ local function HasAtlas(name)
     return ok and info ~= nil
 end
 
--- Blizzards Vorbild-Rahmen im geoeffneten Auktionshaus: links die Kategorien, rechts die Liste unter "Auktionen"
--- (die hellen Grautoene, die KarloDerBaer meint). Rueckgabe die Hintergrund-Grafik oder nil.
+-- Blizzards Vorbild-Rahmen im geoeffneten Auktionshaus: Reiter Verkaufen, links das Verkaufsfenster, rechts dessen
+-- Angebotsliste. Rueckgabe die Hintergrund-Grafik oder nil (dann gilt der Atlas-Name).
 U.SOURCES = {
-    [U.ATLAS_LEFT] = { "CategoriesList" },
-    [U.ATLAS_LIST] = { "AuctionsFrame", "AllAuctionsList" },
+    [U.ATLAS_LEFT] = { "ItemSellFrame" },
+    [U.ATLAS_LIST] = { "ItemSellList" },
 }
 function U.SourceBg(kind)
     local f = rawget(_G, "AuctionHouseFrame")
@@ -69,6 +71,7 @@ function U.Panel(parent, atlas)
     bg:SetPoint("BOTTOMRIGHT", -3, 3)
     f.marble = bg
     atlas = atlas or U.ATLAS_LIST
+    -- zuerst genau die Grafik, die Blizzards Reiter Verkaufen zeigt, sonst Blizzards Atlas nach Namen
     if U.CopyTexture(U.SourceBg(atlas), bg) then f.copied = true; return f end
     if bg.SetAtlas and HasAtlas(atlas) and pcall(bg.SetAtlas, bg, atlas) then
         f.atlas = atlas

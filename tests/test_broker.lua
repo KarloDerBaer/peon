@@ -3214,6 +3214,30 @@ end)()
   Rd.LoadFromScan = orig
 end)()
 
+-- 0.58: dichtere Zeilen im Verkaufsfenster, Look wie Verkaufen
+;(function()
+  local A = ns.Advice
+  local sf = CreateFrame("Frame")
+  local ys = { QuantityInput = -100, PriceInput = -150, Duration = -200, Deposit = -250, TotalPrice = -300, PostButton = -350 }
+  for k, y in pairs(ys) do local c = CreateFrame("Frame"); c:SetPoint("TOPLEFT", sf, "TOPLEFT", 10, y); sf[k] = c end
+  local shift = A.Compact(sf)
+  local function Y(k) return select(5, sf[k]:GetPoint(1)) end
+  check(shift == 4 * A.GAP_CUT and Y("QuantityInput") == -100 and Y("PriceInput") == -150
+    and Y("Duration") == -200 + A.GAP_CUT and Y("PostButton") == -350 + 4 * A.GAP_CUT,
+    "0.58: Dauer, Einzahlen, Gesamtpreis und Knopf ruecken naeher, oben bleibt alles")
+  check(#sf.Duration.points == 1 and sf.Duration.points[1][1] == "TOPLEFT" and sf.Duration.points[1][2] == sf, "0.58: nur der eigene Anker neu gesetzt")
+  sf.Deposit.shown = false
+  for k, y in pairs(ys) do sf[k]:ClearAllPoints(); sf[k]:SetPoint("TOPLEFT", sf, "TOPLEFT", 10, y) end
+  A.Compact(sf)
+  check(Y("TotalPrice") == -300 + 2 * A.GAP_CUT, "0.58: verborgene Zeile zaehlt nicht")
+  mod.acc.ahPlain = true
+  for k, y in pairs(ys) do sf[k]:ClearAllPoints(); sf[k]:SetPoint("TOPLEFT", sf, "TOPLEFT", 10, y) end
+  check(A.Compact(sf) == 0 and Y("PostButton") == -350, "0.58: Blizzard pur: nichts verschoben")
+  mod.acc.ahPlain = false
+  check(ns.Look.ATLAS_LEFT == "auctionhouse-background-sell-left" and ns.Look.ATLAS_LIST == "auctionhouse-background-sell-right",
+    "0.58: Hintergruende wie Blizzards Reiter Verkaufen")
+end)()
+
 -- Keine unerwarteten Fehlermeldungen
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("hat einen Fehler gemeldet", 1, true) then n = n + 1 end end  -- erwartete Meldung aus dem Verkaufen-Test
 check(n == 0, "keine Fehlermeldungen")

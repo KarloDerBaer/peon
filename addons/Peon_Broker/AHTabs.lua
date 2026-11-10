@@ -107,6 +107,9 @@ end
 -- Pruefung: Sind Blizzards Werte noch sauber? (issecurevariable gibt true, wenn kein Addon sie beruehrt hat)
 ---------------------------------------------------------------------------
 T.PROBE_KEYS = { "displayMode", "selectedTab", "numTabs", "Tabs", "tabsForDisplayMode" }
+-- ab 0.58: auch die Verkaufsfenster (Broker haengt sich an Layout und UpdatePostState und rueckt Zeilen naeher)
+T.PROBE_SELL = { ItemSellFrame = "Verkaufen", CommoditiesSellFrame = "Verkaufen Massenware" }
+T.PROBE_SELL_KEYS = { "spacing", "Layout", "UpdatePostState", "PostItem" }
 
 function T.Probe(quiet)
     local f = AHFrame()
@@ -125,6 +128,18 @@ function T.Probe(quiet)
     if f then
         local n = T.OwnInBlizzardTabs(f)
         r.vars["Tabs (Inhalt)"] = n == 0 and "sauber" or ("beruehrt von Peon_Broker (" .. n .. " Reiter)")
+        local isv2 = rawget(_G, "issecurevariable")
+        for frameKey, label in pairs(T.PROBE_SELL) do
+            local sf = rawget(f, frameKey)
+            if type(sf) == "table" and type(isv2) == "function" then
+                for _, k in ipairs(T.PROBE_SELL_KEYS) do
+                    if sf[k] ~= nil then
+                        local ok, secure, by = pcall(isv2, sf, k)
+                        r.vars[label .. "." .. k] = ok and (secure and "sauber" or ("beruehrt von " .. tostring(by))) or "?"
+                    end
+                end
+            end
+        end
     end
     mod.acc.ahProbe = r
     if not quiet then

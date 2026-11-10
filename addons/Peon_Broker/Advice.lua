@@ -218,6 +218,32 @@ function A.OnResults(commodity, arg)
     if sf then A.Update(sf, isCommodity) end
 end
 
+---------------------------------------------------------------------------
+-- Dichtere Zeilen im Verkaufsfenster (ab 0.58, Wunsch von KarloDerBaer): Platz fuer den Rat unter "Auktion erstellen",
+-- auch mit Blizzards Haken "Sofortkaufmodus" und der Zeile Gebotspreis. Broker aendert keine Werte in Blizzards
+-- Fenster: Nach Blizzards Anordnung (sicherer Anhang an Layout) ruecken Dauer, Einzahlen, Gesamtpreis und der Knopf
+-- je A.GAP_CUT Punkte naeher zusammen (nur ihre Anker, wie Blizzards Layout sie selbst setzt).
+---------------------------------------------------------------------------
+A.GAP_CUT = 18
+A.COMPACT = { "Duration", "Deposit", "TotalPrice", "PostButton" }
+
+function A.Compact(sf)
+    if not ns.AHTouch() or type(sf) ~= "table" then return 0 end
+    local shift = 0
+    for _, k in ipairs(A.COMPACT) do
+        local c = rawget(sf, k)
+        if type(c) == "table" and c.GetPoint and (not c.IsShown or c:IsShown()) then
+            local ok, p, rel, rp, x, y = pcall(c.GetPoint, c, 1)
+            if ok and type(p) == "string" and p:find("TOP") and type(y) == "number" then
+                shift = shift + A.GAP_CUT
+                c:ClearAllPoints()
+                c:SetPoint(p, rel, rp, x, y + shift)
+            end
+        end
+    end
+    return shift
+end
+
 function A.Hook()
     if A.hooked or not ns.AHTouch() then return end
     local f = AHFrame()
@@ -228,6 +254,10 @@ function A.Hook()
         if type(sf) == "table" and type(sf.UpdatePostState) == "function" then
             local commodity = name == "CommoditiesSellFrame"
             hooksecurefunc(sf, "UpdatePostState", function() mod:Call("Rat beim Verkaufen", A.Update, sf, commodity) end)
+            if type(sf.Layout) == "function" then   -- ab 0.58: dichtere Zeilen
+                hooksecurefunc(sf, "Layout", function() mod:Call("Rat beim Verkaufen", A.Compact, sf) end)
+                mod:Call("Rat beim Verkaufen", A.Compact, sf)
+            end
             if sf.HookScript then sf:HookScript("OnHide", function() A.current = nil end) end
             done = done + 1
         end
