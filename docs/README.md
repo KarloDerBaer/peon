@@ -13,6 +13,7 @@
 
 | Modul | Datei | Inhalt |
 |---|---|---|
+| Alle | [Peon_UI_Design.md](konzepte/Peon_UI_Design.md) | Einheitliches UI-Design aller Peon-Fenster (Entwurf in Abstimmung) |
 | Broker | [Peon_Broker_Konzept.md](konzepte/broker/Peon_Broker_Konzept.md) | Konzept für Broker (Funktionsumfang, Preisvorschlag, Märkte, Bauabschnitte) |
 | Broker | [Peon_Broker_Rechenmodell.md](konzepte/broker/Peon_Broker_Rechenmodell.md) | Begriffe, Formeln und Anzeige |
 | Broker | [Peon_Broker_Verkaufen.md](konzepte/broker/Peon_Broker_Verkaufen.md) | Reiter Verkaufen |

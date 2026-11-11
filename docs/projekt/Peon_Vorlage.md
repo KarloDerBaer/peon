@@ -25,6 +25,25 @@ Diese Notiz bündelt den Inhalt von `<Repo>\vorlage\` (dort liegen dieselben Dat
 
 Weitere Bausteine und die ganze Kern-API: siehe `Peon_Ueberblick.md`.
 
+## Eigenes Fenster (ab Kern-API 18)
+
+Fenster eines Moduls nur mit `Peon.UI` bauen, damit alle Peon-Fenster gleich aussehen. Regeln, Maße und alle Bausteine: `docs\konzepte\Peon_UI_Design.md`, Beispiele im Spiel mit `/peon ui`.
+
+```lua
+if Peon.UI then
+    local UI = Peon.UI
+    local win = UI.Window("PeonBeispielFrame", { title = "Peon Beispiel", icon = "Interface\\Icons\\INV_Misc_QuestionMark" })
+    local panel = UI.Panel(win, "left")
+    panel:SetPoint("TOPLEFT", UI.EDGE, -UI.TOP)
+    panel:SetPoint("BOTTOMRIGHT", -5, UI.BOTTOM)
+    UI.SectionTab(panel, "Beispiel")
+    UI.FormRow(panel, "Anzahl", UI.Input(panel, 134, { numeric = true }), 11, -20)
+    UI.StatusBar(win):SetText("Bereit")
+end
+```
+
+In der TOC dann `## Dependencies: Peon` und in `NewModule` prüfen, ob `Peon.API >= 18` ist (sonst „Peon ist zu alt“ melden).
+
 ## Peon_Beispiel/Peon_Beispiel.toc
 
 ```

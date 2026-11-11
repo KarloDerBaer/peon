@@ -2,6 +2,26 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.18.0
+
+Kurz: Neues Beispielfenster `/peon ui` mit allen Bausteinen für ein einheitliches Aussehen der Peon-Fenster im Stil des Auktionshauses. Dazu der Prüfbefehl `/peon ui pruefen`, der ausliest, welche Grafiken Blizzards Fenster wirklich zeigen.
+
+- 0.18.0 (11.11.2026): **Prüfbefehl für das UI-Design** (neue Datei `UIProbe.lua`, Kern-API unverändert 17).
+  - `/peon ui pruefen`: prüft rund 130 Atlas-Namen aus Blizzards Code (Datei, Größe, Ausschnitt, fehlt), rund 40 Schrift-Objekte (Schrift, Größe, Farbe, Schatten), rund 40 Vorlagen (als eigene, versteckte Rahmen angelegt) und alle gerade offenen Blizzard-Fenster aus einer festen Liste (Auktionshaus, Berufe, Einstellungen, Charakter, Dungeonbrowser und weitere).
+  - `/peon ui pruefen maus`: der Rahmen unter der Maus samt Eltern-Kette und Kindern (die letzten 10 bleiben gespeichert).
+  - `/peon ui pruefen <Pfad>`: ein Rahmen, zum Beispiel `AuctionHouseFrame.CategoriesList`. `/peon ui pruefen leeren` löscht alles.
+  - Je Grafik: Atlas, Datei, Ausschnitt, Farbe, Deckkraft, Ebene, Größe, Anker. Je Schrift: Schrift-Objekt, Datei, Größe, Farbe, Schatten, Ausrichtung, Text. Je Rahmen: Typ, Vorlage (`layoutType`), Hintergrund (`backgroundAtlas`), Größe, Anker, gesperrt.
+  - Ergebnis in `PeonDB.uiProbe` (nach `/reload` in WTF). Nur lesen, Blizzards Rahmen werden nicht verändert.
+  - Grund: In Forever („Camelot“ in Blizzards Code) liegen unter denselben Atlas-Namen teils eigene Grafiken. Broker 0.56 bis 0.58 hat deshalb dreimal falsch geraten.
+  - Von KarloDerBaer im Spiel ausgeführt (Auktionshaus, Berufe). Ergebnis in `docs/konzepte/Peon_UI_Design.md` Abschnitt 2 und 3.
+  - **Bausteine, Kern-API 18** (neue Datei `UIKit.lua`, `Peon.UI`, freigegeben von KarloDerBaer nach drei Tests im Spiel): Fenster mit rundem Bild, Reiter unten mit Zahl am Reiter, Reiter oben, Beschriftung über einem Bereich, Bereich mit Hintergrund in Originalgröße, Texte nach Rolle, Trennlinie, Knöpfe (normal, Gold, gesperrt, Symbol, Neu laden), Eingaben (Text, Zahl, Geld), Suchleiste, Auswahlliste, Filter, Haken, Schieberegler (zwei Arten), Formularzeile, Liste mit Kopf, Sortierung, Streifen, Auswahl, Bildlauf (Blizzards ScrollBox), leerer Liste und Ladeanzeige, Kategorieliste mit drei Stufen, Statuszeile, Gegenstand klein und groß, Tooltip, Rückfrage, Fortschritt, einklappbare Überschrift. Alle Maße und Grafiken aus der Messung.
+  - **Beispielfenster** `/peon ui` (neue Datei `UIDemo.lua`): Seiten Grundlagen, Bedienelemente, Listen, Aufbau mit Testdaten und verschiedenen Zuständen. Der gewählte Reiter wird in `PeonDB.uiDemoTab` gemerkt.
+  - Regeln und Maße: `docs/konzepte/Peon_UI_Design.md` (Entwurf).
+  - Nach dem ersten Test von KarloDerBaer (11.11.2026): Reiter mit sauberem Abstand (Breite Text + 40, Abstand 3), Zahl am Reiter im Reiter neben dem Text (oben war sie vom Fensterrahmen verdeckt), Rückfrage als kleines Fenster (Blizzards Dialograhmen füllt seinen Elternrahmen, vorher den ganzen Bildschirm), Hintergründe passen sich dem Bereich an (abschneiden statt über den Rand, dehnen statt mitten im Bereich enden), Kategorieliste mit Innenabstand wie Blizzard, Sortierpfeil zeigt bei aufsteigender Sortierung nach oben.
+  - Nach dem zweiten Test (11.11.2026): Kategorien klappen auf und zu wie im Auktionshaus (Klick öffnet, erneuter Klick schließt), nur noch der moderne Schieberegler (Wahl von KarloDerBaer), Fortschrittsbalken wie Blizzards Balken beim Herstellen mit Knopf „Abspielen“. Die Grafiken des Balkens prüft `/peon ui pruefen` jetzt mit.
+  - Nach dem dritten Test (11.11.2026): Hinter der Bildlaufleiste der Kategorien liegt kein Hintergrundbild mehr, dort ist wie bei Blizzard das hellere Grau des Fensters zu sehen. Gemessen mit `/peon ui pruefen maus`: die Leiste selbst war bei beiden gleich.
+  - **Im Spiel prüfen:** `/peon ui`, alle vier Seiten. Passt der Look zum Auktionshaus? Regler A oder B? Fortschritt, einklappbare Überschrift, Rückfrage und Zahl am Reiter. Sortieren, Auswahl, Bildlauf, Kontextmenü, Kategorien und Suche auf der Seite Aufbau.
+
 ## 0.17.0
 
 Kurz: Grundlage für Listen im Aussehen des Blizzard-Auktionshauses.

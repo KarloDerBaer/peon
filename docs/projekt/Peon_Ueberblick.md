@@ -31,7 +31,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 | Addon | Version | SavedVariables | Befehl |
 |---|---|---|---|
-| Peon | 0.17.0 | `PeonDB` | /peon |
+| Peon | 0.18.0 | `PeonDB` | /peon |
 | Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
 | Peon_Fishing (früher FishingPlus) | 1.6.0 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
@@ -45,7 +45,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
-## Kern-API (Peon.API = 17)
+## Kern-API (Peon.API = 18)
 
 Die API wird nur erweitert, nie geändert (sonst brechen alle Module). Bei neuen Funktionen `Peon.API` erhöhen.
 
@@ -157,6 +157,20 @@ ch:CreateLegend(parent, { "md", "cost" }, function(key, on) end)   -- Knöpfe an
 Peon.LinkCharts({ ch1, ch2 }, { shareLeft = true })                -- gemeinsame Mauslinie, gleicher Bereich links
 Peon.NiceRange(lo, hi, schritte)
 ```
+- **Fenster im Look des Auktionshauses (API 18, UIKit.lua):** `Peon.UI` mit allen Bausteinen für Peon-Fenster, Beispielfenster `/peon ui`. Maße, Grafiken, Schriften, Regeln und alle Bausteine: `docs\konzepte\Peon_UI_Design.md`. Neue Fenster nutzen nur diese Bausteine.
+```lua
+local UI = Peon.UI   -- if Peon.UI then ... end, solange ältere Kerne möglich sind
+local win = UI.Window("PeonXyFrame", { title = "Peon Xy", icon = "Interface\\Icons\\…" })
+local left = UI.Panel(win, "left")                -- Bereich, Hintergrund aus UI.BG (left, right, list, categories …)
+UI.SectionTab(left, "Einstellungen")               -- Beschriftung über dem Bereich
+UI.FormRow(left, "Anzahl", UI.Input(left, 134, { numeric = true }), 11, -20)
+local t = UI.Table(UI.Panel(win, "list", true), { columns = { … }, sortKey = "name", icon = true, empty = "…" })
+t:SetData(items); t:SetLoading(true, "Suche...")
+UI.BottomTabs(win, { { "a", "Übersicht" } }, fn):Select("a"); UI.StatusBar(win):SetText("…")
+-- weiter: UI.Button (normal/"gold"), UI.IconButton, UI.RefreshButton, UI.SearchBox, UI.MoneyInput, UI.Money,
+-- UI.Dropdown, UI.FilterDropdown, UI.Check, UI.Slider, UI.CategoryList, UI.TopTabs, UI.Badge, UI.ItemIcon,
+-- UI.ItemHeader, UI.Spinner, UI.Progress, UI.Collapse, UI.Divider, UI.Text(rolle), UI.SetTooltip, UI.Confirm
+```
 - Ereignisse mit `RegisterUnitEvent` kann der Kern noch nicht; dafür hat ComboPoints einen eigenen Rahmen.
 - Diagramm-Legende (ab 0.11): mehrere Reihen mit gleichem `key` → die Reihe mit `label` bestimmt Name und Farbe.
 
@@ -195,7 +209,9 @@ Peon.NiceRange(lo, hi, schritte)
 
 - **Verankerte Menüs:** `MenuUtil.CreateContextMenu` öffnet immer am Mauszeiger. Für eine feste Stelle: `MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultContextMenuMixin())`, `Menu.PopulateDescription(generator, owner, desc)`, `Menu.GetManager():OpenMenu(owner, desc, AnchorUtil.CreateAnchor(...))`. Nachgelesen in `Blizzard_Menu`, im Spiel mit Peon_Panel 0.1.0 noch zu bestätigen. Blizzard klappt das Menü bei Platzmangel um und hält es im Bild.
 
-- **Blizzard-Code der Forever-Version** liegt öffentlich auf GitHub: `Gethe/wow-ui-source`, Zweig **`forever`** (Stand 1.60.1.70245). Damit lassen sich Abläufe nachlesen statt raten (z. B. `TooltipComparisonManager.lua`, `ContainerFrame.lua`, `SharedUIPanelTemplates.xml`). Mainline-Dateien (`…/Mainline/…`) sind die, die Forever nutzt.
+- **Blizzard-Code der Forever-Version** liegt öffentlich auf GitHub: `Gethe/wow-ui-source`, Zweig **`forever`** (Stand 1.60.1.70888, 10.11.2026). Damit lassen sich Abläufe nachlesen statt raten (z. B. `TooltipComparisonManager.lua`, `ContainerFrame.lua`, `SharedUIPanelTemplates.xml`). Mainline-Dateien (`…/Mainline/…`) sind die, die Forever nutzt.
+- **Forever heißt in Blizzards Code „camelot“** (Spieltyp in den TOC-Dateien, Ordner `…/Camelot/…`). Geladen wird die Mainline-Fassung (`[Family]`), dazu Camelot-Dateien, die einzelne Teile ersetzen (z. B. `Blizzard_SharedXML/Camelot/NineSliceLayoutOverrides.lua`, `SharedUIPanelTemplates.lua` mit Schließen-Knopf 28×28, `Blizzard_Professions/Camelot`). **Wichtig für das Aussehen:** Laut Blizzards Kommentar gibt es eigene Grafiken für Camelot unter denselben Atlas-Namen wie in Retail. Wie ein Atlas aussieht, lässt sich deshalb nicht aus dem Code ablesen, nur im Spiel (`/peon ui pruefen`, ab Peon 0.18.0). Die Ordner `…/Classic/…` (z. B. Marmor-Hintergründe im Auktionshaus) gelten nicht für Forever. Im Spiel bestätigt (11.11.2026): Metallrahmen, Reiter, Schließen-Knopf, Bildlaufleiste und Auswahllisten kommen aus eigenen Forever-Dateien, die Hintergründe des Auktionshauses aus Blizzards gewohnter Datei. Maße, Grafiken und Schriften für Peon-Fenster: `docs\konzepte\Peon_UI_Design.md`.
+- **Hintergründe im Auktionshaus** (`AuctionHouseBackgroundTemplate`): `Background:SetAtlas(atlas, true)` in Originalgröße, nur oben links verankert und nicht gestreckt. Wer die Grafik auf einen anders großen Rahmen zieht, verzerrt sie (Broker 0.56 bis 0.58).
 - **`%d` in `string.format` nur bis 2^31** (2.147.483.647, also etwa 214.748 Gold in Kupfer): darüber bricht Forever-Lua mit „integer overflow attempting to store …“ ab. Angebote zum Höchstpreis (fast 5 Mio. Gold) kommen im Auktionshaus vor, Auktionsnummern können ebenfalls groß werden. Geldbeträge und Nummern immer mit `%.0f` oder `tostring` schreiben (Broker 0.30.2). Die Tests bauen die Grenze nach (`test_client.lua`).
 - **Nie `pcall` (oder `xpcall`) um eine Funktion mit sehr vielen Rückgabewerten** (z. B. `{ pcall(UIParent.GetChildren, UIParent) }`): Forever-Lua stürzt dann mit „Assertion failure! L->top < L->ci->top (lapi.c)“ ab (Broker 0.28.0, Berufsfenster). Direkt aufrufen: `{ frame:GetChildren() }`.
 - **Vergleichs-Tooltips:** Blizzard baut Gegenstands- und Vergleichs-Tooltip alle 0,2 Sek. neu auf und hängt die Vergleichszeilen („Wenn Ihr diesen Gegenstand ersetzt …“) nach allen Nachläufen an, dann `SetShown(true)`. Wer Zeilen umsortiert, muss das im selben Bild tun (`hooksecurefunc(tt, "Show"/"SetShown")`), sonst flackert es.

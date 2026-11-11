@@ -35,7 +35,25 @@ L.HELP = {
     "/peon <module> [command] - command for a module (e.g. /peon tooltip)",
     "/peon debug <module> - debug output of a module on/off",
     "/peon errors [clear] - show or delete saved errors",
+    "/peon ui - sample window of the UI design",
+    "/peon ui check [mouse | <frame> | clear] - read Blizzard's window art for the UI design",
 }
+-- UI check (0.18.0)
+L.UIPROBE_HELP = {
+    "/peon ui - sample window with all building blocks",
+    "/peon ui check - atlases, fonts, templates and all open Blizzard windows",
+    "/peon ui check mouse - the frame under the mouse",
+    "/peon ui check <frame> - one frame, e.g. AuctionHouseFrame.CategoriesList",
+    "/peon ui check clear - delete the saved results",
+}
+L.UIPROBE_DONE      = "UI check: %d atlases (%d missing), %d fonts, %d template lines. Windows: %s."
+L.UIPROBE_NONE      = "none open"
+L.UIPROBE_HINT      = "Saved in PeonDB.uiProbe. /reload writes it to WTF."
+L.UIPROBE_MOUSE     = "UI check: %s saved (%d lines)."
+L.UIPROBE_FRAME     = "UI check: %s saved (%d lines)."
+L.UIPROBE_NOT_FOUND = "UI check: frame \"%s\" not found."
+L.UIPROBE_NO_MOUSE  = "UI check: no frame under the mouse."
+L.UIPROBE_CLEARED   = "UI check: results deleted."
 L.OPT_DESC     = "Shared core of the Peon addon collection. The modules have their own pages below this entry."
 L.OPT_MODULES  = "Modules"
 L.OPT_VERSION  = "Version %s"
@@ -88,7 +106,24 @@ if GetLocale() == "deDE" then
         "/peon <Modul> [Befehl] - Befehl an ein Modul (z. B. /peon tooltip)",
         "/peon debug <Modul> - Debug-Ausgaben eines Moduls an/aus",
         "/peon fehler [leeren] - gespeicherte Fehler zeigen oder löschen",
+        "/peon ui - Beispielfenster zum UI-Design",
+        "/peon ui pruefen [maus | <Fenster> | leeren] - Grafiken von Blizzards Fenstern auslesen (UI-Design)",
     }
+    L.UIPROBE_HELP = {
+        "/peon ui - Beispielfenster mit allen Bausteinen",
+        "/peon ui pruefen - Grafiken, Schriften, Vorlagen und alle offenen Blizzard-Fenster",
+        "/peon ui pruefen maus - der Rahmen unter der Maus",
+        "/peon ui pruefen <Fenster> - ein Rahmen, z. B. AuctionHouseFrame.CategoriesList",
+        "/peon ui pruefen leeren - gespeicherte Ergebnisse löschen",
+    }
+    L.UIPROBE_DONE      = "UI-Prüfung: %d Grafiken (%d fehlen), %d Schriften, %d Zeilen Vorlagen. Fenster: %s."
+    L.UIPROBE_NONE      = "keins offen"
+    L.UIPROBE_HINT      = "Gespeichert in PeonDB.uiProbe. /reload schreibt es in WTF."
+    L.UIPROBE_MOUSE     = "UI-Prüfung: %s gespeichert (%d Zeilen)."
+    L.UIPROBE_FRAME     = "UI-Prüfung: %s gespeichert (%d Zeilen)."
+    L.UIPROBE_NOT_FOUND = "UI-Prüfung: Rahmen „%s“ nicht gefunden."
+    L.UIPROBE_NO_MOUSE  = "UI-Prüfung: kein Rahmen unter der Maus."
+    L.UIPROBE_CLEARED   = "UI-Prüfung: Ergebnisse gelöscht."
     L.OPT_DESC    = "Gemeinsamer Kern der Peon-Addonsammlung. Die Module haben eigene Seiten unter diesem Eintrag."
     L.OPT_MODULES = "Module"
     L.RESET       = "Standardwerte wiederherstellen"

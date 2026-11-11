@@ -2,6 +2,20 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 11.11.2026: Einheitliches UI-Design, erst prüfen (Peon 0.18.0)
+
+- **Ein Look für alle Peon-Fenster nach Blizzards modernem Auktionshaus** (KarloDerBaer). Zuerst Bestandsaufnahme, dann Vorschlag, Beispielfenster im Kern, Abstimmung Schritt für Schritt, danach Regeln in `docs\konzepte\Peon_UI_Design.md` und Bausteine als Erweiterung der Kern-API. Bestehende Fenster bleiben vorerst.
+- **Grafiken nicht raten, sondern im Spiel auslesen** (KarloDerBaer): In Broker 0.56 bis 0.58 passte der Look dreimal nicht. Ursache laut Blizzards Code: Forever hat unter denselben Atlas-Namen eigene Grafiken, und das Auktionshaus zeigt seine Hintergründe in Originalgröße statt gestreckt. Dafür der Prüfbefehl `/peon ui pruefen`, der nur liest (Claude).
+- **Antworten von KarloDerBaer zum Look:** rundes Bild mit dem Symbol des Moduls, Hintergründe gemischt wie im Auktionshaus, Haken mit gelbem Häkchen, Gold-Knopf für die wichtigste Aktion, feste Fenstergröße, eigene runde Zahl am Reiter, vier Beispielseiten, zusätzliche Bausteine (Gegenstand, Geld, Rückfrage, Kontextmenü, Fortschritt, Trennlinie, Einklappen).
+- **Freigabe** (KarloDerBaer, nach dem dritten Test): Der Look passt, die Bausteine kommen als `Peon.UI` in die Kern-API 18. Neue Peon-Fenster nutzen sie, zuerst Broker.
+- **Nach dem dritten Test** (KarloDerBaer): Hinter der Bildlaufleiste der Kategorien fehlte das hellere Grau des Fensters, Blizzards Bild endet vor der Leiste (Messung mit `/peon ui pruefen maus`).
+- **Nach dem zweiten Test** (KarloDerBaer): moderner Schieberegler, Fortschritt wie der Balken beim Herstellen, Kategorien auf- und zuklappbar wie im Auktionshaus. Der Rest passt.
+- **Hintergründe passen sich dem Bereich an** (Claude, nach dem ersten Test): abschneiden, wenn der Bereich kleiner ist, dehnen, wenn er größer ist.
+- **Bausteine zuerst intern** (`ns.UI` in `UIKit.lua`), erst nach der Freigabe als Kern-API (Claude): So bleibt die API stabil, solange sich der Look noch ändert.
+- **Listen mit Blizzards ScrollBox und MinimalScrollBar** statt des eigenen Bildlaufs von `Peon.NewList` (Claude): nur so sehen Leiste und Bildlauf genau wie im Auktionshaus aus. `Peon.NewList` bleibt unverändert.
+- **Rückfrage als eigenes Fenster** statt eines Eintrags in `StaticPopupDialogs` (Claude), weil Einträge in Blizzards Tabellen erst abgestimmt werden.
+- **Peon passt Blizzards Fenster nur sichtbar und von außen an** (KarloDerBaer): eigene Rahmen und Texte, Anker und Beschriftungen, sichere Anhänge mit `hooksecurefunc` und `HookScript`. Werte oder Funktionen in Blizzards Tabellen nur nach Abstimmung und Prüfung auf Taint.
+
 ## 09.11.2026: Umbau Peon_Broker (Konzept `Peon_Broker_Umbau.md`, Broker 0.41.0)
 
 - **Broker wird schlank und berät** (KarloDerBaer): Verkauft wird über Blizzards Fenster, ausgewählt in der Tasche. Broker trägt keinen Preis ein, sondern sagt, ob man zu Blizzards Preis verkaufen soll. Grund: KarloDerBaer nutzt Brokers Reiter Verkaufen kaum.

@@ -1,17 +1,18 @@
 # Peon: Stand je Modul
 
-Stand: 10.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.17.0 / Broker 0.58.0 / Bridge 0.9.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.25.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 11.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.18.0 / Broker 0.58.0 / Bridge 0.9.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.25.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
-## Peon (Kern) – 0.17.0, API 17
+## Peon (Kern) – 0.18.0, API 18
 
-- Dateien: Locales.lua, Core.lua, Feedback.lua (ab 0.9, direkt nach Core.lua), ItemMenu.lua und Bindings.xml (ab 0.16), Module.lua, Options.lua, Widgets.lua, List.lua, Launcher.lua (ab 0.14), Minimap.lua, Chart.lua (ab 0.10), Slash.lua
-- SavedVariables: `PeonDB`: `errors` (Fehlerspeicher ab 0.12.0: `addon`, `where`, `msg`, `version`, `build`, `first`, `last`, `n`, höchstens 100), `feedbackAreas` (Bereiche je Modul für den Manager, ab 0.13.0), `panelHid` (von Peon_Panel ausgeblendete Minimap-Buttons, ab 0.14.0), `itemMenuClick` (Klick für das Gegenstandsmenü, ab 0.16.0)
+- Dateien: Locales.lua, Core.lua, Feedback.lua (ab 0.9, direkt nach Core.lua), ItemMenu.lua und Bindings.xml (ab 0.16), Module.lua, Options.lua, Widgets.lua, List.lua, Launcher.lua (ab 0.14), Minimap.lua, Chart.lua (ab 0.10), UIKit.lua, UIDemo.lua und UIProbe.lua (ab 0.18), Slash.lua
+- SavedVariables: `PeonDB`: `errors` (Fehlerspeicher ab 0.12.0: `addon`, `where`, `msg`, `version`, `build`, `first`, `last`, `n`, höchstens 100), `feedbackAreas` (Bereiche je Modul für den Manager, ab 0.13.0), `panelHid` (von Peon_Panel ausgeblendete Minimap-Buttons, ab 0.14.0), `itemMenuClick` (Klick für das Gegenstandsmenü, ab 0.16.0), `uiProbe` (Ergebnis von `/peon ui pruefen`: `build`, `toc`, `at`, `peon`, `atlas`, `fonts`, `templates`, `frames[Pfad] = { at, lines }`, `mouse` mit höchstens 10 Einträgen, ab 0.18.0), `uiDemoTab` (zuletzt gewählte Seite im Beispielfenster, ab 0.18.0)
 - Fehlerspeicher (API 12): `Peon.RecordError`, `Peon.ClearErrors`, `Peon.ReportCoreError`, `mod:ReportError` speichert automatisch. Befehle `/peon fehler`, `/peon fehler leeren`.
 - Aufgaben: globales Objekt `Peon`, Modulverwaltung (`Peon:NewModule`), Einstellungen mit Standardwerten/Bereichen/erlaubten Werten, Übernahme alter Variablennamen (`oldDB`/`oldCharDB`), Ereignisse (INIT, LOGIN, COMBAT_START, COMBAT_END, RESET, CHANGED), Debug-Log, Einstellungsseite „Peon“ mit Modulübersicht, Optionsseite mit Bildlauf und Bausteinen (Header, Slider, Check mit Hinweis/eigenen Werten, Dropdown, Choice, PositionGrid, Color, Button, Text, Reset-Knopf, mitwachsende Anordnung), `keepOnReset`, `/peon`.
+- UI-Design (ab 0.18.0): Bausteine `Peon.UI` (API 18), Beispielfenster `/peon ui`, Prüfbefehl `/peon ui pruefen` (Atlanten, Schriften, Vorlagen, offene Blizzard-Fenster), `/peon ui pruefen maus`, `/peon ui pruefen <Pfad>`, `/peon ui pruefen leeren`. Nur lesen.
 - Noch nicht im Kern: `RegisterUnitEvent`.
 - Verlauf der Versionen: `docs/changelog/Peon.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.14.0, 0.13.0, 0.12.0, 0.11.1, 0.10.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.18.0, 0.14.0, 0.13.0, 0.12.0, 0.11.1, 0.10.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon_Tooltip – 0.7.5 (früher TooltipPlus)
 
@@ -183,6 +184,14 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 ## Offene Punkte
 
 Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie beschlossen sind.
+
+### Einheitliches UI-Design für alle Peon-Fenster (beauftragt 11.11.2026)
+
+Ein Look für alle Peon-Fenster nach Blizzards modernem Auktionshaus, zuerst für den Umbau von Broker. Schritte: 1. Bestandsaufnahme mit Prüfbefehl, 2. Vorschlag der Bausteine, 3. Beispielfenster `/peon ui` im Kern mit Beispielseiten, Abstimmung Schritt für Schritt mit KarloDerBaer, 4. Regeln in `docs\konzepte\Peon_UI_Design.md`, nach Freigabe Bausteine als Erweiterung der Kern-API. Bestehende Fenster bleiben vorerst, wie sie sind.
+
+- **Schritt 1 (11.11.2026):** Blizzards Code im Zweig forever gelesen (Ergebnis im Überblick unter „Blizzard-Code der Forever-Version“). Prüfbefehl gebaut mit Peon 0.18.0, von KarloDerBaer im Spiel ausgeführt (Auktionshaus, Berufe), Ergebnis ausgewertet.
+- **Schritt 2 und 3 (11.11.2026):** Fragen von KarloDerBaer beantwortet (Entscheidungen 11.11.2026). Bausteine (`UIKit.lua`) und Beispielfenster `/peon ui` mit vier Seiten gebaut, Entwurf `docs\konzepte\Peon_UI_Design.md`. **Als Nächstes:** KarloDerBaer prüft `/peon ui` im Spiel (Peon steht auf Entwicklung, `/reload` reicht), dann Abstimmung Schritt für Schritt, offene Punkte im Design Abschnitt 9. Erster Test: Reiter, Zahl am Reiter, Rückfrage, Hintergründe und Kategorien nachgebessert. Zweiter Test: fast alles passt, danach Kategorien aufklappbar, moderner Regler, Fortschritt wie Herstellen. Dritter Test: Balken passt, hinter der Leiste der Kategorien fehlte das hellere Grau des Fensters (behoben). Von KarloDerBaer freigegeben (11.11.2026). Bausteine als Kern-API 18 (`Peon.UI`).
+- **Schritt 4 (11.11.2026):** Regeln in `docs\konzepte\Peon_UI_Design.md`, Kern-API 18, Überblick und Vorlage ergänzt. **Als Nächstes:** Umbau von Peon_Broker mit `Peon.UI`. Peon 0.18.0 ist noch nicht veröffentlicht (Vorabversion erst nach Rücksprache).
 
 ### Umbau Peon_Broker (beschlossen 09.11.2026, Konzept `docs\konzepte\broker\Peon_Broker_Umbau.md`)
 
