@@ -1,6 +1,6 @@
 # Peon_Broker: Konzept Neuaufbau
 
-Stand: 11.11.2026, **von KarloDerBaer freigegeben** (Abschnitt 9). Ausgangsversion Broker 0.58.0. N1 ist gebaut mit Broker 0.59.0, Prüfung im Spiel steht aus. Dieses Konzept baut auf `Peon_Broker_Umbau.md` auf und ersetzt dessen Abschnitte 7, 8 und 15. Rechenregeln stehen weiter in `Peon_Broker_Rechenmodell.md`.
+Stand: 11.11.2026, **von KarloDerBaer freigegeben** (Abschnitt 9). Ausgangsversion Broker 0.58.0. N1 ist gebaut und im Spiel geprüft (Broker 0.59.1), N2 ist gebaut mit Broker 0.60.0, Prüfung im Spiel steht aus. Dieses Konzept baut auf `Peon_Broker_Umbau.md` auf und ersetzt dessen Abschnitte 7, 8 und 15. Rechenregeln stehen weiter in `Peon_Broker_Rechenmodell.md`.
 
 ## 1. Ausgangslage
 

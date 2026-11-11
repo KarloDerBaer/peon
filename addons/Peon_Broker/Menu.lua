@@ -15,18 +15,14 @@ ns.Menu = M
 
 M.ORDER = 10   -- Broker zuerst
 
--- Gegenstand im Broker-Fenster zeigen
+-- Gegenstand auf der Seite Gegenstand zeigen (im Auktionshaus als Reiter, sonst im Broker-Fenster)
 function M.Info(item)
-    local W, P = ns.Window, ns.Prices
-    if not W then return end
+    local W, P = ns.Window, ns.Item
+    if not W or not P then return end
+    local key = item.key
+    if key == nil then key = item.link and ns.Data.KeyFromLink(item.link) or item.id end
     W.Open("prices")
-    if P then
-        local key = item.key
-        if key == nil then key = item.link and ns.Data.KeyFromLink(item.link) or item.id end
-        P.selectedKey = key
-        if P.search and P.search.SetText and item.name then P.search:SetText(item.name) end
-        if P.Update then mod:Call("Preise", P.Update) end
-    end
+    P.Show(key)
 end
 
 -- Auf eine bestimmte Einkaufsliste (i = Nummer, nil = neue Liste)

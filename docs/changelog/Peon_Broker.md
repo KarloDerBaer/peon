@@ -2,6 +2,28 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.60.0
+
+Kurz: Die Seite „Gegenstand“ ist neu: links Symbol, Name und alle Werte wie im Tooltip, rechts ein Preisdiagramm für 7, 14, 30 oder 90 Tage und darunter die günstigsten Preisstufen mit Menge und Kosten bis zu jeder Stufe.
+Kurz: Oben suchst du einen Gegenstand, ab zwei Buchstaben erscheinen die Treffer. Ein Klick zeigt ihn, mit Knöpfen für „Im Markt zeigen“, „Beobachten“ und „Auf Einkaufsliste“.
+
+- 0.60.0 (11.11.2026): **Neuaufbau N2, Seite Gegenstand** (Konzept `docs/konzepte/broker/Peon_Broker_Neuaufbau.md`, Abschnitt 4.6). Neue Datei `Item.lua` mit `Peon.UI`, `Prices.lua` entfällt.
+  - **Eine Seite, ein Gegenstand:** Sie zeigt immer den zuletzt gewählten Gegenstand und merkt ihn sich (`itemKey`).
+  - **Links:** Kopf mit Symbol und Namen in Qualitätsfarbe (Maus darüber zeigt den Tooltip). Darunter die Werte aus denselben Bausteinen wie der Tooltip: Markt (ab, Median, Menge, Alter), Üblich, Absatz am Tag, Händler, Beim Händler, Neutral, Herstellen, Art. Ohne üblichen Bereich steht „noch zu wenig Daten“, bei mehr als 40 % Schwankung „(schwankt stark)“. Der wichtigste Hinweis in Orange. Mit Peon_Ledger der Abschnitt „Mein Bestand“ (Vorrat, Kosten je Stück, deine Verkäufe).
+  - **Knöpfe:** Im Markt zeigen (am Auktionator, unterwegs grau bis zur Marktseite aus Scandaten in N3), Beobachten an und aus, Auf Einkaufsliste mit Auswahl der Liste.
+  - **Rechts oben das Diagramm:** günstigstes Angebot (gold), Median (grau gestrichelt), üblicher Bereich (grüne Fläche), Menge (Balken, rechte Achse), mit Ledger die eigenen Kosten als Linie. Zeitraum 7, 14, 30 oder 90 Tage (`itemDays`). Ältere Tage liegen als Wochenwerte vor und gelten für alle sieben Tage der Woche. Unter zwei Tagen mit Werten steht „Noch kein Verlauf“.
+  - **Rechts unten die Preisstufen** des letzten Stands: Preis, Menge, Stück bis hier, Kosten bis hier. Das zeigt Preissprünge auf einen Blick (Grundlage für den Aufkauf in H1).
+  - **Suche oben:** ab zwei Buchstaben die Treffer als Liste über die ganze Breite (Gegenstand, Preis ab, Median, Menge, Absatz, Gesehen), höchstens 200, der Zähler sagt, wenn es mehr gibt. Linksklick zeigt den Gegenstand, Rechtsklick öffnet das Gegenstandsmenü (`Go.Menu`).
+  - Der Knopf „Mehr… (Ledger)“ entfällt, weil Ledgers eigener Reiter Gegenstand bei dessen Überarbeitung wegfällt (Entscheidung vom 09.11.2026).
+  - 24 weitere Texte ohne Verwendung entfernt (alte Seite Preise).
+  - **Im Spiel prüfen:**
+    1. Gegenstand über die Suche wählen, unterwegs und am Auktionator. Passt alles in die Seite, schneidet nichts ab?
+    2. Diagramm: Linien, Fläche und Balken sichtbar, Achsen lesbar, Wechsel des Zeitraums.
+    3. Preisstufen bei einer Massenware mit vielen Angeboten.
+    4. Strg+Rechtsklick auf einen Gegenstand, „Gegenstand (Broker)“, danach „Zurück zu …“.
+    5. Die drei Knöpfe, am Auktionator auch „Im Markt zeigen“.
+    6. Rechtsklick auf einen Treffer: Menü.
+
 ## 0.59.1
 
 Kurz: Der Scan-Knopf sitzt jetzt mit seinem Text oben in der Titelleiste des Auktionshauses, wo ihn die Reiter nicht mehr verdecken. Der Knopf „Blizzard pur“ ist dort weg, die Einstellung findest du in den Optionen.

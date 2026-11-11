@@ -80,6 +80,15 @@ function Go.Item(item, from)
     return true
 end
 
+-- Menue eines Gegenstands (wie Strg+Rechtsklick ueberall im Spiel): Rechtsklick in Brokers Listen
+function Go.Menu(item, owner)
+    local key = KeyOf(item)
+    if key == nil or not Peon.OpenItemMenu then return false end
+    local D = ns.Data
+    return Peon.OpenItemMenu({ id = D.ItemID(key), link = item.link or D.LinkFromKey(key),
+        name = item.name or D.ItemName(key, D.Lookup(key)) }, owner)
+end
+
 function Go.Market(item)
     local key = KeyOf(item)
     if key == nil then

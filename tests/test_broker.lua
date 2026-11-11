@@ -599,7 +599,7 @@ timers[#timers]()
 check(S.state == nil and said("keine Antwort"), "Zeitueberschreitung ohne Daten")
 
 -- ===== Broker-Fenster, Reiter "Preise" (0.7) =====
-local Win, P = ns.Window, ns.Prices
+local Win, P = ns.Window, ns.Item
 -- Einkaufsliste war 0.37 bis 0.48 in Arbeit, ab 0.49 (U8) wieder offen. Ab 0.54 sind Markt und Info in Arbeit:
 -- fuer die Pruefungen der bisherigen Gegenstandsansicht den Hinweis abschalten, am Ende pruefen
 check(not Win.WIP.buy and not Win.WIP.prices and Win.WIP.browse and Win.WIP.auctions and Win.WIP.focus, "N1: Markt, Auktionen und Fokus in Arbeit, Einkaufen und Gegenstand offen")
@@ -637,36 +637,81 @@ Win.tabButtons[2].scripts.OnClick(Win.tabButtons[2])
 check(Win.current == "buy" and Win.tabButtons[2].disabled, "N1: Klick auf Verkaufen bleibt beim bisherigen Reiter")
 Win.tabButtons[7].scripts.OnClick(Win.tabButtons[7])
 check(Win.current == "prices" and Win.contents.prices.shown and not Win.contents.buy.shown, "Reiter Gegenstand gewaehlt, andere Seite verborgen")
-local items = P.list:GetItems()
-check(#items == 4 and items[1].name == "Kupfererz" and items[4].name == "Schwert des Baeren", "Liste: alle Gegenstaende nach Name")
-check(P.count.text == "4 von 4 Gegenständen", "Zaehler")
+-- ===== Neuaufbau N2 (0.60): Seite Gegenstand =====
+check(ns.Prices == nil and P == ns.Item and P.results and P.tiers and P.header, "N2: Seite Gegenstand mit Peon.UI ersetzt den Reiter Preise")
+check(P.key == nil and P.Mode() == "results" and P.resultPanel.shown and not P.detail.shown, "N2: ohne gewaehlten Gegenstand die Suche")
+check(#P.results.items == 0 and P.results.empty.text == ns.L.ITEM_SEARCH_HINT, "N2: Hinweis, was man tun kann")
 check(Win.status.text.text:find("PvE Horde", 1, true) and Win.status.text.text:find("Scan", 1, true), "N1: Statuszeile mit Markt und Scan: " .. tostring(Win.status.text.text))
-P.search:SetText("ERZ"); P.search.scripts.OnTextChanged(P.search)
-check(#P.list:GetItems() == 1 and P.count.text == "1 von 4 Gegenständen", "Suche: Teil des Namens, Gross/klein egal")
-P.search:SetText("xyz"); P.search.scripts.OnTextChanged(P.search)
-check(#P.list:GetItems() == 0 and P.list.empty.text == "Nichts gefunden.", "Suche ohne Treffer")
-P.search:SetText("schwert"); P.search.scripts.OnTextChanged(P.search)
-check(#P.list:GetItems() == 2, "Suche: zwei Schwerter")
-local row1 = P.list.rowFrames[1]
-check(row1.cells[1].text:find("|cff1eff00Schwert des Affen|r", 1, true), "Name in Qualitaetsfarbe")
+local function typed(text) P.search:SetText(text); P.search.scripts.OnTextChanged(P.search, true) end
+typed("ERZ")
+check(#P.results.items == 1 and P.results.items[1].key == 2770 and P.count.text == "1 Treffer", "Suche: Teil des Namens, Gross/klein egal")
+typed("e")
+check(#P.results.items == 0 and P.results.empty.text == ns.L.ITEM_SEARCH_HINT, "N2: ein Buchstabe sucht noch nicht")
+typed("xyz")
+check(#P.results.items == 0 and P.results.empty.text == "Nichts gefunden.", "Suche ohne Treffer")
+typed("schwert")
+check(#P.results.items == 2 and P.results.items[1].name == "Schwert des Affen", "Suche: zwei Schwerter, nach Name")
+local row1 = P.results.list.rows[1]
+check(row1.cells[1].text == "Schwert des Affen" and row1.cells[2].text ~= "", "Zeile mit Name und Preis")
 row1.scripts.OnEnter(row1)
 check(tt.hyper == "item:15000::::::1048", "Maus ueber Zeile zeigt Gegenstand im Tooltip")
-P.search:SetText(""); P.search.scripts.OnTextChanged(P.search)
-P.list.rowFrames[1].scripts.OnClick(P.list.rowFrames[1], "LeftButton")
-local dt = plain(P.detail.text)
-check(dt:find("Kupfererz", 1, true) and dt:find("Vorschlag: ", 1, true) and dt:find("je Stück", 1, true) and dt:find("Massenware", 1, true), "Einzelheiten: Name, Vorschlag, Warenart")
-check(dt:find("Händler: 5c je Stück", 1, true), "Einzelheiten: Haendlerpreis je Stueck")
-local hist = P.history:GetItems()
-local hasWeek = false for _, h in ipairs(hist) do if h.week then hasWeek = true end end
-check(#hist >= 2 and hasWeek and hist[1].sort >= hist[#hist].sort, "Verlauf: Tage und Wochen, neueste oben")
-check(P.history.rowFrames[1].cells[1].text:match("^%d%d%.%d%d%.$"), "Verlauf: Datum TT.MM.")
+local oldCap = P.RESULT_MAX
+P.RESULT_MAX = 1
+typed("schwert")
+check(#P.results.items == 1 and P.count.text == "1 von 2 Treffern, genauer suchen", "N2: Trefferliste ist begrenzt, der Zaehler sagt es")
+P.RESULT_MAX = oldCap
+typed("kupfer")
+P.results.list.rows[1].scripts.OnClick(P.results.list.rows[1], "LeftButton")
+check(P.key == 2770 and mod.acc.itemKey == 2770 and P.Mode() == "detail" and P.detail.shown and not P.resultPanel.shown and (P.search.text or "") == "",
+  "N2: Klick waehlt den Gegenstand, zeigt die Einzelheiten und leert die Suche")
+check(P.header.name.text == "Kupfererz" and P.item.id == 2770, "N2: Kopf mit dem Namen")
+local function rowsText()
+  local t = {}
+  for _, r in ipairs(P.shownRows) do t[#t + 1] = plain((r[1] or "") .. ": " .. (r[2] or r.head or r.hint or "")) end
+  return table.concat(t, " | ")
+end
+local dt = rowsText()
+check(dt:find("Markt: ab ", 1, true) and dt:find("Händler: 5c je Stück", 1, true) and dt:find("Art: Massenware", 1, true),
+  "N2: Werte wie im Tooltip, Haendlerpreis, Art (" .. dt .. ")")
+check(not dt:find("Mein Bestand", 1, true), "N2: ohne Ledger kein Abschnitt Mein Bestand")
+check(P.rows[1].label.shown and P.rows[1].label.text == "Markt" and plain(P.rows[1].value.text):find("ab ", 1, true), "N2: Zeilen links gefuellt")
+local tiers = P.tiers.items
+check(#tiers >= 2 and tiers[1].price <= tiers[2].price and tiers[2].cum == tiers[1].qty + tiers[2].qty
+  and tiers[2].cost == tiers[1].cost + tiers[2].price * tiers[2].qty, "N2: Preisstufen guenstigste zuerst, mit Summen bis hier")
+do
+  local e = market.items[2770]
+  local today = D.Day()
+  local hist = D.History(e)
+  local hasWeek = false for _, h in ipairs(hist) do if h.week then hasWeek = true end end
+  check(#hist >= 2 and hasWeek, "Verlauf: Tage und Wochen in der Datenbank")
+  local old = { d = e.d, w = e.w }
+  e.d = D.JoinDays({ { today - 1, 100, 150, 40, 1 }, { today, 240, 320, 100, 2 } })
+  e.w = D.JoinDays({ { math.floor((today - 20) / 7), 90, 140, 30, 5 } })
+  local mins, meds, qtys, got = P.Series(e, 7, today)
+  check(got == 2 and mins[7] == 120 and meds[7] == 160 and qtys[7] == 50 and mins[6] == 100 and mins[5] == nil, "N2: Diagramm: Tageswerte, Luecken bleiben leer")
+  local m30, _, _, got30 = P.Series(e, 30, today)
+  local wk = math.floor((today - 20) / 7) * 7
+  check(got30 == 9 and m30[30 - (today - wk)] == 90 and m30[30 - (today - wk - 6)] == 90, "N2: Diagramm: Wochenwert gilt fuer alle sieben Tage")
+  P.SetPeriod(7)
+  check(mod.acc.itemDays == 7 and P.periodButtons[7].disabled and not P.periodButtons[14].disabled and not P.chartEmpty.shown, "N2: Zeitraum gewaehlt, Diagramm gezeichnet")
+  e.d, e.w = "", ""
+  P.Refresh()
+  check(P.chartEmpty.shown, "N2: ohne Verlauf ein Hinweis statt des Diagramms")
+  e.d, e.w = old.d, old.w
+  P.SetPeriod(14)
+end
 Win.Refresh()
-check(P.selectedKey == 2770 and P.list:GetSelected() and P.list:GetSelected().key == 2770, "Auswahl bleibt beim Aktualisieren")
+check(P.key == 2770 and P.Mode() == "detail", "Auswahl bleibt beim Aktualisieren")
+check(P.marketButton.disabled and not P.watchButton.disabled and not P.listButton.disabled, "N2: Im Markt zeigen ist unterwegs grau")
+P.watchButton.scripts.OnClick(P.watchButton)
+check(ns.Watch.Is(2770) and P.watchButton.text == "Nicht beobachten", "N2: Beobachten per Knopf")
+P.watchButton.scripts.OnClick(P.watchButton)
+check(not ns.Watch.Is(2770) and P.watchButton.text == "Beobachten", "N2: und wieder aus")
 -- Gegenstand ohne gemerkten Namen (Daten von 0.6): Name vom Spiel
 market.items[2589].nm = nil; P.cache = nil
-Win.Refresh()
-local lein for _, it in ipairs(P.list:GetItems()) do if it.key == 2589 then lein = it end end
-check(lein and lein.name == "Gegenstand2589", "ohne gemerkten Namen: Name vom Spiel")
+P.Show(2589)
+check(P.header.name.text == "Gegenstand2589", "ohne gemerkten Namen: Name vom Spiel")
+P.Show(2770)
 -- ab 0.53 (U12): kein Andocken mehr; Fenster schliessen und frei oeffnen, Position wird gemerkt
 fire("AUCTION_HOUSE_CLOSED")
 SlashCmdList.PEON_BROKER("")
@@ -690,7 +735,10 @@ PeonBrokerDB.markets["Classic Beta PvE / Horde"], P.cache = nil, nil
 SlashCmdList.PEON_BROKER("")
 check(Win.current == "prices", "zuletzt gewaehlter Reiter")
 Win.Select("prices")
-check(#P.list:GetItems() == 0 and P.list.empty.text:find("Noch kein Scan", 1, true) and P.count.text == "0 von 0 Gegenständen", "ohne Scan: Hinweis in der Liste")
+check(P.Mode() == "detail" and rowsText():find(ns.L.ITEM_NO_DATA, 1, true) and #P.tiers.items == 0, "N2: ohne Preisdaten ein Hinweis statt der Werte")
+typed("ku")
+check(#P.results.items == 0 and P.results.empty.text:find("Noch kein Scan", 1, true), "ohne Scan: Hinweis in der Liste")
+typed("")
 SlashCmdList.PEON_BROKER("")
 PeonBrokerDB.markets["Classic Beta PvE / Horde"], P.cache = market, nil
 fire("AUCTION_HOUSE_SHOW")
@@ -917,11 +965,15 @@ Buy.removeButton.scripts.OnClick(Buy.removeButton)
 check(PeonBrokerDB.lists[1].items["15000:1047"] == nil, "Gegenstand aus der Liste entfernt")
 -- Zur Einkaufsliste aus dem Reiter Preise
 Win.Select("prices")
-P.search:SetText(""); P.search.scripts.OnTextChanged(P.search)
-for i, it in ipairs(P.list:GetItems()) do if it.key == 2589 then P.list.rowFrames[i].scripts.OnClick(P.list.rowFrames[i], "LeftButton") end end
-check(not P.addButton.disabled, "Preise: Knopf 'Zur Einkaufsliste' aktiv")
-P.addButton.scripts.OnClick(P.addButton)
-check(PeonBrokerDB.lists[1].items[2589] ~= nil, "aus dem Reiter Preise hinzugefuegt")
+P.Show(2589)
+check(not P.listButton.disabled, "Gegenstand: Knopf 'Auf Einkaufsliste' aktiv")
+do
+  local keepMenu = MenuUtil
+  MenuUtil = nil   -- ohne Blizzards Menue: auf die gewaehlte Liste
+  P.listButton.scripts.OnClick(P.listButton)
+  MenuUtil = keepMenu
+end
+check(PeonBrokerDB.lists[1].items[2589] ~= nil, "von der Seite Gegenstand hinzugefuegt")
 
 -- ===== Reiter "Radar" (0.14) =====
 local Rd = ns.Radar
@@ -1893,7 +1945,7 @@ end)()
   SlashCmdList.PEON_BROKER("absatz Kupfererz")
   check(said("Absatz Kupfererz") and said("letzte 6 Std.:"), "/broker absatz Kupfererz (aktuell; 14 Tage wenn vorhanden)")
   -- Preise: Spalte
-  local col for _, c in ipairs(ns.Prices.list.columns) do if c.key == "sales" then col = c end end
+  local col for _, c in ipairs(ns.Item.results.o.columns) do if c.key == "sales" then col = c end end
   check(col and col.format(Sa.Stats(e), {}):find("/Std.", 1, true), "Preise: Spalte Absatz/Std.")
   Sa.Stats = savedStats
   -- alte Daten (bis 0.23.0) werden verworfen
@@ -2718,7 +2770,7 @@ end)()
     T.back.scripts.OnClick(T.back)
     check(T.current == "radar" and ns.Go.back == nil and not T.back.shown, "N1: Zurueck fuehrt zum Radar, Knopf weg")
     ns.Go.Item({ id = 2770, name = "Kupfererz" })
-    check(T.current == "prices" and ns.Prices.selectedKey == 2770 and ns.Go.back == "radar" and T.back.shown, "N1: Sprung zum Gegenstand mit Zurueck")
+    check(T.current == "prices" and ns.Item.key == 2770 and ns.Go.back == "radar" and T.back.shown, "N1: Sprung zum Gegenstand mit Zurueck")
     T.tabs.buy.scripts.OnClick(T.tabs.buy)
     check(ns.Go.back == nil and not T.back.shown, "N1: anderer Reiter beendet den Sprung")
     shown = nil
@@ -2749,7 +2801,7 @@ end)()
   mod.db.windowPos = keepPos
   ns.Go.Item({ id = 2770, name = "Kupfererz" })
   check(Win.current == "prices" and Win.back.shown and Win.back.text == "Zurück zu Radar", "N1: Sprung im Fenster mit Zurueck")
-  check(ns.Go.Market({ key = 2589 }) and Win.current == "prices" and ns.Prices.selectedKey == 2589, "N1: Im Markt zeigen fuehrt unterwegs zur Seite Gegenstand")
+  check(ns.Go.Market({ key = 2589 }) and Win.current == "prices" and ns.Item.key == 2589, "N1: Im Markt zeigen fuehrt unterwegs zur Seite Gegenstand")
   Win.back.scripts.OnClick(Win.back)
   check(Win.current == "radar" and not Win.back.shown, "N1: Zurueck im Fenster")
   -- offenes Fenster wandert beim Oeffnen des Auktionshauses in den Reiter
@@ -2957,10 +3009,14 @@ end)()
   local src = plain(G.sources.text)
   check(src:find("Märkte", 1, true) and src:find("Anteil", 1, true) and src:find("Einkaufslisten", 1, true), "U10: Quellen mit Maerkten, Anteil und Listen")
   -- Gegenstaende: Mein Bestand nur mit Ledger
-  check(#ns.Prices.StockLines(2770) == 0, "U10: ohne Ledger kein Abschnitt Mein Bestand")
+  check(#ns.Item.StockRows(2770) == 0, "U10: ohne Ledger kein Abschnitt Mein Bestand")
   Peon.modules.ledger = { ShowItem = function() end, Cost = function() return 42 end, SellRate = function() return 0.5, 1, 1 end, StockOthers = function() return 3 end }
-  local sl = ns.Prices.StockLines(2770)
-  check(#sl >= 3 and plain(sl[1]) == "Mein Bestand" and plain(table.concat(sl, " ")):find("42c", 1, true), "U10: Mein Bestand mit Vorrat und Kosten aus Ledger")
+  local sl = ns.Item.StockRows(2770, ns.Tooltip.Context(2770, D.LinkFromKey(2770), 1))
+  check(#sl == 3 and sl[1][1] == "Vorrat" and sl[2][1] == "Kosten je Stück" and plain(sl[2][2]) == "42c", "U10: Mein Bestand mit Vorrat und Kosten aus Ledger")
+  ns.Item.Show(2770)
+  local hasHead, hasCost = false, false
+  for _, r in ipairs(ns.Item.shownRows) do if r.head == "Mein Bestand" then hasHead = true end; if r[1] == "Kosten je Stück" then hasCost = true end end
+  check(hasHead and hasCost, "N2: Abschnitt Mein Bestand auf der Seite Gegenstand")
   Peon.modules.ledger = nil
   Win.Select("prices")
 end)()
@@ -3158,7 +3214,7 @@ end)()
   lists = ns.Buy.Lists()
   check(#lists == before + 1 and lists[#lists].items[2770], "U4: Neue Liste mit dem Gegenstand")
   info.fn()
-  check(ns.Window.current == "prices" and ns.Prices.selectedKey == 2770, "U4: Gegenstand zeigt den Gegenstand im Broker-Fenster")
+  check(ns.Window.current == "prices" and ns.Item.key == 2770, "U4: Gegenstand zeigt den Gegenstand im Broker-Fenster")
   ns.Window.Select("buy")
   goMarket.fn()
   check(ns.Window.current == "prices" and ns.Go.back == "buy", "N1: Im Markt zeigen aus dem Menue, unterwegs zur Seite Gegenstand mit Zurueck")
