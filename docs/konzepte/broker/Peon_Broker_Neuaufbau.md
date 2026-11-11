@@ -1,6 +1,6 @@
 # Peon_Broker: Konzept Neuaufbau
 
-Stand: 11.11.2026, **von KarloDerBaer freigegeben** (Abschnitt 9). Ausgangsversion Broker 0.58.0. Stufe 1 (N1 bis N6) ist gebaut (Broker 0.59.0 bis 0.64.0). Im Spiel geprüft sind N1 und N2, die Prüfung von N3 bis N6 steht aus. Dieses Konzept baut auf `Peon_Broker_Umbau.md` auf und ersetzt dessen Abschnitte 7, 8 und 15. Rechenregeln stehen weiter in `Peon_Broker_Rechenmodell.md`.
+Stand: 12.11.2026, **von KarloDerBaer freigegeben** (Abschnitt 9). Ausgangsversion Broker 0.58.0. Stufe 1 (N1 bis N6) ist gebaut (Broker 0.59.0 bis 0.64.0), Stufe 2 (H1 bis H5) ebenfalls (Broker 0.65.0 bis 0.68.0, Manager 0.26.0), nichts davon veröffentlicht. Im Spiel geprüft sind N1 und N2, die Prüfung von N3 bis H5 steht aus. Dieses Konzept baut auf `Peon_Broker_Umbau.md` auf und ersetzt dessen Abschnitte 7, 8 und 15. Rechenregeln stehen weiter in `Peon_Broker_Rechenmodell.md`.
 
 ## 1. Ausgangslage
 
@@ -333,4 +333,6 @@ Die Reihenfolge bleibt so (KarloDerBaer, 11.11.2026): erst N1 bis N6, dann H1 bi
 ### Offen
 
 - Im Spiel zu messen: Breite der acht Reiter (N1), kürzester Abstand im Fokus, den das Spiel annimmt (H2), Blockaden bei „Zielpreis eintragen“ (H3).
-- Grenzwerte für Risiko und Urteil (beim Bauen von H1 und H2 mit echten Daten abstimmen).
+- Grenzwerte für Risiko und Urteil: Startwerte gesetzt (Entscheidungen 12.11.2026), mit echten Daten nachzuschärfen.
+- Abweichungen beim Bau von Stufe 2, mit KarloDerBaer abzustimmen: „Im Markt zeigen“ öffnet nur Blizzards Suchergebnis, nicht direkt die Angebote (Broker 0.64.1). Ein Klick in „Zum Einstellen“ legt nichts selbst ins Verkaufsfenster (Broker 0.67.0). Beides, weil Broker sonst Blizzards Wert `displayMode` berührt und das Spiel danach das Benutzen aus der Tasche blockiert (Fehlerberichte 10 und 11).
+- Im Manager bleibt der Reiter Wiederverkauf vorerst (Manager 0.26.0).
