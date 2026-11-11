@@ -211,7 +211,21 @@ Broker wird schlank: Im Auktionshaus Rat beim Verkaufen, erweiterte Auktionen, R
 - **U11 Händler:** gebaut mit Broker 0.52.0 (`Vendors.lua`, Reiter Händler, Tooltip-Baustein) und Manager 0.25.0 (Seite Händler). Im Spiel und im Programm noch nicht geprüft.
 - **U12 Aufräumen:** fertig mit Broker 0.53.0 (Start, Andocken, `windowWithAH`, Behalten im Tooltip) und 0.55.0 (Reiter Verkaufen, Behalten, Meine Auktionen, `Sell.lua`, `Keep.lua`, gespeicherte Behalten-Liste und `sellMem`, mit Zustimmung von KarloDerBaer).
 - **AH-Fenster fertig machen (Rückmeldung von KarloDerBaer, 10.11.2026):** Erst das Auktionshaus, danach das Broker-Fenster. Gebaut mit Broker 0.56.0 und Peon 0.17.0: Reiter mit gemessenem Blizzard-Abstand, Einkaufen und Radar im Blizzard-Aufbau (links Einstellungen, rechts Liste), Radar ohne Hänger beim Wechsel, Rat beim Verkaufen ohne Rahmen, Weiterverkauf beim Kauf von Massenware. Von KarloDerBaer geprüft: Reiter passen. Nachbesserungen in Broker 0.57.0 (Radar-Tooltip, Namen, Neuladen nur nach Scan, helles Grau, Spalte Broker unter Auktionen), noch nicht im Spiel geprüft. Broker 0.58.0: Look wie Blizzards Reiter Verkaufen, dichtere Zeilen im Verkaufsfenster für den Rat (mit KarloDerBaer abgestimmt, Prüfung auf Blockaden im Spiel offen, sonst Rat in den Kopf neben den Gegenstand).
-- **Danach Broker-Fenster:** Reiter Markt wie Blizzards Kaufen auf Basis der Scandaten mit Marktauswahl, moderner Look, Info neu gestalten. Entwurf im Konzept Abschnitt 15, offene Fragen dort.
+- **Danach Broker-Fenster:** abgelöst durch den Neuaufbau (siehe nächster Abschnitt), der Entwurf aus Abschnitt 15 des Umbau-Konzepts gilt nicht mehr.
+
+### Neuaufbau Peon_Broker (beschlossen 11.11.2026, Konzept `docs\konzepte\broker\Peon_Broker_Neuaufbau.md`)
+
+Von KarloDerBaer freigegeben. Ersetzt die Abschnitte 7, 8 und 15 des Umbau-Konzepts. Gebaut ist noch nichts, Broker steht bei 0.58.0.
+
+- **Ein Fenster in zwei Zuständen:** Brokers Seiten werden einmal mit `Peon.UI` gebaut. Am Auktionator sind sie Reiter in Blizzards Auktionshaus, unterwegs zeigt ein Broker-Fenster (800 × 538) dieselbe Reiterleiste. Blizzards Kaufen, Verkaufen und Auktionen bleiben.
+- **Reiter:** Markt, Verkaufen, Auktionen, Einkaufen, Radar, Fokus, Gegenstand, Mehr (Händler, Neutral, Datenlage). Unterwegs Markt aus Scandaten, Verkaufen grau, sonst letzter Stand.
+- **Sprünge überall gleich:** Doppelklick zeigt im Markt, Rechtsklick öffnet das Menü (Im Markt zeigen, Gegenstand, In den Fokus, Beobachten, Auf Einkaufsliste), Knöpfe an ausgewählten Stellen, Zurück.
+- **Radar** schlank (Gegenstand, Gewinn, Art, Risiko, Stand), nur die Arten Aufkauf und Händler, Radar-Scan prüft reihum die gezeigten Chancen. **Fokus** zeigt und misst genau einen Gegenstand (Vorgabe alle 5 Sekunden) mit Urteil und Kaufen.
+- **Beobachtung** wird eine besondere Einkaufsliste. Die eigenen Reiter Beobachten, Quellen, Marktvergleich, Händler und Info entfallen oder wandern (Abschnitt 7 des Konzepts).
+- **Bauabschnitte, in dieser Reihenfolge:** N1 Gerüst, N2 Gegenstand, N3 Markt (Scan), N4 Einkaufen, N5 Mehr und Auktionen, N6 Radar und Fokus in Grundform. Danach H1 Aufkauf-Chancen, H2 Fokus mit Messung, H3 Wiederverkauf-Kette (Posten, Zum Einstellen, Zielpreis eintragen, Unterbotene abbrechen), H4 kleine Hilfen (Händler-Warnung, Material aus dem Berufsfenster, Beobachtung für den Verkauf), H5 Manager angleichen.
+- **Für später vorgemerkt:** Kandidaten vom Manager, Erfolgskontrolle, Alles Lohnende kaufen.
+- **Im Spiel zu messen:** Breite der acht Reiter (N1), kürzester Abstand im Fokus (H2), Blockaden bei „Zielpreis eintragen“ (H3).
+- **Als Nächstes:** N1.
 
 ### Neues Modul Peon_Panel (beschlossen 06.11.2026, Konzept `Peon_Panel_Konzept.md`)
 

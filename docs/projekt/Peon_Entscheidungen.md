@@ -2,6 +2,17 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 11.11.2026: Neuaufbau Peon_Broker (Konzept `Peon_Broker_Neuaufbau.md`, freigegeben)
+
+- **Ein Fenster in zwei Zuständen** (KarloDerBaer, Vorschlag Claude): Brokers Seiten als Reiter in Blizzards Auktionshaus, unterwegs ein Broker-Fenster mit derselben Reiterleiste. Ein ganz eigenes Fenster wurde verworfen, weil Kaufen, Verkaufen und Auktionen nachgebaut werden müssten und eigenes Einstellen in Forever nie erprobt ist.
+- **Reiter:** Markt, Verkaufen, Auktionen, Einkaufen, Radar, Fokus, Gegenstand, Mehr (KarloDerBaer). Das ersetzt die Reihenfolge aus Broker 0.54. Händler, Marktvergleich und Quellen sind Unterpunkte von Mehr, Beobachtung ist eine besondere Einkaufsliste, der Gegenstand hat eine eigene Seite mit Diagramm (KarloDerBaer).
+- **Radar nur noch mit Aufkauf und Händler** (KarloDerBaer): Die Art „unter dem üblichen Preis“ entfällt, weil die Preise kurz nach dem Start noch falsch eingeschätzt werden. Aufkauf bildet das Vorgehen von KarloDerBaer ab: Massenware bis zu einer Preisstufe aufkaufen und zum Preis der nächsten Stufe einstellen.
+- **Aufkauf ohne Mindestsprung in Prozent** (KarloDerBaer): Es zählen Aufkaufbarkeit, Gewinn in Gold gegen das Risiko, schneller Wiederverkauf (Vorgabe 2 Std.) und kein anhaltender Trend nach unten. Der übliche Bereich filtert nicht (Claude).
+- **Radar schlank, Fokus als eigener Reiter** (KarloDerBaer): Die Liste zeigt nur Gegenstand, Gewinn, Art, Risiko und Stand. Ein Klick öffnet den Fokus. Der Fokus zeigt und misst immer genau einen Gegenstand in kurzem Abstand, weil sich der Markt für Massenware sehr schnell ändert. Der Radar-Scan prüft nur die gezeigten Chancen und sucht keine neuen (Auslegung Claude).
+- **Zielpreis eintragen per Knopf** bei Posten aus dem Radar (KarloDerBaer: ja, wenn es sinnvoll ist). Das lockert „Broker trägt keinen Preis ein“ vom 09.11.2026 für diesen Fall, nach einer Prüfung auf Blockaden (Claude).
+- **Neu einstellen über eine Liste „Zum Einstellen“** (Claude, auf die Frage von KarloDerBaer): Gekauftes und Abgebrochenes kommt per Post, darum merkt Broker Posten mit Zielpreis statt eines Ablaufs in einem Zug.
+- **Reihenfolge:** erst die Grundfunktionen N1 bis N6, dann die Hilfen H1 bis H5, der Manager zuletzt. Kandidaten vom Manager, Erfolgskontrolle und „Alles Lohnende kaufen“ sind für später vorgemerkt (KarloDerBaer).
+
 ## 11.11.2026: Einheitliches UI-Design, erst prüfen (Peon 0.18.0)
 
 - **Ein Look für alle Peon-Fenster nach Blizzards modernem Auktionshaus** (KarloDerBaer). Zuerst Bestandsaufnahme, dann Vorschlag, Beispielfenster im Kern, Abstimmung Schritt für Schritt, danach Regeln in `docs\konzepte\Peon_UI_Design.md` und Bausteine als Erweiterung der Kern-API. Bestehende Fenster bleiben vorerst.

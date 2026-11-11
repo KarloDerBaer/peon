@@ -2,6 +2,8 @@
 
 Stand: 09.11.2026, **freigegeben von KarloDerBaer** (Abschnitt 14). U0 gebaut mit Broker 0.41.0, Prüfung im Spiel steht aus. Ausgangsversion Broker 0.40.0.
 
+**Hinweis (11.11.2026):** Die Abschnitte 7 (Im Auktionshaus), 8 (Broker-Fenster) und 15 (Reiter Markt) sind durch `Peon_Broker_Neuaufbau.md` ersetzt. Die übrigen Abschnitte gelten weiter.
+
 ## 1. Worum es geht
 
 Broker soll schlank werden und sich auf Informationen konzentrieren. Erleichterungen wie Einkaufsliste und Radar bleiben. Die Arbeit teilt sich künftig klar auf (KarloDerBaer):
