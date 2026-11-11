@@ -603,10 +603,10 @@ check(S.state == nil and said("keine Antwort"), "Zeitueberschreitung ohne Daten"
 local Win, P = ns.Window, ns.Item
 -- Einkaufsliste war 0.37 bis 0.48 in Arbeit, ab 0.49 (U8) wieder offen. Ab 0.54 sind Markt und Info in Arbeit:
 -- fuer die Pruefungen der bisherigen Gegenstandsansicht den Hinweis abschalten, am Ende pruefen
-check(not Win.WIP.buy and not Win.WIP.prices and Win.WIP.browse and Win.WIP.auctions and Win.WIP.focus, "N1: Markt, Auktionen und Fokus in Arbeit, Einkaufen und Gegenstand offen")
+check(not Win.WIP.buy and not Win.WIP.prices and not Win.WIP.browse and Win.WIP.auctions and Win.WIP.focus, "N3: Auktionen und Fokus in Arbeit, Markt, Einkaufen und Gegenstand offen")
 local wipKeep = Win.WIP
 Win.WIP = {}
-for _, k in ipairs({ "browse", "auctions", "focus" }) do   -- schon als Hinweis angelegte Seiten verwerfen
+for _, k in ipairs({ "auctions", "focus" }) do   -- schon als Hinweis angelegte Seiten verwerfen
   if Win.contents and Win.contents[k] then Win.contents[k]:Hide(); Win.contents[k] = nil end
 end
 check(market.items[2770].nm == "Kupfererz" and market.items[2770].ql == 1, "Scan merkt Name und Qualitaet")
@@ -703,7 +703,7 @@ do
 end
 Win.Refresh()
 check(P.key == 2770 and P.Mode() == "detail", "Auswahl bleibt beim Aktualisieren")
-check(P.marketButton.disabled and not P.watchButton.disabled and not P.listButton.disabled, "N2: Im Markt zeigen ist unterwegs grau")
+check(not P.marketButton.disabled and not P.watchButton.disabled and not P.listButton.disabled, "N3: alle drei Knoepfe aktiv, auch unterwegs")
 P.watchButton.scripts.OnClick(P.watchButton)
 check(ns.Watch.Is(2770) and P.watchButton.text == "Nicht beobachten", "N2: Beobachten per Knopf")
 P.watchButton.scripts.OnClick(P.watchButton)
@@ -743,6 +743,57 @@ typed("")
 SlashCmdList.PEON_BROKER("")
 PeonBrokerDB.markets["Classic Beta PvE / Horde"], P.cache = market, nil
 fire("AUCTION_HOUSE_SHOW")
+
+-- ===== Neuaufbau N3 (0.61): Seite Markt aus Scandaten =====
+do
+  local Mk = ns.Market
+  C_Item.GetItemInfoInstant = function(id) return id, "Typ", "Untertyp", "", 1, (id == 15000) and 2 or 7, (id == 2770) and 7 or ((id == 2589) and 5 or 8) end
+  C_Item.GetItemClassInfo = function(c) return c == 7 and "Handwerkswaren" or "Waffen" end
+  C_Item.GetItemSubClassInfo = function(c, sc) return ({ [5] = "Stoff", [7] = "Metall & Stein", [8] = "Schwerter" })[sc] end
+  fire("AUCTION_HOUSE_CLOSED")
+  Win.Open("browse")
+  check(Win.current == "browse" and Mk.list and Mk.cats and not Win.contents.browse.wipText, "N3: Markt unterwegs mit Inhalt statt WIP-Hinweis")
+  local nodes = {}
+  for _, n in ipairs(Mk.cats.nodes) do nodes[#nodes + 1] = n.key .. "=" .. n.text end
+  check(table.concat(nodes, ",") == "c2=Waffen,c7=Handwerkswaren,c7/s5=Stoff,c7/s7=Metall & Stein", "N3: Kategorien mit Namen vom Spiel: " .. table.concat(nodes, ","))
+  check(#Mk.list.items == 0 and Mk.list.empty.text == ns.L.MARKET_START_EMPTY and Mk.count.text == "", "N3: Startseite ohne Listen: Hinweis")
+  ns.Watch.Add(2770, { name = "Kupfererz" })
+  Mk.Refresh()
+  check(#Mk.list.items == 1 and Mk.list.items[1].key == 2770 and Mk.count.text:find("1 Gegenst", 1, true), "N3: Startseite zeigt Beobachtung und Einkaufslisten")
+  ns.Watch.Remove(2770)
+  Mk.cats.list.o.onClick(Mk.cats.byKey["c7"])
+  check(Mk.category == "c7" and #Mk.list.items == 2 and Mk.count.text == "2 Treffer", "N3: Kategorie Handwerkswaren: Kupfererz und Leinenstoff")
+  Mk.cats.list.o.onClick(Mk.cats.byKey["c7/s5"])
+  check(#Mk.list.items == 1 and Mk.list.items[1].key == 2589, "N3: Unterkategorie Stoff")
+  Mk.cats.list.o.onClick(Mk.cats.byKey["c7/s5"])
+  check(Mk.category == "c7" and #Mk.list.items == 2, "N3: nochmal klicken waehlt die Kategorie darueber")
+  Mk.search:SetText("kupfer"); Mk.search.scripts.OnTextChanged(Mk.search, true)
+  check(#Mk.list.items == 1 and Mk.list.items[1].name == "Kupfererz" and Mk.list.items[1].min == market.items[2770].m, "N3: Suche innerhalb der Kategorie")
+  Mk.Find("Schwert")
+  check(Mk.category == nil and #Mk.list.items == 2 and Mk.search.text == "Schwert", "N3: Suche ohne Kategorie ueber alles")
+  local oldMax = Mk.MAX
+  Mk.MAX = 1; Mk.Refresh()
+  check(#Mk.list.items == 1 and Mk.count.text == "1 von 2 Treffern, genauer suchen", "N3: Liste begrenzt, Zaehler sagt es")
+  Mk.MAX = oldMax; Mk.Refresh()
+  check(not Mk.marketBox.shown and Mk.stand.text:find("Stand", 1, true), "N3: ein Markt: keine Auswahl, Stand der Daten")
+  PeonBrokerDB.markets["Classic Beta PvE / Neutral"] = { items = { [2770] = { m = 999, md = 999, q = 3, n = 1, t = clock, nm = "Kupfererz" } }, lastScan = clock }
+  Mk.Refresh()
+  check(Mk.marketBox.shown and #Mk.Markets() == 2, "N3: zwei Maerkte: Auswahl sichtbar")
+  Mk.marketKey = "Classic Beta PvE / Neutral"
+  Mk.Find("kupfer")
+  check(#Mk.list.items == 1 and Mk.list.items[1].min == 999, "N3: gewaehlter Markt bestimmt die Preise")
+  Mk.marketKey = nil
+  PeonBrokerDB.markets["Classic Beta PvE / Neutral"] = nil
+  Mk.Find("kupfer")
+  Mk.list.list.rows[1].scripts.OnClick(Mk.list.list.rows[1], "LeftButton")
+  check(Win.current == "prices" and P.key == 2770 and ns.Go.back == "browse" and Win.back.shown and Win.back.text == "Zurück zu Markt",
+    "N3: Klick zeigt den Gegenstand, Zurueck fuehrt zum Markt")
+  Win.back.scripts.OnClick(Win.back)
+  check(Win.current == "browse", "N3: zurueck auf der Marktseite")
+  Mk.Find("")
+  Win.Select("prices")
+  fire("AUCTION_HOUSE_SHOW")
+end
 
 -- ===== Reiter "Verkaufen" (0.8, ab 0.10 ueber das Verkaufsfenster des Auktionshauses) =====
 local Sell = ns.Live   -- ab 0.55 nur noch die Bausteine (Live-Ergebnisse lesen)
@@ -2543,9 +2594,9 @@ do
   check(refreshed == 1, "0.35: Scan aktualisiert den Text")
 end
 
--- ===== Markt, Auktionen und Fokus in Arbeit (N1) =====
+-- ===== Auktionen und Fokus in Arbeit (N1, Markt ab N3 gebaut) =====
 Win.WIP = wipKeep
-for _, k in ipairs({ "browse", "auctions", "focus" }) do
+for _, k in ipairs({ "auctions", "focus" }) do
   if Win.contents[k] then Win.contents[k]:Hide() end
   Win.contents[k] = nil
   Win.Open(k)
@@ -2802,9 +2853,11 @@ end)()
   mod.db.windowPos = keepPos
   ns.Go.Item({ id = 2770, name = "Kupfererz" })
   check(Win.current == "prices" and Win.back.shown and Win.back.text == "Zurück zu Radar", "N1: Sprung im Fenster mit Zurueck")
-  check(ns.Go.Market({ key = 2589 }) and Win.current == "prices" and ns.Item.key == 2589, "N1: Im Markt zeigen fuehrt unterwegs zur Seite Gegenstand")
+  check(ns.Go.Market({ key = 2589 }) and Win.current == "browse" and #ns.Market.list.items == 1
+    and ns.Market.list.items[1].key == 2589 and ns.Go.back == "prices" and Win.back.text == "Zurück zu Gegenstand", "N3: Im Markt zeigen fuehrt unterwegs zur Marktseite mit genau diesem Gegenstand")
   Win.back.scripts.OnClick(Win.back)
-  check(Win.current == "radar" and not Win.back.shown, "N1: Zurueck im Fenster")
+  check(Win.current == "prices" and not Win.back.shown, "N1: Zurueck im Fenster (ein Schritt)")
+  Win.Select("radar")
   -- offenes Fenster wandert beim Oeffnen des Auktionshauses in den Reiter
   fire("AUCTION_HOUSE_SHOW")
   check(not Win.frame.shown and T.current == "radar" and T.host.radar == "ah", "N1: Auktionshaus oeffnet: Fenster zu, Radar als Reiter")
@@ -3218,7 +3271,7 @@ end)()
   check(ns.Window.current == "prices" and ns.Item.key == 2770, "U4: Gegenstand zeigt den Gegenstand im Broker-Fenster")
   ns.Window.Select("buy")
   goMarket.fn()
-  check(ns.Window.current == "prices" and ns.Go.back == "buy", "N1: Im Markt zeigen aus dem Menue, unterwegs zur Seite Gegenstand mit Zurueck")
+  check(ns.Window.current == "browse" and ns.Go.back == "buy", "N3: Im Markt zeigen aus dem Menue, unterwegs zur Marktseite mit Zurueck")
   ns.Go.Clear()
   -- Aktionsleiste: kein Menue
   opened = nil

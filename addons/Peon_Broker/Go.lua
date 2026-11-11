@@ -1,7 +1,7 @@
 -- Peon_Broker - Go.lua
 -- Neuaufbau N1 (ab 0.59, Konzept Peon_Broker_Neuaufbau.md, Abschnitt 5): Spruenge zwischen den Seiten, ueberall gleich.
 --   Go.Market(item)  "Im Markt zeigen": am Auktionator Blizzards Kaufansicht mit genau diesem Gegenstand.
---                    Unterwegs die Seite Gegenstand (bis die Marktseite aus Scandaten mit N3 kommt).
+--                    Unterwegs die Marktseite aus Scandaten, nach diesem Gegenstand gesucht.
 --   Go.Item(item)    Seite Gegenstand mit diesem Gegenstand
 --   Go.Back()        ein Schritt zurueck zur Seite, von der der Sprung kam (Knopf in der Titelleiste)
 -- item = { key oder id oder link, name, offer, qty, itemKey }
@@ -103,6 +103,15 @@ function Go.Market(item)
         if from then Go.SetBack(from) end
         return true
     end
+    -- unterwegs: Marktseite aus Scandaten, nach genau diesem Gegenstand gesucht
     local name = item.name or ns.Data.ItemName(key, ns.Data.Lookup(key))
-    return Go.Item({ id = ns.Data.ItemID(key), key = key, link = item.link, name = name }, from)
+    Go.jumping = true
+    local ok, err = pcall(function()
+        W.Open("browse")
+        ns.Market.Find(name)
+    end)
+    Go.jumping = false
+    if not ok then error(err, 0) end
+    if from and from ~= "browse" then Go.SetBack(from) else Go.UpdateBack() end
+    return true
 end

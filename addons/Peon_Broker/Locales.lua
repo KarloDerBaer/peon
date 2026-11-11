@@ -704,6 +704,17 @@ L.ITEM_DAYS        = "Days"
 L.ITEM_UNWATCH     = "Stop watching"
 L.ITEM_MARKET_TIP  = "Shows this item in Blizzard's buy view."
 
+-- Neuaufbau N3 (ab 0.61): Seite Markt aus Scandaten
+L.MARKET_CLASS     = "Category %d"
+L.MARKET_OTHER     = "Other"
+L.MARKET_COL_TREND = "Trend"
+L.MARKET_COL_AGE   = "Seen"
+L.MARKET_START     = "%d items from your lists and watch list"
+L.MARKET_START_EMPTY = "Pick a category or search for an item. Items from your shopping lists and your watch list show up here."
+L.MARKET_NOTHING   = "Nothing found."
+L.MARKET_STAND     = "Data from %s"
+L.ITEM_MARKET_TIP2 = "Shows this item on the market page (scan data)."
+
 if GetLocale() == "deDE" then
     L.SALES_PER_HOUR = "%s/Std."
     L.SALES_REACH_H = "reicht %s Std."
@@ -1376,4 +1387,14 @@ if GetLocale() == "deDE" then
     L.ITEM_DAYS        = "Tage"
     L.ITEM_UNWATCH     = "Nicht beobachten"
     L.ITEM_MARKET_TIP  = "Zeigt diesen Gegenstand in Blizzards Kaufansicht."
+    -- Neuaufbau N3 (ab 0.61): Seite Markt aus Scandaten
+    L.MARKET_CLASS     = "Kategorie %d"
+    L.MARKET_OTHER     = "Sonstiges"
+    L.MARKET_COL_TREND = "Trend"
+    L.MARKET_COL_AGE   = "Stand"
+    L.MARKET_START     = "%d Gegenstände aus deinen Listen und der Beobachtung"
+    L.MARKET_START_EMPTY = "Wähle eine Kategorie oder suche einen Gegenstand. Hier stehen sonst die Gegenstände deiner Einkaufslisten und der Beobachtung."
+    L.MARKET_NOTHING   = "Nichts gefunden."
+    L.MARKET_STAND     = "Stand %s"
+    L.ITEM_MARKET_TIP2 = "Zeigt diesen Gegenstand auf der Marktseite (Scandaten)."
 end

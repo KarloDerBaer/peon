@@ -275,10 +275,8 @@ function P.Build(c)
         if P.item then mod:Call("Sprung", ns.Go.Market, P.item) end
     end)
     P.marketButton:SetPoint("BOTTOMLEFT", 10, 10)
-    if P.marketButton.SetMotionScriptsWhileDisabled then P.marketButton:SetMotionScriptsWhileDisabled(true) end
     UI.SetTooltip(P.marketButton, function()
-        if W.AtAH() then return { L.GO_MARKET, L.ITEM_MARKET_TIP } end
-        return { L.GO_MARKET, L.TAB_AH_ONLY }
+        return { L.GO_MARKET, W.AtAH() and L.ITEM_MARKET_TIP or L.ITEM_MARKET_TIP2 }
     end)
     P.watchButton = UI.Button(left, L.MENU_WATCH, bw, function()
         if not (P.item and ns.Watch) then return end
@@ -401,8 +399,9 @@ end
 function P.UpdateButtons()
     if not P.marketButton then return end
     local item = P.item
-    if item and W.AtAH() then P.marketButton:Enable() else P.marketButton:Disable() end
-    if item then P.watchButton:Enable(); P.listButton:Enable() else P.watchButton:Disable(); P.listButton:Disable() end
+    for _, b in ipairs({ P.marketButton, P.watchButton, P.listButton }) do
+        if item then b:Enable() else b:Disable() end
+    end
     local watching = item and ns.Watch and ns.Watch.Is(item.key)
     P.watchButton:SetText(watching and L.ITEM_UNWATCH or L.MENU_WATCH)
     local cur = P.Period()

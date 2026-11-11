@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 11.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.18.0 / Broker 0.60.1 / Bridge 0.9.1 (bis 0.3.0 Peon_Client) / Peon Manager 0.25.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 11.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.18.0 / Broker 0.61.0 / Bridge 0.9.1 (bis 0.3.0 Peon_Client) / Peon Manager 0.25.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.18.0, API 18
@@ -48,7 +48,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.60.1 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.61.0 (neu, Auktionshaus-Helfer)
 
 - **Neuaufbau N1 gebaut (0.59.0, 11.11.2026):** ein Fenster in zwei Zuständen mit `Peon.UI`, acht Reiter (Markt, Verkaufen, Auktionen, Einkaufen, Radar, Fokus, Gegenstand, Mehr), Statuszeile, Sprünge „Im Markt zeigen“ und „Gegenstand“ mit Zurück (`Go.lua`). Markt, Auktionen (unterwegs) und Fokus zeigen noch `W.WIP`. Braucht Peon API 18. Neue Werte: `moreTab` (Unterpunkt von Mehr), `ahPos` (Stelle des Auktionshauses), `windowTab` auch `browse`, `focus`, `more`. Im Spiel noch nicht geprüft, Prüfliste im Changelog bei 0.59.0.
 
@@ -63,7 +63,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Befehle: `/broker` (Broker-Fenster ein/aus), `/broker optionen`, `/broker scan`, `/broker pruefen` (auch `check`), `/broker pruefen scan`, `/broker pruefen abfrage`, `/broker pruefen beruf` (ab 0.39), `/broker pruefen ah`, `/broker pur` (ab 0.41), `/broker debug`, `/peon broker`
 - Optionsseite: Minimap-Button an/aus; Broker-Fenster mit dem Auktionshaus öffnen, Knopf „Broker-Fenster öffnen“; Preise im Tooltip (an/aus, Zeile 7 Tage, Zeile Händler, Hinweise); Berufe (ab 0.39, gleiche Punkte wie das Zahnrad im Berufsfenster); Trend (Grenzen); Preisvorschlag (Unterbieten Massenware und Einzelgegenstände je Kupfer/Prozent, Dumping-Grenze, Laufzeit, Massenware mit vielen Angeboten 2 Std. ab X Angeboten, nur lohnende im Reiter Verkaufen); Preisdaten (Tageswerte aufbewahren, Märkte verwalten); Prüfung; Ereignis-Liste.
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.60.1, 0.60.0, 0.59.1, 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.61.0, 0.60.1, 0.60.0, 0.59.1, 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.25.0
 
@@ -225,6 +225,7 @@ Von KarloDerBaer freigegeben. Ersetzt die Abschnitte 7, 8 und 15 des Umbau-Konze
 - **Radar** schlank (Gegenstand, Gewinn, Art, Risiko, Stand), nur die Arten Aufkauf und Händler, Radar-Scan prüft reihum die gezeigten Chancen. **Fokus** zeigt und misst genau einen Gegenstand (Vorgabe alle 5 Sekunden) mit Urteil und Kaufen.
 - **Beobachtung** wird eine besondere Einkaufsliste. Die eigenen Reiter Beobachten, Quellen, Marktvergleich, Händler und Info entfallen oder wandern (Abschnitt 7 des Konzepts).
 - **Bauabschnitte, in dieser Reihenfolge:** N1 Gerüst, N2 Gegenstand, N3 Markt (Scan), N4 Einkaufen, N5 Mehr und Auktionen, N6 Radar und Fokus in Grundform. Danach H1 Aufkauf-Chancen, H2 Fokus mit Messung, H3 Wiederverkauf-Kette (Posten, Zum Einstellen, Zielpreis eintragen, Unterbotene abbrechen), H4 kleine Hilfen (Händler-Warnung, Material aus dem Berufsfenster, Beobachtung für den Verkauf), H5 Manager angleichen.
+- **N3 Markt aus Scandaten:** gebaut mit Broker 0.61.0 (11.11.2026, `Market.lua`): Suche, Kategorien vom Spiel, Liste, Startseite aus Listen und Beobachtung, Auswahl des Markts, „Im Markt zeigen“ auch unterwegs. Im Spiel noch nicht geprüft (Prüfliste im Changelog).
 - **Für später vorgemerkt:** Kandidaten vom Manager, Erfolgskontrolle, Alles Lohnende kaufen.
 - **Im Spiel zu messen:** Breite der acht Reiter (N1), kürzester Abstand im Fokus (H2), Blockaden bei „Zielpreis eintragen“ (H3).
 - **N1 Gerüst:** gebaut mit Broker 0.59.0 (11.11.2026), noch nicht veröffentlicht. Abweichungen vom Konzept: „Zurück“ sitzt in der Titelleiste neben dem Schließen-Knopf (oben links ist das runde Bild), die Beobachtung steht bis N4 als vierter Unterpunkt unter Mehr, Doppelklick und Rechtsklick-Menü in den Listen kommen mit den neuen Listen ab N2. Von KarloDerBaer im Spiel geprüft (11.11.2026): „schaut alles gut aus“, vier Anmerkungen. Eingebaut mit Broker 0.59.1 und Bridge 0.9.1 (kein Knopf „Blizzard pur“ im Auktionshaus, Scan-Knopf in der Titelleiste, Ecke am runden Bild, „Zurück zu …“ neben Blizzards „Zurück“), dazu aufgeräumt (178 Texte, tote Funktionen, fünf Einstellungen des früheren Reiters Verkaufen). **Noch zu prüfen:** diese vier Punkte im Spiel.

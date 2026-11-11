@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.61.0
+
+Kurz: Unterwegs gibt es jetzt die Seite „Markt“ aus deinen Scandaten: Suche, Kategorien wie im Auktionshaus und eine Liste mit Preis, Menge, Trend und Stand. Ohne Suche zeigt sie die Gegenstände deiner Einkaufslisten und der Beobachtung.
+Kurz: „Im Markt zeigen“ funktioniert damit auch unterwegs und führt zur Marktseite mit genau diesem Gegenstand.
+
+- 0.61.0 (11.11.2026): **Neuaufbau N3, Markt aus Scandaten** (Konzept `docs/konzepte/broker/Peon_Broker_Neuaufbau.md`, Abschnitt 4.1). Neue Datei `Market.lua` mit `Peon.UI`. Am Auktionator bleibt „Markt“ Blizzards Kaufen.
+  - **Oben:** Suchfeld (ab zwei Buchstaben), Zähler, rechts der Stand der Daten und die Auswahl des Markts. Die Auswahl erscheint nur, wenn es Daten für mehr als einen Markt gibt.
+  - **Links die Kategorien** wie im Auktionshaus, auf- und zuklappbar. Die Namen kommen vom Spiel (`GetItemClassInfo`, `GetItemSubClassInfo`), die Zuordnung über `GetItemInfoInstant`. Es erscheinen nur Kategorien, zu denen es Angebote gibt.
+  - **Rechts die Liste:** Gegenstand mit Symbol in Qualitätsfarbe, Preis ab, Menge, Trend, Stand. Sortieren per Klick auf den Kopf. Höchstens 500 Zeilen, der Zähler sagt, wenn es mehr gibt. Suche und Kategorie wirken zusammen.
+  - **Ohne Suche und Kategorie:** die Gegenstände aus Einkaufslisten und Beobachtung, sonst ein Hinweis.
+  - **Klick auf eine Zeile** zeigt den Gegenstand auf der Seite Gegenstand, „Zurück zu Markt“ führt zurück. Rechtsklick öffnet das Gegenstandsmenü.
+  - **„Im Markt zeigen“ unterwegs** (`Go.Market`): öffnet die Marktseite und sucht nach genau diesem Gegenstand. Der Knopf auf der Seite Gegenstand ist nicht mehr grau.
+  - **Im Spiel prüfen:** unterwegs `/broker`, Reiter Markt. Kategorien auf- und zuklappen, Namen der Kategorien, Suche, Sortieren. Dauert das erste Öffnen spürbar (rund 20.000 Gegenstände werden einmal einsortiert)? Klick auf eine Zeile und zurück. Mit Daten vom neutralen Haus: Auswahl des Markts.
+
 ## 0.60.1
 
 Kurz: In Brokers Reitern scheinen keine Teile von Blizzards Verkaufsfenster oder vom Reiter Auktionen mehr durch.

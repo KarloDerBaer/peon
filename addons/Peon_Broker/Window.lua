@@ -7,8 +7,8 @@
 -- Oeffnen: /broker, Minimap-Button, Peon_Panel. Escape schliesst.
 --
 -- Reiter: Markt, Verkaufen, Auktionen, Einkaufen, Radar, Fokus, Gegenstand, Mehr (KarloDerBaer, 11.11.2026).
--- Stand N1: Markt, Auktionen und Fokus zeigen unterwegs noch den Hinweis "in Arbeit" (N3, N5, N6). Verkaufen ist
--- unterwegs grau. Einkaufen, Radar, Gegenstand und Mehr zeigen den bisherigen Inhalt im neuen Rahmen.
+-- Seiten: Markt (Market.lua), Gegenstand (Item.lua), Einkaufen (Buy.lua), Radar (Radar.lua), Mehr (unten).
+-- Verkaufen ist unterwegs grau. Seiten in W.WIP zeigen noch den Hinweis "in Arbeit".
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -38,9 +38,8 @@ W.DEFAULT = "prices"
 W.pages = {}          -- key -> { build = fn(content), refresh = fn(), enter = fn(), leave = fn() }
 W.contents = {}       -- key -> Rahmen der Seite
 
--- In Arbeit: Diese Reiter zeigen nur einen Hinweis, bis ihr Bauabschnitt kommt (Markt N3, Auktionen N5, Fokus N6)
-W.WIP = { browse = true, auctions = true, focus = true }
-W.pages.browse = { build = function() end }
+-- In Arbeit: Diese Reiter zeigen nur einen Hinweis, bis ihr Bauabschnitt kommt (Auktionen N5, Fokus N6)
+W.WIP = { auctions = true, focus = true }
 W.pages.auctions = { build = function() end }
 W.pages.focus = { build = function() end }
 
