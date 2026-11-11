@@ -6,7 +6,7 @@
     "Peon":             { "api": "core" },
     "Peon_Bags":        { "api": 7 },
     "Peon_Bridge":      { "api": 5, "managerOnly": true, "exclude": ["Data.lua"] },
-    "Peon_Broker":      { "api": 8 },
+    "Peon_Broker":      { "api": 18 },
     "Peon_ComboPoints": { "api": 5 },
     "Peon_Feedback":    { "api": 7 },
     "Peon_Fishing":     { "api": 6 },

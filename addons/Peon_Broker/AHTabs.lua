@@ -23,10 +23,14 @@ local mod = ns.mod
 local T = {}
 ns.AHTabs = T
 
--- Reihenfolge ab 0.54 (KarloDerBaer): Markt (Blizzards Kaufen), Verkaufen, Einkaufen, Radar, Auktionen
+-- Reihenfolge ab 0.59 (Neuaufbau N1, KarloDerBaer): Blizzards Markt (Kaufen), Verkaufen, Auktionen, danach Brokers
+-- Einkaufen, Radar, Fokus, Gegenstand, Mehr. Die Schluessel sind die der Seiten im Broker-Fenster (W.pages).
 T.TABS = {
-    { key = "shop",  label = "AHTAB_SHOP" },
-    { key = "radar", label = "AHTAB_RADAR" },
+    { key = "buy",    label = "AHTAB_SHOP" },
+    { key = "radar",  label = "AHTAB_RADAR" },
+    { key = "focus",  label = "NTAB_FOCUS" },
+    { key = "prices", label = "NTAB_ITEM" },
+    { key = "more",   label = "NTAB_MORE" },
 }
 T.PAGE_LEVEL = 500  -- Abstand der Flaeche ueber dem Auktionshaus (Rahmenebene)
 T.TAB_GAP = -15     -- Abstand zum Reiter davor wie bei Blizzard. Ab 0.56 misst T.AlignTabs den sichtbaren Abstand nach
@@ -36,11 +40,12 @@ T.current = nil      -- offener eigener Reiter oder nil (Blizzard-Ansicht)
 T.blocked = {}       -- gemeldete Blockaden dieser Sitzung: { t, event, fn }
 T.host = {}          -- ab 0.48: wo eine Flaeche gerade haengt ("ah" oder "window"), z. B. host.radar
 T.badges = {}        -- ab 0.48: Zahl am Reiter je key, blink = true solange nicht geoeffnet
--- Flaechen, die aus dem Broker-Fenster in einen Reiter des Auktionshauses wandern (ab 0.48: Radar)
-T.HOSTED = {
-    radar = { build = function(c) ns.Radar.Build(c) end, open = function() ns.Radar.Open() end, leave = function() ns.Radar.Halt() end },
-    shop  = { build = function(c) ns.Buy.Build(c) end, open = function() ns.Buy.Refresh() end },   -- ab 0.49 (U8)
-}
+
+-- Hat Broker fuer diesen Schluessel einen eigenen Reiter im Auktionshaus?
+function T.IsHosted(key)
+    for _, d in ipairs(T.TABS) do if d.key == key then return true end end
+    return false
+end
 
 local function AHFrame()
     local f = rawget(_G, "AuctionHouseFrame")
@@ -225,28 +230,47 @@ end
 
 function T.Open(key)
     local f = AHFrame()
-    if not T.built or not f then return false end
+    if not T.built or not f or not T.IsHosted(key) then return false end
+    local was = T.current
+    if was and was ~= key then T.Leave(was) end
     T.current = key
     T.opened = (T.opened or 0) + 1
     for k, tab in pairs(T.tabs) do
         if k == key then Select(tab) else Deselect(tab) end
     end
     for _, tab in ipairs(BlizzardTabs(f)) do Deselect(tab) end
-    T.page.title:SetText(L["AHTAB_" .. key:upper() .. "_TITLE"] or key)
     T.page:Show()
-    -- ab 0.54: andere umgehaengte Flaeche verstecken (Radar und Einkaufen lagen sonst uebereinander)
-    local W = ns.Window
-    for k in pairs(T.HOSTED) do
-        local c = W and W.contents and W.contents[k]
-        if k ~= key and c and T.host[k] == "ah" then c:Hide() end
-    end
-    local hosted = T.Attach(key)
-    for _, fs in ipairs({ T.page.title, T.page.text, T.page.status }) do fs:SetShown(not hosted) end
-    if not hosted then T.UpdateStatus() end
+    T.Attach(key)
     T.SetBadge(key, nil)
+    local W = ns.Window
+    if W then
+        mod.db.windowTab = key
+        W.FillStatus(T.status)
+    end
+    if ns.Go then ns.Go.OnTab(key) end
     if PlaySound and SOUNDKIT and SOUNDKIT.IG_CHARACTER_INFO_TAB then pcall(PlaySound, SOUNDKIT.IG_CHARACTER_INFO_TAB) end
     mod:Dbg("Eigener Reiter im Auktionshaus: " .. key)
     return true
+end
+
+-- Reiter am Auktionator zeigen (W.Open und W.Toggle leiten hierher). Brokers Seiten oeffnen als eigener Reiter,
+-- "Markt" ist Blizzards Kaufen, alles andere fuehrt zu Einkaufen.
+function T.Show(key)
+    -- ohne Wunsch: der zuletzt gewaehlte Broker-Reiter, sonst Einkaufen
+    if key == nil then key = T.IsHosted(mod.db.windowTab) and mod.db.windowTab or "buy" end
+    if T.IsHosted(key) then return T.Open(key) end
+    if key == "browse" then
+        T.Close()
+        return ns.Window.SetAHMode("Buy")
+    end
+    return T.Open("buy")
+end
+
+-- Seite eines Reiters verlassen (z. B. Radar-Scan anhalten)
+function T.Leave(key)
+    local W = ns.Window
+    local page = W and W.pages[key]
+    if page and page.leave and T.host[key] == "ah" and not W.WIP[key] then mod:Call("Auktionshaus-Reiter", page.leave) end
 end
 
 ---------------------------------------------------------------------------
@@ -263,13 +287,13 @@ local function Edges(tab)
     return l - fl, r - fr, l, r   -- Ueberstand links, Ueberstand rechts, sichtbare Kanten
 end
 
--- Reihenfolge der Reiter unten (ab 0.54): Markt, Verkaufen, Einkaufen, Radar, Auktionen
+-- Reihenfolge der Reiter unten (ab 0.59): Blizzards Markt, Verkaufen, Auktionen, dann Brokers Reiter
 function T.TabOrder(f)
     local list = {}
     if type(f.BuyTab) == "table" then list[#list + 1] = f.BuyTab end
     if type(f.SellTab) == "table" then list[#list + 1] = f.SellTab end
-    for _, def in ipairs(T.TABS) do if T.tabs[def.key] then list[#list + 1] = T.tabs[def.key] end end
     if type(f.AuctionsTab) == "table" then list[#list + 1] = f.AuctionsTab end
+    for _, def in ipairs(T.TABS) do if T.tabs[def.key] then list[#list + 1] = T.tabs[def.key] end end
     return list
 end
 
@@ -282,7 +306,7 @@ function T.AlignTabs()
     local gap = sellL - buyR   -- sichtbarer Abstand bei Blizzard
     local order = T.TabOrder(f)
     T.tabGaps = {}
-    for i = 3, #order do
+    for i = 4, #order do   -- Blizzards drei Reiter bleiben, wo Blizzard sie hinsetzt
         local prev, tab = order[i - 1], order[i]
         local _, dr = Edges(prev)
         local dl = Edges(tab)
@@ -311,8 +335,7 @@ function T.Close()
     local was = T.current
     T.current = nil
     T.page:Hide()
-    local h = was and T.HOSTED[was]
-    if h and h.leave and T.host[was] == "ah" then mod:Call("Auktionshaus-Reiter", h.leave) end
+    if was then T.Leave(was) end
     for _, tab in pairs(T.tabs) do Deselect(tab) end
     if was then RestoreBlizzardTabs(AHFrame()) end
 end
@@ -320,22 +343,6 @@ end
 -- Blizzard hat die Ansicht gewechselt (sicherer Anhang an SetDisplayMode)
 function T.OnDisplayMode()
     if T.current then T.Close() end
-end
-
--- Zustand auf der Prueflaeche: zeigt live, ob Blizzards Werte sauber sind
-function T.UpdateStatus()
-    if not T.page or not T.page.status then return end
-    local r = T.Probe(true)
-    local lines = {}
-    local names = {}
-    for k in pairs(r.vars) do names[#names + 1] = k end
-    table.sort(names)
-    for _, k in ipairs(names) do
-        local v = r.vars[k]
-        lines[#lines + 1] = (v == "sauber" and "|cff60e060" or "|cffff9933") .. k .. ": " .. v .. "|r"
-    end
-    lines[#lines + 1] = L.AH_PROBE_BLOCKED:format(r.blocked)
-    T.page.status:SetText(table.concat(lines, "\n"))
 end
 
 -- Hintergrund des Auktionshauses (Bg der Fenstervorlage) auf eine eigene Grafik uebernehmen. Liest nur.
@@ -366,7 +373,7 @@ function T.Build()
     holder:SetAllPoints(f)
     if holder.SetFrameLevel and f.GetFrameLevel then holder:SetFrameLevel(f:GetFrameLevel() or 1) end
     T.tabHolder = holder
-    local prev = type(f.SellTab) == "table" and f.SellTab or f.AuctionsTab
+    local prev = f.AuctionsTab
     for i, def in ipairs(T.TABS) do
         local ok, tab = pcall(CreateFrame, "Button", "PeonBrokerAHTab" .. i, holder, TabTemplate())
         if not ok or not tab then
@@ -380,11 +387,7 @@ function T.Build()
         T.tabs[def.key] = tab
         prev = tab
     end
-    -- ab 0.54: Blizzards "Auktionen" ans Ende, "Kaufen" heisst "Markt" (nur Anker und Text, nichts in Blizzards Tabellen)
-    if prev ~= f.AuctionsTab and type(f.SellTab) == "table" then
-        f.AuctionsTab:ClearAllPoints()
-        f.AuctionsTab:SetPoint("LEFT", prev, "RIGHT", T.TAB_GAP, 0)
-    end
+    -- "Kaufen" heisst "Markt" (nur der Text, nichts in Blizzards Tabellen). Ab 0.59 bleibt "Auktionen" an seinem Platz.
     if type(f.BuyTab) == "table" and f.BuyTab.SetText then
         f.BuyTab:SetText(L.AHTAB_MARKET)
         if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, f.BuyTab, 20, nil, 70) end
@@ -416,26 +419,29 @@ function T.Build()
     local sbg2 = strip:CreateTexture(nil, "BACKGROUND", nil, 1)
     sbg2:SetAllPoints(strip)
     if not (T.CopyFrameBg(f, bg) and T.CopyFrameBg(f, sbg2)) then bg:SetColorTexture(0.08, 0.08, 0.08, 1); sbg2:Hide() end
-    local title = p:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -14)
-    p.title = title
-    local text = p:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    text:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -12)
-    text:SetPoint("RIGHT", p, "RIGHT", -16, 0)
-    text:SetJustifyH("LEFT")
-    text:SetText(L.AHTAB_TEST_TEXT)
-    p.text = text
-    local status = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    status:SetPoint("TOPLEFT", text, "BOTTOMLEFT", 0, -16)
-    status:SetJustifyH("LEFT")
-    p.status = status
-    p:SetScript("OnShow", function() T.UpdateStatus() end)
+    -- ab 0.59: Statuszeile wie im Broker-Fenster (liegt ueber Blizzards Geldanzeige, zeigt das Gold selbst)
+    if Peon.UI and ns.Window and ns.Window.NewStatus then
+        local bar = ns.Window.NewStatus(p)
+        bar:ClearAllPoints()
+        bar:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 2, 27)
+        bar:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -2, 3)
+        if bar.SetFrameLevel and p.GetFrameLevel then bar:SetFrameLevel((p:GetFrameLevel() or 1) + 6) end
+        T.status = bar
+    end
+    p:SetScript("OnShow", function() if ns.Window then ns.Window.FillStatus(T.status) end end)
     p:Hide()
     T.page = p
 
     -- Blizzard wechselt die Ansicht: Flaeche weg (sicherer Anhang, veraendert Blizzards Ablauf nicht)
     if hooksecurefunc then hooksecurefunc(f, "SetDisplayMode", function() mod:Call("Auktionshaus-Reiter", T.OnDisplayMode) end) end
-    if f.HookScript then f:HookScript("OnHide", function() mod:Call("Auktionshaus-Reiter", T.Close) end) end
+    if f.HookScript then f:HookScript("OnHide", function() mod:Call("Auktionshaus-Reiter", T.OnAHHide) end) end
+
+    -- ab 0.59: Knopf "Zurueck zu ..." nach einem Sprung, auch ueber Blizzards Seiten sichtbar (links neben "Blizzard pur")
+    if ns.Window and ns.Window.NewBack then
+        local b = ns.Window.NewBack(holder, f, -134)
+        if b.SetFrameLevel and f.GetFrameLevel then b:SetFrameLevel((f:GetFrameLevel() or 1) + T.PAGE_LEVEL + 10) end
+        T.back = b
+    end
 
     T.built = true
     mod:Dbg("Eigene Reiter im Auktionshaus angelegt")
@@ -473,40 +479,38 @@ end
 -- zurueck. Alle Knoepfe und Listen bleiben dieselben.
 ---------------------------------------------------------------------------
 function T.Attach(key)
-    local h = T.HOSTED[key]
     local W = ns.Window
-    if not h or not W or not T.page then return false end
-    local c = W.contents and W.contents[key]
-    if not c then
-        c = CreateFrame("Frame", nil, T.page)
-        W.contents = W.contents or {}
-        W.contents[key] = c
-        h.build(c)
+    local f = AHFrame()
+    if not W or not T.page or not f or not W.pages[key] then return false end
+    if W.IsOpen() then W.frame:Hide() end   -- nicht an zwei Stellen zugleich
+    for k, c in pairs(W.contents) do
+        if k ~= key and T.host[k] == "ah" then c:Hide() end   -- ab 0.54: andere Seiten im Auktionshaus verstecken
     end
-    if W.IsOpen() and W.current == key and W.frame then W.frame:Hide() end   -- nicht an zwei Stellen zugleich
-    c:SetParent(T.page)
-    c:ClearAllPoints()
-    -- ab 0.56: oben bis in den Streifen der Suchleiste, dort sitzt die obere Leiste (Look.lua) wie bei Blizzard
-    c:SetPoint("TOPLEFT", T.page, "TOPLEFT", 10, T.BAR_UP)
-    c:SetPoint("BOTTOMRIGHT", T.page, "BOTTOMRIGHT", -10, 8)
+    local c = W.Content(key, T.page, f)
     if c.SetFrameLevel and T.page.GetFrameLevel then c:SetFrameLevel((T.page:GetFrameLevel() or 1) + 5) end
     c:Show()
     T.host[key] = "ah"
-    if h.open then mod:Call("Auktionshaus-Reiter", h.open) end
+    local page = W.pages[key]
+    if page.refresh and not W.WIP[key] then mod:Call("Auktionshaus-Reiter", page.refresh) end
     return true
 end
 
--- Das Broker-Fenster will die Flaeche zurueck (W.Select)
-function T.Release(key, parent, top)
-    local W = ns.Window
-    local c = W and W.contents and W.contents[key]
-    if T.host[key] ~= "ah" or not c then return end
+-- Das Broker-Fenster will die Seite zurueck (W.OnTab haengt sie danach selbst um)
+function T.Release(key)
+    if T.host[key] ~= "ah" then return end
     if T.current == key then T.Close() end
-    c:SetParent(parent)
-    c:ClearAllPoints()
-    c:SetPoint("TOPLEFT", parent, "TOPLEFT", 12, -top)
-    c:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -12, 26)
     T.host[key] = "window"
+end
+
+-- Das Auktionshaus schliesst: Reiter zu, Stelle merken (dort oeffnet unterwegs das Broker-Fenster)
+function T.OnAHHide()
+    T.Close()
+    local f = AHFrame()
+    if f and f.GetLeft and f.GetTop then
+        local x, y = f:GetLeft(), f:GetTop()
+        if type(x) == "number" and type(y) == "number" then mod.acc.ahPos = { x = math.floor(x + 0.5), y = math.floor(y + 0.5) } end
+    end
+    if ns.Go then ns.Go.Clear() end
 end
 
 ---------------------------------------------------------------------------
@@ -517,6 +521,7 @@ T.BLINK_SPEED = 2.5   -- Wechsel je Sekunde
 function T.SetBadge(key, n, blink)
     local tab = T.tabs[key]
     if n == nil or n <= 0 then T.badges[key] = nil else T.badges[key] = { n = n, blink = blink and T.current ~= key } end
+    if ns.Window and ns.Window.ApplyBadges then ns.Window.ApplyBadges() end   -- ab 0.59: gleiche Zahl im Broker-Fenster
     if not tab then return end
     local def
     for _, d in ipairs(T.TABS) do if d.key == key then def = d end end
@@ -551,9 +556,15 @@ end
 
 function T.OnAHShow()
     if ns.AHPlain() then return end
+    -- ab 0.59: ein Fenster. Ist das Broker-Fenster offen, schliesst es, und sein Reiter oeffnet im Auktionshaus.
     T.BuildPlainButton()
     T.Build()
     T.AlignSoon()
+    if not T.built then return end   -- ohne eigene Reiter (Aufbau gescheitert) bleibt das Fenster, wie es ist
+    local W = ns.Window
+    local was = W and W.IsOpen() and W.current or nil
+    if was then W.frame:Hide() end
+    if was and T.IsHosted(was) then T.Open(was) end
 end
 
 function T.Init()

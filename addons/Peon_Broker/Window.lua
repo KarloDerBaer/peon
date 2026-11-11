@@ -1,12 +1,14 @@
 -- Peon_Broker - Window.lua
--- Broker-Fenster mit Reitern (Bauabschnitt 4), ab 0.9 im Stil des Auktionshauses (Reiter unten). Dockt bei geoeffnetem Auktionshaus rechts an,
--- sonst frei verschiebbar (Position wird gemerkt). Oeffnen: /broker, Minimap-Button, Peon_Panel
--- (Knopf "Broker" am Auktionshaus bis 0.41.0). Escape schliesst.
+-- Neuaufbau N1 (ab 0.59, Konzept Peon_Broker_Neuaufbau.md, Abschnitt 3): ein Fenster in zwei Zustaenden.
+--   * Unterwegs: Broker-Fenster mit Peon.UI (Kern-API 18), 800 x 538 wie das Auktionshaus, Reiter unten, Statuszeile.
+--   * Am Auktionator: dieselben Seiten als Reiter in Blizzards Auktionshaus (AHTabs.lua). Das Broker-Fenster
+--     oeffnet dort nicht, W.Open und W.Toggle waehlen stattdessen den Reiter im Auktionshaus.
+-- Die Seiten (W.pages) werden einmal gebaut und haengen je nach Zustand im Fenster oder im Auktionshaus (W.Content).
+-- Oeffnen: /broker, Minimap-Button, Peon_Panel. Escape schliesst.
 --
--- Reiter: Start (ab 0.24), Verkaufen, Behalten, Meine Auktionen, Einkaufsliste, Radar (ab 0.14), Preise. Der Reiter "Buch"
--- entfaellt ab 0.22 (Buch in Peon_Ledger).
--- Stand 0.13: Verkaufen, Behalten, Meine Auktionen, Einkaufen (Buy.lua), Preise; das Buch ist sichtbar,
--- aber gesperrt ("folgt").
+-- Reiter: Markt, Verkaufen, Auktionen, Einkaufen, Radar, Fokus, Gegenstand, Mehr (KarloDerBaer, 11.11.2026).
+-- Stand N1: Markt, Auktionen und Fokus zeigen unterwegs noch den Hinweis "in Arbeit" (N3, N5, N6). Verkaufen ist
+-- unterwegs grau. Einkaufen, Radar, Gegenstand und Mehr zeigen den bisherigen Inhalt im neuen Rahmen.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -15,28 +17,32 @@ local mod = ns.mod
 local W = {}
 ns.Window = W
 
-W.WIDTH, W.HEIGHT = 680, 540
-W.TOP = 64            -- Abstand der Reiter-Inhalte vom oberen Rand (Platz fuer Symbol und Titel)
--- Ab 0.51 (Umbau U10, Konzept Abschnitt 8): nur noch, was ohne Auktionshaus geht. Verkaufen, Meine Auktionen und
--- Radar sind ins Auktionshaus gewandert (U3, U9, U7), Start und Behalten entfallen (U12). Deren Seiten bleiben bis
--- U12 angemeldet (W.Select geht weiter, das Radar haengt im Auktionshaus), haben aber keinen Reiter mehr.
--- Reihenfolge ab 0.54 (KarloDerBaer): Markt (wie Blizzards Kaufen auf Basis der Scandaten, in Arbeit),
--- Marktvergleich, Haendler, Einkaufsliste, Beobachten, Info (Gegenstand, in Arbeit), Quellen
+W.WIDTH, W.HEIGHT = 800, 538
+W.TOP = 64            -- Abstand der Seiten vom oberen Rand (Platz fuer Bild und Titel)
+W.TOP_BAR = 30        -- Seiten mit oberer Leiste (Look.lua: Einkaufen, Radar) beginnen neben dem Bild
+W.SIDE = 14           -- Abstand links und rechts
+W.BOTTOM = 30         -- Abstand unten (Statuszeile)
 W.TABS = {
-    { key = "browse",   label = "TAB_BROWSE" },
-    { key = "market",   label = "TAB_COMPARE" },
-    { key = "vendors",  label = "TAB_VENDORS" },
-    { key = "buy",      label = "TAB_LISTS" },
-    { key = "watch",    label = "TAB_WATCH" },
-    { key = "prices",   label = "TAB_ITEMS" },
-    { key = "sources",  label = "TAB_SOURCES" },
+    { key = "browse",   label = "TAB_BROWSE" },      -- Markt (am Auktionator Blizzards Kaufen)
+    { key = "sell",     label = "TAB_SELL" },        -- Verkaufen (nur am Auktionator, Blizzards Seite)
+    { key = "auctions", label = "NTAB_AUCTIONS" },   -- Auktionen
+    { key = "buy",      label = "AHTAB_SHOP" },      -- Einkaufen
+    { key = "radar",    label = "TAB_RADAR" },
+    { key = "focus",    label = "NTAB_FOCUS" },
+    { key = "prices",   label = "NTAB_ITEM" },       -- Gegenstand
+    { key = "more",     label = "NTAB_MORE" },       -- Mehr: Haendler, Neutral, Datenlage
 }
-W.pages = {}          -- key -> { build = fn(content), refresh = fn() }
+W.AH_ONLY = { sell = true }                          -- unterwegs grau
+W.BAR = { buy = true, radar = true }                 -- Seiten mit oberer Leiste
+W.DEFAULT = "prices"
+W.pages = {}          -- key -> { build = fn(content), refresh = fn(), enter = fn(), leave = fn() }
+W.contents = {}       -- key -> Rahmen der Seite
 
--- In Arbeit: Diese Reiter zeigen nur einen Hinweis, bis sie ueberarbeitet sind (Wunsch KarloDerBaer, 07.11.2026)
--- ab 0.54: Markt (neu) und Info (bisher Gegenstaende) zeigen nur den Hinweis, bis sie gebaut sind (KarloDerBaer)
-W.WIP = { browse = true, prices = true }
+-- In Arbeit: Diese Reiter zeigen nur einen Hinweis, bis ihr Bauabschnitt kommt (Markt N3, Auktionen N5, Fokus N6)
+W.WIP = { browse = true, auctions = true, focus = true }
 W.pages.browse = { build = function() end }
+W.pages.auctions = { build = function() end }
+W.pages.focus = { build = function() end }
 
 local function BuildWip(c)
     local t = c:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
@@ -48,41 +54,18 @@ end
 -- Farben der Qualitaetsstufen (Grau, Weiss, Gruen, Blau, Lila, Orange)
 W.QUALITY = { [0] = "ff9d9d9d", [1] = "ffffffff", [2] = "ff1eff00", [3] = "ff0070dd", [4] = "ffa335ee", [5] = "ffff8000" }
 
----------------------------------------------------------------------------
--- Fenster
----------------------------------------------------------------------------
-local function SavePosition(f)
-    if not f.GetPoint then return end
-    local point, _, rel, x, y = f:GetPoint(1)
-    if type(point) ~= "string" or type(x) ~= "number" or type(y) ~= "number" then return end
-    mod.db.windowPos = { point = point, rel = rel, x = math.floor(x + 0.5), y = math.floor(y + 0.5) }
+function W.TabLabel(key)
+    for _, t in ipairs(W.TABS) do if t.key == key then return L[t.label] or key end end
+    return key
 end
 
--- Vorlage des Spiels versuchen, sonst nil (Forever kann Vorlagen umbenennen)
 local function TryFrame(kind, name, parent, template)
     local ok, f = pcall(CreateFrame, kind, name, parent, template)
     if ok and f then return f end
     return nil
 end
 
--- Eigener Rahmen, falls die Blizzard-Vorlage fehlt
-local function PlainBackdrop(f)
-    if f.SetBackdrop then
-        f:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-            tile = true, tileSize = 32, edgeSize = 24,
-            insets = { left = 6, right = 6, top = 6, bottom = 6 },
-        })
-    end
-    local title = f:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    title:SetPoint("TOP", 0, -14)
-    title:SetText(("|c%sPeon|r Broker"):format(Peon.COLOR))
-    local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", -4, -4)
-end
-
--- Dunkles Innenfeld wie im Auktionshaus (fuer Spalten der Reiter)
+-- Dunkles Innenfeld wie im Auktionshaus (fuer die bisherigen Seiten)
 function W.Inset(parent)
     local f = TryFrame("Frame", nil, parent, "InsetFrameTemplate")
     if not f then
@@ -94,137 +77,215 @@ function W.Inset(parent)
     return f
 end
 
--- Reiter unten wie im Auktionshaus
-local TAB_TEMPLATES = { { "PanelTabButtonTemplate", 3 }, { "CharacterFrameTabButtonTemplate", -15 } }
+---------------------------------------------------------------------------
+-- Seiten: einmal bauen, je nach Zustand ins Fenster oder ins Auktionshaus haengen
+---------------------------------------------------------------------------
+-- parent = Rahmen, an dem die Seite haengt. anchor = Fenster, nach dem sie sich ausrichtet (Broker-Fenster oder
+-- Blizzards Auktionshaus). Beide Zustaende nutzen dieselben Abstaende, damit es wie ein Fenster aussieht.
+function W.Content(key, parent, anchor)
+    local c = W.contents[key]
+    local new = c == nil
+    if new then
+        c = CreateFrame("Frame", nil, parent)
+        W.contents[key] = c
+    end
+    if c.SetParent then c:SetParent(parent) end
+    c.parent = parent
+    c:ClearAllPoints()
+    c:SetPoint("TOPLEFT", anchor, "TOPLEFT", W.SIDE, -(W.BAR[key] and W.TOP_BAR or W.TOP))
+    c:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", -W.SIDE, W.BOTTOM)
+    if new then
+        if W.WIP[key] then BuildWip(c) else W.pages[key].build(c) end
+    end
+    return c
+end
 
-local function CreateTab(f, i, tab, prev)
-    local b, gap
-    for _, t in ipairs(TAB_TEMPLATES) do
-        b = TryFrame("Button", "PeonBrokerFrameTab" .. i, f, t[1])
-        if b then gap = t[2]; W.tabStyle = t[1]; break end
+-- Text der Statuszeile: Markt und Datenlage in einem Satz (Konzept Abschnitt 3)
+function W.StatusText()
+    local D, G = ns.Data, ns.Pages
+    local key = ns.MarketKey()
+    local m = D.Markets()[key]
+    local parts = { G and G.MarketLabel(key) or tostring(key) }
+    if type(m) == "table" and (m.lastScan or m.mgrAt) then
+        if m.lastScan then parts[#parts + 1] = L.PG_SCAN:format(ns.Scan.Age(m.lastScan)) end
+        if m.mgrAt then parts[#parts + 1] = (m.mgrSrc == "api" and L.PG_API or L.PG_MANAGER):format(ns.Scan.Age(m.mgrAt)) end
+    else
+        parts[#parts + 1] = L.ST_NO_DATA
     end
-    if not b then
-        b = CreateFrame("Button", "PeonBrokerFrameTab" .. i, f, "UIPanelButtonTemplate")
-        b:SetSize(112, 24)
-        gap = 4
-        W.tabStyle = "button"
+    if not ns.Scan.ahOpen then parts[#parts + 1] = L.ST_NOT_LIVE end
+    return table.concat(parts, " · ")
+end
+
+-- Statuszeile fuellen (Fenster und Auktionshaus nutzen dieselbe Funktion)
+function W.FillStatus(bar)
+    if not bar then return end
+    bar:SetText(W.StatusText())
+    if bar.money and bar.money.SetAmount and GetMoney then
+        local ok, money = pcall(GetMoney)
+        if ok and type(money) == "number" and not Peon.IsSecret(money) then bar.money:SetAmount(money) end
     end
-    if prev then b:SetPoint("LEFT", prev, "RIGHT", gap, 0) else b:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 12, 2) end
-    b:SetText(L[tab.label])
-    if W.tabStyle ~= "button" and PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, b, 0) end
-    b.key = tab.key
-    b:SetID(i)
-    b:SetScript("OnClick", function() W.Select(tab.key) end)
-    b:SetScript("OnEnter", function(self)
-        if W.pages[tab.key] or not GameTooltip then return end
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine(L[tab.label], 1, 1, 1)
-        GameTooltip:AddLine(L.TAB_LATER, 0.8, 0.8, 0.8, true)
-        GameTooltip:Show()
-    end)
-    b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
-    if not W.pages[tab.key] then b:Disable() end
-    return b
+end
+
+-- Statuszeile anlegen: Klick oeffnet Mehr > Datenlage
+function W.NewStatus(parent)
+    local bar = Peon.UI.StatusBar(parent)
+    if bar.EnableMouse then bar:EnableMouse(true) end
+    bar:SetScript("OnMouseUp", function() mod:Call("Fenster", W.ShowData) end)
+    Peon.UI.SetTooltip(bar, function() return { W.StatusText(), L.ST_HINT } end)
+    return bar
+end
+
+function W.ShowData()
+    W.Open("sources")
+end
+
+---------------------------------------------------------------------------
+-- Fenster
+---------------------------------------------------------------------------
+local function SavePosition(f)
+    if not f.GetPoint then return end
+    local point, _, rel, x, y = f:GetPoint(1)
+    if type(point) ~= "string" or type(x) ~= "number" or type(y) ~= "number" then return end
+    mod.db.windowPos = { point = point, rel = rel, x = math.floor(x + 0.5), y = math.floor(y + 0.5) }
 end
 
 function W.Create()
     if W.frame then return W.frame end
-    -- Rahmen wie das Auktionshaus (ButtonFrameTemplate), sonst eigener Rahmen
-    local f = TryFrame("Frame", "PeonBrokerFrame", UIParent, "ButtonFrameTemplate")
-    if f then
-        W.style = "blizzard"
-        if f.SetTitle then pcall(f.SetTitle, f, ("|c%sPeon|r Broker"):format(Peon.COLOR)) end
-        if f.SetPortraitToAsset then pcall(f.SetPortraitToAsset, f, "Interface\\Icons\\INV_Misc_Coin_02") end
-        if type(f.Inset) == "table" and f.Inset.Hide then f.Inset:Hide() end
-    else
-        f = CreateFrame("Frame", "PeonBrokerFrame", UIParent, "BackdropTemplate")
-        W.style = "plain"
-        PlainBackdrop(f)
-    end
-    f:SetSize(W.WIDTH, W.HEIGHT)
-    f:SetFrameStrata("HIGH")
-    f:SetClampedToScreen(true)
-    f:SetMovable(true)
-    f:EnableMouse(true)
-    f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", function(self) if not W.docked then self:StartMoving() end end)
+    local UI = Peon.UI
+    local f = UI.Window("PeonBrokerFrame", { title = ("|c%sPeon|r Broker"):format(Peon.COLOR),
+        icon = "Interface\\Icons\\INV_Misc_Coin_02", width = W.WIDTH, height = W.HEIGHT })
     f:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
-        if not W.docked then SavePosition(self) end
+        SavePosition(self)
     end)
 
-    -- Reiter
-    W.tabButtons = {}
-    local prev
-    for i, tab in ipairs(W.TABS) do
-        prev = CreateTab(f, i, tab, prev)
-        W.tabButtons[i] = prev
+    local defs = {}
+    for _, t in ipairs(W.TABS) do defs[#defs + 1] = { t.key, L[t.label] } end
+    W.tabs = UI.BottomTabs(f, defs, function(key) mod:Call("Fenster", W.OnTab, key) end)
+    W.tabButtons = W.tabs
+    for _, b in ipairs(W.tabs) do
+        if W.AH_ONLY[b.key] then
+            if b.SetMotionScriptsWhileDisabled then b:SetMotionScriptsWhileDisabled(true) end
+            UI.SetTooltip(b, { W.TabLabel(b.key), L.TAB_AH_ONLY })
+        end
     end
 
-    -- Fusszeile: Markt und letzter Scan
-    local foot = f:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-    foot:SetPoint("BOTTOMLEFT", 14, 9)
-    foot:SetPoint("BOTTOMRIGHT", -14, 9)
-    foot:SetJustifyH("LEFT")
-    W.footer = foot
+    W.status = W.NewStatus(f)
+    W.back = W.NewBack(f, f, -30)
 
-    W.contents = W.contents or {}   -- ab 0.48: das Radar kann schon im Auktionshaus angelegt sein
     f:SetScript("OnShow", function() mod:Call("Fenster", W.Refresh) end)
-    f:SetScript("OnHide", function() W.docked = false; W.Leave(nil) end)
-    if type(UISpecialFrames) == "table" then tinsert(UISpecialFrames, "PeonBrokerFrame") end   -- Escape schliesst
-    f:Hide()
+    f:SetScript("OnHide", function() W.Leave(nil) end)
     W.frame = f
+    if W.ApplyBadges then W.ApplyBadges() end
     return f
 end
 
--- Reiter optisch waehlen (Blizzard-Funktionen, sonst Hervorhebung)
-local function MarkTab(b, on)
-    if W.tabStyle ~= "button" and PanelTemplates_SelectTab and PanelTemplates_DeselectTab then
-        pcall(on and PanelTemplates_SelectTab or PanelTemplates_DeselectTab, b)
-        if not W.pages[b.key] then b:Disable() end
+-- Knopf "Zurueck zu ..." in der Titelleiste (links neben dem Schliessen-Knopf). parent = Rahmen, anchor = Fenster
+function W.NewBack(parent, anchor, x)
+    local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+    b:SetSize(150, 18)
+    b:SetPoint("TOPRIGHT", anchor, "TOPRIGHT", x, -3)
+    if b.GetFontString and b:GetFontString() and b:GetFontString().SetFontObject then
+        b:GetFontString():SetFontObject("GameFontNormalSmall")
     end
-    if on then b:LockHighlight() else b:UnlockHighlight() end
+    b:SetScript("OnClick", function() mod:Call("Sprung", ns.Go.Back) end)
+    b:Hide()
+    return b
 end
 
--- An die gemerkte Stelle (ab 0.53, Umbau U12: kein Andocken mehr ans Auktionshaus)
+-- Zahl am Reiter (wie im Auktionshaus, dort setzt sie AHTabs.SetBadge)
+function W.ApplyBadges()
+    if not W.tabs then return end
+    local T = ns.AHTabs
+    for _, b in ipairs(W.tabs) do
+        local badge = T and T.badges and T.badges[b.key]
+        if b.SetBadge then b:SetBadge(badge and badge.n or 0) end
+    end
+end
+
+-- Gesperrte Reiter wieder sperren (Blizzards Abwaehlen gibt jeden Reiter frei)
+local function LockTabs()
+    for _, b in ipairs(W.tabs or {}) do
+        if W.AH_ONLY[b.key] and b.Disable then b:Disable() end
+    end
+end
+
+-- Stelle des Fensters: selbst verschoben, sonst dort, wo das Auktionshaus zuletzt stand, sonst Mitte
 function W.Place()
     local f = W.frame
     f:ClearAllPoints()
-    W.docked = false
     local p = mod.db.windowPos
+    local a = mod.acc.ahPos
     if type(p) == "table" and type(p.point) == "string" and type(p.x) == "number" and type(p.y) == "number" then
         f:SetPoint(p.point, UIParent, type(p.rel) == "string" and p.rel or p.point, p.x, p.y)
+    elseif type(a) == "table" and type(a.x) == "number" and type(a.y) == "number" then
+        f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", a.x, a.y)
     else
         f:SetPoint("CENTER")
     end
 end
 
+-- Gilt gerade "am Auktionator"? Dann stehen Brokers Seiten als Reiter in Blizzards Fenster.
+function W.AtAH()
+    local T = ns.AHTabs
+    return ns.Scan.ahOpen == true and ns.AHTouch() and T ~= nil and T.built == true
+end
+
+-- Gueltiger Reiter fuer das Fenster
+local function ValidKey(key)
+    if key and W.pages[key] and not W.AH_ONLY[key] then
+        for _, t in ipairs(W.TABS) do if t.key == key then return key end end
+    end
+    return W.DEFAULT
+end
+
+-- Unterpunkt von "Mehr" (Haendler, Neutral, Datenlage, Beobachtung)? Dann oeffnet Mehr mit diesem Unterpunkt.
+local function Resolve(key)
+    for _, t in ipairs(W.MORE) do
+        if t.key == key and W.pages[key] then return "more", key end
+    end
+    return key, nil
+end
+
+local function SelectSub(sub)
+    if not sub then return end
+    mod.acc.moreTab = sub
+    if W.more and W.more.tabs and W.more.current ~= sub then W.more.tabs:Select(sub) end
+end
+
 function W.Open(tab)
+    local sub
+    tab, sub = Resolve(tab)
+    if sub then mod.acc.moreTab = sub end
+    if W.AtAH() then
+        local ok = ns.AHTabs.Show(tab)
+        SelectSub(sub)
+        return ok
+    end
     W.Create()
     W.Place()
-    -- der zuletzt gewaehlte Reiter; alte Reiter ohne Knopf (ab 0.51) fuehren zu Gegenstaende
-    local want = tab or W.current or mod.db.windowTab
-    if not tab then
-        local onBar = false
-        for _, t in ipairs(W.TABS) do if t.key == want then onBar = true end end
-        if not onBar then want = "browse" end
-    end
-    W.Select(want)
+    W.Select(ValidKey(tab or W.current or mod.db.windowTab))
+    SelectSub(sub)
     W.frame:Show()
 end
 
 function W.Toggle(tab)
+    if W.AtAH() then
+        local T = ns.AHTabs
+        if T.current and not tab then T.Close() else T.Show(tab) end
+        return
+    end
     if W.frame and W.frame:IsShown() then W.frame:Hide() else W.Open(tab) end
 end
 
 function W.IsOpen() return W.frame ~= nil and W.frame:IsShown() end
 
--- Reiter waehlen (gesperrte Reiter werden uebersprungen)
 -- Den bisherigen Reiter verlassen (z. B. Radar-Scan anhalten); next = neuer Reiter oder nil (Fenster zu)
 function W.Leave(next)
     local cur = W.current
     if cur and cur ~= next and W.pages[cur] and W.pages[cur].leave and not W.WIP[cur] then
-        mod:Call("Fenster", W.pages[cur].leave)
+        local T = ns.AHTabs
+        if not (T and T.host[cur] == "ah") then mod:Call("Fenster", W.pages[cur].leave) end
     end
 end
 
@@ -244,45 +305,99 @@ function W.SetAHMode(name)
     return ok
 end
 
+-- Reiter im Fenster waehlen
 function W.Select(key)
-    if not W.pages[key] then key = "prices" end
+    W.Create()
+    local sub
+    key, sub = Resolve(key)
+    if sub then mod.acc.moreTab = sub end
+    W.tabs:Select(ValidKey(key))
+    SelectSub(sub)
+end
+
+-- Ein Reiter wurde gewaehlt (Klick oder W.Select)
+function W.OnTab(key)
+    if key ~= ValidKey(key) then   -- gesperrt oder unbekannt: beim bisherigen bleiben
+        local back = ValidKey(W.current)
+        if back ~= key then W.tabs:Select(back) end
+        return
+    end
     W.Leave(key)
     local changed = W.current ~= key or not (W.frame and W.frame:IsShown())
     W.current = key
     mod.db.windowTab = key
-    for _, b in ipairs(W.tabButtons) do MarkTab(b, b.key == key) end
+    local T = ns.AHTabs
     for k, c in pairs(W.contents) do
-        if k ~= key and not (ns.AHTabs and ns.AHTabs.host[k] == "ah") then c:Hide() end   -- ab 0.48: Flaeche im Auktionshaus bleibt
+        if k ~= key and not (T and T.host[k] == "ah") then c:Hide() end
     end
-    -- ab 0.48: haengt die Flaeche gerade im Auktionshaus (Radar), zurueckholen
-    if ns.AHTabs and ns.AHTabs.Release then ns.AHTabs.Release(key, W.frame, W.TOP) end
-    local c = W.contents[key]
-    if not c then
-        c = CreateFrame("Frame", nil, W.frame)
-        c:SetPoint("TOPLEFT", 12, -W.TOP)
-        c:SetPoint("BOTTOMRIGHT", -12, 26)
-        W.contents[key] = c
-        if W.WIP[key] then BuildWip(c) else W.pages[key].build(c) end
-    end
+    if T and T.Release then T.Release(key) end   -- haengt die Seite gerade im Auktionshaus, zurueckholen
+    local c = W.Content(key, W.frame, W.frame)
     c:Show()
+    LockTabs()
+    if ns.Go then ns.Go.OnTab(key) end
     if W.frame:IsShown() then W.Refresh() end
-    -- Reiter neu gewaehlt: Blizzard-Fenster passend umschalten (ab 0.20)
     if changed and W.pages[key].enter and not W.WIP[key] then mod:Call("Fenster", W.pages[key].enter) end
 end
 
 function W.Refresh()
     if not W.frame then return end
-    local market = ns.Data.Market()
-    local text = L.MM_MARKET:format(ns.MarketKey())
-    if market and market.lastScan then
-        text = text .. "   ·   " .. L.MM_SCAN:format(ns.Scan.Age(market.lastScan), market.lastItems or 0)
-    else
-        text = text .. "   ·   " .. L.MM_NO_SCAN
-    end
-    W.footer:SetText(text)
+    W.FillStatus(W.status)
     local page = W.current and W.pages[W.current]
     if page and page.refresh and not W.WIP[W.current] then page.refresh() end
 end
+
+---------------------------------------------------------------------------
+-- Seite "Mehr": Haendler, Neutral (Marktvergleich), Datenlage (Quellen), bis N4 auch die Beobachtung.
+-- Die Unterpunkte sind die bisherigen Seiten (W.pages.vendors, market, sources, watch) im neuen Rahmen.
+---------------------------------------------------------------------------
+W.MORE = {
+    { key = "vendors", label = "MORE_VENDORS" },
+    { key = "market",  label = "MORE_NEUTRAL" },
+    { key = "sources", label = "MORE_DATA" },
+    { key = "watch",   label = "MORE_WATCH" },
+}
+
+local function MoreSelect(key)
+    local m = W.more
+    if not m then return end
+    local page = W.pages[key]
+    if not page then return end
+    m.current = key
+    mod.acc.moreTab = key
+    for k, c in pairs(m.contents) do if k ~= key then c:Hide() end end
+    local c = m.contents[key]
+    if not c then
+        c = CreateFrame("Frame", nil, m.frame)
+        c:SetPoint("TOPLEFT", m.frame, "TOPLEFT", 0, -34)
+        c:SetPoint("BOTTOMRIGHT", m.frame, "BOTTOMRIGHT", 0, 0)
+        m.contents[key] = c
+        page.build(c)
+    end
+    c:Show()
+    if page.refresh then page.refresh() end
+end
+
+W.pages.more = {
+    build = function(c)
+        local defs = {}
+        for _, t in ipairs(W.MORE) do if W.pages[t.key] then defs[#defs + 1] = { t.key, L[t.label] } end end
+        local m = { frame = c, contents = {} }
+        W.more = m
+        m.tabs = Peon.UI.TopTabs(c, defs, function(key) mod:Call("Mehr", MoreSelect, key) end)
+        if m.tabs[1] then m.tabs[1]:SetPoint("TOPLEFT", c, "TOPLEFT", 8, 0) end
+        local want = mod.acc.moreTab
+        if not (type(want) == "string" and W.pages[want]) then want = defs[1] and defs[1][1] end
+        local known = false
+        for _, d in ipairs(defs) do if d[1] == want then known = true end end
+        if not known then want = defs[1] and defs[1][1] end
+        if want then m.tabs:Select(want) end
+    end,
+    refresh = function()
+        local m = W.more
+        local page = m and m.current and W.pages[m.current]
+        if page and page.refresh then page.refresh() end
+    end,
+}
 
 ---------------------------------------------------------------------------
 -- Hilfen fuer die Reiter
@@ -309,11 +424,7 @@ end
 ---------------------------------------------------------------------------
 -- Ereignisse
 ---------------------------------------------------------------------------
--- Der Knopf "Broker" unter dem Auktionshaus entfaellt ab 0.41.1 (Umbau, Konzept Abschnitt 13): er lag hinter
--- Blizzards Reitern. Das Fenster oeffnet der Minimap-Button, Peon_Panel oder /broker.
-
 function W.Init()
-    -- ab 0.53 (U12): Das Fenster oeffnet und schliesst nicht mehr mit dem Auktionshaus und dockt nicht an
     mod:On("SCAN_DONE", function() if W.IsOpen() then W.Refresh() end end)
     mod:On("CHANGED", function() if W.IsOpen() then W.Refresh() end end)
 end

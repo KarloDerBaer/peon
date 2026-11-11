@@ -1552,7 +1552,12 @@ function R.Build(c)
     R.scanButton = U.Button(bar, L.RADAR_START, 160, function() if R.running then R.Stop() else mod:Call("Radar", R.Start) end end)
     R.scanButton:SetPoint("RIGHT", bar, "RIGHT", -2, 0)
     R.status = bar:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    R.status:SetPoint("RIGHT", R.scanButton, "LEFT", -12, 0)
+    -- ab 0.59 (Neuaufbau N1): Sprung in Blizzards Kaufansicht mit dem gewaehlten Treffer
+    R.goMarketButton = U.Button(bar, L.GO_MARKET, 130, function()
+        if R.selected then mod:Call("Sprung", ns.Go.Market, R.selected) else mod:Print(L.GO_NONE) end
+    end)
+    R.goMarketButton:SetPoint("RIGHT", R.scanButton, "LEFT", -6, 0)
+    R.status:SetPoint("RIGHT", R.goMarketButton, "LEFT", -12, 0)
     R.status:SetPoint("LEFT", bar, "LEFT", U.LEFT_W + 8, 0)
     R.status:SetJustifyH("RIGHT")
     if R.status.SetWordWrap then R.status:SetWordWrap(false) end
@@ -1840,8 +1845,8 @@ end
 
 W.pages.radar = {
     build = R.Build,
-    refresh = R.Open,
-    leave = R.Halt,
+    refresh = function() R.Open() end,
+    leave = function() R.Halt() end,
     -- Reiter gewaehlt (ab 0.20): ohne gewaehlten Treffer Blizzards Kaufen-Seite (mit Treffer zeigt R.Open ihn)
     enter = function()
         if not (R.selected and R.entries[R.selected.key]) then W.SetAHMode("Buy") end

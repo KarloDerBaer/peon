@@ -241,14 +241,14 @@ end
 function B.UpdateBadge()
     local T = ns.AHTabs
     if not (T and T.SetBadge and T.built) then return end
-    T.SetBadge("shop", B.CountBuyable(), false)
+    T.SetBadge("buy", B.CountBuyable(), false)
 end
 
 -- Reiter gerade zu sehen (Broker-Fenster oder Auktionshaus)
 function B.Shown()
     local T = ns.AHTabs
-    if T and T.current == "shop" then return true end
-    if T and T.host and T.host.shop == "ah" then return false end
+    if T and T.current == "buy" then return true end
+    if T and T.host and T.host.buy == "ah" then return false end
     return W.IsOpen() and W.current == "buy"
 end
 
@@ -1147,7 +1147,12 @@ function B.Build(c)
     B.buyButton:SetPoint("BOTTOMRIGHT", -8, 8)
     B.selText = right:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     B.selText:SetPoint("BOTTOMLEFT", 12, 12)
-    B.selText:SetPoint("RIGHT", B.buyButton, "LEFT", -10, 0)
+    -- ab 0.59 (Neuaufbau N1): Sprung in Blizzards Kaufansicht mit dem gewaehlten Gegenstand
+    B.goMarketButton = Btn(right, L.GO_MARKET, 130, function()
+        if B.selected then mod:Call("Sprung", ns.Go.Market, B.selected) else mod:Print(L.GO_NONE) end
+    end)
+    B.goMarketButton:SetPoint("RIGHT", B.buyButton, "LEFT", -6, 0)
+    B.selText:SetPoint("RIGHT", B.goMarketButton, "LEFT", -10, 0)
     B.selText:SetJustifyH("LEFT")
     if B.selText.SetWordWrap then B.selText:SetWordWrap(false) end
 

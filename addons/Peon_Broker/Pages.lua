@@ -134,7 +134,7 @@ function G.BuildMarket(c)
               format = function(v) return v == "neutral" and L.FACTION_NEUTRAL or L.PG_HOME end },
         },
         rows = 16, rowHeight = 18, sortKey = "pct",
-        onClick = function(_, r) if ns.Menu then ns.Menu.Info({ id = ns.Data.ItemID(r.key), name = r.name }) end end,
+        onClick = function(_, r) if ns.Go then ns.Go.Item({ id = ns.Data.ItemID(r.key), key = r.key, name = r.name }) end end,
         onEnter = function(_, r, row) W.ShowItemTooltip(row, r.key) end,
         onLeave = function() if GameTooltip then GameTooltip:Hide() end end,
         emptyText = L.PG_COMPARE_EMPTY,
@@ -212,7 +212,7 @@ function G.BuildWatch(c)
     end)
     G.watchRemove:SetPoint("BOTTOMRIGHT", -8, 8)
     G.watchInfo = Btn(L.MENU_INFO, 110, function()
-        if G.watchSel and ns.Menu then ns.Menu.Info({ id = ns.Data.ItemID(G.watchSel.key), name = G.watchSel.name }) end
+        if G.watchSel and ns.Go then ns.Go.Item({ id = ns.Data.ItemID(G.watchSel.key), key = G.watchSel.key, name = G.watchSel.name }) end
     end)
     G.watchInfo:SetPoint("RIGHT", G.watchRemove, "LEFT", -6, 0)
     local box = CreateFrame("EditBox", nil, inset, "InputBoxTemplate")

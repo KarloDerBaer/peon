@@ -104,7 +104,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  tooltipNeutral = { always = true, shift = true, off = true },
                  radarOrder = { smart = true, random = true, commodity = true, high = true, low = true },
                  windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true,
-                              market = true, watch = true, sources = true, vendors = true } },   -- ab 0.51 neue Reiter   -- ab 0.28 mit "start", ohne "book"
+                              market = true, watch = true, sources = true, vendors = true,
+                              browse = true, focus = true, more = true } },   -- ab 0.59 (Neuaufbau N1)   -- ab 0.51 neue Reiter   -- ab 0.28 mit "start", ohne "book"
     keepOnReset = { windowPos = true, windowTab = true, keepAllChars = true, ahPlain = true },
     migrate  = function(m, acc)
         if ns.Data then ns.Data.Migrate(acc) end
@@ -499,7 +500,7 @@ end
 
 -- Neuerer Stand vom Peon Manager (ab 0.36): Data.lua liest das Spiel nur beim Laden, also einmal je Login oder /reload
 mod:On("LOGIN", function()
-    if (Peon.API or 0) < 8 then return end
+    if (Peon.API or 0) < 18 then return end
     local n = ns.Data.ApplyManager()
     if n > 0 then mod:Dbg(("Stand vom Manager: %d Gegenstaende neu"):format(n)) end
     if ns.Watch then mod:Call("Beobachtung", ns.Watch.Check) end   -- ab 0.49: Preisalarm nach dem Stand vom Manager
@@ -507,7 +508,7 @@ mod:On("LOGIN", function()
 end)
 
 mod:On("INIT", function()
-    if (Peon.API or 0) < 8 then
+    if (Peon.API or 0) < 18 then   -- ab 0.59: Fenster mit Peon.UI (Kern-API 18)
         mod:Error(L.MSG_OLD_CORE)
         return
     end

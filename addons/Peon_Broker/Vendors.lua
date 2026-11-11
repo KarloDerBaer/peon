@@ -259,7 +259,7 @@ function V.Build(c)
               format = function(v, r) if not v then return "–" end return (r.profit and GREEN or "") .. Money(v) .. (r.profit and " +|r" or "") end },
         },
         rows = 18, rowHeight = 18, sortKey = "name",
-        onClick = function(_, r) if ns.Menu then ns.Menu.Info({ id = r.key, name = r.name }) end end,
+        onClick = function(_, r) if ns.Go then ns.Go.Item({ id = r.key, name = r.name }) end end,
         onEnter = function(_, r, row) W.ShowItemTooltip(row, r.key) end,
         onLeave = function() if GameTooltip then GameTooltip:Hide() end end,
         emptyText = L.VEN_EMPTY,

@@ -21,7 +21,8 @@ function M.Info(item)
     if not W then return end
     W.Open("prices")
     if P then
-        local key = item.link and ns.Data.KeyFromLink(item.link) or item.id
+        local key = item.key
+        if key == nil then key = item.link and ns.Data.KeyFromLink(item.link) or item.id end
         P.selectedKey = key
         if P.search and P.search.SetText and item.name then P.search:SetText(item.name) end
         if P.Update then mod:Call("Preise", P.Update) end
@@ -42,7 +43,9 @@ function M.AddToList(i, item)
 end
 
 function M.Build(root, item)
-    root:CreateButton(L.MENU_INFO, function() mod:Call("Menue", M.Info, item) end)
+    -- ab 0.59 (Neuaufbau N1): dieselben Spruenge wie in Brokers Listen (Go.lua)
+    root:CreateButton(L.GO_MARKET, function() mod:Call("Menue", ns.Go.Market, item) end)
+    root:CreateButton(L.MENU_INFO, function() mod:Call("Menue", ns.Go.Item, item) end)
     local B = ns.Buy
     if B and B.Lists then
         local sub = root:CreateButton(L.MENU_SHOP)

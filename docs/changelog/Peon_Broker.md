@@ -2,6 +2,33 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.59.0
+
+Kurz: Broker ist jetzt ein Fenster: Am Auktionator stehen seine Seiten als Reiter im Auktionshaus, unterwegs zeigt das Broker-Fenster dieselben Reiter in gleicher Größe und gleichem Look. Die Reiter heißen Markt, Verkaufen, Auktionen, Einkaufen, Radar, Fokus, Gegenstand und Mehr.
+Kurz: Neu ist „Im Markt zeigen“: Aus Einkaufen, Radar und dem Menü jedes Gegenstands springst du mit einem Klick zu genau diesem Gegenstand in Blizzards Kaufansicht. Ein Knopf „Zurück zu …“ bringt dich wieder zurück.
+Kurz: Markt (unterwegs), Auktionen (unterwegs) und Fokus sind noch in Arbeit. Broker braucht ab jetzt Peon 0.18.
+
+- 0.59.0 (11.11.2026): **Neuaufbau N1, Gerüst** (Konzept `docs/konzepte/broker/Peon_Broker_Neuaufbau.md`, Abschnitte 3 und 5). Braucht Peon 0.18.0 (Kern-API 18).
+  - **Ein Fenster in zwei Zuständen** (`Window.lua` neu): Das Broker-Fenster nutzt `Peon.UI` (800 × 538 wie das Auktionshaus, rundes Bild, Reiter unten, Statuszeile). Am Auktionator öffnet es nicht mehr: `/broker`, Minimap-Button und Panel wählen dort den zuletzt genutzten Broker-Reiter im Auktionshaus. Ist das Fenster offen und das Auktionshaus geht auf, schließt es, und sein Reiter öffnet im Auktionshaus. Unterwegs öffnet das Fenster dort, wo das Auktionshaus zuletzt stand, solange man es nicht selbst verschoben hat. Bei „Blizzard pur“ bleibt es ein eigenes Fenster.
+  - **Reiter:** Markt, Verkaufen, Auktionen, Einkaufen, Radar, Fokus, Gegenstand, Mehr. Im Auktionshaus bleiben Blizzards Markt, Verkaufen und Auktionen an ihrem Platz, Brokers fünf Reiter stehen dahinter (`AHTabs.lua`). Unterwegs ist Verkaufen grau, Markt, Auktionen und Fokus zeigen noch den Hinweis „in Arbeit“ (kommen mit N3, N5, N6).
+  - **Seiten einmal gebaut:** Jede Seite hängt je nach Zustand im Fenster oder im Auktionshaus (`W.Content`), mit denselben Abständen. Einkaufen gab es bisher doppelt (Fenster und Auktionshaus), jetzt ist es dieselbe Seite.
+  - **Gegenstand** zeigt wieder die bisherige Gegenstandsansicht (Suche, Preise, Verlauf, Mein Bestand) statt des WIP-Hinweises, bis N2 sie neu baut.
+  - **Mehr** mit den Unterpunkten Händler, Neutral (bisher Marktvergleich), Datenlage (bisher Quellen) und vorerst Beobachtung (wandert mit N4 in Einkaufen). Die eigenen Reiter dafür entfallen.
+  - **Statuszeile** in beiden Zuständen: Markt, Alter von Scan und Stand vom Manager, unterwegs „letzter Stand, nicht live“, rechts das Gold. Klick öffnet Mehr mit der Datenlage.
+  - **Sprünge** (neue Datei `Go.lua`): „Im Markt zeigen“ schließt Brokers Fläche und zeigt den Gegenstand in Blizzards Kaufansicht. Bis 0.58 war das gesperrt, solange Einkaufen oder Radar offen war. Unterwegs führt der Sprung zur Seite Gegenstand, bis die Marktseite aus Scandaten da ist (N3). Knöpfe „Im Markt zeigen“ in Einkaufen (neben Kaufen) und im Radar (oben neben dem Scan-Knopf), Einträge „Im Markt zeigen“ und „Gegenstand (Broker)“ im Gegenstandsmenü.
+  - **Zurück:** Nach einem Sprung steht in der Titelleiste links neben dem Schließen-Knopf „Zurück zu Radar“ (oder der jeweiligen Seite), auch über Blizzards Kaufansicht. Ein Schritt zurück. Wählt man selbst einen Broker-Reiter, verschwindet der Knopf. (Das Konzept nennt „oben links“, dort sitzt das runde Bild.)
+  - **Zahl am Reiter** (Radar, Einkaufen) steht jetzt auch im Broker-Fenster.
+  - Die Prüffläche aus U0 (Text und Zustand von Blizzards Werten auf der leeren Fläche) entfällt, `/broker pruefen ah` bleibt.
+  - Noch nicht in N1: Doppelklick und Rechtsklick-Menü in Brokers Listen (kommen mit den neuen Listen ab N2), „In den Fokus“ (N6).
+  - **Im Spiel prüfen** (Peon und Peon_Broker auf Entwicklung, `/reload`):
+    1. Unterwegs `/broker`: Fenster in der Größe des Auktionshauses, acht Reiter passen in die Breite, Verkaufen grau, Statuszeile unten.
+    2. Einkaufen, Radar, Gegenstand, Mehr mit allen vier Unterpunkten: Passt der alte Inhalt in den neuen Rahmen, überdeckt nichts das runde Bild?
+    3. Am Auktionator: acht Reiter mit gleichen Abständen, alle fünf Broker-Reiter öffnen, Statuszeile unten, Wechsel zu Blizzards Reitern und zurück.
+    4. Fenster unterwegs offen lassen und das Auktionshaus öffnen: Fenster zu, Reiter im Auktionshaus offen. `/broker` am Auktionator schaltet den Reiter ein und aus.
+    5. In Einkaufen und Radar einen Gegenstand wählen, „Im Markt zeigen“: Blizzards Kaufansicht mit genau diesem Gegenstand, „Zurück zu …“ in der Titelleiste.
+    6. Strg+Rechtsklick auf einen Gegenstand: „Im Markt zeigen“ und „Gegenstand (Broker)“.
+    7. Danach etwas kaufen, einstellen und abbrechen, dann `/broker pruefen ah`: alles „sauber“, keine Meldung „Aktion blockiert“.
+
 ## 0.58.0
 
 Kurz: Einkaufen und Radar sehen jetzt aus wie Blizzards Reiter Verkaufen (hellgrau statt schwarzem Marmor). Im Verkaufsfenster stehen Dauer, Einzahlen, Gesamtpreis und „Auktion erstellen“ dichter, damit Brokers Rat auch neben dem Haken „Sofortkaufmodus“ Platz hat.
