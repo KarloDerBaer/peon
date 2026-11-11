@@ -199,11 +199,6 @@ function R.Budget(money)
     return math.max(0, money - reserve)
 end
 
-function R.Affordable(d, budget)
-    if budget == nil then budget = R.Budget() end
-    return not budget or (d.price or d.offer or 0) <= budget
-end
-
 -- So viele Stueck des Schnaeppchens bekomme ich fuer budget (guenstigste zuerst)
 function R.QtyFor(d, budget)
     local want = d.qty or 1
@@ -1194,19 +1189,6 @@ function R.Refresh()
         if d then R.list:Select(d) end
     end
     R.UpdateView()
-end
-
--- Was der naechste Klick kostet: Massenware qty Stueck, Einzelgegenstand eine Auktion
-function R.OfferCost(d, qty)
-    if d.commodity then return (ns.Data.CostOf(d.rows or {}, qty or 1)) end
-    return d.price or d.offer or 0
-end
-
--- Zweite Zeile beim Radar-Scan: was mit den Abfragen passiert
-function R.DiagText()
-    local s = R.stats
-    local avg = s.answered > 0 and s.ansTime / s.answered or 0
-    return L.RADAR_DIAG:format(s.gameSent or 0, s.answered + (s.cached or 0), s.timeouts, math.floor((s.waitReady or 0) + 0.5), s.skipped or 0, avg)
 end
 
 local function SignedMoney(v)

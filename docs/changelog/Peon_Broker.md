@@ -2,6 +2,25 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.59.1
+
+Kurz: Der Scan-Knopf sitzt jetzt mit seinem Text oben in der Titelleiste des Auktionshauses, wo ihn die Reiter nicht mehr verdecken. Der Knopf „Blizzard pur“ ist dort weg, die Einstellung findest du in den Optionen.
+Kurz: In Brokers Reitern scheint links oben am runden Bild nichts mehr von Blizzards Fenster durch. „Zurück zu …“ steht in Blizzards Kaufansicht direkt rechts neben „Zurück“.
+Kurz: Aufgeräumt: nicht mehr gebrauchter Code und Texte sind entfernt, ebenso vier Einstellungen des früheren Reiters Verkaufen.
+
+- 0.59.1 (11.11.2026, Rückmeldung von KarloDerBaer nach dem Test von N1: „schaut alles gut aus“, vier Anmerkungen):
+  - **Knopf „Blizzard pur“ im Auktionshaus entfernt.** Die Einstellung bleibt auf der Optionsseite und als `/broker pur`.
+  - **Scan-Knopf in der Titelleiste** links neben dem Schließen-Knopf, der Text zum Scan steht links davon. Unter dem Fenster verdeckten ihn die acht Reiter.
+  - **Ecke am runden Bild:** Brokers Fläche begann erst unter Blizzards Suchleiste und sparte die Ecke am Bild aus, dort schien Blizzards Inhalt durch. Jetzt deckt sie alles ab der Titelleiste ab und liegt unter dem Bild statt daneben. Nachgelesen in Blizzards Fenstervorlage (Zweig forever): rundes Bild auf Ebene 400, Metallrahmen 500, Titel 510. Brokers Fläche liegt auf 300, Knöpfe in der Titelleiste auf 520.
+  - **„Zurück zu …“** steht in Blizzards Kaufansicht rechts neben Blizzards „Zurück“ (`T.PlaceBack`, nur der Anker des eigenen Knopfs). Auf Brokers eigenen Seiten und im Broker-Fenster steht der Knopf links in der Titelleiste neben dem Bild.
+  - **Aufgeräumt** (Auftrag von KarloDerBaer):
+    - 178 Texte ohne Verwendung in beiden Sprachen entfernt (alte Reiter Start, Verkaufen, Behalten, Meine Auktionen, alte Tooltip-Schalter, Prüffläche aus U0).
+    - Funktionen ohne Aufruf entfernt: Preisvorschlag, Eintragspreis, Laufzeit und Mindestpreis des früheren Reiters Verkaufen (`D.SuggestSell`, `D.EntryPrice`, `D.SellDuration`, `D.IsLowPrice`, `D.MinPrice`), `S.Speed`, `T.SellRateLine`, `R.Affordable`, `R.OfferCost`, `R.DiagText`, dazu ihre Tests.
+    - Einstellungen entfernt, die nur diese Funktionen nutzten: „Massenware mit vielen Angeboten 2 Std.“ mit Mindestzahl (`shortMass`, `shortMassMin`), „Verkauft sich schnell“ und „Markt ist voll“ (`salesGreenHours`, `salesRedDays`), `sellOnlyProfitable`.
+    - Kopf von `Broker.lua` gekürzt, der Verlauf steht hier im Changelog.
+    - Noch nicht aufgeräumt: der abgeschaltete Schnellkauf im Radar. Das Radar wird mit N6 neu gebaut, dabei fällt er weg.
+  - **Im Spiel prüfen:** Scan-Knopf und Text in der Titelleiste, Ecke am Bild in allen fünf Broker-Reitern, „Zurück zu …“ neben Blizzards „Zurück“ bei Massenware und bei einem Einzelgegenstand. Mit Peon_Bridge 0.9.1: Knopf „An Manager“ nach einem Scan oben rechts über dem Fenster.
+
 ## 0.59.0
 
 Kurz: Broker ist jetzt ein Fenster: Am Auktionator stehen seine Seiten als Reiter im Auktionshaus, unterwegs zeigt das Broker-Fenster dieselben Reiter in gleicher Größe und gleichem Look. Die Reiter heißen Markt, Verkaufen, Auktionen, Einkaufen, Radar, Fokus, Gegenstand und Mehr.

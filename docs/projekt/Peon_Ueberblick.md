@@ -35,8 +35,8 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 | Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
 | Peon_Fishing (früher FishingPlus) | 1.6.0 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
-| Peon_Broker (neu, Auktionshaus) | 0.59.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
-| Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.9.0 | `PeonBridgeDB` | /peon bridge |
+| Peon_Broker (neu, Auktionshaus) | 0.59.1 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
+| Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.9.1 | `PeonBridgeDB` | /peon bridge |
 | Peon_Feedback | 0.4.0 | `PeonFeedbackDB` | /feedback |
 | Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
 | Peon_Ledger (neu, Bestand und Buch) | 0.13.0 | `PeonLedgerDB` | /ledger |
@@ -216,6 +216,7 @@ UI.BottomTabs(win, { { "a", "Übersicht" } }, fn):Select("a"); UI.StatusBar(win)
 - **Nie `pcall` (oder `xpcall`) um eine Funktion mit sehr vielen Rückgabewerten** (z. B. `{ pcall(UIParent.GetChildren, UIParent) }`): Forever-Lua stürzt dann mit „Assertion failure! L->top < L->ci->top (lapi.c)“ ab (Broker 0.28.0, Berufsfenster). Direkt aufrufen: `{ frame:GetChildren() }`.
 - **Vergleichs-Tooltips:** Blizzard baut Gegenstands- und Vergleichs-Tooltip alle 0,2 Sek. neu auf und hängt die Vergleichszeilen („Wenn Ihr diesen Gegenstand ersetzt …“) nach allen Nachläufen an, dann `SetShown(true)`. Wer Zeilen umsortiert, muss das im selben Bild tun (`hooksecurefunc(tt, "Show"/"SetShown")`), sonst flackert es.
 - **Breite Vergleichs-Tooltips schieben den Gegenstands-Tooltip:** Passt der Vergleich nicht neben den Tooltip, verschiebt Blizzard den Gegenstands-Tooltip (`AnchorShoppingTooltips`). Im Auktionshaus (Neuaufbau alle 0,2 Sek. mit `GameTooltip_Hide`) sieht das wie Flackern aus. Umgeschriebene Zeilen verlieren Blizzards Umbruch; Peon_Tooltip bricht deshalb ab 0.7.1 selbst um (Tooltip 0.7.1).
+- **Ebenen in Blizzards Fenstervorlage** (`PortraitFrameBaseTemplate`, nachgelesen im Zweig forever, `SharedUIPanelTemplates.xml`): rundes Bild (`PortraitContainer`) 400, Metallrahmen (`NineSlice`) 500, Titel und Schließen-Knopf 510. Eine eigene Fläche über Blizzards Inhalt gehört darunter (Broker: 300), eigene Knöpfe in der Titelleiste darüber (520). Liegt die Fläche über allem, muss sie das Bild aussparen, und in der Ecke scheint Blizzards Inhalt durch (Broker 0.41 bis 0.59.0).
 - **Fenster im Blizzard-Stil:** Taschen `PortraitFrameFlatTemplate` (+ `SetBorder("HeldBagLayout")` für den kleinen Ring, ohne ihn bleibt der große, `SetPortraitToAsset`, `SetPortraitTextureSizeAndOffset(36, -4, 1)`, `SetTitleOffsets(35)`, `PortraitContainer.CircleMask` genau auf das Bild legen wie Blizzards `Camelot\ContainerFrame.lua`), Bank `PortraitFrameTemplate` (`SetPortraitToUnit("npc")`), Broker/Ledger `ButtonFrameTemplate`, Gildenbank `BasicFrameTemplate`; Reiter oben `PanelTopTabButtonTemplate`, unten `PanelTabButtonTemplate`.
 
 ## Start einer neuen Sitzung

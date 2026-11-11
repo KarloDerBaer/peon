@@ -49,6 +49,7 @@ local function W()
   function m.Hide(s) s.shown = false end
   function m.SetMinMaxValues(s, a, b) s.min, s.max = a, b end
   function m.SetAlpha(s, a) s.alpha = a end
+  function m.SetFrameLevel(s, v) s.level = v end
   function m.SetPoint(s, ...) s.points[#s.points+1] = { ... } end
   function m.ClearAllPoints(s) s.points = {} end
   function m.RegisterEvent(s, e) if UNKNOWN_EVENTS[e] then error("Attempt to register unknown event \"" .. e .. "\"") end s.events[e] = true end
@@ -696,25 +697,8 @@ fire("AUCTION_HOUSE_SHOW")
 
 -- ===== Reiter "Verkaufen" (0.8, ab 0.10 ueber das Verkaufsfenster des Auktionshauses) =====
 local Sell = ns.Live   -- ab 0.55 nur noch die Bausteine (Live-Ergebnisse lesen)
-check(D.MinPrice(5) == 6 and D.MinPrice(20) == 22 and D.MinPrice(0) == nil, "F19: Mindestpreis (5c -> 6c, 20c -> 22c)")
 local lvMin, lvMed, lvQty, lvOwn = D.LiveValues({ { price = 110, qty = 5, own = 5 }, { price = 115, qty = 8, own = 0 }, { price = 150, qty = 7, own = 2 } })
 check(lvMin == 115 and lvOwn == 110 and lvQty == 20 and lvMed == 115, "F21/F22: Min ohne eigene, Median ueber alle")
-local sg = D.SuggestSell({ { price = 110, qty = 5, own = 5 }, { price = 115, qty = 8, own = 0 } }, nil, 2770, 5, mod.db)
-check(sg.vp == 110 and sg.source == "own", "F23: eigenes Angebot am guenstigsten -> eigener Preis")
-sg = D.SuggestSell({ { price = 120, qty = 4, own = 4 }, { price = 115, qty = 8, own = 0 } }, nil, 2770, 5, mod.db)
-check(sg.vp == 115 and sg.source == "live", "F23: anderer guenstiger -> nach Rechenmodell")
-sg = D.SuggestSell({}, market.items[2770], 2770, 5, mod.db)
-check(sg.source == "scan" and sg.vp == market.items[2770].m, "F24: ohne Live-Daten aus dem Scan (AHmin, Massenware nicht unterboten)")
-sg = D.SuggestSell(nil, nil, 9999, 7, mod.db)
-check(sg.source == "vendor" and sg.vp == 8, "F24: nur Haendlerpreis: 7c / 0,95 -> 8c")
-check(D.SuggestSell(nil, nil, 9999, nil, mod.db).vp == nil, "F24: ohne jeden Vergleich kein Vorschlag")
-check(D.SellDuration(2770, 25, mod.db) == 2 and D.SellDuration(2770, 5, mod.db) == 8, "F25: Massenware ab 20 Angeboten 2 Std., sonst 8")
-check(D.SellDuration("15000:1047", 99, mod.db) == 8, "F25: Einzelgegenstand bleibt bei 8 Std.")
-check(D.SellDuration(2770, 25, mod.db, { dur = 24 }) == 24, "F25: von Hand gewaehlte Laufzeit gewinnt")
-mod.db.shortMass = false
-check(D.SellDuration(2770, 25, mod.db) == 8, "F25: Einstellung aus -> 8 Std.")
-mod.db.shortMass = true
-check(D.IsLowPrice(50, 115, mod.db) and not D.IsLowPrice(90, 115, mod.db), "F27: Preis stark unter dem Vorschlag")
 
 -- Taschen und Auktionshaus fuer den Verkauf
 local BAG = {
@@ -1532,18 +1516,8 @@ fire("AUCTION_HOUSE_SHOW")
     D.ApplyLive(4444, rowsP, clock + 1)
     check(market.items[4444].m == 50 and market.items[4444].md == 200 and market.items[4444].q == 500 and market.items[4444].lt == clock + 1,
         "Teil-Ergebnis: Minimum neu, Median und Menge bleiben")
-    local sgP = D.SuggestSell(rowsP, market.items[4444], 4444, nil, mod.db)
-    check(sgP.median == 200 and sgP.dump, "Vorschlag mit Teil-Ergebnis: Median aus der Datenbank (Dumping erkannt)")
     market.items[4444], LIVE[4444] = nil, nil
     AHs.HasFullCommoditySearchResults = savedHF
-    -- Eintragspreis (F23a): guenstigstes Angebot minus Unterbieten, Vorschlag bleibt Richtwert
-    local e = { m = 100, md = 300 }
-    local sg = D.SuggestSell({ { price = 100, qty = 5, own = 0 }, { price = 300, qty = 20, own = 0 } }, e, 2770, 5, mod.db)
-    local ep, why = D.EntryPrice(sg, e, 2770, 5, mod.db)
-    check(sg.dump and sg.vp > 100 and ep == 100 and why == "cheapest", "Dumping: eingetragen wird das guenstigste Angebot, Vorschlag hoeher")
-    local ep2, why2 = D.EntryPrice({ source = "live", min = 4, vp = 4 }, nil, 2770, 5, mod.db)
-    check(ep2 == 6 and why2 == "min", "unter dem Haendlerpreis: auf den Mindestpreis angehoben")
-    check(D.EntryPrice({ source = "own", vp = 77, min = 77 }, nil, 2770, 5, mod.db) == 77, "eigenes Angebot am guenstigsten: Preis bleibt")
     -- Blizzard-Fenster: Daten noch nicht geladen -> warten, dann zeigen
     local modes = { Buy = {}, CommoditiesBuy = {}, ItemBuy = {}, Auctions = {}, ItemSell = {} }
     AuctionHouseFrameDisplayMode = modes
@@ -1893,7 +1867,6 @@ end)()
   local txt = Sa.TooltipText(r)
   check(txt:find("|cffff5555≈", 1, true) and txt:find("60/Std.", 1, true) and not txt:find("reicht", 1, true), "Tooltip: rotes ≈, ohne Reichweite (" .. txt .. ")")
   check(Sa.SellText(r):find("reicht 1,8 Std.", 1, true), "Verkaufen: mit Reichweite")
-  check(Sa.Speed(r) == nil, "rot: keine Hinweise schnell/voll")
   -- Scan-Vergleich im gleichen Zeitraum: nicht doppelt zaehlen
   Sa.OnScan(e, key, { 50, 100, 3, 60, 40, 3 }, t0)
   Sa.OnScan(e, key, { 50, 70, 3, 60, 40, 3 }, t0 + 1200)
@@ -1903,7 +1876,6 @@ end)()
   live(t0 + 5400, { { 11, 40, 50, 14600 }, { 12, 40, 60, 14600 } })
   r = Sa.Stats(e, t0 + 5400)
   check(r.level == 2 and r.minutes == 90 and Sa.TooltipText(r):find("|cffffd100≈", 1, true), "90 Min. beobachtet: gelbes ≈")
-  check(Sa.Speed(r) == "fast", "ab gelb: verkauft sich schnell")
   live(t0 + 12600, { { 11, 40, 50, 7400 }, { 12, 40, 60, 7400 } })
   r = Sa.Stats(e, t0 + 12600)
   check(r.level == 3 and Sa.TooltipText(r):find("|cff60e060≈", 1, true), "3,5 Std. beobachtet: gruenes ≈ (immer mit Zeichen)")
@@ -2572,8 +2544,14 @@ Win.Refresh()
   mod.acc.ahPlain = false
   Win.frame:Hide()
   fire("AUCTION_HOUSE_SHOW")
-  check(T.built and T.tabs.buy and T.tabs.radar and T.tabs.focus and T.tabs.prices and T.tabs.more and T.page and T.plainButton,
-    "N1: fuenf Reiter, Flaeche und Knopf Blizzard pur angelegt")
+  check(T.built and T.tabs.buy and T.tabs.radar and T.tabs.focus and T.tabs.prices and T.tabs.more and T.page,
+    "N1: fuenf Reiter und Flaeche angelegt")
+  check(_G.PeonBrokerAHPlainButton == nil and T.BuildPlainButton == nil, "0.59.1: kein Knopf Blizzard pur mehr im Auktionshaus")
+  check(T.page.points[1][5] == -22 and T.page.level == 305 and T.page.level < 400,
+    "0.59.1: Flaeche ab der Titelleiste, unter dem runden Bild (Ebene 400)")
+  local sbt = _G.PeonBrokerScanButton
+  check(sbt.points[1][1] == "TOPRIGHT" and sbt.points[1][3] == "TOPRIGHT" and sbt.points[1][4] == -34 and sbt.status,
+    "0.59.1: Scan-Knopf mit Text in der Titelleiste neben dem Schliessen-Knopf")
   check(T.status and T.back and not T.back.shown, "N1: Statuszeile und Knopf Zurueck im Auktionshaus, Zurueck anfangs verborgen")
   check(T.tabs.buy.points[1][2] == ah.AuctionsTab and T.tabs.radar.points[1][2] == T.tabs.buy and T.tabs.focus.points[1][2] == T.tabs.radar
     and T.tabs.prices.points[1][2] == T.tabs.focus and T.tabs.more.points[1][2] == T.tabs.prices and #ah.AuctionsTab.points == 0,
@@ -2652,8 +2630,8 @@ Win.Refresh()
   StaticPopupDialogs.PEON_BROKER_AH_PLAIN_ON.OnAccept()
   check(mod.acc.ahPlain == true and calls.reload == 1, "U0: Blizzard pur an, Oberflaeche wird neu geladen")
   check(not ns.AHTouch() and Win.SetAHMode("Buy") == false and ns.Buy.ShowInAH({ key = 2770 }) == false, "U0: bei Blizzard pur kein Umschalten und kein Zeigen in Blizzards Fenster")
-  local built = T.built; T.built, T.plainButton = nil, nil
-  check(T.Build() == false and T.plainButton == nil, "U0: bei Blizzard pur keine Reiter")
+  local built = T.built; T.built = nil
+  check(T.Build() == false, "U0: bei Blizzard pur keine Reiter")
   T.built = built
   mod:ResetDefaults()
   check(mod.acc.ahPlain == true, "U0: Standardwerte lassen Blizzard pur stehen")
@@ -2685,7 +2663,7 @@ end)()
   local display = 0
   ah.SetDisplayMode = function() display = display + 1 end
   ah.GetFrameLevel = function() return 5 end
-  T.built, T.tabs, T.page, T.plainButton, T.current = nil, {}, nil, nil, nil
+  T.built, T.tabs, T.page, T.current = nil, {}, nil, nil
   mod.acc.ahPlain = false
   fire("AUCTION_HOUSE_SHOW")
   check(T.built and T.tabs.radar, "U7: Reiter da")
@@ -2729,6 +2707,14 @@ end)()
     check(ns.Go.Market({ key = 2770, offer = 120, qty = 10 }) and T.current == nil and shown and shown.key == 2770 and shown.offer == 120,
       "N1: Im Markt zeigen aus dem Radar: Flaeche zu, Gegenstand in Blizzards Kaufansicht")
     check(ns.Go.back == "radar" and T.back.shown and T.back.text == "Zurück zu Radar", "N1: Knopf Zurueck zu Radar")
+    check(T.backAt == "title" and T.back.points[1][1] == "TOPLEFT" and T.back.points[1][4] == 62, "0.59.1: ohne Blizzards Zurueck links in der Titelleiste")
+    local bb = CreateFrame("Button")
+    bb.IsVisible = function() return true end
+    ah.CommoditiesBuyFrame = { BackButton = bb }
+    T.OnDisplayMode()   -- Blizzard hat die Kaufansicht geoeffnet
+    check(T.backAt == "blizzard" and T.back.points[1][1] == "LEFT" and T.back.points[1][2] == bb and T.back.points[1][3] == "RIGHT",
+      "0.59.1: in Blizzards Kaufansicht rechts neben Blizzards Zurueck")
+    ah.CommoditiesBuyFrame = nil
     T.back.scripts.OnClick(T.back)
     check(T.current == "radar" and ns.Go.back == nil and not T.back.shown, "N1: Zurueck fuehrt zum Radar, Knopf weg")
     ns.Go.Item({ id = 2770, name = "Kupfererz" })

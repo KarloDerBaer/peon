@@ -2,23 +2,8 @@
 -- Anmeldung beim Peon-Kern, Markt-Schluessel, Geldanzeige, Befehle.
 -- Einstellungen in PeonBrokerDB (accountweit). Ergebnis der Pruefung in PeonBrokerDB.probe.
 --
--- Stand 0.33: Werte und Zuhoerer ueber Peon_Bridge (Modul "bridge", bis 0.32 Peon_Client "client"), Kanal broker.
--- Stand 0.32: Absatz vom Peon Client als Rueckfall (Sales.Stats mit Schluessel, Rechenmodell F49).
--- Stand 0.31: Langzeit-Teil des ueblichen Bereichs vom Peon Client (D.ClientBand, Rechenmodell Kapitel 8).
--- Stand 0.30: Zuhoerer fuer Momentaufnahmen (mod:AddSnapshotListener, fuer Peon_Client).
--- Stand 0.18: Radar-Kaufzeile (1 Stueck / Stapel / alle mit Kosten und Gewinn), Rechtsklick ausblenden, Scan-Einstellungen unten.
--- Stand 0.17: Radar mit Wiederverkauf gegen das naechste Angebot, Gewinn je Stueck/Stapel, Kauf je Stueck/Stapel, Anzeige Haendler/AH, Gold-Pruefung.
--- Stand 0.16: Radar mit waehlbarer Reihenfolge, "nur Warnton", Anzeige des abgefragten Gegenstands.
--- Stand 0.15: Live-Ergebnisse schreiben den aktuellen Stand in die Datenbank (Data.ApplyLive); Radar zeigt Treffer bis 60 Min.
--- Stand 0.14: Reiter "Einkaufsliste" (Buy.lua) und "Radar" (Radar.lua, Schnaeppchen mit Radar-Scan).
--- Stand 0.13: Reiter "Einkaufen" (Buy.lua): Einkaufslisten und Schnaeppchen.
--- Stand 0.12: Reiter "Meine Auktionen" (Auctions.lua).
--- Stand 0.10: Verkaufen ueber das Blizzard-Verkaufsfenster, "nicht verkaufen" je Charakter (PeonBrokerCharDB).
--- Stand 0.8: Reiter "Verkaufen" (Sell.lua) mit Live-Abgleich und Einstellen per Klick.
--- Stand 0.7: Broker-Fenster mit Reiter "Preise" (Window.lua, Prices.lua).
--- Stand 0.6: Rechenmodell (Peon_Broker_Rechenmodell.md) in Data.lua, Tooltip nach Kapitel 3; Komplettscan (Scan.lua),
--- Pruefbefehl (Probe.lua), Minimap-Button; braucht Peon API 7.
--- Konzept und Bauabschnitte: Peon_Broker_Konzept.md im Projektordner.
+-- Werte und Zuhoerer fuer den Peon Manager laufen ueber Peon_Bridge (Kanal broker).
+-- Konzepte: docs/konzepte/broker/ (Neuaufbau, Rechenmodell). Verlauf der Versionen: docs/changelog/Peon_Broker.md.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -48,9 +33,6 @@ local mod = Peon:NewModule(ADDON_NAME, {
         ahPlain      = false,   -- ab 0.41: "Blizzard pur", Broker laesst das Auktionshaus in Ruhe (AHTabs.lua)
         windowTab    = "prices",-- zuletzt gewaehlter Reiter
         windowPos    = {},      -- Position des Fensters, wenn es nicht am Auktionshaus angedockt ist
-        shortMass    = true,    -- Massenware mit vielen Angeboten auf 2 Std. (F25)
-        shortMassMin = 20,      -- VIEL: ab so vielen Angeboten
-        sellOnlyProfitable = true, -- Reiter Verkaufen: nur lohnende Gegenstaende zeigen
         dealMinVendor = 10,     -- GEW_H: Mindestgewinn Haendler-Schnaeppchen (Kupfer)
         dealMinMarket = 50,     -- GEW_M: Mindestgewinn Markt-Schnaeppchen (Silber)
         dealScans    = 10,      -- SCANS_MIN: Datenlage Markt
@@ -72,8 +54,6 @@ local mod = Peon:NewModule(ADDON_NAME, {
         salesMidMin  = 60,      -- Sicherheit: ab so vielen beobachteten Minuten gelbes statt rotes Zeichen
         salesSureMin = 180,     -- ab so vielen beobachteten Minuten gruenes Zeichen
         salesCancelPct = 10,    -- Einzelgegenstaende: so viel % der vorzeitig verschwundenen Angebote gelten als abgebrochen
-        salesGreenHours = 24,   -- Reichweite unter so vielen Stunden: "verkauft sich schnell"
-        salesRedDays = 7,       -- Reichweite ueber so vielen Tagen: "Markt ist voll"
         -- Berufsfenster (ab 0.39, KarloDerBaer 08.11.2026): Gewinn in der Rezeptliste, Block unter den Reagenzien
         craftList    = true,    -- Gewinn rechts in der Rezeptliste
         craftListWhich = "all", -- welche Rezepte: all, profit, top3, top5, top10
@@ -90,11 +70,11 @@ local mod = Peon:NewModule(ADDON_NAME, {
     },
     ranges   = { minimapAngle = { 0, 359, 1 }, dataDays = { 14, 90, 1 }, trendNeutral = { 1, 20, 1 },
                  trendStrong = { 10, 100, 5 }, undercutValue = { 0, 100, 1 }, undercutMassValue = { 0, 100, 1 },
-                 dumpPct = { 10, 90, 5 }, shortMassMin = { 5, 100, 1 }, dealMinVendor = { 0, 10000000, 1 },
+                 dumpPct = { 10, 90, 5 }, dealMinVendor = { 0, 10000000, 1 },
                  dealMinMarket = { 0, 100000, 1 }, dealScans = { 1, 50, 1 }, dealDays = { 1, 14, 1 }, radarMaxAge = { 0, 240, 5 },
                  dealMargin = { 0, 100, 5 }, dealDepth = { 5, 100, 5 }, dealHold = { 6, 168, 6 }, radarFlash = { 0, 30, 1 }, radarReserve = { 0, 1000000, 1 },
                  salesWindow = { 1, 24, 1 }, salesMidMin = { 10, 600, 10 }, salesSureMin = { 20, 1440, 10 },
-                 salesCancelPct = { 0, 50, 5 }, salesGreenHours = { 1, 168, 1 }, salesRedDays = { 1, 60, 1 } },
+                 salesCancelPct = { 0, 50, 5 } },
     choices  = { undercutMode = { copper = true, percent = true }, undercutMassMode = { copper = true, percent = true },
                  duration = { [2] = true, [8] = true, [24] = true },
                  radarKind = { both = true, vendor = true, market = true },

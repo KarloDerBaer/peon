@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.9.1
+
+Kurz: Der Knopf „An Manager“ erscheint nach einem Scan jetzt oben rechts über dem Auktionshaus, weil Brokers Scan-Knopf in die Titelleiste gewandert ist.
+
+- 0.9.1 (11.11.2026): Brokers Scan-Knopf sitzt ab Broker 0.59.1 in der Titelleiste des Auktionshauses. Der Knopf „An Manager“ hing darunter und läge jetzt über Blizzards Suchleiste. Er steht nun oben rechts über dem Fenster. Ohne Auktionshaus-Fenster bleibt es beim alten Platz.
+  - **Im Spiel prüfen:** nach einem Komplettscan Knopf „An Manager“ über der rechten oberen Ecke des Auktionshauses.
+
 ## 0.9.0
 
 Kurz: Die Beobachtung (früher Favoriten) aus dem Manager kommt jetzt auch im Spiel bei Broker an.

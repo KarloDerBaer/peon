@@ -171,7 +171,7 @@ function W.Create()
     end
 
     W.status = W.NewStatus(f)
-    W.back = W.NewBack(f, f, -30)
+    W.back = W.NewBack(f, f)
 
     f:SetScript("OnShow", function() mod:Call("Fenster", W.Refresh) end)
     f:SetScript("OnHide", function() W.Leave(nil) end)
@@ -180,11 +180,12 @@ function W.Create()
     return f
 end
 
--- Knopf "Zurueck zu ..." in der Titelleiste (links neben dem Schliessen-Knopf). parent = Rahmen, anchor = Fenster
-function W.NewBack(parent, anchor, x)
+-- Knopf "Zurueck zu ..." links in der Titelleiste (rechts neben dem runden Bild). parent = Rahmen, anchor = Fenster
+W.BACK_X = 62
+function W.NewBack(parent, anchor)
     local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     b:SetSize(150, 18)
-    b:SetPoint("TOPRIGHT", anchor, "TOPRIGHT", x, -3)
+    b:SetPoint("TOPLEFT", anchor, "TOPLEFT", W.BACK_X, -3)
     if b.GetFontString and b:GetFontString() and b:GetFontString().SetFontObject then
         b:GetFontString():SetFontObject("GameFontNormalSmall")
     end

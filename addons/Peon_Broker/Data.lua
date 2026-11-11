@@ -677,14 +677,8 @@ function D.Evaluate(e, key, count, hp, db)
 end
 
 ---------------------------------------------------------------------------
--- Verkaufen mit Live-Daten (Rechenmodell Kapitel 4, F21-F27)
+-- Live-Daten (Rechenmodell Kapitel 4, F21-F22)
 ---------------------------------------------------------------------------
--- F19: kleinster Preis je Stueck, bei dem der Erloes ueber dem Haendlerpreis liegt
-function D.MinPrice(hp)
-    if type(hp) ~= "number" or hp <= 0 then return nil end
-    return math.floor(hp / (1 - D.Cut())) + 1
-end
-
 -- Live-Angebote { { price, qty, own }, ... } (je Stueck, own = eigene Menge dieser Stufe)
 -- F21: AHmin_live = guenstigstes Angebot anderer Verkaeufer; F22: Median ueber alle Angebote
 -- Rueckgabe: min (andere), median, menge, eigenes guenstigstes, Anzahl Stufen
@@ -700,65 +694,6 @@ function D.LiveValues(rows)
     end
     local _, median, qty = D.Summarize(flat)
     return min, median, qty, ownMin, #rows
-end
-
--- F23/F24: Preisvorschlag beim Verkaufen
--- Rueckgabe-Tabelle: vp, source ("live", "own", "scan", "vendor" oder nil), dump, min, median
-function D.SuggestSell(rows, e, key, hp, db)
-    local r = {}
-    local min, median, _, ownMin = D.LiveValues(rows)
-    -- nur ein Teil der Angebote geliefert (ab 0.20): Median aus der Datenbank (Scan) statt aus dem Teil
-    if median and type(rows) == "table" and rows.partial and type(e) == "table" and e.md and e.md > median then median = e.md end
-    if ownMin and (not min or ownMin <= min) then
-        r.vp, r.source, r.min, r.median = ownMin, "own", ownMin, median           -- F23: nicht selbst unterbieten
-    elseif min then
-        r.vp, r.basis, r.dump, r.band = D.Suggest(min, median, key, db, e, type(e) == "table" and e.md or nil)
-        r.source, r.min, r.median = "live", min, median
-    elseif type(e) == "table" and e.m then
-        r.vp, r.basis, r.dump, r.band = D.Suggest(e.m, e.md, key, db, e, e.pmd)       -- F24: letzter Scan
-        r.source, r.min, r.median = "scan", e.m, e.md
-    elseif D.MinPrice(hp) then
-        r.vp, r.source = D.MinPrice(hp), "vendor"                                 -- F24: nur Haendlerpreis bekannt
-    end
-    return r
-end
-
--- F23a (ab 0.20, Wunsch von KarloDerBaer 02.10.2026): Eintragspreis beim Verkaufen = guenstigstes Angebot minus Unterbieten,
--- auch bei Dumping (der Vorschlag bleibt als Richtwert und Hinweis). Untergrenze: Mindestpreis (Haendler, F19).
--- Rueckgabe: Preis je Stueck, Grund ("own", "cheapest", "scan", "vendor", "min" = auf Mindestpreis angehoben) oder nil
-function D.EntryPrice(sg, e, key, hp, db)
-    if type(sg) ~= "table" then return nil end
-    local price, why
-    if sg.source == "own" then
-        price, why = sg.vp, "own"
-    elseif sg.source == "live" or sg.source == "scan" then
-        local min = sg.min
-        if type(min) ~= "number" then return sg.vp, sg.source end
-        price = D.Undercut(min, key, db)
-        why = sg.source == "live" and "cheapest" or "scan"
-    elseif sg.source == "vendor" then
-        return sg.vp, "vendor"
-    else
-        return nil
-    end
-    local mp = D.MinPrice(hp)
-    if mp and price < mp then price, why = mp, "min" end
-    return price, why
-end
-
--- F25: Laufzeit beim Verkaufen (Stunden); offers = Anzahl Angebote (Scan oder live)
-function D.SellDuration(key, offers, db, mem)
-    if type(mem) == "table" and D.EG_SATZ[mem.dur or 0] then return mem.dur, "manual" end
-    if db.shortMass and D.IsCommodity(key) and (offers or 0) >= (tonumber(db.shortMassMin) or 20) then
-        return 2, "short"
-    end
-    return D.Duration(db), "default"
-end
-
--- F27: Preis von Hand deutlich unter dem Vorschlag?
-function D.IsLowPrice(price, vp, db)
-    if type(price) ~= "number" or type(vp) ~= "number" then return false end
-    return price < vp * (1 - (tonumber(db.dumpPct) or 30) / 100)
 end
 
 ---------------------------------------------------------------------------

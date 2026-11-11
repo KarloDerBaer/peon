@@ -310,7 +310,7 @@ function S.Step()
 end
 
 ---------------------------------------------------------------------------
--- Knopf unter dem Auktionshausfenster
+-- Knopf in der Titelleiste des Auktionshauses (ab 0.59.1, vorher unter dem Fenster: dort verdecken ihn die Reiter)
 ---------------------------------------------------------------------------
 function S.StatusText()
     local st = S.state
@@ -340,8 +340,13 @@ function S.CreateButton()
     local parent = rawget(_G, "AuctionHouseFrame")
     if not parent then return end
     local b = CreateFrame("Button", "PeonBrokerScanButton", parent, "UIPanelButtonTemplate")
-    b:SetSize(130, 22)
-    b:SetPoint("TOPRIGHT", parent, "BOTTOMRIGHT", -2, -2)
+    b:SetSize(110, 18)
+    b:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -34, -3)   -- links neben dem Schliessen-Knopf
+    -- ueber Metallrahmen und Titel (Ebenen siehe AHTabs.lua)
+    if b.SetFrameLevel and parent.GetFrameLevel then b:SetFrameLevel((parent:GetFrameLevel() or 1) + 520) end
+    if b.GetFontString and b:GetFontString() and b:GetFontString().SetFontObject then
+        b:GetFontString():SetFontObject("GameFontNormalSmall")
+    end
     b:SetText(L.SCAN_BUTTON)
     local fs = b:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     fs:SetPoint("RIGHT", b, "LEFT", -8, 0)
@@ -350,7 +355,7 @@ function S.CreateButton()
     b:SetScript("OnClick", function() mod:Call("Scan", S.Start) end)
     b:SetScript("OnEnter", function(self)
         if not GameTooltip then return end
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
         GameTooltip:AddLine(("|c%sPeon|r Broker"):format(Peon.COLOR))
         GameTooltip:AddLine(L.SCAN_BUTTON_HINT, 1, 1, 1, true)
         GameTooltip:AddLine(L.MM_MARKET:format(ns.MarketKey()), 0.8, 0.8, 0.8)

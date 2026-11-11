@@ -131,16 +131,6 @@ function T.SellRate(id)
     return rate, sold, back
 end
 
-function T.SellRateLine(tooltip, key)
-    local id = ns.Data.ItemID(key)
-    local rate, sold, back = T.SellRate(id)
-    if not sold then return false end
-    local right = L.TT_SELLRATE_N:format(sold, sold + back)
-    if rate then right = right .. " (" .. math.floor(rate * 100 + 0.5) .. " %)" end
-    Line(tooltip, L.TT_SELLRATE, right)
-    return true
-end
-
 -- Zeile "Neutral" (ab 0.42, Umbau U1, Konzept 5.2): guenstigstes Angebot im neutralen Auktionshaus je Stueck und
 -- Abstand zum Heimatmarkt. Nur wenn es fuer den neutralen Markt Daten gibt. Ab 0.46 ein Baustein (tooltipLayout).
 T.NEUTRAL_OLD = 86400   -- aelter als ein Tag: Alter dazuschreiben

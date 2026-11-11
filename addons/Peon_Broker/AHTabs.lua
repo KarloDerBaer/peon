@@ -32,9 +32,12 @@ T.TABS = {
     { key = "prices", label = "NTAB_ITEM" },
     { key = "more",   label = "NTAB_MORE" },
 }
-T.PAGE_LEVEL = 500  -- Abstand der Flaeche ueber dem Auktionshaus (Rahmenebene)
+-- Rahmenebenen (Blizzards Fenstervorlage, nachgelesen im Zweig forever, SharedUIPanelTemplates.xml): rundes Bild 400,
+-- Metallrahmen 500, Titel und Schliessen 510. Brokers Flaeche liegt ueber Blizzards Inhalt, aber unter dem Bild
+-- (bis 0.59.0 lag sie ueber allem und sparte die Ecke am Bild aus, dort schien Blizzards Inhalt durch).
+T.PAGE_LEVEL = 300  -- Flaeche: ueber Blizzards Inhalt, unter dem runden Bild
+T.TOP_LEVEL = 520   -- Knoepfe in der Titelleiste: ueber Rahmen und Titel
 T.TAB_GAP = -15     -- Abstand zum Reiter davor wie bei Blizzard. Ab 0.56 misst T.AlignTabs den sichtbaren Abstand nach
-T.BAR_UP = 30        -- ab 0.56: Flaeche ragt so weit nach oben in den Streifen der Suchleiste
 T.tabs = {}          -- key -> Knopf
 T.current = nil      -- offener eigener Reiter oder nil (Blizzard-Ansicht)
 T.blocked = {}       -- gemeldete Blockaden dieser Sitzung: { t, event, fn }
@@ -343,6 +346,34 @@ end
 -- Blizzard hat die Ansicht gewechselt (sicherer Anhang an SetDisplayMode)
 function T.OnDisplayMode()
     if T.current then T.Close() end
+    T.PlaceBack()
+end
+
+-- Blizzards Knopf "Zurueck" in der Kaufansicht (Massenware oder Einzelgegenstand), wenn er gerade zu sehen ist
+local function BlizzardBack(f)
+    for _, key in ipairs({ "CommoditiesBuyFrame", "ItemBuyFrame" }) do
+        local bf = rawget(f, key)
+        local b = type(bf) == "table" and rawget(bf, "BackButton")
+        if type(b) == "table" and b.IsVisible and b:IsVisible() then return b end
+    end
+    return nil
+end
+
+-- "Zurueck zu ..." an die passende Stelle: neben Blizzards "Zurueck", sonst links in die Titelleiste. Nur Anker
+-- des eigenen Knopfs, Blizzards Knopf wird nur gelesen.
+function T.PlaceBack()
+    local b, f = T.back, AHFrame()
+    if not b or not f then return end
+    local bb = not T.current and BlizzardBack(f) or nil
+    b:ClearAllPoints()
+    if bb then
+        b:SetSize(170, 22)
+        b:SetPoint("LEFT", bb, "RIGHT", 8, 0)
+    else
+        b:SetSize(150, 18)
+        b:SetPoint("TOPLEFT", f, "TOPLEFT", ns.Window.BACK_X, -3)
+    end
+    T.backAt = bb and "blizzard" or "title"
 end
 
 -- Hintergrund des Auktionshauses (Bg der Fenstervorlage) auf eine eigene Grafik uebernehmen. Liest nur.
@@ -393,32 +424,20 @@ function T.Build()
         if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, f.BuyTab, 20, nil, 70) end
     end
 
-    -- Flaeche ueber Blizzards Inhalt, faengt die Maus ab. Oben links bleibt das Portraet frei, darum zwei Teile:
-    -- die Flaeche ab Hoehe der Kategorien und ein Streifen ueber Blizzards Suchleiste.
+    -- Flaeche ueber Blizzards ganzem Inhalt (ab der Titelleiste), faengt die Maus ab. Sie liegt unter dem runden Bild
+    -- und dem Metallrahmen (T.PAGE_LEVEL), darum braucht sie keine Aussparung mehr.
     local p = CreateFrame("Frame", "PeonBrokerAHPage", f)
-    p:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -60)
+    p:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -22)
     p:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4)
-    -- Weit ueber Blizzards Inhalt: Teile des Verkaufsfensters (Gegenstand, Knopf, Haken) liegen sonst darueber (0.41.1)
-    if p.SetFrameLevel and f.GetFrameLevel then p:SetFrameLevel((f:GetFrameLevel() or 1) + T.PAGE_LEVEL) end
+    if p.SetFrameLevel and f.GetFrameLevel then p:SetFrameLevel(math.min((f:GetFrameLevel() or 1) + T.PAGE_LEVEL, 390)) end
     if p.EnableMouse then p:EnableMouse(true) end
-    local strip = CreateFrame("Frame", nil, p)
-    strip:SetPoint("BOTTOMLEFT", p, "TOPLEFT", 58, 0)
-    strip:SetPoint("BOTTOMRIGHT", p, "TOPRIGHT", 0, 0)
-    strip:SetHeight(36)
-    if strip.EnableMouse then strip:EnableMouse(true) end
-    local sbg = strip:CreateTexture(nil, "BACKGROUND")
-    sbg:SetAllPoints(strip)
-    sbg:SetColorTexture(0.05, 0.05, 0.05, 1)
-    -- ab 0.54: undurchsichtiger Grund. Ab 0.57 darueber derselbe Hintergrund wie Blizzards Fenster (T.CopyFrameBg),
-    -- die Rahmen mit den hellen Grautoenen legt Look.lua darauf
+    -- undurchsichtiger Grund, darueber derselbe Hintergrund wie Blizzards Fenster (T.CopyFrameBg)
     local under = p:CreateTexture(nil, "BACKGROUND", nil, -8)
     under:SetAllPoints(p)
     under:SetColorTexture(0.05, 0.05, 0.05, 1)
     local bg = p:CreateTexture(nil, "BACKGROUND", nil, 1)
     bg:SetAllPoints(p)
-    local sbg2 = strip:CreateTexture(nil, "BACKGROUND", nil, 1)
-    sbg2:SetAllPoints(strip)
-    if not (T.CopyFrameBg(f, bg) and T.CopyFrameBg(f, sbg2)) then bg:SetColorTexture(0.08, 0.08, 0.08, 1); sbg2:Hide() end
+    if not T.CopyFrameBg(f, bg) then bg:SetColorTexture(0.08, 0.08, 0.08, 1) end
     -- ab 0.59: Statuszeile wie im Broker-Fenster (liegt ueber Blizzards Geldanzeige, zeigt das Gold selbst)
     if Peon.UI and ns.Window and ns.Window.NewStatus then
         local bar = ns.Window.NewStatus(p)
@@ -436,42 +455,17 @@ function T.Build()
     if hooksecurefunc then hooksecurefunc(f, "SetDisplayMode", function() mod:Call("Auktionshaus-Reiter", T.OnDisplayMode) end) end
     if f.HookScript then f:HookScript("OnHide", function() mod:Call("Auktionshaus-Reiter", T.OnAHHide) end) end
 
-    -- ab 0.59: Knopf "Zurueck zu ..." nach einem Sprung, auch ueber Blizzards Seiten sichtbar (links neben "Blizzard pur")
+    -- ab 0.59: Knopf "Zurueck zu ..." nach einem Sprung. Auf Brokers Seiten links in der Titelleiste, in Blizzards
+    -- Kaufansicht rechts neben Blizzards "Zurueck" (T.PlaceBack, KarloDerBaer 11.11.2026)
     if ns.Window and ns.Window.NewBack then
-        local b = ns.Window.NewBack(holder, f, -134)
-        if b.SetFrameLevel and f.GetFrameLevel then b:SetFrameLevel((f:GetFrameLevel() or 1) + T.PAGE_LEVEL + 10) end
+        local b = ns.Window.NewBack(holder, f)
+        if b.SetFrameLevel and f.GetFrameLevel then b:SetFrameLevel((f:GetFrameLevel() or 1) + T.TOP_LEVEL) end
         T.back = b
     end
 
     T.built = true
     mod:Dbg("Eigene Reiter im Auktionshaus angelegt")
     return true
-end
-
--- Knopf "Blizzard pur" oben rechts im Auktionshaus (links neben dem Schliessen-Knopf)
-function T.BuildPlainButton()
-    if T.plainButton or ns.AHPlain() then return end
-    local f = AHFrame()
-    if not f then return end
-    local b = CreateFrame("Button", "PeonBrokerAHPlainButton", f, "UIPanelButtonTemplate")
-    b:SetSize(96, 18)
-    -- in der Titelleiste links neben dem Schliessen-Knopf, ueber Blizzards Rahmen (0.41.1: lag vorher darunter)
-    b:SetPoint("TOPRIGHT", f, "TOPRIGHT", -34, -3)
-    if b.SetFrameLevel and f.GetFrameLevel then b:SetFrameLevel((f:GetFrameLevel() or 1) + T.PAGE_LEVEL + 10) end
-    if b.GetFontString and b:GetFontString() and b:GetFontString().SetFontObject then
-        b:GetFontString():SetFontObject("GameFontNormalSmall")
-    end
-    b:SetText(L.AH_PLAIN_BUTTON)
-    b:SetScript("OnClick", function() mod:Call("Blizzard pur", T.AskPlain, true) end)
-    b:SetScript("OnEnter", function(self)
-        if not GameTooltip then return end
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:AddLine(("|c%sPeon|r Broker"):format(Peon.COLOR))
-        GameTooltip:AddLine(L.AH_PLAIN_HINT, 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
-    T.plainButton = b
 end
 
 ---------------------------------------------------------------------------
@@ -557,7 +551,6 @@ end
 function T.OnAHShow()
     if ns.AHPlain() then return end
     -- ab 0.59: ein Fenster. Ist das Broker-Fenster offen, schliesst es, und sein Reiter oeffnet im Auktionshaus.
-    T.BuildPlainButton()
     T.Build()
     T.AlignSoon()
     if not T.built then return end   -- ohne eigene Reiter (Aufbau gescheitert) bleibt das Fenster, wie es ist

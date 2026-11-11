@@ -44,6 +44,7 @@ function Go.UpdateBack()
             b:SetShown(text ~= nil)
         end
     end
+    if T and T.PlaceBack then T.PlaceBack() end
 end
 
 function Go.SetBack(from)

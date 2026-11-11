@@ -475,15 +475,6 @@ function S.SellText(r)
     return table.concat(parts, " · ")
 end
 
--- Markt schnell / voll (nur ab gelb): "fast", "slow" oder nil
-function S.Speed(r)
-    if not r or r.level < 2 or not r.reach then return nil end
-    local db = mod.db
-    if r.reach < (tonumber(db.salesGreenHours) or 24) then return "fast" end
-    if r.reach > (tonumber(db.salesRedDays) or 7) * 24 then return "slow" end
-    return nil
-end
-
 -- Daten bis 0.23.0 verwerfen (Restzeit-Stufen falsch gelesen, Vergleiche erst ab 10 Min.)
 function S.Migrate(acc)
     if type(acc) ~= "table" or acc.salesVer == 2 then return end

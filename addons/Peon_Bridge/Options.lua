@@ -49,7 +49,14 @@ function ns.ShowButton()
     if not b then
         b = CreateFrame("Button", "PeonBridgeSendButton", anchor, "UIPanelButtonTemplate")
         b:SetSize(130, 22)
-        b:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2)
+        -- ab 0.9.1: Brokers Scan-Knopf sitzt ab Broker 0.59.1 in der Titelleiste des Auktionshauses, darunter laege
+        -- der Knopf ueber Blizzards Suchleiste. Darum oben rechts ueber dem Fenster, ohne Auktionshaus wie bisher.
+        local ah = rawget(_G, "AuctionHouseFrame")
+        if type(ah) == "table" and ah.GetObjectType then
+            b:SetPoint("BOTTOMRIGHT", ah, "TOPRIGHT", -2, 2)
+        else
+            b:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2)
+        end
         b:SetText(L.BTN_SEND)
         b:SetScript("OnClick", function() ns.Send() end)
         b:SetScript("OnEnter", function(self)

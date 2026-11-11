@@ -58,8 +58,6 @@ function ns.CreateOptions()
     page:Add(left, page:Slider("dumpPct", L.OPT_DUMP, L.OPT_DUMP_HINT, " %"))
     page:Add(left, page:Dropdown("duration", L.OPT_DURATION,
         { { 2, L.DUR_2 }, { 8, L.DUR_8 }, { 24, L.DUR_24 } }, L.OPT_DURATION_HINT))
-    page:Add(left, page:Check("shortMass", L.OPT_SHORT_MASS, L.OPT_SHORT_MASS_HINT))
-    local shortMin = page:Add(left, page:Slider("shortMassMin", L.OPT_SHORT_MASS_MIN, L.OPT_SHORT_MASS_MIN_HINT))
 
     -- Radar (Schnaeppchen)
     page:Add(left, page:Header(L.HDR_DEALS), 6)
@@ -107,9 +105,7 @@ function ns.CreateOptions()
     page:Add(left, page:Slider("salesWindow", L.OPT_SALES_WINDOW, L.OPT_SALES_WINDOW_HINT, L.OPT_HOURS_SUFFIX))
     page:Add(left, page:Slider("salesMidMin", L.OPT_SALES_MID, L.OPT_SALES_MID_HINT, L.OPT_MIN_SUFFIX))
     page:Add(left, page:Slider("salesSureMin", L.OPT_SALES_SURE, nil, L.OPT_MIN_SUFFIX))
-    page:Add(left, page:Slider("salesCancelPct", L.OPT_SALES_CANCEL, L.OPT_SALES_CANCEL_HINT, L.OPT_PCT_SUFFIX))
-    page:Add(left, page:Slider("salesGreenHours", L.OPT_SALES_GREEN, L.OPT_SALES_REACH_HINT, L.OPT_HOURS_SUFFIX))
-    page:Add(left, page:Slider("salesRedDays", L.OPT_SALES_RED, nil, L.OPT_DAYS_SUFFIX), 16)
+    page:Add(left, page:Slider("salesCancelPct", L.OPT_SALES_CANCEL, L.OPT_SALES_CANCEL_HINT, L.OPT_PCT_SUFFIX), 16)
 
     page:Add(left, page:Header(L.HDR_DATA), 6)
     page:Add(left, page:Slider("dataDays", L.OPT_DAYS, L.OPT_DAYS_HINT, L.OPT_DAYS_SUFFIX), 12)
@@ -191,7 +187,6 @@ function ns.CreateOptions()
     page.onRefresh = function()
         local on = mod.db and mod.db.tooltipShow
         ttLayout:SetAlpha(on and 1 or 0.4)
-        shortMin:SetAlpha(mod.db and mod.db.shortMass and 1 or 0.4)
         local snd = mod.db and mod.db.radarSound
         soundKey:SetAlpha(snd and 1 or 0.4); soundTest:SetAlpha(snd and 1 or 0.4)
     end
