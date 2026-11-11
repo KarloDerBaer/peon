@@ -2,6 +2,11 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Broker schaltet Blizzards Auktionshaus nicht mehr um (Broker 0.64.1)
+
+- **„Im Markt zeigen“ sucht nur noch** (Claude, wegen der Fehlerberichte 10 und 11): Broker ruft `SelectBrowseResult` und `SetDisplayMode` nicht mehr auf, weil das Blizzards Wert `displayMode` berührt und danach das Benutzen von Gegenständen aus der Tasche blockiert. Der Name kommt ins Suchfeld, Blizzards Liste zeigt den Gegenstand, ein Klick auf die Zeile zeigt die Angebote. Das ist ein Klick mehr als im Konzept (Abschnitt 5: „Kaufansicht mit genau diesem Gegenstand“). Ohne Berührung von Blizzards Werten geht es nicht anders, weil nur ein Klick des Spielers auf Blizzards Zeile die Ansicht sauber umschaltet. **Mit KarloDerBaer noch abzustimmen.**
+- **Favoriten-Stern nur unsichtbar** statt eigener Schicht für Brokers Fläche (Claude): Eine Fläche in Blizzards Schicht HIGH läge über dem runden Bild und dem Rahmen (wie bis 0.59.0).
+
 ## 11.11.2026: Neuaufbau Peon_Broker (Konzept `Peon_Broker_Neuaufbau.md`, freigegeben)
 
 - **Ein Fenster in zwei Zuständen** (KarloDerBaer, Vorschlag Claude): Brokers Seiten als Reiter in Blizzards Auktionshaus, unterwegs ein Broker-Fenster mit derselben Reiterleiste. Ein ganz eigenes Fenster wurde verworfen, weil Kaufen, Verkaufen und Auktionen nachgebaut werden müssten und eigenes Einstellen in Forever nie erprobt ist.

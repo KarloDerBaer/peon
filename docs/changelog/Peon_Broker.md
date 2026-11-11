@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.64.1
+
+Kurz: Der Favoriten-Stern aus Blizzards Kaufansicht scheint nicht mehr durch Brokers Reiter.
+Kurz: „Im Markt zeigen“ sucht den Gegenstand jetzt in Blizzards Markt, ein Klick auf die Zeile zeigt die Angebote. Damit lässt sich danach jeder Gegenstand aus der Tasche wieder benutzen, ohne dass das Spiel eine Aktion von Broker blockiert.
+
+- 0.64.1 (12.11.2026): **Zwei Fehler im Auktionshaus.**
+  - **Favoriten-Stern:** Blizzards Stern in der Kaufansicht eines Gegenstands (`AuctionHouseFavoriteButtonBaseTemplate`) hat eine eigene, höhere Schicht (`frameStrata="HIGH"`, nachgelesen in `Blizzard_AuctionHouseSharedTemplates.xml`, Zweig forever). Er liegt damit über jeder Ebene der Schicht des Auktionshauses, auch über Brokers Fläche (370). Solange Brokers Fläche offen ist, macht Broker die beiden Sterne (Massenware und Einzelgegenstand) unsichtbar und für die Maus taub, danach wieder wie vorher (`T.HideHighStrata`). Nur Methoden des Rahmens, nichts in Blizzards Tabellen.
+  - **Blockierte Aktion beim Benutzen aus der Tasche (Fehlerberichte 10 und 11 in peon-fehler):** Bis 0.64.0 rief Broker beim Sprung „Im Markt zeigen“ Blizzards `SelectBrowseResult` auf (darin `SetDisplayMode`) und leerte Blizzards Liste. Danach galt Blizzards Wert `displayMode` als von Broker berührt. Ein Rechtsklick auf einen nicht verkaufbaren Gegenstand in der Tasche liest diesen Wert (`IsListingAuctions`) und ruft danach `UseContainerItem` auf, das Spiel blockierte das (`ADDON_ACTION_FORBIDDEN`, nachgelesen in `ContainerFrame.lua`, Zweig forever). Jetzt ruft Broker keine von Blizzards Funktionen mehr auf, die Blizzards Werte schreiben: Der Name kommt als Text in Blizzards Suchfeld, die Suche geht über die Spiel-API (`C_AuctionHouse.SendBrowseQuery`), Blizzards Liste füllt sich selbst. Ein Klick auf die Zeile zeigt die Angebote. Steht Blizzard gerade nicht auf „Markt“, sagt ein Hinweis, dass man unten auf „Markt“ klicken soll. `W.SetAHMode`, das Nachsehen und Neuladen nach dem Zeigen (`StartGuard`, `ReloadBlizzardList`) entfallen.
+  - Die Tests prüfen, dass weder `SetDisplayMode` noch `SelectBrowseResult` aufgerufen wird, und den Stern.
+  - **Im Spiel prüfen:**
+    1. Einen Gegenstand in Blizzards Kaufansicht öffnen, dann Radar oder Fokus wählen: Der Stern oben rechts am Gegenstand darf nicht mehr durchscheinen. Zurück auf Markt: Stern wieder da und anklickbar.
+    2. „Im Markt zeigen“ (Doppelklick, Menü, Knopf): Suchfeld enthält den Namen, die Liste zeigt den Gegenstand. Klick auf die Zeile zeigt die Angebote.
+    3. Danach einen Trank oder einen gebundenen Gegenstand in der Tasche per Rechtsklick benutzen: keine Meldung „Aktion blockiert“.
+    4. Aus Verkaufen oder Auktionen heraus „Im Markt zeigen“: Hinweis oben am Bildschirm, nach Klick auf „Markt“ stehen die Treffer da.
+
 ## 0.64.0
 
 Kurz: Das Radar ist jetzt eine schlanke Liste: Gegenstand, Gewinn, Art, Risiko und Stand. Ein Klick auf eine Chance öffnet sie im neuen Reiter „Fokus“.

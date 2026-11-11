@@ -4,7 +4,7 @@
 --
 -- Eigene Reiter, ohne Blizzards Ansichts-Steuerung anzufassen:
 --   * Broker fuegt nichts zu AuctionHouseFrameDisplayMode oder AuctionHouseFrame.Tabs hinzu und ruft SetDisplayMode
---     nie auf. Die Reiter sind eigene Knoepfe (Vorlage AuctionHouseFrameTabTemplate) rechts neben "Auktionen".
+--     nie auf (ab 0.64.1 auch nicht mehr beim Sprung "Im Markt zeigen", siehe Buy.ShowInAH). Die Reiter sind eigene Knoepfe (Vorlage AuctionHouseFrameTabTemplate) rechts neben "Auktionen".
 --   * Ein Klick legt eine eigene, undurchsichtige Flaeche ueber Blizzards Inhalt (Blizzards Rahmen bleiben, wie sie sind)
 --     und stellt nur das Aussehen der Reiter um (PanelTemplates_SelectTab/DeselectTab).
 --   * Wechselt Blizzard die Ansicht (Klick auf Kaufen/Verkaufen/Auktionen, Gegenstand aus der Tasche), meldet das ein
@@ -266,8 +266,11 @@ function T.Show(key)
     if key == nil then key = T.IsHosted(mod.db.windowTab) and mod.db.windowTab or "buy" end
     if T.IsHosted(key) then return T.Open(key) end
     if key == "browse" then
+        -- ab 0.64.1: Broker schaltet Blizzards Ansicht nicht mehr um (Fehlerberichte 10 und 11), sondern schliesst nur
+        -- seine Flaeche. Steht Blizzard nicht auf Markt, sagt ein Hinweis, wo man klickt.
         T.Close()
-        return ns.Window.SetAHMode("Buy")
+        if ns.Buy and ns.Buy.InBrowse and not ns.Buy.InBrowse(AHFrame()) then ns.Buy.HintMarket() end
+        return true
     end
     return T.Open("buy")
 end
@@ -344,6 +347,42 @@ function T.Close()
     if was then T.Leave(was) end
     for _, tab in pairs(T.tabs) do Deselect(tab) end
     if was then RestoreBlizzardTabs(AHFrame()) end
+end
+
+-- Teile von Blizzard in einer hoeheren Schicht (ab 0.64.1): Der Favoriten-Stern in der Kaufansicht eines Gegenstands
+-- (AuctionHouseFavoriteButtonBaseTemplate, frameStrata="HIGH", nachgelesen in Blizzard_AuctionHouseSharedTemplates.xml,
+-- Zweig forever) liegt ueber jeder Ebene der Schicht des Auktionshauses und schien durch Brokers Flaeche. Solange die
+-- Flaeche offen ist, wird er nur unsichtbar und nimmt keine Maus an (Methoden des Rahmens, nichts in Blizzards Tabellen).
+function T.HighStrataFrames(f)
+    local list = {}
+    if type(f) ~= "table" then return list end
+    local cb = rawget(f, "CommoditiesBuyFrame")
+    local bd = type(cb) == "table" and rawget(cb, "BuyDisplay") or nil
+    local ib = rawget(f, "ItemBuyFrame")
+    for _, disp in ipairs({ type(bd) == "table" and rawget(bd, "ItemDisplay") or nil, type(ib) == "table" and rawget(ib, "ItemDisplay") or nil }) do
+        local star = type(disp) == "table" and rawget(disp, "FavoriteButton") or nil
+        if type(star) == "table" and star.SetAlpha then list[#list + 1] = star end
+    end
+    return list
+end
+
+T.dimmed = {}
+function T.HideHighStrata(hide)
+    if hide then
+        for _, b in ipairs(T.HighStrataFrames(AHFrame())) do
+            if not T.dimmed[b] then
+                T.dimmed[b] = { a = b.GetAlpha and b:GetAlpha() or 1, m = b.IsMouseEnabled and b:IsMouseEnabled() }
+                b:SetAlpha(0)
+                if b.EnableMouse then b:EnableMouse(false) end
+            end
+        end
+    else
+        for b, old in pairs(T.dimmed) do
+            b:SetAlpha(old.a or 1)
+            if b.EnableMouse and old.m ~= false then b:EnableMouse(true) end
+        end
+        T.dimmed = {}
+    end
 end
 
 -- Blizzard hat die Ansicht gewechselt (sicherer Anhang an SetDisplayMode)
@@ -450,7 +489,11 @@ function T.Build()
         if bar.SetFrameLevel and p.GetFrameLevel then bar:SetFrameLevel((p:GetFrameLevel() or 1) + 6) end
         T.status = bar
     end
-    p:SetScript("OnShow", function() if ns.Window then ns.Window.FillStatus(T.status) end end)
+    p:SetScript("OnShow", function()
+        if ns.Window then ns.Window.FillStatus(T.status) end
+        T.HideHighStrata(true)
+    end)
+    p:SetScript("OnHide", function() T.HideHighStrata(false) end)
     p:Hide()
     T.page = p
 

@@ -507,7 +507,6 @@ function B.ReadItemRows(itemKey, key)
 end
 
 local function OnResults(commodity, arg)
-    B.GuardSeen(commodity, arg)
     local p = B.pending
     if not p then return end
     local id = commodity and arg or (type(arg) == "table" and arg.itemID)
@@ -541,64 +540,57 @@ end
 ---------------------------------------------------------------------------
 -- Auswahl, Anzeige im Auktionshaus, Kaufplan
 ---------------------------------------------------------------------------
--- Gegenstand in Blizzards Kaufen-Ansicht zeigen. Ab 0.20 verlaesslich: Blizzards SelectBrowseResult tut nichts,
--- solange das Spiel die Daten zum Gegenstand noch nicht hat (GetItemKeyInfo liefert nil) - dann blieb das Fenster
--- beim alten Gegenstand stehen. Broker wartet jetzt darauf (Ereignis ITEM_KEY_ITEM_INFO_RECEIVED bzw. alle 0,3 Sek.).
--- row: { key, itemKey (optional, z. B. aus der eigenen Auktion), offer/cheapest, qty }
--- Rueckgabe: true = jetzt gezeigt; false = nicht moeglich oder wird nachgeholt
-B.SHOW_RETRY, B.SHOW_TRIES = 0.3, 15
-B.GUARD_WAIT = 0.8   -- Sekunden: kommt bis dahin kein Ergebnis fuer den gezeigten Gegenstand, Blizzards Liste neu laden (ab 0.20.2)
-function B.ShowInAH(row, tries)
+-- Gegenstand in Blizzards Markt zeigen (ab 0.64.1, Fehlerberichte 10 und 11 in peon-fehler).
+-- Bis 0.64 rief Broker Blizzards SelectBrowseResult (und damit SetDisplayMode) auf und leerte Blizzards Liste. Danach
+-- galt Blizzards Wert displayMode als von Broker beruehrt: Ein Rechtsklick auf einen nicht verkaufbaren Gegenstand in
+-- der Tasche lief ueber IsListingAuctions und dann UseContainerItem, und das Spiel blockierte ihn
+-- (ADDON_ACTION_FORBIDDEN, nachgelesen in ContainerFrame.lua, Zweig forever).
+-- Jetzt fasst Broker nichts davon an: Der Name kommt als Text in Blizzards Suchfeld, die Suche geht ueber die
+-- Spiel-API (C_AuctionHouse.SendBrowseQuery). Blizzards Liste fuellt sich mit dem Ergebnis selbst (eigenes Ereignis
+-- AUCTION_HOUSE_BROWSE_RESULTS_UPDATED), ein Klick auf die Zeile zeigt die Angebote. Umschalten auf "Markt" darf nur
+-- Blizzard selbst (Klick auf den Reiter), darum steht sonst ein Hinweis da.
+-- row: { key, ... }. Rueckgabe: true = Suche geschickt
+function B.SearchName(key)
+    local id = ns.Data.ItemID(key)
+    local name = id and ns.GetItemInfo(id)   -- Grundname ohne Zusatz findet alle Varianten
+    if type(name) ~= "string" or Peon.IsSecret(name) or name == "" then name = ns.Data.ItemName(key, (ns.Data.Lookup(key))) end
+    if type(name) ~= "string" or name == "" or name == tostring(key) then return nil end
+    return name
+end
+
+-- Zeigt Blizzard gerade die Liste der Suchergebnisse (Ansicht Markt ohne gewaehlten Gegenstand)? Liest nur.
+function B.InBrowse(f)
+    local modes = rawget(_G, "AuctionHouseFrameDisplayMode")
+    if type(f) ~= "table" or type(f.GetDisplayMode) ~= "function" or type(modes) ~= "table" then return true end
+    local ok, m = pcall(f.GetDisplayMode, f)
+    return ok and m == modes.Buy
+end
+
+-- Hinweis oben am Bildschirm: Die Treffer stehen im Markt, Umschalten per Klick
+function B.HintMarket()
+    local ef = rawget(_G, "UIErrorsFrame")
+    if type(ef) == "table" and ef.AddMessage then pcall(ef.AddMessage, ef, L.GO_AH_HINT, 1, 0.82, 0) end
+    mod:Print(L.GO_AH_HINT)
+end
+
+function B.ShowInAH(row)
     local f = rawget(_G, "AuctionHouseFrame")
     if not AHOpen() or type(f) ~= "table" or not row then return false end
     if not ns.AHTouch() then return false end   -- ab 0.41: "Blizzard pur"
-    -- ab 0.48: Broker-Reiter im Auktionshaus offen (Radar, Einkaufen): Blizzards Ansicht nicht umschalten, sonst
-    -- schliesst sich der Reiter. Gekauft wird dort ueber Brokers eigene Knoepfe.
-    if ns.AHTabs and ns.AHTabs.current then return false end
+    if ns.AHTabs and ns.AHTabs.current then return false end   -- Broker-Reiter offen: erst die Flaeche schliessen
+    local name = B.SearchName(row.key)
     local ah = AHApi()
-    local itemKey = type(row.itemKey) == "table" and row.itemKey or B.ItemKeyFor(row.key)
-    if tries == nil then B.showToken = (B.showToken or 0) + 1 end
-    local token = B.showToken
-    local info
-    if ah.GetItemKeyInfo then
-        local ok
-        ok, info = pcall(ah.GetItemKeyInfo, itemKey)
-        if not ok then info = nil end
-    end
-    -- Daten nicht geladen oder das Spiel nimmt gerade keine Abfrage an (ab 0.20.2): kurz warten,
-    -- sonst schaltet Blizzard um, laedt aber keine Angebote (Liste zeigte den vorherigen Gegenstand)
-    local notReady = (ah.IsThrottledMessageSystemReady and not ah.IsThrottledMessageSystemReady()) or B.QueryBusy()
-    local noInfo = ah.GetItemKeyInfo and type(info) ~= "table"
-    if noInfo or notReady then
-        tries = (tries or 0) + 1
-        if tries <= B.SHOW_TRIES and C_Timer then
-            B.showWait = { row = row, tries = tries, token = token }
-            C_Timer.After(B.SHOW_RETRY, function()
-                if B.showToken == token and B.showWait and B.showWait.token == token then B.ShowInAH(row, tries) end
-            end)
-            mod:Dbg(("Im Auktionshaus zeigen: %s - %s (Versuch %d)"):format(tostring(row.key),
-                noInfo and "Daten noch nicht geladen" or "Spiel noch nicht bereit", tries))
-            return false
-        end
-        B.showWait = nil
-        if noInfo then return false end   -- ohne Daten schaltet Blizzard nicht um; nach langem Warten trotzdem zeigen
-    end
-    B.showWait = nil
-    local ok = Call(f, "SelectBrowseResult", { itemKey = itemKey, minPrice = row.cheapest or row.offer or 0,
-        totalQuantity = row.qty or row.hits or 0, containsOwnerItem = row.own and true or false })
-    if ok then
-        local commodity = type(info) == "table" and info.isCommodity
-        if commodity == nil then commodity = ns.Data.IsCommodity(row.key) end
-        B.StartGuard(itemKey, commodity and true or false, token, row)
-    end
-    -- Hat das Fenster wirklich umgeschaltet?
-    local modes = rawget(_G, "AuctionHouseFrameDisplayMode")
-    if ok and type(modes) == "table" and type(f.GetDisplayMode) == "function" then
-        local okm, m = pcall(f.GetDisplayMode, f)
-        if okm and m ~= nil and m ~= modes.CommoditiesBuy and m ~= modes.ItemBuy then ok = false end
-    end
-    mod:Dbg("Im Auktionshaus gezeigt: " .. tostring(row.key) .. " " .. tostring(ok))
-    return ok
+    if not name or not ah.SendBrowseQuery then return false end
+    local bar = rawget(f, "SearchBar")
+    local box = type(bar) == "table" and rawget(bar, "SearchBox") or nil
+    if type(box) == "table" and box.SetText then pcall(box.SetText, box, name) end   -- nur sichtbarer Text
+    local order = (Enum and Enum.AuctionHouseSortOrder and Enum.AuctionHouseSortOrder.Price) or 0
+    local ok = pcall(ah.SendBrowseQuery, { searchString = name, sorts = { { sortOrder = order, reverseSort = false } },
+                                           filters = {}, itemClassFilters = {} })
+    B.shown = { key = row.key, name = name, t = time and time() or 0 }
+    if ok and not B.InBrowse(f) then B.HintMarket() end
+    mod:Dbg("Im Markt gesucht: " .. tostring(row.key) .. " " .. tostring(ok))
+    return ok and true or false
 end
 
 -- Laeuft gerade eine eigene Abfrage von Broker? (ab 0.21.1: Anzeige wartet, sonst ueberholen sich die Suchen)
@@ -619,126 +611,6 @@ function B.ShowLog(text)
     local l = acc.showLog
     l[#l + 1] = (date and date("%H:%M:%S ") or "") .. text
     while #l > 40 do table.remove(l, 1) end
-end
-
--- Gehoeren die Ergebnisse des Spiels zum gezeigten Gegenstand? "ok", "empty" (noch nichts / laedt), "foreign"
-function B.CheckShown(g)
-    local ah = AHApi()
-    if g.commodity then
-        local ok, n = pcall(ah.GetNumCommoditySearchResults, g.itemID)
-        n = ok and tonumber(n) or 0
-        if n == 0 then return ns.Live.IsFull(true, g.itemID) and g.answered and "ok" or "empty", 0 end
-        local okr, r = pcall(ah.GetCommoditySearchResultInfo, g.itemID, 1)
-        if okr and type(r) == "table" and Num(r.itemID) and r.itemID ~= g.itemID then return "foreign", n end
-        return "ok", n
-    end
-    local rows = ns.Live.ReadItems(g.itemKey)
-    if #rows > 0 then return "ok", #rows end
-    if rows.foreign then return "foreign", rows.foreign end
-    return (ns.Live.IsFull(false, g.itemKey) and g.answered) and "ok" or "empty", 0
-end
-
--- Nachsehen (ab 0.20.2, ueberarbeitet 0.21.1; KarloDerBaer: Titel richtig, Liste darunter noch vom vorherigen Gegenstand):
--- nach dem Umschalten pruefen, ob die Ergebnisse zum Gegenstand passen; sonst bis zu 3 Versuche:
--- 1. wie Blizzards "Neu laden" (Refresh...SearchResults), 2. eigene Suche, 3. Gegenstand nochmal zeigen.
-B.GUARD_TRIES = 3
-B.GUARD_FORCE = 0.3   -- Sekunden nach dem Umschalten: einmal neu laden (ab 0.21.1)
-
--- Wie Blizzards Knopf "Neu laden": Liste im Blizzard-Fenster leeren (Reset) und die Suche neu schicken
-function B.ReloadBlizzardList(itemKey, commodity)
-    local f = rawget(_G, "AuctionHouseFrame")
-    local frame = type(f) == "table" and (commodity and f.CommoditiesBuyFrame or f.ItemBuyFrame) or nil
-    local list = type(frame) == "table" and frame.ItemList or nil
-    if type(list) == "table" then Call(list, "Reset") end
-    local ah = AHApi()
-    local fn = commodity and ah.RefreshCommoditySearchResults or ah.RefreshItemSearchResults
-    local ok = false
-    if fn then ok = pcall(fn, commodity and itemKey.itemID or itemKey) end
-    if not ok and ah.SendSearchQuery then
-        local order = (Enum and Enum.AuctionHouseSortOrder and Enum.AuctionHouseSortOrder.Price) or 0
-        ok = pcall(ah.SendSearchQuery, itemKey, { { sortOrder = order, reverseSort = false } }, true)
-    end
-    return ok
-end
-
-function B.StartGuard(itemKey, commodity, token, row)
-    local g = { itemID = itemKey.itemID, itemKey = itemKey, commodity = commodity, token = token, tries = 0, row = row, t0 = GetTime and GetTime() or 0 }
-    B.showGuard = g
-    if not C_Timer then return end
-    local function Elapsed() return math.floor(((GetTime and GetTime() or 0) - g.t0) * 10 + 0.5) / 10 end
-    local Check
-    local function Again(sec) C_Timer.After(sec, function() Check() end) end
-    Check = function()
-        if B.showGuard ~= g or B.showToken ~= token or not AHOpen() then return end
-        -- Schritt 0 (ab 0.21.1, Protokoll von KarloDerBaer: Ergebnisse waren da, Blizzards Liste blieb trotzdem alt):
-        -- nach dem Umschalten einmal wie Blizzards Knopf "Neu laden" - Liste leeren und neu abfragen
-        if not g.forced then
-            local ah = AHApi()
-            if (ah.IsThrottledMessageSystemReady and not ah.IsThrottledMessageSystemReady()) or B.QueryBusy() then
-                g.waits = (g.waits or 0) + 1
-                if g.waits <= 20 then Again(0.3) end
-                return
-            end
-            g.forced, g.answered = true, false
-            local ok = B.ReloadBlizzardList(itemKey, commodity)
-            B.ShowLog(("%s gezeigt, neu geladen nach %s s (%s)"):format(tostring(g.itemID), Elapsed(), tostring(ok)))
-            Again(B.GUARD_WAIT)
-            return
-        end
-        local state, n = B.CheckShown(g)
-        if state == "ok" then
-            B.showGuard = nil
-            B.ShowLog(("%s ok nach %s s (%s Ergebnisse, %d Versuche)"):format(tostring(g.itemID), Elapsed(), tostring(n), g.tries))
-            return
-        end
-        if g.tries >= B.GUARD_TRIES then
-            B.showGuard = nil
-            B.ShowLog(("%s aufgegeben nach %s s: %s"):format(tostring(g.itemID), Elapsed(), state))
-            return
-        end
-        local ah = AHApi()
-        if (ah.IsThrottledMessageSystemReady and not ah.IsThrottledMessageSystemReady()) or B.QueryBusy() then
-            g.waits = (g.waits or 0) + 1
-            if g.waits <= 20 then Again(0.3) end
-            return
-        end
-        g.tries = g.tries + 1
-        local how, ok = "?", false
-        if g.tries == 1 then
-            how = "neu laden"
-            ok = B.ReloadBlizzardList(itemKey, commodity)
-        elseif g.tries == 2 then
-            local order = (Enum and Enum.AuctionHouseSortOrder and Enum.AuctionHouseSortOrder.Price) or 0
-            how = "eigene Suche"
-            if ah.SendSearchQuery then ok = pcall(ah.SendSearchQuery, itemKey, { { sortOrder = order, reverseSort = false } }, true) end
-        else
-            how = "nochmal zeigen"
-            local f = rawget(_G, "AuctionHouseFrame")
-            ok = Call(f, "SelectBrowseResult", { itemKey = itemKey, minPrice = (row and (row.cheapest or row.offer)) or 0,
-                totalQuantity = (row and (row.qty or row.hits)) or 0, containsOwnerItem = row and row.own and true or false })
-        end
-        B.guardRefreshes = (B.guardRefreshes or 0) + 1
-        B.ShowLog(("%s %s nach %s s: Versuch %d %s (%s)"):format(tostring(g.itemID), state, Elapsed(), g.tries, how, tostring(ok)))
-        Again(1.2)
-    end
-    g.check = Check
-    Again(B.GUARD_FORCE)
-end
-
--- Ergebnis-Ereignis: gehoert es zum gezeigten Gegenstand, gleich nachsehen (statt auf die Wartezeit)
-function B.GuardSeen(commodity, arg)
-    local g = B.showGuard
-    local id = commodity and arg or (type(arg) == "table" and arg.itemID)
-    if g and id == g.itemID then
-        g.answered = true
-        if C_Timer and g.check then C_Timer.After(0.1, g.check) end
-    end
-end
-
--- Spiel hat Daten zu einem Gegenstand nachgeladen: wartende Anzeige gleich nachholen
-function B.OnItemKeyInfo()
-    local w = B.showWait
-    if w and w.token == B.showToken then B.ShowInAH(w.row, w.tries) end
 end
 
 function B.Select(row)
@@ -1133,8 +1005,7 @@ function B.Init()
     mod:RegisterEvent("COMMODITY_PURCHASE_SUCCEEDED", function() B.OnBought(true) end)
     mod:RegisterEvent("COMMODITY_PURCHASE_FAILED", function() B.OnBought(false) end)
     mod:RegisterEvent("AUCTION_HOUSE_PURCHASE_COMPLETED", function() B.OnBought(true) end)
-    mod:RegisterEvent("AUCTION_HOUSE_CLOSED", function() B.run, B.pending, B.buying, B.showWait, B.showGuard, B.keyJob = nil, nil, nil, nil, nil, nil end)
-    pcall(mod.RegisterEvent, mod, "ITEM_KEY_ITEM_INFO_RECEIVED", function() B.OnItemKeyInfo() end)
+    mod:RegisterEvent("AUCTION_HOUSE_CLOSED", function() B.run, B.pending, B.buying, B.keyJob = nil, nil, nil, nil end)
     -- ab 0.28: Suchschluessel der Varianten aus jedem Suchergebnis lernen (auch beim Stoebern im Blizzard-Fenster)
     mod:RegisterEvent("ITEM_SEARCH_RESULTS_UPDATED", function(_, itemKey) mod:Call("Schluessel", B.LearnFromResults, itemKey) end)
     pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function() B.OnBrowseResults() end)
@@ -1147,8 +1018,4 @@ end
 W.pages.buy = {
     build = B.Build,
     refresh = B.Refresh,
-    -- Reiter gewaehlt (ab 0.20): Blizzard-Fenster passend umschalten
-    enter = function()
-        if B.selected then B.ShowInAH(B.selected) else W.SetAHMode("Buy") end
-    end,
 }

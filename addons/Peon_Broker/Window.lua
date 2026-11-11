@@ -270,22 +270,6 @@ function W.Leave(next)
     end
 end
 
--- Blizzard-Auktionshaus auf eine Ansicht umschalten (ab 0.20): "Buy", "ItemSell", "Auctions" ...
--- (AuctionHouseFrameDisplayMode; SetDisplayMode stellt auch Blizzards Reiter um). Nur bei offenem Auktionshaus.
-function W.SetAHMode(name)
-    local f, modes = rawget(_G, "AuctionHouseFrame"), rawget(_G, "AuctionHouseFrameDisplayMode")
-    if not (ns.Scan.ahOpen and type(f) == "table" and type(modes) == "table" and modes[name]) then return false end
-    if not ns.AHTouch() then return false end   -- ab 0.41: "Blizzard pur"
-    if type(f.SetDisplayMode) ~= "function" then return false end
-    if type(f.GetDisplayMode) == "function" then
-        local ok, m = pcall(f.GetDisplayMode, f)
-        if ok and m == modes[name] then return true end
-    end
-    local ok = pcall(f.SetDisplayMode, f, modes[name])
-    mod:Dbg("Auktionshaus-Ansicht " .. name .. ": " .. tostring(ok))
-    return ok
-end
-
 -- Reiter im Fenster waehlen
 function W.Select(key)
     W.Create()

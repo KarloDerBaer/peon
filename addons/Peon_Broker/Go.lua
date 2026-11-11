@@ -1,6 +1,6 @@
 -- Peon_Broker - Go.lua
 -- Neuaufbau N1 (ab 0.59, Konzept Peon_Broker_Neuaufbau.md, Abschnitt 5): Spruenge zwischen den Seiten, ueberall gleich.
---   Go.Market(item)  "Im Markt zeigen": am Auktionator Blizzards Kaufansicht mit genau diesem Gegenstand.
+--   Go.Market(item)  "Im Markt zeigen": am Auktionator Suche in Blizzards Markt (ab 0.64.1 ohne Blizzards Funktionen).
 --                    Unterwegs die Marktseite aus Scandaten, nach diesem Gegenstand gesucht.
 --   Go.Item(item)    Seite Gegenstand mit diesem Gegenstand
 --   Go.Focus(item)   Seite Fokus mit diesem Gegenstand

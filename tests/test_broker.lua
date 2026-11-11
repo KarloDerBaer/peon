@@ -953,7 +953,7 @@ local kuL for i, r in ipairs(rowsL) do if r.key == 2770 then kuL = i end end
 local lim = D.MaxBuyPrice(market.items[2770], 10)
 check(rowsL[kuL].limit == lim, "Hoechstpreis aus dem Median")
 Buy.itemList.list.rows[kuL].scripts.OnClick(Buy.itemList.list.rows[kuL], "LeftButton")
-check(query.normal and query.key.itemID == 2770 and browse and browse.itemKey.itemID == 2770, "Anklicken: Live-Abfrage und im Auktionshaus geoeffnet")
+check(query.normal and query.key.itemID == 2770 and browse == nil, "Anklicken: Live-Abfrage, Blizzards Ansicht bleibt (ab 0.64.1 kein SelectBrowseResult)")
 fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
 check(Buy.live[2770] and #Buy.live[2770].rows >= 2, "Live-Angebote gelesen")
 Buy.selected.limit = 130      -- feste Grenze fuer den Test: Stufen 1s 15c (8) und 1s 20c (40); ab 0.55 ohne eigene Angebote aus dem Verkaufen-Test
@@ -1038,61 +1038,36 @@ Buy.pending = nil   -- offene Abfrage aus den Tests der Einkaufsliste
         "Teil-Ergebnis: Minimum neu, Median und Menge bleiben")
     market.items[4444], LIVE[4444] = nil, nil
     AHs.HasFullCommoditySearchResults = savedHF
-    -- Blizzard-Fenster: Daten noch nicht geladen -> warten, dann zeigen
+    -- ab 0.64.1 (Fehlerberichte 10 und 11): "Im Markt zeigen" ohne Blizzards Funktionen. Name ins Suchfeld (nur Text),
+    -- Suche ueber die Spiel-API, kein SetDisplayMode, kein SelectBrowseResult, keine geleerte Liste.
     local modes = { Buy = {}, CommoditiesBuy = {}, ItemBuy = {}, Auctions = {}, ItemSell = {} }
     AuctionHouseFrameDisplayMode = modes
-    local curMode
-    AuctionHouseFrame.SetDisplayMode = function(_, m) curMode = m end
+    local curMode = modes.Buy
+    local setMode, selected = 0, 0
+    AuctionHouseFrame.SetDisplayMode = function(_, m) setMode = setMode + 1; curMode = m end
     AuctionHouseFrame.GetDisplayMode = function() return curMode end
-    local shown = {}
-    AuctionHouseFrame.SelectBrowseResult = function(_, r) shown[#shown + 1] = r.itemKey.itemID; curMode = modes.CommoditiesBuy end
-    local loaded = false
-    AHs.GetItemKeyInfo = function(k) if k.itemID == 5555 and not loaded then return nil end return { itemID = k.itemID } end
-    local nT = #timers
-    check(Buy.ShowInAH({ key = 5555 }) == false and #shown == 0 and #timers == nT + 1, "Daten nicht geladen: noch nicht zeigen, nachsehen")
-    loaded = true
-    fire("ITEM_KEY_ITEM_INFO_RECEIVED", 5555)
-    check(shown[1] == 5555 and Buy.showWait == nil, "Daten da: Gegenstand gezeigt")
-    timers[nT + 1]()
-    check(#shown == 1, "alter Nachsehen-Auftrag tut nichts mehr")
-    -- 0.20.2/0.21.1: passen die Ergebnisse nicht zum gezeigten Gegenstand -> neu laden, eigene Suche, nochmal zeigen
-    local refreshed = {}
-    AHs.RefreshItemSearchResults = function(k) refreshed[#refreshed + 1] = k.itemID end
-    AHs.RefreshCommoditySearchResults = function(id) refreshed[#refreshed + 1] = id end
-    local savedLIg, savedHFIg = LIVEITEM, AHs.HasFullItemSearchResults
-    LIVEITEM = {}
-    AHs.HasFullItemSearchResults = function() return false end
-    Sell.pending, Buy.pending, Rd.pending = nil, nil, nil
-    mod.acc.commodity[6666], mod.acc.commodity[6667] = false, false
-    check(Buy.ShowInAH({ key = 6666 }) == true and Buy.showGuard and Buy.showGuard.itemID == 6666, "gezeigt, Nachsehen geplant")
-    timers[#timers]()
-    check(refreshed[1] == 6666 and Buy.showGuard.forced and Buy.showGuard.tries == 0, "nach dem Umschalten: einmal wie „Neu laden“ (Liste leeren, neu abfragen)")
-    timers[#timers]()
-    check(refreshed[2] == 6666 and Buy.showGuard and Buy.showGuard.tries == 1, "noch keine Ergebnisse: Versuch 1 nochmal neu laden")
-    LIVEITEM = { { buyoutAmount = 100, quantity = 1, itemLink = "|cffffffff|Hitem:1234::::::::20:::::::::|h[Anderes]|h|r" } }
-    query = nil
-    timers[#timers]()
-    check(query and query.key.itemID == 6666 and Buy.showGuard.tries == 2, "Ergebnisse eines anderen Gegenstands: Versuch 2 eigene Suche")
-    check(#Sell.ReadItems({ itemID = 6666 }) == 0 and Sell.ReadItems({ itemID = 6666 }).foreign == 1, "fremde Ergebnisse werden nicht gelesen")
-    LIVEITEM = { { buyoutAmount = 100, quantity = 1, itemLink = "|cffffffff|Hitem:6666::::::::20:::::::::|h[Richtig]|h|r" } }
-    fire("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 6666 })
-    timers[#timers]()
-    check(Buy.showGuard == nil and PeonBrokerDB.showLog == nil, "passende Ergebnisse: fertig (Protokoll ab 0.28 nur mit Debug)")
-    LIVEITEM, AHs.HasFullItemSearchResults = savedLIg, savedHFIg
-    Buy.ShowInAH({ key = 6667 })
-    timers[#timers]()
-    fire("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 6667 })
-    timers[#timers]()
-    check(#refreshed == 3 and Buy.showGuard == nil, "Ergebnis passt nach dem Neuladen: keine weiteren Versuche")
-    local readyFn2 = AHs.IsThrottledMessageSystemReady
-    AHs.IsThrottledMessageSystemReady = function() return false end
-    local nShown = #shown
-    check(Buy.ShowInAH({ key = 6668 }) == false and #shown == nShown, "Spiel nicht bereit: noch nicht umschalten")
-    AHs.IsThrottledMessageSystemReady = readyFn2
-    timers[#timers]()
-    check(shown[#shown] == 6668, "Spiel bereit: umgeschaltet")
-    Buy.showGuard = nil
-    AHs.RefreshItemSearchResults, AHs.RefreshCommoditySearchResults = nil, nil
+    AuctionHouseFrame.SelectBrowseResult = function() selected = selected + 1 end
+    local boxText
+    AuctionHouseFrame.SearchBar = { SearchBox = { SetText = function(_, t) boxText = t end } }
+    local sentQ
+    local savedSBQ = AHs.SendBrowseQuery
+    AHs.SendBrowseQuery = function(q) sentQ = q end
+    local errMsg
+    UIErrorsFrame = { AddMessage = function(_, t) errMsg = t end }
+    local wasCur = ns.AHTabs.current
+    ns.AHTabs.current = nil
+    local nm = Buy.SearchName(2770)
+    check(type(nm) == "string" and Buy.ShowInAH({ key = 2770 }) == true and sentQ and sentQ.searchString == nm and boxText == nm
+        and setMode == 0 and selected == 0 and errMsg == nil, "Im Markt zeigen: Suche über die Spiel-API, Name im Suchfeld, Blizzards Ansicht unberührt")
+    curMode = modes.ItemSell
+    sentQ = nil
+    check(Buy.ShowInAH({ key = 2770 }) == true and sentQ and setMode == 0 and errMsg == ns.L.GO_AH_HINT, "nicht auf Markt: Hinweis statt Umschalten")
+    ns.AHTabs.current = "radar"
+    sentQ = nil
+    check(Buy.ShowInAH({ key = 2770 }) == false and sentQ == nil, "Broker-Reiter offen: nichts tun (Go schliesst vorher die Flaeche)")
+    ns.AHTabs.current = wasCur
+    curMode = modes.Buy
+    AuctionHouseFrame.SearchBar, UIErrorsFrame, AHs.SendBrowseQuery = nil, nil, savedSBQ
     Win.Select("radar")
     check(Win.current == "radar" and Rd.list and Rd.scanButton and Rd.status, "N6: Seite Radar mit Peon.UI")
 
@@ -2226,6 +2201,14 @@ Win.Refresh()
   check(modesAfter == modesBefore, "U0: keine eigenen Eintraege in AuctionHouseFrameDisplayMode")
   check(hookedSecure.SetDisplayMode, "U0: sicherer Anhang an SetDisplayMode")
   check(not T.page:IsShown(), "U0: Flaeche anfangs verborgen")
+  -- ab 0.64.1: Favoriten-Stern (eigene Schicht HIGH) schien durch Brokers Flaeche
+  local star1, star2 = W(), W()
+  star1.alpha, star2.alpha = 1, 1
+  local oldCBF, oldIBF = rawget(ah, "CommoditiesBuyFrame"), rawget(ah, "ItemBuyFrame")
+  ah.CommoditiesBuyFrame = {}
+  ah.CommoditiesBuyFrame.BuyDisplay = { ItemDisplay = { FavoriteButton = star1 } }
+  ah.ItemBuyFrame = {}
+  ah.ItemBuyFrame.ItemDisplay = { FavoriteButton = star2 }
 
   local dsel = calls.deselect
   T.tabs.radar.scripts.OnClick(T.tabs.radar)
@@ -2233,6 +2216,7 @@ Win.Refresh()
     "N1: Klick auf Radar zeigt die Seite Radar im Auktionshaus")
   check(not wf.shown and mod.db.windowTab == "radar", "N1: am Auktionator ist das Broker-Fenster zu, der Reiter wird gemerkt")
   check(calls.display == 0, "U0: Broker ruft SetDisplayMode nie selbst auf")
+  check(star1.alpha == 0 and star2.alpha == 0, "0.64.1: Favoriten-Stern unsichtbar, solange Brokers Flaeche offen ist")
   check(calls.deselect - dsel >= 4 and calls.select >= 1, "U0: nur das Aussehen der Reiter wird umgestellt")
   local rt, st = T.tabs.radar, T.tabs.buy
   check(rt.LeftActive.shown and rt.MiddleActive.shown and not rt.Left.shown and rt.disabled, "0.41.2: Radar sieht gewaehlt aus und bleibt es")
@@ -2245,6 +2229,9 @@ Win.Refresh()
 
   ah:SetDisplayMode(AuctionHouseFrameDisplayMode.Buy)   -- wie Klick auf Blizzards Reiter Kaufen
   check(T.current == nil and not T.page:IsShown() and calls.update >= 1, "U0: Blizzard wechselt die Ansicht -> Flaeche weg, Blizzards Reiter wieder richtig")
+  T.page.scripts.OnHide(T.page)   -- der Nachbau ruft OnHide nicht selbst
+  check(star1.alpha == 1 and star2.alpha == 1 and next(T.dimmed) == nil, "0.64.1: Stern wieder sichtbar, wenn Brokers Flaeche zu ist")
+  ah.CommoditiesBuyFrame, ah.ItemBuyFrame = oldCBF, oldIBF
 
   touched.displayMode = true
   local r = T.Probe(true)
@@ -2267,7 +2254,7 @@ Win.Refresh()
   -- Blizzard pur einschalten (Rueckfrage annehmen)
   StaticPopupDialogs.PEON_BROKER_AH_PLAIN_ON.OnAccept()
   check(mod.acc.ahPlain == true and calls.reload == 1, "U0: Blizzard pur an, Oberflaeche wird neu geladen")
-  check(not ns.AHTouch() and Win.SetAHMode("Buy") == false and ns.Buy.ShowInAH({ key = 2770 }) == false, "U0: bei Blizzard pur kein Umschalten und kein Zeigen in Blizzards Fenster")
+  check(not ns.AHTouch() and Win.SetAHMode == nil and ns.Buy.ShowInAH({ key = 2770 }) == false, "U0: bei Blizzard pur kein Zeigen in Blizzards Fenster (SetAHMode gibt es ab 0.64.1 nicht mehr)")
   local built = T.built; T.built = nil
   check(T.Build() == false, "U0: bei Blizzard pur keine Reiter")
   T.built = built
