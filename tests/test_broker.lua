@@ -603,10 +603,10 @@ check(S.state == nil and said("keine Antwort"), "Zeitueberschreitung ohne Daten"
 local Win, P = ns.Window, ns.Item
 -- Einkaufsliste war 0.37 bis 0.48 in Arbeit, ab 0.49 (U8) wieder offen. Ab 0.54 sind Markt und Info in Arbeit:
 -- fuer die Pruefungen der bisherigen Gegenstandsansicht den Hinweis abschalten, am Ende pruefen
-check(not Win.WIP.buy and not Win.WIP.prices and not Win.WIP.browse and Win.WIP.auctions and Win.WIP.focus, "N3: Auktionen und Fokus in Arbeit, Markt, Einkaufen und Gegenstand offen")
+check(not Win.WIP.buy and not Win.WIP.prices and not Win.WIP.browse and not Win.WIP.auctions and Win.WIP.focus, "N5: nur noch Fokus in Arbeit")
 local wipKeep = Win.WIP
 Win.WIP = {}
-for _, k in ipairs({ "auctions", "focus" }) do   -- schon als Hinweis angelegte Seiten verwerfen
+for _, k in ipairs({ "focus" }) do   -- schon als Hinweis angelegte Seiten verwerfen
   if Win.contents and Win.contents[k] then Win.contents[k]:Hide(); Win.contents[k] = nil end
 end
 check(market.items[2770].nm == "Kupfererz" and market.items[2770].ql == 1, "Scan merkt Name und Qualitaet")
@@ -2264,18 +2264,30 @@ end)()
     if i == 1 then return "Faden", nil, 50, 5, -1, true, true, false end
     return "Hemd", nil, 0, 1, -1, true, true, true
   end
+  local keepGUID = UnitGUID
+  UnitGUID = function(u) return u == "npc" and "Creature-0-1-2-3-4711-0001" or nil end
+  mod.acc.vendors = nil
+  ns.Vendors.lastAt = nil
   fire("MERCHANT_SHOW")
-  check(mod.acc.merchant[3002] and mod.acc.merchant[3002].p == 10 and mod.acc.merchant[3100] == nil, "Haendler: Preis je Stueck gemerkt, ohne Gold nicht")
+  UnitGUID = keepGUID
+  local vend = mod.acc.vendors and mod.acc.vendors[4711]
+  check(vend and vend.items[3002].p == 10 and vend.items[3100] and vend.items[3100].p == nil and mod.acc.merchant == nil,
+    "N5: Haendlerpreise im gemeinsamen Speicher, Preis je Stueck, ohne Gold kein Preis")
   Cr.Tick()
   c = Cr.calc[3100]
   check(c.lines[1].src == "vendor" and c.lines[1].cost == 10 and c.cost == 30 and plain(b.rows[1].src.text) == "Händler" and plain(b.rows[1].cost.text) == "10c",
       "Faden beim Haendler guenstiger: Quelle Haendler")
   tl = Cr.LineTipLines(b.rows[1].line)
   check(plain(tl[4][2]) == "10c" and plain(tl[6]):find("^Händlerpreis gesehen bei "), "Tooltip: wo der Haendlerpreis herkommt")
-  mod.acc.merchant[3002].p = 40
+  vend.items[3002].p = 40
   Cr.dirty = true
   Cr.Tick()
   check(Cr.calc[3100].lines[1].src == "ah" and Cr.calc[3100].lines[1].cost == 30, "AH guenstiger: Quelle AH")
+  mod.acc.vendors = nil
+  mod.acc.merchant = { [3002] = { p = 12, t = clock, w = "Alt" } }
+  Cr.dirty = true
+  Cr.Tick()
+  check(Cr.calc[3100].lines[1].src == "vendor" and Cr.calc[3100].lines[1].cost == 12, "N5: frueherer Speicher wird noch gelesen")
   mod.acc.merchant = nil
   VB[3002] = 20
   Cr.dirty = true
@@ -2596,9 +2608,9 @@ do
   check(refreshed == 1, "0.35: Scan aktualisiert den Text")
 end
 
--- ===== Auktionen und Fokus in Arbeit (N1, Markt ab N3 gebaut) =====
+-- ===== Fokus in Arbeit (Markt ab N3, Auktionen ab N5 gebaut) =====
 Win.WIP = wipKeep
-for _, k in ipairs({ "auctions", "focus" }) do
+for _, k in ipairs({ "focus" }) do
   if Win.contents[k] then Win.contents[k]:Hide() end
   Win.contents[k] = nil
   Win.Open(k)
@@ -2793,7 +2805,7 @@ end)()
   check(T.current == "more" and Win.more and Win.more.current == "vendors" and Win.more.contents.vendors.shown, "N1: Mehr oeffnet mit Haendler")
   local moreNames = {}
   for _, b in ipairs(Win.more.tabs) do moreNames[#moreNames + 1] = b.text end
-  check(table.concat(moreNames, ",") == "Händler,Neutral,Datenlage,Beobachtung", "N1: Unterpunkte von Mehr: " .. table.concat(moreNames, ","))
+  check(table.concat(moreNames, ",") == "Händler,Neutral,Datenlage", "N5: Unterpunkte von Mehr: " .. table.concat(moreNames, ","))
   Win.more.tabs[3].scripts.OnClick(Win.more.tabs[3])
   check(Win.more.current == "sources" and mod.acc.moreTab == "sources" and Win.more.contents.sources.shown and not Win.more.contents.vendors.shown,
     "N1: Datenlage gewaehlt und gemerkt")
@@ -3050,16 +3062,28 @@ end)()
   D.DeleteMarket("Classic Beta PvE / Neutral")
   Win.Refresh()
   check(#G.compare:GetItems() == 0, "U10: ohne neutralen Markt leer")
-  -- Beobachtung
-  ns.Watch.Add(2770, { name = "Kupfererz" }); ns.Watch.SetLimit(2770, "abs", 5000)
-  Win.Select("watch")
-  local wr = G.watchList:GetItems()
-  check(#wr == 1 and wr[1].key == 2770 and wr[1].limit == 5000 and wr[1].hit, "U10: Beobachtung mit Grenze und Alarm")
-  G.watchList.onClick = nil
-  G.watchSel = wr[1]; G.UpdateWatchView()
-  check(G.watchBox.text == "0.5", "U10: Grenze in Gold zum Bearbeiten")
-  G.watchRemove.scripts.OnClick(G.watchRemove)
-  check(not ns.Watch.Is(2770) and #G.watchList:GetItems() == 0, "U10: Entfernen")
+  check(Win.pages.watch == nil and G.BuildWatch == nil, "N5: Beobachtung ist keine eigene Seite mehr (steht in Einkaufen)")
+  check(G.stockCheck.template == "UICheckButtonTemplate" and G.compare.list and G.minBox.text == "20", "N5: Neutral mit Peon.UI")
+  -- Auktionen unterwegs: letzter bekannter Stand
+  do
+    local keep = mod.acc.owned
+    mod.acc.owned = nil
+    Win.Select("auctions")
+    check(Win.current == "auctions" and not Win.contents.auctions.wipText and #G.auctions.items == 0 and G.auctions.empty.text == ns.L.AUCP_EMPTY,
+      "N5: Auktionen unterwegs ohne Stand: Hinweis")
+    local e = D.Lookup(2770)
+    mod.acc.owned = { market = ns.MarketKey(), t = clock - 3600, rows = {
+      { id = 1, key = 2770, name = "Kupfererz", qty = 20, price = e.m + 50 },
+      { id = 2, key = 2589, name = "Leinenstoff", qty = 5, price = 1 },
+      { id = 3, key = 9999, name = "Ding", qty = 1, price = 500, sold = true } } }
+    Win.Refresh()
+    local st = {}
+    for _, r in ipairs(G.auctions.items) do st[r.key] = r.status end
+    check(#G.auctions.items == 3 and st[2770] == "under" and st[2589] == "best" and st[9999] == "sold" and G.auctions.items[1].key == 2770,
+      "N5: Auktionen bewertet mit den heutigen Preisen, unterbotene oben")
+    check(plain(G.aucHead.text):find("3 Auktionen, 1 unterboten", 1, true) and plain(G.aucHead.text):find("nicht live", 1, true), "N5: Kopfzeile: " .. plain(G.aucHead.text))
+    mod.acc.owned = keep
+  end
   -- Quellen
   Win.Select("sources")
   local src = plain(G.sources.text)
@@ -3124,7 +3148,13 @@ end)()
   check(cu and cu.ah and cu.profit, "U11: AH nach Anteil teurer als beim Haendler -> Gewinn")
   check(#V.Rows("gretta", true) >= 1 and #V.Rows("gibtsnicht", false) == 0, "U11: Suche und Filter")
   Win.Select("vendors")
-  check(V.list and #V.list:GetItems() == 3 and plain(V.count.text):find("1 Händler", 1, true), "U11: Reiter Haendler")
+  check(V.list and #V.list:GetItems() == 3 and plain(V.count.text):find("1 Händler", 1, true) and V.list.list and V.searchBox.template == "SearchBoxTemplate",
+    "U11: Haendler unter Mehr, mit Peon.UI")
+  V.searchBox:SetText("gretta"); V.searchBox.scripts.OnTextChanged(V.searchBox, true)
+  check(#V.list:GetItems() == 3, "N5: Suche nach dem Haendler")
+  V.searchBox:SetText("gibtsnicht"); V.searchBox.scripts.OnTextChanged(V.searchBox, true)
+  check(#V.list:GetItems() == 0, "N5: Suche ohne Treffer")
+  V.searchBox:SetText(""); V.searchBox.scripts.OnTextChanged(V.searchBox, true)
   check(plain(V.Summary()):find("3 Angeboten", 1, true), "U11: Zusammenfassung fuer Quellen")
   GetMerchantNumItems, GetMerchantItemID, C_MerchantFrame, GetMerchantItemCostInfo, GetMerchantItemCostItem, C_TooltipInfo, UnitGUID, C_Map, UnitName = unpack(old, 1, 9)
   Win.Select("prices")

@@ -2,7 +2,8 @@
 -- Kaufpreise beim Haendler (ab 0.39, KarloDerBaer 08.11.2026), fuer das Berufsfenster: Material beim Haendler
 -- oder im AH kaufen, je nachdem wo es guenstiger ist. Das Spiel nennt den Haendlerpreis nur bei offenem
 -- Haendlerfenster, darum drei Quellen, die beste zuerst:
---   1. "seen":   Broker merkt sich bei jedem Haendlerbesuch die Angebote (accountweit, PeonBrokerDB.merchant).
+--   1. "seen":   bei einem Haendlerbesuch gesehen (ab 0.63 aus dem gemeinsamen Speicher PeonBrokerDB.vendors,
+--                Vendors.lua liest die Angebote; der fruehere eigene Speicher merchant wird nur noch gelesen).
 --   2. "ledger": letzter Kauf beim Haendler laut Peon_Ledger (mod:VendorBuy, ab Ledger 0.13.1).
 --   3. "est":    Geschaetzt fuer bekannte Haendler-Reagenzien (Liste unten): Ankaufspreis des Haendlers x 4.
 -- Gespeichert: PeonBrokerDB.merchant[itemID] = { p = Kupfer je Stueck, t = Zeit, w = Name des Haendlers }
@@ -34,64 +35,18 @@ V.LIST = {
 
 local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
 
-function V.Store()
-    local acc = mod.acc
-    if type(acc) ~= "table" then return {} end
-    if type(acc.merchant) ~= "table" then acc.merchant = {} end
-    return acc.merchant
-end
-
--- Angebot i des offenen Haendlers: itemID, Preis je Stueck (nil = nicht mit Gold zu kaufen)
-local function Offer(i)
-    local id
-    if GetMerchantItemID then
-        local ok, x = pcall(GetMerchantItemID, i)
-        if ok and Num(x) then id = x end
-    end
-    if not id and GetMerchantItemLink then
-        local ok, link = pcall(GetMerchantItemLink, i)
-        if ok and type(link) == "string" and not Peon.IsSecret(link) then id = tonumber(link:match("item:(%d+)")) end
-    end
-    if not id then return nil end
-    local price, qty, ext
-    local CM = rawget(_G, "C_MerchantFrame")
-    if CM and CM.GetItemInfo then
-        local ok, info = pcall(CM.GetItemInfo, i)
-        if ok and type(info) == "table" then price, qty, ext = info.price, info.stackCount, info.hasExtendedCost end
-    end
-    if price == nil and GetMerchantItemInfo then
-        local ok, _, _, p, q, _, _, _, e = pcall(GetMerchantItemInfo, i)
-        if ok then price, qty, ext = p, q, e end
-    end
-    if not Num(price) or price <= 0 or ext then return id, nil end
-    qty = (Num(qty) and qty > 0) and qty or 1
-    return id, price / qty
-end
-
--- Alle Angebote des offenen Haendlers merken
-function V.Scan()
-    if not GetMerchantNumItems then return 0 end
-    local ok, n = pcall(GetMerchantNumItems)
-    if not ok or not Num(n) then return 0 end
-    local who = UnitName and UnitName("npc")
-    if type(who) ~= "string" or Peon.IsSecret(who) then who = nil end
-    local store, got, t = V.Store(), 0, time and time() or 0
-    for i = 1, n do
-        local id, unit = Offer(i)
-        if id and unit then
-            store[id] = { p = unit, t = t, w = who }
-            got = got + 1
-        end
-    end
-    if got > 0 and ns.Craft then ns.Craft.dirty = true end
-    return got
-end
-
 -- Kaufpreis beim Haendler je Stueck: Preis, Quelle ("seen", "ledger", "est"), Name des Haendlers; nil = unbekannt
 function V.Price(id)
     if not Num(id) then return nil end
-    local e = V.Store()[id]
-    if type(e) == "table" and Num(e.p) and e.p > 0 then return e.p, "seen", e.w end
+    -- 1. gesehen: guenstigster Haendler aus dem gemeinsamen Speicher (Vendors.lua, PeonBrokerDB.vendors)
+    if ns.Vendors then
+        for _, x in ipairs(ns.Vendors.For(id)) do
+            if Num(x.e.p) and x.e.p > 0 then return x.e.p, "seen", x.v.n end
+        end
+    end
+    -- bis 0.62 eigener Speicher PeonBrokerDB.merchant: wird nur noch gelesen, bis der Haendler wieder besucht wurde
+    local old = type(mod.acc) == "table" and type(mod.acc.merchant) == "table" and mod.acc.merchant[id]
+    if type(old) == "table" and Num(old.p) and old.p > 0 then return old.p, "seen", old.w end
     local l = ns.Craft and ns.Craft.Ledger and ns.Craft.Ledger()
     if l and type(l.VendorBuy) == "function" then
         local ok, p = pcall(l.VendorBuy, l, id)
@@ -102,10 +57,4 @@ function V.Price(id)
         if Num(s) and s > 0 then return s * V.EST_FACTOR, "est" end
     end
     return nil
-end
-
-function V.Init()
-    local function OnMerchant() mod:Call("Haendler", V.Scan) end
-    pcall(mod.RegisterEvent, mod, "MERCHANT_SHOW", OnMerchant)
-    pcall(mod.RegisterEvent, mod, "MERCHANT_UPDATE", OnMerchant)
 end

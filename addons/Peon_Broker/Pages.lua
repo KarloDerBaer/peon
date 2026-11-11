@@ -83,63 +83,41 @@ function G.CompareRows(minPct, onlyStock)
 end
 
 function G.BuildMarket(c)
-    local total = W.WIDTH - 24
-    local stand = c:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    stand:SetPoint("TOPLEFT", 4, -2)
-    stand:SetPoint("RIGHT", c, "RIGHT", -4, 0)
-    stand:SetJustifyH("LEFT")
-    stand:SetSpacing(3)
-    G.stand = stand
-    local inset = W.Inset(c)
-    inset:SetPoint("TOPLEFT", 0, -48)
-    inset:SetPoint("BOTTOMRIGHT", 0, 0)
-    local title = inset:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    title:SetPoint("TOPLEFT", 8, -8)
-    title:SetText(L.PG_COMPARE)
-    G.compareTitle = title
-    local cb = CreateFrame("CheckButton", nil, inset, "UICheckButtonTemplate")
-    cb:SetSize(22, 22)
-    cb:SetPoint("TOPRIGHT", -200, -4)
-    local cbl = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    cbl:SetPoint("LEFT", cb, "RIGHT", 2, 0)
-    cbl:SetText(L.PG_ONLY_STOCK)
-    cb:SetScript("OnClick", function(self) G.onlyStock = self:GetChecked() and true or false; G.RefreshMarket() end)
-    G.stockCheck = cb
-    local box = CreateFrame("EditBox", nil, inset, "InputBoxTemplate")
-    box:SetSize(32, 20)
-    box:SetAutoFocus(false)
-    if box.SetNumeric then box:SetNumeric(true) end
-    box:SetPoint("TOPRIGHT", -40, -5)
-    box:SetText(tostring(G.minPct))
-    box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    box:SetScript("OnEditFocusLost", function(self) G.minPct = tonumber(self:GetText() or "") or 0; G.RefreshMarket() end)
-    local bl = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    bl:SetPoint("RIGHT", box, "LEFT", -6, 0)
-    bl:SetText(L.PG_MIN_PCT)
-    local bl2 = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    bl2:SetPoint("LEFT", box, "RIGHT", 4, 0)
-    bl2:SetText("%")
-    G.minBox = box
-    local fixed = 90 + 90 + 80 + 80
-    G.compare = Peon.NewList(inset, {
+    local UI = Peon.UI
+    G.stand = UI.Text(c, "small", "")
+    G.stand:SetPoint("TOPLEFT", 8, -2)
+    G.stand:SetPoint("RIGHT", c, "RIGHT", -8, 0)
+    if G.stand.SetSpacing then G.stand:SetSpacing(3) end
+    G.stockCheck = UI.Check(c, L.PG_ONLY_STOCK, G.onlyStock, function(on) G.onlyStock = on; mod:Call("Neutral", G.RefreshMarket) end)
+    G.stockCheck:SetPoint("TOPLEFT", 4, -34)
+    G.minBox = UI.Input(c, 60, { numeric = true })
+    G.minRow = UI.FormRow(c, L.PG_MIN_PCT, G.minBox, 220, -36)
+    G.minBox:SetText(tostring(G.minPct))
+    G.minBox:SetScript("OnEditFocusLost", function(self) G.minPct = tonumber(self:GetText() or "") or 0; G.RefreshMarket() end)
+    local p = UI.Panel(c, "list", true)
+    p:SetPoint("TOPLEFT", 0, -70)
+    p:SetPoint("BOTTOMRIGHT", 0, 0)
+    G.comparePanel = p
+    G.compare = UI.Table(p, {
         columns = {
-            { key = "name", title = L.COL_ITEM, width = total - 16 - 24 - fixed, format = function(v, r) return W.Colored(v, r.quality) end },
-            { key = "home", title = L.PG_COL_HOME, width = 90, align = "RIGHT", format = function(v) return Money(v) end },
-            { key = "neutral", title = L.PG_COL_NEUTRAL, width = 90, align = "RIGHT", format = function(v) return Money(v) end },
-            { key = "pct", title = L.PG_COL_DIFF, width = 80, align = "RIGHT",
+            { key = "name", title = L.COL_ITEM, sort = function(r) return W.Lower(r.name) end,
+              color = function(r) return UI.QualityColor(r.quality or 1) end },
+            { key = "home", title = L.PG_COL_HOME, width = 110, align = "RIGHT", format = function(v) return Money(v) end },
+            { key = "neutral", title = L.PG_COL_NEUTRAL, width = 110, align = "RIGHT", format = function(v) return Money(v) end },
+            { key = "pct", title = L.PG_COL_DIFF, width = 100, align = "RIGHT",
               format = function(v) return (v > 0 and GREEN .. "+" or ORANGE) .. v .. " %|r" end,
-              sortValue = function(r) return -math.abs(r.pct) end },
-            { key = "better", title = L.PG_COL_BETTER, width = 80, align = "RIGHT",
+              sort = function(r) return -math.abs(r.pct) end },
+            { key = "better", title = L.PG_COL_BETTER, width = 100, align = "RIGHT",
               format = function(v) return v == "neutral" and L.FACTION_NEUTRAL or L.PG_HOME end },
         },
-        rows = 16, rowHeight = 18, sortKey = "pct",
-        onClick = function(_, r) if ns.Go then ns.Go.Item({ id = ns.Data.ItemID(r.key), key = r.key, name = r.name }) end end,
-        onEnter = function(_, r, row) W.ShowItemTooltip(row, r.key) end,
-        onLeave = function() if GameTooltip then GameTooltip:Hide() end end,
-        emptyText = L.PG_COMPARE_EMPTY,
+        sortKey = "pct", icon = true, empty = L.PG_COMPARE_EMPTY,
+        onClick = function(r, button)
+            local item = { id = ns.Data.ItemID(r.key), key = r.key, name = r.name }
+            if button == "RightButton" then ns.Go.Menu(item, G.comparePanel) else mod:Call("Sprung", ns.Go.Item, item) end
+        end,
+        onEnter = function(row, r) if r then W.ShowItemTooltip(row, r.key) end end,
     })
-    G.compare.frame:SetPoint("TOPLEFT", 4, -30)
+    function G.compare:GetItems() return self.items end
     G.RefreshMarket()
 end
 
@@ -153,107 +131,11 @@ function G.RefreshMarket()
     end
     if #lines == 0 then lines[1] = GREY .. L.PG_NO_DATA .. "|r" end
     G.stand:SetText(table.concat(lines, "\n"))
-    if G.compare then G.compare:SetData(G.CompareRows(G.minPct, G.onlyStock)) end
-end
-
----------------------------------------------------------------------------
--- Beobachtung
----------------------------------------------------------------------------
-function G.WatchRows()
-    local rows = {}
-    local Wt, D = ns.Watch, ns.Data
-    if not Wt then return rows end
-    for key, w in pairs(Wt.Store()) do
-        local e = D.Lookup(key)
-        local band
-        if type(e) == "table" and e.m then
-            local ok, v = pcall(D.Evaluate, e, key, 1, ns.VendorPrice(D.ItemID(key)), mod.db)
-            band = ok and type(v) == "table" and v.band or nil
-        end
-        rows[#rows + 1] = { key = key, name = w.name or D.ItemName(key, e) or tostring(key), quality = w.q or (type(e) == "table" and e.ql),
-            cheapest = type(e) == "table" and not e.gone and e.m or nil, limit = Wt.Limit(key, e), limitText = Wt.LimitText(key),
-            band = band, hit = w.hit and true or false }
+    if G.compare then
+        local rows = G.CompareRows(G.minPct, G.onlyStock)
+        for _, r in ipairs(rows) do r.icon = ns.Buy and ns.Buy.Icon(ns.Data.ItemID(r.key)) or nil end
+        G.compare:SetData(rows)
     end
-    return rows
-end
-
-function G.BuildWatch(c)
-    local total = W.WIDTH - 24
-    local inset = W.Inset(c)
-    inset:SetPoint("TOPLEFT", 0, 0)
-    inset:SetPoint("BOTTOMRIGHT", 0, 0)
-    local fixed = 90 + 110 + 130 + 70
-    G.watchList = Peon.NewList(inset, {
-        columns = {
-            { key = "name", title = L.COL_ITEM, width = total - 16 - 24 - fixed, format = function(v, r) return W.Colored(v, r.quality) end },
-            { key = "cheapest", title = L.BUY_COL_CHEAPEST, width = 90, align = "RIGHT", format = function(v) return v and Money(v) or "–" end },
-            { key = "limitText", title = L.PG_COL_LIMIT, width = 110, align = "RIGHT", format = function(v) return v or (GREY .. L.MENU_WATCH_NONE .. "|r") end },
-            { key = "band", title = L.TT_USUAL, width = 130, align = "RIGHT", format = function(v) return v and ns.Tooltip.RangeText(v) or "–" end,
-              sortValue = function(r) return r.band and r.band.low or 0 end },
-            { key = "hit", title = L.PG_COL_ALARM, width = 70, align = "RIGHT", format = function(v) return v and (GREEN .. L.PG_ALARM .. "|r") or "" end,
-              sortValue = function(r) return r.hit and 0 or 1 end },
-        },
-        rows = 18, rowHeight = 18, sortKey = "hit", selectable = true,
-        onClick = function(_, r) G.watchSel = r; G.UpdateWatchView() end,
-        onEnter = function(_, r, row) W.ShowItemTooltip(row, r.key) end,
-        onLeave = function() if GameTooltip then GameTooltip:Hide() end end,
-        emptyText = L.PG_WATCH_EMPTY,
-    })
-    G.watchList.frame:SetPoint("TOPLEFT", 4, -4)
-    local function Btn(text, w, fn)
-        local b = CreateFrame("Button", nil, inset, "UIPanelButtonTemplate")
-        b:SetSize(w, 22)
-        b:SetText(text)
-        b:SetScript("OnClick", fn)
-        return b
-    end
-    G.watchRemove = Btn(L.BUY_REMOVE, 100, function()
-        if G.watchSel then ns.Watch.Remove(G.watchSel.key); G.watchSel = nil; G.RefreshWatch() end
-    end)
-    G.watchRemove:SetPoint("BOTTOMRIGHT", -8, 8)
-    G.watchInfo = Btn(L.MENU_INFO, 110, function()
-        if G.watchSel and ns.Go then ns.Go.Item({ id = ns.Data.ItemID(G.watchSel.key), key = G.watchSel.key, name = G.watchSel.name }) end
-    end)
-    G.watchInfo:SetPoint("RIGHT", G.watchRemove, "LEFT", -6, 0)
-    local box = CreateFrame("EditBox", nil, inset, "InputBoxTemplate")
-    box:SetSize(60, 20)
-    box:SetAutoFocus(false)
-    box:SetPoint("BOTTOMLEFT", 110, 9)
-    box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    box:SetScript("OnEditFocusLost", function(self)
-        if not G.watchSel or G.filling then return end
-        local gold = tonumber((tostring(self:GetText() or ""):gsub(",", ".")))
-        ns.Watch.SetLimit(G.watchSel.key, (gold and gold > 0) and "abs" or nil, gold and math.floor(gold * 10000 + 0.5) or nil)
-        G.RefreshWatch()
-    end)
-    local bl = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    bl:SetPoint("RIGHT", box, "LEFT", -6, 0)
-    bl:SetText(L.PG_LIMIT_GOLD)
-    G.watchBox = box
-    G.RefreshWatch()
-end
-
-function G.UpdateWatchView()
-    if not G.watchRemove then return end
-    local sel = G.watchSel
-    if sel then G.watchRemove:Enable(); G.watchInfo:Enable() else G.watchRemove:Disable(); G.watchInfo:Disable() end
-    G.filling = true
-    local w = sel and ns.Watch.Store()[sel.key]
-    G.watchBox:SetText(w and w.lim and tostring(w.lim / 10000) or "")
-    G.filling = false
-end
-
-function G.RefreshWatch()
-    if not G.watchList then return end
-    G.watchList:SetData(G.WatchRows())
-    if G.watchSel then
-        local found
-        for _, r in ipairs(G.watchList:GetItems()) do if r.key == G.watchSel.key then found = r end end
-        G.watchSel = found
-        if found then G.watchList:Select(found) end
-    end
-    G.UpdateWatchView()
 end
 
 ---------------------------------------------------------------------------
@@ -310,28 +192,17 @@ function G.SourceLines()
 end
 
 function G.BuildSources(c)
-    local inset = W.Inset(c)
-    inset:SetPoint("TOPLEFT", 0, 0)
-    inset:SetPoint("BOTTOMRIGHT", 0, 0)
-    local text = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    text:SetPoint("TOPLEFT", 10, -10)
-    text:SetPoint("RIGHT", inset, "RIGHT", -10, 0)
-    text:SetJustifyH("LEFT")
-    text:SetSpacing(3)
-    G.sources = text
-    local b = CreateFrame("Button", nil, inset, "UIPanelButtonTemplate")
-    b:SetSize(200, 22)
-    b:SetPoint("BOTTOMLEFT", 8, 8)
-    b:SetText(L.PG_SEND)
-    b:SetScript("OnClick", function() if ReloadUI then ReloadUI() end end)
-    b:SetScript("OnEnter", function(self)
-        if not GameTooltip then return end
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine(L.PG_SEND_HINT, 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
-    G.sendButton = b
+    local UI = Peon.UI
+    local p = UI.Panel(c, "left")
+    p:SetPoint("TOPLEFT", 0, 0)
+    p:SetPoint("BOTTOMRIGHT", 0, 0)
+    G.sources = UI.Text(p, "text", "")
+    G.sources:SetPoint("TOPLEFT", 14, -14)
+    G.sources:SetPoint("RIGHT", p, "RIGHT", -14, 0)
+    if G.sources.SetSpacing then G.sources:SetSpacing(4) end
+    G.sendButton = UI.Button(p, L.PG_SEND, 220, function() if ReloadUI then ReloadUI() end end)
+    G.sendButton:SetPoint("BOTTOMLEFT", 12, 12)
+    UI.SetTooltip(G.sendButton, { L.PG_SEND, L.PG_SEND_HINT })
     G.RefreshSources()
 end
 
@@ -342,6 +213,75 @@ function G.RefreshSources()
     G.sendButton:SetShown(bridge ~= nil)
 end
 
+---------------------------------------------------------------------------
+-- Auktionen unterwegs (ab 0.63, Neuaufbau N5, Konzept Abschnitt 4.5): der letzte bekannte Stand der eigenen
+-- Auktionen, nur zum Lesen. Am Auktionator ist "Auktionen" Blizzards Seite mit Brokers Spalte (AuctionsAH.lua).
+---------------------------------------------------------------------------
+G.AUC_COLOR = { best = GREEN, under = ORANGE, sold = GREY }
+
+-- Zeilen aus dem zuletzt gelesenen Stand (PeonBrokerDB.owned), bewertet mit den heutigen Preisdaten
+function G.AuctionRows()
+    local o = mod.acc and mod.acc.owned
+    local rows = {}
+    if type(o) ~= "table" or type(o.rows) ~= "table" then return rows, nil, nil end
+    local items = type(ns.Data.Markets()[o.market]) == "table" and ns.Data.Markets()[o.market].items or {}
+    for _, r in ipairs(o.rows) do
+        if type(r) == "table" then
+            local e = items[r.key]
+            local other = type(e) == "table" and not e.gone and e.m or nil
+            local status = "best"
+            if r.sold then status = "sold"
+            elseif Num(r.price) and Num(other) and other < r.price then status = "under" end
+            rows[#rows + 1] = { key = r.key, name = r.name or tostring(r.key), quality = r.quality,
+                icon = r.icon or (ns.Buy and ns.Buy.Icon(ns.Data.ItemID(r.key))) or nil,
+                qty = r.qty or 1, price = r.price, other = other, status = status }
+        end
+    end
+    return rows, o.t, o.market
+end
+
+function G.BuildAuctions(c)
+    local UI = Peon.UI
+    G.aucHead = UI.Text(c, "text", "")
+    G.aucHead:SetPoint("TOPLEFT", 8, -6)
+    G.aucHead:SetPoint("RIGHT", c, "RIGHT", -8, 0)
+    local p = UI.Panel(c, "list", true)
+    p:SetPoint("TOPLEFT", 0, -30)
+    p:SetPoint("BOTTOMRIGHT", 0, 0)
+    G.aucPanel = p
+    G.auctions = UI.Table(p, {
+        columns = {
+            { key = "name", title = L.COL_ITEM, sort = function(r) return W.Lower(r.name) end,
+              color = function(r) return UI.QualityColor(r.quality or 1) end },
+            { key = "qty", title = L.ITEM_COL_QTY, width = 70, align = "RIGHT" },
+            { key = "price", title = L.AUCP_COL_PRICE, width = 110, align = "RIGHT", format = function(v) return v and Money(v) or "–" end },
+            { key = "other", title = L.BUY_COL_CHEAPEST, width = 110, align = "RIGHT", format = function(v) return v and Money(v) or "–" end },
+            { key = "status", title = L.AUCP_COL_STATUS, width = 110, align = "RIGHT",
+              format = function(v) return (G.AUC_COLOR[v] or "") .. (L["AUCP_ST_" .. tostring(v):upper()] or "") .. "|r" end,
+              sort = function(r) return ({ under = 1, best = 2, sold = 3 })[r.status] or 9 end },
+        },
+        sortKey = "status", icon = true, empty = L.AUCP_EMPTY,
+        onClick = function(r, button)
+            ns.Go.Click(r, button, G.aucPanel, function() mod:Call("Sprung", ns.Go.Item, { key = r.key, name = r.name }) end)
+        end,
+        onEnter = function(row, r) if r then W.ShowItemTooltip(row, r.key) end end,
+    })
+    G.RefreshAuctions()
+end
+
+function G.RefreshAuctions()
+    if not G.auctions then return end
+    local rows, t, market = G.AuctionRows()
+    G.auctions:SetData(rows)
+    if t then
+        local under = 0
+        for _, r in ipairs(rows) do if r.status == "under" then under = under + 1 end end
+        G.aucHead:SetText(L.AUCP_HEAD:format(#rows, under, ns.Scan.Age(t), G.MarketLabel(market)))
+    else
+        G.aucHead:SetText("")
+    end
+end
+
 W.pages.market = { build = G.BuildMarket, refresh = G.RefreshMarket }
-W.pages.watch = { build = G.BuildWatch, refresh = G.RefreshWatch }
 W.pages.sources = { build = G.BuildSources, refresh = G.RefreshSources }
+W.pages.auctions = { build = G.BuildAuctions, refresh = G.RefreshAuctions }

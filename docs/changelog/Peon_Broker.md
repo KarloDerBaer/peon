@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.63.0
+
+Kurz: Unterwegs zeigt der Reiter „Auktionen“ jetzt den letzten bekannten Stand deiner Auktionen und sagt, welche nach den heutigen Preisen unterboten sind.
+Kurz: Händler, Neutral und Datenlage unter „Mehr“ sind im neuen Look. Die Beobachtung steht nur noch als Liste unter Einkaufen.
+
+- 0.63.0 (11.11.2026): **Neuaufbau N5, Mehr und Auktionen** (Konzept `docs/konzepte/broker/Peon_Broker_Neuaufbau.md`, Abschnitte 4.5 und 4.7).
+  - **Auktionen unterwegs** (`Pages.lua`): Liste aus dem zuletzt gelesenen Stand (`owned`) mit Gegenstand, Menge, deinem Preis, günstigstem Angebot und Status (unterboten, in Ordnung, verkauft). Bewertet wird mit den heutigen Preisdaten, unterbotene stehen oben. Die Kopfzeile nennt Anzahl, Unterbotene, Alter und „nicht live“. Am Auktionator bleibt „Auktionen“ Blizzards Seite mit Brokers Spalte.
+  - **Mehr > Händler, Neutral, Datenlage** mit `Peon.UI`: Suchfeld, Haken und Listen im Look des Auktionshauses, Symbole in den Listen. Klick zeigt den Gegenstand, Rechtsklick öffnet das Menü.
+  - **Beobachtung** ist kein Unterpunkt von Mehr mehr. Sie steht als besondere Liste in Einkaufen (seit 0.62).
+  - **Ein Händler-Speicher:** Die Händlerpreise für das Berufsfenster kommen jetzt aus demselben Speicher wie die Seite Händler (`vendors`). Der frühere eigene Speicher (`merchant`) wird nicht mehr beschrieben und nur noch gelesen, bis der Händler wieder besucht wurde. Gelöscht wird er nicht.
+  - Aufgeräumt: alte Seite Beobachtung, eigener Händler-Scan in `Merchant.lua`, `W.Inset`.
+  - **Im Spiel prüfen:** unterwegs Reiter Auktionen (vorher am Auktionshaus einmal Auktionen öffnen). Mehr mit allen drei Unterpunkten. Einen Händler besuchen, danach im Berufsfenster ein Rezept mit Händlerware: Stimmt der Händlerpreis?
+
 ## 0.62.0
 
 Kurz: Die Seite „Einkaufen“ ist neu gebaut: links die Listen mit der Beobachtung immer oben, rechts die Gegenstände mit Ziel, Fehlt, Höchstpreis, günstigstem Angebot und Rat, darunter die Kaufzeile mit goldenem Knopf.

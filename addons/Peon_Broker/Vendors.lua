@@ -3,7 +3,7 @@
 --   PeonBrokerDB.vendors[npcID] = { n = Name, z = Zone, x, y (0..100), t = zuletzt gesehen,
 --     items = { [itemID] = { p = Gold je Stueck (Kupfer, nil = nur andere Waehrung), q = Stueck je Kauf,
 --       c = { { n = Menge, name = Waehrung oder Gegenstand, id = itemID oder nil }, ... }, lim = vorraetig, req = "Voraussetzung" } } }
--- Merchant.lua (Kaufpreis fuer das Berufsfenster) bleibt und nutzt weiter PeonBrokerDB.merchant.
+-- Merchant.lua (Kaufpreis fuer das Berufsfenster) liest ab 0.63 aus diesem Speicher.
 -- Gelesen wird beim Oeffnen des Haendlerfensters und bei Aenderungen, hoechstens alle 2 Sek.
 -- Voraussetzungen (Ruf, Rang, Beruf, Stufe) stehen nur im Tooltip des Angebots: rote Zeilen werden als Text gemerkt.
 -- Die Liste zeigt der Reiter "Haendler" im Broker-Fenster, der Manager liest sie aus Peon_Broker.lua.
@@ -117,12 +117,19 @@ function V.Offer(i)
         local ok, x = pcall(CM.GetItemInfo, i)
         if ok and type(x) == "table" then info = x end
     end
-    if not info then return id, { } end
+    if not info then
+        -- aeltere Abfrage (bis 0.62 in Merchant.lua): Preis, Stueck je Kauf, andere Waehrung
+        local old = rawget(_G, "GetMerchantItemInfo")
+        if type(old) ~= "function" then return id, { } end
+        local ok, _, _, p, q, _, _, _, ext = pcall(old, i)
+        if not ok then return id, { } end
+        info = { price = p, stackCount = q, hasExtendedCost = ext }
+    end
     local q = Num(info.stackCount) and info.stackCount > 0 and info.stackCount or 1
     local e = { q = q }
     if Num(info.price) and info.price > 0 then e.p = info.price / q end
     if Num(info.numAvailable) and info.numAvailable >= 0 then e.lim = info.numAvailable end
-    if info.hasExtendedCost then e.c = V.Costs(i) end
+    if info.hasExtendedCost then e.c = V.Costs(i); e.p = nil end
     e.req = V.Requirements(i)
     return id, e
 end
@@ -147,7 +154,10 @@ function V.Scan(force)
         local id, e = V.Offer(i)
         if id and e then v.items[id] = e; got = got + 1 end
     end
-    if got > 0 then V.Store()[npc] = v end
+    if got > 0 then
+        V.Store()[npc] = v
+        if ns.Craft then ns.Craft.dirty = true end   -- Haendlerpreise im Berufsfenster neu rechnen
+    end
     mod:Dbg(("Haendler %s: %d Angebote"):format(tostring(v.n), got))
     return got
 end
@@ -223,56 +233,44 @@ function V.Rows(search, onlyProfit)
     return rows
 end
 
+-- Seite Mehr > Haendler (ab 0.63 mit Peon.UI, Neuaufbau N5)
 function V.Build(c)
-    local total = W.WIDTH - 24
-    local inset = W.Inset(c)
-    inset:SetPoint("TOPLEFT", 0, 0)
-    inset:SetPoint("BOTTOMRIGHT", 0, 0)
-    local box = CreateFrame("EditBox", nil, inset, "InputBoxTemplate")
-    box:SetSize(180, 20)
-    box:SetAutoFocus(false)
-    box:SetPoint("TOPLEFT", 70, -6)
-    box:SetScript("OnTextChanged", function(self) V.search = self:GetText() or ""; V.Refresh() end)
-    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    local bl = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    bl:SetPoint("RIGHT", box, "LEFT", -8, 0)
-    bl:SetText(L.VEN_SEARCH)
-    V.searchBox = box
-    local cb = CreateFrame("CheckButton", nil, inset, "UICheckButtonTemplate")
-    cb:SetSize(22, 22)
-    cb:SetPoint("LEFT", box, "RIGHT", 16, 0)
-    local cbl = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    cbl:SetPoint("LEFT", cb, "RIGHT", 2, 0)
-    cbl:SetText(L.VEN_ONLY_PROFIT)
-    cb:SetScript("OnClick", function(self) V.onlyProfit = self:GetChecked() and true or false; V.Refresh() end)
-    V.profitCheck = cb
-    local fixed = 110 + 120 + 100 + 90 + 80
-    V.list = Peon.NewList(inset, {
+    local UI = Peon.UI
+    V.searchBox = UI.SearchBox(c, 220, function(text) V.search = text; mod:Call("Haendler", V.Refresh) end)
+    V.searchBox:SetPoint("TOPLEFT", 8, -4)
+    V.profitCheck = UI.Check(c, L.VEN_ONLY_PROFIT, V.onlyProfit, function(on) V.onlyProfit = on; mod:Call("Haendler", V.Refresh) end)
+    V.profitCheck:SetPoint("LEFT", V.searchBox, "RIGHT", 16, 0)
+    V.count = UI.Text(c, "small", "")
+    V.count:SetPoint("TOPRIGHT", -6, -10)
+    local p = UI.Panel(c, "list", true)
+    p:SetPoint("TOPLEFT", 0, -34)
+    p:SetPoint("BOTTOMRIGHT", 0, 0)
+    V.panel = p
+    V.list = UI.Table(p, {
         columns = {
-            { key = "name", title = L.COL_ITEM, width = total - 16 - 24 - fixed, format = function(v, r) return W.Colored(v, r.quality) end },
-            { key = "priceText", title = L.VEN_COL_PRICE, width = 110, align = "RIGHT", sortValue = function(r) return r.price or math.huge end },
-            { key = "vendor", title = L.VEN_COL_VENDOR, width = 120 },
-            { key = "zone", title = L.VEN_COL_ZONE, width = 100 },
-            { key = "req", title = L.VEN_COL_REQ, width = 90, format = function(v) return v and ("|cffff6060" .. v .. "|r") or "" end },
-            { key = "ah", title = L.VEN_COL_AH, width = 80, align = "RIGHT",
+            { key = "name", title = L.COL_ITEM, sort = function(r) return W.Lower(r.name) end,
+              color = function(r) return UI.QualityColor(r.quality or 1) end },
+            { key = "priceText", title = L.VEN_COL_PRICE, width = 120, align = "RIGHT", sort = function(r) return r.price or math.huge end },
+            { key = "vendor", title = L.VEN_COL_VENDOR, width = 140 },
+            { key = "zone", title = L.VEN_COL_ZONE, width = 120 },
+            { key = "req", title = L.VEN_COL_REQ, width = 100, format = function(v) return v and ("|cffff6060" .. v .. "|r") or "" end },
+            { key = "ah", title = L.VEN_COL_AH, width = 90, align = "RIGHT",
               format = function(v, r) if not v then return "–" end return (r.profit and GREEN or "") .. Money(v) .. (r.profit and " +|r" or "") end },
         },
-        rows = 18, rowHeight = 18, sortKey = "name",
-        onClick = function(_, r) if ns.Go then ns.Go.Item({ id = r.key, name = r.name }) end end,
-        onEnter = function(_, r, row) W.ShowItemTooltip(row, r.key) end,
-        onLeave = function() if GameTooltip then GameTooltip:Hide() end end,
-        emptyText = L.VEN_EMPTY,
+        sortKey = "name", icon = true, empty = L.VEN_EMPTY,
+        onClick = function(r, button)
+            if button == "RightButton" then ns.Go.Menu(r, V.panel) else mod:Call("Sprung", ns.Go.Item, { id = r.key, key = r.key, name = r.name }) end
+        end,
+        onEnter = function(row, r) if r then W.ShowItemTooltip(row, r.key) end end,
     })
-    V.list.frame:SetPoint("TOPLEFT", 4, -32)
-    V.count = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    V.count:SetPoint("BOTTOMLEFT", 10, 10)
+    function V.list:GetItems() return self.items end
     V.Refresh()
 end
 
 function V.Refresh()
     if not V.list then return end
     local rows = V.Rows(V.search, V.onlyProfit)
+    for _, r in ipairs(rows) do r.icon = r.icon or (ns.Buy and ns.Buy.Icon(r.key)) end
     V.list:SetData(rows)
     V.count:SetText(V.Summary())
 end

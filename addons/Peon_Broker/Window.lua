@@ -38,9 +38,8 @@ W.DEFAULT = "prices"
 W.pages = {}          -- key -> { build = fn(content), refresh = fn(), enter = fn(), leave = fn() }
 W.contents = {}       -- key -> Rahmen der Seite
 
--- In Arbeit: Diese Reiter zeigen nur einen Hinweis, bis ihr Bauabschnitt kommt (Auktionen N5, Fokus N6)
-W.WIP = { auctions = true, focus = true }
-W.pages.auctions = { build = function() end }
+-- In Arbeit: Diese Reiter zeigen nur einen Hinweis, bis ihr Bauabschnitt kommt (Fokus N6)
+W.WIP = { focus = true }
 W.pages.focus = { build = function() end }
 
 local function BuildWip(c)
@@ -56,24 +55,6 @@ W.QUALITY = { [0] = "ff9d9d9d", [1] = "ffffffff", [2] = "ff1eff00", [3] = "ff007
 function W.TabLabel(key)
     for _, t in ipairs(W.TABS) do if t.key == key then return L[t.label] or key end end
     return key
-end
-
-local function TryFrame(kind, name, parent, template)
-    local ok, f = pcall(CreateFrame, kind, name, parent, template)
-    if ok and f then return f end
-    return nil
-end
-
--- Dunkles Innenfeld wie im Auktionshaus (fuer die bisherigen Seiten)
-function W.Inset(parent)
-    local f = TryFrame("Frame", nil, parent, "InsetFrameTemplate")
-    if not f then
-        f = CreateFrame("Frame", nil, parent)
-        local bg = f:CreateTexture(nil, "BACKGROUND")
-        bg:SetAllPoints()
-        bg:SetColorTexture(0, 0, 0, 0.4)
-    end
-    return f
 end
 
 ---------------------------------------------------------------------------
@@ -347,14 +328,13 @@ function W.Refresh()
 end
 
 ---------------------------------------------------------------------------
--- Seite "Mehr": Haendler, Neutral (Marktvergleich), Datenlage (Quellen), bis N4 auch die Beobachtung.
--- Die Unterpunkte sind die bisherigen Seiten (W.pages.vendors, market, sources, watch) im neuen Rahmen.
+-- Seite "Mehr": Haendler (Vendors.lua), Neutral (Marktvergleich) und Datenlage (Quellen, beide Pages.lua).
+-- Die Beobachtung steht ab 0.62 als besondere Liste in Einkaufen.
 ---------------------------------------------------------------------------
 W.MORE = {
     { key = "vendors", label = "MORE_VENDORS" },
     { key = "market",  label = "MORE_NEUTRAL" },
     { key = "sources", label = "MORE_DATA" },
-    { key = "watch",   label = "MORE_WATCH" },
 }
 
 local function MoreSelect(key)

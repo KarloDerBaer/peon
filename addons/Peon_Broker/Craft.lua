@@ -342,7 +342,6 @@ function C.OnSelect(recipeID)
 end
 
 function C.Init()
-    if ns.Merchant then ns.Merchant.Init() end
     pcall(mod.RegisterEvent, mod, "TRADE_SKILL_SHOW", function() C.OnShow() end)
     pcall(mod.RegisterEvent, mod, "TRADE_SKILL_LIST_UPDATE", function()
         if not C.Frame() then return end
