@@ -46,11 +46,11 @@ srv.listen(0, async () => {
     await page.waitForTimeout(700);
     await page.screenshot({ path: `${out}/uebersicht_${theme}.png`, fullPage: true });
     if (theme === 'dark') {
-      await page.click('nav >> text=Einkaufsliste'); await page.waitForTimeout(300);
+      await page.click('nav >> text=Einkaufen'); await page.waitForTimeout(300);
       await page.screenshot({ path: `${out}/einkaufsliste.png` });
-      await page.click('nav >> text=Favoriten'); await page.waitForTimeout(300);
+      await page.click('nav >> text=Beobachtung'); await page.waitForTimeout(300);
       await page.screenshot({ path: `${out}/favoriten.png` });
-      await page.click('nav >> text=Gegenstände'); await page.waitForTimeout(400);
+      await page.click('nav >> text=Markt'); await page.waitForTimeout(400);
       await page.screenshot({ path: `${out}/gegenstaende.png` });
       await page.hover('.body .tr >> nth=2'); await page.waitForTimeout(500);
       await page.screenshot({ path: `${out}/gegenstaende_tooltip.png` });
@@ -64,8 +64,8 @@ srv.listen(0, async () => {
       await page.screenshot({ path: `${out}/gegenstand_alles.png`, fullPage: true });
       await page.click('[aria-label=Zurück]'); await page.waitForTimeout(400);
       await page.screenshot({ path: `${out}/zurueck.png` });
-      await page.click('nav >> text=Chancen'); await page.waitForTimeout(500);
-      await page.screenshot({ path: `${out}/chancen_wiederverkauf.png`, fullPage: false });
+      await page.click('nav >> text=Radar'); await page.waitForTimeout(500);
+      await page.screenshot({ path: `${out}/radar_aufkauf.png`, fullPage: false });
       for (const [t, f] of [['Händler', 'haendler'], ['Fallend', 'fallend'], ['Steigend', 'steigend'], ['Lohnend', 'lohnend']]) {
         await page.click(`.tabs >> text=${t}`); await page.waitForTimeout(300);
         await page.screenshot({ path: `${out}/chancen_${f}.png`, fullPage: false });
@@ -73,7 +73,7 @@ srv.listen(0, async () => {
       await page.click('.tabs >> text=Wiederverkauf'); await page.waitForTimeout(200);
       await page.click('.tbl tbody tr >> nth=0'); await page.waitForTimeout(700);
       await page.screenshot({ path: `${out}/gegenstand_aus_chancen.png`, fullPage: true });
-      await page.click('nav >> text=Quellen'); await page.waitForTimeout(300);
+      await page.click('nav >> text=Datenlage'); await page.waitForTimeout(300);
       await page.screenshot({ path: `${out}/quellen.png`, fullPage: true });
       await page.click('nav >> text=Einstellungen'); await page.waitForTimeout(400);
       await page.screenshot({ path: `${out}/einstellungen.png`, fullPage: true });

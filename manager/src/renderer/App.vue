@@ -35,13 +35,14 @@ async function closeUpdates() {
 
 // Ansichten der Manager-Module, je aktives Modul eine Gruppe mit Ueberschrift. Dazu immer Updates, Rueckmeldungen und Einstellungen
 const ALL = [
+  // ab 0.26.0 (Neuaufbau H5): Seiten und Reihenfolge wie im Spiel (Markt, Einkaufen mit Beobachtung, Radar, Mehr)
   { key: 'overview', label: 'Übersicht' },
-  { key: 'items', label: 'Gegenstände' },
+  { key: 'items', label: 'Markt' },
+  { key: 'shopping', label: 'Einkaufen (WIP)' },
   { key: 'favorites', label: 'Beobachtung' },
-  { key: 'shopping', label: 'Einkaufsliste (WIP)' },
+  { key: 'chances', label: 'Radar' },
   { key: 'vendors', label: 'Händler' },
-  { key: 'chances', label: 'Chancen' },
-  { key: 'sources', label: 'Quellen' },
+  { key: 'sources', label: 'Datenlage' },
   { key: 'modules', label: 'Updates', always: true },
   { key: 'reports', label: 'Rückmeldungen', always: true },
   { key: 'settings', label: 'Einstellungen', always: true },

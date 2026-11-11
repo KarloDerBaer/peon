@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 12.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.18.0 / Broker 0.68.0 / Bridge 0.9.1 (bis 0.3.0 Peon_Client) / Peon Manager 0.25.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 12.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.18.0 / Broker 0.68.0 / Bridge 0.9.1 (bis 0.3.0 Peon_Client) / Peon Manager 0.26.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.18.0, API 18
@@ -65,7 +65,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.68.0, 0.67.0, 0.66.0, 0.65.0, 0.64.1, 0.64.0, 0.63.0, 0.62.0, 0.61.0, 0.60.1, 0.60.0, 0.59.1, 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.25.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.26.0
+
+- **Seiten wie im Spiel (ab 0.26.0, Neuaufbau H5):** Markt, Einkaufen, Beobachtung, Radar (mit neuem erstem Reiter Aufkauf, gleiche Regel wie Broker 0.65.0), Händler, Datenlage. Nicht veröffentlicht, im echten Programm noch nicht geprüft.
 
 - **Arbeitsprozess (ab 0.23.0):** Das Modul Peon Broker Client läuft in einem eigenen Thread (`broker-worker.js`, `broker-remote.js`), das Fenster hängt nach neuen Daten nicht mehr. Vorher bis etwa 10 Sek. „Keine Rückmeldung“ (gemessen mit nachgebildeten 5 Tagen Blizzard-Daten). Dazu rechnet ein Zwischenspeicher (`snapindex.js`) nur noch die neuen Stände dazu, ein neuer Stand kostet etwa 0,6 Sek. statt 7 Sek. Im gebauten Programm mit Testdaten geprüft. Auf Wunsch von KarloDerBaer direkt im normalen Release `v2026.11.09.2` (09.11.2026), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. **Noch zu prüfen durch KarloDerBaer:** läuft der Manager mit den echten Daten flüssig.
 - **Chancen für Massenware und unruhige Preise (ab 0.22.0, Rechenmodell Kapitel 10):** Kein Wiederverkauf, wenn unter dem Ziel mehr als ein Tagesabsatz liegt (F50b) oder die Schwankung über 40 % liegt (F50c). Neues Preisniveau schon nach 12 Std. (F54). Chancen zeigen nur den letzten Scan, der Zeitraum zählt nur die Häufigkeit. Preis und Menge im Diagramm auf derselben Zeitachse. Vorabversion `v2026.11.08.2-test` (08.11.2026, nur Kanal Test, enthält auch 0.21.1), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im normalen Release `v2026.11.08.3` (08.11.2026, mit Broker 0.39.0). **Noch zu prüfen durch KarloDerBaer:** Chancen-Tabelle, Satz „Das ist der Marktpreis“ (Robuster Stein), „Der Preis schwankt stark“ (Umhang des Hügelwächters), gemeinsame Zeitachse im Diagramm.
@@ -234,6 +236,7 @@ Von KarloDerBaer freigegeben. Ersetzt die Abschnitte 7, 8 und 15 des Umbau-Konze
 - **H2 Fokus mit Messung:** gebaut mit Broker 0.66.0 (12.11.2026, `Measure.lua`): Abfragen alle 5 Sekunden, Abfluss, Zufluss unter Ziel, Menge unter Ziel, günstigster Preis, Urteil, Diagramm, Warnung beim Kauf. Im Spiel noch nicht geprüft, vor allem der kürzeste Abstand, den das Spiel annimmt.
 - **H3 Wiederverkauf-Kette:** gebaut mit Broker 0.67.0 (12.11.2026, `Lots.lua`): Posten, Zum Einstellen, Zielpreis eintragen mit Prüfung auf Blockaden, Fokus bewacht eingestellte Posten, Unterbotene abbrechen. Abweichung: Ein Klick legt nichts selbst ins Verkaufsfenster (würde Blizzards Werte berühren), noch mit KarloDerBaer abzustimmen. Im Spiel noch nicht geprüft.
 - **H4 kleine Hilfen:** gebaut mit Broker 0.68.0 (12.11.2026): Händler-Warnung in Blizzards Kaufansicht, Rat „HÄNDLER“ in Einkaufen, Material aus dem Berufsfenster auf die Liste „Material“, Beobachtung mit Grenze nach oben. Im Spiel noch nicht geprüft.
+- **H5 Manager angeglichen:** gebaut mit Manager 0.26.0 (12.11.2026): Seiten und Begriffe wie im Spiel, Reiter Aufkauf im Radar. Im echten Programm noch nicht geprüft. Damit ist **Stufe 2 (H1 bis H5) gebaut**, nichts davon veröffentlicht.
 - **Stufe 1 (N1 bis N6) ist damit gebaut.** Im Spiel geprüft sind N1 und N2 (bis 0.60.0), noch nicht 0.60.1 bis 0.64.0. **Als Nächstes:** Prüfung durch KarloDerBaer, danach Stufe 2 mit H1 (Aufkauf-Chancen).
 - **Für später vorgemerkt:** Kandidaten vom Manager, Erfolgskontrolle, Alles Lohnende kaufen.
 - **Im Spiel zu messen:** Breite der acht Reiter (N1), kürzester Abstand im Fokus (H2), Blockaden bei „Zielpreis eintragen“ (H3).

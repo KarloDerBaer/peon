@@ -68,7 +68,7 @@ const inGold = (c) => (c == null ? '' : c / 10000);
 <template>
   <div class="shop" v-if="view">
     <div class="head">
-      <h1>Einkaufsliste <span class="muted">(WIP)</span></h1>
+      <h1>Einkaufen <span class="muted">(WIP)</span></h1>
       <label class="check small"><input type="checkbox" :checked="settings.shopNotify" @change="emit('save', { shopNotify: $event.target.checked })" /> Meldung von Windows, wenn etwas unter dem Höchstpreis liegt</label>
     </div>
 
@@ -114,7 +114,7 @@ const inGold = (c) => (c == null ? '' : c / 10000);
             </tr>
           </tbody>
         </table>
-        <p class="small muted">Kaufen geht nur im Spiel, im Broker unter Einkaufsliste. Änderungen hier kommen beim nächsten Laden ins Spiel, Änderungen im Spiel von selbst hierher. Die Preise gelten für den gewählten Markt.</p>
+        <p class="small muted">Kaufen geht nur im Spiel, im Broker unter Einkaufen. Änderungen hier kommen beim nächsten Laden ins Spiel, Änderungen im Spiel von selbst hierher. Die Preise gelten für den gewählten Markt.</p>
       </div>
       <div class="content muted" v-else>Lege links eine Liste an.</div>
     </div>

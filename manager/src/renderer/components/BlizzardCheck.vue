@@ -64,7 +64,7 @@ const regionLabel = computed(() => (REGIONS.find((r) => r.id === (st.value && st
       <h2>Blizzard-API</h2>
       <button class="primary" v-if="st.saved" :disabled="!!busy" @click="check">{{ busy === 'check' ? 'Prüft' : 'Zugang prüfen' }}</button>
     </div>
-    <p class="muted lead">Mit einem eigenen Zugang kann der Manager Daten direkt bei Blizzard abfragen, zum Beispiel die Auktionshäuser von Forever. Welche Häuser er abruft, wählst du mit dem Peon Broker Client unter Quellen.</p>
+    <p class="muted lead">Mit einem eigenen Zugang kann der Manager Daten direkt bei Blizzard abfragen, zum Beispiel die Auktionshäuser von Forever. Welche Häuser er abruft, wählst du mit dem Peon Broker Client unter Datenlage.</p>
     <p class="small"><button class="link" @click="api.openLink(PORTAL)">{{ st.saved ? 'Zugang bei Blizzard verwalten' : 'Zugang bei Blizzard beantragen' }}</button> <span class="muted">(Entwicklerportal von Blizzard, auf Englisch)</span></p>
 
     <div v-if="st.saved" class="saved">
@@ -74,8 +74,8 @@ const regionLabel = computed(() => (REGIONS.find((r) => r.id === (st.value && st
     </div>
     <p v-if="waitHint" class="note">Ein neuer Zugang funktioniert bei Blizzard oft erst nach ein paar Minuten. Schlägt „Zugang prüfen“ gleich nach dem Speichern fehl, versuche es etwas später noch einmal.</p>
     <p v-if="noHouse" class="note">
-      Wähle unter Quellen mindestens ein Auktionshaus aus, sonst ruft der Manager bei Blizzard nichts ab.
-      <button v-if="props.broker" class="link" @click="emit('go', 'sources')">Zu den Quellen</button>
+      Wähle unter Datenlage mindestens ein Auktionshaus aus, sonst ruft der Manager bei Blizzard nichts ab.
+      <button v-if="props.broker" class="link" @click="emit('go', 'sources')">Zur Datenlage</button>
       <template v-else>Dafür brauchst du den Peon Broker Client. <button class="link" @click="emit('go', 'modules')">Unter Updates installieren</button></template>
     </p>
     <template v-else>
@@ -98,7 +98,7 @@ const regionLabel = computed(() => (REGIONS.find((r) => r.id === (st.value && st
           <li><strong>Intended Use:</strong> Kurz beschreiben, zum Beispiel „Auktionsdaten für meine eigene Auswertung im Peon Manager“.</li>
           <li>Dann auf <strong>Create</strong> klicken.</li>
         </ul>
-        <p v-else>Unter <strong>Manage Client</strong> stehen die <strong>Client ID</strong> und das <strong>Client Secret</strong>. Fehlt das Secret, erzeugst du es dort mit <strong>Generate New Secret</strong>. Trage beides unten ein. Danach wählst du unter Quellen die Auktionshäuser aus.</p>
+        <p v-else>Unter <strong>Manage Client</strong> stehen die <strong>Client ID</strong> und das <strong>Client Secret</strong>. Fehlt das Secret, erzeugst du es dort mit <strong>Generate New Secret</strong>. Trage beides unten ein. Danach wählst du unter Datenlage die Auktionshäuser aus.</p>
         <div class="t-nav">
           <button :disabled="step === 0" @click="step--">Zurück</button>
           <button v-if="step < STEPS.length - 1" @click="step++">Weiter</button>

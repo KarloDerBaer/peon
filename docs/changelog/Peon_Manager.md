@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.26.0
+
+Kurz: Die Seiten heißen jetzt wie im Spiel: Markt, Einkaufen, Beobachtung, Radar, Händler und Datenlage.
+Kurz: Im Radar zeigt der neue erste Reiter „Aufkauf“ dieselben Chancen wie Broker im Spiel: Massenware bis zu einer Preisstufe kaufen und zum Preis der nächsten Stufe wieder einstellen, mit Ampel für das Risiko.
+
+- 0.26.0 (12.11.2026, Neuaufbau Broker H5, Konzept `docs/konzepte/broker/Peon_Broker_Neuaufbau.md` Abschnitt 8): **Seiten und Begriffe wie im Spiel.**
+  - **Seitenleiste:** Übersicht, Markt (bisher Gegenstände), Einkaufen (bisher Einkaufsliste, weiter mit „WIP“), Beobachtung (jetzt direkt unter Einkaufen, im Spiel eine Liste in Einkaufen), Radar (bisher Chancen), Händler, Datenlage (bisher Quellen). Überschriften, Hinweise in der Einrichtungsliste, beim Blizzard-Zugang und auf der Übersicht mitgezogen. Die Bereiche für Rückmeldungen heißen entsprechend (`reports.js`), alte Rückmeldungen behalten ihren Bereich.
+  - **Radar, Reiter „Aufkauf“** (neu, zuerst gewählt): gleiche Regel wie Broker 0.65.0 (`chances.buyout`, `buyoutFor`): je Massenware die Stelle zwischen zwei Preisstufen mit dem höchsten Gewinn (Menge × Ziel × 0,95 − Einsatz), mindestens 50 Silber, verkauft sich beim Absatz des Managers in höchstens 2 Std., kein neues Preisniveau nach unten (F54). Gerechnet auf dem letzten Stand (Scan oder Blizzard-API) mit allen Angeboten. Das Gold des Charakters kennt der Manager nicht, darum ohne Grenze für den Einsatz. Spalten Gegenstand, Gewinn, Kaufen bis, Menge, Einsatz, Ziel, Verkauft in, Risiko (Tooltip mit den Gründen). Sortiert nach Gewinn, rotes Risiko unten.
+  - **Reiter danach:** Händler, dann Wiederverkauf, Fallend, Steigend, Lohnend wie bisher. Im Spiel gibt es Wiederverkauf nicht mehr (Konzept Abschnitt 6.1), im Manager bleibt er vorerst. Ob er wegfällt, entscheidet KarloDerBaer.
+  - Tests: `test/aufkauf.test.js` (3 Tests: Rechnung, jede Bedingung, Risiko und Sortierung), `c6.test.js` prüft den Aufkauf im Ergebnis von `chances`. Alle 178 Tests grün, Oberfläche gebaut (`npm run build`). Die Bildschirmfotos (`npm run shots`) brauchen eine private Datendatei (`test/fixtures/Peon_Bridge_echt.lua`), die nicht im Repo liegt, darum nicht erstellt. `test/ui/shots.js` klickt auf die neuen Namen.
+  - **Im echten Programm prüfen:**
+    1. Seitenleiste mit den neuen Namen und der neuen Reihenfolge.
+    2. Radar, Reiter Aufkauf: Liste mit echten Daten. Passen die Treffer zu dem, was Broker im Spiel zeigt (bis auf das Gold)?
+    3. Tooltip der Ampel, Sortierung, Filter „Gewinn ab … Silber“.
+
 ## 0.25.0
 
 Kurz: Neue Seite „Händler“: Alles, was Broker im Spiel bei Händlern gesehen hat, mit Ort, Voraussetzungen und dem Preis im Auktionshaus.

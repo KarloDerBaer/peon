@@ -9,14 +9,16 @@ const props = defineProps({ market: Object, now: Number, stamp: Number, settings
 const emit = defineEmits(['open', 'save']);
 const api = window.peon;
 
+// ab 0.26.0 (Neuaufbau H5): Seite heisst Radar wie im Spiel, Aufkauf und Haendler zuerst
 const TABS = [
-  { key: 'resale', label: 'Wiederverkauf' },
+  { key: 'buyout', label: 'Aufkauf' },
   { key: 'vendor', label: 'Händler' },
+  { key: 'resale', label: 'Wiederverkauf' },
   { key: 'down', label: 'Fallend' },
   { key: 'up', label: 'Steigend' },
   { key: 'worth', label: 'Lohnend' },
 ];
-const tab = ref('resale');
+const tab = ref('buyout');
 const d = ref(null);
 const loading = ref(false);
 const days = ref(props.settings.chances?.days || 7);
@@ -40,7 +42,18 @@ watch([days, minSilver, quality], () => {
 watch(tab, () => { sortKey.value = null; sortDesc.value = true; limit.value = 50; });
 watch([search, quality, minSilver, days], () => { limit.value = 50; });
 
+const RISK = { low: 'gering', mid: 'mittel', high: 'hoch' };
 const COLS = {
+  buyout: [
+    { key: 'name', label: 'Gegenstand', w: 3 },
+    { key: 'gain', label: 'Gewinn', num: true, gold: true, tip: 'Menge mal Ziel nach 5 % Gebühr, minus Einsatz' },
+    { key: 'limit', label: 'Kaufen bis', num: true, gold: true, tip: 'Alles bis zu dieser Preisstufe kaufen' },
+    { key: 'qty', label: 'Menge', num: true },
+    { key: 'cost', label: 'Einsatz', num: true, gold: true },
+    { key: 'target', label: 'Ziel', num: true, gold: true, tip: 'Preis der nächsten Stufe, zu dem wieder eingestellt wird' },
+    { key: 'hours', label: 'Verkauft in', num: true, tip: 'Menge geteilt durch den Absatz je Stunde' },
+    { key: 'risk', label: 'Risiko', num: true },
+  ],
   resale: [
     { key: 'name', label: 'Gegenstand', w: 3 },
     { key: 'buy', label: 'Einkauf Ø', num: true, gold: true, tip: 'Mittlerer Preis der lohnenden Angebote im letzten Scan' },
@@ -87,6 +100,7 @@ const widthSum = computed(() => cols.value.reduce((a, c) => a + (c.w || 1), 0));
 
 const raw = computed(() => {
   if (!d.value) return [];
+  if (tab.value === 'buyout') return d.value.buyout ? d.value.buyout.list : [];
   if (tab.value === 'resale') return d.value.resale.list;
   if (tab.value === 'vendor') return d.value.vendor.list;
   return d.value[tab.value] || [];
@@ -96,6 +110,7 @@ function sortVal(x, k) {
   if (k === 'name') return fold(itemName(x));
   if (k === 'sales') return x.sales ? x.sales.perDay : x.perDay ?? null;
   if (k === 'perDay' && tab.value === 'worth') return x.perDay;
+  if (k === 'risk') return { low: 1, mid: 2, high: 3 }[x.risk] ?? 9;
   return x[k];
 }
 
@@ -107,6 +122,7 @@ const rows = computed(() => {
   if (Number(quality.value) > 0) r = r.filter((x) => (x.quality ?? -1) >= Number(quality.value));
   if (tab.value === 'resale' || tab.value === 'vendor') r = r.filter((x) => (x.perDay ?? x.rough) >= minP);
   if (tab.value === 'worth') r = r.filter((x) => x.spanDay >= minP);
+  if (tab.value === 'buyout') r = r.filter((x) => x.gain >= minP);
   if (sortKey.value) {
     const k = sortKey.value, dir = sortDesc.value ? -1 : 1;
     r = [...r].sort((a, b) => {
@@ -128,7 +144,14 @@ function sortBy(c) {
   else { sortKey.value = c.key; sortDesc.value = c.key !== 'name'; }
 }
 
+function hoursText(h) {
+  if (h == null) return '–';
+  if (h < 1) return `etwa ${Math.max(1, Math.round(h * 60))} Min.`;
+  return `etwa ${(Math.round(h * 10) / 10).toString().replace('.', ',')} Std.`;
+}
+
 const intro = computed(() => ({
+  buyout: 'Wie das Radar im Spiel: Massenware bis zu einer Preisstufe aufkaufen und zum Preis der nächsten Stufe wieder einstellen. Bei gleichem Preis verkauft das Spiel die zuletzt eingestellte Ware zuerst. Es zählt, wenn der Gewinn mindestens 50 Silber beträgt, sich die Menge beim jetzigen Absatz in höchstens 2 Std. wieder verkauft und der Preis nicht gerade fällt. Dein Gold kennt der Manager nicht, das prüft erst Broker im Spiel. Die Ampel zeigt das Risiko, der Tooltip die Gründe.',
   resale: 'Chancen im letzten Scan: Angebote, die so tief unter dem üblichen Bereich liegen, dass sich Kaufen und zur Untergrenze wieder Einstellen lohnt (mindestens 20 % Gewinn nach Gebühr). Verkauft wird höchstens zum Median der Angebote. Keine Chance ist es, wenn alle Angebote gleich tief liegen, der Preis seit 12 Std. gefallen ist, unter dem Ziel mehr Ware liegt, als an einem Tag verkauft wird, oder der Preis zu stark schwankt. Der Gewinn je Tag ist durch den Absatz begrenzt. „Zweifelhaft“: in 14 Tagen wurde nie nahe der Untergrenze verkauft. Der Zeitraum zählt nur, wie oft der Gegenstand schon eine Chance war.',
   vendor: 'Chancen im letzten Scan: Angebote unter dem Händlerpreis, kaufen und beim Händler verkaufen. Keine Gebühr, kein Risiko. Der Zeitraum zählt nur, wie oft der Gegenstand schon eine Chance war.',
   down: 'Median im letzten Scan mindestens 15 % unter dem Langzeitwert und unter dem üblichen Bereich. Rotes ▼ bei Min jetzt: Dumping, das günstigste Angebot liegt mehr als 30 % unter dem Langzeitwert.',
@@ -141,6 +164,7 @@ const emptyText = computed(() => {
   const t = tab.value;
   if ((t === 'resale' || t === 'up' || t === 'down') && !d.value.bands) return 'Dafür braucht es den üblichen Bereich, also Daten an mindestens 3 Tagen.';
   if (t === 'vendor' && !d.value.vendorKnown) return 'Händlerpreise kommen über Peon_Bridge aus dem Spiel, mit dem nächsten Komplettscan.';
+  if (t === 'buyout' && !d.value.sure) return 'Dafür braucht es Absatz, also Komplettscans oder Stände höchstens 24 Std. auseinander.';
   if (t === 'worth' && !d.value.sure) return 'Dafür braucht es Absatz, also Komplettscans höchstens 24 Std. auseinander, zusammen mindestens 1 Std. beobachtet.';
   if (total.value && !rows.value.length) return 'Nichts über dem Mindestgewinn. Setz ihn tiefer.';
   return 'Im letzten Scan nichts.';
@@ -148,7 +172,7 @@ const emptyText = computed(() => {
 
 function counts(k) {
   if (!d.value) return '';
-  const n = k === 'resale' ? d.value.resale.list.length : k === 'vendor' ? d.value.vendor.list.length : (d.value[k] || []).length;
+  const n = k === 'buyout' ? (d.value.buyout ? d.value.buyout.list.length : 0) : k === 'resale' ? d.value.resale.list.length : k === 'vendor' ? d.value.vendor.list.length : (d.value[k] || []).length;
   return n ? num(n) : '';
 }
 </script>
@@ -156,7 +180,7 @@ function counts(k) {
 <template>
   <div class="ch" v-if="market">
     <div class="head">
-      <h1>Chancen</h1>
+      <h1>Radar</h1>
       <span class="small muted" v-if="d">{{ pl(d.resale.scans, 'Scan', 'Scans') }} in {{ pl(d.days, 'Tag', 'Tagen') }}, üblicher Bereich für {{ num(d.bands) }}, Absatz für {{ num(d.salesItems) }} Gegenstände<template v-if="d.lastScan">, letzter Scan {{ when(d.lastScan) }}</template></span>
     </div>
 
@@ -173,7 +197,7 @@ function counts(k) {
           <option :value="1">1 Tag</option><option :value="3">3 Tage</option><option :value="7">7 Tage</option><option :value="14">14 Tage</option>
         </select>
       </label>
-      <label v-if="tab !== 'up' && tab !== 'down'">Gewinn ab <input class="short" type="number" min="0" step="1" v-model.number="minSilver" aria-label="Mindestgewinn je Tag in Silber" /> Silber/Tag</label>
+      <label v-if="tab !== 'up' && tab !== 'down'">Gewinn ab <input class="short" type="number" min="0" step="1" v-model.number="minSilver" aria-label="Mindestgewinn in Silber" /> {{ tab === 'buyout' ? 'Silber' : 'Silber/Tag' }}</label>
       <select v-model="quality" aria-label="Qualität">
         <option value="0">Alle Qualitäten</option>
         <option value="1">Ab Gewöhnlich</option>
@@ -201,7 +225,16 @@ function counts(k) {
       <tbody>
         <tr v-for="r in shown" :key="r.key" class="click" tabindex="0" @click="emit('open', r.key)" @keydown.enter="emit('open', r.key)">
           <td class="name" :style="{ color: qualityColor(r.quality) }" :title="itemName(r)">{{ itemName(r) }}</td>
-          <template v-if="tab === 'resale' || tab === 'vendor'">
+          <template v-if="tab === 'buyout'">
+            <td class="num strong"><Gold :copper="r.gain" compact /></td>
+            <td class="num"><Gold :copper="r.limit" compact /></td>
+            <td class="num">{{ num(r.qty) }}</td>
+            <td class="num muted"><Gold :copper="r.cost" compact /></td>
+            <td class="num"><Gold :copper="r.target" compact /></td>
+            <td class="num muted small">{{ hoursText(r.hours) }}</td>
+            <td class="num risk" :class="r.risk" :title="r.why && r.why.length ? r.why.join(' ') : 'Keine Bedenken'">{{ RISK[r.risk] }}</td>
+          </template>
+          <template v-else-if="tab === 'resale' || tab === 'vendor'">
             <td class="num"><Gold :copper="r.buy" compact /></td>
             <td class="num"><Gold :copper="r.sell" compact /></td>
             <td class="num"><Gold :copper="r.perPiece" compact /></td>
@@ -268,6 +301,10 @@ function counts(k) {
 .pct.down { color: var(--down); }
 .spark :deep(svg) { margin-left: auto; }
 .dump { margin-left: 6px; font-size: 11px; color: var(--bad); }
+.risk { font-weight: 600; }
+.risk.low { color: var(--up); }
+.risk.mid { color: var(--warn, #d9a400); }
+.risk.high { color: var(--bad); }
 .empty { padding: 18px 0; }
 .more { display: flex; gap: 12px; align-items: baseline; }
 </style>

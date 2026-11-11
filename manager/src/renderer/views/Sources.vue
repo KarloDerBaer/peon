@@ -81,7 +81,7 @@ const logText = computed(() => {
 <template>
   <div class="src">
     <section class="block">
-      <h1>Quellen</h1>
+      <h1>Datenlage</h1>
       <div class="flow" aria-label="Datenweg">
         <div class="stack">
           <div v-for="s in [game, apiSt]" :key="s.key" class="station" :class="s.state">

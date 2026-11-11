@@ -131,6 +131,87 @@ function resetRules(db, current) {
 
 function slotOf(t) { return Math.floor(new Date(t * 1000).getHours() / 3); }
 
+// Aufkauf (Manager 0.26.0, Neuaufbau Abschnitt 6.1, gleiche Regel wie Broker Buyout.lua ab 0.65): Massenware bis zu
+// einer Preisstufe aufkaufen und zum Preis der naechsten Stufe wieder einstellen. Eine Stelle zaehlt, wenn der Gewinn
+// (Menge x Ziel x 0,95 - Einsatz) mindestens BUYOUT_MIN ist, sich die Menge beim Absatz in hoechstens BUYOUT_HOURS Std.
+// wieder verkauft und kein neues Preisniveau nach unten (F54) gilt. Je Gegenstand die Stelle mit dem hoechsten Gewinn.
+// Das Gold des Charakters kennt der Manager nicht: keine Grenze fuer den Einsatz, kein Risikopunkt dafuer.
+// Risiko wie im Spiel: je ein Punkt fuer Verkaufsdauer ueber 75 % der Grenze, viel Ware bis 5 % ueber dem Ziel,
+// duenne naechste Stufe, Stand aelter als 30 Min. (ueber 2 Std. zwei Punkte), wenig Absatzdaten oder kein Bereich.
+const BUYOUT_MIN = 5000;     // 50 Silber wie Broker dealMinMarket
+const BUYOUT_HOURS = 2;      // wie Broker buyoutHours
+const BUYOUT_RISK = { hoursPart: 0.75, nearPct: 0.05, thinMin: 5, thinPart: 0.1, old: 1800, veryOld: 7200 };
+
+function buyout(rows, opts = {}) {
+  const commodity = opts.commodity || (() => false);
+  const sales = opts.sales || new Map();
+  const shifts = opts.shifts || null;
+  const bands = opts.bands || null;
+  const age = opts.age || 0;
+  const minGain = opts.minGain ?? BUYOUT_MIN;
+  const maxHours = opts.maxHours ?? BUYOUT_HOURS;
+  const levels = new Map();
+  for (const r of rows) {
+    const key = itemKey(r);
+    if (!commodity(key)) continue;
+    const p = unitPrice(r);
+    if (p == null || !(r.qty > 0)) continue;
+    const price = Math.round(p);
+    let m = levels.get(key);
+    if (!m) { m = new Map(); levels.set(key, m); }
+    m.set(price, (m.get(price) || 0) + r.qty * (r.n || 1));
+  }
+  const out = [];
+  for (const [key, m] of levels) {
+    if (m.size < 2) continue;
+    const s = sales.get(key);
+    const perHour = s && s.perDay > 0 ? s.perDay / 24 : 0;
+    if (!perHour) continue;
+    const sh = shifts && shifts.get(key);
+    if (sh && sh.dir === 'down') continue;
+    const lv = [...m.entries()].sort((a, b) => a[0] - b[0]).map(([price, qty]) => ({ price, qty }));
+    let qty = 0, cost = 0, best = null;
+    for (let i = 0; i < lv.length - 1; i++) {
+      qty += lv[i].qty; cost += lv[i].qty * lv[i].price;
+      const target = lv[i + 1].price;
+      const gain = Math.floor(qty * target * (1 - CUT) - cost);
+      const hours = qty / perHour;
+      if (gain >= minGain && hours <= maxHours && (!best || gain > best.gain)) best = { i, qty, cost, target, gain, hours };
+    }
+    if (!best) continue;
+    let near = 0;
+    for (let j = best.i + 1; j < lv.length; j++) if (lv[j].price <= best.target * (1 + BUYOUT_RISK.nearPct)) near += lv[j].qty;
+    const nextQty = lv[best.i + 1].qty;
+    const why = [];
+    let pts = 0;
+    if (best.hours > maxHours * BUYOUT_RISK.hoursPart) { pts++; why.push('Der Verkauf dauert fast so lange wie die Grenze.'); }
+    if (near > perHour * maxHours) { pts++; why.push('Viel Ware knapp über dem Zielpreis.'); }
+    if (nextQty < BUYOUT_RISK.thinMin || nextQty < best.qty * BUYOUT_RISK.thinPart) { pts++; why.push('Die nächste Preisstufe ist dünn.'); }
+    if (age > BUYOUT_RISK.veryOld) { pts += 2; why.push('Der Stand ist älter als 2 Std.'); }
+    else if (age > BUYOUT_RISK.old) { pts++; why.push('Der Stand ist älter als 30 Min.'); }
+    if (!s || (s.level ?? 1) < 2 || !(bands && bands.get(key))) { pts++; why.push('Wenig Absatzdaten oder noch kein üblicher Bereich.'); }
+    out.push({ key, qty: best.qty, cost: best.cost, limit: lv[best.i].price, target: best.target, gain: best.gain, hours: best.hours,
+      nextQty, near, risk: pts >= 3 ? 'high' : pts >= 1 ? 'mid' : 'low', why,
+      sales: { perDay: s.perDay, level: s.level, rate: s.rate, avgPrice: s.avgPrice, maxSold: s.maxSold } });
+  }
+  // Gewinn absteigend, rotes Risiko unten (wie das Radar im Spiel)
+  out.sort((a, b) => ((a.risk === 'high') - (b.risk === 'high')) || b.gain - a.gain);
+  return out;
+}
+
+// Aufkauf im letzten Stand eines Markts, mit Namen
+function buyoutFor(db, last, now, bands, shifts, sales) {
+  if (!last) return { t: null, list: [] };
+  const comm = new Map(db.prepare('SELECT key, commodity, variant FROM items').all().map((x) => [x.key, !x.variant && x.commodity === 1]));
+  const list = buyout(rowsOf(db, last.id), { commodity: (k) => comm.get(k) === true, sales, shifts, bands, age: Math.max(0, now - last.t) });
+  const info = itemInfo(db);
+  for (const x of list) {
+    const i = info(x.key);
+    x.name = i.name; x.quality = i.quality; x.item = i.item_id;
+  }
+  return { t: last.t, list };
+}
+
 function itemInfo(db) {
   const get = db.prepare('SELECT name, quality, item_id, variant, vendor FROM items WHERE key = ?');
   return (key) => get.get(key) || { name: null, quality: null, item_id: Number(String(key).split(':')[0]), variant: null, vendor: null };
@@ -244,4 +325,5 @@ function worth(db, bands, sales) {
   return out;
 }
 
-module.exports = { scanOpp, updateMarket, summarizeOpp, moves, worth, hitRate, resetRules, rowsOf, low, high, CUT, MARGIN, SLOTS, HOLD, RULES, DEPTH, UNSURE };
+module.exports = { scanOpp, updateMarket, summarizeOpp, moves, worth, hitRate, resetRules, rowsOf, low, high, buyout, buyoutFor,
+  CUT, MARGIN, SLOTS, HOLD, RULES, DEPTH, UNSURE, BUYOUT_MIN, BUYOUT_HOURS };

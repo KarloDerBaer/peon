@@ -186,7 +186,8 @@ class BrokerClient {
     const vendorKnown = this.db.prepare('SELECT COUNT(*) AS n FROM items WHERE vendor IS NOT NULL').get().n;
     return { market: marketKey, days: d, now, lastScan: last ? last.t : null, bands: lt.items.size, salesItems: st.size,
       sure: [...st.values()].filter((s) => s.level >= 2).length, vendorKnown,
-      resale, vendor, up: mv.up, down: mv.down, worth: chances.worth(this.db, lt.items, st), hits: chances.hitRate(this.db, mid, now) };
+      resale, vendor, up: mv.up, down: mv.down, worth: chances.worth(this.db, lt.items, st), hits: chances.hitRate(this.db, mid, now),
+      buyout: chances.buyoutFor(this.db, last, now, lt.items, lt.shifts, st) };
   }
 
   // Werte fuer einen Gegenstand (Anzeige im Manager)

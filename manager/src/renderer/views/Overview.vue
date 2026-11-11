@@ -78,8 +78,8 @@ const sold = computed(() => (ch.value ? [...ch.value.worth].sort((a, b) => b.per
   </div>
 
   <div v-else class="ov">
-    <button class="statusline small" :class="status.state" @click="emit('go', 'sources')" title="Zu den Quellen">
-      <span class="lamp" :title="LAMP_TITLE[status.state]"></span><span>{{ status.text }}</span><span class="to">Quellen</span>
+    <button class="statusline small" :class="status.state" @click="emit('go', 'sources')" title="Zur Datenlage">
+      <span class="lamp" :title="LAMP_TITLE[status.state]"></span><span>{{ status.text }}</span><span class="to">Datenlage</span>
     </button>
 
     <section class="tiles" aria-label="Kennzahlen">

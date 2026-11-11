@@ -25,7 +25,7 @@ const steps = computed(() => {
     { key: 'wow', done: addons.value.wowValid, title: 'WoW-Ordner gefunden', hint: 'Der Manager muss wissen, wo WoW Forever liegt.', go: 'settings', label: 'Einstellungen' },
     { key: 'broker', done: on, title: 'Peon Broker Client installiert', hint: 'Er sammelt die Auktionsdaten und gibt Broker bessere Preise zurück.', go: 'modules', label: 'Updates' },
     { key: 'access', done: !!access.value.saved, title: 'Zugang zur Blizzard-API eingetragen', hint: 'Damit kommen stündlich alle Angebote, ganz ohne Scan im Spiel. Die Anleitung steht unter Einstellungen.', go: 'settings', label: 'Einstellungen' },
-    { key: 'house', done: !!(props.data.api && props.data.api.selected), title: 'Auktionshaus gewählt', hint: 'Wähle unter Quellen das Haus, auf dem du spielst.', go: on ? 'sources' : null, label: 'Quellen' },
+    { key: 'house', done: !!(props.data.api && props.data.api.selected), title: 'Auktionshaus gewählt', hint: 'Wähle unter Datenlage das Haus, auf dem du spielst.', go: on ? 'sources' : null, label: 'Datenlage' },
     { key: 'data', done: (props.data.markets || []).some((m) => m.lastScan), title: 'Erste Daten da', hint: 'Das kommt von selbst über die Blizzard-API oder mit einem Komplettscan und „An Manager“ im Spiel.', go: null },
   ];
 });

@@ -116,6 +116,7 @@ test('Chancen: Wiederverkauf, Haendler, Fallend, Lohnend', () => {
   svc.broker.importGame();
   const c = svc.broker.chances(M, 7);
   assert.equal(c.resale.scans, 2);
+  assert.ok(c.buyout && Array.isArray(c.buyout.list) && c.buyout.t === t0 + 3 * 3600, 'ab 0.26.0: Aufkauf aus dem letzten Stand');
   const r = c.resale.list.find((x) => x.key === '2589');
   // Untergrenze: LANG 1000 (Broker-Tage und heute 1000), SCHW 5 % -> Verkauf zur Untergrenze, Einkauf 500 und 600
   assert.ok(r && r.hits === 2 && r.share === 1, 'in beiden Scans Treffer');

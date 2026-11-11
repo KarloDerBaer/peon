@@ -161,7 +161,7 @@ function sourceText(s) {
 <template>
   <div class="items" v-if="market">
     <div class="head">
-      <h1>{{ favorites ? 'Beobachtung' : 'Gegenstände' }}</h1>
+      <h1>{{ favorites ? 'Beobachtung' : 'Markt' }}</h1>
       <span class="muted" v-if="list">{{ num(rows.length) }} von {{ num(base.length) }}</span>
     </div>
     <div class="filters">
@@ -187,7 +187,7 @@ function sourceText(s) {
       </div>
     </div>
 
-    <div class="table" role="table" :aria-label="favorites ? 'Beobachtung' : 'Gegenstände'">
+    <div class="table" role="table" :aria-label="favorites ? 'Beobachtung' : 'Markt'">
       <div class="tr th" role="row" :style="gridStyle">
         <span class="cell" aria-hidden="true"></span>
         <button class="cell" :class="{ on: sortKey === 'name' }" role="columnheader" @click="sortBy('name')">Gegenstand<span v-if="sortKey === 'name'" class="dir">{{ sortDesc ? '▾' : '▴' }}</span></button>
@@ -218,7 +218,7 @@ function sourceText(s) {
             </template>
           </div>
         </div>
-        <p v-if="list && !base.length && favorites" class="muted empty">Noch nichts in der Beobachtung. Klicke unter <button class="link" @click="emit('go', 'items')">Gegenstände</button> oder im Gegenstandsfenster auf den Stern.</p>
+        <p v-if="list && !base.length && favorites" class="muted empty">Noch nichts in der Beobachtung. Klicke unter <button class="link" @click="emit('go', 'items')">Markt</button> oder im Gegenstandsfenster auf den Stern.</p>
         <p v-else-if="list && !rows.length" class="muted empty">Nichts gefunden. Suche nach einem Teil des Namens oder der Nummer.</p>
       </div>
     </div>
