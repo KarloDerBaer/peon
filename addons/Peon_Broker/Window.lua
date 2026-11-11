@@ -93,6 +93,8 @@ function W.StatusText()
         parts[#parts + 1] = L.ST_NO_DATA
     end
     if not ns.Scan.ahOpen then parts[#parts + 1] = L.ST_NOT_LIVE end
+    local lots = ns.Lots and ns.Lots.StatusPart()   -- ab 0.67: "3 Posten zum Einstellen"
+    if lots then parts[#parts + 1] = lots end
     return table.concat(parts, " · ")
 end
 

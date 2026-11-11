@@ -1483,6 +1483,163 @@ end)()
     ns.Go.Clear()
 end)()
 
+-- ===== Stufe 2, H3 (0.67): Wiederverkauf-Kette =====
+;(function()
+    local LT, F = ns.Lots, ns.Focus
+    local L = ns.L
+    mod.char.lots, mod.char.lotSeq = nil, nil
+    check(LT.Count() == 0 and LT.StatusPart() == nil, "H3: anfangs keine Posten")
+    -- Aufkauf aus dem Radar wird ein Posten
+    Rd.entries[7961] = { key = 7961, kind = "buyout", ref = 1500, qty = 80, name = "Postenstein", rows = {} }
+    Rd.job = { key = 7961, id = 7961, qty = 80, limit = 1100, name = "Postenstein", stage = "wait", kind = "buyout", total = 83000, target = 1500, done = 0 }
+    Rd.FinishJob(true)
+    local lot = LT.List()[1]
+    check(lot and lot.key == 7961 and lot.qty == 80 and lot.left == 80 and lot.cost == 83000 and lot.target == 1500 and lot.src == "radar",
+        "H3: Aufkauf wird Posten (Menge, Einsatz, Ziel)")
+    check(LT.Count() == 1 and Win.StatusText():find("1 Posten zum Einstellen", 1, true), "H3: Statuszeile nennt die Posten: " .. Win.StatusText())
+    -- Haendler-Kaeufe werden keine Posten
+    Rd.job = { key = 7962, id = 7962, qty = 5, limit = 3, name = "Billig", stage = "wait", kind = "vendor", total = 15, done = 0 }
+    Rd.FinishJob(true)
+    check(LT.Count() == 1, "H3: Haendler-Kauf wird kein Posten")
+    Rd.entries = {}
+    -- Liste "Zum Einstellen" im Radar
+    local keepCount = C_Item.GetItemCount
+    C_Item.GetItemCount = function(id) return id == 7961 and 0 or 0 end
+    market.items[7961] = { m = 1400, md = 1500, q = 100, n = 2, t = clock, nm = "Postenstein", ql = 1 }
+    Win.Open("radar")
+    check(plain(Rd.lotsButton.text) == "Zum Einstellen (1)", "H3: Knopf im Radar mit Zahl")
+    Rd.lotsButton.scripts.OnClick(Rd.lotsButton)
+    check(Rd.view == "lots" and Rd.lotPanel.shown and not Rd.panel.shown and #Rd.lotList:GetItems() == 1, "H3: Liste Zum Einstellen statt der Chancen")
+    local r = Rd.lotList:GetItems()[1]
+    local cells = Rd.lotList.list.rows[1].cells
+    check(r.unit and math.floor(r.unit + 0.5) == 1038 and r.target == 1500 and r.now == 1400 and plain(cells[6].text) == "Post",
+        "H3: Zeile mit Einsatz je Stueck, Ziel, Markt jetzt, noch in der Post")
+    check(cells[5].text:find("ff5555", 1, true) ~= nil, "H3: Markt unter dem Ziel ist rot")
+    C_Item.GetItemCount = function(id) return id == 7961 and 80 or 0 end
+    Rd.RefreshLots()
+    check(plain(Rd.lotList.list.rows[1].cells[6].text) == "80", "H3: Ware in der Tasche")
+    Rd.lotList.list.rows[1].scripts.OnClick(Rd.lotList.list.rows[1], "LeftButton")
+    check(said("Rechtsklick auf den Gegenstand in der Tasche"), "H3: Klick erklaert den Weg ins Verkaufsfenster")
+    Rd.lotsButton.scripts.OnClick(Rd.lotsButton)
+    check(Rd.view == "chances" and Rd.panel.shown and not Rd.lotPanel.shown, "H3: zurueck zu den Chancen")
+    Win.frame:Hide()
+    -- Rat beim Verkaufen: Posten, Zielpreis eintragen
+    local A = ns.Advice
+    local origHook = rawget(_G, "hooksecurefunc")
+    hooksecurefunc = function(t, name, fn) local o = t[name]; t[name] = function(...) local x = o(...) fn(...) return x end end
+    local ah = CreateFrame("Frame", "AuctionHouseFrame")
+    ah.SellTab = CreateFrame("Button")
+    local sf = CreateFrame("Frame"); sf.shown = true
+    sf.PostButton = CreateFrame("Button")
+    sf.loc = { bag = 0, slot = 1 }
+    sf.price, sf.qty = 1400, 80
+    sf.GetItem = function(s) return s.loc end
+    sf.GetUnitPrice = function(s) return s.price end
+    sf.GetQuantity = function(s) return s.qty end
+    sf.UpdatePostState = function() end
+    local posted = 0
+    sf.PostItem = function() posted = posted + 1 end
+    local setTo
+    sf.PriceInput = { SetAmount = function(_, v) setTo = v; sf.price = v; sf:UpdatePostState() end }
+    ah.CommoditiesSellFrame = sf
+    local oldLink = C_Item.GetItemLink
+    C_Item.GetItemLink = function(loc) return loc and "|cffffffff|Hitem:7961::::::::20:1488:::::::::|h[Postenstein]|h|r" end
+    A.hooked, LT.hooked = nil, nil
+    mod.acc.commodity[7961] = true
+    fire("AUCTION_HOUSE_SHOW")
+    check(plain(ah.SellTab.text) == "Verkaufen (1)", "H3: Blizzards Reiter Verkaufen mit Zahl (nur der Text)")
+    sf:UpdatePostState()
+    local box = A.boxes[sf]
+    check(A.lot and A.lot.id == lot.id and box.fill.shown and plain(box.lines.text):find("Posten: gekauft für 10s 38c je Stück, Ziel 15s", 1, true),
+        "H3: Rat nennt Einsatz und Ziel, Knopf Zielpreis eintragen: " .. plain(box.lines.text))
+    check(plain(box.lines.text):find("unter dem Ziel", 1, true), "H3: Warnung: Markt liegt unter dem Ziel")
+    GetTime = function() return now end
+    box.fill.scripts.OnClick(box.fill)
+    check(setTo == 1500 and sf.price == 1500 and LT.filledAt, "H3: Zielpreis ins Preisfeld geschrieben")
+    -- Einstellen: Anhang an PostItem, Ereignis bestaetigt
+    sf:PostItem()
+    fire("AUCTION_HOUSE_AUCTION_CREATED", 555)
+    check(posted == 1 and lot.left == 0 and lot.posted and lot.posted.price == 1500 and lot.posted.qty == 80 and LT.Count() == 0,
+        "H3: eingestellt: Posten erledigt, Preis gemerkt")
+    check(plain(ah.SellTab.text) == "Verkaufen", "H3: Zahl am Reiter Verkaufen weg")
+    -- Blockade direkt nach dem Eintragen: Knopf nicht mehr anbieten
+    LT.Add(7961, 10, 10000, 1500, "radar")
+    LT.filledAt = now
+    fire("ADDON_ACTION_FORBIDDEN", "Peon_Broker", "UNKNOWN()")
+    check(type(mod.acc.targetBlocked) == "table" and not LT.CanFill(), "H3: Blockade nach dem Eintragen gemerkt")
+    sf:UpdatePostState()
+    check(not box.fill.shown and plain(box.lines.text):find("selbst eintippen", 1, true), "H3: dann nur noch der Preis im Rat")
+    mod.acc.targetBlocked = nil
+    LT.filledAt = nil
+    fire("ADDON_ACTION_FORBIDDEN", "Peon_Broker", "UNKNOWN()")
+    check(mod.acc.targetBlocked == nil, "H3: Blockade ohne Eintragen kurz davor zaehlt nicht")
+    ns.AHTabs.blocked, ns.AHTabs.offered, mod.acc.ahBlocked = {}, nil, nil   -- Spuren der nachgestellten Blockaden
+    -- Fokus bewacht den eingestellten Posten
+    check(ns.Measure.ChanceTarget(7961) == 1500, "H3: Messung im Fokus misst unter dem eigenen Preis")
+    local keepOpen = ns.Scan.ahOpen
+    ns.Scan.ahOpen = false
+    Win.Open("focus")
+    F.Set(7961)
+    check(plain(F.verdict.text) == "GEKAUFT" and plain(F.why.text):find("15s", 1, true), "H3: Fokus nach dem Kauf: Posten unterwegs mit Ziel")
+    for _, x in ipairs(LT.List()) do if x ~= lot then x.left = 0 end end
+    F.Update()
+    check(plain(F.verdict.text) == "EINGESTELLT" and F.rows[3].label.text == L.FOCUS_R_POSTED, "H3: Fokus zeigt den eingestellten Posten")
+    Win.frame:Hide()
+    ns.Scan.ahOpen = keepOpen
+    -- Unterbotene abbrechen
+    local X = ns.AuctionsAH
+    local af = CreateFrame("Frame"); af.shown = true
+    local list = CreateFrame("Frame")
+    list.ScrollBox = { ForEachFrame = function() end }
+    af.AllAuctionsList = list
+    ah.AuctionsFrame = af
+    X.header = nil
+    X.Build()
+    ns.Auctions.rows = { { id = 21, key = 2770, itemID = 2770, name = "Kupfererz", status = "under", other = 50, price = 60, qty = 20 },
+                         { id = 22, key = 2589, itemID = 2589, name = "Leinen", status = "best", price = 70, qty = 5 } }
+    local cancelled
+    AHs.GetCancelCost = function(id) return id == 21 and 1200 or nil end
+    AHs.CancelAuction = function(id) cancelled = id end
+    X.Update()
+    check(X.header.cancel and plain(X.header.cancel.text) == "Unterbotene abbrechen (1), Einzahlung weg 12s" and not X.header.cancel.disabled,
+        "H3: Knopf nennt Anzahl und verlorene Einzahlung: " .. plain(X.header.cancel.text))
+    X.header.cancel.scripts.OnClick(X.header.cancel)
+    check(cancelled == 21 and LT.cancelling and X.header.cancel.disabled, "H3: ein Klick bricht die naechste unterbotene ab")
+    local before = #LT.List()
+    fire("AUCTION_CANCELED", 21)
+    local cl = LT.List()[#LT.List()]
+    check(#LT.List() == before + 1 and cl.src == "cancel" and cl.key == 2770 and cl.qty == 20 and cl.target == 50 and cl.cost == nil,
+        "H3: Abgebrochenes wird Posten mit neuem Preis (guenstigstes Angebot, Massenware ohne Unterbieten)")
+    -- Rechtsklick: Posten entfernen
+    local opened
+    MenuUtil = { CreateContextMenu = function(owner, gen)
+        local node = { items = {} }
+        function node:CreateTitle(t) end
+        function node:CreateButton(t, fn) self.items[#self.items + 1] = { t = t, fn = fn } end
+        gen(owner, node); opened = node
+    end }
+    LT.Menu({ lot = cl, key = 2770, name = "Kupfererz" }, CreateFrame("Frame"))
+    check(opened and opened.items[1].t == L.LOTS_REMOVE, "H3: Menue mit Posten entfernen")
+    opened.items[1].fn()
+    check(LT.List()[#LT.List()] ~= cl, "H3: Posten entfernt")
+    MenuUtil = nil
+    -- Aufraeumen: eingestellte Posten nach 2 Tagen weg
+    lot.posted.t = clock - 3 * 86400
+    LT.Prune(clock)
+    local still = false
+    for _, x in ipairs(LT.List()) do if x == lot then still = true end end
+    check(not still, "H3: eingestellte Posten verschwinden nach 2 Tagen")
+    C_Item.GetItemLink, C_Item.GetItemCount = oldLink, keepCount
+    hooksecurefunc = origHook
+    AHs.GetCancelCost, AHs.CancelAuction = nil, nil
+    ns.Auctions.rows = nil
+    X.header = nil
+    market.items[7961] = nil
+    mod.char.lots = nil
+    AuctionHouseFrame = {}
+    ns.Go.Clear()
+end)()
+
 -- ===== 0.21: Richtwert und ueblicher Bereich (Rechenmodell Kapitel 7, Beispiele aus echten Daten 02.10.2026) =====
 ;(function()
     local today = D.Day()

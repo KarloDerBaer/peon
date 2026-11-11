@@ -39,6 +39,17 @@ function F.Chance()
     return R.entries[F.key] or R.gone[F.key]
 end
 
+-- Posten zum Gegenstand im Fokus (ab 0.67): offen (noch einzustellen) zuerst, sonst eingestellt. Rueckgabe lot, Zustand
+function F.Lot()
+    local LT = ns.Lots
+    if not LT or F.key == nil then return nil end
+    local lot = LT.ForKey(F.key)
+    if lot then return lot, "open" end
+    lot = LT.Posted(F.key)
+    if lot then return lot, "posted" end
+    return nil
+end
+
 -- Messung des Gegenstands im Fokus, solange sie laeuft (am Auktionator), sonst nil
 function F.LiveValues()
     local M = ns.Measure
@@ -59,7 +70,20 @@ F.V_COLOR = { buy = GREEN, wait = "|cffffd100", away = "|cffff5555", first = GRE
 -- Urteil: ohne Messung aus der Chance (Grundform), ab 0.66 beim Aufkauf aus der Messung (Konzept 6.1).
 -- Rueckgabe: Text, Farbe, Satz
 function F.Verdict(d)
-    if not d then return L.FOCUS_V_NONE, GREY, L.FOCUS_W_NONE end
+    -- ab 0.67 (H3): nach dem Kauf zeigt der Fokus den Posten (unterwegs per Post, eingestellt und bewacht)
+    if not d or d.gone then
+        local lot, state = F.Lot()
+        if state == "open" then
+            return L.FOCUS_V_BOUGHT, GREY, L.FOCUS_W_BOUGHT:format(lot.target and Money(lot.target) or "?")
+        elseif state == "posted" then
+            local v = F.LiveValues()
+            if not v then return L.FOCUS_V_POSTED, GREY, L.FOCUS_W_POSTED:format(Money(lot.posted.price or 0)) end
+            if v.underTrend == "grow" then return L.FOCUS_V_GUARD_BAD, "|cffff5555", L.FOCUS_W_GUARD_GROW end
+            if (v.under or 0) > 0 then return L.FOCUS_V_GUARD_MID, "|cffffd100", L.FOCUS_W_GUARD_UNDER:format(v.under) end
+            return L.FOCUS_V_GUARD_OK, GREEN, L.FOCUS_W_GUARD_OK
+        end
+        if not d then return L.FOCUS_V_NONE, GREY, L.FOCUS_W_NONE end
+    end
     if d.gone then return L.FOCUS_V_GONE, GREY, tostring(d.goneWhy or "") end
     if d.cant then return L.FOCUS_V_CANT, ORANGE, L.FOCUS_W_CANT end
     local v = d.kind == "buyout" and F.LiveValues() or nil
@@ -86,7 +110,19 @@ end
 function F.Rows(d)
     local R = ns.Radar
     local rows = {}
-    if not d then return rows end
+    if not d or d.gone then
+        -- ab 0.67: Angaben zum Posten (gekauft oder eingestellt)
+        local lot, state = F.Lot()
+        if lot then
+            local unit = ns.Lots.UnitCost(lot)
+            if unit then rows[#rows + 1] = { L.LOTS_COL_COST, Money(math.floor(unit + 0.5)) } end
+            if Num(lot.target) then rows[#rows + 1] = { L.FOCUS_R_TARGET, Money(lot.target) } end
+            if state == "posted" and Num(lot.posted.price) then rows[#rows + 1] = { L.FOCUS_R_POSTED, Money(lot.posted.price) } end
+            rows[#rows + 1] = { L.FOCUS_R_QTY, tostring(state == "posted" and (lot.posted.qty or lot.qty) or lot.left or lot.qty or 0) }
+            return rows
+        end
+        if not d then return rows end
+    end
     local best = d.best or {}
     rows[#rows + 1] = { L.RADAR_COL_KIND, L["RADAR_KIND_" .. tostring(d.kind):upper()] or tostring(d.kind) }
     if Num(d.limit) then rows[#rows + 1] = { L.FOCUS_R_LIMIT, Money(d.limit) } end

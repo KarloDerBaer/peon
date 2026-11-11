@@ -826,6 +826,8 @@ function R.FinishJob(ok)
     local cost = job.items and job.cost or (job.total or job.price)
     if n > 0 then
         mod:Print(L.BUY_DONE:format(n, job.name, cost and Money(cost) or "?"))
+        -- ab 0.67 (H3): ein Aufkauf wird ein Posten zum Einstellen (kommt per Post)
+        if job.kind == "buyout" and ns.Lots then ns.Lots.Add(job.key, n, cost, job.target, "radar") end
     end
     -- Rest pruefen lassen: Treffer bleibt, bis die naechste Abfrage zeigt, was noch da ist
     local d = R.entries[job.key]
@@ -1021,14 +1023,74 @@ end
 
 R.RISK_COLOR = { low = GREEN, mid = "|cffffd100", high = RED }
 
+-- Liste "Zum Einstellen" (ab 0.67, H3): Posten aus Aufkaeufen und abgebrochenen Auktionen
+function R.ShowLots(on)
+    R.view = on and "lots" or "chances"
+    if R.panel then R.panel:SetShown(not on) end
+    if R.lotPanel then R.lotPanel:SetShown(on) end
+    R.RefreshLots()
+end
+
+function R.RefreshLots()
+    if not R.lotsButton then return end
+    local n = ns.Lots and ns.Lots.Count() or 0
+    R.lotsButton:SetText(R.view == "lots" and L.LOTS_BACK or L.LOTS_BUTTON:format(n))
+    if R.view == "lots" and R.lotList then R.lotList:SetData(ns.Lots.Rows()) end
+end
+
+function R.BuildLots(c)
+    local UI = Peon.UI
+    local GREY_ = GREY
+    local p = UI.Panel(c, "list", true)
+    p:SetPoint("TOPLEFT", 0, -30)
+    p:SetPoint("BOTTOMRIGHT", 0, 0)
+    p:Hide()
+    R.lotPanel = p
+    R.lotList = UI.Table(p, {
+        columns = {
+            { key = "name", title = L.COL_ITEM, sort = function(r) return W.Lower(r.name) end,
+              color = function(r) return UI.QualityColor(r.quality or 1) end },
+            { key = "qty", title = L.FOCUS_R_QTY, width = 60, align = "RIGHT" },
+            { key = "unit", title = L.LOTS_COL_COST, width = 90, align = "RIGHT",
+              format = function(v) return v and Money(math.floor(v + 0.5)) or (GREY_ .. "-|r") end },
+            { key = "target", title = L.FOCUS_R_TARGET, width = 90, align = "RIGHT", format = function(v) return v and Money(v) or "?" end },
+            { key = "now", title = L.LOTS_COL_NOW, width = 90, align = "RIGHT",
+              format = function(v, r)
+                  if not v then return GREY_ .. "-|r" end
+                  local warn = r.target and v < r.target
+                  return (warn and RED or "") .. Money(v) .. (warn and "|r" or "")
+              end },
+            { key = "bags", title = L.LOTS_COL_BAGS, width = 80, align = "RIGHT",
+              format = function(v) if v and v > 0 then return tostring(v) end return GREY_ .. L.LOTS_MAIL .. "|r" end },
+        },
+        sortKey = "name", icon = true, empty = L.LOTS_EMPTY,
+        onClick = function(r, button)
+            if button == "RightButton" then ns.Lots.Menu(r, R.lotPanel) else mod:Call("Posten", ns.Lots.Pick, r) end
+        end,
+        onEnter = function(row, r)
+            if not r then return end
+            W.ShowItemTooltip(row, r.key)
+            if GameTooltip and r.target and r.now and r.now < r.target then
+                GameTooltip:AddLine(L.LOTS_UNDER_TARGET, 1, 0.4, 0.4, true)
+                GameTooltip:Show()
+            end
+        end,
+    })
+    function R.lotList:GetItems() return self.items end
+end
+
 function R.Build(c)
     local UI = Peon.UI
     R.scanButton = UI.Button(c, L.RADAR_START, 170, function() if R.running then R.Stop() else mod:Call("Radar", R.Start) end end)
     R.scanButton:SetPoint("TOPRIGHT", -2, -2)
     UI.SetTooltip(R.scanButton, { L.RADAR_START, L.RADAR_SCAN_TIP })
+    -- ab 0.67 (H3): Umschalter zur Liste "Zum Einstellen"
+    R.lotsButton = UI.Button(c, L.LOTS_BUTTON:format(0), 160, function() R.ShowLots(R.view ~= "lots") end)
+    R.lotsButton:SetPoint("RIGHT", R.scanButton, "LEFT", -6, 0)
+    UI.SetTooltip(R.lotsButton, { L.LOTS_TITLE, L.LOTS_TIP })
     R.status = UI.Text(c, "small", "")
     R.status:SetPoint("TOPLEFT", 8, -8)
-    R.status:SetPoint("RIGHT", R.scanButton, "LEFT", -12, 0)
+    R.status:SetPoint("RIGHT", R.lotsButton, "LEFT", -12, 0)
     if R.status.SetWordWrap then R.status:SetWordWrap(false) end
     local p = UI.Panel(c, "list", true)
     p:SetPoint("TOPLEFT", 0, -30)
@@ -1077,6 +1139,8 @@ function R.Build(c)
         onEnter = function(row, r) if r then R.RowTooltip(row, r) end end,
     })
     function R.list:GetItems() return self.items end
+    R.BuildLots(c)
+    R.view = "chances"
     R.Open()
 end
 
@@ -1097,6 +1161,7 @@ end
 function R.Open()
     R.LoadIfStale()
     R.Refresh()
+    R.RefreshLots()
 end
 
 function R.Init()

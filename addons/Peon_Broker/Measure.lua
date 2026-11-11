@@ -47,6 +47,9 @@ function M.ChanceTarget(key)
     local R = ns.Radar
     local d = R and (R.entries[key])
     if d and Num(d.ref) and d.ref > 0 then return d.ref end
+    -- ab 0.67 (H3): eingestellter Posten, der Fokus bewacht ihn (Menge unter meinem Preis)
+    local lot = ns.Lots and ns.Lots.Posted(key)
+    if lot and Num(lot.posted.price) and lot.posted.price > 0 then return lot.posted.price end
     return nil
 end
 

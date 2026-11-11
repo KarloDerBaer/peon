@@ -2,6 +2,29 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.67.0
+
+Kurz: Jeder Aufkauf aus dem Radar wird ein Posten. Im Radar zeigt „Zum Einstellen“ alle Posten mit Einsatz, Ziel, Marktpreis und ob die Ware schon in der Tasche ist. Die Statuszeile und der Reiter Verkaufen nennen die Zahl.
+Kurz: Liegt ein Posten im Verkaufsfenster, nennt der Rat Einsatz und Ziel, warnt, wenn der Markt darunter liegt, und schreibt mit „Zielpreis eintragen“ den Zielpreis ins Preisfeld.
+Kurz: Unter Auktionen bricht „Unterbotene abbrechen“ mit jedem Klick die nächste unterbotene Auktion ab und nennt vorher die verlorene Einzahlung. Abgebrochenes wird ein Posten mit dem neuen Preis.
+
+- 0.67.0 (12.11.2026): **Stufe 2, H3 Wiederverkauf-Kette** (Konzept Abschnitte 6.2 und 6.3). Neue Datei `Lots.lua`.
+  - **Posten** je Charakter (`PeonBrokerCharDB.lots`): Gegenstand, Menge, noch einzustellen, Einsatz, Zielpreis je Stück, Herkunft (Radar oder Abbruch), eingestellt zu welchem Preis. Ein gekaufter Aufkauf wird automatisch ein Posten. Händler-Käufe nicht, die gehen an den Händler.
+  - **Zum Einstellen:** Knopf „Zum Einstellen (n)“ oben im Radar schaltet die Liste um: Gegenstand, Menge, Einsatz je Stück, Ziel, Markt jetzt (rot, wenn unter dem Ziel), In der Tasche (oder „Post“). Klick sagt, wie es weitergeht, Rechtsklick: Posten entfernen, In den Fokus, Gegenstand. Die Statuszeile nennt „n Posten zum Einstellen“, Blizzards Reiter heißt dann „Verkaufen (n)“ (nur der Text).
+  - **Abweichung vom Konzept:** Ein Klick legt den Gegenstand **nicht** selbst ins Verkaufsfenster. Das ginge nur mit Blizzards `SetPostItem` aus Broker heraus, und das berührt wie in 0.64.1 Blizzards Wert `displayMode` (danach blockiert das Spiel das Benutzen aus der Tasche). Hineinlegen bleibt der gewohnte Rechtsklick in der Tasche. Mit KarloDerBaer abzustimmen.
+  - **Rat beim Verkaufen:** Liegt ein Posten im Fenster, steht oben „Posten: gekauft für … je Stück, Ziel …“, bei Bedarf „Der Markt liegt inzwischen unter dem Ziel“. Knopf **„Zielpreis eintragen“** schreibt den Zielpreis in Blizzards Preisfeld (`PriceInput:SetAmount`, so wie Broker 0.10 bis 0.12 im Spiel). Nachgelesen im Zweig forever: Das Feld setzt nur die Zahlen der Eingabefelder und ruft Blizzards `UpdatePostState`. Eingestellt wird weiter mit Blizzards „Auktion erstellen“.
+  - **Prüfung auf Blockaden:** Meldet das Spiel innerhalb von 60 Sekunden nach „Zielpreis eintragen“ eine blockierte Aktion von Broker, merkt Broker das (`targetBlocked`), bietet den Knopf nicht mehr an und sagt im Rat „Bitte den Zielpreis selbst eintippen“.
+  - **Einstellen erkannt:** sicherer Anhang an `PostItem` der beiden Verkaufsfenster, bestätigt durch `AUCTION_HOUSE_AUCTION_CREATED`. Der Posten wird um die eingestellte Menge gekürzt und merkt den Preis. Eingestellte Posten bleiben 2 Tage.
+  - **Fokus:** Nach dem Kauf zeigt er „GEKAUFT, kommt per Post, danach zu … einstellen“. Ist der Posten eingestellt, bewacht der Fokus ihn: Die Messung zählt die Menge unter dem eigenen Preis („VORN“, „UNTERBOTEN“, „ACHTUNG“, wenn sie wächst).
+  - **Unterbotene abbrechen** (Blizzards Reiter Auktionen, neben „Prüfen“): „Unterbotene abbrechen (n), Einzahlung weg …“. Jeder Klick bricht die nächste unterbotene Auktion ab (`C_AuctionHouse.CancelAuction`, Kosten aus `GetCancelCost`). Nach `AUCTION_CANCELED` wird sie ein Posten, Ziel ist das günstigste fremde Angebot minus Unterbieten.
+  - Tests: 30 neue Prüfungen (Posten aus dem Kauf, Liste, Rat, Eintragen, Einstellen, Blockade, Fokus, Abbrechen, Menü, Aufräumen).
+  - **Im Spiel prüfen:**
+    1. Einen Aufkauf kaufen: „Zum Einstellen (1)“ im Radar, Statuszeile, Reiter „Verkaufen (1)“.
+    2. Post abholen: Spalte „In der Tasche“ zeigt die Menge.
+    3. Rechtsklick in der Tasche: Rat mit Posten-Zeile und Knopf. **„Zielpreis eintragen“**: Steht der Preis im Feld? Danach „Auktion erstellen“ ohne Meldung „Aktion blockiert“? Danach einen Trank aus der Tasche benutzen, ohne Blockade?
+    4. Nach dem Einstellen: Posten weg aus der Liste, Fokus zeigt „VORN“ oder „UNTERBOTEN“.
+    5. Unter Auktionen mit einer unterbotenen Auktion: Text mit Einzahlung, ein Klick bricht genau eine ab, sie erscheint unter „Zum Einstellen“.
+
 ## 0.66.0
 
 Kurz: Der Fokus misst den Gegenstand jetzt laufend (Vorgabe alle 5 Sekunden): Abfluss, Zufluss unter dem Ziel, Menge unter dem Ziel und günstigster Preis, dazu ein Diagramm.

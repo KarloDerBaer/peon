@@ -166,6 +166,11 @@ function X.UpdateHeader()
     if A and A.liveRun then text = text .. "  |cff999999" .. L.AUCX_CHECKING .. "|r" end
     h.text:SetText(text)
     if A and not A.liveRun and n > 0 then h.check:Enable() else h.check:Disable() end
+    if h.cancel and ns.Lots then
+        local r, cost = ns.Lots.NextUndercut()
+        h.cancel:SetText(r and L.AUCX_CANCEL:format(ns.Lots.CountUndercut(), cost and Money(cost) or "?") or L.AUCX_CANCEL_NONE)
+        if r and not ns.Lots.cancelling then h.cancel:Enable() else h.cancel:Disable() end
+    end
 end
 
 function X.Update()
@@ -189,7 +194,7 @@ function X.Build()
     local af, list = X.Frame(), X.List()
     if not af or not list then return false end
     local h = CreateFrame("Frame", "PeonBrokerAuctionsHeader", af)
-    h:SetSize(420, 20)
+    h:SetSize(640, 20)
     h:SetPoint("BOTTOMRIGHT", list, "TOPRIGHT", -40, 10)
     local text = h:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     text:SetPoint("RIGHT", h, "RIGHT", -96, 0)
@@ -213,6 +218,22 @@ function X.Build()
     end)
     b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     h.check = b
+    -- ab 0.67 (H3, Konzept 6.3): Unterbotene abbrechen, ein Klick je Auktion, Kosten vorher im Text
+    local cb = CreateFrame("Button", nil, h, "UIPanelButtonTemplate")
+    cb:SetSize(230, 20)
+    cb:SetPoint("LEFT", h, "LEFT", 0, 0)
+    cb:SetScript("OnClick", function() if ns.Lots then mod:Call("Auktionen", ns.Lots.CancelNext) end; X.Update() end)
+    cb:SetScript("OnEnter", function(self)
+        if not GameTooltip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(("|c%sPeon|r Broker"):format(Peon.COLOR))
+        local r, cost = ns.Lots and ns.Lots.NextUndercut()
+        if r then GameTooltip:AddLine(L.AUCX_CANCEL_NEXT:format(r.name or "?", cost and Money(cost) or "?"), 1, 1, 1, true) end
+        GameTooltip:AddLine(L.AUCX_CANCEL_HINT, 0.8, 0.8, 0.8, true)
+        GameTooltip:Show()
+    end)
+    cb:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    h.cancel = cb
     -- eigene Uhr: nur solange der Reiter zu sehen ist
     local elapsed = 0
     h:SetScript("OnUpdate", function(_, dt)

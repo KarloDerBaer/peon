@@ -158,6 +158,25 @@ local function Box(sf)
     lines:SetPoint("RIGHT", b, "RIGHT", 0, 0)
     lines:SetJustifyH("LEFT")
     b.lines = lines
+    -- ab 0.67 (H3): Knopf "Zielpreis eintragen" bei einem Posten (oben rechts im Kasten)
+    local fill = CreateFrame("Button", nil, b, "UIPanelButtonTemplate")
+    fill:SetSize(140, 20)
+    fill:SetPoint("TOPRIGHT", b, "TOPRIGHT", 0, 2)
+    fill:SetText(L.LOTS_FILL)
+    fill:SetScript("OnClick", function()
+        local lot = A.lot
+        if lot and ns.Lots then mod:Call("Posten", ns.Lots.FillTarget, sf, lot) end
+    end)
+    fill:SetScript("OnEnter", function(self)
+        if not GameTooltip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(L.LOTS_FILL, 1, 0.82, 0)
+        GameTooltip:AddLine(L.LOTS_FILL_TIP, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    fill:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    fill:Hide()
+    b.fill = fill
     A.boxes[sf] = b
     return b
 end
@@ -177,6 +196,21 @@ function A.Show(sf, r, isNeutral)
         if r.vendor then erl = erl .. "  " .. L.ADV_LINE_VENDOR:format(Money(r.vendor)) end
         parts[#parts + 1] = erl
     end
+    -- ab 0.67 (H3): Posten zum Gegenstand: Einsatz, Ziel, Warnung, Knopf "Zielpreis eintragen"
+    local lot = A.lot
+    if lot then
+        local unit = ns.Lots.UnitCost(lot)
+        local line = "|cffffd100" .. L.ADV_LOT:format(unit and Money(math.floor(unit + 0.5)) or "?", lot.target and Money(lot.target) or "?") .. "|r"
+        local e = r.key and ns.Data.Lookup(r.key)
+        if lot.target and type(e) == "table" and not e.gone and e.m and e.m < lot.target then
+            line = line .. "\n|cffff6666" .. L.ADV_LOT_UNDER:format(Money(e.m)) .. "|r"
+        end
+        if not ns.Lots.CanFill() and lot.target then
+            line = line .. "\n|cff999999" .. L.ADV_LOT_TYPE .. "|r"
+        end
+        table.insert(parts, 1, line)
+    end
+    b.fill:SetShown(lot ~= nil and lot.target ~= nil and ns.Lots.CanFill())
     b.lines:SetText(table.concat(parts, "\n"))
     b:Show()
     A.last = r
@@ -195,6 +229,8 @@ function A.Update(sf, commodity)
     local e = ns.Data.Lookup(it.key)
     local hp = ns.VendorPrice(it.id or it.key)
     local r = A.Judge(e, it.key, it.price, it.qty, hp, mod.db)
+    r.key = it.key
+    A.lot = ns.Lots and ns.Lots.ForKey(it.key) or nil
     A.Show(sf, r, ns.AtNeutralAH and ns.AtNeutralAH())
 end
 
