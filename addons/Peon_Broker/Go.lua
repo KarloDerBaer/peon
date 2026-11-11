@@ -89,6 +89,22 @@ function Go.Menu(item, owner)
         name = item.name or D.ItemName(key, D.Lookup(key)) }, owner)
 end
 
+-- Klick auf eine Zeile in Brokers Listen, ueberall gleich (Konzept Abschnitt 5): Linksklick waehlt (onSelect),
+-- Doppelklick zeigt im Markt, Rechtsklick oeffnet das Menue.
+Go.DOUBLE = 0.4   -- Sekunden
+function Go.Click(item, button, owner, onSelect)
+    if button == "RightButton" then return Go.Menu(item, owner) end
+    local key = KeyOf(item)
+    local now = GetTime and GetTime() or 0
+    if key ~= nil and Go.clickKey == key and now - (Go.clickT or 0) <= Go.DOUBLE then
+        Go.clickKey = nil
+        return Go.Market(item)
+    end
+    Go.clickKey, Go.clickT = key, now
+    if onSelect then onSelect(item) end
+    return true
+end
+
 function Go.Market(item)
     local key = KeyOf(item)
     if key == nil then

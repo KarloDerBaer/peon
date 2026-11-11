@@ -939,11 +939,11 @@ AHs.PlaceBid = function(id, amount) placed[#placed + 1] = { id, amount } end
 AuctionHouseFrame.SelectBrowseResult = function(_, r) browse = r end
 if not wf.shown then Win.Open("buy") end
 Win.Select("buy")
-check(Win.current == "buy" and Buy.mode == "lists" and Buy.listsView.shown and Buy.dealsView == nil, "Reiter Einkaufsliste")
+check(Win.current == "buy" and Buy.listsView.shown and Buy.itemList and Buy.listList, "Reiter Einkaufen")
 Buy.newButton.scripts.OnClick(Buy.newButton)
 check(#PeonBrokerDB.lists == 1 and PeonBrokerDB.lists[1].name == "Liste 1" and PeonBrokerDB.lists[1].pct == 10 and type(PeonBrokerDB.lists[1].id) == "string", "neue Liste (accountweit, 10 %, mit Nummer)")
 Buy.nameBox:SetText("Erze"); Buy.nameBox.scripts.OnEditFocusLost(Buy.nameBox)
-check(PeonBrokerDB.lists[1].name == "Erze" and Buy.listList:GetItems()[1].name == "Erze", "Liste umbenannt")
+check(PeonBrokerDB.lists[1].name == "Erze" and Buy.listList:GetItems()[1].index == "watch" and Buy.listList:GetItems()[2].name == "Erze", "Liste umbenannt, Beobachtung steht immer oben")
 Buy.searchBox:SetText("kupfer"); Buy.searchBox.scripts.OnEnterPressed(Buy.searchBox)
 check(PeonBrokerDB.lists[1].items[2770] and said("zur Liste „Erze“ hinzugefügt"), "Suche: Kupfererz hinzugefuegt")
 Buy.searchBox:SetText("gibtsnicht"); Buy.searchBox.scripts.OnEnterPressed(Buy.searchBox)
@@ -959,7 +959,7 @@ check(#rowsL == 2, "zwei Gegenstaende in der Liste")
 local kuL for i, r in ipairs(rowsL) do if r.key == 2770 then kuL = i end end
 local lim = D.MaxBuyPrice(market.items[2770], 10)
 check(rowsL[kuL].limit == lim, "Hoechstpreis aus dem Median")
-Buy.itemList.rowFrames[kuL].scripts.OnClick(Buy.itemList.rowFrames[kuL], "LeftButton")
+Buy.itemList.list.rows[kuL].scripts.OnClick(Buy.itemList.list.rows[kuL], "LeftButton")
 check(query.normal and query.key.itemID == 2770 and browse and browse.itemKey.itemID == 2770, "Anklicken: Live-Abfrage und im Auktionshaus geoeffnet")
 fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
 check(Buy.live[2770] and #Buy.live[2770].rows >= 2, "Live-Angebote gelesen")
@@ -1000,7 +1000,7 @@ local swE = market.items["15000:1047"]
 local savedMd, savedD = swE.md, swE.d
 swE.md, swE.d = 6000, nil
 Buy.Refresh()
-for i, r in ipairs(Buy.itemList:GetItems()) do if r.key == "15000:1047" then Buy.itemList.rowFrames[i].scripts.OnClick(Buy.itemList.rowFrames[i], "LeftButton") end end
+for i, r in ipairs(Buy.itemList:GetItems()) do if r.key == "15000:1047" then Buy.itemList.list.rows[i].scripts.OnClick(Buy.itemList.list.rows[i], "LeftButton") end end
 fire("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 15000 })
 plan = Buy.Plan(Buy.selected)
 check(plan and plan.auctionID == 77 and plan.price == 5200 and plan.qty == 1, "Einzelgegenstand: guenstigstes Angebot unter der Grenze (54s)")
@@ -1602,6 +1602,8 @@ local ql = PeonBrokerDB.queryTest and PeonBrokerDB.queryTest.lines or {}
 check(#ql == 6 and ql[5]:find("Radar: gesendet ja, Antwort ja", 1, true) and ql[6]:find("Radar " .. lid .. ": gesendet ja, Antwort ja", 1, true) and ql[1]:find("Befehl: gesendet ja, Antwort ja", 1, true) and ql[2]:find("Ereignis: gesendet ja, Antwort ja", 1, true)
     and ql[3]:find("Timer: gesendet nein, Antwort nein", 1, true) and ql[4]:find("OnUpdate: gesendet ja, Antwort ja", 1, true), "Ergebnis im Chat und in PeonBrokerDB.queryTest")
 Buy.deleteButton.scripts.OnClick(Buy.deleteButton)
+check(#PeonBrokerDB.lists == 1 and Peon.UI.dialog.shown and Peon.UI.dialog.text.text:find("löschen", 1, true), "N4: Loeschen fragt nach")
+Peon.UI.dialog.yes.scripts.OnClick(Peon.UI.dialog.yes)
 check(#PeonBrokerDB.lists == 0, "Liste geloescht")
 
 C_Container, AHs.IsSellItemValid, AHs.GetItemCommodityStatus, AHs.PostCommodity = savedContainer, savedValid, savedStatus, savedPostC
@@ -3315,7 +3317,34 @@ end)()
   check(Rs.Calc(rows, 5000, nil, 0.05) == nil and Rs.Calc(rows, 0) == nil, "0.56: zu wenig Angebote oder keine Menge: keine Rechnung")
   -- Listen im Blizzard-Aufbau passen sich der Groesse an (Kern-API 17)
   local lst = Rd.list
-  check(lst.o.style == "ah" and lst.o.flex == "name" and ns.Buy.itemList.o.style == "ah", "0.56: Radar und Einkaufen mit Blizzards Listen-Optik")
+  check(lst.o.style == "ah" and lst.o.flex == "name", "0.56: Radar mit Blizzards Listen-Optik")
+  -- N4: Einkaufen mit Peon.UI
+  do
+    local B = ns.Buy
+    local cols = {}
+    for _, col in ipairs(B.itemList.o.columns) do cols[#cols + 1] = col.title end
+    check(table.concat(cols, ",") == "Gegenstand,Ziel,Fehlt,Höchstpreis,Günstigst,Rat", "N4: Spalten der Einkaufsliste: " .. table.concat(cols, ","))
+    check(B.buyButton.template == "UIPanelGoldButtonTemplate" and B.goMarketButton and B.allChars and B.nameBox.template == "LargeInputBoxTemplate",
+      "N4: Gold-Knopf Kaufen, Im Markt zeigen, Bausteine aus Peon.UI")
+    local jumped, menu, picked = nil, nil, 0
+    local oldM, oldMenu = ns.Go.Market, ns.Go.Menu
+    ns.Go.Market = function(item) jumped = item; return true end
+    ns.Go.Menu = function(item) menu = item; return true end
+    local row = { key = 2770, name = "Kupfererz" }
+    now = now + 5
+    ns.Go.Click(row, "LeftButton", nil, function() picked = picked + 1 end)
+    check(picked == 1 and jumped == nil, "N4: Linksklick waehlt")
+    now = now + 0.2
+    ns.Go.Click(row, "LeftButton", nil, function() picked = picked + 1 end)
+    check(picked == 1 and jumped == row, "N4: Doppelklick zeigt im Markt")
+    now = now + 0.2
+    ns.Go.Click(row, "LeftButton", nil, function() picked = picked + 1 end)
+    check(picked == 2, "N4: danach wieder ein einfacher Klick")
+    ns.Go.Click(row, "RightButton", nil, function() picked = picked + 1 end)
+    check(menu == row and picked == 2, "N4: Rechtsklick oeffnet das Menue")
+    ns.Go.Market, ns.Go.Menu = oldM, oldMenu
+    now = now + 5
+  end
   local fixed = 0 for _, col in ipairs(lst.columns) do if col.key ~= "name" then fixed = fixed + col.width end end
   lst:SetSize(800, 400)
   local nameW for _, col in ipairs(lst.columns) do if col.key == "name" then nameW = col.width end end

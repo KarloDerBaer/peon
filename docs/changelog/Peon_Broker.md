@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.62.0
+
+Kurz: Die Seite „Einkaufen“ ist neu gebaut: links die Listen mit der Beobachtung immer oben, rechts die Gegenstände mit Ziel, Fehlt, Höchstpreis, günstigstem Angebot und Rat, darunter die Kaufzeile mit goldenem Knopf.
+Kurz: In der Liste gilt jetzt wie überall: Linksklick wählt, Doppelklick zeigt den Gegenstand im Markt, Rechtsklick öffnet das Menü. Das Löschen einer Liste fragt nach.
+
+- 0.62.0 (11.11.2026): **Neuaufbau N4, Einkaufen** (Konzept `docs/konzepte/broker/Peon_Broker_Neuaufbau.md`, Abschnitt 4.3). Der Aufbau der Seite in `Buy.lua` nutzt jetzt `Peon.UI`, die Rechnung dahinter ist unverändert.
+  - **Oben:** Suchfeld zum Hinzufügen (Name oder Link, Eingabetaste) und „Liste durchsuchen“.
+  - **Links oben die Listen,** die Beobachtung als besondere Liste immer oben. Darunter Neu und Löschen (mit Rückfrage), Name, Rabatt der Liste in Prozent unter dem üblichen Preis. Für den gewählten Gegenstand „Max. Gold“ und „Ziel“ (einschließlich Vorrat) sowie Entfernen. Unten der Haken „Twinks mitzählen“ (nur mit Peon_Ledger).
+  - **Rechts:** Gegenstand mit Symbol, Ziel, Fehlt, Höchstpreis, Günstigst, Rat. Die Spalten Vorrat und Treffer entfallen, sie stecken in Fehlt und Rat.
+  - **Kaufzeile** unter der Liste: was der Klick kauft, „Im Markt zeigen“ und der Gold-Knopf „Kaufen“.
+  - **Klicks wie überall** (`Go.Click`): Linksklick wählt, Doppelklick zeigt im Markt, Rechtsklick öffnet das Gegenstandsmenü.
+  - Noch offen aus dem Konzept: der Rat „HÄNDLER“ (kommt mit den kleinen Hilfen in H4) und die Grenze nach oben für die Beobachtung (H4).
+  - **Im Spiel prüfen:** Liste anlegen, umbenennen, Rabatt setzen, Gegenstand per Name hinzufügen, Max. Gold und Ziel ändern, entfernen, Liste löschen. Passt die linke Spalte, schneidet nichts ab? Am Auktionator: Liste durchsuchen, Kaufen, Doppelklick und Rechtsklick auf eine Zeile.
+
 ## 0.61.0
 
 Kurz: Unterwegs gibt es jetzt die Seite „Markt“ aus deinen Scandaten: Suche, Kategorien wie im Auktionshaus und eine Liste mit Preis, Menge, Trend und Stand. Ohne Suche zeigt sie die Gegenstände deiner Einkaufslisten und der Beobachtung.

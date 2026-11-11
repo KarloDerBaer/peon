@@ -862,13 +862,17 @@ end
 function B.Refresh()
     if not B.view then return end
     local names = {}
-    for i, l in ipairs(B.Lists()) do names[#names + 1] = { index = i, name = l.name, count = 0 } end
-    for _, n in ipairs(names) do for _ in pairs(B.Lists()[n.index].items) do n.count = n.count + 1 end end
-    if ns.Watch then   -- ab 0.49: Beobachtung als letzte Liste
+    if ns.Watch then   -- Beobachtung als besondere Liste, immer oben (ab 0.62, Neuaufbau N4)
         local wn = 0
         for _ in pairs(ns.Watch.Store()) do wn = wn + 1 end
-        names[#names + 1] = { index = "watch", name = L.WATCH_LIST, count = wn }
+        names[#names + 1] = { index = "watch", name = L.WATCH_LIST, count = wn, pos = 0 }
     end
+    for i, l in ipairs(B.Lists()) do
+        local n = { index = i, name = l.name, count = 0, pos = i }
+        for _ in pairs(l.items) do n.count = n.count + 1 end
+        names[#names + 1] = n
+    end
+    B.listList.sortKey = "pos"
     B.listList:SetData(names)
     local _, ci = B.CurrentList()
     for _, n in ipairs(names) do if n.index == ci then B.listList:Select(n) end end
@@ -876,7 +880,7 @@ function B.Refresh()
     B.UpdateBadge()
     if B.allChars then
         local has = ns.Stock.Ledger() ~= nil
-        B.allChars:SetShown(has); B.allChars.label:SetShown(has)
+        B.allChars:SetShown(has)
         B.allChars:SetChecked(mod.db.keepAllChars == true)
     end
     -- Auswahl in der neuen Liste wiederfinden
@@ -921,6 +925,8 @@ function B.UpdateView()
         B.filling = true
         local it = cur and cur.items[row.key]
         B.wishBox:SetText(it and it.wish and tostring(it.wish) or "")
+        if B.wishRow then B.wishRow:SetShown(not (cur and cur.watch)) end
+        B.wishBox:SetShown(not (cur and cur.watch))
         B.maxBox:SetText(it and it.max and tostring(it.max / 10000) or "")
         B.filling = false
     else
@@ -936,142 +942,124 @@ end
 ---------------------------------------------------------------------------
 -- Aufbau
 ---------------------------------------------------------------------------
-local function Btn(parent, text, w, fn)
-    local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    b:SetSize(w, 22)
-    b:SetText(text)
-    b:SetScript("OnClick", fn)
-    return b
+-- Neuaufbau N4 (ab 0.62, Konzept Peon_Broker_Neuaufbau.md, Abschnitt 4.3): Seite Einkaufen mit Peon.UI.
+--   oben    Gegenstand hinzufuegen (Name oder Link, Eingabetaste), "Liste pruefen" (Live-Abfrage aller Gegenstaende)
+--   links   die Listen (Beobachtung immer oben), darunter Einstellungen der Liste und des gewaehlten Gegenstands
+--   rechts  Gegenstaende der Liste: Gegenstand, Ziel, Fehlt, Hoechstpreis, Guenstigstes, Rat
+--   unten   Kaufzeile: was der Klick kauft, "Im Markt zeigen", Gold-Knopf "Kaufen"
+-- Linksklick waehlt, Doppelklick zeigt im Markt, Rechtsklick oeffnet das Gegenstandsmenue (Go.Click).
+B.LEFT_W = 240
+
+-- Peon.UI-Tabelle mit den Aufrufen, die B.Refresh nutzt
+local function Adapt(t)
+    function t:GetItems() return self.items end
+    function t:Select(item)
+        self.selected = item
+        self.list:Refresh()
+    end
+    return t
 end
 
-local function Box(parent, w, numeric)
-    local b = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
-    b:SetSize(w, 20)
-    b:SetAutoFocus(false)
-    if numeric and b.SetNumeric then b:SetNumeric(true) end
-    b:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    return b
-end
-
-local function Label(parent, text)
-    local fs = parent:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-    fs:SetText(text)
-    return fs
-end
-
-local function NameCol(width)
-    return { key = "name", title = L.COL_ITEM, width = width,
-        format = function(v, r)
-            return "|T" .. tostring(r.icon or "Interface\\Icons\\INV_Misc_QuestionMark") .. ":16:16:0:0|t " .. W.Colored(v, r.quality)
-        end,
-        sortValue = function(r) return W.Lower(r.name) end }
+local function Gold(text)
+    local gold = tonumber((tostring(text or ""):gsub(",", ".")))
+    if gold and gold > 0 then return math.floor(gold * 10000 + 0.5) end
+    return nil
 end
 
 function B.Build(c)
-    -- ab 0.56: Aufbau wie Blizzards Auktionshaus (Look.lua): oben Hinzufuegen und "Liste durchsuchen", links Listen
-    -- und alle Einstellungen, rechts die Gegenstaende der Liste und darunter der Kauf
+    local UI = Peon.UI
     B.view = c
-    B.mode = "lists"
-    local U = ns.Look
-    local bar, left, right = U.Layout(c)
     B.listsView = c
-    local lw = U.LEFT_W - 8
 
-    -- Obere Leiste: Hinzufuegen (wie Blizzards Suchfeld) und "Liste durchsuchen" (wie "Suchen")
-    local al = Label(bar, L.BUY_ADD)
-    al:SetPoint("LEFT", bar, "LEFT", U.LEFT_W + 10, 0)
-    B.searchBox = Box(bar, 240)
-    B.searchBox:SetPoint("LEFT", al, "RIGHT", 10, 0)
+    -- Obere Leiste (neben dem runden Bild): hinzufuegen und pruefen
+    B.searchBox = UI.SearchBox(c, 240)
+    B.searchBox:SetPoint("TOPLEFT", B.LEFT_W + 6, -4)
     B.searchBox:SetScript("OnEnterPressed", function(self)
         if B.AddByName(self:GetText()) then self:SetText("") end
         self:ClearFocus()
     end)
-    B.searchButton = Btn(bar, L.BUY_SEARCH, 160, function() mod:Call("Einkaufen", B.SearchList) end)
-    B.searchButton:SetPoint("RIGHT", bar, "RIGHT", -2, 0)
-    B.listStatus = bar:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    UI.SetTooltip(B.searchBox, { L.BUY_ADD_TITLE, L.BUY_ADD_TIP })
+    B.searchButton = UI.Button(c, L.BUY_SEARCH, 150, function() mod:Call("Einkaufen", B.SearchList) end)
+    B.searchButton:SetPoint("TOPRIGHT", -2, -4)
+    B.listStatus = UI.Text(c, "small", "")
     B.listStatus:SetPoint("RIGHT", B.searchButton, "LEFT", -10, 0)
 
-    -- Linke Spalte, oben: Listen
-    B.listList = Peon.NewList(left, {
-        columns = { { key = "name", title = L.BUY_LISTS, width = lw - 8 - 16 - 34 },
-                    { key = "count", title = "", width = 34, align = "RIGHT" } },
-        rows = 6, rowHeight = 20, sortKey = nil, style = "ah",
-        onClick = function(list, r) mod.char.listSel = r.index; B.selected = nil; B.Refresh() end,
-        emptyText = L.BUY_NO_LISTS,
-    })
-    B.listList.frame:SetPoint("TOPLEFT", 4, -4)
-    local y = -(B.listList:GetHeight() + 8)
-    local half = math.floor((lw - 12) / 2)
-    B.newButton = Btn(left, L.BUY_NEW, half, function() B.NewList(); B.Refresh() end)
-    B.newButton:SetPoint("TOPLEFT", 10, y)
-    B.deleteButton = Btn(left, L.BUY_DELETE, half, function()
-        local _, i = B.CurrentList()
-        B.DeleteList(i); B.selected = nil; B.Refresh()
+    -- Links oben: die Listen
+    local lp = UI.Panel(c, "list", true)
+    lp:SetPoint("TOPLEFT", 0, -34)
+    lp:SetSize(B.LEFT_W, 170)
+    B.listList = Adapt(UI.Table(lp, {
+        columns = { { key = "name", title = L.BUY_LISTS },
+                    { key = "count", title = "", width = 44, align = "RIGHT" } },
+        empty = L.BUY_NO_LISTS,
+        onClick = function(r) mod.char.listSel = r.index; B.selected = nil; B.Refresh() end,
+    }))
+
+    -- Links unten: Einstellungen der Liste und des gewaehlten Gegenstands
+    local left = UI.Panel(c, "left")
+    left:SetPoint("TOPLEFT", lp, "BOTTOMLEFT", 0, -2)
+    left:SetPoint("BOTTOMLEFT", 0, 0)
+    left:SetWidth(B.LEFT_W)
+    local half = math.floor((B.LEFT_W - 24) / 2)
+    B.newButton = UI.Button(left, L.BUY_NEW, half, function() B.NewList(); B.Refresh() end)
+    B.newButton:SetPoint("TOPLEFT", 10, -10)
+    B.deleteButton = UI.Button(left, L.BUY_DELETE, half, function()
+        local cur, i = B.CurrentList()
+        if not cur or cur.watch then return end
+        UI.Confirm(L.BUY_DELETE_ASK:format(cur.name or ""), L.BUY_DELETE, CANCEL or "Cancel", function()
+            B.DeleteList(i); B.selected = nil; B.Refresh()
+        end)
     end)
     B.deleteButton:SetPoint("LEFT", B.newButton, "RIGHT", 4, 0)
-    local nl = U.Label(left, L.BUY_NAME); nl:SetPoint("TOPLEFT", 12, y - 34)
-    B.nameBox = Box(left, lw - 20)
-    B.nameBox:SetPoint("TOPLEFT", nl, "BOTTOMLEFT", 4, -4)
-    B.nameBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+
+    B.nameBox = UI.Input(left, 116)
+    UI.FormRow(left, L.BUY_F_NAME, B.nameBox, 0, -40)
     B.nameBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
         if cur and not B.filling and (self:GetText() or "") ~= "" and cur.name ~= self:GetText() then cur.name = self:GetText(); B.Touch(cur); B.Refresh() end
     end)
-    local pl = U.Label(left, L.BUY_MAXPRICE); pl:SetPoint("TOPLEFT", B.nameBox, "BOTTOMLEFT", -4, -10)
-    B.pctBox = Box(left, 40, true)
-    B.pctBox:SetPoint("TOPLEFT", pl, "BOTTOMLEFT", 4, -4)
-    local pl2 = left:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    pl2:SetPoint("LEFT", B.pctBox, "RIGHT", 6, 0)
-    pl2:SetText(L.BUY_PCT_UNDER)
-    local function SetPct(self)
+    B.pctBox = UI.Input(left, 60, { numeric = true })
+    local pr = UI.FormRow(left, L.BUY_F_PCT, B.pctBox, 0, -76, L.BUY_F_PCT_SUB)
+    UI.SetTooltip(B.pctBox, { L.BUY_F_PCT, L.BUY_F_PCT_TIP })
+    B.pctBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
         if cur and not B.filling then
             local v = math.max(0, math.min(90, tonumber(self:GetText() or "") or 0))
             if v ~= cur.pct then cur.pct = v; B.Touch(cur) end
             B.Refresh()
         end
-    end
-    B.pctBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    B.pctBox:SetScript("OnEditFocusLost", SetPct)
+    end)
 
-
-    -- Linke Spalte, Mitte: gewaehlter Gegenstand (Hoechstpreis in Gold, Menge, Entfernen)
+    -- gewaehlter Gegenstand: Hoechstpreis in Gold, Ziel, Entfernen
     local ib = CreateFrame("Frame", nil, left)
-    ib:SetPoint("TOPLEFT", B.pctBox, "BOTTOMLEFT", -4, -14)
-    ib:SetPoint("RIGHT", left, "RIGHT", -10, 0)
-    ib:SetHeight(110)
+    ib:SetPoint("TOPLEFT", 0, -120)
+    ib:SetPoint("RIGHT", left, "RIGHT", 0, 0)
+    ib:SetHeight(140)
     B.itemBar = ib
-    local il = U.Label(ib, L.BUY_ITEM_HEAD); il:SetPoint("TOPLEFT", 0, 0)
-    local ml = ib:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    ml:SetText(L.BUY_MAX); ml:SetPoint("TOPLEFT", il, "BOTTOMLEFT", 0, -12)
-    B.maxBox = Box(ib, 70)
-    B.maxBox:SetPoint("RIGHT", ib, "RIGHT", -4, 0)
-    B.maxBox:SetPoint("TOP", ml, "TOP", 0, 4)
-    local function SetMax(self)
+    local div = UI.Divider(ib, B.LEFT_W - 24)
+    div:SetPoint("TOPLEFT", 12, 0)
+    local il = UI.Text(ib, "heading", L.BUY_ITEM_HEAD)
+    il:SetPoint("TOPLEFT", 14, -10)
+    B.maxBox = UI.Input(ib, 80)
+    UI.FormRow(ib, L.BUY_F_MAX, B.maxBox, 0, -34, L.BUY_F_MAX_SUB)
+    B.maxBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
         if B.filling or not cur or not B.selected then return end
+        local v = Gold(self:GetText())
         if cur.watch then   -- ab 0.49: Grenze der Beobachtung
-            local gold = tonumber((tostring(self:GetText() or ""):gsub(",", ".")))
-            ns.Watch.SetLimit(B.selected.key, (gold and gold > 0) and "abs" or nil, gold and math.floor(gold * 10000 + 0.5) or nil)
+            ns.Watch.SetLimit(B.selected.key, v and "abs" or nil, v)
             B.Refresh()
             return
         end
         local it = cur.items[B.selected.key]
         if it then
-            local gold = tonumber((tostring(self:GetText() or ""):gsub(",", ".")))
-            local v = (gold and gold > 0) and math.floor(gold * 10000 + 0.5) or nil
             if v ~= it.max then it.max = v; B.Touch(it) end
             B.Refresh()
         end
-    end
-    B.maxBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    B.maxBox:SetScript("OnEditFocusLost", SetMax)
-    local wl = ib:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    wl:SetText(L.BUY_WISH); wl:SetPoint("TOPLEFT", ml, "BOTTOMLEFT", 0, -16)
-    B.wishBox = Box(ib, 70, true)
-    B.wishBox:SetPoint("RIGHT", ib, "RIGHT", -4, 0)
-    B.wishBox:SetPoint("TOP", wl, "TOP", 0, 4)
-    local function SetWish(self)
+    end)
+    B.wishBox = UI.Input(ib, 80, { numeric = true })
+    B.wishRow = UI.FormRow(ib, L.BUY_F_WISH, B.wishBox, 0, -70, L.BUY_F_WISH_SUB)
+    B.wishBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
         if B.filling or not cur or not B.selected then return end
         local it = cur.items[B.selected.key]
@@ -1081,79 +1069,56 @@ function B.Build(c)
             if v ~= it.wish then it.wish = v; B.Touch(it) end
             B.Refresh()
         end
-    end
-    B.wishBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    B.wishBox:SetScript("OnEditFocusLost", SetWish)
-    B.removeButton = Btn(ib, L.BUY_REMOVE, lw - 20, function()
+    end)
+    B.removeButton = UI.Button(ib, L.BUY_REMOVE, B.LEFT_W - 24, function()
         local cur = B.CurrentList()
         if cur and B.selected then B.RemoveItem(cur, B.selected.key); B.selected = nil; B.Refresh() end
     end)
-    B.removeButton:SetPoint("TOPLEFT", wl, "BOTTOMLEFT", 0, -12)
+    B.removeButton:SetPoint("TOPLEFT", 12, -108)
 
-    -- Linke Spalte, unten: Umschalter "Vorrat aller Charaktere" (ab 0.24)
-    local cb = CreateFrame("CheckButton", nil, left, "UICheckButtonTemplate")
-    cb:SetSize(24, 24)
-    cb:SetPoint("BOTTOMLEFT", 6, 8)
-    local cbl = left:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    cbl:SetPoint("LEFT", cb, "RIGHT", 2, 0)
-    cbl:SetWidth(lw - 34)
-    cbl:SetJustifyH("LEFT")
-    cbl:SetText(L.KEEP_ALL_CHARS)
-    cb.label = cbl
-    cb:SetScript("OnClick", function(self)
-        mod.db.keepAllChars = self:GetChecked() and true or false
+    -- Vorrat aller Charaktere (nur mit Peon_Ledger)
+    B.allChars = UI.Check(left, L.BUY_F_ALLCHARS, mod.db.keepAllChars == true, function(on)
+        mod.db.keepAllChars = on
         mod:Call("Einkaufsliste", B.Refresh)
-    end)
-    cb:SetScript("OnEnter", function(self)
-        if not GameTooltip then return end
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:AddLine(L.KEEP_ALL_CHARS, 1, 1, 1)
-        GameTooltip:AddLine(L.BUY_ALL_CHARS_HINT, 0.8, 0.8, 0.8, true)
-        GameTooltip:Show()
-    end)
-    cb:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
-    B.allChars = cb
+    end, { L.KEEP_ALL_CHARS, L.BUY_ALL_CHARS_HINT })
+    B.allChars:SetPoint("BOTTOMLEFT", 8, 6)
 
-    -- Rechts: Gegenstaende der Liste, darunter Auswahl und Kaufen
-    B.itemList = Peon.NewList(right, {
+    -- Rechts: Gegenstaende der Liste
+    local right = UI.Panel(c, "list", true)
+    right:SetPoint("TOPLEFT", lp, "TOPRIGHT", 2, 0)
+    right:SetPoint("BOTTOMRIGHT", 0, 42)
+    B.panel = right
+    B.itemList = Adapt(UI.Table(right, {
         columns = {
-            NameCol(200),
-            { key = "limit", title = L.BUY_COL_LIMIT, width = 84, align = "RIGHT", format = function(v) return v and Money(v) or "–" end },
-            { key = "wish", title = L.BUY_COL_WISH, width = 50, align = "RIGHT", format = function(v) return v and tostring(v) or "–" end },
-            { key = "stock", title = L.BUY_COL_STOCK, width = 50, align = "RIGHT",
-              format = function(v, r)
-                  if not v then return "–" end
-                  if r.wish and v >= r.wish then return GREY .. v .. "|r" end   -- Wunschmenge erreicht
-                  return tostring(v)
-              end },
-            { key = "cheapest", title = L.BUY_COL_CHEAPEST, width = 84, align = "RIGHT",
-              format = function(v, r) if not v then return "–" end return (r.live and "" or GREY) .. Money(v) .. (r.live and "" or "|r") end },
-            { key = "hits", title = L.BUY_COL_HITS, width = 50, align = "RIGHT",
-              format = function(v) return (v and v > 0) and (GREEN .. v .. "|r") or "–" end },
-            { key = "need", title = L.BUY_COL_NEED, width = 44, align = "RIGHT",
+            { key = "name", title = L.COL_ITEM, sort = function(r) return W.Lower(r.name) end,
+              color = function(r) return UI.QualityColor(r.quality or 1) end },
+            { key = "wish", title = L.BUY_COL_GOAL, width = 60, align = "RIGHT", format = function(v) return v and tostring(v) or "–" end },
+            { key = "need", title = L.BUY_COL_NEED, width = 60, align = "RIGHT",
               format = function(v) if v == nil then return "–" end return v == 0 and (GREY .. "0|r") or tostring(v) end },
-            { key = "advice", title = L.BUY_COL_ADVICE, width = 78, align = "RIGHT",
+            { key = "limit", title = L.BUY_COL_LIMIT, width = 100, align = "RIGHT", format = function(v) return v and Money(v) or "–" end },
+            { key = "cheapest", title = L.BUY_COL_CHEAPEST, width = 100, align = "RIGHT",
+              format = function(v, r) if not v then return "–" end return (r.live and "" or GREY) .. Money(v) .. (r.live and "" or "|r") end },
+            { key = "advice", title = L.BUY_COL_ADVICE, width = 90, align = "RIGHT",
               format = function(v) return (B.ADVICE_COLOR[v] or GREY) .. (L["BUY_ADV_" .. tostring(v):upper()] or "") .. "|r" end,
-              sortValue = function(r) return B.ADVICE_ORDER[r.advice] or 9 end },
+              sort = function(r) return B.ADVICE_ORDER[r.advice] or 9 end },
         },
-        rows = 12, rowHeight = 20, sortKey = "name", style = "ah", flex = "name",
-        onClick = function(list, r) B.Select(r) end,
-        onEnter = function(list, r, row) W.ShowItemTooltip(row, r.key) end,
-        onLeave = function() if GameTooltip then GameTooltip:Hide() end end,
-        emptyText = L.BUY_LIST_EMPTY,
-    })
-    U.Fit(B.itemList, right, { 4, 4, 4, 36 })
-    B.buyButton = Btn(right, L.BUY_BUY, 130, function() mod:Call("Einkaufen", B.Buy) end)
-    B.buyButton:SetPoint("BOTTOMRIGHT", -8, 8)
-    B.selText = right:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    B.selText:SetPoint("BOTTOMLEFT", 12, 12)
-    -- ab 0.59 (Neuaufbau N1): Sprung in Blizzards Kaufansicht mit dem gewaehlten Gegenstand
-    B.goMarketButton = Btn(right, L.GO_MARKET, 130, function()
+        sortKey = "name", icon = true, empty = L.BUY_LIST_EMPTY,
+        onClick = function(r, button)
+            ns.Go.Click(r, button, B.panel, function() mod:Call("Einkaufen", B.Select, r) end)
+        end,
+        onEnter = function(row, r) if r then W.ShowItemTooltip(row, r.key) end end,
+    }))
+
+    -- Kaufzeile unter der Liste
+    B.buyButton = UI.Button(c, L.BUY_BUY, 130, function() mod:Call("Einkaufen", B.Buy) end, "gold")
+    B.buyButton:SetPoint("BOTTOMRIGHT", -2, 4)
+    B.goMarketButton = UI.Button(c, L.GO_MARKET, 130, function()
         if B.selected then mod:Call("Sprung", ns.Go.Market, B.selected) else mod:Print(L.GO_NONE) end
     end)
     B.goMarketButton:SetPoint("RIGHT", B.buyButton, "LEFT", -6, 0)
+    B.selText = UI.Text(c, "text", "")
+    B.selText:SetPoint("LEFT", right, "BOTTOMLEFT", 10, -21)
     B.selText:SetPoint("RIGHT", B.goMarketButton, "LEFT", -10, 0)
-    B.selText:SetJustifyH("LEFT")
     if B.selText.SetWordWrap then B.selText:SetWordWrap(false) end
 
     B.Refresh()
