@@ -738,6 +738,15 @@ function C.CreateBlock(form)
     g:SetScript("OnEnter", function(self) Hint(self, L.CRAFT_MENU_HINT) end)
     g:SetScript("OnLeave", HideTip)
     b.gear = g
+    -- ab 0.68 (H4, Konzept 6.5): fehlendes Material auf die Einkaufsliste "Material"
+    local lb = CreateFrame("Button", nil, b, "UIPanelButtonTemplate")
+    lb:SetSize(130, 18)
+    lb:SetPoint("LEFT", b.title, "RIGHT", 10, 0)
+    lb:SetText(L.CRAFT_TO_LIST)
+    lb:SetScript("OnClick", function(self) mod:Call("Berufe", C.ListMenu, self) end)
+    lb:SetScript("OnEnter", function(self) Hint(self, L.CRAFT_TO_LIST_HINT) end)
+    lb:SetScript("OnLeave", HideTip)
+    b.listButton = lb
     -- Haken "Twinks mitzaehlen" (gleiche Einstellung wie im Reiter Behalten)
     b.ckText = FS(b)
     b.ckText:SetPoint("RIGHT", g, "LEFT", -8, 0)
@@ -1079,6 +1088,33 @@ function C.Set(key, value)
 end
 
 local fallbackMenu
+-- Material fuer n Herstellungen auf die Liste (ab 0.68)
+C.LIST_COUNTS = { 1, 5, 10, 20 }
+function C.MatsFor(c)
+    local out = {}
+    for _, m in ipairs(type(c) == "table" and c.mats or {}) do
+        out[#out + 1] = { id = m.id, q = m.q, have = m.have, vendor = m.vendor, ah = m.ah }
+    end
+    return out
+end
+
+function C.ToList(n)
+    local c = C.block and C.block.calc
+    if type(c) ~= "table" or not ns.Buy or not ns.Buy.AddMaterials then return 0 end
+    return ns.Buy.AddMaterials(C.MatsFor(c), n)
+end
+
+function C.ListMenu(owner)
+    local mu = rawget(_G, "MenuUtil")
+    if not (mu and mu.CreateContextMenu) then C.ToList(1); return end
+    mu.CreateContextMenu(owner, function(_, root)
+        root:CreateTitle(L.CRAFT_TO_LIST)
+        for _, n in ipairs(C.LIST_COUNTS) do
+            root:CreateButton(L.CRAFT_TO_LIST_N:format(n), function() mod:Call("Berufe", C.ToList, n) end)
+        end
+    end)
+end
+
 function C.ShowMenu(owner)
     local db = mod.db
     local spec = C.MenuSpec()

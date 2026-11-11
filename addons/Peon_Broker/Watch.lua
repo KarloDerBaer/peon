@@ -1,6 +1,7 @@
 -- Peon_Broker - Watch.lua
 -- Umbau U8 (ab 0.49, Konzept Peon_Broker_Umbau.md, Abschnitt 8.7): Beobachtung (im Manager bisher Favoriten).
---   PeonBrokerDB.watch[Schluessel] = { u, name, q, icon, lim (Kupfer) oder pct (% unter dem Vergleichspreis), hit }
+--   PeonBrokerDB.watch[Schluessel] = { u, name, q, icon, lim (Kupfer) oder pct (% unter dem Vergleichspreis), hit,
+--                                      up (Grenze nach oben in Kupfer, ab 0.68), upHit }
 --   PeonBrokerDB.watchGone[Schluessel] = Zeit (Loeschmarke, wie bei den Einkaufslisten)
 -- Preisalarm: Liegt das guenstigste Angebot auf oder unter der Grenze, meldet Broker das einmal im Chat und mit
 -- Ton (wie das Radar) und erst wieder, nachdem der Preis darueber lag. Geprueft nach jedem Komplettscan, nach
@@ -83,6 +84,18 @@ function Wt.SetLimit(key, kind, value)
     return true
 end
 
+-- Grenze nach oben (ab 0.68, H4, Konzept 6.6): "Melde, wenn der Preis ueber X liegt" fuer Dinge, die man spaeter
+-- verkaufen will. value = Kupfer je Stueck oder nil (keine Grenze)
+function Wt.SetUp(key, value)
+    local w = Wt.Store()[key]
+    if not w then return false end
+    w.up, w.upHit = nil, nil
+    if Num(value) and value > 0 then w.up = math.floor(value) end
+    w.u = NextU(w.u)
+    Wt.Check({ key })
+    return true
+end
+
 -- Grenze in Kupfer (je Stueck) oder nil
 function Wt.Limit(key, e)
     local w = Wt.Store()[key]
@@ -121,6 +134,17 @@ function Wt.Check(keys)
             elseif not hit and w.hit and (type(e) ~= "table" or e.gone or (limit and Num(e.m) and e.m > limit)) then
                 w.hit = nil
             end
+            -- ab 0.68: Grenze nach oben, guenstigstes Angebot liegt darueber (guter Zeitpunkt zum Verkaufen)
+            local up = Num(w.up) and w.up or nil
+            local upHit = up and type(e) == "table" and not e.gone and Num(e.m) and e.m >= up
+            if upHit and not w.upHit then
+                w.upHit = true
+                n = n + 1
+                mod:Print(L.WATCH_ALARM_UP:format(w.name or ns.Data.ItemName(key, e) or tostring(key), Money(e.m), Money(up)))
+                if mod.db.radarSound and ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert) end
+            elseif not upHit and w.upHit and (type(e) ~= "table" or e.gone or (up and Num(e.m) and e.m < up) or not up) then
+                w.upHit = nil
+            end
         end
     end
     if n > 0 and ns.Buy and ns.Buy.UpdateBadge then pcall(ns.Buy.UpdateBadge) end
@@ -131,7 +155,7 @@ end
 function Wt.PseudoList()
     local items = {}
     for key, w in pairs(Wt.Store()) do
-        items[key] = { name = w.name, q = w.q, icon = w.icon, max = Wt.Limit(key) }
+        items[key] = { name = w.name, q = w.q, icon = w.icon, max = Wt.Limit(key), up = Num(w.up) and w.up or nil }
     end
     return { id = "watch", name = L.WATCH_LIST, pct = 0, items = items, watch = true }
 end
@@ -155,6 +179,16 @@ function Wt.AddMenu(root, item, key)
         sub:CreateButton(L.MENU_WATCH_NOW:format(Money(e.m)), function() mod:Call("Beobachtung", Wt.SetLimit, key, "abs", e.m) end)
     end
     sub:CreateButton(L.MENU_WATCH_NONE, function() mod:Call("Beobachtung", Wt.SetLimit, key, nil) end)
+    -- ab 0.68: Grenze nach oben
+    local upSub = root:CreateButton(L.MENU_WATCH_UP)
+    if type(e) == "table" and Num(e.m) then
+        upSub:CreateButton(L.MENU_WATCH_NOW:format(Money(e.m)), function() mod:Call("Beobachtung", Wt.SetUp, key, e.m) end)
+        for _, p in ipairs(Wt.PCTS) do
+            local v = math.floor(e.m * (1 + p / 100))
+            upSub:CreateButton(L.MENU_WATCH_UP_PCT:format(p, Money(v)), function() mod:Call("Beobachtung", Wt.SetUp, key, v) end)
+        end
+    end
+    upSub:CreateButton(L.MENU_WATCH_NONE, function() mod:Call("Beobachtung", Wt.SetUp, key, nil) end)
 end
 
 function Wt.Init()

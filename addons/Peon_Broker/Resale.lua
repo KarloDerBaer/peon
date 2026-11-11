@@ -76,12 +76,29 @@ local function Line(d)
     sub:SetWidth(330)
     sub:SetJustifyH("CENTER")
     fs.sub = sub
+    -- ab 0.68 (H4, Konzept 6.4): Haendler-Warnung unter dem Weiterverkauf
+    local vend = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    vend:SetPoint("TOP", sub, "BOTTOM", 0, -6)
+    vend:SetWidth(330)
+    vend:SetJustifyH("CENTER")
+    fs.vendor = vend
     R.line = fs
     return fs
 end
 
 function R.Hide()
-    if R.line then R.line:Hide(); R.line.sub:Hide() end
+    if R.line then R.line:Hide(); R.line.sub:Hide(); if R.line.vendor then R.line.vendor:Hide() end end
+end
+
+-- Haendler hat den Gegenstand guenstiger als der Stueckpreis im Auktionshaus? Text oder nil (ab 0.68)
+function R.VendorWarning(id, unit)
+    if not ns.Merchant or not Num(id) or not Num(unit) or unit <= 0 then return nil end
+    local vp, src, who = ns.Merchant.Price(id)
+    if not Num(vp) or vp >= unit then return nil end
+    local text = L.RESALE_VENDOR:format(Money(vp))
+    if who then text = text .. " |cff999999(" .. who .. ")|r" end
+    if src == "est" then text = text .. " |cff999999" .. L.RESALE_VENDOR_EST .. "|r" end
+    return text
 end
 
 -- Neu rechnen (nach SetPrice oder neuen Angeboten)
@@ -107,6 +124,9 @@ function R.Update()
         fs.sub:SetText(L.RESALE_SUB:format(math.floor(ns.Data.Cut() * 100 + 0.5)))
     end
     fs:Show(); fs.sub:Show()
+    local warn = Num(total) and R.VendorWarning(id, total / qty) or nil
+    fs.vendor:SetText(warn and ("|cffff9933" .. warn .. "|r") or "")
+    fs.vendor:SetShown(warn ~= nil)
     R.last = r
 end
 

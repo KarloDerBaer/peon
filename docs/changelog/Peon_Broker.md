@@ -2,6 +2,24 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.68.0
+
+Kurz: Hat ein Händler eine Massenware günstiger, warnt Broker in Blizzards Kaufansicht, und Einkaufen zeigt den Rat „HÄNDLER“.
+Kurz: Im Berufsfenster setzt „Auf Einkaufsliste“ das fehlende Material für 1, 5, 10 oder 20 Herstellungen auf die Liste „Material“.
+Kurz: Die Beobachtung kennt eine Grenze nach oben: Broker meldet, wenn der Preis darüber liegt, und Einkaufen zeigt dann „VERKAUFEN“.
+
+- 0.68.0 (12.11.2026): **Stufe 2, H4 kleine Hilfen** (Konzept Abschnitte 6.4, 6.5, 6.6).
+  - **Händler-Warnung beim Kauf** (6.4): In Blizzards Kaufansicht einer Massenware steht unter dem Weiterverkauf „Achtung: Ein Händler verkauft das für … je Stück (Name)“, wenn der Händler günstiger ist als der Stückpreis im Auktionshaus. Preise aus `ns.Merchant.Price`: besuchte Händler, letzter Kauf laut Ledger, sonst die Schätzung für bekannte Reagenzien (markiert „geschätzt“).
+  - **Rat „HÄNDLER“ in Einkaufen** (6.4): wenn ein Händler günstiger ist als das günstigste Angebot oder es nur beim Händler gibt. Zählt nicht für die Zahl am Reiter.
+  - **Material aus dem Berufsfenster** (6.5): Knopf „Auf Einkaufsliste“ neben „Broker“ im Block unter den Reagenzien, Menü „für 1, 5, 10, 20 Herstellungen“. Fehlendes Material kommt auf die Liste „Material“ (wird bei Bedarf angelegt), Ziel = Menge je Herstellung × Anzahl, „Fehlt“ rechnet die Liste gegen den Vorrat. Was der Händler günstiger hat, ist als Händlerware markiert. Ein vorhandenes Ziel wird nicht kleiner.
+  - **Beobachtung für den Verkauf** (6.6): Grenze nach oben (`watch[…].up`): im Menü eines beobachteten Gegenstands „Grenze nach oben (verkaufen)“ mit „jetzt“ und 10, 20, 30 % darüber, in Einkaufen bei der Beobachtung das Feld „Verkaufen ab“. Liegt das günstigste Angebot darauf oder darüber, meldet Broker das einmal im Chat mit Ton (wieder scharf, sobald der Preis darunter fällt), Rat „VERKAUFEN“.
+  - Tests: 20 neue Prüfungen.
+  - **Im Spiel prüfen:**
+    1. Bei einem Händler gewesen (z. B. Faden), dann im Auktionshaus dieselbe Massenware öffnen: Warnung unter dem Weiterverkauf?
+    2. Einkaufen mit so einem Gegenstand: Rat „HÄNDLER“.
+    3. Berufsfenster: Knopf „Auf Einkaufsliste“ sichtbar, ohne die Twinks-Haken zu verdecken? Menü, Liste „Material“ mit sinnvollen Zielen.
+    4. Beobachtung: Grenze nach oben setzen (Menü und Feld), Meldung, wenn der Preis darüber liegt.
+
 ## 0.67.0
 
 Kurz: Jeder Aufkauf aus dem Radar wird ein Posten. Im Radar zeigt „Zum Einstellen“ alle Posten mit Einsatz, Ziel, Marktpreis und ob die Ware schon in der Tasche ist. Die Statuszeile und der Reiter Verkaufen nennen die Zahl.

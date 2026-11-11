@@ -1640,6 +1640,80 @@ end)()
     ns.Go.Clear()
 end)()
 
+-- ===== Stufe 2, H4 (0.68): kleine Hilfen =====
+;(function()
+    local Buy, Wt, C, RS = ns.Buy, ns.Watch, ns.Craft, ns.Resale
+    local keepPrice = ns.Merchant.Price
+    local VP = { [7971] = { 40, "seen", "Gretta" }, [7972] = { 500, "est" } }
+    ns.Merchant.Price = function(id) local v = VP[id]; if v then return v[1], v[2], v[3] end end
+    -- 6.4 Haendler-Warnung in Blizzards Kaufansicht
+    check(RS.VendorWarning(7971, 50) and RS.VendorWarning(7971, 50):find("Gretta", 1, true) and RS.VendorWarning(7971, 30) == nil,
+        "H4: Warnung nur, wenn der Haendler guenstiger ist, mit Namen")
+    check(RS.VendorWarning(7972, 900):find("geschätzt", 1, true), "H4: geschaetzter Haendlerpreis ist markiert")
+    check(RS.VendorWarning(9999, 50) == nil, "H4: ohne bekannten Haendler keine Warnung")
+    -- 6.4 Rat HAENDLER in Einkaufen
+    check(Buy.Advice({ need = 5, cheapest = 50, hits = 5, vendorP = 40 }) == "vendor", "H4: Haendler guenstiger: Rat HAENDLER")
+    check(Buy.Advice({ need = 5, vendorP = 40 }) == "vendor", "H4: nur beim Haendler zu haben: Rat HAENDLER")
+    check(Buy.Advice({ need = 5, cheapest = 30, hits = 5, vendorP = 40 }) == "buy", "H4: AH guenstiger: weiter KAUFEN")
+    check(Buy.Advice({ need = 0, vendorP = 40 }) == "done", "H4: nichts mehr noetig: erledigt")
+    -- 6.5 Material aus dem Berufsfenster
+    local before = #Buy.Lists()
+    local n, list = Buy.AddMaterials({
+        { id = 7971, q = 2, have = 3, vendor = 40, ah = 60 },
+        { id = 7973, q = 1, have = 10, vendor = nil, ah = 100 },
+        { id = 7974, q = 4, have = 0, vendor = 900, ah = 300 },
+    }, 5)
+    check(n == 2 and list and list.name == "Material" and #Buy.Lists() == before + 1, "H4: Liste Material angelegt, nur fehlendes Material")
+    check(list.items[7971].wish == 10 and list.items[7971].v == true and list.items[7974].wish == 20 and list.items[7974].v == nil and list.items[7973] == nil,
+        "H4: Ziel = Menge je Herstellung x 5, Haendlerware markiert")
+    n = Buy.AddMaterials({ { id = 7971, q = 2, have = 3, vendor = 40, ah = 60 } }, 1)
+    check(#Buy.Lists() == before + 1 and list.items[7971].wish == 10, "H4: gleiche Liste wiederverwendet, Ziel wird nicht kleiner")
+    local rows = Buy.ListRows(list)
+    local r71
+    for _, r in ipairs(rows) do if r.key == 7971 then r71 = r end end
+    check(r71 and r71.advice == "vendor" and r71.vendorP == 40, "H4: Material vom Haendler steht mit Rat HAENDLER in der Liste")
+    -- Knopf im Berufsfenster: Menue mit Anzahl
+    local opened
+    MenuUtil = { CreateContextMenu = function(owner, gen)
+        local node = { items = {} }
+        function node:CreateTitle() end
+        function node:CreateButton(t, fn) self.items[#self.items + 1] = { t = t, fn = fn } end
+        gen(owner, node); opened = node
+    end }
+    local keepBlock = C.block
+    C.block = C.block or {}
+    local keepCalc = C.block.calc
+    C.block.calc = { mats = { { id = 7975, q = 3, have = 1, ah = 100 } } }
+    C.ListMenu(CreateFrame("Button"))
+    check(opened and #opened.items == 4 and opened.items[2].t == "für 5 Herstellungen", "H4: Menue im Berufsfenster: 1, 5, 10, 20 Herstellungen")
+    opened.items[2].fn()
+    check(list.items[7975] and list.items[7975].wish == 15, "H4: Klick setzt das Material fuer 5 Herstellungen auf die Liste")
+    C.block.calc = keepCalc
+    C.block = keepBlock
+    MenuUtil = nil
+    for i, l in ipairs(Buy.Lists()) do if l == list then table.remove(Buy.Lists(), i) break end end
+    -- 6.6 Beobachtung mit Grenze nach oben
+    market.items[7976] = { m = 500, md = 520, q = 10, n = 2, t = clock, nm = "Seltenes Ding", ql = 3 }
+    Wt.Add(7976, { name = "Seltenes Ding" })
+    check(Wt.SetUp(7976, 600) and Wt.Store()[7976].up == 600 and not Wt.Store()[7976].upHit, "H4: Grenze nach oben gesetzt, noch nicht erreicht")
+    market.items[7976].m = 650
+    check(Wt.Check({ 7976 }) == 1 and Wt.Store()[7976].upHit and said("Guter Zeitpunkt zum Verkaufen"), "H4: Preis ueber der Grenze: Meldung")
+    check(Wt.Check({ 7976 }) == 0, "H4: Meldung nur einmal")
+    local pl = Wt.PseudoList()
+    check(pl.items[7976].up == 600, "H4: Grenze nach oben steht in der Beobachtungsliste")
+    local wr
+    for _, r in ipairs(Buy.ListRows(pl)) do if r.key == 7976 then wr = r end end
+    check(wr and wr.advice == "sell", "H4: Rat VERKAUFEN in der Beobachtung")
+    market.items[7976].m = 550
+    Wt.Check({ 7976 })
+    check(not Wt.Store()[7976].upHit, "H4: wieder unter der Grenze: Meldung wieder scharf")
+    Wt.SetUp(7976, nil)
+    check(Wt.Store()[7976].up == nil, "H4: Grenze nach oben entfernt")
+    Wt.Remove(7976)
+    market.items[7976] = nil
+    ns.Merchant.Price = keepPrice
+end)()
+
 -- ===== 0.21: Richtwert und ueblicher Bereich (Rechenmodell Kapitel 7, Beispiele aus echten Daten 02.10.2026) =====
 ;(function()
     local today = D.Day()

@@ -19,6 +19,8 @@ Grenzwerte, die das Konzept offen lässt, mit Startwert von Claude. Mit echten D
 - **Prüfung „Zielpreis eintragen“** (H3): Eine blockierte Aktion von Broker bis 60 Sekunden nach dem Klick gilt als Folge. Dann bietet Broker den Knopf nicht mehr an (Konzept: „Blockiert es, bleibt der Preis nur im Rat stehen“). Zurücksetzen geht, indem man den Wert `targetBlocked` in der Einstellungsdatei löscht.
 - **Neuer Preis nach dem Abbrechen** (H3): günstigstes fremdes Angebot minus Unterbieten wie beim Verkaufen. Der Einsatz bleibt leer, weil die ursprünglichen Kosten nicht bekannt sind.
 - **Eingestellte Posten bleiben 2 Tage**, damit der Fokus sie bewachen kann, danach räumt Broker sie beim Anmelden weg.
+- **Material auf eine feste Liste „Material“** (H4): Eine feste Liste ist vorhersehbar und vermischt nichts mit eigenen Listen. Die Anzahl der Herstellungen wählt ein kleines Menü (1, 5, 10, 20) statt eines Eingabefelds, damit im Block unter den Reagenzien kein Platz verloren geht.
+- **Händler-Warnung nur bei Massenware** (H4): Sie sitzt unter Brokers Zeile zum Weiterverkauf, die es nur in Blizzards Kaufansicht für Massenware gibt. Händler führen fast nur Massenware.
 - **Optionen aufgeräumt** (H1, Streichliste Abschnitt 7): Regler der früheren Art „unter dem üblichen Preis“ sind nicht mehr auf der Seite, die Werte bleiben gespeichert. Die Altersgrenze für Chancen aus der Datenbank (`radarMaxAge`) bleibt, weil sie die Liste kurz hält.
 
 ## 12.11.2026: Broker schaltet Blizzards Auktionshaus nicht mehr um (Broker 0.64.1)

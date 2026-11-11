@@ -15,8 +15,9 @@ ns.Buy = B
 
 B.LIVE_WAIT = 4
 local GREY, ORANGE, GREEN, RED = "|cff999999", "|cffff9933", "|cff60e060", "|cffff4040"
-B.ADVICE_COLOR = { buy = "|cff60e060", part = "|cffffd100", expensive = "|cffff4040", check = "|cff999999", done = "|cff999999" }
-B.ADVICE_ORDER = { buy = 1, part = 2, check = 3, expensive = 4, done = 5 }
+B.ADVICE_COLOR = { buy = "|cff60e060", part = "|cffffd100", expensive = "|cffff4040", check = "|cff999999", done = "|cff999999",
+                   vendor = "|cff66bbff", sell = "|cff60e0e0" }   -- ab 0.68: HAENDLER, VERKAUFEN
+B.ADVICE_ORDER = { sell = 0, buy = 1, part = 2, vendor = 2.5, check = 3, expensive = 4, done = 5 }
 local function Money(v) return ns.Tooltip.Money(v) end
 local function AHApi() return rawget(_G, "C_AuctionHouse") end
 local function AHOpen() return ns.Scan.ahOpen and AHApi() ~= nil end
@@ -129,6 +130,43 @@ function B.RemoveItem(list, key)
     list.items[key] = nil
 end
 
+-- Material aus dem Berufsfenster (ab 0.68, H4, Konzept 6.5): fehlendes Material fuer n Herstellungen auf die Liste
+-- "Material" (wird bei Bedarf angelegt). mats = { { id, q (je Herstellung), have (Vorrat), vendor, ah } }.
+-- Ziel = q x n, "Fehlt" rechnet die Liste selbst gegen den Vorrat. Was der Haendler guenstiger hat, wird als
+-- Haendlerware markiert (v = true, Rat HAENDLER). Rueckgabe: Zahl der Eintraege, Liste
+function B.AddMaterials(mats, n)
+    n = math.max(1, math.floor(tonumber(n) or 1))
+    local lists = B.Lists()
+    local list
+    for _, l in ipairs(lists) do if l.name == L.CRAFT_LIST_NAME then list = l end end
+    if not list then
+        list = { id = B.NewId(), name = L.CRAFT_LIST_NAME, pct = 10, u = time(), items = {} }
+        lists[#lists + 1] = list
+    end
+    local added = 0
+    for _, m in ipairs(mats or {}) do
+        local need = (tonumber(m.q) or 0) * n
+        if m.id and need - (tonumber(m.have) or 0) > 0 then
+            local e = list.items[m.id]
+            if not e then
+                local gk = tostring(list.id) .. "|" .. tostring(m.id)
+                e = { u = Shop().NextU(time(), B.Gone().items[gk]) }
+                B.Gone().items[gk] = nil
+            end
+            e.name = e.name or ns.GetItemInfo(m.id)
+            e.icon = e.icon or B.Icon(m.id)
+            e.wish = math.max(tonumber(e.wish) or 0, need)
+            e.v = (m.vendor and (not m.ah or m.vendor <= m.ah)) and true or nil
+            B.Touch(e)
+            list.items[m.id] = e
+            added = added + 1
+        end
+    end
+    if added > 0 then mod:Print(L.CRAFT_LIST_ADDED:format(added, list.name, n)) else mod:Print(L.CRAFT_LIST_NOTHING) end
+    if B.view then B.Refresh() end
+    return added, list
+end
+
 -- Aenderung an einer Liste oder einem Eintrag vermerken (Abgleich mit dem Manager)
 function B.Touch(obj)
     if obj then obj.u = Shop().NextU(time(), obj.u) end
@@ -189,7 +227,12 @@ end
 -- Rat je Zeile (ab 0.49, U8): "buy" genug unter dem Hoechstpreis, "part" nur ein Teil, "expensive" nichts
 -- darunter, "check" ohne Stand, "done" Ziel erreicht
 function B.Advice(r)
+    -- ab 0.68 (H4, Konzept 6.6): Beobachtung mit Grenze nach oben, guenstigstes Angebot darueber
+    local now = r.cheapest or r.marketMin
+    if r.up and now and now >= r.up then return "sell" end
     if r.need == 0 then return "done" end
+    -- ab 0.68 (H4, Konzept 6.4): Haendler hat es guenstiger als das Auktionshaus (oder nur er)
+    if r.vendorP and (not r.cheapest or r.vendorP < r.cheapest) then return "vendor" end
     if not r.cheapest and not r.hits then return "check" end
     if (r.hits or 0) <= 0 then return r.cheapest and "expensive" or "check" end
     if r.need and r.hits < r.need then return "part" end
@@ -217,6 +260,12 @@ function B.ListRows(list)
             icon = it.icon, wish = it.wish, limit = limit, cheapest = cheapest, hits = hitQty, stock = stock, need = need,
             live = live ~= nil, lname = W.Lower(it.name or ""), list = list.name, watch = list.watch }
         if not cheapest and type(e) ~= "table" then r.hits = nil end
+        r.up = it.up
+        r.marketMin = type(e) == "table" and not e.gone and tonumber(e.m) or nil   -- ohne Preisstufen der Stand aus Scan/Live
+        if ns.Merchant and not list.watch then
+            local vp, vsrc = ns.Merchant.Price(ns.Data.ItemID(key))
+            if vp then r.vendorP, r.vendorSrc = vp, vsrc end
+        end
         r.advice = B.Advice(r)
         rows[#rows + 1] = r
     end
@@ -799,6 +848,12 @@ function B.UpdateView()
         B.wishBox:SetText(it and it.wish and tostring(it.wish) or "")
         if B.wishRow then B.wishRow:SetShown(not (cur and cur.watch)) end
         B.wishBox:SetShown(not (cur and cur.watch))
+        local isWatch = cur and cur.watch and true or false
+        if B.upRow then B.upRow:SetShown(isWatch) end
+        if B.upBox then
+            B.upBox:SetShown(isWatch)
+            B.upBox:SetText(isWatch and it and it.up and tostring(it.up / 10000) or "")
+        end
         B.maxBox:SetText(it and it.max and tostring(it.max / 10000) or "")
         B.filling = false
     else
@@ -941,6 +996,15 @@ function B.Build(c)
             if v ~= it.wish then it.wish = v; B.Touch(it) end
             B.Refresh()
         end
+    end)
+    -- ab 0.68 (H4, Konzept 6.6): Beobachtung mit Grenze nach oben ("verkaufen ab"), an der Stelle des Ziels
+    B.upBox = UI.Input(ib, 80)
+    B.upRow = UI.FormRow(ib, L.BUY_F_UP, B.upBox, 0, -70, L.BUY_F_UP_SUB)
+    B.upBox:SetScript("OnEditFocusLost", function(self)
+        local cur = B.CurrentList()
+        if B.filling or not cur or not cur.watch or not B.selected then return end
+        ns.Watch.SetUp(B.selected.key, Gold(self:GetText()))
+        B.Refresh()
     end)
     B.removeButton = UI.Button(ib, L.BUY_REMOVE, B.LEFT_W - 24, function()
         local cur = B.CurrentList()
