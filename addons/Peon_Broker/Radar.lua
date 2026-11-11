@@ -27,7 +27,9 @@ R.WAIT      = 1      -- Sekunden: so lange auf eine Antwort warten (Antworten ko
 R.RECHECK   = 15     -- Sekunden: Treffer spaetestens so oft nachpruefen
 R.FRESH     = 10     -- Sekunden: so alt darf die Pruefung vor einem Kauf sein (Einzelgegenstand)
 R.NEW_TIME  = 60     -- Sekunden: so lange gilt ein Treffer als "neu" (gruen)
-R.FOCUS_EVERY = 15   -- Sekunden: so oft wird der Gegenstand im Fokus neu abgefragt (kuerzer und Messung mit H2)
+-- ab 0.66 (H2): Abstand der Abfragen im Fokus aus der Einstellung focusEvery (Vorgabe 5, 3 bis 30 Sekunden)
+function R.FocusEvery() return tonumber(mod.db.focusEvery) or 5 end
+R.PRICE_TOL = 0.01   -- ab 0.66: Gesamtpreis des Spiels mehr als 1 % ueber dem erwarteten -> Warnung vor dem zweiten Klick
 R.KIND_ON = { vendor = true, buyout = true }   -- Arten im Radar (N6 nur Haendler, ab 0.65 dazu Aufkauf)
 R.GONE_TIME = 30     -- Sekunden: so lange bleibt ein weggefallener Treffer grau mit Grund in der Liste (ab 0.20)
 R.LOG_MAX   = 200    -- so viele weggefallene Treffer merkt sich das Radar-Protokoll (PeonBrokerDB.radarLog)
@@ -388,6 +390,7 @@ function R.Halt()
     R.running = false
     R.loop = false
     R.pending = nil
+    if R.focus and ns.Measure then ns.Measure.Stop() end   -- ab 0.66: letzte Messung merken
     R.focus = nil
     R.UpdateView()
 end
@@ -403,6 +406,11 @@ end
 -- Fokus (ab 0.64): genau ein Gegenstand wird regelmaessig neu abgefragt, solange die Seite Fokus offen ist.
 -- key = nil beendet den Fokus. Der Gegenstand muss keine Chance sein.
 function R.SetFocus(key)
+    local M = ns.Measure
+    if M then   -- ab 0.66: Messung fuer diesen Gegenstand, ein anderer beginnt neu, "Jetzt pruefen" misst weiter
+        if key == nil then M.Stop()
+        elseif not M.cur or M.cur.key ~= key then M.Start(key) end
+    end
     R.focus = key ~= nil and { key = key, at = 0 } or nil
     R.Wake()
 end
@@ -410,8 +418,10 @@ end
 -- Abfrage fuer den Gegenstand im Fokus (wie Blizzards "Neu laden"); true = gesendet
 function R.SendFocus()
     local f = R.focus
-    f.at = Now() + R.FOCUS_EVERY
-    return R.Send(f.key, nil, true)
+    f.at = Now() + R.FocusEvery()
+    local ok = R.Send(f.key, nil, true)
+    if ok and R.pending then R.pending.focus = true end   -- Antwort geht in die Messung (ab 0.66)
+    return ok
 end
 
 function R.Schedule()
@@ -585,6 +595,8 @@ function R.Apply(p, rows, commodity, cached)
         ns.Data.ApplyLive(p.key, rows, time())
     end
     if rows.partial then R.stats.partial = (R.stats.partial or 0) + 1 end
+    -- ab 0.66 (H2): Antwort auf die Abfrage im Fokus in die Messung
+    if p.focus and not cached and ns.Measure and R.focus and R.focus.key == p.key then ns.Measure.Add(p.key, rows, Now()) end
     local old = R.entries[p.key]
     local d = R.Evaluate(p.key, rows, true, commodity)
     if d and not R.KIND_ON[d.kind] then d = nil end   -- Art nicht im Radar
@@ -763,7 +775,9 @@ function R.BuyStep(d, mode)
         if got < 1 then R.MarkGone(d, L.RADAR_GONE_EMPTY); R.entries[d.key] = nil; R.Refresh(); return end
         local ok = pcall(ah.StartCommoditiesPurchase, id, got)
         if not ok then mod:Print(L.BUY_FAILED); return end
-        R.job = { key = d.key, id = id, qty = got, limit = lastPrice, name = d.name, stage = "quote", kind = d.kind, mode = mode, t = Now(), done = 0 }
+        local expect = ns.Data.CostOf(d.rows or {}, got)
+        R.job = { key = d.key, id = id, qty = got, limit = lastPrice, name = d.name, stage = "quote", kind = d.kind, mode = mode, t = Now(), done = 0,
+                  expect = expect, target = d.ref }
     else
         -- Einzelgegenstand: nur mit frischer Pruefung kaufen, sonst erst pruefen
         if not d.live or not d.checked or Now() - d.checked > R.FRESH then
@@ -797,6 +811,8 @@ function R.OnPriceUpdated(unitPrice, totalPrice)
         return
     end
     job.total, job.unit = totalPrice, unitPrice
+    -- ab 0.66: Gesamtpreis hoeher als erwartet -> Warnung vor dem zweiten Klick (Konzept 6.1)
+    job.warn = (Num(totalPrice) and Num(job.expect) and job.expect > 0 and totalPrice > job.expect * (1 + R.PRICE_TOL)) or nil
     job.stage = "confirm"
     R.UpdateView()
 end

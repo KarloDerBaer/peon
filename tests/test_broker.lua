@@ -1360,7 +1360,7 @@ end)()
     for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr[#fr + 1] = r.label.text .. "=" .. plain(r.value.text) end end
     local all = table.concat(fr, "|")
     check(all:find("Art=Aufkauf", 1, true) and all:find("Kaufen bis=11s", 1, true) and all:find("Menge=80", 1, true)
-        and all:find("Ziel=15s", 1, true) and all:find("Verkauft in=etwa 1.6 Std.", 1, true) and all:find("Risiko=mittel", 1, true),
+        and all:find("Ziel=15s", 1, true) and all:find("Verkauft in=etwa 1,6 Std.", 1, true) and all:find("Risiko=mittel", 1, true),
         "H1: Angaben im Fokus: " .. all)
     local riskRow
     for _, r in ipairs(F.rows) do if r.label.text == "Risiko" then riskRow = r end end
@@ -1370,6 +1370,116 @@ end)()
     market.items[7901] = nil
     Rd.entries, Rd.gone, Rd.lastVisible, Rd.loaded = {}, {}, nil, nil
     ns.Sales.Stats, D.Band, GetMoney, mod.db.dealMinMarket = keepStats, keepBand, keepMoney, keepMin
+    ns.Go.Clear()
+end)()
+
+-- ===== Stufe 2, H2 (0.66): Fokus mit Messung =====
+;(function()
+    local M, F = ns.Measure, ns.Focus
+    local function rowsOf(list, partial)
+        local byP, rows = {}, { offers = {}, commodity = true, partial = partial }
+        for _, o in ipairs(list) do
+            rows.offers[#rows.offers + 1] = { id = o[1], q = o[2], p = o[3], secs = o[4] }
+            byP[o[3]] = (byP[o[3]] or 0) + o[2]
+        end
+        for p, q in pairs(byP) do rows[#rows + 1] = { price = p, qty = q, own = 0 } end
+        table.sort(rows, function(a, b) return a.price < b.price end)
+        return rows
+    end
+    Rd.entries[7951] = { key = 7951, kind = "buyout", ref = 150, qty = 30, rows = {} }
+    M.Start(7951)
+    M.Add(7951, rowsOf({ { 1, 10, 100 }, { 2, 20, 120 }, { 3, 50, 150 } }), 0)
+    check(M.cur.target == 150 and M.Values().under == 30 and select(1, M.Verdict(M.Values())) == "first", "H2: erste Abfrage: Ziel aus der Chance, 30 Stueck unter Ziel, noch kein Urteil")
+    M.Add(7951, rowsOf({ { 1, 5, 100 }, { 2, 20, 120 }, { 3, 50, 150 } }), 15)
+    M.Add(7951, rowsOf({ { 2, 20, 120 }, { 3, 50, 150 } }), 30)
+    local v = M.Values()
+    check(v.sold == 10 and math.abs(v.out - 20) < 0.01 and v.inUnder == 0 and v.underTrend == "shrink" and v.minTrend == "rise",
+        "H2: 10 Stueck in 30 Sek. gekauft: Abfluss 20 je Min., Menge unter Ziel schrumpft, Preis steigt")
+    local code, why, early = M.Verdict(v)
+    check(code == "buy" and early and why == ns.L.MEASURE_W_BUY, "H2: Urteil Kaufen (vorlaeufig vor 2 Min.)")
+    -- abgebrochen: guenstigeres Angebot bleibt stehen
+    M.Add(7951, rowsOf({ { 2, 20, 120 }, { 4, 8, 140 } }), 45)
+    local last = M.cur.pairs[#M.cur.pairs]
+    check(last.cancelled == 50 and last.sold == 0 and last.newUnder == 8,
+        "H2: Angebot weg, guenstigeres blieb: abgebrochen; neues Angebot unter Ziel zaehlt als Zufluss")
+    -- abgelaufen zaehlt nicht
+    local A = { t = 0, offers = { [9] = { q = 5, p = 100, secs = 3 }, [8] = { q = 5, p = 90 } }, maxP = 100 }
+    local B = { t = 5, offers = { [8] = { q = 5, p = 90 } }, maxP = 90 }
+    local pr = M.Compare(A, B, 150)
+    check(pr.sold == 0 and pr.cancelled == 0, "H2: abgelaufenes Angebot zaehlt weder als verkauft noch als abgebrochen")
+    -- Finger weg: Menge unter Ziel waechst
+    M.Start(7951)
+    M.Add(7951, rowsOf({ { 1, 10, 100 }, { 3, 50, 150 } }), 0)
+    M.Add(7951, rowsOf({ { 1, 10, 100 }, { 5, 40, 110 }, { 3, 50, 150 } }), 20)
+    M.Add(7951, rowsOf({ { 1, 10, 100 }, { 5, 40, 110 }, { 3, 50, 150 } }), 40)
+    v = M.Values()
+    check(v.underTrend == "grow" and select(1, M.Verdict(v)) == "away", "H2: Menge unter Ziel waechst: Finger weg")
+    -- Finger weg: Preis faellt
+    M.Start(7951)
+    M.Add(7951, rowsOf({ { 1, 10, 100 }, { 3, 50, 150 } }), 0)
+    M.Add(7951, rowsOf({ { 6, 10, 90 }, { 3, 50, 150 } }), 40)
+    check(M.Values().minTrend == "fall" and select(1, M.Verdict(M.Values())) == "away", "H2: guenstigster Preis faellt: Finger weg")
+    -- Abwarten: keine Bewegung
+    M.Start(7951)
+    M.Add(7951, rowsOf({ { 1, 10, 100 }, { 3, 50, 150 } }), 0)
+    M.Add(7951, rowsOf({ { 1, 10, 100 }, { 3, 50, 150 } }), 130)
+    local c2, w2, e2 = M.Verdict(M.Values())
+    check(c2 == "wait" and w2 == ns.L.MEASURE_W_QUIET and not e2, "H2: keine Bewegung: Abwarten, nach 2 Min. ohne vorlaeufig")
+    check(M.SellHours(30) == nil, "H2: ohne Abfluss keine gemessene Verkaufsdauer")
+    -- ohne Chance: Ziel = zweite Stufe beim Beginn
+    Rd.entries[7951] = nil
+    M.Start(7951)
+    M.Add(7951, rowsOf({ { 1, 10, 100 }, { 3, 50, 150 } }), 0)
+    check(M.cur.target == 150 and M.cur.ownTarget, "H2: ohne Chance gilt die zweite Preisstufe als Ziel")
+    -- gemerkt fuer unterwegs
+    M.Stop()
+    check(M.cur == nil and M.Saved(7951) and M.Saved(7951).under == 10 and M.Saved(9999) == nil, "H2: letzte Messung gemerkt")
+    -- Einstellung und Abfrage-Abstand
+    mod.db.focusEvery = 7
+    check(Rd.FocusEvery() == 7, "H2: Abstand im Fokus einstellbar")
+    mod.db.focusEvery = 5
+    -- Fokus-Seite mit laufender Messung
+    local keepOpen, keepStats, keepBand, keepMoney = ns.Scan.ahOpen, ns.Sales.Stats, D.Band, GetMoney
+    ns.Sales.Stats = function() return { perHour = 50, level = 3 } end
+    D.Band = function() return { trend = "calm" } end
+    GetMoney = function() return 1000000 end
+    mod.acc.commodity[7952] = true
+    market.items[7952] = { m = 1000, md = 1500, q = 180, n = 3, t = clock, lv = "1000:50;1100:30;1500:100", nm = "Messstein", ql = 1 }
+    Rd.entries, Rd.gone, Rd.lastVisible, Rd.loaded = {}, {}, nil, nil
+    Rd.LoadIfStale()
+    check(Rd.entries[7952] and Rd.entries[7952].kind == "buyout", "H2: Aufkauf fuer den Fokus vorhanden")
+    Win.Open("focus")
+    F.Set(7952)
+    ns.Scan.ahOpen = true
+    M.Start(7952)
+    M.Add(7952, rowsOf({ { 1, 50, 1000 }, { 2, 30, 1100 }, { 3, 100, 1500 } }), 0)
+    M.Add(7952, rowsOf({ { 1, 20, 1000 }, { 2, 30, 1100 }, { 3, 100, 1500 } }), 60)
+    F.Update()
+    check(plain(F.verdict.text) == "KAUFEN (vorläufig)" and plain(F.mRows[1].value.text) == "30 je Min." and plain(F.mRows[3].value.text) == "50, schrumpft",
+        "H2: Fokus zeigt Urteil und Messwerte: " .. plain(F.verdict.text) .. " / " .. plain(F.mRows[1].value.text) .. " / " .. plain(F.mRows[3].value.text))
+    check(F.mHead.text:find("Messung alle 5 Sek.", 1, true) and F.mHead.text:find("tatsächlich 60 Sek.", 1, true), "H2: Kopf mit eingestelltem und tatsaechlichem Abstand: " .. plain(F.mHead.text))
+    M.Add(7952, rowsOf({ { 1, 5, 1000 }, { 2, 30, 1100 }, { 3, 100, 1500 } }), 130)
+    F.Update()
+    local fr = {}
+    for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr[#fr + 1] = r.label.text .. "=" .. plain(r.value.text) end end
+    check(table.concat(fr, "|"):find("Verkauft in=", 1, true) and table.concat(fr, "|"):find("(gemessen)", 1, true), "H2: Verkaufsdauer aus dem gemessenen Abfluss: " .. table.concat(fr, "|"))
+    -- Warnung vor dem zweiten Klick, wenn der Gesamtpreis hoeher ist als erwartet
+    Rd.job = { key = 7952, id = 7952, qty = 80, limit = 1100, stage = "quote", expect = 83000, done = 0 }
+    fire("COMMODITY_PRICE_UPDATED", 1050, 84000)
+    F.Update()
+    check(Rd.job.warn and plain(F.buyInfo.text):find("Achtung", 1, true), "H2: Gesamtpreis ueber dem erwarteten: Warnung vor dem Bestaetigen")
+    Rd.job = nil
+    -- unterwegs: gemerkte Messung, als alt markiert
+    M.Stop()
+    ns.Scan.ahOpen = false
+    F.Update()
+    check(F.mHead.text:find(ns.L.ST_NOT_LIVE, 1, true) and plain(F.mRows[3].value.text):find("5", 1, true) and plain(F.verdict.text) == "KAUFEN",
+        "H2: unterwegs die letzte Messung, nicht live, Urteil aus der Chance")
+    Win.frame:Hide()
+    ns.Scan.ahOpen, ns.Sales.Stats, D.Band, GetMoney = keepOpen, keepStats, keepBand, keepMoney
+    market.items[7952] = nil
+    Rd.entries, Rd.gone, Rd.lastVisible, Rd.loaded = {}, {}, nil, nil
+    mod.acc.focusMeasure = nil
     ns.Go.Clear()
 end)()
 

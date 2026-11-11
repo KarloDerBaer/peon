@@ -2,6 +2,29 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.66.0
+
+Kurz: Der Fokus misst den Gegenstand jetzt laufend (Vorgabe alle 5 Sekunden): Abfluss, Zufluss unter dem Ziel, Menge unter dem Ziel und günstigster Preis, dazu ein Diagramm.
+Kurz: Beim Aufkauf sagt der Fokus nach 30 Sekunden „Kaufen“, „Abwarten“ oder „Finger weg“, ab 2 Minuten ohne „vorläufig“. Ist der Gesamtpreis beim Kauf höher als erwartet, warnt Broker vor dem zweiten Klick.
+
+- 0.66.0 (12.11.2026): **Stufe 2, H2 Fokus mit Messung** (Konzept Abschnitt 6.1, Reiter Fokus). Neue Datei `Measure.lua`.
+  - **Abfragen:** Am Auktionator wird der Gegenstand im Fokus alle `focusEvery` Sekunden abgefragt (neu, Vorgabe 5, einstellbar 3 bis 30, bisher fest 15). Nimmt das Spiel gerade keine Abfrage an, wartet Broker. Der Kopf der Messung nennt den eingestellten und den tatsächlichen Abstand.
+  - **Messwerte** aus je zwei Abfragen nacheinander mit den Auktionsnummern (gleiche Regeln wie der Absatz in `Sales.lua`): verkauft (Menge kleiner, oder Angebot vorzeitig weg, ohne dass ein günstigeres stehen blieb), abgebrochen (vorzeitig weg, ein günstigeres blieb), abgelaufen zählt nicht, neu eingestellt. Daraus Abfluss (verkaufte Stück je Minute), Zufluss unter Ziel (neu eingestellte Stück unter dem Zielpreis je Minute), Menge unter Ziel (wächst, bleibt, schrumpft) und günstigster Preis (fällt, bleibt, steigt), jeweils über die letzten 10 Minuten.
+  - **Ziel:** Zielpreis der Chance (Aufkauf: nächste Stufe, Händler: Händlerpreis). Ohne Chance die zweite Preisstufe beim Beginn der Messung.
+  - **Urteil** beim Aufkauf (Startwerte, Entscheidungen 12.11.2026): nach 30 Sekunden vorläufig, ab 2 Minuten ohne Zusatz. „Finger weg“, wenn die Menge unter dem Ziel um mindestens 10 % wächst oder der günstigste Preis fällt. „Kaufen“, wenn der Abfluss mehr als 20 % über dem Zufluss unter dem Ziel liegt. Sonst „Abwarten“ (kaum Bewegung oder etwa gleich). Händler-Chancen behalten ihr Urteil aus der Chance, dort zählt die Messung kaum.
+  - **Verkauft in:** ab 2 Minuten Messung mit dem gemessenen Abfluss („gemessen“), vorher mit dem Absatz der letzten Stunden.
+  - **Diagramm** unter den Messwerten: Menge unter Ziel (Balken), günstigster Preis (Linie), Ziel (waagrechte Linie). Die Preisstufen stehen darüber in kürzerer Liste.
+  - **Warnung beim Kauf:** Liegt der Gesamtpreis vom Spiel mehr als 1 % über dem erwarteten, steht vor dem zweiten Klick „Achtung: gesamt … statt erwartet …“.
+  - **Unterwegs:** Die letzte Messung bleibt gemerkt (`focusMeasure`) und erscheint als „nicht live“, ohne neue Abfragen.
+  - Tests: 18 neue Prüfungen (Vergleich, abgebrochen, abgelaufen, jedes Urteil, Ziel ohne Chance, Seite, Warnung, unterwegs).
+  - **Im Spiel prüfen:**
+    1. Fokus mit einem Aufkauf: Kommen die Abfragen wirklich alle 5 Sekunden? Was zeigt „tatsächlich“? Gibt es Meldungen oder Ruckeln?
+    2. Abstand auf 3 Sekunden stellen: Hält das Spiel mit? Ab wann bremst es?
+    3. Passen Abfluss und Zufluss zu dem, was man in Blizzards Liste sieht? Wird ein eigener Kauf als Abfluss gezählt (soll so sein)?
+    4. Urteil nach 30 Sekunden und nach 2 Minuten: plausibel?
+    5. Diagramm unter den Messwerten: lesbar, passt es in den Bereich?
+    6. Kauf mit absichtlich veraltetem Stand: erscheint die Warnung vor dem zweiten Klick?
+
 ## 0.65.0
 
 Kurz: Das Radar findet jetzt Aufkäufe: Massenware, die man bis zu einer Preisstufe kauft und zum Preis der nächsten Stufe wieder einstellt. Es zählt der Gewinn in Gold, und die Menge muss sich schnell wieder verkaufen.

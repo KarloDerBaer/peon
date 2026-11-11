@@ -10,6 +10,10 @@ Grenzwerte, die das Konzept offen lässt, mit Startwert von Claude. Mit echten D
 - **Aufkauf nur für Massenware** (H1): Nur dort gibt es Preisstufen, bei denen die zuletzt eingestellte Ware zuerst verkauft wird.
 - **Mindestgewinn Aufkauf = bisheriger Mindestgewinn Markt** (`dealMinMarket`, 50s), damit keine Einstellung doppelt ist.
 - **Risiko-Ampel** (H1): je ein Punkt für Verkaufsdauer über 75 % der Grenze, Ware bis 5 % über dem Ziel mehr als der Absatz in der Höchstdauer, nächste Stufe unter 5 Stück oder unter 10 % der eigenen Menge, Einsatz über der Hälfte des verfügbaren Golds, Stand älter als 30 Min. (über 2 Std. zwei Punkte), wenig Absatzdaten oder kein üblicher Bereich. Grün 0, gelb 1 bis 2, rot ab 3. Grund: Jeder Punkt ist ein eigener Weg, wie der Aufkauf scheitern kann. Ein einzelner macht ihn unsicher, drei zusammen machen ihn riskant.
+- **Urteil im Fokus** (H2): Fenster der letzten 10 Minuten. „Finger weg“ ab 10 % mehr Menge unter dem Ziel (mindestens 1 Stück) oder bei jedem fallenden günstigsten Preis. „Kaufen“ erst, wenn der Abfluss mehr als 20 % über dem Zufluss unter dem Ziel liegt, darunter gilt „etwa gleich“. Grund: Bei wenigen Sekunden Abstand schwanken die Zahlen stark, ein kleiner Vorsprung ist noch keine Richtung.
+- **Ziel ohne Chance** (H2): die zweite Preisstufe beim Beginn der Messung, damit „Menge unter Ziel“ auch bei einem selbst gewählten Gegenstand etwas zeigt.
+- **Eigene Käufe zählen als Abfluss** (H2): Die Auktionsnummern verraten nicht, wer gekauft hat. Das ist richtig für die Frage „wird hier gekauft?“, nach einem eigenen Aufkauf wirkt der Markt kurz lebhafter.
+- **Warnung beim Kauf ab 1 % über dem erwarteten Gesamtpreis** (H2). Der Kauf bricht weiter von selbst ab, wenn der Stückpreis über „Kaufen bis“ liegt.
 - **Optionen aufgeräumt** (H1, Streichliste Abschnitt 7): Regler der früheren Art „unter dem üblichen Preis“ sind nicht mehr auf der Seite, die Werte bleiben gespeichert. Die Altersgrenze für Chancen aus der Datenbank (`radarMaxAge`) bleibt, weil sie die Liste kurz hält.
 
 ## 12.11.2026: Broker schaltet Blizzards Auktionshaus nicht mehr um (Broker 0.64.1)

@@ -39,11 +39,36 @@ function F.Chance()
     return R.entries[F.key] or R.gone[F.key]
 end
 
--- Urteil in der Grundform: aus der Chance, nicht aus einer Messung. Rueckgabe: Text, Farbe, Satz
+-- Messung des Gegenstands im Fokus, solange sie laeuft (am Auktionator), sonst nil
+function F.LiveValues()
+    local M = ns.Measure
+    local c = M and M.cur
+    if not (c and F.key ~= nil and c.key == F.key and AHOpen()) then return nil end
+    return M.Values()
+end
+
+-- ab 0.66 (H2): Verkaufsdauer aus dem gemessenen Abfluss, sobald die Messung genug zeigt
+function F.SellHours(d)
+    if not F.LiveValues() then return nil end
+    return ns.Measure.SellHours(d.qty)
+end
+
+F.V_TEXT = { buy = "FOCUS_V_BUY", wait = "MEASURE_V_WAIT", away = "MEASURE_V_AWAY", first = "MEASURE_V_FIRST" }
+F.V_COLOR = { buy = GREEN, wait = "|cffffd100", away = "|cffff5555", first = GREY }
+
+-- Urteil: ohne Messung aus der Chance (Grundform), ab 0.66 beim Aufkauf aus der Messung (Konzept 6.1).
+-- Rueckgabe: Text, Farbe, Satz
 function F.Verdict(d)
     if not d then return L.FOCUS_V_NONE, GREY, L.FOCUS_W_NONE end
     if d.gone then return L.FOCUS_V_GONE, GREY, tostring(d.goneWhy or "") end
     if d.cant then return L.FOCUS_V_CANT, ORANGE, L.FOCUS_W_CANT end
+    local v = d.kind == "buyout" and F.LiveValues() or nil
+    if v then
+        local code, why, early = ns.Measure.Verdict(v)
+        local text = L[F.V_TEXT[code]] or code
+        if early and code ~= "first" then text = text .. " " .. L.MEASURE_EARLY end
+        return text, F.V_COLOR[code] or GREY, why
+    end
     return L.FOCUS_V_BUY, GREEN, L["FOCUS_W_" .. tostring(d.kind):upper()] or ""
 end
 
@@ -143,10 +168,11 @@ function F.Build(c)
     end)
     F.itemButton:SetPoint("LEFT", F.marketButton, "RIGHT", 6, 0)
 
-    -- rechts: der Markt in diesem Moment
+    -- rechts: der Markt in diesem Moment. Oben die Preisstufen, darunter ab 0.66 (H2) Messung und Diagramm
     local right = UI.Panel(c, "list", true)
     right:SetPoint("TOPLEFT", left, "TOPRIGHT", UI.GAP, -30)
-    right:SetPoint("BOTTOMRIGHT", 0, 0)
+    right:SetPoint("RIGHT", c, "RIGHT", 0, 0)
+    right:SetHeight(F.TIER_H)
     F.stand = UI.Text(c, "text", "")
     F.stand:SetPoint("BOTTOMLEFT", right, "TOPLEFT", 8, 8)
     F.refreshButton = UI.Button(c, L.FOCUS_REFRESH, 120, function()
@@ -163,9 +189,97 @@ function F.Build(c)
         },
         sortKey = "price", empty = L.ITEM_TIER_EMPTY,
     })
+    F.BuildMeasure(c, right)
 
     if F.key == nil then F.key = mod.acc.focusKey end
     F.Update()
+end
+
+F.TIER_H = 152     -- Hoehe der Preisstufen (Kopf und 6 Zeilen)
+F.MEASURE_ROWS = { "MEASURE_OUT", "MEASURE_IN", "MEASURE_UNDER", "MEASURE_MIN" }
+
+local function AxisMoney(v)
+    if not Num(v) then return "" end
+    if v >= 10000 then return math.floor(v / 10000 + 0.5) .. "g" end
+    if v >= 100 then return math.floor(v / 100 + 0.5) .. "s" end
+    return math.floor(v + 0.5) .. "c"
+end
+
+-- Messung und Diagramm unter den Preisstufen (ab 0.66)
+function F.BuildMeasure(c, above)
+    local UI = Peon.UI
+    local mp = UI.Panel(c, "right")
+    mp:SetPoint("TOPLEFT", above, "BOTTOMLEFT", 0, -2)
+    mp:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT", 0, 0)
+    F.measurePanel = mp
+    F.mHead = UI.Text(mp, "label", "")
+    F.mHead:SetPoint("TOPLEFT", 12, -8)
+    F.mRows = {}
+    for i, key in ipairs(F.MEASURE_ROWS) do
+        local label = UI.Text(mp, "label", L[key])
+        label:SetWidth(130)
+        label:SetJustifyH("RIGHT")
+        label:SetPoint("TOPLEFT", 4, -28 - (i - 1) * 17)
+        local value = UI.Text(mp, "text", "")
+        value:SetPoint("TOPLEFT", label, "TOPRIGHT", 10, 0)
+        F.mRows[i] = { label = label, value = value }
+    end
+    local cw = W.WIDTH - 2 * W.SIDE - UI.LEFT_W - UI.GAP
+    if Peon.NewChart then
+        F.chart = Peon.NewChart(mp, { width = cw - 12, height = 104, left = 46, right = 40, top = 6, bottom = 6, grid = 2,
+            leftFormat = AxisMoney, rightFormat = function(v) return Num(v) and Peon.ShortNumber and Peon.ShortNumber(v) or "" end })
+        if F.chart and F.chart.frame then F.chart.frame:SetPoint("BOTTOMLEFT", mp, "BOTTOMLEFT", 6, 6) end
+    end
+    F.chartLegend = UI.Text(mp, "small", ("|cff6699cc%s|r  |cffffd133%s|r  |cff60e060%s|r"):format(L.MEASURE_UNDER, L.MEASURE_MIN, L.FOCUS_R_TARGET))
+    F.chartLegend:SetPoint("BOTTOMRIGHT", mp, "BOTTOMRIGHT", -10, 114)
+end
+
+local function Dec(x)
+    local t = ("%.1f"):format(x or 0):gsub("%.0$", "")
+    return (t:gsub("%.", L.DEC_SEP or "."))
+end
+F.Dec = Dec
+
+-- Messwerte in die Zeilen; v = laufende Messung, saved = gemerkte (unterwegs)
+function F.UpdateMeasure(v, saved)
+    if not F.mRows then return end
+    local src = v or saved
+    local every = tonumber(mod.db.focusEvery) or 5
+    if v then
+        local head = L.MEASURE_HEAD:format(every)
+        if v.every then head = head .. "  " .. GREY .. L.MEASURE_REAL:format(Dec(v.every)) .. "|r" end
+        F.mHead:SetText(head)
+    elseif saved then
+        F.mHead:SetText(L.MEASURE_SAVED:format(ns.Scan.Age(saved.t)) .. "  " .. ORANGE .. L.ST_NOT_LIVE .. "|r")
+    elseif AHOpen() and F.key ~= nil then
+        F.mHead:SetText(L.MEASURE_HEAD:format(every) .. "  " .. GREY .. L.MEASURE_STARTING .. "|r")
+    else
+        F.mHead:SetText(GREY .. L.MEASURE_NONE .. "|r")
+    end
+    local vals = { "", "", "", "" }
+    if src then
+        local trendU = L["MEASURE_T_" .. tostring(src.underTrend):upper()] or ""
+        local trendM = L["MEASURE_T_" .. tostring(src.minTrend):upper()] or ""
+        vals[1] = L.MEASURE_RATE:format(Dec(src.out))
+        vals[2] = L.MEASURE_RATE:format(Dec(src.inUnder)) .. (Num(src.target) and ("  " .. GREY .. L.MEASURE_TARGET:format(Money(src.target)) .. "|r") or "")
+        vals[3] = tostring(src.under or 0) .. ", " .. trendU
+        vals[4] = (Num(src.min) and Money(src.min) or "-") .. ", " .. trendM
+    end
+    for i, r in ipairs(F.mRows) do r.value:SetText(vals[i]) end
+    -- Diagramm: Menge unter Ziel (rechts), guenstigster Preis und Ziel (links)
+    local n, under, mins = nil, nil, nil
+    if v then n, under, mins = ns.Measure.Series() end
+    local show = F.chart ~= nil and n ~= nil
+    if F.chart and F.chart.frame then F.chart.frame:SetShown(show) end
+    F.chartLegend:SetShown(show)
+    if not show then return end
+    local series = {
+        { key = "under", kind = "bar", axis = "right", values = under, color = { 0.4, 0.6, 0.8, 0.45 } },
+        { key = "min", kind = "line", values = mins, color = { 1, 0.82, 0.2, 1 }, width = 2, connect = true },
+    }
+    if Num(v.target) then series[#series + 1] = { key = "target", kind = "hline", value = v.target, color = { 0.38, 0.88, 0.38, 0.9 } } end
+    F.chart:SetData(n, series)
+    F.chart:Draw()
 end
 
 -- Text und Zustand des Kaufknopfs
@@ -175,7 +289,9 @@ local function BuyState(d)
     local here = job and d and job.key == d.key
     if here then
         local info = ""
-        if job.stage == "confirm" then info = L.FOCUS_CONFIRM:format(job.qty or 0, Money(job.total or 0))
+        if job.stage == "confirm" then
+            info = L.FOCUS_CONFIRM:format(job.qty or 0, Money(job.total or 0))
+            if job.warn then info = ORANGE .. L.FOCUS_PRICE_WARN:format(Money(job.total or 0), Money(job.expect or 0)) .. "|r" end
         elseif job.items then info = L.FOCUS_BOUGHT:format(job.done or 0, job.qty or 0, Money(job.cost or 0)) end
         return R.JobText(job), job.stage == "confirm" or job.stage == "next", info
     end
@@ -200,6 +316,7 @@ function F.Update()
         for _, r in ipairs(F.rows) do r.label:SetText(""); r.value:SetText("") end
         F.tiers:SetData({})
         F.stand:SetText("")
+        F.UpdateMeasure(nil, nil)
         F.buyButton:SetText(L.BUY_BUY); F.buyButton:Disable(); F.buyInfo:SetText("")
         return
     end
@@ -228,6 +345,8 @@ function F.Update()
     local st = seen and L.FOCUS_STAND:format(ns.Scan.Age(seen)) or L.FOCUS_NO_STAND
     if not AHOpen() then st = st .. "  " .. ORANGE .. L.ST_NOT_LIVE .. "|r" end
     F.stand:SetText(st)
+    local live = F.LiveValues()
+    F.UpdateMeasure(live, not live and not AHOpen() and ns.Measure and ns.Measure.Saved(key) or nil)
     local label, enabled, info = BuyState(d)
     F.buyButton:SetText(label)
     On(F.buyButton, enabled)

@@ -125,5 +125,6 @@ end
 function B.HoursText(h)
     if type(h) ~= "number" or h ~= h or h == math.huge then return "?" end
     if h < 1 then return L.BUYOUT_MIN:format(math.max(1, math.floor(h * 60 + 0.5))) end
-    return L.BUYOUT_HOURS:format(math.floor(h * 10 + 0.5) / 10)
+    local t = tostring(math.floor(h * 10 + 0.5) / 10):gsub("%.", L.DEC_SEP or ".")
+    return L.BUYOUT_HOURS:format(t)
 end
