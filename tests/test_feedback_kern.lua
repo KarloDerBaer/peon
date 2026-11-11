@@ -111,7 +111,7 @@ for addon, file in pairs(files) do
   assert(loadstring("local ADDON_NAME = ...\n" .. line))(addon)
   check(#Peon.GetFeedbackAreas(addon) == expect[addon], addon .. ": " .. expect[addon] .. " Bereiche gemeldet")
 end
-check(Peon.GetFeedbackAreas("Peon_Broker")[3] == "Radar" and Peon.GetFeedbackAreas("Peon_Fishing")[4] == "Schwimmer-Erkennung", "Bereiche in der richtigen Reihenfolge")
+check(Peon.GetFeedbackAreas("Peon_Broker")[5] == "Radar" and Peon.GetFeedbackAreas("Peon_Broker")[6] == "Fokus" and Peon.GetFeedbackAreas("Peon_Fishing")[4] == "Schwimmer-Erkennung", "Bereiche in der richtigen Reihenfolge")
 -- Zeile mit altem Kern (ohne API 9) ist harmlos
 do
   local save = Peon.SetFeedbackAreas; Peon.SetFeedbackAreas = nil

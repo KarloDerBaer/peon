@@ -601,14 +601,7 @@ check(S.state == nil and said("keine Antwort"), "Zeitueberschreitung ohne Daten"
 
 -- ===== Broker-Fenster, Reiter "Preise" (0.7) =====
 local Win, P = ns.Window, ns.Item
--- Einkaufsliste war 0.37 bis 0.48 in Arbeit, ab 0.49 (U8) wieder offen. Ab 0.54 sind Markt und Info in Arbeit:
--- fuer die Pruefungen der bisherigen Gegenstandsansicht den Hinweis abschalten, am Ende pruefen
-check(not Win.WIP.buy and not Win.WIP.prices and not Win.WIP.browse and not Win.WIP.auctions and Win.WIP.focus, "N5: nur noch Fokus in Arbeit")
-local wipKeep = Win.WIP
-Win.WIP = {}
-for _, k in ipairs({ "focus" }) do   -- schon als Hinweis angelegte Seiten verwerfen
-  if Win.contents and Win.contents[k] then Win.contents[k]:Hide(); Win.contents[k] = nil end
-end
+check(next(Win.WIP) == nil, "N6: kein Reiter mehr in Arbeit")
 check(market.items[2770].nm == "Kupfererz" and market.items[2770].ql == 1, "Scan merkt Name und Qualitaet")
 check(market.items["15000:1047"].nm == "Schwert des Baeren" and market.items["15000:1047"].ql == 2, "Name bei Ausruestung mit Zusatz")
 check(D.LinkFromKey(2770) == "item:2770" and D.KeyFromLink(D.LinkFromKey("15000:1047")) == "15000:1047", "Link aus Schluessel und zurueck")
@@ -1027,588 +1020,9 @@ do
 end
 check(PeonBrokerDB.lists[1].items[2589] ~= nil, "von der Seite Gegenstand hinzugefuegt")
 
--- ===== Reiter "Radar" (0.14) =====
+-- ===== Radar: die Tests des alten Radars (0.14 bis 0.57) entfielen mit dem Neuaufbau N6, neue Tests weiter unten =====
 local Rd = ns.Radar
-check(Rd.preOff == true, "0.33.1: Preis vorab ist aus (Spiel erlaubt ihn nur direkt aus einem Klick)")
-local sounds = 0
-mod.db.dealDepth = 100   -- einfache Testfaelle: ganze Stufe, danach nichts mehr im Angebot
-local lastSound
-PlaySound = function(id, ch) sounds = sounds + 1; lastSound = { id, ch } end
-mod.acc.commodity = mod.acc.commodity or {}
-mod.acc.commodity[7777], mod.acc.commodity[7778], mod.acc.commodity[7779] = true, true, false
-market.items[7777] = { m = 3, md = 10, q = 20, n = 1, t = clock - 120, lv = "3:20", nm = "Billigzeug", ql = 1 }
-market.items[7778] = { m = 500, md = 1000, q = 20, n = 1, t = clock - 120, lv = "500:20", nm = "Dumpware", ql = 2, d = D.Day(clock) .. ":10000:20000:400:12" }
-market.items[7779] = { m = 40, md = 200, q = 1, n = 1, t = clock - 120, lv = "40:1", nm = "Altes Schwert", ql = 2 }
-VENDOR[7777], VENDOR[7779] = 10, 100
-local savedV2589 = VENDOR[2589]
-VENDOR[2589] = nil   -- sonst waere Silberblatt aus den frueheren Tests auch ein Haendler-Schnaeppchen
-LIVE[7777] = { { unitPrice = 3, quantity = 20 } }
-LIVE[7778] = {}
-local savedLI2 = LIVEITEM
-LIVEITEM = { { buyoutAmount = 40, quantity = 1, auctionID = 91 } }
-local savedLast = market.lastScan
-market.lastScan = clock - 60
-local nT = #timers
-Win.Select("radar")
-local rItems = Rd.list:GetItems()
-check(Win.current == "radar" and #rItems == 3 and rItems[1].key == 7778 and rItems[1].kind == "market", "Radar: Treffer aus dem frischen Scan, hoechster Gewinn oben")
-check(plain(Rd.list.rowFrames[1].cells[6].text) == "61s 50c" and Rd.list.rowFrames[1].cells[2].text == "AH" and Rd.list.rowFrames[1].cells[7].text:find("2 Min.", 1, true), "eine Spalte Gewinn (hoechster Gewinn mit meinem Gold), Art kurz, Gesehen (Alter der Daten)")
-check(#Rd.list.columns == 7 and Rd.list.rowFrames[1].tint.shown == false and Rd.list.rowFrames[2].tint.shown and Rd.list.rowFrames[2].cells[2].text:find("ffd100", 1, true)
-    and Rd.list.rowFrames[2].cells[6].text:find("ffd100", 1, true), "Haendler-Schnaeppchen: Zeile dezent gold, Art und Gewinn gold (ab 0.19)")
-check(Rd.loop and not Rd.running and #timers == nT + 1, "beim Oeffnen: Schnellpruefung der Scan-Treffer, auch ohne Radar-Scan")
-check(Rd.status.text:find("noch 3", 1, true), "Anzeige: Schnellpruefung, 3 uebrig")
-now = now + 1; timers[#timers]()
-check(query.key.itemID == 7778, "Schnellpruefung: zuerst der hoechste Gewinn")
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 7778)
-check(Rd.entries[7778] and Rd.entries[7778].emptySeen and Rd.soon and Rd.soon.key == 7778, "keine Angebote: erst nochmal pruefen (ab 0.20.1)")
-Rd.pending = nil; Rd.Send(7778)
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 7778)
-local function liveRows() local n = 0 for _, r in ipairs(Rd.list:GetItems()) do if not r.gone then n = n + 1 end end return n end
-check(Rd.entries[7778] == nil and liveRows() == 2 and #Rd.list:GetItems() == 3, "Angebot weg: Treffer entfernt (ab 0.20 noch kurz grau in der Liste)")
-check(Rd.gone[7778] and Rd.gone[7778].goneWhy == "Keine Angebote mehr." and PeonBrokerDB.radarLog == nil, "weggefallen: Grund (Radar-Protokoll ab 0.28 nur mit Debug)")
-check(market.items[7778].gone == clock and market.items[7778].q == 0 and market.items[7778].lv == nil and market.items[7778].m == 500
-    and market.items[7778].d == D.Day(clock) .. ":10000:20000:400:12", "Datenbank: weg vermerkt, letzte Preise und Verlauf bleiben")
-now = now + 1; timers[#timers]()
-check(query.key.itemID == 7777, "dann der naechste")
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 7777)
-check(Rd.entries[7777].live and Rd.entries[7777].checked == now and sounds == 0, "noch da: live bestaetigt, kein Ton (war schon angezeigt)")
-check(market.items[7777].lt == clock and market.items[7777].t == clock - 120 and market.items[7777].lv == "3:20" and D.Seen(market.items[7777]) == clock, "Datenbank: Live-Stand mit Zeit, Scan-Zeit bleibt")
-now = now + 1; timers[#timers]()
-fire("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 7779 })
-check(Rd.entries[7779].live and Rd.entries[7779].auctionID == 91 and Rd.entries[7779].price == 40, "Einzelgegenstand live: Auktion gemerkt")
-local nT2 = #timers
-now = now + 1; timers[#timers]()
-check(not Rd.loop and #timers == nT2, "alles einmal geprueft: Schnellpruefung endet")
--- ab 0.18: Kaufzeile unter der Liste fuer den gewaehlten Treffer (1 Stueck / bis ein Stapel / alle)
-local function selectKey(key)
-    if Rd.selected and Rd.selected.key == key and not Rd.selected.gone then Rd.SelectRow(Rd.entries[key]); return end  -- ab 0.20: nochmal anklicken hebt die Auswahl auf
-    for i, it in ipairs(Rd.list:GetItems()) do
-        if it.key == key and not it.gone then Rd.list.rowFrames[i].scripts.OnClick(Rd.list.rowFrames[i], "LeftButton") end
-    end
-end
-check(Rd.selected == nil and plain(Rd.selText.text):find("anklicken", 1, true) and not Rd.buyButton.shown and not Rd.buyAllButton.shown, "ohne Auswahl: Hinweis, keine Knoepfe")
-check(Rd.vendorButton == nil and Rd.marketButton == nil, "keine Schnellkauf-Knoepfe mehr")
-selectKey(7777)
-check(plain(Rd.selText.text):find("Schnäppchen: 20 Stück", 1, true) and Rd.buyButton.shown and Rd.buyAllButton.shown and not Rd.buyStackButton.shown, "Massenware: Menge, 1 Stueck und Alle (Stapel = alle: nicht doppelt)")
-check(Rd.buyButton.text == "1 Stück" and plain(Rd.modeInfo.one.text) == "3c\n+7c" and Rd.buyAllButton.text == "Alle (20)" and plain(Rd.modeInfo.all.text) == "60c\n+1s 40c", "Knoepfe mit Kosten und Gewinn darunter")
--- Alle: Massenware mit Preis vom Spiel, zweiter Klick bestaetigt
-purchaseStarted, purchaseConfirmed = nil, nil
-Rd.buyAllButton.scripts.OnClick(Rd.buyAllButton)
-check(purchaseStarted and purchaseStarted[1] == 7777 and purchaseStarted[2] == 20, "Alle: 20× Billigzeug")
-check(Rd.buyAllButton.disabled and Rd.buyButton.disabled, "warten auf den Preis vom Spiel")
-fire("COMMODITY_PRICE_UPDATED", 3, 60)
-check(Rd.buyAllButton.text == "Bestätigen" and plain(Rd.modeInfo.all.text) == "60c" and not Rd.buyAllButton.disabled and Rd.buyButton.disabled and not purchaseConfirmed, "Preis passt: zweiter Klick bestaetigt")
-Rd.buyAllButton.scripts.OnClick(Rd.buyAllButton)
-check(purchaseConfirmed and purchaseConfirmed[1] == 7777 and purchaseConfirmed[2] == 20, "bestaetigt")
-fire("COMMODITY_PURCHASE_SUCCEEDED")
-check(Rd.entries[7777] == nil and PeonBrokerDB.bought == nil and said("Gekauft: 20× Billigzeug"), "alles gekauft: entfernt, fuers Buch vermerkt")
--- Einzelgegenstand: nur 1 Stueck; Pruefung aelter als 10 Sek. -> erst pruefen, dann kaufen
-selectKey(7779)
-check(Rd.buyButton.shown and not Rd.buyAllButton.shown and not Rd.buyStackButton.shown and plain(Rd.modeInfo.one.text) == "40c\n+60c", "Einzelgegenstand: nur 1 Stueck")
-now = now + 11
-placed = {}
-Rd.buyButton.scripts.OnClick(Rd.buyButton)
-check(#placed == 0 and query.key.itemID == 7779, "vor dem Kauf: Auktion noch da?")
-fire("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 7779 })
-Rd.buyButton.scripts.OnClick(Rd.buyButton)
-check(#placed == 1 and placed[1][1] == 91 and placed[1][2] == 40, "Auktion noch da: PlaceBid")
-fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 91)
-check(Rd.entries[7779] == nil and liveRows() == 0, "gekauft und entfernt")
--- Massenware je Stueck: 1 kaufen, Rest bleibt und wird neu geprueft
-Rd.entries[7777] = Rd.Evaluate(7777, { { price = 3, qty = 20, own = 0 } }, true, true)
-Rd.entries[7777].checked = now
-Rd.Refresh(); selectKey(7777)
-purchaseStarted, purchaseConfirmed = nil, nil
-Rd.buyButton.scripts.OnClick(Rd.buyButton)
-check(purchaseStarted and purchaseStarted[2] == 1, "1 Stueck")
-fire("COMMODITY_PRICE_UPDATED", 3, 3)
-Rd.buyButton.scripts.OnClick(Rd.buyButton)
-fire("COMMODITY_PURCHASE_SUCCEEDED")
-check(purchaseConfirmed and purchaseConfirmed[2] == 1 and Rd.entries[7777] and Rd.entries[7777].qty == 19 and not Rd.entries[7777].live, "Rest bleibt (19) und wird neu geprueft")
--- Massenware inzwischen teurer: abbrechen
-Rd.Halt()
-Rd.entries[7777] = Rd.Evaluate(7777, { { price = 3, qty = 20, own = 0 } }, true, true)
-Rd.Refresh(); selectKey(7777)
-purchaseCancelled = 0
-Rd.buyButton.scripts.OnClick(Rd.buyButton)
-fire("COMMODITY_PRICE_UPDATED", 15, 15)
-check(purchaseCancelled == 1 and Rd.entries[7777] == nil and Rd.job == nil and said("das günstige Angebot ist weg"), "teurer als die Grenze: Kauf abgebrochen")
--- Stapel (bis ein Stapel) und Gewinn erst ab einer Mindestmenge (Beispiel Echtsilberbarren)
-do
-    local es = { m = 12033, md = 20000, q = 66, n = 5, t = clock, nm = "Echtsilberbarren", ql = 1, d = D.Day(clock) .. ":240000:240000:792:12" }
-    market.items[6037] = es
-    mod.acc.commodity[6037] = true
-    local rows = { { price = 12033, qty = 9, own = 0 }, { price = 17433, qty = 2, own = 0 }, { price = 17500, qty = 17, own = 0 }, { price = 20000, qty = 2, own = 0 }, { price = 25044, qty = 36, own = 0 } }
-    mod.db.dealDepth = 20
-    local de = Rd.Evaluate(6037, rows, true, true)
-    check(de and de.qty == 9 and Rd.MinProfitQty(de) == 9, "Echtsilber: 9 Stueck, Gewinn erst ab 9 (davor verkauft der Rest der Stufe billiger)")
-    local g1 = D.ProfitOf(de, 1)
-    check(g1 < 0, "1 Stueck: Verlust")
-    Rd.entries[6037] = de
-    Rd.Refresh(); selectKey(6037)
-    check(plain(Rd.selText.text):find("Gewinn erst ab 9 Stück", 1, true) and plain(Rd.modeInfo.one.text):find("−", 1, true), "Hinweis und Verlust unter dem Knopf")
-    -- Gold reicht nicht fuer alle: Knopf grau
-    GetMoney = function() return 50000 end
-    Rd.UpdateView()
-    check(not Rd.buyButton.disabled and Rd.buyAllButton.disabled and plain(Rd.modeInfo.all.text):find("Nicht genug Gold", 1, true), "zu teuer: grau mit Hinweis")
-    GetMoney = nil
-    -- Stapel: Stapelgroesse kleiner als die Menge
-    check(not Rd.buyStackButton.shown, "Gewinn erst ab 9 = alle: kein mittlerer Knopf")
-    -- mittlerer Knopf (ab 0.19): Menge ab Gewinn, wenn weniger als alle
-    de.qty = 12
-    Rd.UpdateView()
-    check(Rd.buyStackButton.shown and Rd.buyStackButton.text == "9 Stück", "mittlerer Knopf: ab Gewinn (9 Stueck)")
-    purchaseStarted = nil
-    Rd.buyStackButton.scripts.OnClick(Rd.buyStackButton)
-    check(purchaseStarted and purchaseStarted[1] == 6037 and purchaseStarted[2] == 9, "ab Gewinn gekauft (gestartet)")
-    Rd.OnError()
-    check(Rd.job == nil and Rd.entries[6037] and not Rd.entries[6037].live, "Meldung des Spiels: Kauf beendet, Treffer wird neu geprueft")
-    de.qty = 9
-    -- Massenware ohne Mindestmenge: mittlerer Knopf = bis ein Stapel
-    local d77 = Rd.Evaluate(7777, { { price = 3, qty = 20, own = 0 } }, true, true)
-    d77.stackQty = 5
-    check(Rd.ModeQty(d77, "stack") == 5, "Massenware: mittlerer Knopf bis ein Stapel")
-    -- Rechtsklick: ausblenden, bleibt weg solange Schnaeppchen, wieder frei wenn einmal keins
-    for i, it in ipairs(Rd.list:GetItems()) do if it.key == 6037 then Rd.list.rowFrames[i].scripts.OnClick(Rd.list.rowFrames[i], "RightButton") end end
-    check(Rd.entries[6037] == nil and Rd.IsHidden(6037) and PeonBrokerDB.radarHidden[ns.MarketKey()][6037] and not said("Echtsilberbarren ausgeblendet"), "Rechtsklick: ausgeblendet (alle Charaktere, je Markt), ohne Chatmeldung (ab 0.19)")
-    check(plain(Rd.hiddenButton.text) == "Ausgeblendet (1)", "Knopf zeigt Anzahl")
-    LIVE[6037] = { { unitPrice = 12033, quantity = 9 }, { unitPrice = 17433, quantity = 2 }, { unitPrice = 17500, quantity = 17 }, { unitPrice = 20000, quantity = 2 }, { unitPrice = 25044, quantity = 36 } }
-    sounds = 0
-    Rd.pending = nil
-    Rd.Send(6037); fire("COMMODITY_SEARCH_RESULTS_UPDATED", 6037)
-    check(Rd.entries[6037] == nil and Rd.IsHidden(6037) and sounds == 0, "noch Schnaeppchen: bleibt ausgeblendet, kein Ton")
-    LIVE[6037] = { { unitPrice = 19000, quantity = 30 } }
-    Rd.Send(6037); fire("COMMODITY_SEARCH_RESULTS_UPDATED", 6037)
-    check(not Rd.IsHidden(6037) and Rd.entries[6037] == nil, "kein Schnaeppchen mehr: wieder frei")
-    LIVE[6037] = { { unitPrice = 12033, quantity = 9 }, { unitPrice = 17433, quantity = 2 }, { unitPrice = 20000, quantity = 60 } }
-    Rd.Send(6037); fire("COMMODITY_SEARCH_RESULTS_UPDATED", 6037)
-    check(Rd.entries[6037] ~= nil and sounds == 1, "danach wieder Schnaeppchen: erscheint wieder (mit Ton)")
-    -- Liste der Ausgeblendeten: Klick zeigt wieder
-    Rd.Hide(6037)
-    Rd.ToggleHiddenPanel()
-    check(Rd.hiddenPanel.shown and #Rd.hiddenPanel.list:GetItems() == 1, "Liste der Ausgeblendeten")
-    Rd.hiddenPanel.list.rowFrames[1].scripts.OnClick(Rd.hiddenPanel.list.rowFrames[1], "LeftButton")
-    check(not Rd.IsHidden(6037) and #Rd.hiddenPanel.list:GetItems() == 0, "Klick: wieder zeigen")
-    Rd.ToggleHiddenPanel()
-    -- nach vollem Scan: Ausgeblendete aus der Datenbank neu bewerten
-    Rd.Hide(6037)
-    es.lv, es.gone = "19000:30", nil
-    Rd.CheckHidden()
-    check(not Rd.IsHidden(6037), "voller Scan: kein Schnaeppchen mehr -> wieder frei")
-    market.items[6037], LIVE[6037], Rd.entries[6037] = nil, nil, nil
-    mod.db.dealDepth = 100
-    Rd.selected = nil
-end
--- Gold: was ich mir nicht leisten kann, wird nicht gezeigt (einstellbar)
-Rd.entries[7777] = Rd.Evaluate(7777, { { price = 3, qty = 20, own = 0 } }, true, true)
-GetMoney = function() return 2 end
-Rd.Refresh()
-check(liveRows() == 0, "nicht genug Gold: nicht angezeigt")
-mod.db.radarShowExpensive = true
-Rd.Refresh()
-local allCant = liveRows() >= 1
-for _, it in ipairs(Rd.list:GetItems()) do if not it.cant and not it.gone then allCant = false end end
-check(allCant, "einstellbar: grau angezeigt")
-mod.db.radarShowExpensive = false
-GetMoney = nil
--- Anzeige: nur Haendler / nur AH
-Rd.SetKind("market")
-check(Rd.entries[7777] == nil, "nur AH: Haendler-Treffer weg")
-Rd.SetKind("both")
-Rd.entries, Rd.gone, Rd.lastVisible = {}, {}, nil
-Rd.Halt()   -- Schleife aus den Kauf-Tests beenden (Nachpruefen nach Fehler)
--- Radar-Scan
-Rd.scanButton.scripts.OnClick(Rd.scanButton)
-check(Rd.running and Rd.loop and #Rd.round > 0 and Rd.scanButton.text == "Radar-Scan stoppen", "Radar-Scan gestartet")
-local r1 = Rd.round[1]
-check(PeonBrokerDB.lists[1].items[r1] ~= nil, "Runde beginnt mit den Einkaufslisten")
-now = now + 1; timers[#timers]()
-check(Rd.stats.sent == 1 and Rd.status.text:find("Radar läuft", 1, true), "Abfrage gesendet, Anzeige laeuft")
-local pk = Rd.pending.key
-local savedLivePk, savedLIpk = LIVE[pk], LIVEITEM
-LIVE[pk], LIVEITEM = nil, {}  -- auch keine vorhandenen Ergebnisse
-now = now + 1.1; timers[#timers]()
-LIVEITEM = savedLIpk
-check(Rd.stats.timeouts == 1 and Rd.stats.lastTimeouts[1] == tostring(pk) and Rd.stats.sent == 2, "keine Antwort nach 1 Sek., keine Ergebnisse: gezaehlt und weiter")
-LIVE[pk] = savedLivePk
-fire("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT")
-check(Rd.stats.gameSent == 1 and #Rd.stats.log == 2 and Rd.stats.log[2].sent and not Rd.stats.log[1].sent, "Protokoll: vom Spiel gesendet je Abfrage")
-Rd.UpdateView()
-check(PeonBrokerDB.radarStats == nil and Rd.stats.timeouts == 1 and not Rd.status.text:find("ohne Antwort", 1, true)
-    and Rd.nowText.text:find("Prüfe:", 1, true), "Zaehler nur in PeonBrokerDB, Anzeige: welcher Gegenstand gerade geprueft wird")
-fire("AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED")
-check(Rd.stats.dropped == 1 and Rd.pending == nil, "vom Spiel verworfen: gezaehlt")
-local readyFn = AHs.IsThrottledMessageSystemReady
-AHs.IsThrottledMessageSystemReady = function() return false end
-now = now + 1; timers[#timers]()
-check(Rd.stats.waitReady >= 0.9 and Rd.stats.sent == 2, "Spiel nicht bereit: warten, Wartezeit zaehlen")
-AHs.IsThrottledMessageSystemReady = readyFn
--- keine Antwort, aber das Spiel hat schon Ergebnisse (beobachtet 0.14.4): diese lesen
-Rd.pending = nil
-LIVE[7777] = { { unitPrice = 3, quantity = 20 } }
-market.items[7777] = { m = 3, md = 10, q = 20, n = 1, t = clock, lv = "3:20", nm = "Billigzeug", ql = 1 }
-VENDOR[7777] = 10
-Rd.entries[7777] = nil
-Rd.Send(7777)
-now = now + 1.1; timers[#timers]()
-check(Rd.stats.cached == 1 and Rd.entries[7777] and Rd.entries[7777].live and Rd.stats.timeouts == 1, "ohne Antwort: vorhandene Ergebnisse gelesen, Treffer erkannt")
-Rd.entries[7777] = nil
-Rd.pending = nil
-sounds = 0
--- zweimal ohne Antwort: fuer diese Sitzung auslassen; Ereignisse im Protokoll
-local savedL77 = LIVE[7777]
-LIVE[7777], LIVEITEM = nil, {}
-Rd.misses[7777] = nil
-Rd.Send(7777); fire("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT")
-now = now + 1.1; timers[#timers]()
-Rd.pending = nil
-Rd.Send(7777)
-now = now + 1.1; timers[#timers]()
-Rd.pending = nil
-check(Rd.skip[7777] and Rd.stats.skipped == 1 and Rd.stats.timeoutLog[#Rd.stats.timeoutLog - 1]:find("7777 S", 1, true), "zweimal ohne Antwort: ausgelassen, Ereignisse protokolliert")
-Rd.round = { 7777, 2770 }; Rd.index = 0; Rd.tick = 1
-check(Rd.NextKey() == 2770, "ausgelassener Gegenstand wird uebersprungen")
-Rd.skip[7777], Rd.misses[7777] = nil, nil
--- nur AUCTION_HOUSE_NEW_RESULTS_RECEIVED fuer den Gegenstand: Ergebnisse nachsehen
-LIVE[7777], LIVEITEM = savedL77, savedLIpk
-Rd.Send(7777)
-fire("AUCTION_HOUSE_NEW_RESULTS_RECEIVED", { itemID = 7777 })
-timers[#timers]()
-check(Rd.pending == nil and Rd.stats.cached == 2 and Rd.entries[7777], "neues Ergebnis ohne ..._UPDATED: gelesen")
-Rd.entries[7777] = nil
-sounds = 0
--- Datenbank: Live-Stand (Rechenmodell F5-Median), weg, wieder da, naechster Scan
-local eL = D.ApplyLive(7780, { { price = 10, qty = 3, own = 0 }, { price = 20, qty = 1, own = 1 } }, clock)
-check(eL.m == 10 and eL.md == 10 and eL.q == 4 and eL.lv == "10:3;20:1" and eL.lt == clock and eL.t == nil and eL.d == nil, "ApplyLive: Min, Median, Menge, Stufen; kein Verlauf")
-D.ApplyLive(7780, {}, clock + 5)
-check(eL.gone == clock + 5 and eL.q == 0 and eL.m == 10, "ApplyLive ohne Angebote: weg, letzte Preise bleiben")
-D.ApplyLive(7780, { { price = 12, qty = 2, own = 0 } }, clock + 9)
-check(eL.gone == nil and eL.m == 12 and eL.lt == clock + 9, "wieder da")
-local fm = { items = { [7780] = eL, [7781] = { m = 5, t = clock + 20, q = 1 } } }
-check(D.MarkGone(fm, clock - 100, clock + 20) == 1 and eL.gone == clock + 20 and not fm.items[7781].gone, "naechster Scan ohne den Gegenstand: weg (auch wenn nur live gesehen)")
-market.items[7780] = nil
-Rd.pending = nil
-Rd.Send(7777)
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", 7777)
-check(Rd.entries[7777] and sounds == 1 and lastSound[1] == 8959 and lastSound[2] == "Master" and Rd.entries[7777].newUntil
-    and Rd.list.rowFrames[1].cells[1].text:find("dot_new", 1, true) and not Rd.list.rowFrames[1].cells[1].text:find("●", 1, true), "neuer Treffer: Ton (Schlachtzugswarnung, Master), Punkt als eigenes Bild (ab 0.19)")
-check(Rd.entries[7777].flashUntil == now + 5 and Rd.list.rowFrames[1].tint.shown, "Zeile pulsiert 5 Sek. (Standard)")
-do
-local r1c, g1c, b1c, a1 = Rd.RowColor(Rd.entries[7777])
-now = now + 0.33
-local _, _, _, a2 = Rd.RowColor(Rd.entries[7777])
-check(g1c == 0.9 and a1 ~= a2, "Pulsieren: Deckkraft aendert sich")
-now = now + 5
-local rr = { Rd.RowColor(Rd.entries[7777]) }
-check(rr[1] == 1 and rr[4] == 0.10, "nach 5 Sek.: wieder normale Farbe (Haendler gold)")
-mod.db.radarSoundKey = "alarm"; Rd.PlayAlert()
-check(lastSound[1] == 12889, "Warnton waehlbar")
-mod.db.radarSoundKey = "raid"; sounds = sounds - 1
-end
-mod.db.radarSound = false
-Rd.entries[7777] = nil
-Rd.Send(7777); fire("COMMODITY_SEARCH_RESULTS_UPDATED", 7777)
-check(sounds == 1 and Rd.entries[7777], "Ton abschaltbar")
-mod.db.radarSound = true
-Rd.entries[7777].checked = now - 20
-Rd.tick = 2
-check(Rd.NextKey() == 7777, "Treffer wird oefter nachgeprueft (jeder dritte Schritt)")
-Win.Select("prices")
-check(not Rd.running and not Rd.loop, "Reiter verlassen: Radar-Scan aus")
-do -- 0.16: Reihenfolge, nur Warnton, ungeladene Gegenstaende, Auswahltext
-check(Rd.selected == nil or Rd.selText.text ~= "", "Auswahlzeile gefuellt")
-local CV = { Sound_SFXVolume = "0.8", Sound_MusicVolume = "0.5", Sound_AmbienceVolume = "0.6", Sound_DialogVolume = "1",
-    Sound_EnableSoundWhenGameIsInBG = "0", Sound_EnableAllSound = "1", Sound_MasterVolume = "0.7" }
-C_CVar = { GetCVar = function(n) return CV[n] end, SetCVar = function(n, v) CV[n] = tostring(v) end }
-Win.Select("prices"); Win.Select("radar")
-check(mod.db.radarMute == true and Rd.muteCheck:GetChecked(), "Nur Warnton: Standard an, Haken im Reiter")
-Rd.scanButton.scripts.OnClick(Rd.scanButton)
-check(Rd.running and CV.Sound_SFXVolume == "0" and CV.Sound_MusicVolume == "0" and CV.Sound_AmbienceVolume == "0" and CV.Sound_DialogVolume == "0"
-    and CV.Sound_EnableSoundWhenGameIsInBG == "1" and CV.Sound_MasterVolume == "0.7" and PeonBrokerDB.radarMuteSaved.Sound_SFXVolume == "0.8", "Scan: nur Gesamt-Kanal, Ton im Hintergrund, alte Werte gemerkt")
-Rd.scanButton.scripts.OnClick(Rd.scanButton)
-check(not Rd.running and CV.Sound_SFXVolume == "0.8" and CV.Sound_EnableSoundWhenGameIsInBG == "0" and PeonBrokerDB.radarMuteSaved == nil, "Stopp: Tonkanaele zurueck")
-Rd.scanButton.scripts.OnClick(Rd.scanButton)
-Win.Select("prices")
-check(CV.Sound_MusicVolume == "0.5" and PeonBrokerDB.radarMuteSaved == nil, "Reiter verlassen: Tonkanaele zurueck")
-Win.Select("radar")
-Rd.scanButton.scripts.OnClick(Rd.scanButton)
-fire("PLAYER_LOGOUT")
-check(CV.Sound_DialogVolume == "1" and PeonBrokerDB.radarMuteSaved == nil, "Ausloggen/Reload waehrend des Scans: zurueck")
-Rd.muteCheck:SetChecked(false); Rd.muteCheck.scripts.OnClick(Rd.muteCheck)
-Rd.MuteOn()
-check(mod.db.radarMute == false and CV.Sound_SFXVolume == "0.8", "Nur Warnton aus: nichts veraendert")
-Rd.Stop()
-mod.db.radarMute = true
-PeonBrokerDB.radarMuteSaved = { Sound_SFXVolume = "0.3" }
-Rd.Init()
-check(CV.Sound_SFXVolume == "0.3" and PeonBrokerDB.radarMuteSaved == nil, "nach Absturz: gemerkte Werte beim Start zurueck")
-CV.Sound_SFXVolume = "0.8"
--- Reihenfolge
-local function roundKeys() local r = Rd.BuildRound(); local t = {} for i, k in ipairs(r) do t[k] = i end return r, t end
-local nList = 0 for _ in pairs(PeonBrokerDB.lists[1].items) do nList = nList + 1 end
-mod.db.radarOrder = "high"
-local rh = Rd.BuildRound()
-local okHigh = true
-for i = nList + 2, #rh do if (market.items[rh[i - 1]].md or 0) < (market.items[rh[i]].md or 0) then okHigh = false end end
-check(okHigh and #rh > nList, "hoechster Preis zuerst (nach den Einkaufslisten)")
-mod.db.radarOrder = "low"
-local rl = Rd.BuildRound()
-local okLow = true
-for i = nList + 2, #rl do if (market.items[rl[i - 1]].md or 0) > (market.items[rl[i]].md or 0) then okLow = false end end
-check(okLow, "niedrigster Preis zuerst")
-mod.db.radarOrder = "commodity"
-local rc = Rd.BuildRound()
-local seenItem, okCom = false, true
-for i = nList + 1, #rc do if D.IsCommodity(rc[i]) then if seenItem then okCom = false end else seenItem = true end end
-check(okCom, "Massenware zuerst")
-mod.db.radarOrder = "random"
-local rr = Rd.BuildRound()
-check(#rr == #rh, "zufaellig: alle Gegenstaende")
-Rd.orderBox.Refresh()
-Rd.SetOrder("smart")
-check(mod.db.radarOrder == "smart" and Rd.OrderText("commodity") == "Massenware zuerst", "Auswahl gespeichert, Texte")
--- Gegenstandsdaten nicht geladen: anfordern, spaeter abfragen
-local requested = {}
-C_Item.IsItemDataCachedByID = function(id) return id ~= 2589 or requested.done end
-C_Item.RequestLoadItemDataByID = function(id) requested[id] = true end
-Rd.round, Rd.index, Rd.later, Rd.tick, Rd.entries = { 2589, 2770 }, 0, {}, 0, {}
-Rd.running = true
-check(Rd.NextKey() == 2770 and requested[2589] and Rd.later[1] == 2589, "ungeladen: Daten angefordert, erst ein anderer Gegenstand")
-requested.done = true
-check(Rd.NextKey() == 2589 and #Rd.later == 0, "danach der nachgeladene")
-C_Item.IsItemDataCachedByID, C_Item.RequestLoadItemDataByID = nil, nil
-Rd.running = false
-Win.Select("prices")
-C_CVar = nil
-end
-
--- Beim Oeffnen: Treffer aus der Datenbank bis radarMaxAge (Standard 60 Min., 0 = unbegrenzt)
-Rd.entries, Rd.loaded = {}, nil
-Win.Select("prices"); Win.Select("radar")
-check(Rd.entries[7778] == nil and Rd.entries[7777] ~= nil, "weggefallener Treffer kommt aus der Datenbank nicht wieder, gespeicherter Live-Treffer schon")
-Win.Select("prices")
-Rd.entries, Rd.loaded = {}, nil
-market.items[7777].t, market.items[7777].lt = clock - 7200, nil
-check(mod.db.radarMaxAge == 60, "Standard: 60 Min.")
-Win.Select("radar")
-check(Rd.entries[7777] == nil, "aelter als 60 Min.: nicht angezeigt")
-Win.Select("prices")
-mod.db.radarMaxAge = 0
-Win.Select("radar")
-local r77 for i, it in ipairs(Rd.list:GetItems()) do if it.key == 7777 then r77 = i end end
-check(Rd.entries[7777] ~= nil and r77 and Rd.list.rowFrames[r77].cells[7].text:find("2 Std.", 1, true), "0 = unbegrenzt, Alter 2 Std.")
-Win.Select("buy")
-mod.db.radarMaxAge = 60
-market.lastScan = savedLast
-market.items[7777], market.items[7778], market.items[7779], VENDOR[7777], VENDOR[7779] = nil, nil, nil, nil, nil
-LIVEITEM = savedLI2
-VENDOR[2589] = savedV2589
-Rd.entries, Rd.loaded = {}, nil
-
--- ===== Radar 0.19: Gewinn mit meinem Gold, Mindestgewinn, Schnellkauf, mehrere Einzelgegenstaende, Auswahl, Ausblenden, voller Scan, Haendler =====
-do
-    check(ns.ParseMoney("1g 20s 5c") == 12005 and ns.ParseMoney("50s") == 5000 and ns.ParseMoney("10c") == 10 and ns.ParseMoney("3", 100) == 300
-        and ns.ParseMoney("2", 10000) == 20000 and ns.ParseMoney("abc") == nil and ns.MoneyText(12005) == "1g 20s 5c" and ns.MoneyText(0) == "0c", "Geldbetraege lesen und schreiben")
-    Win.Select("radar")
-    Rd.Halt(); Rd.entries = {}; Rd.selected = nil
-    mod.acc.commodity[8801], mod.acc.commodity[8802] = true, false
-    VENDOR[8801] = 100
-    market.items[8801] = { m = 50, md = 95, q = 60, n = 2, t = clock - 30, lv = "50:40;90:20", nm = "Haendlerkram", ql = 1 }
-    market.items[8802] = { m = 40000, md = 100000, q = 23, n = 4, t = clock - 30, lv = "40000:3;100000:20", nm = "Stab des Testers", ql = 2,
-        d = D.Day(clock) .. ":480000:1200000:48:12" }
-    LIVE[8801] = { { unitPrice = 50, quantity = 40 }, { unitPrice = 90, quantity = 20 } }
-    local savedLI = LIVEITEM
-    LIVEITEM = { { buyoutAmount = 40000, quantity = 1, auctionID = 201 }, { buyoutAmount = 40000, quantity = 1, auctionID = 202 },
-        { buyoutAmount = 40000, quantity = 1, auctionID = 203 }, { buyoutAmount = 100000, quantity = 20, auctionID = 204 } }
-    Rd.entries[8801] = Rd.Evaluate(8801, D.ParseLevels(market.items[8801].lv), true, true); Rd.entries[8801].checked = now
-    Rd.entries[8802] = Rd.Evaluate(8802, D.ParseLevels(market.items[8802].lv), false, false)
-    -- Gewinn mit meinem Gold (Gold minus Goldreserve)
-    GetMoney = function() return 10000 + 3000 end
-    mod.db.radarReserve = 1
-    Rd.Refresh()
-    local h = Rd.entries[8801]
-    check(Rd.Budget() == 3000 and h.best.qty == 51 and h.best.gain == 40 * 50 + 11 * 10 and h.showGain == 2110, "Gewinn mit meinem Gold: 51 Stueck (Goldreserve 1g abgezogen), +21s 10c")
-    local hr for i, it in ipairs(Rd.list:GetItems()) do if it.key == 8801 then hr = i end end
-    check(hr and plain(Rd.list.rowFrames[hr].cells[5].text) == "51/60", "Menge: mit meinem Gold / ganzes Schnaeppchen")
-    local sr for _, it in ipairs(Rd.list:GetItems()) do if it.key == 8802 then sr = true end end
-    check(Rd.entries[8802] and Rd.entries[8802].cant and not sr, "Stab: mit 1g 30s kein Gewinn moeglich -> nicht angezeigt")
-    -- Mindestgewinn im Reiter (Geldbetrag)
-    Rd.minVendorBox:SetText("30s"); Rd.minVendorBox.scripts.OnEnterPressed(Rd.minVendorBox)
-    check(mod.db.dealMinVendor == 3000 and Rd.entries[8801].cant and liveRows() == 0, "Mindestgewinn Haendler 30s: 21s 10c reicht nicht")
-    Rd.minVendorBox:SetText("10c"); Rd.minVendorBox.scripts.OnEnterPressed(Rd.minVendorBox)
-    Rd.minMarketBox:SetText("2"); Rd.minMarketBox.scripts.OnEnterPressed(Rd.minMarketBox)
-    check(mod.db.dealMinVendor == 10 and mod.db.dealMinMarket == 2 and Rd.minMarketBox:GetText() == "2s", "Mindestgewinn: Zahl ohne Einheit = Silber")
-    mod.db.dealMinMarket = 50
-    -- Schnellkauf: bestes Haendler-Schnaeppchen, alles was ich mir leisten kann
-    Rd.UpdateView()
-    check(Rd.quickTarget == Rd.entries[8801] and not Rd.quickButton.disabled and plain(Rd.quickInfo.text):find("×51", 1, true), "Schnellkauf zeigt das beste Haendler-Schnaeppchen")
-    purchaseStarted, purchaseConfirmed = nil, nil
-    Rd.quickButton.scripts.OnClick(Rd.quickButton)
-    check(purchaseStarted and purchaseStarted[1] == 8801 and purchaseStarted[2] == 51 and Rd.quickButton.disabled, "Schnellkauf: 51 Stueck, warten auf den Preis")
-    fire("COMMODITY_PRICE_UPDATED", 90, 2990)
-    check(Rd.quickButton.text == "Bestätigen" and not Rd.quickButton.disabled, "Preis passt: Bestaetigen")
-    Rd.quickButton.scripts.OnClick(Rd.quickButton)
-    fire("COMMODITY_PURCHASE_SUCCEEDED")
-    check(purchaseConfirmed and purchaseConfirmed[2] == 51 and not (PeonBrokerCharDB.vendorFlip or {})[8801] and Rd.entries[8801].qty == 9 and not Rd.entries[8801].live,
-        "gekauft: nichts mehr gemerkt (Haendler-Knopf entfaellt), Rest wird neu geprueft")
-    -- 0.24 (Feedback #6): Preis vorab holen, ein Klick kauft sofort
-    Rd.preOff, Rd.preMiss, Rd.preAt = nil, 0, nil
-    Rd.entries[8801].qty, Rd.entries[8801].live = 51, true
-    Rd.entries[8801].rows = { { price = 50, qty = 51, own = 0 } }
-    Rd.entries[8801].best = { qty = 51, cost = 2550, gain = 100 }
-    purchaseStarted, purchaseConfirmed = nil, nil
-    local cancelledPre = 0
-    AHs.CancelCommoditiesPurchase = function() cancelledPre = cancelledPre + 1 end
-    Rd.UpdateView()
-    check(purchaseStarted and purchaseStarted[1] == 8801 and purchaseStarted[2] == 51 and Rd.pre and Rd.pre.stage == "quote"
-        and not Rd.quickButton.disabled, "Schnellkauf: Preis wird vorab angefragt, Knopf bleibt frei")
-    fire("COMMODITY_PRICE_UPDATED", 50, 2550)
-    check(Rd.pre.stage == "ready" and Rd.quickButton.text == "Händler: jetzt kaufen", "Preis da: Knopf kauft mit einem Klick")
-    Rd.quickButton.scripts.OnClick(Rd.quickButton)
-    check(purchaseConfirmed and purchaseConfirmed[1] == 8801 and purchaseConfirmed[2] == 51 and Rd.pre == nil and Rd.job and Rd.job.stage == "wait",
-        "ein Klick: sofort bestaetigt")
-    fire("COMMODITY_PURCHASE_SUCCEEDED")
-    check(Rd.job == nil, "gekauft")
-    -- Preis vorab zu hoch: verwerfen, Treffer neu pruefen
-    Rd.entries[8801] = Rd.entries[8801] or Rd.Evaluate(8801, { { price = 50, qty = 51, own = 0 } }, true, true)
-    Rd.entries[8801].rows, Rd.entries[8801].best, Rd.entries[8801].live = { { price = 50, qty = 51, own = 0 } }, { qty = 51, cost = 2550, gain = 100 }, true
-    Rd.preAt = nil
-    Rd.UpdateView()
-    check(Rd.pre and Rd.pre.stage == "quote", "neue Anfrage")
-    fire("COMMODITY_PRICE_UPDATED", 80, 4080)
-    check(Rd.pre == nil and cancelledPre >= 1 and Rd.entries[8801] and not Rd.entries[8801].live, "Preis gestiegen: Anfrage verworfen, Treffer wird neu geprueft")
-    -- 0.28: Blizzards Kaufansicht offen -> kein Vorab-Preis, eine Preisantwort bricht nichts ab
-    Rd.entries[8801].rows, Rd.entries[8801].best, Rd.entries[8801].live = { { price = 50, qty = 51, own = 0 } }, { qty = 51, cost = 2550, gain = 100 }, true
-    Rd.preAt = nil
-    Rd.UpdateView()
-    check(Rd.pre and Rd.pre.stage == "quote", "0.28: Anfrage vorab")
-    AuctionHouseFrame.CommoditiesBuyFrame = { IsShown = function() return true end }
-    Rd.c0 = cancelledPre
-    fire("COMMODITY_PRICE_UPDATED", 80, 4080)
-    check(Rd.pre == nil and cancelledPre == Rd.c0 and Rd.entries[8801].live, "0.28: Blizzard kauft gerade - Antwort nicht als eigene gewertet, nichts abgebrochen")
-    Rd.preAt = nil; purchaseStarted = nil
-    Rd.UpdateView()
-    check(Rd.pre == nil and purchaseStarted == nil, "0.28: Blizzards Kaufansicht offen - kein Preis vorab")
-    AuctionHouseFrame.CommoditiesBuyFrame = nil
-    Rd.selected = Rd.entries[8801]
-    Rd.preAt = nil; Rd.UpdateView()
-    check(Rd.pre == nil and purchaseStarted == nil, "0.28: Treffer gewaehlt - kein Preis vorab")
-    Rd.selected = nil
-    -- keine Antwort: nach zwei Versuchen zwei Klicks wie bisher
-    Rd.preOff, Rd.preMiss = nil, 0
-    for _ = 1, 2 do
-        Rd.entries[8801].best, Rd.entries[8801].rows = { qty = 51, cost = 2550, gain = 100 }, { { price = 50, qty = 51, own = 0 } }
-        Rd.preAt = nil; Rd.UpdateView(); now = now + Rd.PRE_WAIT + 1; Rd.UpdateView()
-    end
-    check(Rd.preOff and Rd.pre == nil, "Spiel antwortet nicht: Preis vorab aus, zwei Klicks")
-    Rd.preOff, AHs.CancelCommoditiesPurchase = true, nil
-    Rd.entries[8801] = nil
-    -- Einzelgegenstaende: mehrere Auktionen (Stab mit Gewinn erst ab 3 Kaeufen)
-    GetMoney = function() return 1000000 end
-    mod.db.radarReserve = 0
-    Rd.Halt()
-    Rd.Refresh()
-    local st = Rd.entries[8802]
-    check(not st.cant and st.qty == 3 and Rd.MinProfitQty(st) == 3, "Stab: Gewinn erst ab 3 Stueck")
-    Rd.SelectRow(st)
-    check(Rd.focus and Rd.focus.key == 8802 and Rd.buyAllButton.shown and Rd.buyAllButton.text == "Alle (3)" and not Rd.buyStackButton.shown, "Einzelgegenstand: Knopf Alle (3)")
-    -- gewaehlt: zuerst zeigt das Auktionshaus den Gegenstand (dessen Abfrage zaehlt), dann alle 5 Sek. neu
-    browse, query = nil, nil
-    Sell.pending, Buy.pending = nil, nil   -- haengende Abfragen aus frueheren Tests (ab 0.21.1 wartet die Anzeige darauf)
-    now = now + 1; timers[#timers]()
-    check(browse and browse.itemKey.itemID == 8802 and Rd.pending and Rd.pending.viaAH and query == nil, "Auswahl: im Auktionshaus gezeigt, keine zweite Abfrage")
-    fire("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 8802 })
-    check(Rd.pending == nil and Rd.entries[8802].live and Rd.entries[8802].auctionID == 201, "Antwort fuer die Anzeige des Auktionshauses ausgewertet")
-    check(Buy.showGuard and Buy.showGuard.itemID == 8802, "Anzeige wird einmal wie „Neu laden“ nachgeladen (eigener Ablauf, ab 0.21.1)")
-    Buy.showGuard = nil
-    now = now + 2; timers[#timers]()
-    check(query == nil or query.key.itemID ~= 8802, "vor 5 Sek. keine neue Abfrage fuer den gewaehlten")
-    now = now + 4; timers[#timers]()
-    check(query == nil or query.key.itemID ~= 8802, "ab 0.21.1: auch nach 5 Sek. kein Neuladen (Blizzard-Fenster lud sonst immer wieder neu)")
-    placed = {}
-    Rd.buyAllButton.scripts.OnClick(Rd.buyAllButton)
-    check(#placed == 1 and placed[1][1] == 201 and placed[1][2] == 40000 and Rd.buyAllButton.disabled, "Alle: erste Auktion")
-    fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 201)
-    check(Rd.buyAllButton.text == "Weiter (2 übrig)" and not Rd.buyAllButton.disabled and Rd.job.done == 1, "ein Klick je Auktion: Weiter (2 uebrig)")
-    Rd.buyAllButton.scripts.OnClick(Rd.buyAllButton)
-    fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 202)
-    Rd.buyAllButton.scripts.OnClick(Rd.buyAllButton)
-    check(#placed == 3 and placed[3][1] == 203, "dritte Auktion")
-    fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 203)
-    check(Rd.job == nil and PeonBrokerDB.bought == nil and Rd.entries[8802] == nil and Rd.focus == nil and said("Gekauft: 3× Stab des Testers"), "alle drei gekauft, fuers Buch vermerkt, Auswahl beendet")
-    -- Alle ausblenden / alle wieder zeigen (ohne Chatmeldung)
-    Rd.entries[8801] = Rd.Evaluate(8801, D.ParseLevels(market.items[8801].lv), true, true)
-    Rd.Refresh()
-    local nOut = #out
-    Rd.hideAllButton.scripts.OnClick(Rd.hideAllButton)
-    check(liveRows() == 0 and Rd.IsHidden(8801) and #out == nOut, "Alle ausblenden, ohne Chatmeldung")
-    Rd.ShowAllHidden()
-    check(not Rd.IsHidden(8801) and Rd.HiddenCount() == 0, "Alle wieder zeigen")
-    -- voller Scan beendet den Radar-Scan
-    Rd.Halt()
-    Rd.Start()
-    check(Rd.running, "Radar-Scan laeuft")
-    ns.Scan.state = { phase = "wait" }
-    timers[#timers]()
-    check(not Rd.running and not Rd.loop and Rd.scanButton.disabled and plain(Rd.status.text):find("Broker-Scan läuft", 1, true), "Broker-Scan: Radar-Scan beendet, Knopf gesperrt")
-    Rd.Start()
-    check(not Rd.running, "waehrend des Scans kein Radar-Start")
-    ns.Scan.state = nil
-    -- Optionsseite: Geldbetraege
-    local moneyC
-    for _, c in ipairs(mod.page.controls) do if c.boxes then moneyC = c end end
-    check(moneyC and #moneyC.boxes == 3, "Optionen: Mindestgewinn Haendler/Markt und Goldreserve")
-    moneyC.boxes[3]:SetText("25"); moneyC.boxes[3].scripts.OnEnterPressed(moneyC.boxes[3])
-    check(mod.db.radarReserve == 25 and moneyC.boxes[3]:GetText() == "25g", "Goldreserve: Zahl = Gold")
-    mod.db.radarReserve = 0
-    -- aufraeumen
-    GetMoney = nil
-    Rd.Halt(); Rd.entries = {}; Rd.selected = nil
-    market.items[8801], market.items[8802], LIVE[8801], VENDOR[8801] = nil, nil, nil, nil
-    LIVEITEM = savedLI
-    Win.Select("buy")
-end
--- Abfrage-Test (/broker pruefen abfrage, 0.14.3): in welchem Zusammenhang schickt das Spiel eine Abfrage ab?
-query = nil
-SlashCmdList.PEON_BROKER("pruefen abfrage")
-check(said("Abfrage-Test mit") and query and query.normal, "Abfrage-Test: 1. direkt im Befehl gesendet")
-local qid = query.key.itemID
-fire("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT"); now = now + 0.3
-query = nil
-fire("COMMODITY_SEARCH_RESULTS_UPDATED", qid)
-check(query and query.key.itemID == qid, "2. im Ergebnis-Ereignis gesendet")
-fire("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT"); fire("COMMODITY_SEARCH_RESULTS_UPDATED", qid)
-query = nil
-timers[#timers]()
-check(query and query.key.itemID == qid, "3. aus C_Timer gesendet")
-timers[#timers]()            -- keine Antwort (wie im Spiel beobachtet): Zeit abgelaufen
-timers[#timers]()            -- 4. vorbereiten: OnUpdate
-local qf
-for _, f in ipairs(allFrames) do if f.scripts.OnUpdate and f.events.AUCTION_HOUSE_THROTTLED_MESSAGE_SENT then qf = f end end
-query = nil
-qf.scripts.OnUpdate(qf, 0.02)
-check(query and not qf.scripts.OnUpdate, "4. aus OnUpdate gesendet (einmal)")
-fire("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT"); fire("COMMODITY_SEARCH_RESULTS_UPDATED", qid)
-query = nil
-timers[#timers]()            -- 5. ueber die Radar-Funktion
-check(query and query.key.itemID == qid and Rd.pending and Rd.pending.key == qid, "5. ueber die Radar-Funktion gesendet")
-fire("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT"); fire("COMMODITY_SEARCH_RESULTS_UPDATED", qid)
-query = nil
-timers[#timers]()            -- 6. Radar-Funktion mit einem Gegenstand der Einkaufsliste
-local lid = query and query.key.itemID
-check(lid and PeonBrokerDB.lists[1].items[lid] ~= nil, "6. Gegenstand der Einkaufsliste ueber die Radar-Funktion")
-fire("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT"); fire("COMMODITY_SEARCH_RESULTS_UPDATED", lid)
-local ql = PeonBrokerDB.queryTest and PeonBrokerDB.queryTest.lines or {}
-check(#ql == 6 and ql[5]:find("Radar: gesendet ja, Antwort ja", 1, true) and ql[6]:find("Radar " .. lid .. ": gesendet ja, Antwort ja", 1, true) and ql[1]:find("Befehl: gesendet ja, Antwort ja", 1, true) and ql[2]:find("Ereignis: gesendet ja, Antwort ja", 1, true)
-    and ql[3]:find("Timer: gesendet nein, Antwort nein", 1, true) and ql[4]:find("OnUpdate: gesendet ja, Antwort ja", 1, true), "Ergebnis im Chat und in PeonBrokerDB.queryTest")
-Buy.deleteButton.scripts.OnClick(Buy.deleteButton)
-check(#PeonBrokerDB.lists == 1 and Peon.UI.dialog.shown and Peon.UI.dialog.text.text:find("löschen", 1, true), "N4: Loeschen fragt nach")
-Peon.UI.dialog.yes.scripts.OnClick(Peon.UI.dialog.yes)
-check(#PeonBrokerDB.lists == 0, "Liste geloescht")
-
-C_Container, AHs.IsSellItemValid, AHs.GetItemCommodityStatus, AHs.PostCommodity = savedContainer, savedValid, savedStatus, savedPostC
-AHs.PostItem = function() error("darf nie aufgerufen werden") end
-fire("AUCTION_HOUSE_SHOW")
+Buy.pending = nil   -- offene Abfrage aus den Tests der Einkaufsliste
 
 -- ===== 0.20: Teil-Ergebnisse, Eintragspreis, Blizzard-Fenster, weggefallene Treffer =====
 ;(function()   -- eigene Funktion: der Haupt-Abschnitt hat fast 200 lokale Variablen
@@ -1680,7 +1094,7 @@ fire("AUCTION_HOUSE_SHOW")
     Buy.showGuard = nil
     AHs.RefreshItemSearchResults, AHs.RefreshCommoditySearchResults = nil, nil
     Win.Select("radar")
-    check(curMode == modes.Buy, "Reiter Radar ohne Auswahl: Blizzard Kaufen-Seite")
+    check(Win.current == "radar" and Rd.list and Rd.scanButton and Rd.status, "N6: Seite Radar mit Peon.UI")
 
     -- Radar: weggefallen mit Grund, Pause bei Auswahl, vorhandene Ergebnisse entfernen nichts
     Rd.Halt()
@@ -1697,24 +1111,10 @@ fire("AUCTION_HOUSE_SHOW")
     Rd.Apply({ key = 7777, itemID = 7777 }, { { price = 12, qty = 20, own = 0 } }, true)
     check(Rd.entries[7777] == nil and Rd.gone[7777] and Rd.gone[7777].goneWhy:find("günstigstes jetzt", 1, true), "Live: guenstige Angebote weg -> grau mit Grund")
     local ghostRow for i, it in ipairs(Rd.list:GetItems()) do if it.gone then ghostRow = i end end
-    check(ghostRow and plain(Rd.list.rowFrames[ghostRow].cells[6].text) == "weg", "Spalte Gewinn zeigt „weg“")
+    check(ghostRow and plain(Rd.list.list.rows[ghostRow].cells[2].text) == "weg", "Spalte Gewinn zeigt „weg“")
     now = now + 31
     Rd.Refresh()
     check(Rd.gone[7777] == nil and #Rd.list:GetItems() == 0, "nach 30 Sek. aus der Liste")
-    -- Pause: Treffer gewaehlt -> keine fremden Abfragen, nochmal anklicken -> weiter
-    Rd.entries[7777] = Rd.Evaluate(7777, { { price = 3, qty = 20, own = 0 } }, true, true)
-    Rd.entries[7777].checked = now
-    Rd.Refresh()
-    Rd.Start()
-    Rd.list.rowFrames[1].scripts.OnClick(Rd.list.rowFrames[1], "LeftButton")
-    check(Rd.focus and Rd.status.text:find("pausiert", 1, true), "Treffer gewaehlt: Radar-Scan pausiert")
-    Rd.pending, Rd.lastSend = nil, -100
-    Rd.focus.at = now + 100
-    local sentBefore = Rd.stats.sent
-    now = now + 1; timers[#timers]()
-    check(Rd.stats.sent == sentBefore, "pausiert: keine fremde Abfrage")
-    Rd.list.rowFrames[1].scripts.OnClick(Rd.list.rowFrames[1], "LeftButton")
-    check(Rd.selected == nil and Rd.focus == nil and not Rd.status.text:find("pausiert", 1, true), "nochmal angeklickt: Auswahl weg, Radar laeuft weiter")
     Rd.Halt()
     -- 0.20.1: Spiel liefert erst leere Teil-Ergebnisse (laedt noch) -> weiter warten, nichts entfernen
     Rd.entries, Rd.gone, Rd.lastVisible = {}, {}, nil
@@ -1768,23 +1168,151 @@ fire("AUCTION_HOUSE_SHOW")
     check(Rd.pending and Rd.pending.browse and PeonBrokerDB.itemKeys[7779] == nil, "gemerkter Schluessel liefert nichts: vergessen, Browse-Suche")
     timers[#timers]()
     check(Rd.entries[7779] == nil and Rd.gone[7779] and Rd.gone[7779].goneWhy == "Keine Angebote mehr." and Rd.pending == nil, "auch ueber die Suche nichts: weg")
-    -- 0.24 (Feedback #7): graue Zeile anklicken zeigt den Gegenstand trotzdem im Blizzard-Fenster
+    -- N6: die graue Zeile des Gegenstands im Fokus bleibt, solange er dort steht
     Rd.Refresh()
-    local nShown2 = #shown
-    for i, it in ipairs(Rd.list:GetItems()) do if it.key == 7779 then Rd.list.rowFrames[i].scripts.OnClick(Rd.list.rowFrames[i], "LeftButton") end end
-    check(#shown == nShown2 + 1 and shown[#shown] == 7779 and Rd.goneSel == 7779 and Rd.focus == nil, "graue Zeile: im Blizzard-Fenster gezeigt, Radar pausiert")
+    Rd.focus = { key = 7779, at = now + 100 }
     Rd.gone[7779].goneUntil = 0
     Rd.Refresh()
-    check(Rd.gone[7779] and Rd.selected and Rd.selected.key == 7779, "gewaehlte graue Zeile bleibt in der Liste")
-    Rd.SelectRow(nil)
+    check(Rd.gone[7779] ~= nil, "N6: graue Zeile bleibt, solange der Gegenstand im Fokus ist")
+    Rd.focus = nil
     Rd.Refresh()
-    check(Rd.gone[7779] == nil and Rd.goneSel == nil, "Auswahl weg: graue Zeile verschwindet")
+    check(Rd.gone[7779] == nil, "N6: ohne Fokus verschwindet sie")
     LIVEITEM, AHs.GetNumItemSearchResults, AHs.SendBrowseQuery, AHs.GetBrowseResults = savedLI5, savedNI5, nil, nil
     PeonBrokerDB.itemKeys = nil
     Rd.Halt()
     Rd.entries, Rd.gone, Rd.lastVisible, Rd.soon = {}, {}, nil, nil
     market.items[7777], market.items[7779] = nil, nil
     AuctionHouseFrame.SetDisplayMode, AuctionHouseFrame.GetDisplayMode, AHs.GetItemKeyInfo, AuctionHouseFrameDisplayMode = nil, nil, nil, nil
+end)()
+
+-- ===== Neuaufbau N6 (0.64): Radar schlank, Seite Fokus =====
+;(function()
+    local F, T = ns.Focus, ns.AHTabs
+    -- die letzten Timer ausfuehren (der Takt des Radars ist nicht immer der allerletzte)
+    local function tick() local n = #timers; for i = math.max(1, n - 4), n do timers[i]() end end
+    local keepMin, keepMoney = mod.db.dealMinVendor, GetMoney
+    GetMoney = function() return 1000000 end
+    mod.db.dealMinVendor = 10
+    check(ns.Look == nil and Rd.Hide == nil and Rd.Prequote == nil and Rd.MuteOn == nil and Rd.SetKind == nil and Rd.SetOrder == nil,
+        "N6: Ausblenden, Schnellkauf, Nur Warnton, Art- und Reihenfolge-Wahl entfallen")
+    -- Chancen aus der Datenbank: nur die Art Haendler, ohne Live-Pruefung
+    Rd.Halt()
+    Rd.entries, Rd.gone, Rd.lastVisible, Rd.loaded = {}, {}, nil, nil
+    VENDOR[7801], VENDOR[7802] = 10, 0
+    market.items[7801] = { m = 3, md = 10, q = 20, n = 1, t = clock, lv = "3:20;12:50", nm = "Billigzeug", ql = 1 }
+    market.items[7802] = { m = 30, md = 300, q = 5, n = 1, t = clock, lv = "30:5;300:50", nm = "Marktding", ql = 1,
+        d = ("%d:30:300:5:12"):format(D.Day()) }
+    mod.acc.commodity[7801], mod.acc.commodity[7802] = true, true
+    local sent0 = Rd.stats.sent
+    fire("AUCTION_HOUSE_CLOSED")
+    Win.Open("radar")
+    check(Rd.entries[7801] and Rd.entries[7801].kind == "vendor" and Rd.entries[7802] == nil, "N6: nur Chancen der Art Haendler")
+    local rows = Rd.list:GetItems()
+    check(#rows == 1 and rows[1].key == 7801 and rows[1].risk == "low" and rows[1].checked == nil, "N6: Liste aus der Datenbank, nichts live geprueft")
+    local cols = {}
+    for _, c in ipairs(Rd.list.o.columns) do cols[#cols + 1] = c.title end
+    check(table.concat(cols, ",") == "Gegenstand,Gewinn,Art,Risiko,Stand", "N6: schlanke Spalten: " .. table.concat(cols, ","))
+    local cells = Rd.list.list.rows[1].cells
+    check(cells[1].text == "Billigzeug" and plain(cells[3].text) == "Händler" and plain(cells[4].text) == "gering" and plain(cells[2].text) ~= "",
+        "N6: Zeile mit Gewinn, Art und Risiko")
+    check(Rd.stats.sent == sent0 and not Rd.loop and Rd.scanButton.disabled and Rd.status.text:find(ns.L.ST_NOT_LIVE, 1, true),
+        "N6: unterwegs keine Abfragen, Radar-Scan gesperrt")
+    rows[1].seenT = clock - 4000
+    check(Rd.Risk(rows[1]) == "mid", "N6: alter, nie live gepruefter Stand: mittleres Risiko")
+    rows[1].seenT = clock
+    -- unterwegs: Klick oeffnet den Fokus mit letztem Stand
+    Rd.list.list.rows[1].scripts.OnClick(Rd.list.list.rows[1], "LeftButton")
+    check(Win.current == "focus" and F.key == 7801 and mod.acc.focusKey == 7801 and ns.Go.back == "radar" and Rd.focus == nil,
+        "N6: Klick im Radar oeffnet den Fokus mit diesem Gegenstand, unterwegs ohne Abfrage")
+    check(F.header.name.text == "Billigzeug" and plain(F.verdict.text) == "KAUFEN" and F.buyButton.disabled and F.buyButton.text == "Kaufen 20"
+        and F.stand.text:find(ns.L.ST_NOT_LIVE, 1, true), "N6: Fokus unterwegs: Urteil und Angaben, Kaufen gesperrt")
+    local fr = {}
+    for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr[#fr + 1] = r.label.text .. "=" .. plain(r.value.text) end end
+    check(table.concat(fr, "|") == "Art=Händler|Kaufen bis=3c|Menge=20|Einsatz=60c|Ziel=10c beim Händler|Gewinn=+1s 40c", "N6: Angaben zur Chance: " .. table.concat(fr, "|"))
+    check(#F.tiers.items == 2 and F.tiers.items[1].inBuy and not F.tiers.items[2].inBuy, "N6: Preisstufen, markiert was der Kauf nimmt")
+    Win.back.scripts.OnClick(Win.back)
+    check(Win.current == "radar", "N6: Zurueck zum Radar")
+    Win.frame:Hide()
+
+    -- am Auktionator
+    local ah = CreateFrame("Frame", "AuctionHouseFrame")
+    ah.BuyTab, ah.SellTab, ah.AuctionsTab = CreateFrame("Button"), CreateFrame("Button"), CreateFrame("Button")
+    ah.Tabs = { ah.BuyTab, ah.SellTab, ah.AuctionsTab }
+    ah.SetDisplayMode = function() end
+    T.built, T.tabs, T.page, T.current, T.status, T.back = nil, {}, nil, nil, nil, nil
+    mod.acc.ahPlain = false
+    fire("AUCTION_HOUSE_SHOW")
+    T.tabs.radar.scripts.OnClick(T.tabs.radar)
+    check(T.current == "radar" and Rd.Shown() and not Rd.scanButton.disabled and Rd.stats.sent == sent0, "N6: Radar am Auktionator, noch keine Abfrage")
+    -- Radar-Scan: nur die gezeigten Chancen
+    Rd.scanButton.scripts.OnClick(Rd.scanButton)
+    check(Rd.running and Rd.loop and Rd.scanButton.text == ns.L.RADAR_STOP, "N6: Radar-Scan gestartet")
+    local round = Rd.BuildRound()
+    check(#round == 1 and round[1] == 7801, "N6: Runde = die gezeigten Chancen")
+    LIVE[7801] = { { unitPrice = 3, quantity = 15 }, { unitPrice = 12, quantity = 50 } }
+    Rd.pending, Rd.lastSend = nil, -100
+    now = now + 1; tick()
+    check(Rd.pending and Rd.pending.key == 7801, "N6: Radar-Scan fragt die Chance ab")
+    fire("COMMODITY_SEARCH_RESULTS_UPDATED", 7801)
+    check(Rd.entries[7801].live and Rd.entries[7801].qty == 15 and Rd.list:GetItems()[1].checked ~= nil, "N6: Chance live bestaetigt, Menge neu")
+    Rd.lastSend = -100
+    now = now + 1; tick()
+    check(Rd.pending == nil, "N6: gerade geprueft: nicht gleich wieder (R.RECHECK)")
+    Rd.scanButton.scripts.OnClick(Rd.scanButton)
+    check(not Rd.running, "N6: Radar-Scan gestoppt")
+    -- Klick: Fokus fragt nur diesen Gegenstand ab
+    Rd.list.list.rows[1].scripts.OnClick(Rd.list.list.rows[1], "LeftButton")
+    check(T.current == "focus" and F.Shown() and F.key == 7801 and Rd.focus and Rd.focus.key == 7801 and Rd.loop and not Rd.running and T.back.shown,
+        "N6: Fokus am Auktionator: genau dieser Gegenstand wird abgefragt")
+    Rd.pending, Rd.lastSend = nil, -100
+    now = now + 1; tick()
+    check(Rd.pending and Rd.pending.key == 7801 and Rd.focus.at > now, "N6: Abfrage fuer den Fokus, naechste nach R.FOCUS_EVERY")
+    fire("COMMODITY_SEARCH_RESULTS_UPDATED", 7801)
+    check(not F.buyButton.disabled and F.buyButton.text == "Kaufen 15", "N6: Kaufen bereit")
+    -- Kaufen: Preis vom Spiel, dann bestaetigen
+    local started, confirmed
+    local keepS, keepC = AHs.StartCommoditiesPurchase, AHs.ConfirmCommoditiesPurchase
+    AHs.StartCommoditiesPurchase = function(id, qty) started = { id, qty } end
+    AHs.ConfirmCommoditiesPurchase = function(id, qty) confirmed = { id, qty } end
+    F.buyButton.scripts.OnClick(F.buyButton)
+    check(started and started[1] == 7801 and started[2] == 15 and Rd.job and Rd.job.stage == "quote" and F.buyButton.disabled, "N6: erster Klick holt den Preis")
+    fire("COMMODITY_PRICE_UPDATED", 3, 45)
+    check(Rd.job.stage == "confirm" and F.buyButton.text == "Bestätigen" and not F.buyButton.disabled and plain(F.buyInfo.text):find("15 für 45c", 1, true),
+        "N6: Preis da: Bestaetigen mit Menge und Preis")
+    F.buyButton.scripts.OnClick(F.buyButton)
+    check(confirmed and confirmed[2] == 15 and Rd.job.stage == "wait", "N6: zweiter Klick bestaetigt")
+    fire("COMMODITY_PURCHASE_SUCCEEDED")
+    check(Rd.job == nil and Rd.entries[7801] == nil and Rd.gone[7801] and plain(F.verdict.text) == "VORBEI" and F.buyButton.disabled,
+        "N6: gekauft: Chance vorbei, Fokus zeigt es")
+    -- Tasten: naechste Chance in den Fokus, kaufen
+    market.items[7803] = { m = 2, md = 10, q = 5, n = 1, t = clock, lv = "2:5", nm = "Kleinkram", ql = 1 }
+    VENDOR[7803] = 9
+    mod.acc.commodity[7803] = true
+    Rd.loaded = nil
+    Rd.LoadIfStale()
+    PeonBroker_RadarNext()
+    check(F.key == 7803 and T.current == "focus", "N6: Taste naechste Chance: in den Fokus")
+    started = nil
+    PeonBroker_RadarBuy()
+    check(started and started[1] == 7803, "N6: Taste kaufen: Chance im Fokus")
+    Rd.job = nil
+    -- ein Gegenstand ohne Chance im Fokus
+    ns.Go.Focus({ key = 2770, name = "Kupfererz" })
+    check(F.key == 2770 and plain(F.verdict.text) == "KEINE CHANCE" and F.buyButton.disabled and F.header.name.text == "Kupfererz" and Rd.focus.key == 2770,
+        "N6: Gegenstand ohne Chance im Fokus: wird trotzdem abgefragt")
+    -- Reiter verlassen: Abfragen aus
+    T.tabs.buy.scripts.OnClick(T.tabs.buy)
+    check(Rd.focus == nil and not Rd.loop, "N6: Fokus verlassen: keine Abfragen mehr")
+    AHs.StartCommoditiesPurchase, AHs.ConfirmCommoditiesPurchase = keepS, keepC
+    T.Close()
+    LIVE[7801] = nil
+    market.items[7801], market.items[7802], market.items[7803] = nil, nil, nil
+    VENDOR[7801], VENDOR[7802], VENDOR[7803] = nil, nil, nil
+    Rd.entries, Rd.gone, Rd.lastVisible, Rd.loaded = {}, {}, nil, nil
+    mod.db.dealMinVendor, GetMoney = keepMin, keepMoney
+    AuctionHouseFrame = {}
+    T.built, T.tabs, T.page, T.current, T.status, T.back = nil, {}, nil, nil, nil, nil
+    ns.Go.Clear()
 end)()
 
 -- ===== 0.21: Richtwert und ueblicher Bereich (Rechenmodell Kapitel 7, Beispiele aus echten Daten 02.10.2026) =====
@@ -2608,14 +2136,6 @@ do
   check(refreshed == 1, "0.35: Scan aktualisiert den Text")
 end
 
--- ===== Fokus in Arbeit (Markt ab N3, Auktionen ab N5 gebaut) =====
-Win.WIP = wipKeep
-for _, k in ipairs({ "focus" }) do
-  if Win.contents[k] then Win.contents[k]:Hide() end
-  Win.contents[k] = nil
-  Win.Open(k)
-  check(Win.current == k and Win.contents[k].wipText and Win.contents[k].wipText.text == ns.L.TAB_WIP, "N1: " .. k .. " zeigt nur den WIP-Hinweis")
-end
 -- ===== Einkaufsliste wieder offen (0.49.0) =====
 Win.Open("buy")
 check(Win.current == "buy" and not Win.contents.buy.wipText and ns.Buy.itemList ~= nil, "0.49: Reiter Einkaufsliste mit Inhalt statt WIP-Hinweis")
@@ -2790,17 +2310,18 @@ end)()
   T.tabs.radar.scripts.OnClick(T.tabs.radar)
   local c = Win.contents.radar
   check(c and c.parent == T.page and c.points[1][2] == ah and T.host.radar == "ah" and c.shown, "U7: Radar-Flaeche haengt im Reiter des Auktionshauses")
-  check(c.points[1][4] == 14 and c.points[1][5] == -30 and c.points[2][4] == -14 and c.points[2][5] == 30,
-    "N1: Seite mit oberer Leiste sitzt im Auktionshaus wie im Broker-Fenster")
+  check(c.points[1][4] == 14 and c.points[1][5] == -64 and c.points[2][4] == -14 and c.points[2][5] == 30,
+    "N1: Seite sitzt im Auktionshaus wie im Broker-Fenster")
   check(R.Shown(), "U7: Radar gilt als offen")
   T.tabs.buy.scripts.OnClick(T.tabs.buy)
+  check(Win.contents.buy.points[1][5] == -30, "N1: Seite mit oberer Leiste (Einkaufen) beginnt neben dem Bild")
   check(T.current == "buy" and Win.contents.buy.shown and Win.contents.buy.parent == T.page and not c.shown and ns.Buy.Shown(),
     "N1: Einkaufen offen (dieselbe Seite wie im Fenster), Radar-Flaeche versteckt")
   T.tabs.prices.scripts.OnClick(T.tabs.prices)
   check(T.current == "prices" and Win.contents.prices.parent == T.page and Win.contents.prices.points[1][5] == -64 and not Win.contents.buy.shown,
     "N1: Gegenstand als Reiter im Auktionshaus, unter dem Bild")
   T.tabs.focus.scripts.OnClick(T.tabs.focus)
-  check(T.current == "focus" and Win.contents.focus.wipText and Win.contents.focus.shown, "N1: Fokus zeigt im Auktionshaus den Hinweis in Arbeit")
+  check(T.current == "focus" and not Win.contents.focus.wipText and Win.contents.focus.shown and ns.Focus.Shown(), "N6: Fokus als Reiter im Auktionshaus")
   T.tabs.more.scripts.OnClick(T.tabs.more)
   check(T.current == "more" and Win.more and Win.more.current == "vendors" and Win.more.contents.vendors.shown, "N1: Mehr oeffnet mit Haendler")
   local moreNames = {}
@@ -2893,15 +2414,13 @@ end)()
   R.CountHits, R.LoadFromScan = oldCount, oldLoad
   -- Tastenbelegungen
   check(type(PeonBroker_RadarBuy) == "function" and type(PeonBroker_RadarNext) == "function", "U7: Tastenbelegungen Kaufen und Naechster")
-  local sel
-  local oldList, oldSel, oldSelected = R.list, R.SelectRow, R.selected
-  local rows = { { key = 1 }, { key = 2, gone = true }, { key = 3 } }
-  R.list = { GetItems = function() return rows end, Select = function() end }
-  R.SelectRow = function(r) sel = r; R.selected = r end
-  R.selected = rows[1]
-  check(R.SelectNext() and sel.key == 3, "U7: naechster Treffer ueberspringt weggefallene")
-  check(R.SelectNext() and sel.key == 1, "U7: am Ende wieder von vorn")
-  R.list, R.SelectRow, R.selected = oldList, oldSel, oldSelected
+  do   -- N6: naechste Chance nach Gewinn, am Ende wieder von vorn
+    local keepE, keepV = R.entries, R.Visible
+    R.entries = { [1] = { key = 1, showGain = 30 }, [2] = { key = 2, showGain = 20, cant = true }, [3] = { key = 3, showGain = 10 } }
+    R.Visible = function() return true end
+    check(R.NextChance(nil).key == 1 and R.NextChance(1).key == 3 and R.NextChance(3).key == 1, "N6: naechste Chance ueberspringt, was sich nicht lohnt, und beginnt von vorn")
+    R.entries, R.Visible = keepE, keepV
+  end
   hooksecurefunc = origHook
   CreateFrame = origCreate
   AuctionHouseFrame = {}
@@ -3290,9 +2809,9 @@ end)()
   check(opened == nil, "U4: Strg+Linksklick oeffnet kein Menue")
   fire("GLOBAL_MOUSE_DOWN", "RightButton")
   check(opened and opened.title == "Kupfererz", "U4: Strg+Rechtsklick auf einen Gegenstand oeffnet das Menue")
-  local goMarket, info, shop = opened.items[1], opened.items[2], opened.items[3]
-  check(goMarket.text == "Im Markt zeigen" and info.text == "Gegenstand (Broker)" and shop.text == ns.L.MENU_SHOP,
-    "N1: Eintraege Im Markt zeigen, Gegenstand und Auf Einkaufsliste")
+  local goMarket, info, focus, shop = opened.items[1], opened.items[2], opened.items[3], opened.items[4]
+  check(goMarket.text == "Im Markt zeigen" and info.text == "Gegenstand (Broker)" and focus.text == "In den Fokus" and shop.text == ns.L.MENU_SHOP,
+    "N6: Eintraege Im Markt zeigen, Gegenstand, In den Fokus und Auf Einkaufsliste")
   local lists = ns.Buy.Lists()
   check(#shop.items == #lists + 1 and shop.items[#shop.items].text == ns.L.MENU_SHOP_NEW, "U4: Untermenue mit allen Listen und Neue Liste")
   local before = #lists
@@ -3347,7 +2866,7 @@ end)()
   check(Rs.Calc(rows, 5000, nil, 0.05) == nil and Rs.Calc(rows, 0) == nil, "0.56: zu wenig Angebote oder keine Menge: keine Rechnung")
   -- Listen im Blizzard-Aufbau passen sich der Groesse an (Kern-API 17)
   local lst = Rd.list
-  check(lst.o.style == "ah" and lst.o.flex == "name", "0.56: Radar mit Blizzards Listen-Optik")
+  check(lst.list and lst.o.icon and lst.o.sortDesc, "N6: Radar-Liste mit Peon.UI")
   -- N4: Einkaufen mit Peon.UI
   do
     local B = ns.Buy
@@ -3375,13 +2894,6 @@ end)()
     ns.Go.Market, ns.Go.Menu = oldM, oldMenu
     now = now + 5
   end
-  local fixed = 0 for _, col in ipairs(lst.columns) do if col.key ~= "name" then fixed = fixed + col.width end end
-  lst:SetSize(800, 400)
-  local nameW for _, col in ipairs(lst.columns) do if col.key == "name" then nameW = col.width end end
-  check(nameW == 800 - 8 - 16 - fixed and lst.rowsVisible == math.floor((400 - 22 - 8) / 20) and #lst.rowFrames >= lst.rowsVisible,
-    "0.56: Namensspalte waechst, Zeilen folgen der Hoehe")
-  lst:SetSize(500, 200)
-  check(lst.rowsVisible == math.floor((200 - 22 - 8) / 20) and not lst.rowFrames[lst.rowsVisible + 1].shown, "0.56: kleiner: ueberzaehlige Zeilen verborgen")
   -- Radar laedt beim Oeffnen nur bei neuem Scan neu
   local loads, orig = 0, Rd.LoadFromScan
   Rd.LoadFromScan = function() loads = loads + 1; return orig() end
@@ -3468,8 +2980,7 @@ end)()
   for k, y in pairs(ys) do sf[k]:ClearAllPoints(); sf[k]:SetPoint("TOPLEFT", sf, "TOPLEFT", 10, y) end
   check(A.Compact(sf) == 0 and Y("PostButton") == -350, "0.58: Blizzard pur: nichts verschoben")
   mod.acc.ahPlain = false
-  check(ns.Look.ATLAS_LEFT == "auctionhouse-background-sell-left" and ns.Look.ATLAS_LIST == "auctionhouse-background-sell-right",
-    "0.58: Hintergruende wie Blizzards Reiter Verkaufen")
+  check(ns.Look == nil, "N6: Look.lua entfaellt, alle Seiten nutzen Peon.UI")
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

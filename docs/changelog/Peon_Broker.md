@@ -2,6 +2,33 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.64.0
+
+Kurz: Das Radar ist jetzt eine schlanke Liste: Gegenstand, Gewinn, Art, Risiko und Stand. Ein Klick auf eine Chance öffnet sie im neuen Reiter „Fokus“.
+Kurz: Der Fokus zeigt genau einen Gegenstand: Urteil, alle Angaben zur Chance, die Preisstufen und den Kaufknopf. Am Auktionator wird nur dieser eine Gegenstand regelmäßig neu abgefragt. Über „In den Fokus“ im Menü kommt jeder Gegenstand hinein.
+Kurz: Das Radar zeigt vorerst nur Angebote unter dem Händlerpreis. Der Radar-Scan prüft nur noch die gezeigten Chancen, von selbst wird nichts mehr live geprüft. Ausblenden, Schnellkauf, „Nur Warnton“ und die Wahl von Art und Reihenfolge entfallen.
+
+- 0.64.0 (11.11.2026): **Neuaufbau N6, Radar und Fokus in der Grundform** (Konzept `docs/konzepte/broker/Peon_Broker_Neuaufbau.md`, Abschnitte 4.4 und 6.1). Damit ist Stufe 1 (N1 bis N6) gebaut. Neue Datei `Focus.lua`, `Look.lua` entfällt, `Radar.lua` von rund 1.830 auf 1.170 Zeilen.
+  - **Radar schlank** (`Peon.UI`): eine Liste über die ganze Breite mit Gegenstand, Gewinn, Art, Risiko, Stand. Oben der Stand der Daten und der Knopf „Radar-Scan starten“. Die linke Spalte mit Einstellungen und die Kaufzeile entfallen. Mindestgewinn, Goldreserve und Ton stehen weiter auf der Optionsseite.
+  - **Nur die Art Händler** (Angebote unter dem Händlerpreis). Die Art „unter dem üblichen Preis“ erscheint nicht mehr (`R.KIND_ON`). Der Aufkauf kommt mit H1.
+  - **Keine Live-Prüfung von selbst:** Beim Öffnen kommen die Chancen aus der Datenbank, jede Zeile zeigt das Alter ihres Stands. Risiko vorerst einfach: gering bei frischem Stand, mittel bei einem Stand älter als 30 Minuten, der nie live geprüft wurde.
+  - **Radar-Scan** prüft reihum nur die gezeigten Chancen, jede frühestens nach 15 Sekunden wieder, und nur solange die Seite Radar offen ist. Er sucht keine neuen Gegenstände mehr. Was weg ist, wird grau mit Grund und verschwindet nach 30 Sekunden.
+  - **Klick auf eine Zeile** öffnet den Fokus mit diesem Gegenstand, Rechtsklick das Gegenstandsmenü.
+  - **Fokus** (immer genau ein Gegenstand, gemerkt in `focusKey`): links Symbol und Name, das Urteil (KAUFEN, LOHNT NICHT, VORBEI, KEINE CHANCE) mit einem Satz, darunter Art, Kaufen bis, Menge, Einsatz, Ziel und Gewinn. Gold-Knopf „Kaufen N“, darunter „Im Markt zeigen“ und „Gegenstand“. Rechts der Stand und die Preisstufen, grün markiert ist, was der Kauf nimmt. „Jetzt prüfen“ fragt sofort neu ab.
+  - **Abfragen im Fokus:** Am Auktionator wird der Gegenstand im Fokus alle 15 Sekunden neu abgefragt (`R.SetFocus`, wie Blizzards „Neu laden“), solange die Seite offen ist. Kürzere Abstände und die Messung von Abfluss und Zufluss kommen mit H2. Unterwegs zeigt die Seite den letzten Stand ohne Abfragen.
+  - **Kaufen** wie bisher in zwei Schritten: erster Klick holt den Preis vom Spiel, zweiter bestätigt. Einzelgegenstände je Klick eine Auktion.
+  - **„In den Fokus“** im Gegenstandsmenü (Strg+Rechtsklick) für jeden Gegenstand, auch ohne Chance.
+  - **Tasten:** „Radar: gewählten Treffer kaufen“ kauft die Chance im Fokus, „Radar: nächster Treffer“ nimmt die nächste Chance in den Fokus.
+  - **Entfernt** (Streichliste des Konzepts): Ausblenden von Treffern, Schnellkauf, „Nur Warnton“ während des Scans, Wahl von Art und Reihenfolge, die drei Kaufknöpfe (1 Stück, Stapel, alle), die Pause des Scans bei gewähltem Treffer. Die gespeicherte Liste ausgeblendeter Treffer (`radarHidden`) wird nicht mehr gelesen, gelöscht wird sie nicht. 50 Texte ohne Verwendung entfernt.
+  - Die Tests des alten Radars (rund 580 Zeilen) sind durch 39 neue Prüfungen ersetzt. Die Prüfungen des Kerns (Teil-Ergebnisse, Schlüssel für Gegenstände mit Zusatz, weggefallene Treffer) bleiben.
+  - **Im Spiel prüfen:**
+    1. Nach einem Komplettscan Reiter Radar: Liste, Spalten, Zahl am Reiter. Wird wirklich nichts von selbst abgefragt?
+    2. Radar-Scan starten und stoppen. Springt der Stand der Zeilen zurück, verschwindet Gekauftes?
+    3. Klick auf eine Chance: Fokus mit den Angaben, „Zurück zu Radar“. Passt alles in die linke Spalte?
+    4. Kaufen im Fokus: erster Klick, „Bestätigen“, danach „VORBEI“. Keine Meldung „Aktion blockiert“.
+    5. Strg+Rechtsklick auf einen beliebigen Gegenstand, „In den Fokus“.
+    6. Stört die Abfrage alle 15 Sekunden im Fokus (Ruckeln, Meldungen)?
+
 ## 0.63.0
 
 Kurz: Unterwegs zeigt der Reiter „Auktionen“ jetzt den letzten bekannten Stand deiner Auktionen und sagt, welche nach den heutigen Preisen unterboten sind.

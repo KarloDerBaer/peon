@@ -42,6 +42,7 @@ function M.Build(root, item)
     -- ab 0.59 (Neuaufbau N1): dieselben Spruenge wie in Brokers Listen (Go.lua)
     root:CreateButton(L.GO_MARKET, function() mod:Call("Menue", ns.Go.Market, item) end)
     root:CreateButton(L.MENU_INFO, function() mod:Call("Menue", ns.Go.Item, item) end)
+    root:CreateButton(L.MENU_FOCUS, function() mod:Call("Menue", ns.Go.Focus, item) end)
     local B = ns.Buy
     if B and B.Lists then
         local sub = root:CreateButton(L.MENU_SHOP)

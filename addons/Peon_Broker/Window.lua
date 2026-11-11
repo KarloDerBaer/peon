@@ -7,7 +7,8 @@
 -- Oeffnen: /broker, Minimap-Button, Peon_Panel. Escape schliesst.
 --
 -- Reiter: Markt, Verkaufen, Auktionen, Einkaufen, Radar, Fokus, Gegenstand, Mehr (KarloDerBaer, 11.11.2026).
--- Seiten: Markt (Market.lua), Gegenstand (Item.lua), Einkaufen (Buy.lua), Radar (Radar.lua), Mehr (unten).
+-- Seiten: Markt (Market.lua), Auktionen (Pages.lua), Einkaufen (Buy.lua), Radar (Radar.lua), Fokus (Focus.lua),
+-- Gegenstand (Item.lua), Mehr (unten).
 -- Verkaufen ist unterwegs grau. Seiten in W.WIP zeigen noch den Hinweis "in Arbeit".
 
 local ADDON_NAME, ns = ...
@@ -19,7 +20,7 @@ ns.Window = W
 
 W.WIDTH, W.HEIGHT = 800, 538
 W.TOP = 64            -- Abstand der Seiten vom oberen Rand (Platz fuer Bild und Titel)
-W.TOP_BAR = 30        -- Seiten mit oberer Leiste (Look.lua: Einkaufen, Radar) beginnen neben dem Bild
+W.TOP_BAR = 30        -- Seiten mit oberer Leiste (Einkaufen) beginnen neben dem Bild
 W.SIDE = 14           -- Abstand links und rechts
 W.BOTTOM = 30         -- Abstand unten (Statuszeile)
 W.TABS = {
@@ -33,14 +34,13 @@ W.TABS = {
     { key = "more",     label = "NTAB_MORE" },       -- Mehr: Haendler, Neutral, Datenlage
 }
 W.AH_ONLY = { sell = true }                          -- unterwegs grau
-W.BAR = { buy = true, radar = true }                 -- Seiten mit oberer Leiste
+W.BAR = { buy = true }                               -- Seiten mit oberer Leiste neben dem Bild
 W.DEFAULT = "prices"
 W.pages = {}          -- key -> { build = fn(content), refresh = fn(), enter = fn(), leave = fn() }
 W.contents = {}       -- key -> Rahmen der Seite
 
--- In Arbeit: Diese Reiter zeigen nur einen Hinweis, bis ihr Bauabschnitt kommt (Fokus N6)
-W.WIP = { focus = true }
-W.pages.focus = { build = function() end }
+-- In Arbeit: Reiter, die nur einen Hinweis zeigen, bis ihr Bauabschnitt kommt (seit N6 keiner mehr)
+W.WIP = {}
 
 local function BuildWip(c)
     local t = c:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")

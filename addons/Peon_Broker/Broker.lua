@@ -39,8 +39,6 @@ local mod = Peon:NewModule(ADDON_NAME, {
         dealDays     = 7,       -- TAGE
         radarMaxAge  = 60,      -- Radar: Treffer aus der Datenbank bis so viele Minuten alt (0 = unbegrenzt; ab 0.15, ersetzt dealMaxAge)
         radarSound   = true,    -- Ton bei neuen Radar-Treffern
-        radarMute    = true,    -- waehrend des Radar-Scans nur der Warnton, auch im Hintergrund (ab 0.16)
-        radarOrder   = "smart", -- Reihenfolge im Radar-Scan (ab 0.16)
         radarKind    = "both",  -- Radar: Haendler, AH oder beides (ab 0.17)
         radarShowExpensive = false, -- Radar: auch unbezahlbare Schnaeppchen zeigen (ab 0.17)
         dealMargin   = 20,      -- MARGE: Markt-Schnaeppchen mindestens so viel % ueber dem Kaufpreis (ab 0.17)
@@ -82,7 +80,6 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  craftListMode = { money = true, pct = true },
                  radarSoundKey = { raid = true, ready = true, alarm = true, tell = true },
                  tooltipNeutral = { always = true, shift = true, off = true },
-                 radarOrder = { smart = true, random = true, commodity = true, high = true, low = true },
                  windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true,
                               market = true, watch = true, sources = true, vendors = true,
                               browse = true, focus = true, more = true } },   -- ab 0.59 (Neuaufbau N1)   -- ab 0.51 neue Reiter   -- ab 0.28 mit "start", ohne "book"
@@ -523,4 +520,4 @@ end)
 
 -- Bereiche für Rückmeldungen in Peon_Feedback (Kern ab API 9; mit älterem Kern wird nichts gemeldet)
 -- ab 0.53 (Umbau U12): Bereiche nach dem neuen Aufbau
-if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Verkaufen (Rat)", "Auktionen", "Radar", "Einkaufen", "Einkaufslisten", "Beobachtung", "Markt", "Händler", "Gegenstände", "Quellen", "Berufe", "Scan", "Tooltip", "Gegenstandsmenü", "Optionen" }) end
+if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Markt", "Verkaufen (Rat)", "Auktionen", "Einkaufen", "Radar", "Fokus", "Gegenstand", "Händler", "Neutral", "Datenlage", "Berufe", "Scan", "Tooltip", "Gegenstandsmenü", "Optionen" }) end

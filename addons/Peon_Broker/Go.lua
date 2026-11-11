@@ -3,6 +3,7 @@
 --   Go.Market(item)  "Im Markt zeigen": am Auktionator Blizzards Kaufansicht mit genau diesem Gegenstand.
 --                    Unterwegs die Marktseite aus Scandaten, nach diesem Gegenstand gesucht.
 --   Go.Item(item)    Seite Gegenstand mit diesem Gegenstand
+--   Go.Focus(item)   Seite Fokus mit diesem Gegenstand
 --   Go.Back()        ein Schritt zurueck zur Seite, von der der Sprung kam (Knopf in der Titelleiste)
 -- item = { key oder id oder link, name, offer, qty, itemKey }
 -- Broker schliesst vor dem Sprung in Blizzards Kaufansicht seine eigene Flaeche (bis 0.58 war der Sprung gesperrt,
@@ -77,6 +78,25 @@ function Go.Item(item, from)
     Go.jumping = false
     if not ok then error(err, 0) end
     if from and from ~= "prices" then Go.SetBack(from) else Go.UpdateBack() end
+    return true
+end
+
+-- "In den Fokus": Seite Fokus mit genau diesem Gegenstand (ersetzt den bisherigen)
+function Go.Focus(item)
+    local key = KeyOf(item)
+    if key == nil then
+        mod:Print(L.GO_NONE)
+        return false
+    end
+    local from = Go.Here()
+    Go.jumping = true
+    local ok, err = pcall(function()
+        ns.Window.Open("focus")
+        ns.Focus.Set(key)
+    end)
+    Go.jumping = false
+    if not ok then error(err, 0) end
+    if from and from ~= "focus" then Go.SetBack(from) else Go.UpdateBack() end
     return true
 end
 
