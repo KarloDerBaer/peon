@@ -50,6 +50,7 @@ local function W()
   function m.SetMinMaxValues(s, a, b) s.min, s.max = a, b end
   function m.SetAlpha(s, a) s.alpha = a end
   function m.SetFrameLevel(s, v) s.level = v end
+  function m.GetFrameLevel(s) return s.level end
   function m.SetPoint(s, ...) s.points[#s.points+1] = { ... } end
   function m.ClearAllPoints(s) s.points = {} end
   function m.RegisterEvent(s, e) if UNKNOWN_EVENTS[e] then error("Attempt to register unknown event \"" .. e .. "\"") end s.events[e] = true end
