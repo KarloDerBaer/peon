@@ -2,7 +2,8 @@
 -- Neuaufbau N6 (ab 0.64, Konzept Peon_Broker_Neuaufbau.md, Abschnitte 4.4 und 6.1): Radar in der Grundform.
 --   Seite Radar: schlanke Liste der Chancen (Gegenstand, Gewinn, Art, Risiko, Stand). Ein Klick oeffnet die Chance
 --     auf der Seite Fokus (Focus.lua), dort stehen alle Angaben und der Kaufknopf.
---   Arten: vorerst nur "Haendler" (Angebote unter dem Haendlerpreis, sicherer Gewinn). Der Aufkauf kommt mit H1.
+--   Arten: "Haendler" (Angebote unter dem Haendlerpreis, sicherer Gewinn) und ab 0.65 (H1) "Aufkauf" (Massenware bis
+--     zu einer Preisstufe kaufen, zum Preis der naechsten Stufe einstellen, Buyout.lua).
 --   Chancen kommen aus der Datenbank (Komplettscan, Stand vom Manager, gespeicherte Live-Ergebnisse). Von selbst
 --     wird nichts live nachgeprueft, jede Zeile zeigt das Alter ihres Stands.
 --   Radar-Scan (Knopf, nur solange die Seite Radar offen ist): prueft reihum die gezeigten Chancen live.
@@ -27,7 +28,7 @@ R.RECHECK   = 15     -- Sekunden: Treffer spaetestens so oft nachpruefen
 R.FRESH     = 10     -- Sekunden: so alt darf die Pruefung vor einem Kauf sein (Einzelgegenstand)
 R.NEW_TIME  = 60     -- Sekunden: so lange gilt ein Treffer als "neu" (gruen)
 R.FOCUS_EVERY = 15   -- Sekunden: so oft wird der Gegenstand im Fokus neu abgefragt (kuerzer und Messung mit H2)
-R.KIND_ON = { vendor = true }   -- Arten im Radar (N6: nur Haendler, der Aufkauf kommt mit H1)
+R.KIND_ON = { vendor = true, buyout = true }   -- Arten im Radar (N6 nur Haendler, ab 0.65 dazu Aufkauf)
 R.GONE_TIME = 30     -- Sekunden: so lange bleibt ein weggefallener Treffer grau mit Grund in der Liste (ab 0.20)
 R.LOG_MAX   = 200    -- so viele weggefallene Treffer merkt sich das Radar-Protokoll (PeonBrokerDB.radarLog)
 R.CONFIRM_AFTER = 3  -- Sekunden: "keine Angebote" nach so langer Zeit nochmal pruefen, erst dann weg (ab 0.20.1)
@@ -72,7 +73,11 @@ function R.Evaluate(key, rows, live, commodity)
     local market = D.Market()
     local e = market and market.items[key]
     local hp = ns.VendorPrice(D.ItemID(key))
-    local deal = D.Deal(e, rows, hp, mod.db, D.Day(), key)
+    -- ab 0.65: aus D.Deal nur noch die Art Haendler (die alte Art "unter dem ueblichen Preis" entfaellt), dazu der
+    -- Aufkauf. Je Gegenstand zaehlt die Chance mit dem hoeheren Gewinn.
+    local deal = D.Deal(e, rows, hp, R.VendorOnly(), D.Day(), key)
+    local bo = ns.Buyout and ns.Buyout.Find(e, rows, key, R.Budget(), commodity) or nil
+    if bo and (not deal or bo.gain > deal.gain) then deal = bo end
     if not deal then return nil end
     deal.key = key
     deal.name = (type(e) == "table" and e.nm) or D.ItemName(key, e)
@@ -103,6 +108,14 @@ function R.Evaluate(key, rows, live, commodity)
     return deal
 end
 
+-- Einstellungen fuer D.Deal nur mit der Art Haendler (ab 0.65)
+function R.VendorOnly()
+    if not R.vendorDb then
+        R.vendorDb = setmetatable({ radarKind = "vendor" }, { __index = function(_, k) return mod.db[k] end })
+    end
+    return R.vendorDb
+end
+
 -- Beim Oeffnen: Treffer aus der Datenbank (Scan und gespeicherte Live-Ergebnisse), hoechstens radarMaxAge Min. alt
 function R.MaxAge()
     local m = tonumber(mod.db.radarMaxAge) or 60
@@ -130,8 +143,9 @@ function R.LoadFromScan()
             local seen = D.Seen(e)
             if seen and (not maxAge or now - seen <= maxAge) then
                 local hp = ns.VendorPrice(D.ItemID(key))
-                -- Vorauswahl: unter dem Haendlerpreis (genaue Pruefung in D.Deal)
-                if hp and e.m < hp then
+                -- Vorauswahl: unter dem Haendlerpreis (genaue Pruefung in D.Deal) oder Massenware mit mehreren
+                -- Preisstufen (Aufkauf, ab 0.65)
+                if (hp and e.m < hp) or (ns.Buyout and ns.Buyout.Candidate(e, key)) then
                     local d = R.Evaluate(key, D.ParseLevels(e.lv), false, nil)
                     if d and R.KIND_ON[d.kind] then d.checked = nil; d.seenT = seen; R.entries[key] = d end
                 end
@@ -238,6 +252,14 @@ end
 
 -- Gewinn mit meinem Gold berechnen und merken; cant = lohnt sich mit meinem Gold nicht (unter dem Mindestgewinn)
 function R.Annotate(d, budget)
+    if d.kind == "buyout" then
+        -- Aufkauf (ab 0.65): ganze Stelle oder nichts, mit neuem Gold neu gerechnet
+        local ok = d.gone or ns.Buyout.Refit(d, budget)
+        d.best = { gain = d.gain, qty = ok and d.qty or 0, cost = d.cost }
+        d.cant = not ok
+        d.showGain = d.gain
+        return d
+    end
     d.best = R.Best(d, budget)
     d.cant = not d.best.gain or d.best.gain <= 0 or d.best.gain < R.MinGain(d.kind)
     d.showGain = d.best.gain or d.gain
@@ -259,6 +281,12 @@ R.RISK_OLD = 1800   -- Sekunden: aelterer, nie live gepruefter Stand gilt als mi
 function R.Risk(d)
     if not d or d.gone then return nil end
     local seen = d.live and d.checked and (Now() - d.checked) or (d.seenT and (time() - d.seenT)) or nil
+    if d.kind == "buyout" then
+        local level, why = ns.Buyout.Risk(d, seen, R.Budget())
+        d.riskWhy = why
+        return level
+    end
+    d.riskWhy = nil
     if not seen or seen > R.RISK_OLD then return "mid" end
     return "low"
 end
@@ -960,6 +988,10 @@ function R.TipLines(GameTooltip, r)
         elseif r.salesUnknown then
             GameTooltip:AddLine(L.RADAR_TT_NOSALES, 1, 0.6, 0.2)
         end
+    elseif r.kind == "buyout" then
+        GameTooltip:AddLine(L.RADAR_TT_BUYOUT:format(Money(r.limit or 0), Money(r.ref or 0)), 0.7, 0.7, 0.7)
+        GameTooltip:AddLine(L.RADAR_TT_SELLS:format(ns.Buyout.HoursText(r.hours)), 0.7, 0.7, 0.7)
+        for _, w in ipairs(r.riskWhy or {}) do GameTooltip:AddLine("- " .. w, 1, 0.82, 0) end
     else
         GameTooltip:AddLine(L.RADAR_TT_VENDOR:format(Money(r.ref or 0)), 0.7, 0.7, 0.7)
     end
@@ -1003,7 +1035,13 @@ function R.Build(c)
                   local text = Money(math.floor((v or 0) + 0.5))
                   return (r.cant and GREY or GREEN) .. text .. "|r"
               end,
-              sort = function(r) return r.gone and -1 or (r.showGain or 0) end },
+              -- ab 0.65: Gewinn, rotes Risiko nach unten (Konzept 6.1)
+              sort = function(r)
+                  if r.gone then return -1e15 end
+                  local g = r.showGain or 0
+                  if r.risk == "high" then return g - 1e13 end
+                  return g
+              end },
             { key = "kind", title = L.RADAR_COL_KIND, width = 110, align = "RIGHT",
               format = function(v) return L["RADAR_KIND_" .. tostring(v):upper()] or tostring(v) end },
             { key = "risk", title = L.RADAR_COL_RISK, width = 100, align = "RIGHT",

@@ -47,6 +47,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         radarSoundKey = "raid", -- Warnton bei neuen Treffern (ab 0.19): raid, ready, alarm, tell
         radarFlash   = 5,       -- neue Treffer: Zeile pulsiert so viele Sekunden (ab 0.19)
         radarReserve = 0,       -- Goldreserve in Gold: so viel gibt der Radar nie aus (ab 0.19)
+        buyoutHours  = 2,       -- Aufkauf (ab 0.65): Menge muss sich in so vielen Stunden wieder verkaufen
         keepAllChars = false,   -- Reiter Behalten: Vorrat aller Charaktere aus Peon_Ledger (ab 0.22)
         salesWindow  = 6,       -- Absatz (ab 0.23.1): aktueller Absatz aus den Vergleichen der letzten Stunden
         salesMidMin  = 60,      -- Sicherheit: ab so vielen beobachteten Minuten gelbes statt rotes Zeichen
@@ -71,6 +72,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  dumpPct = { 10, 90, 5 }, dealMinVendor = { 0, 10000000, 1 },
                  dealMinMarket = { 0, 100000, 1 }, dealScans = { 1, 50, 1 }, dealDays = { 1, 14, 1 }, radarMaxAge = { 0, 240, 5 },
                  dealMargin = { 0, 100, 5 }, dealDepth = { 5, 100, 5 }, dealHold = { 6, 168, 6 }, radarFlash = { 0, 30, 1 }, radarReserve = { 0, 1000000, 1 },
+                 buyoutHours = { 1, 24, 1 },
                  salesWindow = { 1, 24, 1 }, salesMidMin = { 10, 600, 10 }, salesSureMin = { 20, 1440, 10 },
                  salesCancelPct = { 0, 50, 5 } },
     choices  = { undercutMode = { copper = true, percent = true }, undercutMassMode = { copper = true, percent = true },

@@ -47,7 +47,17 @@ function F.Verdict(d)
     return L.FOCUS_V_BUY, GREEN, L["FOCUS_W_" .. tostring(d.kind):upper()] or ""
 end
 
--- Angaben zur Chance: Liste aus { Beschriftung, Wert }
+-- Verkaufsdauer: aus dem Absatz der letzten Stunden (H1), ab H2 aus der Messung, sobald sie genug zeigt
+function F.SellsText(d)
+    local h = d.hours
+    if F.SellHours then
+        local mh = F.SellHours(d)
+        if mh then return ns.Buyout.HoursText(mh) .. " " .. GREY .. L.FOCUS_MEASURED .. "|r" end
+    end
+    return ns.Buyout.HoursText(h)
+end
+
+-- Angaben zur Chance: Liste aus { Beschriftung, Wert, tip = Zeilen fuer den Tooltip }
 function F.Rows(d)
     local R = ns.Radar
     local rows = {}
@@ -61,6 +71,13 @@ function F.Rows(d)
     if Num(best.cost) then rows[#rows + 1] = { L.FOCUS_R_COST, Money(best.cost) } end
     if Num(d.ref) then rows[#rows + 1] = { L.FOCUS_R_TARGET, Money(d.ref) .. (d.kind == "vendor" and (" " .. GREY .. L.FOCUS_AT_VENDOR .. "|r") or "") } end
     if Num(best.gain) then rows[#rows + 1] = { L.FOCUS_R_GAIN, R.SignedMoney(math.floor(best.gain + 0.5)) } end
+    if d.kind == "buyout" then   -- ab 0.65 (H1)
+        rows[#rows + 1] = { L.FOCUS_R_SELLS, F.SellsText(d) }
+        if d.risk then
+            rows[#rows + 1] = { L.RADAR_COL_RISK, (R.RISK_COLOR[d.risk] or "") .. (L["RADAR_RISK_" .. d.risk:upper()] or d.risk) .. "|r",
+                                tip = d.riskWhy }
+        end
+    end
     return rows
 end
 
@@ -86,7 +103,7 @@ function F.Build(c)
     F.why = UI.Text(left, "text", "", UI.LEFT_W - 32)
     F.why:SetPoint("TOPLEFT", 16, -118)
     F.rows = {}
-    for i = 1, 7 do
+    for i = 1, 9 do
         local r = {}
         r.label = UI.Text(left, "label", "")
         r.label:SetWidth(UI.LABEL_W)
@@ -94,6 +111,18 @@ function F.Build(c)
         r.label:SetPoint("TOPLEFT", 8, -158 - (i - 1) * 20)
         r.value = UI.Text(left, "text", "")
         r.value:SetPoint("TOPLEFT", r.label, "TOPRIGHT", 12, 0)
+        -- Tooltip einer Zeile (ab 0.65: Gruende fuer das Risiko)
+        r.hover = CreateFrame("Frame", nil, left)
+        r.hover:SetPoint("TOPLEFT", r.label, "TOPLEFT", 0, 2)
+        r.hover:SetPoint("BOTTOMRIGHT", r.value, "BOTTOMRIGHT", 0, -2)
+        r.hover:SetScript("OnEnter", function(self)
+            if not (r.tip and #r.tip > 0 and GameTooltip) then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(r.label:GetText() or "", 1, 0.82, 0)
+            for _, line in ipairs(r.tip) do GameTooltip:AddLine("- " .. line, 1, 1, 1, true) end
+            GameTooltip:Show()
+        end)
+        r.hover:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
         F.rows[i] = r
     end
 
@@ -176,7 +205,7 @@ function F.Update()
     end
     local e = D.Lookup(key)
     local d = F.Chance()
-    if d and not d.gone then R.Annotate(d, R.Budget()) end
+    if d and not d.gone then R.Annotate(d, R.Budget()); d.risk = R.Risk(d) end
     local id = D.ItemID(key)
     local name = (d and d.name) or D.ItemName(key, e) or L.ITEM_UNKNOWN:format(id or 0)
     local quality = (d and d.quality) or (type(e) == "table" and e.ql) or nil
@@ -188,6 +217,7 @@ function F.Update()
     for i, r in ipairs(F.rows) do
         r.label:SetText(rows[i] and rows[i][1] or "")
         r.value:SetText(rows[i] and rows[i][2] or "")
+        r.tip = rows[i] and rows[i].tip or nil
     end
     -- Preisstufen: gruen, was der Kauf nimmt
     local tiers = ns.Item.Tiers(type(e) == "table" and e or nil)

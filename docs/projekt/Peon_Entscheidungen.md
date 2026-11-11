@@ -2,6 +2,16 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Stufe 2 des Neuaufbaus, Startwerte (Broker 0.65.0 bis 0.68.0)
+
+Grenzwerte, die das Konzept offen lässt, mit Startwert von Claude. Mit echten Daten nachzuschärfen, KarloDerBaer prüft im Spiel.
+
+- **Aufkauf nur mit Absatzdaten** (H1): Ohne gemessenen Absatz lässt sich die Verkaufsdauer nicht schätzen, darum gibt es dann keinen Aufkauf. Wenig Absatzdaten (Sicherheit rot) zählen nur als Risiko.
+- **Aufkauf nur für Massenware** (H1): Nur dort gibt es Preisstufen, bei denen die zuletzt eingestellte Ware zuerst verkauft wird.
+- **Mindestgewinn Aufkauf = bisheriger Mindestgewinn Markt** (`dealMinMarket`, 50s), damit keine Einstellung doppelt ist.
+- **Risiko-Ampel** (H1): je ein Punkt für Verkaufsdauer über 75 % der Grenze, Ware bis 5 % über dem Ziel mehr als der Absatz in der Höchstdauer, nächste Stufe unter 5 Stück oder unter 10 % der eigenen Menge, Einsatz über der Hälfte des verfügbaren Golds, Stand älter als 30 Min. (über 2 Std. zwei Punkte), wenig Absatzdaten oder kein üblicher Bereich. Grün 0, gelb 1 bis 2, rot ab 3. Grund: Jeder Punkt ist ein eigener Weg, wie der Aufkauf scheitern kann. Ein einzelner macht ihn unsicher, drei zusammen machen ihn riskant.
+- **Optionen aufgeräumt** (H1, Streichliste Abschnitt 7): Regler der früheren Art „unter dem üblichen Preis“ sind nicht mehr auf der Seite, die Werte bleiben gespeichert. Die Altersgrenze für Chancen aus der Datenbank (`radarMaxAge`) bleibt, weil sie die Liste kurz hält.
+
 ## 12.11.2026: Broker schaltet Blizzards Auktionshaus nicht mehr um (Broker 0.64.1)
 
 - **„Im Markt zeigen“ sucht nur noch** (Claude, wegen der Fehlerberichte 10 und 11): Broker ruft `SelectBrowseResult` und `SetDisplayMode` nicht mehr auf, weil das Blizzards Wert `displayMode` berührt und danach das Benutzen von Gegenständen aus der Tasche blockiert. Der Name kommt ins Suchfeld, Blizzards Liste zeigt den Gegenstand, ein Klick auf die Zeile zeigt die Angebote. Das ist ein Klick mehr als im Konzept (Abschnitt 5: „Kaufansicht mit genau diesem Gegenstand“). Ohne Berührung von Blizzards Werten geht es nicht anders, weil nur ein Klick des Spielers auf Blizzards Zeile die Ansicht sauber umschaltet. **Mit KarloDerBaer noch abzustimmen.**

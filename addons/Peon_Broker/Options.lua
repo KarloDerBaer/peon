@@ -92,11 +92,9 @@ function ns.CreateOptions()
     mh:SetText("|cff999999" .. L.OPT_MONEY_HINT .. " " .. L.OPT_MONEY_UNIT_S .. " (" .. L.OPT_RESERVE:match("^[^%(]+"):gsub("%s+$", "") .. ": " .. L.OPT_MONEY_UNIT_G .. ")|r")
     money.Refresh = function() for _, b in ipairs(money.boxes) do b.Reset() end end
     page:Add(left, money)
-    page:Add(left, page:Slider("dealMargin", L.OPT_DEAL_MARGIN, L.OPT_DEAL_MARGIN_HINT, L.OPT_PCT_SUFFIX))
-    page:Add(left, page:Slider("dealDepth", L.OPT_DEAL_DEPTH, L.OPT_DEAL_DEPTH_HINT, L.OPT_PCT_SUFFIX))
-    page:Add(left, page:Slider("dealHold", L.OPT_DEAL_HOLD, L.OPT_DEAL_HOLD_HINT, L.OPT_HOURS_SUFFIX))
-    page:Add(left, page:Slider("dealScans", L.OPT_DEAL_SCANS, L.OPT_DEAL_SCANS_HINT))
-    page:Add(left, page:Slider("dealDays", L.OPT_DEAL_DAYS, nil, L.OPT_DAYS_SUFFIX))
+    -- ab 0.65 (Konzept 6.1): Einstellungen der frueheren Art "unter dem ueblichen Preis" (Marge, Tiefe, Halten, Scans,
+    -- Tage) entfallen auf der Seite, die Werte bleiben gespeichert. Neu: hoechste Verkaufsdauer fuer den Aufkauf.
+    page:Add(left, page:Slider("buyoutHours", L.OPT_BUYOUT_HOURS, L.OPT_BUYOUT_HOURS_HINT, L.OPT_HOURS_SUFFIX))
     page:Add(left, page:Slider("radarMaxAge", L.OPT_DEAL_AGE, L.OPT_DEAL_AGE_HINT, L.OPT_MIN_SUFFIX))
     page:Add(left, page:Check("radarShowExpensive", L.OPT_RADAR_EXPENSIVE), 16)
 

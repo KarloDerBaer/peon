@@ -1290,6 +1290,89 @@ end)()
     ns.Go.Clear()
 end)()
 
+-- ===== Stufe 2, H1 (0.65): Radar-Art Aufkauf =====
+;(function()
+    local BO, F = ns.Buyout, ns.Focus
+    local keepStats, keepBand, keepMoney, keepMin = ns.Sales.Stats, D.Band, GetMoney, mod.db.dealMinMarket
+    local sales = { perHour = 50, level = 3 }
+    local band = { trend = "calm", low = 900, high = 1600 }
+    ns.Sales.Stats = function() return sales end
+    D.Band = function() return band end
+    GetMoney = function() return 1000000 end
+    mod.db.dealMinMarket, mod.db.buyoutHours, mod.db.radarReserve = 50, 2, 0
+    mod.acc.commodity[7901] = true
+    local rows = D.ParseLevels("1000:50;1100:30;1500:100")
+    local e = { m = 1000, md = 1500, q = 180, n = 3, t = clock, lv = "1000:50;1100:30;1500:100", nm = "Robuster Stein", ql = 1 }
+    local d, why = BO.Find(e, rows, 7901, 1000000)
+    check(d and d.kind == "buyout" and d.qty == 80 and d.cost == 83000 and d.limit == 1100 and d.ref == 1500 and d.gain == 31000,
+        "H1: beste Stelle: 80 Stueck bis 11s, Ziel 15s (naechste Stufe), Gewinn 80 x 15s x 0,95 - 8g 30s = 3g 10s")
+    check(math.abs(d.hours - 1.6) < 0.001 and d.nextQty == 100, "H1: Verkaufsdauer = Menge / Absatz je Std. (1,6 Std.)")
+    local lvl, reasons = BO.Risk(d, 0, 1000000)
+    check(lvl == "mid" and #reasons == 1 and reasons[1] == ns.L.RISK_W_SLOW, "H1: Risiko gelb: Verkaufsdauer nahe an der Grenze")
+    check(select(1, BO.Risk(d, 8000, 100000)) == "high", "H1: Risiko rot: alter Stand und viel vom Gold im Einsatz")
+    d, why = BO.Find(e, rows, 7901, 50000)
+    check(d == nil and why == "gold", "H1: nicht aufkaufbar mit 5g")
+    sales.perHour = 30
+    d, why = BO.Find(e, rows, 7901, 1000000)
+    check(d == nil and why == "slow", "H1: zu langsam: 80 Stueck bei 30 je Std. dauern ueber 2 Std.")
+    mod.db.buyoutHours = 3
+    check(BO.Find(e, rows, 7901, 1000000) ~= nil, "H1: hoechste Verkaufsdauer einstellbar (3 Std.)")
+    mod.db.buyoutHours, sales.perHour = 2, 50
+    band.trend = "down"
+    d, why = BO.Find(e, rows, 7901, 1000000)
+    check(d == nil and why == "trend", "H1: Trend nach unten schliesst aus")
+    band.trend = "calm"
+    ns.Sales.Stats = function() return nil end
+    d, why = BO.Find(e, rows, 7901, 1000000)
+    check(d == nil and why == "sales", "H1: ohne Absatz keine Aussage zur Verkaufsdauer")
+    ns.Sales.Stats = function() return sales end
+    mod.db.dealMinMarket = 400
+    check(BO.Find(e, rows, 7901, 1000000) == nil, "H1: Mindestgewinn einstellbar (4g)")
+    mod.db.dealMinMarket = 50
+    mod.acc.commodity[7901] = false
+    check(select(2, BO.Find(e, rows, 7901, 1000000)) == "item", "H1: nur Massenware")
+    mod.acc.commodity[7901] = true
+    -- im Radar
+    Rd.Halt()
+    Rd.entries, Rd.gone, Rd.lastVisible, Rd.loaded = {}, {}, nil, nil
+    market.items[7901] = e
+    Win.Open("radar")
+    local d1 = Rd.entries[7901]
+    check(d1 and d1.kind == "buyout" and d1.gain == 31000, "H1: Aufkauf aus dem Komplettscan im Radar")
+    local r1
+    for i, r in ipairs(Rd.list:GetItems()) do if r.key == 7901 then r1 = i end end
+    local cells = Rd.list.list.rows[r1].cells
+    check(plain(cells[3].text) == "Aufkauf" and plain(cells[4].text) == "mittel", "H1: Zeile mit Art Aufkauf und Risiko")
+    -- Sortierung: rot nach unten
+    local sortFn = Rd.list.o.columns[2].sort
+    check(sortFn({ showGain = 100, risk = "high" }) < sortFn({ showGain = 1, risk = "low" }) and sortFn({ gone = true }) < sortFn({ showGain = 1, risk = "high" }),
+        "H1: Gewinn absteigend, rotes Risiko unten, Weggefallenes ganz unten")
+    -- weniger Gold: Chance gilt nicht mehr
+    GetMoney = function() return 50000 end
+    Rd.Refresh()
+    local still = false
+    for _, r in ipairs(Rd.list:GetItems()) do if r.key == 7901 and not r.gone then still = true end end
+    check(not still, "H1: mit weniger Gold faellt der Aufkauf weg")
+    GetMoney = function() return 1000000 end
+    -- im Fokus
+    ns.Go.Focus({ key = 7901 })
+    local fr = {}
+    for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr[#fr + 1] = r.label.text .. "=" .. plain(r.value.text) end end
+    local all = table.concat(fr, "|")
+    check(all:find("Art=Aufkauf", 1, true) and all:find("Kaufen bis=11s", 1, true) and all:find("Menge=80", 1, true)
+        and all:find("Ziel=15s", 1, true) and all:find("Verkauft in=etwa 1.6 Std.", 1, true) and all:find("Risiko=mittel", 1, true),
+        "H1: Angaben im Fokus: " .. all)
+    local riskRow
+    for _, r in ipairs(F.rows) do if r.label.text == "Risiko" then riskRow = r end end
+    check(riskRow and riskRow.tip and riskRow.tip[1] == ns.L.RISK_W_SLOW, "H1: Gruende fuer das Risiko im Tooltip der Zeile")
+    check(plain(F.verdict.text) == "KAUFEN" and F.buyButton.text == "Kaufen 80", "H1: Urteil und Kaufknopf im Fokus")
+    Win.frame:Hide()
+    market.items[7901] = nil
+    Rd.entries, Rd.gone, Rd.lastVisible, Rd.loaded = {}, {}, nil, nil
+    ns.Sales.Stats, D.Band, GetMoney, mod.db.dealMinMarket = keepStats, keepBand, keepMoney, keepMin
+    ns.Go.Clear()
+end)()
+
 -- ===== 0.21: Richtwert und ueblicher Bereich (Rechenmodell Kapitel 7, Beispiele aus echten Daten 02.10.2026) =====
 ;(function()
     local today = D.Day()

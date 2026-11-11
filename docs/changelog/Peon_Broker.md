@@ -2,6 +2,26 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.65.0
+
+Kurz: Das Radar findet jetzt Aufkäufe: Massenware, die man bis zu einer Preisstufe kauft und zum Preis der nächsten Stufe wieder einstellt. Es zählt der Gewinn in Gold, und die Menge muss sich schnell wieder verkaufen.
+Kurz: Jede Chance hat eine Ampel für das Risiko. Im Fokus stehen Kaufen bis, Menge, Einsatz, Ziel, Gewinn und „Verkauft in“, die Gründe für das Risiko zeigt der Tooltip.
+
+- 0.65.0 (12.11.2026): **Stufe 2, H1 Aufkauf** (Konzept `docs/konzepte/broker/Peon_Broker_Neuaufbau.md`, Abschnitt 6.1). Neue Datei `Buyout.lua`.
+  - **Rechnung:** Für jede Stelle zwischen zwei Preisstufen einer Massenware: alle Stück darunter kaufen (Menge, Einsatz), Zielpreis ist der Preis der nächsten Stufe, Gewinn = Menge × Ziel × 0,95 − Einsatz. Je Gegenstand zählt die Stelle mit dem höchsten Gewinn, die alle Bedingungen erfüllt.
+  - **Bedingungen:** aufkaufbar (Einsatz höchstens Gold minus Goldreserve), Gewinn mindestens „Mindestgewinn Aufkauf“ (bisher „Markt-Schnäppchen“, Vorgabe 50s), wieder verkauft in höchstens `buyoutHours` Stunden (neu, Vorgabe 2, einstellbar 1 bis 24) beim jetzigen Absatz, kein Trend nach unten (Brokers Regel: aktueller und vorheriger Median unter dem üblichen Bereich). Ohne Absatzdaten gibt es keinen Aufkauf, weil sich die Verkaufsdauer nicht schätzen lässt. Kein Mindestsprung in Prozent, der übliche Bereich filtert nicht.
+  - **Risiko als Ampel** (Startwerte, Entscheidungen 12.11.2026): je ein Punkt für Verkaufsdauer über 75 % der Grenze, viel Ware bis 5 % über dem Ziel (mehr als der Absatz in der Höchstdauer), dünne nächste Stufe (unter 5 Stück oder unter 10 % der eigenen Menge), Einsatz über der Hälfte des verfügbaren Golds, Stand älter als 30 Min. (älter als 2 Std. zwei Punkte), wenig Absatzdaten oder kein üblicher Bereich. 0 grün, 1 bis 2 gelb, ab 3 rot. Händler-Chancen behalten die einfache Regel aus 0.64.
+  - **Radar:** Arten Aufkauf und Händler. Sortierung nach Gewinn, rotes Risiko unten. Ändert sich das Gold, wird der Aufkauf neu gerechnet und fällt weg, wenn er nicht mehr bezahlbar ist. Tooltip mit Kaufen bis, Ziel, Verkaufsdauer und den Gründen für das Risiko.
+  - **Fokus:** zusätzliche Zeilen „Verkauft in“ und „Risiko“ (Tooltip mit den Gründen). Gekauft wird die ganze Stelle mit dem Gold-Knopf wie bisher (Preis vom Spiel, dann bestätigen).
+  - **Optionen:** Die Regler der früheren Art „unter dem üblichen Preis“ (Marge, Tiefe, Halten, Scans, Tage) sind von der Seite verschwunden, die Werte bleiben gespeichert. Neu „Aufkauf: wieder verkauft in höchstens“.
+  - Tests: 18 neue Prüfungen (Rechnung, jede Bedingung, Risiko, Radar, Sortierung, Gold, Fokus).
+  - **Im Spiel prüfen:**
+    1. Nach einem Komplettscan: Stehen Aufkäufe im Radar? Sind sie plausibel (Kaufen bis, Ziel = nächste Stufe)? Wie viele sind es?
+    2. Ampel: Passen grün, gelb und rot zum Gefühl? Tooltip mit den Gründen.
+    3. Radar-Scan: Wird ein Aufkauf live neu gerechnet, verschwindet er, wenn die Stufe weg ist?
+    4. Fokus: Zeilen passen in die linke Spalte (jetzt bis zu 8 Zeilen)?
+    5. Kaufen einer ganzen Stelle: erster Klick Preis, zweiter bestätigt, keine Blockade.
+
 ## 0.64.1
 
 Kurz: Der Favoriten-Stern aus Blizzards Kaufansicht scheint nicht mehr durch Brokers Reiter.
