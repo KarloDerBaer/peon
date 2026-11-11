@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.60.1
+
+Kurz: In Brokers Reitern scheinen keine Teile von Blizzards Verkaufsfenster oder vom Reiter Auktionen mehr durch.
+
+- 0.60.1 (11.11.2026, gemeldet von KarloDerBaer mit zwei Bildern): Nach dem Wechsel von Verkaufen oder Auktionen auf einen Broker-Reiter blieben der Gegenstand, „Auktion erstellen“, „Sofortkaufmodus“ und der Reiter „Auktionen“ über Brokers Fläche sichtbar. Blizzard setzt diese Teile selbst hoch (nachgelesen in `Blizzard_AuctionHouseUI`, Zweig forever: Reiter über der Auktionsliste Ebene 300, Gegenstand, Knopf und Haken im Verkaufsfenster 350). Brokers Fläche lag seit 0.59.1 auf 300. Sie liegt jetzt fest auf 370, also über Blizzards Inhalt und unter dem runden Bild (400).
+  - **Im Spiel prüfen:** von Verkaufen (mit einem Gegenstand im Verkaufsfenster) und von Auktionen auf alle fünf Broker-Reiter wechseln. Von Markt kommend: Bleibt der Favoriten-Stern neben Blizzards Suchfeld verborgen? Er hat bei Blizzard eine eigene, höhere Schicht.
+
 ## 0.60.0
 
 Kurz: Die Seite „Gegenstand“ ist neu: links Symbol, Name und alle Werte wie im Tooltip, rechts ein Preisdiagramm für 7, 14, 30 oder 90 Tage und darunter die günstigsten Preisstufen mit Menge und Kosten bis zu jeder Stufe.

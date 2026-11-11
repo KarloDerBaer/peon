@@ -2599,7 +2599,7 @@ Win.Refresh()
   check(T.built and T.tabs.buy and T.tabs.radar and T.tabs.focus and T.tabs.prices and T.tabs.more and T.page,
     "N1: fuenf Reiter und Flaeche angelegt")
   check(_G.PeonBrokerAHPlainButton == nil and T.BuildPlainButton == nil, "0.59.1: kein Knopf Blizzard pur mehr im Auktionshaus")
-  check(T.page.points[1][5] == -22 and T.page.level == 305 and T.page.level < 400,
+  check(T.page.points[1][5] == -22 and T.page.level == 370 and T.status.level == 376,
     "0.59.1: Flaeche ab der Titelleiste, unter dem runden Bild (Ebene 400)")
   local sbt = _G.PeonBrokerScanButton
   check(sbt.points[1][1] == "TOPRIGHT" and sbt.points[1][3] == "TOPRIGHT" and sbt.points[1][4] == -34 and sbt.status,

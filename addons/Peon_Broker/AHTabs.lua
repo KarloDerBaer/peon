@@ -35,7 +35,10 @@ T.TABS = {
 -- Rahmenebenen (Blizzards Fenstervorlage, nachgelesen im Zweig forever, SharedUIPanelTemplates.xml): rundes Bild 400,
 -- Metallrahmen 500, Titel und Schliessen 510. Brokers Flaeche liegt ueber Blizzards Inhalt, aber unter dem Bild
 -- (bis 0.59.0 lag sie ueber allem und sparte die Ecke am Bild aus, dort schien Blizzards Inhalt durch).
-T.PAGE_LEVEL = 300  -- Flaeche: ueber Blizzards Inhalt, unter dem runden Bild
+-- Blizzards Auktionshaus setzt einzelne Teile selbst hoch (nachgelesen in Blizzard_AuctionHouseUI, Zweig forever):
+-- Reiter "Auktionen" ueber der eigenen Liste 300, Gegenstand, "Auktion erstellen" und "Sofortkaufmodus" im
+-- Verkaufsfenster 350. Mit 300 schienen sie durch (0.59.1 und 0.60.0).
+T.PAGE_LEVEL = 370  -- Flaeche (feste Ebene): ueber Blizzards Inhalt (bis 350), unter dem runden Bild (400)
 T.TOP_LEVEL = 520   -- Knoepfe in der Titelleiste: ueber Rahmen und Titel
 T.TAB_GAP = -15     -- Abstand zum Reiter davor wie bei Blizzard. Ab 0.56 misst T.AlignTabs den sichtbaren Abstand nach
 T.tabs = {}          -- key -> Knopf
@@ -429,7 +432,7 @@ function T.Build()
     local p = CreateFrame("Frame", "PeonBrokerAHPage", f)
     p:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -22)
     p:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4)
-    if p.SetFrameLevel and f.GetFrameLevel then p:SetFrameLevel(math.min((f:GetFrameLevel() or 1) + T.PAGE_LEVEL, 390)) end
+    if p.SetFrameLevel then p:SetFrameLevel(T.PAGE_LEVEL) end
     if p.EnableMouse then p:EnableMouse(true) end
     -- undurchsichtiger Grund, darueber derselbe Hintergrund wie Blizzards Fenster (T.CopyFrameBg)
     local under = p:CreateTexture(nil, "BACKGROUND", nil, -8)
