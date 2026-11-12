@@ -1609,8 +1609,17 @@ do
   check(#realm.trend == 2 and realm.trend[2].w ~= nil, "Stand mit Gold und Vermoegen")
   local d = ns.Trend.Series("d1", T0)
   check(d.n == 24 and d.gold[1] == nil and d.gold[20] == realm.trend[1].g and d.gold[24] == realm.trend[2].g, "Reihe 1 Tag: 24 Stunden, vor dem ersten Stand leer")
+  -- 0.14.6: Daten erst seit kurzem: links beginnen, rechts leer
+  local keepMv = realm.moves
+  realm.moves = {}
+  local keepTr = realm.trend
+  realm.trend = { { t = T0 - 2 * 3600, g = 100 }, { t = T0 - 600, g = 200 } }
+  local dl = ns.Trend.Series("d1", T0)
+  check(dl.from == T0 - 2 * 3600 and dl.gold[1] == 100 and dl.last == 2 and dl.gold[2] == 200 and dl.gold[3] == nil and dl.gold[24] == nil, "0.14.6: beginnt links beim ersten Wert, Zukunft leer")
+  realm.trend = keepTr
+  realm.moves = keepMv
   local d7 = ns.Trend.Series("d7", T0)
-  check(d7.trade[d7.n] and math.abs(d7.trade[d7.n] - 150) < 0.01, "Handelsgewinn im Zeitraum aufsummiert")
+  check(d7.last and d7.last < d7.n and d7.trade[d7.last] and math.abs(d7.trade[d7.last] - 150) < 0.01, "Handelsgewinn im Zeitraum aufsummiert (Zeitraum noch nicht voll)")
   realm.trend = { { t = T0 - 10 * 86400, g = 1 }, { t = T0 - 10 * 86400 + 60, g = 2 }, { t = T0 - 2 * 86400, g = 3 }, { t = T0 - 2 * 86400 + 120, g = 4 }, { t = T0 - 60, g = 5 } }
   check(ns.Trend.Thin(T0) == 2 and realm.trend[1].g == 2 and realm.trend[2].g == 4, "Ausduennen: alt ein Stand je Tag bzw. je Stunde")
   ns.Window.Select("overview")

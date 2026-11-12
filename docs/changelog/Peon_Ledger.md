@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.14.6
+
+Kurz: Das Diagramm in der Übersicht beginnt links beim ersten Wert und füllt sich nach rechts. Erst wenn der Zeitraum voll ist, wandert es mit.
+
+- 0.14.6 (12.11.2026): Diagramm von links (Wunsch KarloDerBaer): Beginn beim ersten Stand oder der ersten Bewegung, Punkte nach „jetzt“ bleiben leer (`Trend.Series`, `res.last`). Rechte Achse (Handelsgewinn) mindestens 1g hoch, vorher stand bei 0 viermal „0s“.
+
 ## 0.14.5
 
 Kurz: Neuer Reiter Info: alle Begriffe zum Nachlesen und die Abweichungen der Kontrollrechnung im Einzelnen.

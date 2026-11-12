@@ -147,6 +147,10 @@ function O.DrawChart()
         { key = "zero", kind = "hline", axis = "right", value = 0, color = { 0.45, 0.7, 1, 0.3 } },
     })
     for k, off in pairs(mod.db.trendOff or {}) do if off then ch:SetShown(k, false) end end
+    -- rechte Achse (Handelsgewinn) mindestens 1g hoch, sonst stuenden bei 0 nur "0s"-Beschriftungen (ab 0.14.6)
+    local lo, hi = 0, 0
+    for i = 1, d.n do local v = d.trade[i]; if v then lo, hi = math.min(lo, v), math.max(hi, v) end end
+    if hi - lo < 10000 then ch:SetRange("right", lo, lo + 10000) else ch:SetRange("right", nil, nil) end
     ch:Draw()
     if not O.legend and ch.CreateLegend then
         O.legend = ch:CreateLegend(O.chartPanel, { "gold", "worth", "trade" }, function(key, on)
@@ -165,12 +169,12 @@ end
 function O.ChartHover(i)
     local d = O.series
     if not O.chartInfo then return end
-    if not i or not d or not d.ends[i] then
+    if not i or not d or not d.ends[i] or not d.last or i > d.last then
         O.chartInfo:SetText(W.GREY .. L.TR_HINT .. "|r")
         return
     end
     local fmt = (d.key == "d1" or d.key == "d7") and "%d.%m. %H:%M" or "%d.%m."
-    local parts = { date(fmt, d.ends[i]) }
+    local parts = { date(fmt, math.min(d.ends[i], d.now or d.ends[i])) }
     if d.gold[i] then parts[#parts + 1] = L.TR_GOLD .. " " .. ns.Money(d.gold[i], true) end
     if d.worth[i] then parts[#parts + 1] = L.TR_WORTH .. " " .. ns.Money(d.worth[i], true) end
     parts[#parts + 1] = L.TR_TRADE .. " " .. W.Signed(d.trade[i] or 0)

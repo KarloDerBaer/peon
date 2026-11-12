@@ -95,35 +95,53 @@ function TR.TradeEvents()
     return out
 end
 
+-- Erster Zeitpunkt mit Daten: erster Stand oder erste Bewegung
+function TR.First(now)
+    local list = TR.List()
+    local first = list[1] and list[1].t or nil
+    local m = ns.Moves.List()[1]
+    if m and m.t and (not first or m.t < first) then first = m.t end
+    return first or now or time()
+end
+
 -- Reihen fuer einen Zeitraum: { n, from, step, ends = { t }, gold = {}, worth = {}, trade = {} }
+-- Ab 0.14.6 (Wunsch KarloDerBaer): Das Diagramm beginnt links beim ersten Wert und fuellt sich nach rechts.
+-- Erst wenn der Zeitraum voll ist, wandert es mit. Punkte nach "jetzt" bleiben leer.
 function TR.Series(key, now)
     now = now or time()
     local def = TR.RANGES[1]
     for _, d in ipairs(TR.RANGES) do if d.key == key then def = d end end
     local list = TR.List()
     local trades = TR.TradeEvents()
-    local from
+    local first = TR.First(now)
+    local from, span
     if def.span > 0 then
-        from = now - def.span
+        span = def.span
+        from = math.max(now - span, first)
     else
-        from = list[1] and list[1].t or now - 86400
-        local m = ns.Moves.List()[1]
-        if m and (m.t or now) < from then from = m.t end
-        if now - from < 86400 then from = now - 86400 end
+        from = first
+        span = math.max(now - from, 86400)
     end
     local n = def.points
-    local step = (now - from) / n
+    local step = span / n
     local res = { n = n, from = from, step = step, ends = {}, gold = {}, worth = {}, trade = {}, key = def.key }
     local si, cur = 1, nil
     local ti, sum = 1, 0
     while trades[ti] and trades[ti].t < from do ti = ti + 1 end
+    res.now = now
     for i = 1, n do
         local te = from + i * step
         res.ends[i] = te
-        while list[si] and (list[si].t or 0) <= te do cur = list[si]; si = si + 1 end
-        if cur then res.gold[i] = cur.g; res.worth[i] = cur.w end
-        while trades[ti] and trades[ti].t <= te do sum = sum + trades[ti].p; ti = ti + 1 end
-        res.trade[i] = sum
+        local ts = te - step
+        if ts < now then
+            -- letzter Punkt bis "jetzt": der aktuelle Stand
+            local upto = math.min(te, now)
+            while list[si] and (list[si].t or 0) <= upto do cur = list[si]; si = si + 1 end
+            if cur then res.gold[i] = cur.g; res.worth[i] = cur.w end
+            while trades[ti] and trades[ti].t <= upto do sum = sum + trades[ti].p; ti = ti + 1 end
+            res.trade[i] = sum
+            res.last = i
+        end
     end
     return res
 end
