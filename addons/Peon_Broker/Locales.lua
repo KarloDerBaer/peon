@@ -913,6 +913,15 @@ L.SET_FOCUS_TOL = "Warn when the total price is higher by"
 L.OPT_BUYOUT_HOURS = "Buyout: sold again within at most"
 L.OPT_BUYOUT_HOURS_HINT = "A buyout only counts if the quantity sells again within this time at the current sales rate."
 
+-- Einmaliger Hinweis nach dem Update (ab 0.81, Kern-API 20)
+L.NOTICE_REBUILD_TITLE = "Broker rebuilt"
+L.NOTICE_REBUILD_TEXT = {
+    "Broker has a new window in the style of the auction house.",
+    "New is the buyout: the radar looks for bulk goods that sell a lot and fast. You buy the cheap offers up to a price level and post the goods again at the price of the next level. Before buying, the focus shows quantity, costs and profit. Buying only goes up to the usual price.",
+    "Not all functions have been tested thoroughly yet. If something looks odd to you, please report it via Peon_Feedback or the Peon Manager.",
+    "Next up is the rebuild of Ledger. Bought goods and their costs will then be recorded better and can be traced.",
+}
+
 if GetLocale() == "deDE" then
     L.SALES_PER_HOUR = "%s/Std."
     L.SALES_REACH_H = "reicht %s Std."
@@ -1790,4 +1799,12 @@ if GetLocale() == "deDE" then
     L.SET_FOCUS_TOL = "Warnen, wenn der Gesamtpreis höher ist um"
     L.OPT_BUYOUT_HOURS = "Aufkauf: wieder verkauft in höchstens"
     L.OPT_BUYOUT_HOURS_HINT = "Ein Aufkauf zählt nur, wenn sich die Menge beim jetzigen Absatz in dieser Zeit wieder verkauft."
+    -- Einmaliger Hinweis nach dem Update (ab 0.81, Kern-API 20)
+    L.NOTICE_REBUILD_TITLE = "Broker neu aufgebaut"
+    L.NOTICE_REBUILD_TEXT = {
+        "Broker hat ein neues Fenster im Stil des Auktionshauses.",
+        "Neu ist der Aufkauf: Das Radar sucht Massenware, die viel und schnell verkauft wird. Du kaufst die günstigen Angebote bis zu einer Preisstufe auf und stellst die Ware zum Preis der nächsten Stufe wieder ein. Im Fokus siehst du vor dem Kauf Menge, Kosten und Gewinn. Gekauft wird nur bis zum üblichen Preis.",
+        "Noch sind nicht alle Funktionen ausgiebig getestet. Wenn dir etwas seltsam vorkommt, schreib es bitte über Peon_Feedback oder den Peon Manager.",
+        "Als Nächstes wird Ledger umgebaut. Gekaufte Waren und ihre Kosten werden dann besser erfasst und lassen sich nachverfolgen.",
+    }
 end

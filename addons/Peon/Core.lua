@@ -13,7 +13,7 @@ ns.Peon = Peon
 Peon.name      = ADDON_NAME
 Peon.L         = L
 Peon.NewLocale = ns.NewLocale
-Peon.API       = 19         -- wird erhoeht, wenn Funktionen dazukommen (Module koennen pruefen)
+Peon.API       = 20         -- wird erhoeht, wenn Funktionen dazukommen (Module koennen pruefen)
 Peon.COLOR     = "ff8ccf4d" -- Peon-Gruen fuer Chat-Ausgaben
 Peon.modules   = {}         -- addonName -> Modul
 Peon.order     = {}         -- Module in Ladereihenfolge
@@ -180,6 +180,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if not ok then Peon.ReportCoreError("Options", err) end
         end
         FireAll("LOGIN")
+        if ns.Notice then ns.Notice.OnLogin() end   -- API 20: einmalige Hinweise
     elseif event == "PLAYER_REGEN_DISABLED" then
         FireAll("COMBAT_START")
     elseif event == "PLAYER_REGEN_ENABLED" then

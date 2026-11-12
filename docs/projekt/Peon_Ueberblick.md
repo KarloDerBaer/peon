@@ -45,7 +45,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
-## Kern-API (Peon.API = 19)
+## Kern-API (Peon.API = 20)
 
 Die API wird nur erweitert, nie geändert (sonst brechen alle Module). Bei neuen Funktionen `Peon.API` erhöhen.
 
@@ -135,6 +135,15 @@ if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Bereich 1", "
 Peon.GetFeedbackAreas(addonName)   -- Kopie der Liste, leer wenn nichts gemeldet
 ```
   Neue Module sollten ihre Bereiche mitmelden (in `vorlage\Peon_Beispiel` noch nicht enthalten).
+- **Einmalige Hinweise (API 20, Notice.lua):** Ein Modul meldet einen wichtigen Hinweis (Umbau, Ankündigung). Rund 5 Sekunden nach dem Einloggen zeigt der Kern alle noch nicht gesehenen Hinweise einmal je Konto in einem Fenster, nie im Kampf. Gemerkt in `PeonDB.noticesSeen`. `/peon neu` zeigt alle wieder. Neue Hinweise kommen mit dem Modul-Update, alte am besten nach ein paar Versionen wieder entfernen.
+```lua
+if mod.AddNotice then mod:AddNotice({
+    id    = "umbau-2026-11",                      -- Pflicht, nie aendern (wird zu "broker:umbau-2026-11")
+    date  = "12.11.2026",                         -- optional
+    title = "Broker neu aufgebaut",
+    text  = { "Erster Absatz.", "Zweiter Absatz." },   -- Text oder Liste von Absaetzen
+}) end
+```
 - **Fehlerspeicher (API 12, Core.lua):** `mod:ReportError(where, err)` und `mod:Call` speichern abgefangene Fehler automatisch in `PeonDB.errors` und nennen sie einmal pro Sitzung kurz im Chat. Den Text zeigen `/peon fehler` und der Reiter Rückmeldungen im Peon Manager, der sie einliest und im Spiel löschen lässt.
 ```lua
 Peon.RecordError(addonName, where, err, version)   -- speichern ohne Chat-Ausgabe, gleiche Fehler zaehlen hoch

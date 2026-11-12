@@ -554,6 +554,12 @@ mod:On("INIT", function()
     mod:Call("Minimap", CreateMinimapButton)
 end)
 
+-- Einmaliger Hinweis nach dem Update (ab 0.81, Kern-API 20; mit aelterem Kern kein Hinweis).
+-- Die id nie aendern, sonst erscheint der Hinweis erneut. Nach ein paar Versionen wieder entfernen.
+if mod.AddNotice then
+    mod:AddNotice({ id = "umbau-2026-11", date = "12.11.2026", title = L.NOTICE_REBUILD_TITLE, text = L.NOTICE_REBUILD_TEXT })
+end
+
 -- Bereiche für Rückmeldungen in Peon_Feedback (Kern ab API 9; mit älterem Kern wird nichts gemeldet)
 -- ab 0.53 (Umbau U12): Bereiche nach dem neuen Aufbau
 if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Markt", "Verkaufen (Rat)", "Auktionen", "Einkaufen", "Radar", "Fokus", "Gegenstand", "Händler", "Neutral", "Datenlage", "Berufe", "Scan", "Tooltip", "Gegenstandsmenü", "Optionen" }) end

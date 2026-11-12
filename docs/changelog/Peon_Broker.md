@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.81.0
+
+Kurz: Nach dem Update zeigt Broker einmal einen Hinweis zum Neuaufbau, zum neuen Aufkauf und zum anstehenden Umbau von Ledger. `/peon neu` zeigt ihn wieder.
+
+- 0.81.0 (12.11.2026): **Einmaliger Hinweis zum Neuaufbau** über `mod:AddNotice` (Kern-API 20, Peon 0.20.0). id `broker:umbau-2026-11`. Texte `NOTICE_REBUILD_TITLE` und `NOTICE_REBUILD_TEXT` (deutsch und englisch). Mit älterem Kern erscheint kein Hinweis, sonst läuft alles wie bisher.
+  - Nach ein paar Versionen wieder entfernen.
+  - **Im Spiel prüfen:** Hinweis nach dem Einloggen, Text vollständig lesbar, nach `/reload` nicht wieder.
+
 ## 0.80.0
 
 Kurz: Die aktuellen Preise vom Peon Manager (zum Beispiel aus der Blizzard-API) kommen jetzt auch für das neutrale Auktionshaus an, nicht nur für die eigene Fraktion.

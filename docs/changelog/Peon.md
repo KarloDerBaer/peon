@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.20.0
+
+Kurz: Module können wichtige Hinweise einmalig in einem Fenster zeigen, zum Beispiel nach einem Update. `/peon neu` zeigt sie wieder.
+
+- 0.20.0 (12.11.2026): **Einmalige Hinweise, Kern-API 20** (neue Datei `Notice.lua`, abgestimmt mit KarloDerBaer).
+  - Module melden Hinweise mit `mod:AddNotice({ id, title, text, date })`, der Kern selbst mit `Peon.AddNotice`. Die `id` bekommt den Schlüssel des Moduls vorne (`broker:umbau-2026-11`) und darf sich nie ändern.
+  - Rund 5 Sekunden nach dem Einloggen zeigt der Kern alle noch nicht gesehenen Hinweise in einem Fenster (Titel, Absender mit Datum, Absätze, Trennlinie dazwischen, Knopf „Verstanden“). Im Kampf wartet er und versucht es alle 10 Sekunden.
+  - Gesehen gilt je Konto, sobald das Fenster offen war (auch Schließen mit ESC oder X). Gemerkt in `PeonDB.noticesSeen`. Neue Nutzer sehen die Hinweise ebenfalls einmal.
+  - `/peon neu` (auch `/peon hinweise`, `/peon news`) zeigt alle gemeldeten Hinweise wieder.
+  - Tests: neuer Test `test_notice.lua`, Prüfbefehl auf die neue Version angepasst.
+  - **Im Spiel prüfen:** Fenster nach dem Einloggen mit einem Hinweis, Bildlauf bei langem Text, Verstanden und ESC, nach `/reload` kein zweites Mal, `/peon neu`.
+
 ## 0.19.0
 
 Kurz: Listen im Stil des Auktionshauses können einzelne Zeilen farbig hinterlegen (zum Beispiel die Zielstufe im Fokus von Broker).

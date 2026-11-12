@@ -133,9 +133,9 @@ local function load(dir, files)
 end
 local ns = load("Peon", { "Locales.lua", "Core.lua", "Module.lua", "Options.lua", "UIProbe.lua", "Slash.lua" })
 check(ns.UIProbe, "UIProbe fehlt")
-check(meta.Peon.Version == "0.19.0", "Version 0.19.0 in der TOC")
+check(meta.Peon.Version == "0.20.0", "Version 0.20.0 in der TOC")
 local toc = io.open("Peon/Peon.toc"):read("*a")
-check(toc:find("UIProbe.lua\r?\nSlash.lua"), "UIProbe.lua vor Slash.lua in der TOC")
+check(toc:find("UIProbe.lua\r?\nNotice.lua\r?\nSlash.lua"), "UIProbe.lua und Notice.lua vor Slash.lua in der TOC")
 PeonDB = {}
 Peon.db = PeonDB
 local P = ns.UIProbe
@@ -195,7 +195,7 @@ check(#created == n1, "Vorlagen doppelt angelegt")
 out = {}
 SlashCmdList.PEON("ui pruefen")
 local s = PeonDB.uiProbe
-check(s and s.build == "70888" and s.toc == 16001 and s.peon == "0.19.0", "Kopf der Pruefung")
+check(s and s.build == "70888" and s.toc == 16001 and s.peon == "0.20.0", "Kopf der Pruefung")
 check(#s.atlas == #P.ATLASES and #s.fonts == #P.FONTS and #s.templates > 0, "Atlanten, Schriften, Vorlagen gespeichert")
 check(s.frames.AuctionHouseFrame and #s.frames.AuctionHouseFrame.lines > 5, "offenes Fenster gespeichert")
 check(not s.frames.ProfessionsFrame, "verstecktes Fenster nicht gespeichert")

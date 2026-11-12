@@ -3,6 +3,7 @@
 -- /peon list        installierte Module
 -- /peon debug <m>   Debug-Ausgaben eines Moduls an/aus
 -- /peon fehler      gespeicherte Fehler zeigen, mit "leeren" loeschen
+-- /peon neu        einmalige Hinweise der Module wieder zeigen (ab 0.20.0, Notice.lua)
 -- /peon ui pruefen  Grafiken von Blizzards Fenstern auslesen (ab 0.18.0, UIProbe.lua)
 -- /peon <m> [...]   Befehl an ein Modul weiterreichen
 
@@ -50,6 +51,8 @@ SlashCmdList.PEON = function(msg)
             local e = list[i]
             print(("   %s %s %s (%dx): %s"):format(date("%d.%m. %H:%M", e.last or 0), tostring(e.addon), tostring(e.where), e.n or 1, tostring(e.msg)))
         end
+    elseif (cmd == "neu" or cmd == "news" or cmd == "hinweise") and ns.Notice then
+        ns.Notice.Slash()
     elseif cmd == "ui" and ns.UIProbe then
         ns.UIProbe.Slash(rest)
     elseif cmd == "help" or cmd == "hilfe" or cmd == "?" then

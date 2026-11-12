@@ -35,6 +35,7 @@ L.HELP = {
     "/peon <module> [command] - command for a module (e.g. /peon tooltip)",
     "/peon debug <module> - debug output of a module on/off",
     "/peon errors [clear] - show or delete saved errors",
+    "/peon news - show the notices of the modules again",
     "/peon ui - sample window of the UI design",
     "/peon ui check [mouse | <frame> | clear] - read Blizzard's window art for the UI design",
 }
@@ -81,6 +82,12 @@ L.ITEMMENU_SHIFT_RIGHT = "Shift+right-click (opens Blizzard's stack windows too)
 L.ITEMMENU_CTRL_MIDDLE = "Ctrl+middle click"
 L.ITEMMENU_MIDDLE     = "Middle click"
 L.ITEMMENU_OFF        = "Off"
+-- Einmalige Hinweise (API 20)
+L.NOTICE_TITLE  = "Peon: Important notes"
+L.NOTICE_OK     = "Got it"
+L.NOTICE_AGAIN  = "/peon news shows these notes again."
+L.NOTICE_NONE   = "No notes."
+L.NOTICE_COMBAT = "The notes cannot be shown in combat."
 BINDING_HEADER_PEON   = "Peon"
 BINDING_NAME_PEON_ITEM_MENU = "Item menu for the item under the mouse"
 
@@ -106,6 +113,7 @@ if GetLocale() == "deDE" then
         "/peon <Modul> [Befehl] - Befehl an ein Modul (z. B. /peon tooltip)",
         "/peon debug <Modul> - Debug-Ausgaben eines Moduls an/aus",
         "/peon fehler [leeren] - gespeicherte Fehler zeigen oder löschen",
+        "/peon neu - Hinweise der Module wieder zeigen",
         "/peon ui - Beispielfenster zum UI-Design",
         "/peon ui pruefen [maus | <Fenster> | leeren] - Grafiken von Blizzards Fenstern auslesen (UI-Design)",
     }
@@ -148,5 +156,10 @@ if GetLocale() == "deDE" then
     L.ITEMMENU_CTRL_MIDDLE = "Strg+Mittelklick"
     L.ITEMMENU_MIDDLE     = "Mittelklick"
     L.ITEMMENU_OFF        = "Aus"
+    L.NOTICE_TITLE  = "Peon: Wichtige Hinweise"
+    L.NOTICE_OK     = "Verstanden"
+    L.NOTICE_AGAIN  = "/peon neu zeigt diese Hinweise wieder."
+    L.NOTICE_NONE   = "Keine Hinweise."
+    L.NOTICE_COMBAT = "Die Hinweise lassen sich im Kampf nicht zeigen."
     BINDING_NAME_PEON_ITEM_MENU = "Gegenstandsmenü für den Gegenstand unter der Maus"
 end

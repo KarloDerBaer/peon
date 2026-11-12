@@ -1,18 +1,19 @@
 # Peon: Stand je Modul
 
-Stand: 12.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.19.0 / Broker 0.80.0 / Bridge 0.9.2 (bis 0.3.0 Peon_Client) / Peon Manager 0.26.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 12.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.0 / Broker 0.81.0 / Bridge 0.9.2 (bis 0.3.0 Peon_Client) / Peon Manager 0.26.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
-## Peon (Kern) – 0.19.0, API 19
+## Peon (Kern) – 0.20.0, API 20
 
-- Dateien: Locales.lua, Core.lua, Feedback.lua (ab 0.9, direkt nach Core.lua), ItemMenu.lua und Bindings.xml (ab 0.16), Module.lua, Options.lua, Widgets.lua, List.lua, Launcher.lua (ab 0.14), Minimap.lua, Chart.lua (ab 0.10), UIKit.lua, UIDemo.lua und UIProbe.lua (ab 0.18), Slash.lua
-- SavedVariables: `PeonDB`: `errors` (Fehlerspeicher ab 0.12.0: `addon`, `where`, `msg`, `version`, `build`, `first`, `last`, `n`, höchstens 100), `feedbackAreas` (Bereiche je Modul für den Manager, ab 0.13.0), `panelHid` (von Peon_Panel ausgeblendete Minimap-Buttons, ab 0.14.0), `itemMenuClick` (Klick für das Gegenstandsmenü, ab 0.16.0), `uiProbe` (Ergebnis von `/peon ui pruefen`: `build`, `toc`, `at`, `peon`, `atlas`, `fonts`, `templates`, `frames[Pfad] = { at, lines }`, `mouse` mit höchstens 10 Einträgen, ab 0.18.0), `uiDemoTab` (zuletzt gewählte Seite im Beispielfenster, ab 0.18.0)
+- Dateien: Locales.lua, Core.lua, Feedback.lua (ab 0.9, direkt nach Core.lua), ItemMenu.lua und Bindings.xml (ab 0.16), Module.lua, Options.lua, Widgets.lua, List.lua, Launcher.lua (ab 0.14), Minimap.lua, Chart.lua (ab 0.10), UIKit.lua, UIDemo.lua und UIProbe.lua (ab 0.18), Notice.lua (ab 0.20), Slash.lua
+- SavedVariables: `PeonDB`: `errors` (Fehlerspeicher ab 0.12.0: `addon`, `where`, `msg`, `version`, `build`, `first`, `last`, `n`, höchstens 100), `feedbackAreas` (Bereiche je Modul für den Manager, ab 0.13.0), `panelHid` (von Peon_Panel ausgeblendete Minimap-Buttons, ab 0.14.0), `itemMenuClick` (Klick für das Gegenstandsmenü, ab 0.16.0), `uiProbe` (Ergebnis von `/peon ui pruefen`: `build`, `toc`, `at`, `peon`, `atlas`, `fonts`, `templates`, `frames[Pfad] = { at, lines }`, `mouse` mit höchstens 10 Einträgen, ab 0.18.0), `uiDemoTab` (zuletzt gewählte Seite im Beispielfenster, ab 0.18.0), `noticesSeen[id] = Zeit` (gesehene einmalige Hinweise, ab 0.20.0)
 - Fehlerspeicher (API 12): `Peon.RecordError`, `Peon.ClearErrors`, `Peon.ReportCoreError`, `mod:ReportError` speichert automatisch. Befehle `/peon fehler`, `/peon fehler leeren`.
 - Aufgaben: globales Objekt `Peon`, Modulverwaltung (`Peon:NewModule`), Einstellungen mit Standardwerten/Bereichen/erlaubten Werten, Übernahme alter Variablennamen (`oldDB`/`oldCharDB`), Ereignisse (INIT, LOGIN, COMBAT_START, COMBAT_END, RESET, CHANGED), Debug-Log, Einstellungsseite „Peon“ mit Modulübersicht, Optionsseite mit Bildlauf und Bausteinen (Header, Slider, Check mit Hinweis/eigenen Werten, Dropdown, Choice, PositionGrid, Color, Button, Text, Reset-Knopf, mitwachsende Anordnung), `keepOnReset`, `/peon`.
 - UI-Design (ab 0.18.0): Bausteine `Peon.UI` (API 18), Beispielfenster `/peon ui`, Prüfbefehl `/peon ui pruefen` (Atlanten, Schriften, Vorlagen, offene Blizzard-Fenster), `/peon ui pruefen maus`, `/peon ui pruefen <Pfad>`, `/peon ui pruefen leeren`. Nur lesen.
+- Einmalige Hinweise (ab 0.20.0, API 20): `mod:AddNotice`, Fenster nach dem Einloggen, `/peon neu`. Broker meldet ab 0.81.0 einen Hinweis zum Neuaufbau.
 - Noch nicht im Kern: `RegisterUnitEvent`.
 - Verlauf der Versionen: `docs/changelog/Peon.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.18.0, 0.14.0, 0.13.0, 0.12.0, 0.11.1, 0.10.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.20.0, 0.18.0, 0.14.0, 0.13.0, 0.12.0, 0.11.1, 0.10.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon_Tooltip – 0.7.5 (früher TooltipPlus)
 
@@ -48,7 +49,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.80.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.81.0 (neu, Auktionshaus-Helfer)
+
+- **Einmaliger Hinweis zum Neuaufbau (ab 0.81.0):** `broker:umbau-2026-11` über `mod:AddNotice` (Kern-API 20). Nach ein paar Versionen wieder aus `Broker.lua` und `Locales.lua` entfernen.
 
 - **Neuaufbau N1 gebaut (0.59.0, 11.11.2026):** ein Fenster in zwei Zuständen mit `Peon.UI`, acht Reiter (Markt, Verkaufen, Auktionen, Einkaufen, Radar, Fokus, Gegenstand, Mehr), Statuszeile, Sprünge „Im Markt zeigen“ und „Gegenstand“ mit Zurück (`Go.lua`). Markt, Auktionen (unterwegs) und Fokus zeigen noch `W.WIP`. Braucht Peon API 18. Neue Werte: `moreTab` (Unterpunkt von Mehr), `ahPos` (Stelle des Auktionshauses), `windowTab` auch `browse`, `focus`, `more`. Im Spiel noch nicht geprüft, Prüfliste im Changelog bei 0.59.0.
 
@@ -63,7 +66,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Befehle: `/broker` (Broker-Fenster ein/aus), `/broker optionen`, `/broker scan`, `/broker pruefen` (auch `check`), `/broker pruefen scan`, `/broker pruefen abfrage`, `/broker pruefen beruf` (ab 0.39), `/broker pruefen ah`, `/broker pruefen zeit` (ab 0.69), `/broker pruefen fehler` (ab 0.74), `/broker pur` (ab 0.41), `/broker debug`, `/peon broker`
 - Optionsseite: Minimap-Button an/aus; Broker-Fenster mit dem Auktionshaus öffnen, Knopf „Broker-Fenster öffnen“; Preise im Tooltip (an/aus, Zeile 7 Tage, Zeile Händler, Hinweise); Berufe (ab 0.39, gleiche Punkte wie das Zahnrad im Berufsfenster); Trend (Grenzen); Preisvorschlag (Unterbieten Massenware und Einzelgegenstände je Kupfer/Prozent, Dumping-Grenze, Laufzeit, Massenware mit vielen Angeboten 2 Std. ab X Angeboten, nur lohnende im Reiter Verkaufen); Preisdaten (Tageswerte aufbewahren, Märkte verwalten); Prüfung; Ereignis-Liste.
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.80.0, 0.79.0, 0.78.0, 0.77.0, 0.76.0, 0.75.1, 0.75.0, 0.74.0, 0.73.0, 0.72.0, 0.71.0, 0.70.0, 0.69.0, 0.68.0, 0.67.0, 0.66.0, 0.65.0, 0.64.1, 0.64.0, 0.63.0, 0.62.0, 0.61.0, 0.60.1, 0.60.0, 0.59.1, 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.81.0, 0.80.0, 0.79.0, 0.78.0, 0.77.0, 0.76.0, 0.75.1, 0.75.0, 0.74.0, 0.73.0, 0.72.0, 0.71.0, 0.70.0, 0.69.0, 0.68.0, 0.67.0, 0.66.0, 0.65.0, 0.64.1, 0.64.0, 0.63.0, 0.62.0, 0.61.0, 0.60.1, 0.60.0, 0.59.1, 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.26.0
 

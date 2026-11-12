@@ -110,7 +110,7 @@ local UI, D = ns.UI, ns.UIDemo
 check(UI and D, "UIKit oder UIDemo fehlt")
 check(Peon.API >= 18 and Peon.UI == UI, "API 18: Peon.UI")
 local toc = io.open("Peon/Peon.toc"):read("*a")
-check(toc:find("Chart.lua\r?\nUIKit.lua\r?\nUIDemo.lua\r?\nUIProbe.lua\r?\nSlash.lua"), "Reihenfolge in der TOC")
+check(toc:find("Chart.lua\r?\nUIKit.lua\r?\nUIDemo.lua\r?\nUIProbe.lua\r?\nNotice.lua\r?\nSlash.lua"), "Reihenfolge in der TOC")
 
 -- 1. gemessene Masse (Pruefung im Spiel 11.11.2026)
 check(UI.WINDOW_W == 800 and UI.WINDOW_H == 538, "Fenster wie das Auktionshaus")
