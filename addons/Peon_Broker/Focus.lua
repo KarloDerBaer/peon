@@ -312,7 +312,11 @@ end
 
 function F.SyncInputs(d)
     local live = d and not d.gone
-    for _, f in ipairs({ { F.targetInput, live and d.ref }, { F.limitInput, live and d.limit } }) do
+    -- ab 0.80.1: eigene Werte so zeigen, wie man sie eingetragen hat. Vorher stand bei "Kaufen bis" die teuerste
+    -- gekaufte Stufe, und lag der eigene Wert unter dem guenstigsten Angebot, wurde das Feld leer.
+    local target = F.ManualTarget(F.key) or (live and d.ref)
+    local limit = F.ManualLimit(F.key) or (live and d.limit)
+    for _, f in ipairs({ { F.targetInput, target }, { F.limitInput, limit } }) do
         local m, v = f[1], f[2]
         if m and not Typing(m) then
             if Num(v) and v > 0 then m:SetAmount(v) else ClearMoney(m) end

@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.81.1
+
+Kurz: Im Fokus bleibt ein eigener Wert bei „Kaufen bis“ jetzt im Feld stehen, statt zu verschwinden.
+
+- 0.81.1 (12.11.2026): **Fehler im Fokus** (KarloDerBaer, 12.11.2026): Nach jeder Eingabe füllte der Fokus die Felder mit den geltenden Werten. Bei „Kaufen bis“ war das die teuerste gekaufte Stufe statt des eigenen Werts. Lag der eigene Wert unter dem günstigsten Angebot, wurde das Feld leer, lag er zwischen zwei Stufen, sprang es auf die Stufe darunter. Jetzt zeigen die Felder eigene Werte so, wie man sie eingetragen hat.
+  - Tests: 2 neue Prüfungen.
+  - **Im Spiel prüfen:** Kaufen bis von Hand eintragen, auch einen Wert zwischen zwei Stufen und einen unter dem günstigsten Angebot.
+
 ## 0.81.0
 
 Kurz: Nach dem Update zeigt Broker einmal einen Hinweis zum Neuaufbau, zum neuen Aufkauf und zum anstehenden Umbau von Ledger. `/peon neu` zeigt ihn wieder.

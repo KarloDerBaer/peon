@@ -1340,6 +1340,12 @@ end
       "0.77: gekaufte Stufen blau, Ziel gelb, dazwischen nichts")
     F.SetLimitTyped(150)
     check(F.buyButton.text == "Kaufen 15", "0.76: Kaufen bis von Hand")
+    -- 0.80.1: eigener Wert bleibt im Feld stehen, auch zwischen zwei Stufen und unter dem guenstigsten Angebot
+    F.SetLimitTyped(120)
+    check(F.limitInput:GetAmount() == 120 and F.buyButton.text == "Kaufen 10", "0.80.1: Kaufen bis 1s 20c bleibt im Feld (vorher sprang es auf 1s)")
+    F.SetLimitTyped(50)
+    check(F.limitInput:GetAmount() == 50 and F.ManualLimit(2770) == 50 and F.buyButton.disabled, "0.80.1: Kaufen bis unter dem guenstigsten Angebot bleibt im Feld (vorher leer)")
+    F.SetLimitTyped(150)
     F.autoButton.scripts.OnClick(F.autoButton)
     check(F.ManualTarget(2770) == nil and F.ManualLimit(2770) == nil and F.limitInput:GetAmount() == 100 and F.targetInput:GetAmount() == 150
       and F.buyButton.text == "Kaufen 10", "0.76/0.77: Auto nimmt Ziel und Kaufen bis zurueck, die Felder zeigen wieder die geltenden Werte")
