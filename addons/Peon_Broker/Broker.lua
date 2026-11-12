@@ -512,7 +512,7 @@ end
 -- Neuerer Stand vom Peon Manager (ab 0.36): Data.lua liest das Spiel nur beim Laden, also einmal je Login oder /reload
 mod:On("LOGIN", function()
     if (Peon.API or 0) < 18 then return end
-    local n = ns.Data.ApplyManager()
+    local n = ns.Data.ApplyManagerAll()   -- ab 0.80: Heimat und Neutral
     if n > 0 then mod:Dbg(("Stand vom Manager: %d Gegenstaende neu"):format(n)) end
     if ns.Watch then mod:Call("Beobachtung", ns.Watch.Check) end   -- ab 0.49: Preisalarm nach dem Stand vom Manager
     if mod.launcher then mod.launcher:Refresh() end

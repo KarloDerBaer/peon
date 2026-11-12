@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.80.0
+
+Kurz: Die aktuellen Preise vom Peon Manager (zum Beispiel aus der Blizzard-API) kommen jetzt auch für das neutrale Auktionshaus an, nicht nur für die eigene Fraktion.
+
+- 0.80.0 (12.11.2026): **Stand vom Manager auch für den neutralen Markt** (Frage KarloDerBaer, 12.11.2026). Beim Anmelden übernimmt Broker den neuesten Stand des Managers für Heimatmarkt und neutralen Markt (`Data.ApplyManagerAll`). Bisher nur für den Markt, in dem man gerade stand, beim Anmelden praktisch immer die Heimat. Üblicher Bereich und Absatz kamen schon vorher für jeden Markt. Den neutralen Markt legt Broker nur an, wenn der Manager Werte für ihn hat. Voraussetzung im Manager: Dem neutralen Markt ist unter Quellen ein Blizzard-Haus zugeordnet.
+  - Tests: 4 neue Prüfungen (test_bridge).
+  - **Im Spiel prüfen:** Nach dem Anmelden unter Mehr, Neutral und in der Zeile „Neutral“ im Tooltip das Alter der Preise (so alt wie der Stand der Blizzard-API).
+
 ## 0.79.0
 
 Kurz: Der Aufkauf rechnet nicht mehr gegen einzelne überteuerte Angebote. Gekauft wird nur bis zur oberen Grenze des üblichen Bereichs, das Ziel liegt höchstens 20 % darüber (einstellbar). Ohne üblichen Bereich gibt es keinen Aufkauf.

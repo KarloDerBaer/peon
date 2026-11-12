@@ -2,6 +2,16 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Einmalige Hinweise im Kern (Peon 0.20.0, API 20)
+
+- **Module melden ihre Hinweise selbst** (`mod:AddNotice`), der Kern sammelt und zeigt sie. Grund: Ein Hinweis kommt und geht mit dem Update des Moduls, der Kern muss dafür nicht mit ausgeliefert werden.
+- **Einmal je Konto, für alle**, auch bei neuer Installation. Gesehen gilt, sobald das Fenster offen war. Grund: Twinks sollen nicht jedes Mal dasselbe zeigen, neue Nutzer brauchen die Hinweise genauso.
+- `/peon neu` zeigt alle Hinweise wieder.
+
+## 12.11.2026: Stand vom Manager auch für Neutral (Broker 0.80.0)
+
+- **Beim Anmelden Heimat und Neutral übernehmen** (KarloDerBaer): Die aktuellen Preise des neutralen Markts aus der Blizzard-API kamen sonst nie an. Der neutrale Markt entsteht nur mit Werten des Managers (Claude).
+
 ## 12.11.2026: Aufkauf nur im üblichen Bereich (Broker 0.79.0)
 
 Ändert die Regel vom 11.11.2026 „Der übliche Bereich filtert nicht“ (Vorschlag Claude, KarloDerBaer einverstanden):

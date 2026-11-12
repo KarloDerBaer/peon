@@ -322,21 +322,21 @@ end
 --   kennt der Manager nicht, sie fallen weg, damit keine alten Schnaeppchen gemeldet werden.
 --   market.mgrAt, mgrSrc, mgrItems: Zeit, Herkunft und Zahl der Gegenstaende fuer die Anzeige.
 ---------------------------------------------------------------------------
-function D.ManagerState()
+function D.ManagerState(key)
     local c = Peon:GetModule("bridge")
     if not c or type(c.Current) ~= "function" then return nil end
-    local ok, t, src, items = pcall(c.Current, c, ns.MarketKey())
+    local ok, t, src, items = pcall(c.Current, c, key or ns.MarketKey())
     if ok and type(t) == "number" and type(items) == "table" then return t, src, items end
     return nil
 end
 
 local function Seen(e) return math.max(e.t or 0, e.lt or 0) end
 
--- Rueckgabe: Zahl der Gegenstaende, deren aktueller Stand neu ist
-function D.ApplyManager()
-    local t, src, items = D.ManagerState()
+-- Rueckgabe: Zahl der Gegenstaende, deren aktueller Stand neu ist. key = Markt (ohne: der aktuelle)
+function D.ApplyManager(key)
+    local t, src, items = D.ManagerState(key)
     if not t then return 0 end
-    local market = D.Market(nil, true)
+    local market = D.Market(key, true)
     if market.mgrAt and market.mgrAt >= t then return 0 end   -- schon eingetragen
     local cur, total, count = {}, 0, 0
     for key, s in pairs(items) do
@@ -363,6 +363,20 @@ function D.ApplyManager()
     market.mgrAt, market.mgrSrc, market.mgrItems = t, src, total
     D.liveStamp = (D.liveStamp or 0) + 1
     return count
+end
+
+-- ab 0.80 (KarloDerBaer 12.11.2026): beim Anmelden Heimatmarkt und neutralen Markt. Vorher nur der Markt, in dem
+-- man gerade stand (beim Anmelden praktisch immer die Heimat), die Preise des neutralen Markts aus der Blizzard-API
+-- kamen so nie an. Der neutrale Markt entsteht nur, wenn der Manager Werte fuer ihn hat.
+function D.ApplyManagerAll()
+    local n, seen = 0, {}
+    for _, key in ipairs({ ns.HomeMarketKey(), ns.NeutralMarketKey(), ns.MarketKey() }) do
+        if key and not seen[key] then
+            seen[key] = true
+            n = n + D.ApplyManager(key)
+        end
+    end
+    return n
 end
 
 -- Zeit der neuesten Preise dieses Markts: eigener Scan oder Stand vom Manager

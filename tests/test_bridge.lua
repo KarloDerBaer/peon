@@ -655,6 +655,18 @@ do
   check(mk.mgrAt == T and mk.mgrSrc == "api" and mk.mgrItems == 4, "0.36: Zeit, Herkunft und Zahl fuer die Anzeige")
   check(D.DataAt(mk) == T and D.DataAt({ lastScan = 5 }) == 5 and D.DataAt({}) == nil, "0.36: neueste Daten")
   check(D.ApplyManager() == 0, "0.36: derselbe Stand nur einmal")
+  -- Broker 0.80: beim Anmelden auch der neutrale Markt (vorher nur der Markt, in dem man stand)
+  local nk = nsb.NeutralMarketKey()
+  D.Markets()[nk] = nil
+  PeonBridgeData.markets[nk] = { t = T, day = 1, items = {}, sales = {}, cur = { t = T, src = "api", items = { [90001] = "60:70:12:3" } } }
+  check(D.ApplyManagerAll() == 1, "Broker 0.80: Stand vom Manager auch fuer den neutralen Markt")
+  local nm = D.Market(nk)
+  check(nm and nm.items[90001] and nm.items[90001].m == 60 and nm.mgrAt == T and mk.items[90001].m == 80,
+    "Broker 0.80: neutrale Preise im neutralen Markt, Heimat unveraendert")
+  check(D.ApplyManagerAll() == 0, "Broker 0.80: derselbe Stand nur einmal")
+  PeonBridgeData.markets[nk] = nil
+  D.Markets()[nk] = nil
+  check(D.ApplyManagerAll() == 0 and D.Market(nk) == nil, "Broker 0.80: ohne Werte des Managers entsteht kein neutraler Markt")
   local lnc = nsb.mod.launcher
   if lnc then
     mk.lastScan, mk.mgrAt = clock - 20 * 3600, clock - 1800
