@@ -597,9 +597,10 @@ L.INFO_TERMS = {
     { "Cost", "What a piece cost. Bought: the price paid. Crafted: the cost of the materials. Loot and quest rewards: 0. Starting stock: 0." },
     { "Stock cost", "The cost of all pieces you still have. This much gold is in your stock." },
     { "Open profit", "Market value minus stock cost of the pieces without starting stock. What you would win or lose if you sold at today's prices." },
-    { "Starting stock", "Everything that was there when the book began, and everything Ledger finds without origin (deviation, correction). It costs 0 and does not count towards the profit. What you craft only from starting stock stays starting stock." },
-    { "Special income", "Revenue from selling starting stock and from auctions that were running before the book began. Shown separately in the book, not part of the trading profit." },
-    { "Trading profit", "Revenue minus the cost of the sold pieces minus fees. Only for goods you bought or crafted after the book began." },
+    { "Reset (book starts anew)", "With version 0.14 the book started anew once. History, profits and costs from before were deleted, the stock at that moment became the starting stock. \"Reset book\" in the options does the same. Gold and items are not changed." },
+    { "Starting stock", "Everything that was there at the reset: bags, bank, running auctions and equipment, for other characters their last known state. Also everything Ledger finds without origin (deviation, correction). It costs 0 and does not count towards the trading profit, because Ledger does not know what it once cost. Selling it is special income. What you craft only from starting stock stays starting stock. In the stock tab it shows as \"0 · start\"." },
+    { "Special income", "Revenue from selling starting stock and from auctions that were running before the reset. Shown separately in the book, not part of the trading profit." },
+    { "Trading profit", "Revenue minus the cost of the sold pieces minus fees. Only for goods you bought or crafted after the reset." },
     { "Total profit", "All income minus all expenses minus fees in gold, including loot, quests, repairs and travel." },
     { "Cost of goods sold", "The cost of the sold pieces." },
     { "Consumed", "The cost of pieces you used or destroyed. Information only." },
@@ -610,9 +611,10 @@ L.INFO_TERMS = {
     { "Deviation", "Difference between what Ledger recorded and what the game shows. Ledger checks at login and books a line for it. It counts as starting stock." },
 }
 L.NOTICE_TITLE = "Ledger rebuilt"
-L.NOTICE_1    = "Ledger has a new window with four tabs: overview, stock, book and history. Everything about a single item is now shown by Broker."
-L.NOTICE_2    = "Recording at the auction house and the mailbox is new and Ledger checks itself. The book therefore starts anew with your current stock."
-L.NOTICE_3    = "At the mailbox Peon Post opens: all letters with profit and expiry, collecting with one click and an own page for sending. The button \"Blizzard\" brings back the old mailbox."
+L.NOTICE_1    = "Ledger has a new window with five tabs: overview, stock, book, history and info. Everything about a single item is now shown by Broker."
+L.NOTICE_2    = "Important: with this update the book starts anew once (reset). History, profits and costs from before are deleted. Your gold and your items stay, of course: Ledger reads them anew at login."
+L.NOTICE_3    = "Everything that is there at the reset becomes starting stock: bags, bank, running auctions and equipment, for your other characters their last known state. Starting stock costs 0 and does not count towards the trading profit. If you sell some of it, the revenue is booked as special income. Trading profit comes only from goods you buy or craft from now on."
+L.NOTICE_4    = "Recording at the auction house and the mailbox is more precise, and Ledger checks itself at every login. At the mailbox Peon Post opens with collecting and an own page for sending. The button \"Blizzard\" brings back the old mailbox. All terms are explained in the tab Info."
 
 if GetLocale() == "deDE" then
     L.HDR_SHOW    = "Anzeige"
@@ -1200,9 +1202,10 @@ if GetLocale() == "deDE" then
         { "Kosten", "Was ein Stück gekostet hat. Gekauft: der bezahlte Preis. Hergestellt: die Kosten des Materials. Beute und Questbelohnungen: 0. Startbestand: 0." },
         { "Lagerkosten", "Die Kosten aller Stücke, die du noch hast. So viel Gold steckt in deinem Lager." },
         { "Offener Gewinn", "Marktwert minus Lagerkosten der Stücke ohne Startbestand. Das würdest du gewinnen oder verlieren, wenn du heute zu Marktpreisen verkaufst." },
-        { "Startbestand", "Alles, was beim Beginn des Buchs schon da war, und alles, was Ledger ohne Herkunft findet (Abweichung, Korrektur). Er kostet 0 und zählt nicht zum Gewinn. Was du nur aus Startbestand herstellst, bleibt Startbestand." },
-        { "Sondereinnahme", "Erlös aus dem Verkauf von Startbestand und aus Auktionen, die schon vor dem Beginn des Buchs liefen. Steht im Buch eigens und zählt nicht als Handelsgewinn." },
-        { "Handelsgewinn", "Erlös minus Kosten der verkauften Stücke minus Gebühren. Nur für Ware, die du nach dem Beginn des Buchs gekauft oder hergestellt hast." },
+        { "Reset (Neustart des Buchs)", "Mit Version 0.14 hat das Buch einmal neu begonnen. Verlauf, Gewinne und Kosten von vorher wurden gelöscht, der Bestand in diesem Moment wurde zum Startbestand. „Buch zurücksetzen“ in den Optionen macht dasselbe. Gold und Gegenstände ändern sich dabei nicht." },
+        { "Startbestand", "Alles, was beim Reset schon da war: Taschen, Bank, laufende Auktionen und Ausrüstung, bei anderen Charakteren ihr letzter bekannter Stand. Dazu alles, was Ledger ohne Herkunft findet (Abweichung, Korrektur). Er kostet 0 und zählt nicht zum Handelsgewinn, weil Ledger nicht weiß, was er einmal gekostet hat. Sein Verkauf ist eine Sondereinnahme. Was du nur aus Startbestand herstellst, bleibt Startbestand. Im Bestand steht er als „0 · Start“." },
+        { "Sondereinnahme", "Erlös aus dem Verkauf von Startbestand und aus Auktionen, die schon vor dem Reset liefen. Steht im Buch eigens und zählt nicht als Handelsgewinn." },
+        { "Handelsgewinn", "Erlös minus Kosten der verkauften Stücke minus Gebühren. Nur für Ware, die du nach dem Reset gekauft oder hergestellt hast." },
         { "Gesamtgewinn", "Alle Einnahmen minus alle Ausgaben minus Gebühren in Gold, auch Beute, Quests, Reparatur und Reisen." },
         { "Wareneinsatz", "Die Kosten der verkauften Stücke." },
         { "Verbrauch", "Die Kosten von Stücken, die du benutzt oder zerstört hast. Nur zur Information." },
@@ -1213,7 +1216,8 @@ if GetLocale() == "deDE" then
         { "Abweichung", "Unterschied zwischen dem, was Ledger erfasst hat, und dem, was das Spiel zeigt. Ledger rechnet beim Einloggen nach und gleicht ihn mit einer eigenen Zeile aus. Sie zählt als Startbestand." },
     }
     L.NOTICE_TITLE = "Ledger neu aufgebaut"
-    L.NOTICE_1    = "Ledger hat ein neues Fenster mit vier Reitern: Übersicht, Bestand, Buch und Verlauf. Alles zu einem einzelnen Gegenstand zeigt jetzt Broker."
-    L.NOTICE_2    = "Die Erfassung am Auktionshaus und in der Post ist neu, und Ledger rechnet selbst nach. Das Buch beginnt deshalb neu mit deinem aktuellen Bestand."
-    L.NOTICE_3    = "Am Briefkasten öffnet sich Peon Post: alle Briefe mit Gewinn und Ablauf, Einsammeln mit einem Klick und eine eigene Seite zum Senden. Der Knopf „Blizzard“ holt das alte Postfach zurück."
+    L.NOTICE_1    = "Ledger hat ein neues Fenster mit fünf Reitern: Übersicht, Bestand, Buch, Verlauf und Info. Alles zu einem einzelnen Gegenstand zeigt jetzt Broker."
+    L.NOTICE_2    = "Wichtig: Mit diesem Update beginnt das Buch einmal neu (Reset). Verlauf, Gewinne und Kosten von vorher werden gelöscht. Dein Gold und deine Gegenstände bleiben natürlich erhalten, Ledger liest sie beim Einloggen neu ein."
+    L.NOTICE_3    = "Alles, was beim Reset schon da ist, wird zum Startbestand: Taschen, Bank, laufende Auktionen und Ausrüstung, bei deinen anderen Charakteren ihr letzter bekannter Stand. Der Startbestand kostet 0 und zählt nicht zum Handelsgewinn. Verkaufst du davon etwas, steht der Erlös im Buch als Sondereinnahme. Handelsgewinn entsteht nur mit Ware, die du ab jetzt kaufst oder herstellst."
+    L.NOTICE_4    = "Die Erfassung am Auktionshaus und in der Post ist genauer, und Ledger rechnet bei jedem Einloggen selbst nach. Am Briefkasten öffnet sich Peon Post mit Einsammeln und einer eigenen Seite zum Senden. Der Knopf „Blizzard“ holt das alte Postfach zurück. Alle Begriffe stehen im Reiter Info."
 end

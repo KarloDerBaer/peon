@@ -1633,7 +1633,7 @@ do
   realm.moves[#realm.moves + 1] = { t = time(), c = "Mirel Dorna", k = "diff", id = 7102, n = -1, x = "Kontrollrechnung" }
   ns.Moves.Changed()
   ns.Window.Select("info")
-  check(#ns.Info.terms >= 15 and ns.Info.terms[1].term == "Gold", "Info: Begriffe")
+  check(#ns.Info.terms >= 18 and ns.Info.terms[1].term == "Gold" and ns.Info.terms[7].term:find("Reset", 1, true), "Info: Begriffe mit Reset")
   check(#ns.Info.table.items == 1 and ns.Info.table.items[1].id == 7102, "Info: verbuchte Abweichungen")
   check(ns.Info.open.text ~= "", "Info: offene Abweichungen")
   Peon.modules.broker = nil

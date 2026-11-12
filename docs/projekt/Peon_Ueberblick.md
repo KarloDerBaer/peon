@@ -39,7 +39,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 | Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.9.2 | `PeonBridgeDB` | /peon bridge |
 | Peon_Feedback | 0.4.0 | `PeonFeedbackDB` | /feedback |
 | Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
-| Peon_Ledger (Bestand, Buch, Postfenster) | 0.14.6 | `PeonLedgerDB` | /ledger |
+| Peon_Ledger (Bestand, Buch, Postfenster) | 0.14.7 | `PeonLedgerDB` | /ledger |
 | Peon_Bags (neu, Taschen, Bank, Gildenbank) | 0.4.0 | `PeonBagsDB` | /peon bags |
 | Peon_Panel (neu, Leiste und Panel) | 0.4.0 | `PeonPanelDB` | /peon panel |
 

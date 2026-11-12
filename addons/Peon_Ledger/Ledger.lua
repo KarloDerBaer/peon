@@ -326,7 +326,7 @@ mod:On("INIT", function()
     mod:Call("Verlauf Gold", ns.Trend.Init)   -- ab 0.14.5: Diagramm der Uebersicht
     if mod.AddNotice then mod:AddNotice({
         id = "neuaufbau-2026-11", date = "12.11.2026", title = L.NOTICE_TITLE,
-        text = { L.NOTICE_1, L.NOTICE_2, L.NOTICE_3 },
+        text = { L.NOTICE_1, L.NOTICE_2, L.NOTICE_3, L.NOTICE_4 },
     }) end
     mod:Call("Minimap", CreateMinimapButton)
 end)
