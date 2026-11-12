@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.76.0
+
+Kurz: Im Fokus gibt es das Feld „Kaufen bis“. Ein Rechtsklick auf eine Preisstufe setzt es, so kauft man nur bis dorthin und das Ziel bleibt höher.
+Kurz: Über dem Kaufknopf im Fokus stehen jetzt Kosten und erwarteter Gewinn nebeneinander.
+
+- 0.76.0 (12.11.2026): **Fokus: Kaufen bis** (Wunsch KarloDerBaer, 12.11.2026).
+  - Neues Feld „Kaufen bis“ unter „Eigenes Ziel“. Rechtsklick auf eine Preisstufe setzt es, Linksklick weiter das Ziel. Gekauft werden nur die Stufen bis „Kaufen bis“, die teureren unter dem Ziel bleiben stehen. So lässt sich die Spanne zum Ziel vergrößern. In den Angaben steht „(eigenes)“ hinter Kaufen bis, grün sind nur die gekauften Stufen.
+  - „Auto“ nimmt Ziel und Kaufen bis zurück. Ein neuer Gegenstand im Fokus beginnt ohne beides.
+  - Über dem Kaufknopf: „Kosten: … Gewinn: …“. Während eines Kaufs steht dort wie bisher der Stand des Kaufs.
+  - Hinweis neben „Markt jetzt“: Klick setzt das Ziel, Rechtsklick Kaufen bis.
+  - Tests: 4 neue Prüfungen.
+  - **Im Spiel prüfen:** Rechtsklick auf eine Stufe, Menge, Kosten und Gewinn passen, Kaufen kauft nur bis dorthin. Feld von Hand, „Auto“.
+
 ## 0.75.1
 
 Kurz: Das Diagramm im Fokus zeigt wieder etwas, der Fehler beim Zeichnen ist behoben.

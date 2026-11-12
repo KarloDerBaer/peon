@@ -22,6 +22,7 @@ ns.Focus = F
 
 F.key = nil      -- Gegenstand im Fokus (Schluessel wie in der Preisdatenbank), gemerkt in PeonBrokerDB.focusKey
 F.manual = nil   -- ab 0.70: eigenes Ziel { key, price } (nur diese Sitzung)
+F.manualLimit = nil   -- ab 0.76: eigenes "Kaufen bis" { key, price }: nur bis zu diesem Preis kaufen, Ziel bleibt
 F.since = 0      -- ab 0.70: Live-Daten zaehlen erst ab hier (time(), neuer Gegenstand oder Auktionshaus geoeffnet)
 
 local GREY, GREEN, ORANGE, YELLOW = "|cff999999", "|cff60e060", "|cffff9933", "|cffffd100"
@@ -90,6 +91,42 @@ function F.ManualTarget(key)
     return nil
 end
 
+-- Eigenes "Kaufen bis" fuer key (oder nil)
+function F.ManualLimit(key)
+    local m = F.manualLimit
+    if m and key ~= nil and m.key == key and Num(m.price) and m.price > 0 then return m.price end
+    return nil
+end
+
+local function ClearMoney(t)
+    if not t then return end
+    for _, k in ipairs({ "gold", "silver", "copper" }) do if t[k] then t[k]:SetText("") end end
+end
+
+-- "Kaufen bis" setzen (Rechtsklick auf eine Preisstufe), price = nil: wieder alles unter dem Ziel
+function F.SetLimit(price)
+    if F.key == nil then return end
+    if Num(price) and price > 0 then F.manualLimit = { key = F.key, price = math.floor(price) } else F.manualLimit = nil end
+    if F.limitInput then
+        if F.manualLimit then F.limitInput:SetAmount(F.manualLimit.price) else ClearMoney(F.limitInput) end
+    end
+    F.Update()
+end
+
+-- Getipptes "Kaufen bis" (0 = leer)
+function F.SetLimitTyped(amount)
+    if F.key == nil then return end
+    if Num(amount) and amount > 0 then F.manualLimit = { key = F.key, price = math.floor(amount) } else F.manualLimit = nil end
+    F.Update()
+end
+
+-- "Auto": eigenes Ziel und eigenes "Kaufen bis" zurueck
+function F.ResetOwn()
+    F.manualLimit = nil
+    ClearMoney(F.limitInput)
+    F.SetTarget(nil)
+end
+
 local function SetManual(price)
     if Num(price) and price > 0 then F.manual = { key = F.key, price = math.floor(price) } else F.manual = nil end
     -- "Menge unter Ziel" gilt fuer ein Ziel: mit einem neuen Ziel beginnt die Messung neu
@@ -113,13 +150,11 @@ function F.SetTargetTyped(amount)
 end
 
 function F.ClearInput()
-    local t = F.targetInput
-    if not t then return end
-    for _, k in ipairs({ "gold", "silver", "copper" }) do if t[k] then t[k]:SetText("") end end
+    ClearMoney(F.targetInput)
 end
 
 -- Kauf "alles unter dem Ziel" aus den Live-Stufen. Rueckgabe: Plan wie eine Chance (kind "own") oder nil
-function F.OwnPlan(target)
+function F.OwnPlan(target, buyLimit)
     local rows, t, commodity = F.LiveRows()
     if not rows then return nil end
     local D = ns.Data
@@ -131,7 +166,10 @@ function F.OwnPlan(target)
     local qty, cost, limit, nextQty, near = 0, 0, nil, 0, 0
     for _, l in ipairs(lv) do
         if l.price < target then
-            qty, cost, limit = qty + l.qty, cost + l.qty * l.price, l.price
+            -- ab 0.76: mit eigenem "Kaufen bis" nur die Stufen bis dorthin, die teureren unter dem Ziel bleiben stehen
+            if not Num(buyLimit) or l.price <= buyLimit then
+                qty, cost, limit = qty + l.qty, cost + l.qty * l.price, l.price
+            end
         else
             if nextQty == 0 then nextQty = l.qty end
             if l.price <= target * (1 + ns.Buyout.RISK_NEAR_PCT) then near = near + l.qty end
@@ -144,7 +182,7 @@ function F.OwnPlan(target)
         kind = "own", key = key, own = true, commodity = commodity and true or false, rows = rows, live = true,
         checked = Now() - math.max(0, time() - (t or time())), seenT = t,
         name = (type(e) == "table" and e.nm) or D.ItemName(key, e), quality = type(e) == "table" and e.ql or nil,
-        qty = qty, cost = cost, limit = limit, ref = target, net = target * (1 - cut),
+        qty = qty, cost = cost, limit = limit, ref = target, net = target * (1 - cut), ownLimit = Num(buyLimit) and buyLimit or nil,
         gain = math.floor(qty * target * (1 - cut) - cost),
         hours = (ctx.perHour or 0) > 0 and qty / ctx.perHour or nil, perHour = ctx.perHour, sales = ctx.sales, band = ctx.band,
         nextQty = nextQty, nearQty = near,
@@ -160,17 +198,18 @@ end
 function F.Plan()
     if F.key == nil then return nil end
     local manual = F.ManualTarget(F.key)
+    local buyLimit = F.ManualLimit(F.key)
     local d = ns.Radar.entries[F.key]
-    if d and not manual then
+    if d and not manual and not buyLimit then
         ns.Radar.Annotate(d, ns.Radar.Budget())
         d.risk = ns.Radar.Risk(d)
         return d
     end
     -- eben weggefallene Chance: "VORBEI" mit Grund, bis man ein eigenes Ziel waehlt
-    if not d and not manual and ns.Radar.gone[F.key] then return ns.Radar.gone[F.key] end
+    if not d and not manual and not buyLimit and ns.Radar.gone[F.key] then return ns.Radar.gone[F.key] end
     local M = ns.Measure
     local mt = M and M.cur and M.cur.key == F.key and M.cur.target or nil
-    local p = F.OwnPlan(manual or (d and d.ref) or mt)
+    local p = F.OwnPlan(manual or (d and d.ref) or mt, buyLimit)
     if p then
         local age = p.seenT and (time() - p.seenT) or nil
         p.risk, p.riskWhy = ns.Buyout.Risk(p, age, ns.Radar.Budget())
@@ -243,7 +282,7 @@ function F.Rows(d)
     end
     local best = d.best or {}
     rows[#rows + 1] = { L.RADAR_COL_KIND, d.own and L.FOCUS_KIND_OWN or (L["RADAR_KIND_" .. tostring(d.kind):upper()] or tostring(d.kind)) }
-    if Num(d.limit) then rows[#rows + 1] = { L.FOCUS_R_LIMIT, Money(d.limit) } end
+    if Num(d.limit) then rows[#rows + 1] = { L.FOCUS_R_LIMIT, Money(d.limit) .. (d.ownLimit and (" " .. GREY .. L.FOCUS_OWN_MARK .. "|r") or "") } end
     local all = Num(d.qty) and d.qty or 0
     local qty = Num(best.qty) and best.qty or all
     rows[#rows + 1] = { L.FOCUS_R_QTY, (qty < all and qty > 0) and L.FOCUS_QTY_OF:format(qty, all) or tostring(all) }
@@ -342,12 +381,20 @@ function F.Build(c)
     F.targetLabel = UI.Text(left, "label", L.FOCUS_OWN_TARGET)
     F.targetLabel:SetWidth(UI.LABEL_W)
     F.targetLabel:SetJustifyH("RIGHT")
-    F.targetLabel:SetPoint("BOTTOMLEFT", 8, 112)
+    F.targetLabel:SetPoint("BOTTOMLEFT", 8, 126)
     F.targetInput = UI.MoneyInput(left, function(amount) F.SetTargetTyped(amount) end)
     F.targetInput:SetPoint("LEFT", F.targetLabel, "RIGHT", 6, 0)
-    if F.targetInput.SetScale then F.targetInput:SetScale(0.85) end
-    F.autoButton = UI.Button(left, L.FOCUS_AUTO, 52, function() F.SetTarget(nil) end)
-    F.autoButton:SetPoint("BOTTOMRIGHT", left, "BOTTOMRIGHT", -8, 110)
+    if F.targetInput.SetScale then F.targetInput:SetScale(0.8) end
+    -- ab 0.76: eigenes "Kaufen bis" (Rechtsklick auf eine Preisstufe), darunter
+    F.limitLabel = UI.Text(left, "label", L.FOCUS_R_LIMIT)
+    F.limitLabel:SetWidth(UI.LABEL_W)
+    F.limitLabel:SetJustifyH("RIGHT")
+    F.limitLabel:SetPoint("BOTTOMLEFT", 8, 98)
+    F.limitInput = UI.MoneyInput(left, function(amount) F.SetLimitTyped(amount) end)
+    F.limitInput:SetPoint("LEFT", F.limitLabel, "RIGHT", 6, 0)
+    if F.limitInput.SetScale then F.limitInput:SetScale(0.8) end
+    F.autoButton = UI.Button(left, L.FOCUS_AUTO, 52, function() F.ResetOwn() end)
+    F.autoButton:SetPoint("BOTTOMRIGHT", left, "BOTTOMRIGHT", -8, 111)
     UI.SetTooltip(F.autoButton, { L.FOCUS_AUTO, L.FOCUS_AUTO_TIP })
 
     F.buyButton = UI.Button(left, L.BUY_BUY, UI.LEFT_W - 20, function()
@@ -387,8 +434,11 @@ function F.Build(c)
         },
         sortKey = "price", empty = L.FOCUS_TIER_WAIT,
         rowBg = function(r) if r and r.isTarget then return 1, 0.82, 0, 0.22 end end,   -- ab 0.74 (Kern API 19)
-        -- ab 0.70: Klick auf eine Preisstufe macht ihren Preis zum Ziel
-        onClick = function(item, button) if item and Num(item.price) and button ~= "RightButton" then F.SetTarget(item.price) end end,
+        -- ab 0.70: Klick auf eine Preisstufe macht ihren Preis zum Ziel, ab 0.76 Rechtsklick zu "Kaufen bis"
+        onClick = function(item, button)
+            if not (item and Num(item.price)) then return end
+            if button == "RightButton" then F.SetLimit(item.price) else F.SetTarget(item.price) end
+        end,
     })
     F.BuildMeasure(c, right)
 
@@ -509,7 +559,13 @@ local function BuyState(d)
     if not AHOpen() then return L.FOCUS_BUY:format(qty), false, L.TAB_AH_ONLY end
     -- ab 0.70: mit eigenem Ziel geht Kaufen auch ohne Gewinn (eigene Entscheidung), nur nicht ohne Menge oder Gold
     if qty < 1 or d.cant then return L.BUY_BUY, false, "" end
-    return L.FOCUS_BUY:format(qty), job == nil, ""
+    -- ab 0.76: Kosten und erwarteter Gewinn direkt ueber dem Knopf
+    local best = d.best or {}
+    local info = ""
+    if Num(best.cost) and Num(best.gain) then
+        info = L.FOCUS_COST_GAIN:format(Money(best.cost), ns.Radar.SignedMoney(math.floor(best.gain + 0.5)))
+    end
+    return L.FOCUS_BUY:format(qty), job == nil, info
 end
 
 function F.Update()
@@ -518,7 +574,7 @@ function F.Update()
     local has = key ~= nil
     local live = AHOpen()
     On(F.marketButton, has); On(F.itemButton, has)
-    On(F.autoButton, has and live and F.ManualTarget(key) ~= nil)
+    On(F.autoButton, has and live and (F.ManualTarget(key) ~= nil or F.ManualLimit(key) ~= nil))
     if not has then
         F.header:Set(nil, "", 1)
         F.verdict:SetText("")
@@ -552,7 +608,7 @@ function F.Update()
     F.tiers:SetData(F.Tiers(limit, d and not d.gone and d.ref or nil))
     local _, t = F.LiveRows()
     if not live then F.stand:SetText(GREY .. L.TAB_AH_ONLY .. "|r")
-    elseif t then F.stand:SetText(L.FOCUS_LIVE:format(ns.Scan.Age(t)))
+    elseif t then F.stand:SetText(L.FOCUS_LIVE:format(ns.Scan.Age(t)) .. "  " .. GREY .. L.FOCUS_CLICK_HINT .. "|r")
     else F.stand:SetText(GREY .. L.FOCUS_LIVE_WAIT .. "|r") end
     F.UpdateMeasure(F.LiveValues())
     local label, enabled, info = BuyState(d)
@@ -565,7 +621,8 @@ end
 function F.Set(key)
     if key == nil then return end
     if key ~= F.key then
-        F.manual = nil
+        F.manual, F.manualLimit = nil, nil
+        ClearMoney(F.limitInput)
         F.since = time()
         F.chartN = nil
         F.ClearInput()

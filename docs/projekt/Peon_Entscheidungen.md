@@ -2,6 +2,11 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Fokus mit Kaufen bis (Broker 0.76.0)
+
+- **Kaufen bis per Rechtsklick, Ziel per Linksklick** (KarloDerBaer): Man kann ein höheres Ziel wählen, ohne alles darunter zu kaufen. „Auto“ setzt beides zurück (Claude).
+- **Kosten und Gewinn über dem Kaufknopf** (KarloDerBaer).
+
 ## 12.11.2026: Nachbesserungen nach dem dritten Test (Broker 0.75.0)
 
 - **Knopf „Angebote“ entfällt** (KarloDerBaer): Der zweite Klick auf die Zeile in Blizzards Liste reicht.

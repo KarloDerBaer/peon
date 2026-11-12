@@ -1318,6 +1318,21 @@ end)()
         "0.70: Ziel von Hand, kein Gewinn, kaufen geht trotzdem")
     F.autoButton.scripts.OnClick(F.autoButton)
     check(F.ManualTarget(2770) == nil and F.buyButton.text == "Kaufen 10" and F.autoButton.disabled, "0.70: Auto nimmt das eigene Ziel zurueck")
+    -- ab 0.76: Ziel 2s (Klick), Kaufen bis 1s (Rechtsklick): nur die unterste Stufe, Kosten und Gewinn ueber dem Knopf
+    F.tiers.o.onClick(F.tiers.items[3], "LeftButton")
+    F.tiers.o.onClick(F.tiers.items[1], "RightButton")
+    check(F.ManualTarget(2770) == 200 and F.ManualLimit(2770) == 100 and F.buyButton.text == "Kaufen 10" and F.limitInput:GetAmount() == 100
+      and plain(F.buyInfo.text) == "Kosten: 10s    Gewinn: +9s",
+      "0.76: Rechtsklick setzt Kaufen bis, Ziel bleibt, Kosten und Gewinn ueber dem Knopf: " .. plain(F.buyInfo.text))
+    local fr3 = {}
+    for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr3[#fr3 + 1] = r.label.text .. "=" .. plain(r.value.text) end end
+    check(table.concat(fr3, "|"):find("Kaufen bis=1s (eigenes)|Menge=10|", 1, true) and F.tiers.items[1].inBuy and not F.tiers.items[2].inBuy and F.tiers.items[3].isTarget,
+      "0.76: nur bis Kaufen bis gruen, Ziel gelb: " .. table.concat(fr3, "|"))
+    F.SetLimitTyped(150)
+    check(F.buyButton.text == "Kaufen 15", "0.76: Kaufen bis von Hand")
+    F.autoButton.scripts.OnClick(F.autoButton)
+    check(F.ManualTarget(2770) == nil and F.ManualLimit(2770) == nil and F.limitInput:GetAmount() == 0 and F.buyButton.text == "Kaufen 10",
+      "0.76: Auto nimmt Ziel und Kaufen bis zurueck")
     LIVE[2770] = nil
     -- Reiter verlassen: Abfragen aus
     T.tabs.buy.scripts.OnClick(T.tabs.buy)
