@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.27.0
+
+Kurz: Das Update-Fenster zeigt je Teil eine kurze Anmerkung und die Punkte Neu, Geändert, Behoben und Entfernt, wie im Text des Release auf GitHub.
+
+- 0.27.0 (12.11.2026): **Was ist neu wie im Release.** Das Release-Skript schreibt je geändertem Teil `release = { from, note, items }` ins Manifest (aus `docs/releases/*.md`, `from` = Version des letzten normalen Release).
+  - `addons.js`: `releaseFor` prüft die Angabe (nur die vier Arten, Text gekürzt wie die kurzen Texte, sortiert nach Art). Wer vor `from` stehen geblieben ist, bekommt die kurzen Texte der übersprungenen Versionen bis `from` als `older` dazu. Ohne Angabe (älteres Manifest) `null`.
+  - Neue Komponente `components/ReleaseText.vue` im Update-Fenster und unter „Was ist neu“ in der Ansicht Module: Anmerkung, Punkte mit farbiger Art, darunter „Davor:“ mit den kurzen Texten. Ohne Angabe wie bisher die kurzen Texte.
+  - Sichtbar erst ab dem Update nach 0.27.0, weil das Fenster immer der installierte Manager zeichnet.
+  - Tests: neuer Test „Text des Release“ in `addons.test.js`.
+  - **Im echten Programm prüfen:** Update-Fenster und „Was ist neu“ beim ersten Update nach 0.27.0.
+
 ## 0.26.0
 
 Kurz: Die Seiten heißen jetzt wie im Spiel: Markt, Einkaufen, Beobachtung, Radar, Händler und Datenlage.

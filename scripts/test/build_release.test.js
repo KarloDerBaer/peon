@@ -26,6 +26,7 @@ function fakeRepo({ brokerVersion = '0.33.0', bridgeExtra = '' } = {}) {
   w('docs/changelog/Peon.md', '# Peon\n\n## 0.11.0\n\nKurz: Kern ist schneller.\n\n- Kern neu\n\n## 0.10.0\n\n- alt\n');
   w('docs/changelog/Peon_Broker.md', '# Broker\n\n## 0.33.0\n\nKurz: Preise kommen vom Manager.\nKurz: Weniger Fehler.\n\n- Bridge\n\n## 0.32.0\n\nKurz: Absatz im Tooltip.\n\n- Absatz\n\n## 0.31.0\n\n- Bereich\n');
   w('docs/changelog/Peon_Bridge.md', '# Bridge\n\n## 0.4.0\n\nKurz: Verbindung zum Manager.\n\n- Kanaele\n');
+  w('docs/releases/2026-11-04.md', '# Release 04.11.2026\n\n## Peon Manager 0.6.0\n\nAnmerkung: Neues Fenster\n\n- Behoben: Absturz beim Start\n- Neu: Fenster für Module\n\n## Peon_Broker 0.33.0\n\nAnmerkung: Preise vom Manager\n\n- Neu: Preise kommen vom Manager\n');
   const config = {
     fmt: 1, discord: null, managerMinVersion: '0.6.0',
     addons: { Peon: { api: 'core' }, Peon_Broker: { api: 8 }, Peon_Bridge: { api: 5, managerOnly: true, exclude: ['Data.lua'] } },
@@ -87,7 +88,7 @@ test('Bauen: Zips, Manifest, Data.lua nie dabei', () => {
   assert.deepEqual(m.managerModules[0].needs, ['Peon_Broker', 'Peon_Bridge']);
   const notes = fs.readFileSync(path.join(out, 'manifest.json'), 'utf8');
   assert.ok(JSON.parse(notes).addons.length === 3);
-  assert.match(fs.readFileSync(path.join(out, 'notes.md'), 'utf8'), /\| Peon_Bridge \| 0\.4\.0 \| nur mit dem Peon Manager \|/);
+  assert.match(fs.readFileSync(path.join(out, 'notes.md'), 'utf8'), /\| Peon_Bridge \| – \| 0\.4\.0 \| +\|/);
 });
 
 test('Gleiches Addon, gleiches Zip (Pruefsumme bleibt)', () => {
@@ -112,7 +113,7 @@ test('Was ist neu: beim ersten Release leer, danach alles seitdem, neues Addon m
   const p2 = second.addons.find((a) => a.name === 'Peon');
   assert.equal(p2.changed, false);
   assert.equal(p2.notes, '');
-  assert.match(R.releaseNotes(second), /\| Peon \| 0\.11\.0 \| unverändert \|/);
+  assert.match(run(f, { prev }).notes, /\| Peon \| 0\.11\.0 \| 0\.11\.0 \| unverändert \|/);
 });
 
 test('Kurze Texte: je Version im Manifest, nicht im langen Verlauf, Pflicht bei neuer Version', () => {
@@ -140,6 +141,57 @@ test('Kurze Texte: je Version im Manifest, nicht im langen Verlauf, Pflicht bei 
   fs.writeFileSync(path.join(h.repo, 'docs/changelog/Peon_Manager.md'), '# Manager\n\n## 0.6.0\n\nKurz: Neues Fenster.\n\n- lang\n');
   const m = run(h, { prev: { ...same, manager: { version: '0.5.0' } } }).manifest;
   assert.deepEqual(m.manager.news, [{ version: '0.6.0', short: ['Neues Fenster.'] }]);
+});
+
+test('Text fuer das Release: Tabelle alt/neu, Punkte nach Art, Pflicht bei Aenderung', () => {
+  const prev = { manager: { version: '0.5.0' }, addons: [{ name: 'Peon', version: '0.11.0' }, { name: 'Peon_Broker', version: '0.31.0' }] };
+  const managerLog = (r) => fs.writeFileSync(path.join(r.repo, 'docs/changelog/Peon_Manager.md'), '# Manager\n\n## 0.6.0\n\nKurz: Neues Fenster.\n');
+  const f = fakeRepo();
+  managerLog(f);
+  const { notes, manifest } = run(f, { prev });
+  // Manifest fuer das Update-Fenster: nur geaenderte Teile, from = alte Version
+  assert.deepEqual(manifest.manager.release, { from: '0.5.0', note: 'Neues Fenster', items: [{ kind: 'Behoben', text: 'Absturz beim Start' }, { kind: 'Neu', text: 'Fenster für Module' }] });
+  const ma = (n) => manifest.addons.find((a) => a.name === n);
+  assert.deepEqual(ma('Peon_Broker').release, { from: '0.31.0', note: 'Preise vom Manager', items: [{ kind: 'Neu', text: 'Preise kommen vom Manager' }] });
+  assert.deepEqual(ma('Peon_Bridge').release, { from: null, note: 'Neu', items: [] });
+  assert.equal(ma('Peon').release, undefined);
+  const lines = notes.split('\n');
+  const head = lines.indexOf('| Addon/Modul | Version alt | Version neu | Anmerkung |');
+  assert.ok(head > 0, 'Kopf der Tabelle');
+  assert.deepEqual(lines.slice(head + 2, head + 6), [
+    '| Peon Manager | 0.5.0 | 0.6.0 | Neues Fenster |',
+    '| Peon | 0.11.0 | 0.11.0 | unverändert |',
+    '| Peon_Bridge | – | 0.4.0 | Neu |',
+    '| Peon_Broker | 0.31.0 | 0.33.0 | Preise vom Manager |',
+  ]);
+  // Manager zuerst, Punkte nach Neu, Geaendert, Behoben, Entfernt sortiert, keine Notizen aus dem Changelog
+  assert.match(notes, /## Peon Manager 0\.6\.0\n\n- \*\*Neu:\*\* Fenster für Module\n- \*\*Behoben:\*\* Absturz beim Start\n\n## Peon_Broker 0\.33\.0\n\n- \*\*Neu:\*\* Preise kommen vom Manager\n$/);
+  assert.doesNotMatch(notes, /### 0\.32\.0|Absatz|Kurz/);
+  assert.doesNotMatch(notes, /## Peon 0\.11\.0|## Peon_Bridge/);
+
+  // Die Anleitung README.md wird nicht gelesen (Beispiel im Codeblock)
+  fs.writeFileSync(path.join(f.repo, 'docs/releases/README.md'), '```\n## Peon_Broker 0.33.0\nAnmerkung: Beispiel\n```\n');
+  assert.ok(run(f, { prev }).notes.includes('| Preise vom Manager |'));
+
+  // Abschnitt in einer anderen Datei zaehlt genauso (Vorabversion und normales Release)
+  fs.renameSync(path.join(f.repo, 'docs/releases/2026-11-04.md'), path.join(f.repo, 'docs/releases/2026-11-03.md'));
+  assert.ok(run(f, { prev, tag: 'v2026.11.05' }).notes.includes('Preise vom Manager'));
+
+  // Geaendert ohne Abschnitt, ohne Anmerkung, ohne Punkte, falsche Art: Abbruch
+  const g = fakeRepo();
+  managerLog(g);
+  const rp =path.join(g.repo, 'docs/releases/2026-11-04.md');
+  fs.writeFileSync(rp, '## Peon Manager 0.6.0\nAnmerkung: x\n- Neu: y\n');
+  assert.throws(() => run(g, { prev }), /Peon_Broker 0\.33\.0: kein Abschnitt "## Peon_Broker 0\.33\.0"/);
+  fs.writeFileSync(rp, '## Peon Manager 0.6.0\nAnmerkung: x\n- Neu: y\n## Peon_Broker 0.33.0\n- Neu: y\n');
+  assert.throws(() => run(g, { prev }), /Peon_Broker 0\.33\.0: kein Abschnitt/);
+  fs.writeFileSync(rp, '## Peon Manager 0.6.0\nAnmerkung: x\n- Neu: y\n## Peon_Broker 0.33.0\nAnmerkung: z\n');
+  assert.throws(() => run(g, { prev }), /Peon_Broker 0\.33\.0: keine Punkte/);
+  fs.writeFileSync(rp, '## Peon_Broker 0.33.0\nAnmerkung: z\n- Bugfix: y\n');
+  assert.throws(() => run(g, { prev }), /Zeile 3: erwartet/);
+  // erstes Release: nichts Pflicht
+  fs.writeFileSync(rp, '');
+  assert.doesNotThrow(() => run(g));
 });
 
 test('Vorabversion: Tag mit -test', () => {

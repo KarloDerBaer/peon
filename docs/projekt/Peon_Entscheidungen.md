@@ -2,6 +2,13 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Text des Release ohne Entwickler-Verlauf
+
+- **Tabelle** mit Addon/Modul, Version alt, Version neu und Anmerkung, dazu eine Zeile für den Peon Manager. „Version alt“ ist der Stand des letzten normalen Release. Unveränderte Teile stehen mit „unverändert“ drin.
+- **Darunter je geändertem Teil eine kurze Liste** mit `Neu`, `Geändert`, `Behoben`, `Entfernt`, für Nutzer geschrieben und über alle Versionen seit dem letzten Release zusammengefasst. Kein Verlauf aus den Changelogs mehr, keine Hinweise auf Personen, Orte oder Wünsche.
+- **Auch im Manager:** Update-Fenster und „Was ist neu“ zeigen dieselben Angaben aus dem Manifest (ab Manager 0.27.0). Für übersprungene Releases bleiben die kurzen Texte darunter.
+- **Quelle:** eine Datei je Release in `docs/releases/`, von Claude aus den Changelogs zusammengefasst und von KarloDerBaer gegengelesen. Grund: Bei vielen Versionen seit dem letzten Release (Broker 0.40 bis 0.81) wären automatisch gesammelte Zeilen lang und doppelt.
+
 ## 12.11.2026: Einmalige Hinweise im Kern (Peon 0.20.0, API 20)
 
 - **Module melden ihre Hinweise selbst** (`mod:AddNotice`), der Kern sammelt und zeigt sie. Grund: Ein Hinweis kommt und geht mit dem Update des Moduls, der Kern muss dafür nicht mit ausgeliefert werden.

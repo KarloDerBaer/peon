@@ -30,6 +30,7 @@ Peon ist eine Addon-Sammlung von KarloDerBaer für WoW Forever, dazu das Windows
 
 - Addon-Code nur in `addons/` ändern. Der AddOns-Ordner des Spiels steht auf einer von zwei Arten, `scripts\junctions.cmd` zeigt und wechselt sie: **Manager** (echte Ordner, Normalzustand, Änderungen kommen erst über ein Release im Kanal Test ins Spiel) oder **Entwicklung** (Junction auf diese Ordner, Änderungen sind nach `/reload` im Spiel, auch neue Dateien und neue Addons). Umschalten geht auch bei laufendem WoW, danach `/reload`.
 - Releases zuerst als Vorabversion (`vJJJJ.MM.TT-test`), nach der Prüfung durch KarloDerBaer derselbe Stand als normales Release. Veröffentlicht wird nur nach Rücksprache.
+- Vor jedem Release `docs/releases/<Datum>.md` schreiben: je geändertem Teil eine kurze Anmerkung und Punkte `Neu`, `Geändert`, `Behoben`, `Entfernt`, zusammengefasst seit dem letzten normalen Release, ohne Personen, Orte oder Wünsche. Regeln in `docs/releases/README.md`. Der Bau bricht ohne sie ab. KarloDerBaer liest den Text vor dem Release gegen.
 - Im Addon-Ordner liegt nur Addon-Code (keine Notizen, Kopien oder Testdateien).
 - Neue Module heißen `Peon_<Name>`, hängen von Peon ab und entstehen aus `vorlage/Peon_Beispiel`.
 - Die Kern-API wird nur erweitert, nie geändert.

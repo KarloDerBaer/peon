@@ -256,7 +256,7 @@ class Service {
     const u = a.managerUpdate();
     if (updater.status !== 'off' && (u || updater.status === 'ready')) {
       const version = updater.status === 'ready' && updater.version ? updater.version : u.version;
-      manager = { kind: 'manager', name: 'Peon Manager', title: 'Peon Manager', version, installed: this.version, news: a.managerNews(),
+      manager = { kind: 'manager', name: 'Peon Manager', title: 'Peon Manager', version, installed: this.version, news: a.managerNews(), release: a.managerRelease(),
         status: updater.status, percent: updater.percent || 0, error: updater.error || null };
     }
     const keys = [...(manager ? [`Peon Manager@${manager.version}`] : []), ...addons.map((x) => `${x.name}@${x.version}`)];

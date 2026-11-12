@@ -3,6 +3,7 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { ago, bytes } from '../util.js';
 import Checklist from '../components/Checklist.vue';
+import ReleaseText from '../components/ReleaseText.vue';
 
 const props = defineProps({ data: Object, settings: Object, now: Number, stamp: Number });
 const emit = defineEmits(['changed', 'pickFolder', 'go', 'updates', 'save']);
@@ -198,9 +199,9 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
         </div>
         <p v-if="a.desc">{{ a.desc }}</p>
         <p class="small muted" v-if="a.managerOnly">Gehört fest zum Peon Manager und wird mit ihm aktualisiert.</p>
-        <button class="link small" v-if="a.news && a.news.length" @click="open = open === a.name ? '' : a.name">{{ open === a.name ? 'Was ist neu ausblenden' : 'Was ist neu' }}</button>
+        <button class="link small" v-if="a.release || (a.news && a.news.length)" @click="open = open === a.name ? '' : a.name">{{ open === a.name ? 'Was ist neu ausblenden' : 'Was ist neu' }}</button>
         <div class="notes small" v-if="open === a.name">
-          <ul v-for="n in a.news" :key="n.version"><li v-for="s in n.short" :key="s">{{ s }}</li></ul>
+          <ReleaseText :release="a.release" :news="a.news" />
         </div>
       </article>
       <p class="small muted" v-if="!shown.length">Sobald es ein Release gibt, stehen die Addons hier.</p>

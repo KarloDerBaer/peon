@@ -37,9 +37,9 @@ function makeRelease(tag, addons, opt = {}) {
     const file = a.file || `${a.name}-${a.version}.zip`;
     files[file] = zip;
     return { name: a.name, title: a.name.replace('Peon_', ''), version: a.version, desc: `Beschreibung ${a.name}`, deps: a.deps || (a.name === 'Peon' ? [] : ['Peon']),
-      api: 5, interface: 16001, file, sha256: a.sha256 || crypto.createHash('sha256').update(zip).digest('hex'), size: a.size || zip.length, news: a.news || [{ version: a.version, short: [`Neu in ${a.version}`] }], managerOnly: !!a.managerOnly };
+      api: 5, interface: 16001, file, sha256: a.sha256 || crypto.createHash('sha256').update(zip).digest('hex'), size: a.size || zip.length, news: a.news || [{ version: a.version, short: [`Neu in ${a.version}`] }], managerOnly: !!a.managerOnly, ...(a.release ? { release: a.release } : {}) };
   });
-  files['manifest.json'] = JSON.stringify({ fmt: 1, release: tag, date: '2026-11-04', discord: null, manager: { version: opt.managerVersion || '0.8.0', minVersion, news: opt.managerNews }, addons: list, managerModules: [] });
+  files['manifest.json'] = JSON.stringify({ fmt: 1, release: tag, date: '2026-11-04', discord: null, manager: { version: opt.managerVersion || '0.8.0', minVersion, news: opt.managerNews, ...(opt.managerRelease ? { release: opt.managerRelease } : {}) }, addons: list, managerModules: [] });
   return files;
 }
 
@@ -546,5 +546,33 @@ test('Update-Fenster: Manager mit Text, ohne Selbst-Update kein Eintrag, Erstein
   assert.equal(u.popup, false, 'noch nichts eingerichtet: Der Willkommens-Vorschlag ist dran');
   w.svc.saveSettings({ setup: { done: true } });
   assert.equal(w.svc.updateInfo({ status: 'ready', version: '0.9.0' }).popup, true);
+  await w.close();
+});
+
+test('Text des Release (ab 0.27.0): Anmerkung und Punkte, Davor fuer Uebersprungene, ohne Angabe wie bisher', async () => {
+  const news = [{ version: '0.13.0', short: ['Dreizehn'] }, { version: '0.12.0', short: ['Zwoelf'] }, { version: '0.11.1', short: ['Elf eins'] }];
+  const release = { from: '0.12.0', note: 'Neues Menue', items: [{ kind: 'Behoben', text: 'Absturz' }, { kind: 'Neu', text: 'Menue' }, { kind: 'Bugfix', text: 'falsche Art' }, { kind: 'Neu', text: 42 }] };
+  const w = await world([{ name: 'Peon', version: '0.11.0' }, { name: 'Peon_Broker', version: '0.33.0' }],
+    { managerVersion: '0.9.0', managerNews: [{ version: '0.9.0', short: ['Kurz'] }], managerRelease: { from: '0.8.0', note: 'Fenster', items: [{ kind: 'Neu', text: 'Seite' }] } });
+  w.svc.saveSettings({ setup: { done: true } });
+  await w.svc.addons.check();
+  await w.svc.addons.install(['Peon']);
+  w.state.releases['v2026.11.05'] = makeRelease('v2026.11.05', [{ name: 'Peon', version: '0.13.0', news, release }, { name: 'Peon_Broker', version: '0.33.0' }],
+    { managerVersion: '0.9.0', managerNews: [{ version: '0.9.0', short: ['Kurz'] }], managerRelease: { from: '0.8.0', note: 'Fenster', items: [{ kind: 'Neu', text: 'Seite' }] } });
+  w.state.latest = 'v2026.11.05';
+  await w.svc.addons.check();
+  const peon = w.svc.addons.list().find((a) => a.name === 'Peon');
+  // 0.11.0 installiert, letztes Release war 0.12.0: Punkte seit 0.12.0, davor die kurzen Texte bis 0.12.0
+  assert.deepEqual(peon.release, { from: '0.12.0', note: 'Neues Menue', items: [{ kind: 'Neu', text: 'Menue' }, { kind: 'Behoben', text: 'Absturz' }],
+    older: [{ version: '0.12.0', short: ['Zwoelf'] }, { version: '0.11.1', short: ['Elf eins'] }] });
+  assert.deepEqual(peon.news.map((n) => n.version), ['0.13.0', '0.12.0', '0.11.1'], 'kurze Texte bleiben fuer aeltere Fenster');
+  assert.equal(w.svc.addons.list().find((a) => a.name === 'Peon_Broker').release, null, 'ohne Angabe: null, Fenster zeigt kurze Texte');
+  const u = w.svc.updateInfo({ status: 'ready', version: '0.9.0' });
+  assert.deepEqual(u.addons.find((a) => a.name === 'Peon').release.items.length, 2);
+  // Manager laeuft als 0.8.0 = from: keine Davor-Liste
+  assert.deepEqual(u.manager.release, { from: '0.8.0', note: 'Fenster', items: [{ kind: 'Neu', text: 'Seite' }], older: [] });
+  // Aktuell installiert: Punkte bleiben (Was ist neu in der Modul-Ansicht), keine Davor-Liste
+  await w.svc.addons.install(['Peon']);
+  assert.deepEqual(w.svc.addons.list().find((a) => a.name === 'Peon').release.older, []);
   await w.close();
 });

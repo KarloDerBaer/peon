@@ -88,6 +88,24 @@ function newsSince(news, installed) {
   return installed ? clean.filter((n) => cmpVersion(n.version, installed) > 0) : clean.slice(0, 1);
 }
 
+// Text des Release (ab 0.27.0, Manifest-Angabe release): Anmerkung und Punkte Neu, Geaendert, Behoben, Entfernt
+// seit dem letzten normalen Release (from). Wer vor from stehen geblieben ist, bekommt fuer die Versionen bis from
+// die kurzen Texte dazu (older). Ohne die Angabe (aelteres Manifest) null: Das Fenster zeigt dann nur die kurzen Texte.
+const RELEASE_KINDS = ['Neu', 'Geändert', 'Behoben', 'Entfernt'];
+function releaseFor(rel, news, installed) {
+  if (!rel || typeof rel !== 'object' || !Array.isArray(rel.items)) return null;
+  const items = rel.items
+    .filter((x) => x && RELEASE_KINDS.includes(x.kind) && typeof x.text === 'string' && x.text)
+    .map((x) => ({ kind: x.kind, text: x.text.slice(0, MAX_NEWS_TEXT) }))
+    .sort((a, b) => RELEASE_KINDS.indexOf(a.kind) - RELEASE_KINDS.indexOf(b.kind));
+  const note = typeof rel.note === 'string' ? rel.note.slice(0, MAX_NEWS_TEXT) : '';
+  if (!items.length && !note) return null;
+  const from = VERSION_RE.test(String(rel.from)) ? String(rel.from) : null;
+  const older = installed && from && cmpVersion(installed, from) < 0
+    ? newsSince(news, installed).filter((n) => cmpVersion(n.version, from) <= 0) : [];
+  return { from, note, items, older };
+}
+
 function readTocVersion(file) {
   try {
     const m = fs.readFileSync(file, 'utf8').match(/^##\s*Version\s*:\s*(\S+)/m);
@@ -222,7 +240,7 @@ class AddonManager {
         if (i.dev) status = 'dev';
         else if (i.present) status = i.version && cmpVersion(i.version, a.version) >= 0 ? (i.version === a.version ? 'current' : 'newer') : 'update';
         out.push({ name: a.name, title: a.title, desc: a.desc, available: a.version, installed: i.version, present: i.present, dev: i.dev, status,
-          news: newsSince(a.news, status === 'update' ? i.version : null), deps: a.deps, size: a.size, managerOnly: !!a.managerOnly, removable: this.removeBlock(a.name) === null });
+          news: newsSince(a.news, status === 'update' ? i.version : null), release: releaseFor(a.release, a.news, status === 'update' ? i.version : null), deps: a.deps, size: a.size, managerOnly: !!a.managerOnly, removable: this.removeBlock(a.name) === null });
       }
     } else {
       // ohne Manifest: nur zeigen, was da ist (Name mit Peon, eigene TOC)
@@ -415,6 +433,12 @@ class AddonManager {
     return m && m.manager ? newsSince(m.manager.news, this.host.version) : [];
   }
 
+  // Text des Release fuer den Manager (ab 0.27.0), null ohne Angabe im Manifest
+  managerRelease() {
+    const m = this.manifest;
+    return m && m.manager ? releaseFor(m.manager.release, m.manager.news, this.host.version) : null;
+  }
+
   // Inhalt des Update-Fensters: Updates und neue Addons. Ein Addon gilt als neu, bis es einmal vorgestellt wurde,
   // sonst kaeme ein bewusst nicht installiertes immer wieder. Was das Manifest beim ersten Mal schon nennt, ist nicht neu.
   newsEntries() {
@@ -427,8 +451,8 @@ class AddonManager {
     }
     const out = [];
     for (const a of this.list()) {
-      if (a.status === 'update') out.push({ kind: 'update', name: a.name, title: a.title, version: a.available, installed: a.installed, desc: a.desc, news: a.news });
-      else if (a.status === 'missing' && !a.managerOnly && !seen.includes(a.name)) out.push({ kind: 'new', name: a.name, title: a.title, version: a.available, installed: null, desc: a.desc, news: a.news });
+      if (a.status === 'update') out.push({ kind: 'update', name: a.name, title: a.title, version: a.available, installed: a.installed, desc: a.desc, news: a.news, release: a.release });
+      else if (a.status === 'missing' && !a.managerOnly && !seen.includes(a.name)) out.push({ kind: 'new', name: a.name, title: a.title, version: a.available, installed: null, desc: a.desc, news: a.news, release: a.release });
     }
     return out;
   }

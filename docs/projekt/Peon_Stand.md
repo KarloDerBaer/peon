@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 12.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.0 / Broker 0.82.0 / Bridge 0.9.2 (bis 0.3.0 Peon_Client) / Peon Manager 0.26.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 12.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.0 / Broker 0.82.0 / Bridge 0.9.2 (bis 0.3.0 Peon_Client) / Peon Manager 0.27.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.20.0, API 20
@@ -68,7 +68,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.82.0, 0.81.1, 0.81.0, 0.80.0, 0.79.0, 0.78.0, 0.77.0, 0.76.0, 0.75.1, 0.75.0, 0.74.0, 0.73.0, 0.72.0, 0.71.0, 0.70.0, 0.69.0, 0.68.0, 0.67.0, 0.66.0, 0.65.0, 0.64.1, 0.64.0, 0.63.0, 0.62.0, 0.61.0, 0.60.1, 0.60.0, 0.59.1, 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.26.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.27.0
+
+- **Was ist neu wie im Release (ab 0.27.0):** Update-Fenster und Ansicht Module zeigen Anmerkung und Punkte aus `release` im Manifest (`components\ReleaseText.vue`), bei übersprungenen Releases darunter die kurzen Texte. Sichtbar erst beim Update nach 0.27.0.
 
 - **Seiten wie im Spiel (ab 0.26.0, Neuaufbau H5):** Markt, Einkaufen, Beobachtung, Radar (mit neuem erstem Reiter Aufkauf, gleiche Regel wie Broker 0.65.0), Händler, Datenlage. Nicht veröffentlicht, im echten Programm noch nicht geprüft.
 
@@ -314,6 +316,7 @@ In dieser Reihenfolge:
   - Programmname von WoW Forever: `Wow.exe` im Ordner `_forever_` (geprüft 31.10.2026, für die Warnung „WoW läuft“).
   - F1 erledigt (31.10.2026): `node scripts/build_release.js [--tag vJJJJ.MM.TT] [--test] [--prev manifest.json]` baut nach `build\release\<Tag>\` je Addon ein Zip, `manifest.json` (Design 6.2) und `notes.md` (Text für das Release). Einstellungen je Addon (nötige Kern-API, nur Manager, Ausnahmen wie Data.lua) und die Manager-Module stehen in `scripts\release.json`. Die Zips sind immer gleich gebaut (gleiches Addon, gleiche Prüfsumme). Geprüft: mit Windows entpackt, alle 97 Dateien gleich dem Repo, kein Data.lua. Tests in `scripts\test\`, laufen auch auf GitHub. Nichts veröffentlicht.
   - „Was ist neu“ kommt aus den Changelogs und ist sehr technisch (Funktionsnamen, „Wunsch KarloDerBaer“). Entschieden (04.11.2026): Beim ersten Release bleibt es leer, ab dem zweiten kommen die Changelogs. Ob es dafür kürzere Texte für Freunde geben soll, ist noch offen.
+  - **Text des Release neu (12.11.2026):** `notes.md` zeigt eine Tabelle (Addon/Modul, Version alt, Version neu, Anmerkung, mit Zeile Peon Manager) und je geändertem Teil die Punkte Neu, Geändert, Behoben, Entfernt aus `docs\releases\<Datum>.md` (Regeln in `docs\releases\README.md`). Der Verlauf der Changelogs steht nicht mehr drin. Erste Datei `2026-11-12.md` für den Release nach v2026.11.09.2, Probebau geprüft.
   - G Manager-Module erledigt (31.10.2026): Peon Manager 0.7.0. Broker Client als abschaltbares Modul mit eigener Datei `broker-client.db` (KarloDerBaer), Seitenleiste je nach aktiven Modulen, `channels` je Modul, Ansicht „Module“. Bei KarloDerBaer zieht `peon.db` beim ersten Start einmalig nach `broker-client.db` um (mit einer Kopie im Selbsttest geprüft). Programm eingespielt, alte Version als `Runtime_0.6.0`.
   - H Ansicht „Module“ und Installieren erledigt (04.11.2026): Peon Manager 0.8.0. Im echten Programm geprüft mit einem Paket aus `build_release` über einen lokalen Server und einem Testordner: alle 9 Addons installiert (98 Dateien gleich dem Repo), eines aktualisiert, alte Fassung in der Sicherung. **Noch offen aus der Abnahme:** dasselbe mit dem echten Release auf GitHub, das erst mit dem ersten Release möglich ist (Punkt der Abnahme für das erste Release).
   - I Installer und Selbst-Update (04.11.2026): Peon Manager 0.9.0, `release.yml` baut alles auf GitHub, README mit Installation und SmartScreen. Im Testordner geprüft: Installer installiert 0.9.0, Manager lädt 0.9.1 und spielt sie ein (1,2 MB statt 99 MB, die Fassungen unterschieden sich aber fast nur in der Versionsnummer). **Noch nicht geprüft:** Knopf „Jetzt neu starten“ (Test lief ohne Neustart), Warnung von SmartScreen, Selbst-Update gegen das echte GitHub.

@@ -2,6 +2,7 @@
 // Update-Fenster: Manager, Addon-Updates und neue Addons mit kurzem Text, einzeln oder alles auf einmal.
 // Geöffnet beim Programmstart, nach "Nach Updates suchen" und über "Jetzt aktualisieren" (App.vue).
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import ReleaseText from './ReleaseText.vue';
 
 const props = defineProps({ info: Object, settings: Object });
 const emit = defineEmits(['close', 'changed', 'save']);
@@ -118,7 +119,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             <span v-else class="small muted" role="status">Wird geladen{{ man.percent ? ` (${man.percent} %)` : '' }}</span>
           </div>
           <p class="small warn" v-if="man.error">{{ man.error }}</p>
-          <ul v-for="n in man.news" :key="n.version" class="small"><li v-for="s in n.short" :key="s">{{ s }}</li></ul>
+          <ReleaseText :release="man.release" :news="man.news" />
           <p class="small muted" v-if="managerReady">Zum Einspielen startet das Programm neu.</p>
         </article>
 
@@ -127,7 +128,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             <div><h3>{{ a.title }}</h3><span class="small muted">{{ a.installed }} auf {{ a.version }}</span></div>
             <button :disabled="!!busy" @click="one(a)">{{ busy === a.name ? 'Moment' : 'Aktualisieren' }}</button>
           </div>
-          <ul v-for="n in a.news" :key="n.version" class="small"><li v-for="s in n.short" :key="s">{{ s }}</li></ul>
+          <ReleaseText :release="a.release" :news="a.news" />
         </article>
 
         <article v-for="a in added" :key="a.name">
@@ -136,7 +137,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             <button :disabled="!!busy" @click="one(a)">{{ busy === a.name ? 'Moment' : 'Hinzufügen' }}</button>
           </div>
           <p class="small">{{ a.desc }}</p>
-          <ul v-for="n in a.news" :key="n.version" class="small"><li v-for="s in n.short" :key="s">{{ s }}</li></ul>
+          <ReleaseText :release="a.release" :news="a.news" />
         </article>
       </div>
 

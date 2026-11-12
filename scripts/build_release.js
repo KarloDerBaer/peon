@@ -10,6 +10,15 @@
 //   --prev   Manifest des letzten Release: "Was ist neu" enthaelt dann alle Versionen seitdem, ohne bleibt es leer (erstes Release)
 //   --dirty  auch bauen, wenn addons/ ungespeicherte Aenderungen hat (nur zum Ausprobieren)
 //
+// Text fuer das Release (notes.md): Tabelle aller Addons und des Managers mit alter und neuer Version und Anmerkung,
+// darunter je geaendertem Teil die Punkte Neu, Geaendert, Behoben, Entfernt. Beides steht in docs/releases/*.md:
+//   ## Peon_Broker 0.81.0
+//   Anmerkung: Neues Fenster, Aufkauf
+//   - Neu: ...
+//   - Behoben: ...
+// Der Abschnitt gilt fuer genau diese Version, egal in welcher Datei (Vorabversion und normales Release teilen ihn).
+// Fehlt er fuer einen geaenderten Teil, bricht der Bau ab. Neue Addons brauchen keinen (Anmerkung "Neu").
+//
 // Die Zips sind immer gleich gebaut (feste Zeit, sortierte Eintraege): Ein Addon, das sich nicht geaendert hat,
 // bekommt in jedem Release dasselbe Zip mit derselben Pruefsumme.
 
@@ -85,6 +94,51 @@ function notesFor(sections, version, prev) {
   return pick.map((s) => `### ${s.version}\n\n${s.text}`).join('\n\n');
 }
 
+// ---------------------------------------------------------------------------
+// Text fuer das Release: docs/releases/*.md lesen
+// ---------------------------------------------------------------------------
+const KINDS = ['Neu', 'Geändert', 'Behoben', 'Entfernt'];
+const MANAGER = 'Peon Manager';
+
+// Abschnitte "## <Name> <Version>" aller Dateien: { "<Name> <Version>": { note, items: [{ kind, text }] } }.
+// Spaetere Dateien (nach Name sortiert) ersetzen fruehere.
+function readReleaseNotes(dir) {
+  const out = {};
+  if (!dir || !fs.existsSync(dir)) return out;
+  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.md') && x.toLowerCase() !== 'readme.md').sort()) {
+    let cur = null;
+    fs.readFileSync(path.join(dir, f), 'utf8').split(/\r?\n/).forEach((raw, i) => {
+      const line = raw.trim();
+      const h = line.match(/^## (.+?) (\d+\.\d+\.\d+)$/);
+      if (h) { cur = { note: '', items: [] }; out[`${h[1]} ${h[2]}`] = cur; return; }
+      if (!cur || !line || line.startsWith('#')) return;
+      const n = line.match(/^Anmerkung:\s*(.+)$/);
+      if (n) { cur.note = n[1].trim(); return; }
+      const it = line.match(/^[-*]\s*([^:]+):\s*(.+)$/);
+      if (it && KINDS.includes(it[1].trim())) { cur.items.push({ kind: it[1].trim(), text: it[2].trim() }); return; }
+      throw new Error(`docs/releases/${f} Zeile ${i + 1}: erwartet "Anmerkung: ..." oder "- ${KINDS.join('|')}: ...", gefunden: ${line}`);
+    });
+  }
+  return out;
+}
+
+// Zeile der Tabelle und Punkte fuer einen Teil. Geaendert ohne Abschnitt bricht ab, neu ohne Abschnitt heisst "Neu".
+function releaseEntry(rel, name, version, prevVersion, hasPrev) {
+  const e = rel[`${name} ${version}`];
+  if (!hasPrev) return { prev: '', note: e ? e.note : '', items: e ? e.items : [] };
+  if (prevVersion === version) return { prev: prevVersion, note: 'unverändert', items: [] };
+  if (!prevVersion) return { prev: '', note: (e && e.note) || 'Neu', items: e ? e.items : [] };
+  if (!e || !e.note) throw new Error(`${name} ${version}: kein Abschnitt "## ${name} ${version}" mit "Anmerkung: ..." in docs/releases/*.md`);
+  if (!e.items.length) throw new Error(`${name} ${version}: keine Punkte (- Neu: ..., - Geändert: ...) in docs/releases/*.md`);
+  return { prev: prevVersion, note: e.note, items: e.items };
+}
+
+// Fuer das Update-Fenster im Manager (ab Manager 0.27.0): nur geaenderte Teile, from = Version des letzten normalen Release
+function releaseForManifest(t, hasPrev) {
+  if (!hasPrev || t.prev === t.version) return null;
+  return { from: t.prev || null, note: t.note, items: t.items.map((x) => ({ kind: x.kind, text: x.text })) };
+}
+
 function coreApi(dir) {
   const m = fs.readFileSync(path.join(dir, 'Core.lua'), 'utf8').match(/^Peon\.API\s*=\s*(\d+)/m);
   if (!m) throw new Error('Peon: Peon.API in Core.lua nicht gefunden');
@@ -125,6 +179,7 @@ function build(opts = {}) {
   const repo = opts.repo || REPO;
   const addonsDir = opts.addonsDir || path.join(repo, 'addons');
   const changelogDir = opts.changelogDir || path.join(repo, 'docs', 'changelog');
+  const releasesDir = opts.releasesDir || path.join(repo, 'docs', 'releases');
   const config = opts.config || JSON.parse(fs.readFileSync(path.join(repo, 'scripts', 'release.json'), 'utf8'));
   const listFiles = opts.listFiles || ((name) => gitFiles(repo, `addons/${name}`));
   let tag = opts.tag || `v${today()}`;
@@ -136,8 +191,8 @@ function build(opts = {}) {
   if (prev && Array.isArray(prev.addons)) for (const a of prev.addons) prevVersions[a.name] = a.version;
 
   if (!opts.dirty && !opts.listFiles) {
-    const st = execFileSync('git', ['-C', repo, 'status', '--porcelain', '--', 'addons', 'docs/changelog', 'scripts/release.json'], { encoding: 'utf8' }).trim();
-    if (st) throw new Error('Ungespeicherte Aenderungen in addons/ oder docs/changelog/ (erst committen oder --dirty):\n' + st);
+    const st = execFileSync('git', ['-C', repo, 'status', '--porcelain', '--', 'addons', 'docs/changelog', 'docs/releases', 'scripts/release.json'], { encoding: 'utf8' }).trim();
+    if (st) throw new Error('Ungespeicherte Aenderungen in addons/, docs/changelog/ oder docs/releases/ (erst committen oder --dirty):\n' + st);
   }
 
   const out = path.join(opts.out || path.join(repo, 'build', 'release'), tag);
@@ -156,6 +211,10 @@ function build(opts = {}) {
     addons: [],
     managerModules: config.managerModules || [],
   };
+  const rel = readReleaseNotes(releasesDir);
+  const table = [{ name: MANAGER, version: pkg.version, ...releaseEntry(rel, MANAGER, pkg.version, prev && prev.manager ? prev.manager.version : undefined, !!prev) }];
+  const rm = releaseForManifest(table[0], !!prev);
+  if (rm) manifest.manager.release = rm;
 
   const names = Object.keys(config.addons).sort();
   for (const name of fs.readdirSync(addonsDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)) {
@@ -198,21 +257,33 @@ function build(opts = {}) {
       managerOnly: !!cfg.managerOnly,
       changed: prevVersions[name] !== version,
     });
+    const t = { name, version, ...releaseEntry(rel, name, version, prevVersions[name], !!prev) };
+    table.push(t);
+    const ra = releaseForManifest(t, !!prev);
+    if (ra) manifest.addons[manifest.addons.length - 1].release = ra;
   }
 
   fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-  fs.writeFileSync(path.join(out, 'notes.md'), releaseNotes(manifest));
+  const notes = releaseNotes(manifest, table);
+  fs.writeFileSync(path.join(out, 'notes.md'), notes);
   check(out, manifest, config);
-  return { out, manifest };
+  return { out, manifest, notes, table };
 }
 
-// Text fuer das Release auf GitHub: neue und geaenderte Addons mit "Was ist neu"
-function releaseNotes(m) {
+// Text fuer das Release auf GitHub: Tabelle mit alter und neuer Version, darunter die Punkte je geaendertem Teil.
+// table: [{ name, version, prev, note, items }], Manager zuerst (ohne table nur die Addons des Manifests ohne Angaben)
+function releaseNotes(m, table) {
+  table = table || m.addons.map((a) => ({ name: a.name, version: a.version, prev: '', note: '', items: [] }));
+  const cell = (s) => String(s || '').replace(/\|/g, '\\|');
   const lines = [`Peon ${m.release}${m.prerelease ? ' (Vorabversion, Kanal Test)' : ''}`, ''];
   lines.push(`Installation: \`PeonManager-Setup-${m.manager.version}.exe\` laden und starten, der Peon Manager installiert und aktualisiert die Addons. Anleitung in der README.`, '');
-  lines.push('| Addon | Version | |', '|---|---|---|');
-  for (const a of m.addons) lines.push(`| ${a.name} | ${a.version} | ${a.managerOnly ? 'nur mit dem Peon Manager' : (a.changed ? 'neu oder geändert' : 'unverändert')} |`);
-  for (const a of m.addons.filter((x) => x.changed && x.notes)) lines.push('', `## ${a.name} ${a.version}`, '', a.notes);
+  lines.push('| Addon/Modul | Version alt | Version neu | Anmerkung |', '|---|---|---|---|');
+  for (const t of table) lines.push(`| ${cell(t.name)} | ${cell(t.prev) || '–'} | ${cell(t.version)} | ${cell(t.note)} |`);
+  for (const t of table.filter((x) => x.items.length)) {
+    lines.push('', `## ${t.name} ${t.version}`, '');
+    const sorted = [...t.items].sort((a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind));
+    for (const it of sorted) lines.push(`- **${it.kind}:** ${it.text}`);
+  }
   return lines.join('\n') + '\n';
 }
 
@@ -232,7 +303,7 @@ function check(out, manifest, config) {
   }
 }
 
-module.exports = { build, makeZip, readZip, readToc, readChangelog, notesFor, cmpVersion, releaseNotes };
+module.exports = { build, makeZip, readZip, readToc, readChangelog, notesFor, cmpVersion, releaseNotes, readReleaseNotes };
 
 if (require.main === module) {
   const args = process.argv.slice(2);
