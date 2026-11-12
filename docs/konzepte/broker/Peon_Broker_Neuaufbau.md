@@ -336,3 +336,13 @@ Die Reihenfolge bleibt so (KarloDerBaer, 11.11.2026): erst N1 bis N6, dann H1 bi
 - Grenzwerte für Risiko und Urteil: Startwerte gesetzt (Entscheidungen 12.11.2026), mit echten Daten nachzuschärfen.
 - Abweichungen beim Bau von Stufe 2, mit KarloDerBaer abzustimmen: „Im Markt zeigen“ öffnet nur Blizzards Suchergebnis, nicht direkt die Angebote (Broker 0.64.1). Ein Klick in „Zum Einstellen“ legt nichts selbst ins Verkaufsfenster (Broker 0.67.0). Beides, weil Broker sonst Blizzards Wert `displayMode` berührt und das Spiel danach das Benutzen aus der Tasche blockiert (Fehlerberichte 10 und 11).
 - Im Manager bleibt der Reiter Wiederverkauf vorerst (Manager 0.26.0).
+
+### Nachbesserungen nach dem ersten Test (12.11.2026, Broker 0.69.0 bis 0.73.0)
+
+Anmerkungen von KarloDerBaer, abgestimmt im Gespräch. Einzelheiten in `Peon_Entscheidungen.md` (12.11.2026) und im Changelog.
+
+- **Fokus** nur am Auktionshaus und nur live, eigenes Ziel (von Hand oder per Klick auf eine Preisstufe), Kaufen auch ohne Chance, Abfragen pro Minute (2 bis 90), Fenster Einstellungen. Ersetzt in 6.1 „unterwegs letzter Gegenstand mit letzter Messung“ und „Vorgabe 5 Sekunden, einstellbar von 3 bis 30“.
+- **Radar:** Aufkauf nur für Massenware (Menge, Preisstufen, Absatz je Tag einstellbar), Fenster Einstellungen, Erneuern der gezeigten Möglichkeiten solange der Radar offen ist, Radar-Scan wieder als Suche (Beobachten, Massenware, Alles). Ersetzt in 6.1 „Der Radar-Scan prüft nur die gezeigten Chancen und sucht keine neuen“.
+- **Zum Einstellen** steht unter Verkaufen über Blizzards Liste, ein sicherer Knopf legt den Posten ins Verkaufsfenster (löst die Abweichung aus 0.67.0, wenn der Test sauber ist).
+- **Auktionen:** eigene Liste über Blizzards Ansicht mit Spalte Broker und Filter (ersetzt in 4.5 „Blizzards Seite mit Spalte Broker“), Gebote bleiben bei Blizzard.
+- **Im Markt zeigen** mit sicherem Knopf: Blizzard schaltet selbst um (löst die Abweichung aus 0.64.1, wenn der Test sauber ist).

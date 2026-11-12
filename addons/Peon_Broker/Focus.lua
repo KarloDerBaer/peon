@@ -345,9 +345,7 @@ function F.Build(c)
     F.buyInfo = UI.Text(left, "small", "", UI.LEFT_W - 32)
     F.buyInfo:SetPoint("BOTTOMLEFT", F.buyButton, "TOPLEFT", 6, 6)
     local half = math.floor((UI.LEFT_W - 26) / 2)
-    F.marketButton = UI.Button(left, L.GO_MARKET, half, function()
-        if F.key ~= nil then mod:Call("Sprung", ns.Go.Market, { key = F.key }) end
-    end)
+    F.marketButton = ns.Go.MarketButton(left, half, function() return F.key ~= nil and { key = F.key } or nil end)   -- ab 0.73 sicher
     F.marketButton:SetPoint("BOTTOMLEFT", 10, 10)
     F.itemButton = UI.Button(left, L.NTAB_ITEM, half, function()
         if F.key ~= nil then mod:Call("Sprung", ns.Go.Item, { key = F.key }) end

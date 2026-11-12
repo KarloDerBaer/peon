@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.73.0
+
+Kurz: „Im Markt zeigen“ springt am Auktionshaus jetzt selbst auf Blizzards Markt. Steht der Gegenstand schon in der Liste, gehen seine Angebote sofort auf, sonst erscheint über der Liste der Knopf „Angebote: <Name>“.
+
+- 0.73.0 (12.11.2026): **Nachbesserungen Stufe 2, Schritt 6: Sprung zum Markt mit sicherem Knopf** (Wunsch KarloDerBaer, 12.11.2026).
+  - **Sicherer Knopf** (`Go.MarketButton`, `SecureActionButtonTemplate` mit der Art „click“): Er reicht den Klick des Spielers an Blizzards eigenen Knopf weiter, Blizzard schaltet in seinem eigenen Code um. Broker selbst ruft weiter weder `SetDisplayMode` noch `SelectBrowseResult` auf (Fehlerberichte 10 und 11).
+  - **Ablauf:** Steht der Gegenstand schon in Blizzards Ergebnisliste, klickt der Knopf diese Zeile an, die Angebote gehen sofort auf. Sonst klickt er Blizzards Reiter „Markt“, Broker sucht den Gegenstand (wie seit 0.64.1), und sobald die Zeile da ist, erscheint über Blizzards Liste der Gold-Knopf „Angebote: <Name>“ (ebenfalls sicher, 20 Sek. lang). Blizzards Liste liest Broker nur.
+  - **Wo:** Fokus, Gegenstand, Einkaufen (Kaufzeile) und die neue Liste der Auktionen. Menüs und Doppelklick in Listen gehen weiter den bisherigen Weg (Menüeinträge können keine sicheren Knöpfe sein). Unterwegs und im Kampf bleibt es beim bisherigen Weg.
+  - Sichere Knöpfe sind für Drücken und Loslassen angemeldet, Broker handelt nur bei dem Teil, bei dem das Spiel die Aktion ausführt (Einstellung `ActionButtonUseKeyDown`).
+  - Tests: 8 neue Prüfungen.
+  - **Im Spiel prüfen (wichtig, wie bei Fehlerbericht 10):**
+    1. Fokus oder Gegenstand: „Im Markt zeigen“. Springt Blizzard auf Markt? Kommt der Knopf „Angebote: …“, öffnet er die Angebote?
+    2. Dasselbe noch einmal, wenn der Gegenstand schon in der Liste steht: öffnen die Angebote direkt?
+    3. Danach eine Schriftrolle oder einen anderen nicht verkaufbaren Gegenstand aus der Tasche benutzen, auch nach dem Schließen des Auktionshauses: keine Meldung „Aktion wegen AddOn blockiert“?
+
 ## 0.72.0
 
 Kurz: Unter Auktionen zeigt Broker jetzt eine eigene Liste deiner Auktionen mit der Spalte Broker (Günstigstes, unterboten, zu teuer, verkauft) und einem Filter zum Ausblenden. Blizzards Ansicht bleibt im Hintergrund, für Gebote gibt es den Knopf „Blizzard-Ansicht“.

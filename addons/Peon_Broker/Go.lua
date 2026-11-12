@@ -157,3 +157,176 @@ function Go.Market(item)
     if from and from ~= "browse" then Go.SetBack(from) else Go.UpdateBack() end
     return true
 end
+
+---------------------------------------------------------------------------
+-- Ab 0.73 (KarloDerBaer, 12.11.2026): "Im Markt zeigen" mit sicherem Knopf.
+-- Broker darf Blizzards Ansicht nicht selbst umschalten (Fehlerberichte 10 und 11, Broker 0.64.1). Ein sicherer
+-- Knopf (SecureActionButtonTemplate, Art "click") reicht aber den Klick des Spielers an Blizzards eigenen Knopf
+-- weiter: Blizzard schaltet dann in seinem eigenen Code um, so als haette man selbst geklickt.
+--   1. Klick: Steht der Gegenstand schon in Blizzards Ergebnisliste, klickt der Knopf diese Zeile an: die Angebote
+--      gehen sofort auf. Sonst klickt er Blizzards Reiter "Markt", danach sucht Broker den Gegenstand
+--      (SendBrowseQuery wie seit 0.64.1).
+--   2. Klick: Sobald die Zeile in Blizzards Liste steht, erscheint ueber der Liste der Gold-Knopf
+--      "Angebote: <Name>" (ebenfalls sicher), der genau diese Zeile anklickt.
+-- Broker liest Blizzards Liste nur (ForEachFrame, rowData). Attribute nur ausserhalb des Kampfs, im Kampf und
+-- unterwegs bleibt es beim bisherigen Weg (Go.Market).
+---------------------------------------------------------------------------
+Go.marketButtons = {}
+Go.OFFER_TIME = 20   -- Sekunden: so lange steht "Angebote: <Name>" ueber Blizzards Liste
+
+local function AHF() local f = rawget(_G, "AuctionHouseFrame"); return type(f) == "table" and f or nil end
+local function InCombat() return InCombatLockdown and InCombatLockdown() or false end
+
+-- Wirkt dieser Teil des Klicks? Sichere Knoepfe sind fuer Druecken und Loslassen angemeldet, die Aktion laeuft je
+-- nach Einstellung ActionButtonUseKeyDown nur bei einem davon.
+function Go.Acts(down)
+    local cv = GetCVarBool and GetCVarBool("ActionButtonUseKeyDown")
+    if cv == nil then return not down end
+    return (down and true or false) == (cv and true or false)
+end
+
+-- Zeile in Blizzards Ergebnisliste des Markts fuer diesen Gegenstand (oder nil). Nur lesen.
+function Go.BrowseRow(key)
+    local f = AHF()
+    local id = key ~= nil and ns.Data.ItemID(key)
+    local brf = f and rawget(f, "BrowseResultsFrame")
+    local list = type(brf) == "table" and rawget(brf, "ItemList")
+    local box = type(list) == "table" and rawget(list, "ScrollBox")
+    if not (id and type(box) == "table" and type(box.ForEachFrame) == "function") then return nil end
+    local found
+    pcall(box.ForEachFrame, box, function(row)
+        if found then return end
+        local d = rawget(row, "rowData")
+        if d == nil and type(row.GetRowData) == "function" then local ok, x = pcall(row.GetRowData, row); if ok then d = x end end
+        local ik = type(d) == "table" and d.itemKey
+        if type(ik) == "table" and ik.itemID == id then found = row end
+    end)
+    return found
+end
+
+local function SetClick(b, target)
+    if InCombat() then return false end
+    if target then
+        b:SetAttribute("type", "click")
+        b:SetAttribute("clickbutton", target)
+    else
+        b:SetAttribute("type", nil)
+        b:SetAttribute("clickbutton", nil)
+    end
+    return true
+end
+
+-- Vor dem sicheren Teil: Ziel des Klicks festlegen (Zeile mit dem Gegenstand oder Blizzards Reiter Markt)
+function Go.PreMarket(b, down)
+    if not Go.Acts(down) then return end
+    b.stage = nil
+    local item = b.getItem and b.getItem()
+    if not item or InCombat() or not ns.Window.AtAH() then SetClick(b, nil); return end
+    local key = KeyOf(item)
+    local row = Go.BrowseRow(key)
+    local f = AHF()
+    if row then
+        SetClick(b, row); b.stage = "row"
+    elseif f and type(rawget(f, "BuyTab")) == "table" then
+        SetClick(b, f.BuyTab); b.stage = "tab"
+    else
+        SetClick(b, nil)
+    end
+end
+
+-- Nach dem sicheren Teil: suchen und den Knopf fuer die Angebote vorbereiten, unterwegs der bisherige Weg
+function Go.PostMarket(b, down)
+    if not Go.Acts(down) then return end
+    local item = b.getItem and b.getItem()
+    if not item then mod:Print(L.GO_NONE); return end
+    if b.stage == "row" then
+        Go.HideOffer()
+        return
+    end
+    if b.stage == "tab" then
+        local from = Go.Here()
+        if ns.AHTabs and ns.AHTabs.current then ns.AHTabs.Close() end
+        ns.Buy.ShowInAH({ key = KeyOf(item), itemKey = item.itemKey })
+        Go.WaitOffer(KeyOf(item), item.name)
+        if from then Go.SetBack(from) end
+        return
+    end
+    mod:Call("Sprung", Go.Market, item)   -- unterwegs, im Kampf oder ohne Blizzards Reiter
+end
+
+-- Knopf "Im Markt zeigen" (sicher). getItem() liefert den Gegenstand ({ key, name, ... }) oder nil.
+function Go.MarketButton(parent, width, getItem)
+    local UI = Peon.UI
+    local ok, b = pcall(CreateFrame, "Button", nil, parent, "SecureActionButtonTemplate,UIPanelButtonTemplate")
+    if not ok or not b then
+        return UI.Button(parent, L.GO_MARKET, width, function()
+            local it = getItem()
+            if it then mod:Call("Sprung", Go.Market, it) else mod:Print(L.GO_NONE) end
+        end)
+    end
+    b:SetSize(width, 22)
+    b:SetText(L.GO_MARKET)
+    if b.RegisterForClicks then b:RegisterForClicks("AnyUp", "AnyDown") end
+    b.getItem = getItem
+    b:SetScript("PreClick", function(self, _, down) mod:Call("Sprung", Go.PreMarket, self, down) end)
+    b:SetScript("PostClick", function(self, _, down) mod:Call("Sprung", Go.PostMarket, self, down) end)
+    Go.marketButtons[#Go.marketButtons + 1] = b
+    return b
+end
+
+-- Gold-Knopf "Angebote: <Name>" ueber Blizzards Ergebnisliste, sicher auf die Zeile gerichtet
+function Go.OfferButton()
+    if Go.offer then return Go.offer end
+    local f = AHF()
+    if not f then return nil end
+    local ok, b = pcall(CreateFrame, "Button", "PeonBrokerOfferButton", f, "SecureActionButtonTemplate,UIPanelGoldButtonTemplate")
+    if not ok or not b then return nil end
+    b:SetSize(220, 24)
+    b:SetFrameLevel(520)
+    if b.RegisterForClicks then b:RegisterForClicks("AnyUp", "AnyDown") end
+    b:SetScript("PostClick", function(_, _, down) if Go.Acts(down) then Go.HideOffer() end end)
+    b:Hide()
+    Go.offer = b
+    return b
+end
+
+-- Auf die Zeile warten (Blizzards Liste fuellt sich mit dem Ereignis der Suche)
+function Go.WaitOffer(key, name)
+    Go.offerWant = { key = key, name = name or ns.Data.ItemName(key, ns.Data.Lookup(key)) or tostring(key), until_ = (GetTime and GetTime() or 0) + Go.OFFER_TIME }
+    Go.TryOffer()
+end
+
+function Go.TryOffer()
+    local w = Go.offerWant
+    if not w then return end
+    if (GetTime and GetTime() or 0) > w.until_ then Go.HideOffer(); return end
+    local row = Go.BrowseRow(w.key)
+    if not row or InCombat() then return end
+    local b = Go.OfferButton()
+    if not b then return end
+    SetClick(b, row)
+    b:SetText(L.GO_OFFERS:format(w.name))
+    local f = AHF()
+    local brf = f and rawget(f, "BrowseResultsFrame")
+    b:ClearAllPoints()
+    if type(brf) == "table" then b:SetPoint("BOTTOMRIGHT", brf, "TOPRIGHT", 0, 4) else b:SetPoint("TOP", f, "TOP", 0, -60) end
+    b:Show()
+end
+
+function Go.HideOffer()
+    Go.offerWant = nil
+    if Go.offer then
+        Go.offer:Hide()
+        SetClick(Go.offer, nil)
+    end
+end
+
+function Go.InitMarket()
+    pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function()
+        if Go.offerWant and C_Timer then C_Timer.After(0.2, function() mod:Call("Sprung", Go.TryOffer) end) end
+    end)
+    pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_BROWSE_RESULTS_ADDED", function()
+        if Go.offerWant and C_Timer then C_Timer.After(0.2, function() mod:Call("Sprung", Go.TryOffer) end) end
+    end)
+    mod:RegisterEvent("AUCTION_HOUSE_CLOSED", function() Go.HideOffer() end)
+end

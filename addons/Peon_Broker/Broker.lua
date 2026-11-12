@@ -542,6 +542,7 @@ mod:On("INIT", function()
     mod:Call("Einkaufsliste", ns.Buy.Init)
     mod:Call("Radar", ns.Radar.Init)
     if ns.Lots then mod:Call("Posten", ns.Lots.Init) end   -- ab 0.67 (H3)
+    mod:Call("Sprung", ns.Go.InitMarket)   -- ab 0.73: sicherer Knopf Im Markt zeigen
     mod:Call("Berufe", ns.Craft.Init)
     mod.char.vendorFlip = nil   -- Haendler-Knopf entfaellt (0.24, Feedback #8)
     -- ab 0.55 (Umbau U12, mit Zustimmung von KarloDerBaer): Behalten entfaellt, die Liste je Charakter wird geloescht,

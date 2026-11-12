@@ -124,9 +124,7 @@ function O.Build(af)
     end)
     O.cancelUnder:SetPoint("RIGHT", O.cancelOne, "LEFT", -6, 0)
     UI.SetTooltip(O.cancelUnder, { L.AUCX_CANCEL_NONE:gsub(" %(0%)", ""), L.AUCX_CANCEL_HINT })
-    O.market = UI.Button(p, L.GO_MARKET, 150, function()
-        if O.sel then mod:Call("Sprung", ns.Go.Market, { key = O.sel.key, name = O.sel.name }) end
-    end)
+    O.market = ns.Go.MarketButton(p, 150, function() return O.sel and { key = O.sel.key, name = O.sel.name } or nil end)   -- ab 0.73 sicher
     O.market:SetPoint("BOTTOMLEFT", 4, 4)
     -- Sichtbar, solange Blizzards Ansicht Auktionen offen ist
     if af.HookScript then

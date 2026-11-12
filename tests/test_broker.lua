@@ -3614,6 +3614,52 @@ end)()
   AuctionHouseFrame = keepAH
 end)()
 
+-- ===== 0.73: Im Markt zeigen mit sicherem Knopf =====
+;(function()
+  local Go = ns.Go
+  local keepAH, keepAt, keepShow, keepMarket = AuctionHouseFrame, ns.Window.AtAH, ns.Buy.ShowInAH, Go.Market
+  local ah = CreateFrame("Frame", "AuctionHouseFrame")
+  ah.BuyTab = CreateFrame("Button")
+  local rows = {}
+  ah.BrowseResultsFrame = CreateFrame("Frame")
+  ah.BrowseResultsFrame.ItemList = { ScrollBox = { ForEachFrame = function(_, fn) for _, r in ipairs(rows) do fn(r) end end } }
+  ns.Window.AtAH = function() return true end
+  local searched, jumped
+  ns.Buy.ShowInAH = function(row) searched = row.key; return true end
+  Go.Market = function(item) jumped = item.key; return true end
+  Go.offer = nil
+  local b = Go.MarketButton(CreateFrame("Frame"), 120, function() return { key = 2770, name = "Kupfererz" } end)
+  local attr = {}
+  b.SetAttribute = function(_, k, v) attr[k] = v end
+  check(b.template and b.template:find("SecureActionButtonTemplate", 1, true) and b.text == "Im Markt zeigen", "0.73: Im Markt zeigen ist ein sicherer Knopf")
+  b.scripts.PreClick(b, "LeftButton", true)
+  check(attr.type == nil, "0.73: Druecken allein tut nichts (Aktion beim Loslassen)")
+  b.scripts.PreClick(b, "LeftButton", false)
+  check(attr.type == "click" and attr.clickbutton == ah.BuyTab and b.stage == "tab", "0.73: ohne Zeile klickt der Knopf Blizzards Reiter Markt")
+  b.scripts.PostClick(b, "LeftButton", false)
+  check(searched == 2770 and Go.offerWant and Go.offerWant.key == 2770 and not (Go.offer and Go.offer.shown), "0.73: danach sucht Broker, Angebote-Knopf wartet auf die Zeile")
+  local row = CreateFrame("Button")
+  row.rowData = { itemKey = { itemID = 2770 } }
+  rows[1] = row
+  Go.offer = nil
+  Go.TryOffer()
+  local oattr = {}
+  Go.offer.SetAttribute = function(_, k, v) oattr[k] = v end
+  Go.TryOffer()
+  check(Go.offer.shown and plain(Go.offer.text) == "Angebote: Kupfererz" and oattr.type == "click" and oattr.clickbutton == row,
+    "0.73: Zeile da: Gold-Knopf Angebote klickt genau diese Zeile")
+  b.scripts.PreClick(b, "LeftButton", false)
+  check(attr.clickbutton == row and b.stage == "row", "0.73: Zeile schon da: der Knopf oeffnet die Angebote direkt")
+  b.scripts.PostClick(b, "LeftButton", false)
+  check(Go.offerWant == nil and not Go.offer.shown, "0.73: danach verschwindet der Angebote-Knopf")
+  ns.Window.AtAH = function() return false end
+  b.scripts.PreClick(b, "LeftButton", false)
+  b.scripts.PostClick(b, "LeftButton", false)
+  check(attr.type == nil and jumped == 2770, "0.73: unterwegs der bisherige Weg (Markt aus Scandaten)")
+  AuctionHouseFrame, ns.Window.AtAH, ns.Buy.ShowInAH, Go.Market = keepAH, keepAt, keepShow, keepMarket
+  Go.offer, Go.offerWant = nil, nil
+end)()
+
 -- Keine unerwarteten Fehlermeldungen
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("hat einen Fehler gemeldet", 1, true) then n = n + 1 end end  -- erwartete Meldung aus dem Verkaufen-Test
 check(n == 0, "keine Fehlermeldungen")

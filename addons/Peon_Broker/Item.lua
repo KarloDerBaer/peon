@@ -271,9 +271,7 @@ function P.Build(c)
     P.rows = {}
 
     local bw = math.floor((UI.LEFT_W - 20 - 12) / 3)
-    P.marketButton = UI.Button(left, L.GO_MARKET, bw, function()
-        if P.item then mod:Call("Sprung", ns.Go.Market, P.item) end
-    end)
+    P.marketButton = ns.Go.MarketButton(left, bw, function() return P.item end)   -- ab 0.73 sicher
     P.marketButton:SetPoint("BOTTOMLEFT", 10, 10)
     UI.SetTooltip(P.marketButton, function()
         return { L.GO_MARKET, W.AtAH() and L.ITEM_MARKET_TIP or L.ITEM_MARKET_TIP2 }

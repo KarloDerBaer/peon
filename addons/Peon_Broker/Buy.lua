@@ -1048,9 +1048,7 @@ function B.Build(c)
     -- Kaufzeile unter der Liste
     B.buyButton = UI.Button(c, L.BUY_BUY, 130, function() mod:Call("Einkaufen", B.Buy) end, "gold")
     B.buyButton:SetPoint("BOTTOMRIGHT", -2, 4)
-    B.goMarketButton = UI.Button(c, L.GO_MARKET, 130, function()
-        if B.selected then mod:Call("Sprung", ns.Go.Market, B.selected) else mod:Print(L.GO_NONE) end
-    end)
+    B.goMarketButton = ns.Go.MarketButton(c, 130, function() return B.selected end)   -- ab 0.73 sicher
     B.goMarketButton:SetPoint("RIGHT", B.buyButton, "LEFT", -6, 0)
     B.selText = UI.Text(c, "text", "")
     B.selText:SetPoint("LEFT", right, "BOTTOMLEFT", 10, -21)
