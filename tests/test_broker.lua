@@ -1293,6 +1293,7 @@ end)()
 -- ===== Stufe 2, H1 (0.65): Radar-Art Aufkauf =====
 ;(function()
     local BO, F = ns.Buyout, ns.Focus
+    BO.CTX_TIME = 0   -- ab 0.69: ohne Merken, die Tests aendern den Absatz zwischendurch (eigener Test unten)
     local keepStats, keepBand, keepMoney, keepMin = ns.Sales.Stats, D.Band, GetMoney, mod.db.dealMinMarket
     local sales = { perHour = 50, level = 3 }
     local band = { trend = "calm", low = 900, high = 1600 }
@@ -1601,8 +1602,8 @@ end)()
     AHs.GetCancelCost = function(id) return id == 21 and 1200 or nil end
     AHs.CancelAuction = function(id) cancelled = id end
     X.Update()
-    check(X.header.cancel and plain(X.header.cancel.text) == "Unterbotene abbrechen (1), Einzahlung weg 12s" and not X.header.cancel.disabled,
-        "H3: Knopf nennt Anzahl und verlorene Einzahlung: " .. plain(X.header.cancel.text))
+    check(X.header.cancel and plain(X.header.cancel.text) == "Unterbotene abbrechen (1)" and not X.header.cancel.disabled,
+        "H3 (0.69): Knopf nennt die Anzahl, die Einzahlung steht im Tooltip: " .. plain(X.header.cancel.text))
     X.header.cancel.scripts.OnClick(X.header.cancel)
     check(cancelled == 21 and LT.cancelling and X.header.cancel.disabled, "H3: ein Klick bricht die naechste unterbotene ab")
     local before = #LT.List()
@@ -3392,6 +3393,46 @@ end)()
   check(A.Compact(sf) == 0 and Y("PostButton") == -350, "0.58: Blizzard pur: nichts verschoben")
   mod.acc.ahPlain = false
   check(ns.Look == nil, "N6: Look.lua entfaellt, alle Seiten nutzen Peon.UI")
+end)()
+
+-- ===== 0.69: Fokus fragt zuerst mit einer Suche, Merken von Absatz und Trend, Zeitmessung =====
+;(function()
+  local R, BO = ns.Radar, ns.Buyout
+  local keepRefresh, keepSearch = AHs.RefreshCommoditySearchResults, AHs.SendSearchQuery
+  local refreshed, searched = 0, 0
+  AHs.RefreshCommoditySearchResults = function() refreshed = refreshed + 1 end
+  AHs.SendSearchQuery = function() searched = searched + 1 end
+  mod.acc.commodity[2775] = true
+  R.pending = nil
+  R.focus = { key = 2775, at = 0 }
+  R.SendFocus()
+  check(searched == 1 and refreshed == 0, "0.69: erste Abfrage im Fokus ist eine Suche (Neu laden ging ohne fruehere Suche ins Leere)")
+  R.pending = nil
+  R.focus.answered = true
+  R.SendFocus()
+  check(refreshed == 1 and searched == 1, "0.69: nach einer Antwort reicht Neu laden")
+  R.pending, R.focus = nil, nil
+  AHs.RefreshCommoditySearchResults, AHs.SendSearchQuery = keepRefresh, keepSearch
+  -- Absatz und Trend je Gegenstand gemerkt
+  local keepStats, calls = ns.Sales.Stats, 0
+  ns.Sales.Stats = function() calls = calls + 1; return { perHour = 10, level = 3 } end
+  BO.CTX_TIME, BO.ctx = 300, {}
+  BO.Context(nil, 2775); BO.Context(nil, 2775)
+  check(calls == 1, "0.69: Absatz und Trend werden je Gegenstand nur einmal gerechnet")
+  BO.CTX_TIME, BO.ctx = 0, {}
+  BO.Context(nil, 2775)
+  check(calls == 2, "0.69: nach Ablauf neu gerechnet")
+  ns.Sales.Stats = keepStats
+  -- Zeitmessung
+  R.perf = {}
+  local keepClock, t = debugprofilestop, 0
+  debugprofilestop = function() t = t + 2; return t end
+  check(R.Perf("probe", function(a) return a + 1 end, 41) == 42, "0.69: Zeitmessung gibt das Ergebnis weiter")
+  check(R.perf.probe and R.perf.probe.n == 1 and R.perf.probe.max == 2, "0.69: Zeit gemessen")
+  local n0 = #out
+  R.PerfReport()
+  check(#out > n0 and next(R.perf) == nil, "0.69: Bericht zeigt und leert die Messung")
+  debugprofilestop = keepClock
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

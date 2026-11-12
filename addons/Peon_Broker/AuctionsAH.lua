@@ -219,9 +219,12 @@ function X.Build()
     b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     h.check = b
     -- ab 0.67 (H3, Konzept 6.3): Unterbotene abbrechen, ein Klick je Auktion, Kosten vorher im Text
+    -- ab 0.69 unten links neben Blizzards "Auktionsabbruch" (vorher oben ueber Blizzards Reitern Auktionen/Gebote)
     local cb = CreateFrame("Button", nil, h, "UIPanelButtonTemplate")
-    cb:SetSize(230, 20)
-    cb:SetPoint("LEFT", h, "LEFT", 0, 0)
+    cb:SetSize(190, 22)
+    local blizCancel = rawget(af, "CancelAuctionButton")
+    if type(blizCancel) == "table" then cb:SetPoint("RIGHT", blizCancel, "LEFT", -6, 0)
+    else cb:SetPoint("BOTTOMRIGHT", af, "BOTTOMRIGHT", -200, 4) end
     cb:SetScript("OnClick", function() if ns.Lots then mod:Call("Auktionen", ns.Lots.CancelNext) end; X.Update() end)
     cb:SetScript("OnEnter", function(self)
         if not GameTooltip then return end

@@ -416,10 +416,12 @@ function R.SetFocus(key)
 end
 
 -- Abfrage fuer den Gegenstand im Fokus (wie Blizzards "Neu laden"); true = gesendet
+-- ab 0.69: die erste Abfrage (und nach einer Abfrage ohne Antwort) ist eine normale Suche. "Neu laden" schickt das
+-- Spiel nur ab, wenn es fuer den Gegenstand schon Ergebnisse hat (Flitzdistel aus dem Menue blieb ohne Messung).
 function R.SendFocus()
     local f = R.focus
     f.at = Now() + R.FocusEvery()
-    local ok = R.Send(f.key, nil, true)
+    local ok = R.Send(f.key, nil, f.answered and true or false)
     if ok and R.pending then R.pending.focus = true end   -- Antwort geht in die Messung (ab 0.66)
     return ok
 end
@@ -463,6 +465,8 @@ function R.Tick()
         -- neues Ergebnis, vermutlich weil es fuer den Gegenstand schon Ergebnisse hat. Dann diese lesen.
         local p = R.pending
         R.pending = nil
+        -- ab 0.69: ohne Antwort im Fokus den anderen Weg versuchen (Suche <-> Neu laden)
+        if p.focus and R.focus and R.focus.key == p.key then R.focus.answered = not R.focus.answered end
         if not p.forBuy and R.FromCache(p) then
             st.cached = (st.cached or 0) + 1
         else
@@ -592,13 +596,16 @@ end
 function R.Apply(p, rows, commodity, cached)
     if not cached then
         ns.Buy.live[p.key] = { rows = rows, t = time(), commodity = commodity }
-        ns.Data.ApplyLive(p.key, rows, time())
+        R.Perf("daten", ns.Data.ApplyLive, p.key, rows, time())
     end
     if rows.partial then R.stats.partial = (R.stats.partial or 0) + 1 end
     -- ab 0.66 (H2): Antwort auf die Abfrage im Fokus in die Messung
-    if p.focus and not cached and ns.Measure and R.focus and R.focus.key == p.key then ns.Measure.Add(p.key, rows, Now()) end
+    if p.focus and R.focus and R.focus.key == p.key and not cached then
+        R.focus.answered = true   -- ab 0.69: ab jetzt reicht "Neu laden"
+        if ns.Measure then ns.Measure.Add(p.key, rows, Now()) end
+    end
     local old = R.entries[p.key]
-    local d = R.Evaluate(p.key, rows, true, commodity)
+    local d = R.Perf("rechnen", R.Evaluate, p.key, rows, true, commodity)
     if d and not R.KIND_ON[d.kind] then d = nil end   -- Art nicht im Radar
     local hidden = false
     if not d and cached then R.Refresh(); return end
@@ -888,9 +895,40 @@ end
 ---------------------------------------------------------------------------
 -- Anzeige
 ---------------------------------------------------------------------------
+-- ab 0.69: die Liste nur neu fuellen, wenn die Seite Radar zu sehen ist (im Fokus kostete das bei jeder Antwort Zeit)
 function R.Refresh()
-    if R.list then R.list:SetData(R.Rows()) end
+    if R.list and R.Shown() then R.Perf("liste", function() R.list:SetData(R.Rows()) end) end
     R.UpdateView()
+end
+
+---------------------------------------------------------------------------
+-- Zeitmessung (ab 0.69): wie lange brauchen die Teile je Antwort? /broker pruefen zeit zeigt und leert sie.
+---------------------------------------------------------------------------
+R.perf = {}
+function R.Perf(name, fn, ...)
+    local clock = rawget(_G, "debugprofilestop")
+    if not clock then return fn(...) end
+    local t0 = clock()
+    local a, b, c = fn(...)
+    local ms = clock() - t0
+    local p = R.perf[name]
+    if not p then p = { n = 0, sum = 0, max = 0 }; R.perf[name] = p end
+    p.n, p.sum = p.n + 1, p.sum + ms
+    if ms > p.max then p.max = ms end
+    return a, b, c
+end
+
+function R.PerfReport()
+    local names = {}
+    for k in pairs(R.perf) do names[#names + 1] = k end
+    table.sort(names)
+    if #names == 0 then mod:Print(L.PERF_NONE); return end
+    mod:Print(L.PERF_HEAD)
+    for _, k in ipairs(names) do
+        local p = R.perf[k]
+        mod:Print(L.PERF_LINE:format(k, p.n, p.sum / math.max(1, p.n), p.max))
+    end
+    R.perf = {}
 end
 
 function R.SignedMoney(v)
@@ -925,7 +963,7 @@ function R.StatusText()
 end
 
 function R.UpdateView()
-    if ns.Focus and ns.Focus.Update then ns.Focus.Update() end
+    if ns.Focus and ns.Focus.Update and ns.Focus.Shown() then R.Perf("fokus", ns.Focus.Update) end
     if not R.list then return end
     R.status:SetText(R.StatusText())
     R.scanButton:SetText(R.running and L.RADAR_STOP or L.RADAR_START)

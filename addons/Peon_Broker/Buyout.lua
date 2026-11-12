@@ -48,11 +48,20 @@ function B.Candidate(e, key)
     return ns.Data.IsCommodity(key) and true or false
 end
 
--- Absatz und Trend eines Gegenstands (teuer, darum einmal je Bewertung): { sales, perHour, band }
+-- Absatz und Trend eines Gegenstands (teuer): { sales, perHour, band }. Ab 0.69 je Gegenstand B.CTX_TIME Sekunden
+-- gemerkt. Vorher rechnete jede Antwort im Fokus (alle paar Sekunden) den ganzen Verlauf neu.
+B.CTX_TIME = 300
+B.ctx = {}
 function B.Context(e, key)
+    local now = GetTime and GetTime() or time()
+    local c = key ~= nil and B.ctx[key]
+    if c and now - c.t < B.CTX_TIME then return c.ctx end
+    if e == nil and key ~= nil then e = ns.Data.Lookup(key) end
     local sales = ns.Sales and ns.Sales.Stats(e, nil, key) or nil
     local band = type(e) == "table" and ns.Data.Band(e, e.md, e.pmd, nil, key) or nil
-    return { sales = sales, perHour = sales and tonumber(sales.perHour) or 0, band = band }
+    local ctx = { sales = sales, perHour = sales and tonumber(sales.perHour) or 0, band = band }
+    if key ~= nil then B.ctx[key] = { t = now, ctx = ctx } end
+    return ctx
 end
 
 -- Beste Stelle fuer einen Aufkauf. rows = Preisstufen { price, qty, own } (Scan oder live), budget = Gold, das

@@ -314,8 +314,7 @@ function F.UpdateMeasure(v, saved)
         { key = "min", kind = "line", values = mins, color = { 1, 0.82, 0.2, 1 }, width = 2, connect = true },
     }
     if Num(v.target) then series[#series + 1] = { key = "target", kind = "hline", value = v.target, color = { 0.38, 0.88, 0.38, 0.9 } } end
-    F.chart:SetData(n, series)
-    F.chart:Draw()
+    ns.Radar.Perf("diagramm", function() F.chart:SetData(n, series); F.chart:Draw() end)
 end
 
 -- Text und Zustand des Kaufknopfs

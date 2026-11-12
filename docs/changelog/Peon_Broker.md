@@ -2,6 +2,22 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.69.0
+
+Kurz: Der Fokus misst jetzt auch Gegenstände, die nicht aus dem Radar kommen (vorher blieb er bei „beginnt mit der nächsten Abfrage“ stehen).
+Kurz: „Unterbotene abbrechen“ sitzt unter Auktionen jetzt unten neben Blizzards „Auktionsabbruch“. Die verlorene Einzahlung steht im Tooltip.
+
+- 0.69.0 (12.11.2026): **Nachbesserungen nach dem ersten Test von Stufe 2, Schritt 1** (Anmerkungen von KarloDerBaer, 12.11.2026).
+  - **Fokus ohne Messung behoben:** Der Fokus fragte immer mit „Neu laden“ (`RefreshCommoditySearchResults`). Das schickt das Spiel nur ab, wenn es für den Gegenstand schon eine Suche hatte. Bei einem Gegenstand aus dem Menü (Flitzdistel) kam deshalb nie eine Antwort, auch nicht mit „Jetzt prüfen“. Jetzt ist die erste Abfrage eine normale Suche, danach reicht „Neu laden“. Bleibt eine Antwort aus, wechselt Broker den Weg.
+  - **Weniger Rechnen je Antwort** (Bildrate im Fokus): Absatz und Trend eines Gegenstands (`Sales.Stats`, `D.Band`) merkt Broker 5 Minuten (`Buyout.CTX_TIME`), statt sie bei jeder Antwort aus dem ganzen Verlauf neu zu rechnen. Die Radar-Liste wird nur gefüllt, wenn sie zu sehen ist, die Seite Fokus nur, wenn sie zu sehen ist.
+  - **Zeitmessung:** `/broker pruefen zeit` nennt je Teil (Daten, Rechnen, Liste, Fokus, Diagramm), wie lange er je Antwort im Schnitt und höchstens gebraucht hat, und leert die Messung. Damit lässt sich klären, ob das Diagramm die Bildrate drückt.
+  - **Unterbotene abbrechen** steht unten links neben Blizzards „Auktionsabbruch“ statt oben über Blizzards Reitern „Auktionen/Gebote“. Text „Unterbotene abbrechen (n)“, die Einzahlung steht im Tooltip.
+  - Tests: 9 neue Prüfungen.
+  - **Im Spiel prüfen:**
+    1. Flitzdistel (oder einen anderen Gegenstand) über das Menü in den Fokus nehmen: Messung beginnt, Werte erscheinen.
+    2. Zielfernrohr aus dem Radar in den Fokus: Bildrate besser? Danach `/broker pruefen zeit` und das Ergebnis an Claude geben.
+    3. Auktionen: Knopf unten neben „Auktionsabbruch“, Tooltip mit Einzahlung.
+
 ## 0.68.0
 
 Kurz: Hat ein Händler eine Massenware günstiger, warnt Broker in Blizzards Kaufansicht, und Einkaufen zeigt den Rat „HÄNDLER“.
