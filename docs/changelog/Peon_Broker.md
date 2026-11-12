@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.75.1
+
+Kurz: Das Diagramm im Fokus zeigt wieder etwas, der Fehler beim Zeichnen ist behoben.
+
+- 0.75.1 (12.11.2026): **Fehlerbericht 13** (`Focus.lua:491: bad argument #2 to 'max'`, 48 mal): Die neue Zahl der Plätze des Diagramms (`F.CHART_SLOTS`) stand in 0.75.0 versehentlich in einer Funktion statt oben in der Datei. Sie war erst nach einem eigenen Ziel gesetzt, davor brach das Zeichnen bei jeder Antwort ab, das Diagramm blieb leer. Jetzt fest gesetzt, das Zeichnen gilt erst nach dem Zeichnen als erledigt.
+  - Tests: Diagramm mit zwei Abfragen wird gezeichnet.
+  - **Im Spiel prüfen:** Fokus, Diagramm erscheint ab der zweiten Abfrage, Balken bleiben im Rahmen.
+
 ## 0.75.0
 
 Kurz: Im Radar zeigen weggefallene Chancen weiter den möglichen Gewinn, „weg“ steht jetzt unter Art.

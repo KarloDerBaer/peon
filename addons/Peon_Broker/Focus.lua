@@ -95,7 +95,6 @@ local function SetManual(price)
     -- "Menge unter Ziel" gilt fuer ein Ziel: mit einem neuen Ziel beginnt die Messung neu
     if ns.Measure and ns.Measure.cur and ns.Measure.cur.key == F.key then ns.Measure.Start(F.key) end
     F.chartN = nil
-F.CHART_SLOTS = 60
 end
 
 -- Eigenes Ziel setzen (price = nil: wieder das Ziel der Chance bzw. die zweite Preisstufe)
@@ -446,6 +445,7 @@ F.Dec = Dec
 
 -- ab 0.70: Diagramm nur neu zeichnen, wenn eine neue Abfrage dazukam (vorher bei jedem Neuzeichnen der Seite)
 F.chartN = nil
+F.CHART_SLOTS = 60   -- ab 0.75: so viele Plaetze hat das Diagramm mindestens (von links gefuellt)
 
 -- Messwerte in die Zeilen; v = laufende Messung
 function F.UpdateMeasure(v)
@@ -480,7 +480,6 @@ function F.UpdateMeasure(v)
     local cur = ns.Measure.cur
     local stamp = tostring(n) .. ":" .. tostring(v.target) .. ":" .. tostring(cur and cur.samples[n] and cur.samples[n].t)
     if F.chartN == stamp then return end
-    F.chartN = stamp
     local series = {
         { key = "under", kind = "bar", axis = "right", values = under, color = { 0.4, 0.6, 0.8, 0.45 } },
         { key = "min", kind = "line", values = mins, color = { 1, 0.82, 0.2, 1 }, width = 2, connect = true },
@@ -488,7 +487,8 @@ function F.UpdateMeasure(v)
     if Num(v.target) then series[#series + 1] = { key = "target", kind = "hline", value = v.target, color = { 0.38, 0.88, 0.38, 0.9 } } end
     -- ab 0.75: mindestens F.CHART_SLOTS Plaetze, von links gefuellt. Mit nur zwei Abfragen war jeder Balken so breit
     -- wie das halbe Diagramm und ragte ueber den Rand.
-    ns.Radar.Perf("diagramm", function() F.chart:SetData(math.max(n, F.CHART_SLOTS), series); F.chart:Draw() end)
+    ns.Radar.Perf("diagramm", function() F.chart:SetData(math.max(n, F.CHART_SLOTS or 60), series); F.chart:Draw() end)
+    F.chartN = stamp   -- erst nach dem Zeichnen: bricht es ab, versucht es die naechste Antwort neu
 end
 
 -- Text und Zustand des Kaufknopfs

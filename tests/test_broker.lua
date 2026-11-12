@@ -3715,6 +3715,17 @@ end)()
     "0.74: Stufe zum Ziel mit gelbem Hintergrund")
   check(plain(F.BandText({ band = { low = 120, high = 160 } })) == "1s 20c bis 1s 60c", "0.74: ueblicher Bereich als Text")
   check(F.refreshButton == nil, "0.74: kein Knopf Jetzt pruefen mehr")
+  -- 0.75.1 (Fehlerbericht 13): Diagramm zeichnet mit wenigen Abfragen, ohne Abbruch
+  check(F.CHART_SLOTS == 60, "0.75.1: Plaetze des Diagramms als feste Zahl")
+  R.entries[7983] = { key = 7983, kind = "buyout", ref = 80, qty = 5, rows = {} }
+  M.Start(7983)
+  M.Add(7983, lv({ { 50, 5 }, { 80, 7 } }, 500), 0)
+  M.Add(7983, lv({ { 50, 4 }, { 80, 7 } }, 600), 5)
+  F.key, ns.Scan.ahOpen, F.chartN = 7983, true, nil
+  F.UpdateMeasure(M.Values())
+  check(F.chartN ~= nil and F.chart.frame.shown ~= false, "0.75.1: Diagramm gezeichnet (vorher Abbruch, weil die Zahl der Plaetze fehlte)")
+  M.Stop()
+  R.entries[7983] = nil
   F.key, ns.Scan.ahOpen = keepKey, keepOpen
   ns.Buy.live[7982] = nil
 end)()
