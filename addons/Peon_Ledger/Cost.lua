@@ -357,7 +357,31 @@ function C.Apply(st, e, groups)
         return
     end
     if k == "ahsold" then
-        if id and n < 0 and m > 0 then
+        if e.sp and m > 0 then
+            -- ab 0.14.2: Sondereinnahme (Auktion von vor dem Neustart): Ware geht, kein Handelsgewinn
+            local cost = 0
+            if id then
+                local cnt = (n < 0 and -n) or 0
+                if cnt == 0 then
+                    -- Ware schon ueber die Auktionsliste weg (soldQ) oder noch nicht: wie ein Verkauf vormerken
+                    local q = e.q or 1
+                    local sq = st.soldQ[id]
+                    while sq and q > 0 and sq[1] do
+                        local s = sq[1]
+                        local k2 = math.min(q, s.n)
+                        s.n, q = s.n - k2, q - k2
+                        if s.n <= 0 then table.remove(sq, 1) end
+                    end
+                    if q > 0 then cost = Take(st, id, q); st.pre[id] = (st.pre[id] or 0) + q end
+                else
+                    local pre = st.pre[id] or 0
+                    local use = math.min(pre, cnt)
+                    st.pre[id] = pre - use
+                    if cnt - use > 0 then cost = Take(st, id, cnt - use) end
+                end
+            end
+            st.res[e] = { special = m, cost = cost }
+        elseif id and n < 0 and m > 0 then
             -- ab 0.14 (Erfassung an der Quelle): Rechnung mit Ware und Erloes in einer Zeile
             local cnt = -n
             local pre = st.pre[id] or 0

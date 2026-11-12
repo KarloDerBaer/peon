@@ -716,6 +716,48 @@ function M.ClaimSale(id, cnt)
     return cnt
 end
 
+-- Sondereinnahme (ab 0.14.2, Wunsch KarloDerBaer): Auktionen, die beim Neustart des Buchs schon liefen, und
+-- Verkaufsbriefe, die schon im Briefkasten lagen, gehoeren zu keinem erfassten Einstellen. Ihr Erloes ist eine
+-- Sondereinnahme wie eine Bestandsaufnahme (kein Handelsgewinn). Gemerkt beim Neustart in
+-- realms[Realm].pre[Charakter] = { auctions = { [itemID] = Stueck }, sold = { [Name] = Stueck } }.
+function M.PreOf(c)
+    local r = ns.Inventory.RealmData()
+    local p = type(r.pre) == "table" and r.pre[c or ns.CharName()]
+    return type(p) == "table" and p or nil
+end
+
+-- Gehoert ein Verkauf zur Vormerkung? consume = abziehen. Rueckgabe true/false
+function M.PreSale(c, id, name, q, consume)
+    local p = M.PreOf(c)
+    if not p then return false end
+    q = q or 1
+    if name and type(p.sold) == "table" and (p.sold[name] or 0) > 0 then
+        if consume then p.sold[name] = math.max(0, p.sold[name] - q); if p.sold[name] == 0 then p.sold[name] = nil end end
+        return true
+    end
+    if id and type(p.auctions) == "table" and (p.auctions[id] or 0) > 0 then
+        if consume then p.auctions[id] = math.max(0, p.auctions[id] - q); if p.auctions[id] == 0 then p.auctions[id] = nil end end
+        return true
+    end
+    return false
+end
+
+-- Auktion von vor dem Neustart kommt zurueck: Vormerkung abziehen (neu eingestellt zaehlt sie normal)
+function M.PreReturn(id, n)
+    local p = M.PreOf()
+    if p and type(p.auctions) == "table" and id and (p.auctions[id] or 0) > 0 then
+        p.auctions[id] = math.max(0, p.auctions[id] - n)
+        if p.auctions[id] == 0 then p.auctions[id] = nil end
+    end
+end
+
+-- Erloes pruefen und ggf. als Sondereinnahme markieren (e.sp)
+function M.MarkSpecial(e, name)
+    if type(e) ~= "table" or e.k ~= "ahsold" or not Num(e.m) or e.m <= 0 then return end
+    if not e.id and not name then e.sp = true; return end   -- keinem Gegenstand zuzuordnen
+    if M.PreSale(e.c, e.id, name, e.q or (e.n and -e.n) or 1, true) then e.sp = true end
+end
+
 -- Briefentwurf (ab 0.14): angehaengte Gegenstaende, noch nicht abgeschickt. [itemID] = Stueck
 M.draft = {}
 
@@ -769,6 +811,7 @@ function M.Flush()
                 -- Auktion kommt per Post zurueck: Gegenstand war schon als "Auktion" im Bestand (Umbuchung);
                 -- fuer die Verkaufsquote als "zurueck" vermerkt
                 ns.Inventory.RemoveFromPlace(ns.Inventory.Char(), "auctions", id, net)
+                M.PreReturn(id, net)
                 local why = letter and M.AHLetterKind(letter.subject)
                 M.Add("ahreturn", id, net, nil, why == "cancelled" and L.MV_X_CANCEL or (why == "expired" and L.MV_X_EXPIRED or nil))
             elseif k == "posted" then
@@ -803,6 +846,7 @@ function M.Flush()
                 local e = M.Add(k, info and info.id, nil, l.money, x)
                 if e and info then e.q, e.cut, e.gross = info.q, info.cut, info.gross end
                 if e and k == "ahsold" and (not info or info.guess) then M.MatchSale(e, info and info.id) end
+                if e and k == "ahsold" then M.MarkSpecial(e, l.invoice and l.invoice.item) end
                 if e and k == "ahsold" and info and info.id and not info.guess then M.SaleItems(e, info.id, info.q or 1) end
             end
             m = 0
@@ -819,6 +863,7 @@ function M.Flush()
             if e and info then e.q, e.cut, e.gross = info.q, info.cut, info.gross end
             -- ohne Rechnung: Gegenstand und Menge aus dem passenden Verkauf (ab 0.6)
             if e and k == "ahsold" and m > 0 and (not info or info.guess) then M.MatchSale(e, info and info.id) end
+            if e and k == "ahsold" and m > 0 then M.MarkSpecial(e, x and x:match("^(.-)%s*×") or x) end
             -- Rechnung mit Gegenstand und Menge (ab 0.14): die Ware ist damit sicher weg
             if e and k == "ahsold" and m > 0 and info and info.id and not info.guess then M.SaleItems(e, info.id, info.q or 1) end
             -- Einstellgebuehr / Abbruchkosten: Gegenstand dazu (ab 0.7, fuer Kosten und Handelsgewinn)
@@ -1130,6 +1175,18 @@ function M.ResetBook()
         c.start = start
     end
     if carry and ns.Cost then r.lotBase = ns.Cost.CarryOver(carry, t) end
+    -- ab 0.14.2: laufende Auktionen und Verkaufsbriefe im Briefkasten merken (Sondereinnahme)
+    r.pre = {}
+    for name, c in pairs(r.chars) do
+        local pa, ps = {}, {}
+        local a = c.places and c.places.auctions
+        if type(a) == "table" and type(a.items) == "table" then for id, n in pairs(a.items) do pa[id] = n end end
+        local ml = c.places and c.places.mail
+        for _, l in ipairs(type(ml) == "table" and type(ml.list) == "table" and ml.list or {}) do
+            if l.sold then ps[l.sold] = (ps[l.sold] or 0) + (l.q or 1) end
+        end
+        if next(pa) or next(ps) then r.pre[name] = { auctions = pa, sold = ps } end
+    end
     M.Changed()
     I.Changed()
 end
@@ -1200,6 +1257,7 @@ end
 M.EXCHANGE = { vendor = true, buyback = true }
 
 function M.Label(e)
+    if e.sp then return L.MV_SPECIAL end   -- ab 0.14.2
     local v = (e.n and e.n ~= 0) and e.n or (e.m or 0)
     if not (e.n and e.n ~= 0) and M.EXCHANGE[e.k] then v = -v end
     local dir = v >= 0 and "IN" or "OUT"

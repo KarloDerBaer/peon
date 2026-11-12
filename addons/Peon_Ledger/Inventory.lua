@@ -434,8 +434,10 @@ function I.ScanMail()
     -- je Brief ein kurzer Stand fuer die Post aller Charaktere (ab 0.14): Gold, Anhaenge, Ablauf als Zeitpunkt
     local list = {}
     for _, l in ipairs(I.letters) do
+        local inv = l.invoice
         list[#list + 1] = { m = l.money ~= 0 and l.money or nil, n = l.count ~= 0 and l.count or nil,
-            exp = l.days and (time() + math.floor(l.days * 86400)) or nil, ah = l.ah or nil, cod = l.cod }
+            exp = l.days and (time() + math.floor(l.days * 86400)) or nil, ah = l.ah or nil, cod = l.cod,
+            sold = inv and inv.kind == "seller" and inv.item or nil, q = inv and inv.kind == "seller" and inv.count or nil }
     end
     I.SetPlace(I.Char(), "mail", items, { money = money, letters = letters, total = Num(total) and total or letters, used = used, list = list })
     if not loading then I.mailTries = 0 end

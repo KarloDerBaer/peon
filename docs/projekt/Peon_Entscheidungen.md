@@ -2,6 +2,13 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Sondereinnahme, Bestand, Tooltip (Ledger 0.14.2)
+
+- **Auktionen von vor dem Neustart sind eine Sondereinnahme** (KarloDerBaer): Ledger kennt ihr Einstellen nicht. Ihr Erlös zählt wie eine Bestandsaufnahme und nicht als Handelsgewinn. Ebenso jeder Erlös, der keinem Gegenstand zuzuordnen ist.
+- **Buch noch einmal von 0, ohne WoW zu beenden** (KarloDerBaer): Das Zurückspielen der alten Daten entfällt. Die gesicherte Datei bleibt im Archiv.
+- **Angelegte Ausrüstung zählt zum Lagerwert** (KarloDerBaer): Sie lässt sich beim Händler verkaufen.
+- **Tooltip wie Broker einstellbar, Standard Bestand statt Kosten** (KarloDerBaer). Was im Bestand steht und was nur mit Umschalt, ist je Baustein wählbar.
+
 ## 12.11.2026: Nach dem ersten Test (Ledger 0.14.1)
 
 - **Übersicht ohne Post** (KarloDerBaer): Das Spiel nennt Briefe nur am offenen Briefkasten, für Twinks gar nicht. Die Zahl war meist veraltet.

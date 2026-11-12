@@ -20,7 +20,7 @@ local GREY = W.GREY
 B.PERIODS = { { key = "today", label = "BK_TODAY" }, { key = "d7", label = "BK_D7" }, { key = "d30", label = "BK_D30" }, { key = "all", label = "BK_ALL" } }
 B.RATE_DAYS = 30
 B.RATE_MIN = 3
-B.ORDER = { "ahsold", "ahbuy", "ahfee", "vendor", "buyback", "repair", "loot", "quest", "craft", "trade", "mail", "taxi", "trainer", "other" }
+B.ORDER = { "ahsold", "special", "ahbuy", "ahfee", "vendor", "buyback", "repair", "loot", "quest", "craft", "trade", "mail", "taxi", "trainer", "other" }
 
 function B.From(period, now)
     now = now or time()
@@ -86,7 +86,8 @@ function B.Collect(period, onlyMe, now, char)
         local side = Side(e)
         if e.k == "ahreturn" and e.id and (e.n or 0) > 0 then Item(e.id).back = Item(e.id).back + e.n end
         if side == "move" then return end
-        Money(e.k, e.m)
+        Money(e.sp and "special" or e.k, e.m)   -- ab 0.14.2: Sondereinnahme eigene Art
+        if e.sp and e.m and e.m > 0 then res.special = (res.special or 0) + e.m end
         if e.k == "ahsold" and e.cut then res.cut = res.cut + e.cut end
         if e.id then
             local it = Item(e.id)

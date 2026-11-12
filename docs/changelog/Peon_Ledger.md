@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.14.2
+
+Kurz: Das Buch beginnt noch einmal neu. Verkäufe von Auktionen, die schon vorher liefen, zählen als Sondereinnahme und nicht als Handelsgewinn.
+Kurz: Im Bestand gibt es jetzt eine Auswahl nach Kategorie (Ausrüstung, Handelswaren, Verbrauchbares …) und unten eine Summenzeile.
+Kurz: Der Tooltip ist frei einstellbar wie bei Broker. Standard ist jetzt der Bestand, Kosten und zuletzt gezahlt kommen mit Umschalt.
+
+- 0.14.2 (12.11.2026): Wünsche von KarloDerBaer nach dem ersten Test.
+  - **Sondereinnahme:** Beim Neustart des Buchs merkt Ledger laufende Auktionen und Verkaufsbriefe im Briefkasten (`realms[Realm].pre`). Ihr Erlös und jeder Erlös ohne Gegenstand wird als Sondereinnahme verbucht (`e.sp`): die Ware geht aus dem Bestand, aber kein Handelsgewinn. Im Buch eigene Art „Sondereinnahme“, im Verlauf eigene Bezeichnung, im Postfenster Art „Sondereinnahme“ ohne Gewinn. Kommt so eine Auktion zurück, gilt sie danach wieder normal.
+  - **Buch beginnt noch einmal neu** (`ns.BOOK_VERSION = 3`), mit den Kosten aus dem bisherigen Stand.
+  - **Bestand:** Auswahl Kategorie nach Blizzards Gegenstandsklasse (`C_Item.GetItemInfoInstant`, gemerkt in `items[id].c`, Einstellung `stockCat`). Summenzeile unter der Tabelle mit Anzahl, Stück, Lagerwert, zuletzt gezahlt mal Menge und Marktwert, genau unter den Spalten.
+  - **Tooltip** (Tooltip.lua neu): Bausteine Bestand (Summe mit Charakteren, nur Summe, dieser Charakter, Taschen + Bank), Je Charakter (mit Orten oder Summe), Kosten (nächstes Stück mit Ø, nächstes Stück, Lagerwert), Zuletzt gezahlt und Zuletzt verkauft (Preis oder mit Menge, Quelle, Datum), Verkaufsquote. Je Baustein immer, mit Umschalt oder aus, Form und Reihenfolge, Vorlagen Schlank, Standard, Ausführlich, Hinweis „(Umschalt)“ ein oder aus, Vorschau auf der Optionsseite. Einstellung `tooltipLayout`.
+
 ## 0.14.1
 
 Kurz: Beim Neustart des Buchs behält Ledger, was deine Waren gekostet haben. Vorher galt alles als zum heutigen Marktpreis gekauft, dadurch zeigte die Post bei Verkäufen falsche Verluste.

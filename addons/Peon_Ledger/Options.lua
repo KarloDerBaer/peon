@@ -60,6 +60,10 @@ function ns.CreateOptions()
     page:Add(left, page:Check("mailWindow", L.OPT_MAIL, L.OPT_MAIL_HINT), 4)
     page:Add(left, page:Button(L.BTN_WINDOW, function() ns.Window.Toggle() end), 16)
 
+    -- Tooltip (ab 0.14.2): Bausteine wie bei Broker
+    page:Add(left, page:Header(L.HDR_TOOLTIP), 6)
+    ns.Tooltip.BuildOptions(page, left)
+
     -- Charaktere
     page:Add(left, page:Header(L.HDR_CHARS), 6)
     local chars = page:Add(left, page:List({

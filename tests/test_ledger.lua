@@ -283,10 +283,37 @@ check(select(1, I.TotalMoney()) == 250000, "Gold aller Charaktere")
 tt.lines = {}
 tt.link = "|cffffffff|Hitem:2589::::|h[Leinenstoff]|h|r"
 ttPost(tt, {})
-check(#tt.lines == 1 and tt.lines[1]:find("Ledger", 1, true) and tt.lines[1]:find("(Umschalt)", 1, true) and tt.lines[1]:find("Kosten", 1, true), "ab 0.7: ohne Umschalt eine kompakte Zeile mit Kosten")
+check(#tt.lines == 1 and tt.lines[1]:find("Ledger", 1, true) and tt.lines[1]:find("Bestand", 1, true) and tt.lines[1]:find("(Umschalt)", 1, true)
+  and tt.lines[1]:find("48 (Mirel 43, Borin 5)", 1, true) and not tt.lines[1]:find("Kosten", 1, true), "0.14.2: Standard ohne Umschalt eine Zeile mit dem Bestand (nicht mehr die Kosten)")
 shift = true; tt.lines = {}; ttPost(tt, {}); shift = false
-check(tt.lines[2] and tt.lines[2]:find("Bestand: 48 (Mirel 43, Borin 5)", 1, true), "mit Umschalt: Bestand mit Vornamen")
-check(tt.lines[3] and tt.lines[3]:find("Mirel Dorna | Taschen 15, Bank 20, Auktionen 8", 1, true), "mit Umschalt: Orte je Charakter")
+check(tt.lines[2] and tt.lines[2]:find("Mirel Dorna | Taschen 15, Bank 20, Auktionen 8", 1, true), "mit Umschalt: Orte je Charakter")
+check(tt.lines[3] and tt.lines[3]:find("Borin Stein | Taschen 5", 1, true), "mit Umschalt: Twink")
+do
+  local TT = ns.Tooltip
+  TT.SetPreset("slim")
+  tt.lines = {}; ttPost(tt, {})
+  check(#tt.lines == 1 and tt.lines[1]:find("| 48", 1, true) and not tt.lines[1]:find("Umschalt", 1, true), "Vorlage Schlank: nur die Summe, ohne Hinweis")
+  local lay = TT.Layout()
+  lay.lines[1].fmt = "me"; tt.lines = {}; ttPost(tt, {})
+  check(tt.lines[1]:find("43 von 48", 1, true), "Format: dieser Charakter")
+  lay.lines[1].fmt = "bagsbank"; tt.lines = {}; ttPost(tt, {})
+  check(tt.lines[1]:find("Taschen 15 · Bank 20", 1, true), "Format: Taschen + Bank")
+  lay.lines[1].when = "off"; tt.lines = {}; ttPost(tt, {})
+  check(#tt.lines == 0, "alles aus: keine Zeile")
+  TT.SetPreset("standard")
+  check(TT.Move("chars", -1) and TT.Layout().lines[1].key == "chars" and not TT.Move("chars", -1), "Reihenfolge aendern")
+  shift = true; tt.lines = {}; ttPost(tt, {}); shift = false
+  check(tt.lines[1]:find("Ledger", 1, true) and tt.lines[2]:find("Mirel Dorna", 1, true), "Je Charakter zuerst: Kopfzeile allein, dann die Charaktere")
+  TT.SetPreset("standard")
+  mod.db.tooltipLayout = { lines = { { key = "unbekannt" }, { key = "stock", when = "kaputt" } } }
+  local n = TT.Layout()
+  check(#n.lines == #TT.BLOCKS and n.lines[1].key == "stock" and n.lines[1].when == "always" and n.lines[2].when == "off", "Einstellung geprueft und ergaenzt")
+  TT.SetPreset("standard")
+  local pv = table.concat(TT.PreviewLines(true, TT.Layout()), " / ")
+  check(pv:find("Bestand", 1, true) and pv:find("Zuletzt gezahlt", 1, true), "Vorschau mit Beispielwerten")
+  ns.CreateOptions()
+  check(TT.optC and TT.optRows and #TT.optRows == #TT.BLOCKS, "Optionsseite: Zeilen je Baustein")
+end
 tt.lines = {}; tt.link = "item:99999"; ttPost(tt, {})
 check(#tt.lines == 0, "niemand hat ihn: keine Zeile")
 -- Fenster (ab 0.14 mit Peon.UI, vier Reiter)
@@ -325,6 +352,19 @@ mod.db.stockChar = "*"; mod.db.stockPlace = "mail"; ns.Stock.searchBox:SetText("
 rows = rowsOf(ns.Stock.table)
 check(#rows == 1 and rows[1].id == 1529 and rows[1].where:find("Post 4", 1, true), "Bestand: Ort Post (gekauft, noch nicht abgeholt)")
 mod.db.stockPlace = "all"; W.Refresh()
+-- 0.14.2: Summenzeile und Kategorie
+local ft = ns.Stock.footer.texts
+check(ft and ft.label:find("Summe: 4 Gegenstände", 1, true) and ft.total == tostring(2 + 7 + 48 + 1 + 4), "Summenzeile: Anzahl und Stueck (" .. tostring(ft and ft.label) .. " / " .. tostring(ft and ft.total) .. ")")
+C_Item.GetItemInfoInstant = function(id) local c = ({ [118] = 0, [2589] = 7, [6129] = 4, [1529] = 3 })[id] return id, "", "", "", 1, c, 0 end
+mod.db.stockCat = "trade"; W.Refresh()
+local ids = {} for _, r in ipairs(ns.Stock.table.items) do ids[#ids + 1] = r.id end
+table.sort(ids)
+check(table.concat(ids, ",") == "1529,2589" and ns.Stock.footer.texts.label:find("2 Gegenstände", 1, true), "Kategorie Handelswaren (mit Edelsteinen)")
+mod.db.stockCat = "equip"; W.Refresh()
+check(#ns.Stock.table.items == 1 and ns.Stock.table.items[1].id == 6129 and ns.Stock.footer.texts.label:find("1 Gegenstand", 1, true), "Kategorie Ausruestung, Einzahl in der Summe")
+mod.db.stockCat = "other"; W.Refresh()
+check(#ns.Stock.table.items == 0, "Kategorie Sonstiges: nichts")
+mod.db.stockCat = "all"; W.Refresh()
 -- Optionen: Twink loeschen
 if mod.panel.scripts.OnShow then mod.panel.scripts.OnShow(mod.panel) end
 local cl
@@ -919,7 +959,8 @@ Co.Invalidate()
 check(math.abs(Co.Info(2447).value - before) < 0.01, "nach dem Zusammenfassen bleiben die Posten (lotBase)")
 -- Tooltip zeigt die Kosten ohne Umschalt
 tt.lines = {}; tt.link = "|cffffffff|Hitem:2447::::|h[Friedensblume]|h|r"; ttPost(tt, {})
-check(#tt.lines == 1 and tt.lines[1]:find("Kosten 2", 1, true), "Tooltip: Kosten ohne Umschalt")
+shift = true; tt.lines = {}; ttPost(tt, {}); shift = false
+check(tt.lines[1] and tt.lines[1]:find("Kosten", 1, true) and tt.lines[1]:find("| 2", 1, true), "Tooltip: Kosten mit Umschalt (" .. tostring(tt.lines[1]) .. ")")
 -- Schnittstelle fuer Broker
 local nx, av = mod:Cost(2447)
 check(nx and av and av >= nx, "mod:Cost fuer Broker")
@@ -1357,8 +1398,12 @@ check(mod:LastBuy(504) == 400, "Auktionskauf, Ware noch in der Post (Menge aus d
 check(mod:LastBuy(9999) == nil, "ohne Kauf: nil")
 -- Tooltip: zuletzt gezahlt, auch ohne Bestand
 tt.lines = {}; tt.link = "|cffffffff|Hitem:504::::|h[X]|h|r"; ttPost(tt, {})
-check(tt.lines[1] and tt.lines[1]:find("zuletzt", 1, true), "Tooltip: zuletzt gezahlt (" .. tostring(tt.lines[1]) .. ")")
+check(#tt.lines == 1 and tt.lines[1]:find("Umschalt", 1, true), "ohne Bestand: nur Hinweis auf Umschalt")
+shift = true; tt.lines = {}; ttPost(tt, {}); shift = false
+check(tt.lines[1] and tt.lines[1]:find("Zuletzt gezahlt", 1, true), "Tooltip: zuletzt gezahlt mit Umschalt (" .. tostring(tt.lines[1]) .. ")")
+ns.Tooltip.SetPreset("full")
 shift = true; tt.lines = {}; tt.link = "|cffffffff|Hitem:500::::|h[X]|h|r"; ttPost(tt, {}); shift = false
+ns.Tooltip.SetPreset("standard")
 local hasBuy, hasSale
 for _, l in ipairs(tt.lines) do if l:find("Zuletzt gezahlt", 1, true) then hasBuy = true end if l:find("Zuletzt verkauft", 1, true) then hasSale = true end end
 check(hasBuy and hasSale, "Tooltip mit Umschalt: letzter Kauf und Verkauf")
@@ -1513,7 +1558,30 @@ end
 realm.bookV = nil
 local keep = realm.moves
 realm.moves = { { t = time(), c = "Mirel Dorna", k = "loot", id = 2589, n = 1 } }
-check(ns.MigrateBook() == true and #realm.moves == 0 and realm.bookV == 2 and said("neu aufgebaut"), "Neuaufbau: Buch einmal neu begonnen")
+local meC = realm.chars["Mirel Dorna"]
+local keepA = meC.places.auctions
+meC.places.auctions = { t = 1, items = { [2840] = 4 } }
+meC.places.mail = meC.places.mail or { t = 1, items = {} }
+meC.places.mail.list = { { m = 500, ah = true, sold = "Bronzebarren", q = 2 } }
+check(ns.MigrateBook() == true and #realm.moves == 0 and realm.bookV == 3 and said("neu aufgebaut"), "Neuaufbau: Buch einmal neu begonnen (ab 0.14.2 Stand 3)")
+local pre = realm.pre["Mirel Dorna"]
+check(pre and pre.auctions[2840] == 4 and pre.sold["Bronzebarren"] == 2, "0.14.2: laufende Auktionen und Verkaufsbriefe beim Neustart gemerkt")
+-- Erloes einer gemerkten Auktion: Sondereinnahme, kein Handelsgewinn
+local sp = ns.Moves.Add("ahsold", 2840, nil, 900, "Kupferbarren ×4"); sp.q = 4
+ns.Moves.MarkSpecial(sp, "Kupferbarren")
+local sp2 = ns.Moves.Add("ahsold", 2841, nil, 500, "Bronzebarren ×2"); sp2.q = 2
+ns.Moves.MarkSpecial(sp2, "Bronzebarren")
+local sp3 = ns.Moves.Add("ahsold", 2840, nil, 300, "Kupferbarren"); sp3.q = 1
+ns.Moves.MarkSpecial(sp3, "Kupferbarren")
+ns.Cost.Invalidate()
+local bk = ns.Book.Collect("all", false)
+check(sp.sp and sp2.sp and not sp3.sp and not pre.auctions[2840] and not pre.sold["Bronzebarren"], "Sondereinnahme fuer gemerkte Auktion und Brief, danach wieder normal")
+check(bk.special == 1400 and bk.kinds.special.inc == 1400 and bk.nsales == 1 and ns.Moves.Label(sp) == "Sondereinnahme", "Buch: Sondereinnahme eigene Art, kein Handelsgewinn")
+check(ns.Cost.Result(sp).special == 900 and not ns.Cost.Result(sp).sale, "Kosten: Sondereinnahme ist kein Verkauf")
+meC.places.auctions = keepA
+meC.places.mail.list = nil
+realm.pre = nil
+realm.moves = {}
 realm.moves = { { t = time(), c = "Mirel Dorna", k = "loot", id = 2589, n = 1 } }
 check(ns.MigrateBook() == false and #realm.moves == 1, "nur einmal")
 realm.moves = keep

@@ -3,6 +3,8 @@
 -- Oben Suche, Auswahl Charakter (alle oder einzeln) und Ort. Tabelle: Gegenstand, Menge, Wo, Kosten Ø, Zuletzt
 -- (zuletzt gezahlt), Marktwert. Ab 0.14 auch Ware in der Post (gekauft, noch nicht abgeholt).
 -- Klick: Gegenstand in Broker (Seite Gegenstand), Rechtsklick: Gegenstandsmenue.
+-- Ab 0.14.2: Kategorie oben (Ausruestung, Handelswaren, Verbrauchbares ...) und unten eine Summenzeile
+-- (Anzahl, Stueck, Lagerwert, zuletzt gezahlt, Marktwert der angezeigten Gegenstaende).
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -14,6 +16,48 @@ ns.Stock = S
 
 local GREY = W.GREY
 S.PLACES = { "bags", "bank", "mail", "auctions", "equip", "transit" }
+
+-- Kategorien nach Blizzards Gegenstandsklasse (C_Item.GetItemInfoInstant, 6. Wert), gemerkt in items[id].c
+S.CATS = {
+    { key = "all" },
+    { key = "equip",   classes = { [2] = true, [4] = true } },          -- Waffe, Ruestung
+    { key = "trade",   classes = { [7] = true, [5] = true, [3] = true } }, -- Handelswaren, Reagenzien, Edelsteine
+    { key = "consum",  classes = { [0] = true } },                       -- Verbrauchbares
+    { key = "recipe",  classes = { [9] = true } },                       -- Rezepte
+    { key = "bag",     classes = { [1] = true, [11] = true } },          -- Behaelter, Koecher
+    { key = "quest",   classes = { [12] = true } },                      -- Quest
+    { key = "other" },                                                   -- alles andere
+}
+
+function S.ItemClass(id)
+    local it = mod.acc.items and mod.acc.items[id]
+    if type(it) == "table" and type(it.c) == "number" then return it.c end
+    local CI = rawget(_G, "C_Item")
+    local fn = (CI and CI.GetItemInfoInstant) or rawget(_G, "GetItemInfoInstant")
+    if type(fn) ~= "function" then return nil end
+    local ok, _, _, _, _, _, classID = pcall(fn, id)
+    if ok and type(classID) == "number" and not Peon.IsSecret(classID) then
+        if type(it) ~= "table" then
+            mod.acc.items = mod.acc.items or {}
+            it = {}
+            mod.acc.items[id] = it
+        end
+        it.c = classID
+        return classID
+    end
+    return nil
+end
+
+function S.InCat(id, cat)
+    if not cat or cat == "all" then return true end
+    local c = S.ItemClass(id)
+    if cat == "other" then
+        for _, d in ipairs(S.CATS) do if d.classes and c and d.classes[c] then return false end end
+        return true
+    end
+    for _, d in ipairs(S.CATS) do if d.key == cat then return c ~= nil and d.classes[c] == true end end
+    return true
+end
 
 -- "Mirel: Taschen 5, Bank 15 · Borin: Post 3"
 function S.WhereText(e, oneChar)
@@ -82,10 +126,11 @@ function S.Rows()
     local char = mod.db.stockChar or "*"
     if char ~= "*" and not ns.Inventory.RealmData().chars[char] then char = "*" end
     local rows = {}
+    local cat = mod.db.stockCat or "all"
     for id, e in pairs(S.Collect(char, mod.db.stockPlace or "all")) do
         local name, quality, icon = ns.Inventory.ItemInfo(id)
         name = name or ("#" .. id)
-        if filter == "" or W.Lower(name):find(filter, 1, true) then
+        if (filter == "" or W.Lower(name):find(filter, 1, true)) and S.InCat(id, cat) then
             local info = ns.Cost and ns.Cost.Info(id, char)
             local last = ns.Last and ns.Last.Buy(id)
             rows[#rows + 1] = { id = id, name = name, quality = quality, icon = icon, total = e.total,
@@ -103,9 +148,38 @@ function S.Refresh()
     if S.charDD and S.charDD.GenerateMenu then pcall(S.charDD.GenerateMenu, S.charDD) end
     local rows = S.Rows()
     S.table:SetData(rows)
-    local sum, lager = 0, 0
-    for _, r in ipairs(rows) do sum = sum + (r.value or 0); lager = lager + (r.lager or 0) end
-    S.sums = { n = #rows, value = sum, lager = lager }
+    local sum, lager, pieces, last = 0, 0, 0, 0
+    for _, r in ipairs(rows) do
+        sum = sum + (r.value or 0); lager = lager + (r.lager or 0); pieces = pieces + (r.total or 0)
+        last = last + (r.last or 0) * (r.total or 0)
+    end
+    S.sums = { n = #rows, value = sum, lager = lager, pieces = pieces, last = last }
+    S.UpdateFooter()
+end
+
+-- Summenzeile unter der Tabelle: Werte genau unter ihren Spalten
+function S.UpdateFooter()
+    local f = S.footer
+    local s = S.sums
+    if not f or not s then return end
+    if S.table.Layout then S.table.Layout() end
+    local x = 4
+    local right = {}
+    for i, c in ipairs(S.table.o.columns) do
+        x = x + (c.cur or c.width or 100) - 2
+        right[c.key] = x
+    end
+    local function Put(fs, key, text)
+        fs:ClearAllPoints()
+        fs:SetPoint("RIGHT", f, "LEFT", (right[key] or 0) - 6, 0)
+        fs:SetText(text)
+    end
+    f.label:SetText(L.STOCK_SUM:format(ns.Plural(s.n, "STOCK_COUNT")))
+    Put(f.total, "total", tostring(s.pieces))
+    Put(f.cost, "cost", s.lager > 0 and ns.Money(math.floor(s.lager + 0.5), true) or "")
+    Put(f.last, "last", s.last > 0 and ns.Money(math.floor(s.last + 0.5), true) or "")
+    Put(f.value, "value", ns.HasBroker() and ns.Money(math.floor(s.value + 0.5), true) or "")
+    f.texts = { label = f.label.text, total = f.total.text, cost = f.cost.text, last = f.last.text, value = f.value.text }
 end
 
 function S.Status()
@@ -152,15 +226,31 @@ function S.Build(c)
     S.placeDD = U.Dropdown(c, 130, places, function() return mod.db.stockPlace or "all" end,
         function(v) mod.db.stockPlace = v; mod:Call("Bestand", W.Refresh) end)
     S.placeDD:SetPoint("LEFT", S.charDD, "RIGHT", 8, 0)
+    local cats = {}
+    for _, d in ipairs(S.CATS) do cats[#cats + 1] = { d.key, L["STOCK_CAT_" .. d.key:upper()] } end
+    S.catDD = U.Dropdown(c, 150, cats, function() return mod.db.stockCat or "all" end,
+        function(v) mod.db.stockCat = v; mod:Call("Bestand", W.Refresh) end)
+    S.catDD:SetPoint("LEFT", S.placeDD, "RIGHT", 8, 0)
+    local footH = 26
     local panel = U.Panel(c, "list", true)
     panel:SetPoint("TOPLEFT", a.left, -a.top)
-    panel:SetPoint("BOTTOMRIGHT", -a.right, a.bottom)
+    panel:SetPoint("BOTTOMRIGHT", -a.right, a.bottom + footH)
+    local foot = U.Panel(c, "list")
+    foot:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", 0, 0)
+    foot:SetPoint("BOTTOMRIGHT", -a.right, a.bottom)
+    foot.label = foot:CreateFontString(nil, "ARTWORK", U.FONT.label)
+    foot.label:SetPoint("LEFT", 30, 0)
+    for _, k in ipairs({ "total", "cost", "last", "value" }) do
+        foot[k] = foot:CreateFontString(nil, "ARTWORK", U.FONT.number)
+        foot[k]:SetJustifyH("RIGHT")
+    end
+    S.footer = foot
     S.table = U.Table(panel, {
         icon = true,
         columns = {
             { key = "name", title = L.COL_ITEM, format = function(v, r) return W.Colored(v, r.quality) end, sort = function(r) return W.Lower(r.name) end },
             { key = "total", title = L.COL_TOTAL, width = 60, align = "RIGHT" },
-            { key = "where", title = L.COL_WHERE, width = 230, font = "GameFontHighlightSmall", sort = function(r) return W.Lower(r.where) end },
+            { key = "where", title = L.COL_WHERE, width = 210, font = "GameFontHighlightSmall", sort = function(r) return W.Lower(r.where) end },
             { key = "cost", title = L.COL_COST, width = 95, align = "RIGHT", format = function(v) return W.MoneyOr(v) end },
             { key = "last", title = L.COL_LAST, width = 95, align = "RIGHT", format = function(v) return W.MoneyOr(v) end },
             { key = "value", title = L.COL_VALUE, width = 95, align = "RIGHT", format = function(v) return W.MoneyOr(v) end },

@@ -32,7 +32,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
     defaults = {
         minimapShow  = true,
         minimapAngle = 200,
-        tooltipShow  = true,     -- Zeile "Bestand" im Tooltip
+        tooltipShow  = true,     -- Ledger-Zeilen im Tooltip
+        tooltipLayout = {},      -- Bausteine im Tooltip (ab 0.14.2, Tooltip.lua: shifthint, lines)
         windowPos    = {},
         windowTab    = "overview",
         historyMoves  = true,    -- Verlauf: Umbuchungen zeigen
@@ -45,6 +46,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         bookView      = "kinds", -- Buch: Ansicht "Nach Art" oder "Nach Gegenstand" (ab 0.14)
         stockChar     = "*",     -- Bestand: Charakter (ab 0.14)
         stockPlace    = "all",   -- Bestand: Ort (ab 0.14)
+        stockCat      = "all",   -- Bestand: Kategorie (ab 0.14.2)
         mailWindow    = true,    -- eigenes Postfenster statt Blizzards Postfach (ab 0.14)
         mailFilter    = "all",   -- Postfenster: Filter nach Art (ab 0.14)
         mailRecent    = {},      -- Postfenster: zuletzt angeschriebene Empfaenger (ab 0.14)
@@ -55,11 +57,12 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  bookPeriod = { today = true, d7 = true, d30 = true, all = true },
                  bookView = { kinds = true, items = true },
                  stockPlace = { all = true, bags = true, bank = true, mail = true, auctions = true, equip = true, transit = true },
+                 stockCat = { all = true, equip = true, trade = true, consum = true, recipe = true, bag = true, quest = true, other = true },
                  mailFilter = { all = true, sale = true, buy = true, ["return"] = true, other = true },
                  historyKind = { all = true, ah = true, vendor = true, loot = true, use = true, quest = true, craft = true,
                                  trade = true, mail = true, travel = true, destroy = true, fix = true, other = true } },
     keepOnReset = { windowPos = true, windowTab = true, historyMoves = true, historyOnlyMe = true, historyChar = true, bookPeriod = true,
-                    bookOnlyMe = true, bookChar = true, bookView = true, historyKind = true, stockChar = true, stockPlace = true,
+                    bookOnlyMe = true, bookChar = true, bookView = true, historyKind = true, stockChar = true, stockPlace = true, stockCat = true,
                     mailFilter = true, mailRecent = true, session = true },
     slash    = { "/ledger" },
     onSlash  = function(m, cmd, rest)
@@ -323,7 +326,7 @@ mod:On("INIT", function()
 end)
 -- Ab 0.14 (Neuaufbau, KarloDerBaer): Die Erfassung im Auktionshaus und in der Post ist neu. Das Buch jedes Realms
 -- beginnt deshalb einmal neu (alte Zeilen hatten die Luecken aus Abschnitt 3.2 des Konzepts).
-ns.BOOK_VERSION = 2
+ns.BOOK_VERSION = 3   -- 3 ab 0.14.2: noch einmal neu, mit Sondereinnahme fuer laufende Auktionen
 function ns.MigrateBook()
     local r = ns.Inventory.RealmData()
     if (tonumber(r.bookV) or 0) >= ns.BOOK_VERSION then return false end

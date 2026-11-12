@@ -133,8 +133,12 @@ function MA.Rows()
         else
             r.icon = l.icon
         end
+        -- ab 0.14.2: Auktion von vor dem Neustart des Buchs -> Sondereinnahme, kein Gewinn
+        if kind == "sale" and ns.Moves.PreSale(nil, id, inv and inv.item, n, false) then
+            r.special = true
+            r.label = L.MAIL_K_SPECIAL
         -- Gewinn eines Verkaufs (ungefaehr): Erloes - Kosten der Stuecke laut Ledger (naechstes Stueck)
-        if kind == "sale" and id and r.money then
+        elseif kind == "sale" and id and r.money then
             local info = ns.Cost and ns.Cost.Info(id)
             r.profit = r.money - (n or 1) * ((info and info.next) or 0)
             r.profitEst = info == nil
@@ -482,6 +486,7 @@ function MA.RowTooltip(row, r)
         GameTooltip:AddDoubleLine(L.MAIL_TT_COST, ns.Money(math.floor((r.n or 1) * ((info and info.next) or 0) + 0.5)), 0.8, 0.8, 0.8, 1, 1, 1)
         GameTooltip:AddDoubleLine(L.MAIL_TT_PROFIT, W.Signed(r.profit), 1, 0.82, 0, 1, 1, 1)
     end
+    if r.special then GameTooltip:AddLine(L.MAIL_TT_SPECIAL, 1, 0.82, 0, true) end
     if r.cod then GameTooltip:AddLine(L.MAIL_TT_COD:format(ns.Money(r.cod)), 1, 0.3, 0.3, true) end
     if r.letter.loading then GameTooltip:AddLine(L.MAIL_TT_LOADING, 0.6, 0.6, 0.6, true) end
     if MA.TextOnly(r) then
