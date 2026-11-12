@@ -20,6 +20,8 @@
 -- aelteste zuerst. Posten des Startbestands (Anfangsbestand, Neustart des Buchs, Abweichungen, Korrekturen) tragen
 -- s = true. Was aus ihnen verkauft wird, ist eine Sondereinnahme wie eine Bestandsaufnahme: kein Handelsgewinn,
 -- nur der Rest des Verkaufs (gekaufte oder hergestellte Ware) zaehlt als Handelsgewinn.
+-- Ab 0.14.5 (KarloDerBaer): Startbestand kostet 0 (er zaehlt ohnehin nicht zum Gewinn). Hergestelltes nur aus
+-- Startbestand bleibt Startbestand.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -246,12 +248,14 @@ end
 local function Craft(st, e, id, n)
     local pool = st.craft[e.c]
     if not pool or (e.t or 0) - pool.t > C.CRAFT_CARRY then
-        pool = { cost = 0, t = e.t or 0, wait = {} }
+        pool = { cost = 0, t = e.t or 0, wait = {}, start = true }
         st.craft[e.c] = pool
     end
     pool.t = e.t or 0
     if n < 0 then
-        local cost = Take(st, id, -n)
+        local cost, miss, sn = Take(st, id, -n)
+        if (sn or 0) < (-n - (miss or 0)) or (miss or 0) > 0 then pool.start = false end   -- ab 0.14.5: nicht nur Startbestand
+        pool.used = true
         st.res[e] = { mat = cost }
         if #pool.wait > 0 then
             -- Ergebnis kam schon vorher (anderer Schub): Kosten nachtragen
@@ -270,7 +274,11 @@ local function Craft(st, e, id, n)
             local unit = pool.cost / n
             AddLot(st, id, n, unit, e.t, true)
             st.res[e] = { unit = unit }
-            pool.cost, pool.wait = 0, {}
+            pool.cost, pool.wait, pool.start, pool.used = 0, {}, true, nil
+        elseif pool.start and pool.used then
+            AddLot(st, id, n, 0, e.t, true, true)   -- nur aus Startbestand hergestellt: bleibt Startbestand
+            st.res[e] = { unit = 0, start = true }
+            pool.wait, pool.used = {}, nil
         else
             local lot = AddLot(st, id, n, 0, e.t, true)
             st.res[e] = { unit = 0 }
@@ -335,8 +343,7 @@ local function Twink(st, e, id, n)
         if q and #q == 0 then tr[id] = nil end
         if left > 0 then
             -- Versand vor Beginn der Aufzeichnung: zum Marktwert (beim ersten Rechnen gemerkt, wie der Anfangsbestand)
-            if not Num(e.v) then e.v = C.MarketValue(id) or 0 end
-            InsertLot(st, id, { t = e.t or 0, n = left, c = e.v, s = true })
+            InsertLot(st, id, { t = e.t or 0, n = left, c = 0, s = true })   -- ab 0.14.5 Startbestand, Kosten 0
         end
     end
 end
@@ -344,18 +351,18 @@ end
 function C.Apply(st, e, groups)
     Sub(st, e.c)
     if e.start then
-        AddLot(st, e.id, e.n, StartValue(e.s, e.id), e.t, nil, true)
+        AddLot(st, e.id, e.n, 0, e.t, nil, true)   -- ab 0.14.5 Kosten 0 (vorher Marktwert beim Start)
         return
     end
     local k, id, n, m = e.k, e.id, e.n or 0, e.m or 0
     if k == "twink" then Twink(st, e, id, n); return end
     if k == "posted" or k == "ahback" or k == "ahreturn" then return end   -- Umbuchung
-    if k == "diff" then   -- ab 0.14: Abweichung der Kontrollrechnung, Kosten wie eine Korrektur (Startbestand)
-        if id and n > 0 then AddLot(st, id, n, e.v or 0, e.t, nil, true) elseif id and n < 0 then Take(st, id, -n) end
+    if k == "diff" then   -- ab 0.14: Abweichung der Kontrollrechnung, Kosten wie eine Korrektur (Startbestand, Kosten 0)
+        if id and n > 0 then AddLot(st, id, n, 0, e.t, nil, true) elseif id and n < 0 then Take(st, id, -n) end
         return
     end
     if k == "fix" then
-        if id and n > 0 then AddLot(st, id, n, e.v or 0, e.t, nil, true) elseif id and n < 0 then Take(st, id, -n) end
+        if id and n > 0 then AddLot(st, id, n, 0, e.t, nil, true) elseif id and n < 0 then Take(st, id, -n) end
         return
     end
     if k == "ahfee" then
@@ -602,7 +609,8 @@ local function Fit(q, want, t, id)
         table.insert(out, 1, { t = lot.t, n = k, c = lot.c, s = true })   -- ab 0.14.3: Startbestand
         left = left - k
     end
-    if left > 0 then table.insert(out, 1, { t = t, n = left, c = C.MarketValue(id) or 0, s = true }) end
+    if left > 0 then table.insert(out, 1, { t = t, n = left, c = 0, s = true }) end
+    for _, lot in ipairs(out) do lot.c = 0 end   -- ab 0.14.5: Startbestand kostet 0
     return out
 end
 
@@ -677,14 +685,18 @@ function C.Info(id, char)
     char = char or ns.CharName()
     local own, all = Lots(C.State(), id, char)
     if not all[1] then return nil end
-    local n, v = 0, 0
-    for _, lot in ipairs(all) do n = n + lot.n; v = v + lot.n * lot.c end
+    local n, v, sn = 0, 0, 0
+    for _, lot in ipairs(all) do n = n + lot.n; v = v + lot.n * lot.c; if lot.s then sn = sn + lot.n end end
     if n <= 0 then return nil end
-    local first = own[1] or all[1]
-    if char == "*" then
-        for _, lot in ipairs(own) do if (lot.t or 0) < (first.t or 0) then first = lot end end
+    -- naechstes Stueck nach der Reihenfolge (ab 0.14.5 auch neueste zuerst)
+    local lifo = C.LIFO()
+    local pool = own[1] and own or all
+    local first = lifo and pool[#pool] or pool[1]
+    for _, lot in ipairs(pool) do
+        if lifo and (lot.t or 0) > (first.t or 0) then first = lot end
+        if not lifo and (lot.t or 0) < (first.t or 0) then first = lot end
     end
-    return { next = first.c, avg = v / n, n = n, value = v, lots = #all }
+    return { next = first.c, avg = v / n, n = n, value = v, lots = #all, sn = sn, nextStart = first.s or nil }
 end
 
 -- Kosten je Charakter: { { name, info }, ... } (nur Charaktere mit Posten)

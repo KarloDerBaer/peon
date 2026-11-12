@@ -133,11 +133,19 @@ function S.Rows()
         if (filter == "" or W.Lower(name):find(filter, 1, true)) and S.InCat(id, cat) then
             local info = ns.Cost and ns.Cost.Info(id, char)
             local last = ns.Last and ns.Last.Buy(id)
+            local value = ns.Worth(id, e.total, e.bound)
+            -- offener Gewinn (ab 0.14.5): Marktwert der Stuecke ohne Startbestand minus ihre Lagerkosten
+            local open
+            if value and info and e.total > 0 then
+                local own = math.min(e.total, info.n - (info.sn or 0))
+                if own > 0 then open = value * own / e.total - info.value end
+            end
             rows[#rows + 1] = { id = id, name = name, quality = quality, icon = icon, total = e.total,
                 where = S.WhereText(e, char ~= "*"),
                 cost = info and info.avg or nil, lager = info and info.value or nil,
+                startN = info and info.sn or 0, startAll = info and (info.sn or 0) >= info.n,
                 last = last and last.unit or nil, lastInfo = last,
-                value = ns.Worth(id, e.total, e.bound) }
+                value = value, open = open }
         end
     end
     return rows
@@ -148,12 +156,13 @@ function S.Refresh()
     if S.charDD and S.charDD.GenerateMenu then pcall(S.charDD.GenerateMenu, S.charDD) end
     local rows = S.Rows()
     S.table:SetData(rows)
-    local sum, lager, pieces, last = 0, 0, 0, 0
+    local sum, lager, pieces, last, open = 0, 0, 0, 0, 0
     for _, r in ipairs(rows) do
         sum = sum + (r.value or 0); lager = lager + (r.lager or 0); pieces = pieces + (r.total or 0)
         last = last + (r.last or 0) * (r.total or 0)
+        open = open + (r.open or 0)
     end
-    S.sums = { n = #rows, value = sum, lager = lager, pieces = pieces, last = last }
+    S.sums = { n = #rows, value = sum, lager = lager, pieces = pieces, last = last, open = open }
     S.UpdateFooter()
 end
 
@@ -179,7 +188,8 @@ function S.UpdateFooter()
     Put(f.cost, "cost", s.lager > 0 and ns.Money(math.floor(s.lager + 0.5), true) or "")
     Put(f.last, "last", s.last > 0 and ns.Money(math.floor(s.last + 0.5), true) or "")
     Put(f.value, "value", ns.HasBroker() and ns.Money(math.floor(s.value + 0.5), true) or "")
-    f.texts = { label = f.label.text, total = f.total.text, cost = f.cost.text, last = f.last.text, value = f.value.text }
+    Put(f.open, "open", ns.HasBroker() and W.Signed(s.open) or "")
+    f.texts = { label = f.label.text, total = f.total.text, cost = f.cost.text, last = f.last.text, value = f.value.text, open = f.open.text }
 end
 
 function S.Status()
@@ -198,6 +208,8 @@ function S.RowTooltip(row, r)
     if not GameTooltip then return end
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine(r.where, 0.8, 0.8, 0.8, true)
+    if (r.startN or 0) > 0 then GameTooltip:AddLine(L.STOCK_START_TT:format(r.startN), 1, 0.82, 0, true) end
+    if r.open then GameTooltip:AddLine(L.STOCK_OPEN_TT, 0.6, 0.6, 0.6, true) end
     if r.lastInfo then
         local l = r.lastInfo
         GameTooltip:AddLine(L.LAST_BUY_TT:format(ns.Money(math.floor(l.unit + 0.5)), l.n, S.SourceText(l.src), date("%d.%m.", l.t)), 0.8, 0.8, 0.8)
@@ -240,7 +252,7 @@ function S.Build(c)
     foot:SetPoint("BOTTOMRIGHT", -a.right, a.bottom)
     foot.label = foot:CreateFontString(nil, "ARTWORK", U.FONT.label)
     foot.label:SetPoint("LEFT", 30, 0)
-    for _, k in ipairs({ "total", "cost", "last", "value" }) do
+    for _, k in ipairs({ "total", "cost", "last", "value", "open" }) do
         foot[k] = foot:CreateFontString(nil, "ARTWORK", U.FONT.number)
         foot[k]:SetJustifyH("RIGHT")
     end
@@ -249,11 +261,14 @@ function S.Build(c)
         icon = true,
         columns = {
             { key = "name", title = L.COL_ITEM, format = function(v, r) return W.Colored(v, r.quality) end, sort = function(r) return W.Lower(r.name) end },
-            { key = "total", title = L.COL_TOTAL, width = 60, align = "RIGHT" },
-            { key = "where", title = L.COL_WHERE, width = 210, font = "GameFontHighlightSmall", sort = function(r) return W.Lower(r.where) end },
-            { key = "cost", title = L.COL_COST, width = 95, align = "RIGHT", format = function(v) return W.MoneyOr(v) end },
-            { key = "last", title = L.COL_LAST, width = 95, align = "RIGHT", format = function(v) return W.MoneyOr(v) end },
-            { key = "value", title = L.COL_VALUE, width = 95, align = "RIGHT", format = function(v) return W.MoneyOr(v) end },
+            { key = "total", title = L.COL_TOTAL, width = 56, align = "RIGHT" },
+            { key = "where", title = L.COL_WHERE, width = 180, font = "GameFontHighlightSmall", sort = function(r) return W.Lower(r.where) end },
+            { key = "cost", title = L.COL_COST, width = 88, align = "RIGHT",
+              format = function(v, r) if r.startAll then return GREY .. "0 · " .. L.STOCK_START .. "|r" end return W.MoneyOr(v) end },
+            { key = "last", title = L.COL_LAST, width = 84, align = "RIGHT", format = function(v) return W.MoneyOr(v) end },
+            { key = "value", title = L.COL_VALUE, width = 88, align = "RIGHT", format = function(v) return W.MoneyOr(v) end },
+            { key = "open", title = L.COL_OPEN, width = 96, align = "RIGHT", format = function(v) return v and W.Signed(v) or (GREY .. "–|r") end,
+              sort = function(r) return r.open or -math.huge end },
         },
         sortKey = "name",
         empty = L.STOCK_EMPTY,

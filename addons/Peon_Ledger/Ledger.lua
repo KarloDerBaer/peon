@@ -48,23 +48,26 @@ local mod = Peon:NewModule(ADDON_NAME, {
         stockPlace    = "all",   -- Bestand: Ort (ab 0.14)
         stockCat      = "all",   -- Bestand: Kategorie (ab 0.14.2)
         costOrder     = "lifo",  -- Kosten: neueste zuerst (lifo) oder aelteste zuerst (fifo), ab 0.14.3
+        trendRange    = "d7",    -- Diagramm der Uebersicht: Zeitraum (ab 0.14.5)
+        trendOff      = {},      -- Diagramm: ausgeblendete Linien
         mailWindow    = true,    -- eigenes Postfenster statt Blizzards Postfach (ab 0.14)
         mailFilter    = "all",   -- Postfenster: Filter nach Art (ab 0.14)
         mailRecent    = {},      -- Postfenster: zuletzt angeschriebene Empfaenger (ab 0.14)
         session       = {},      -- Gold zu Beginn der Sitzung (ab 0.12): who, money, uebersteht /reload
     },
     ranges   = { minimapAngle = { 0, 359, 1 } },
-    choices  = { windowTab = { overview = true, stock = true, history = true, book = true },
+    choices  = { windowTab = { overview = true, stock = true, history = true, book = true, info = true },
                  bookPeriod = { today = true, d7 = true, d30 = true, all = true },
                  bookView = { kinds = true, items = true },
                  costOrder = { lifo = true, fifo = true },
+                 trendRange = { d1 = true, d7 = true, d30 = true, d90 = true, all = true },
                  stockPlace = { all = true, bags = true, bank = true, mail = true, auctions = true, equip = true, transit = true },
                  stockCat = { all = true, equip = true, trade = true, consum = true, recipe = true, bag = true, quest = true, other = true },
                  mailFilter = { all = true, sale = true, buy = true, ["return"] = true, other = true },
                  historyKind = { all = true, ah = true, vendor = true, loot = true, use = true, quest = true, craft = true,
                                  trade = true, mail = true, travel = true, destroy = true, fix = true, other = true } },
     keepOnReset = { windowPos = true, windowTab = true, historyMoves = true, historyOnlyMe = true, historyChar = true, bookPeriod = true,
-                    bookOnlyMe = true, bookChar = true, bookView = true, historyKind = true, stockChar = true, stockPlace = true, stockCat = true,
+                    bookOnlyMe = true, bookChar = true, bookView = true, historyKind = true, stockChar = true, stockPlace = true, stockCat = true, trendRange = true, trendOff = true,
                     mailFilter = true, mailRecent = true, session = true },
     slash    = { "/ledger" },
     onSlash  = function(m, cmd, rest)
@@ -320,6 +323,7 @@ mod:On("INIT", function()
     mod:Call("Tooltip", ns.Tooltip.Init)
     mod:Call("Fenster", ns.Window.Init)
     mod:Call("Post", ns.Mail.Init)   -- ab 0.14: eigenes Postfenster
+    mod:Call("Verlauf Gold", ns.Trend.Init)   -- ab 0.14.5: Diagramm der Uebersicht
     if mod.AddNotice then mod:AddNotice({
         id = "neuaufbau-2026-11", date = "12.11.2026", title = L.NOTICE_TITLE,
         text = { L.NOTICE_1, L.NOTICE_2, L.NOTICE_3 },
@@ -344,6 +348,7 @@ mod:On("LOGIN", function()
     mod:Call("Bewegungen", ns.Moves.OnLogin)
     mod:Call("Buch", ns.MigrateBook)
     mod:Call("Kontrollrechnung", ns.Check.OnLogin)
+    mod:Call("Verlauf Gold", ns.Trend.OnLogin)
 end)
 -- Reihenfolge der Kosten geaendert: neu rechnen (ab 0.14.3)
 mod:On("CHANGED", function()

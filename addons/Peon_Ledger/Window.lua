@@ -20,6 +20,7 @@ W.TABS = {
     { key = "stock",    label = "TAB_STOCK" },
     { key = "book",     label = "TAB_BOOK" },
     { key = "history",  label = "TAB_HISTORY" },
+    { key = "info",     label = "TAB_INFO" },      -- ab 0.14.5: Begriffe und Abweichungen
 }
 W.pages = {}
 W.contents = {}

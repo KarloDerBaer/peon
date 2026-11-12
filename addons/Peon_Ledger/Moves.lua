@@ -124,6 +124,7 @@ function M.Changed()
     M.cache = nil
     if ns.Cost then ns.Cost.dirty = true end
     if ns.Last then ns.Last.dirty = true end
+    if ns.Trend then ns.Trend.tradeDirty = true end
     if ns.Window and ns.Window.OnData then ns.Window.OnData() end
 end
 

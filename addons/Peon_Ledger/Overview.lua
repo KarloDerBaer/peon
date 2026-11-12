@@ -2,7 +2,8 @@
 -- Reiter "Uebersicht": "Wie stehe ich da?" (ab 0.14 mit Peon.UI, Konzept Peon_Ledger_Neuaufbau.md Abschnitt 6.1)
 --   oben drei Kacheln: Gold gesamt (Aenderung heute), Vermoegen, Handelsgewinn heute
 --   darunter alle Charaktere des Realms: Name, Stufe, Gold, Lagerwert, Vermoegen (ab 0.14.4), zuletzt gesehen
---   Lagerwert = was die Waren gekostet haben, Vermoegen = Gold + heutiger Marktwert der Waren (Broker).
+--   Lagerkosten = was die Waren gekostet haben, Vermoegen = Gold + heutiger Marktwert der Waren (Broker).
+--   Ab 0.14.5 darunter ein Diagramm mit Gold, Vermoegen und Handelsgewinn (Trend.lua), Zeitraum 1 T bis Alles.
 --   Ab 0.14.1 ohne Post (KarloDerBaer): Das Spiel nennt die Post erst am Briefkasten, die Zahl war oft veraltet.
 -- Vermoegen = Gold + Wert der Gegenstaende (Preise von Peon_Broker), Gebundenes zum Haendlerpreis (ns.Worth).
 
@@ -121,7 +122,92 @@ function O.Refresh()
         O.tiles.worth:Set(GREY .. "–|r", GREY .. L.OV_NOBROKER .. "|r")
     end
     local lager = ns.Cost and ns.Cost.TotalValue() or 0
+    if ns.Trend then mod:Call("Verlauf Gold", ns.Trend.Record) end
+    mod:Call("Diagramm", O.DrawChart)
     O.tiles.trade:Set(W.Signed(today.trade or 0), ns.Plural(today.nsales or 0, "OV_TRADE_SUB", ns.Money(math.floor(lager + 0.5), true)))
+end
+
+---------------------------------------------------------------------------
+-- Diagramm (ab 0.14.5)
+---------------------------------------------------------------------------
+O.CHART_H = 196
+O.COLORS = { gold = { 1, 0.82, 0, 1 }, worth = { 0.35, 0.85, 0.35, 1 }, trade = { 0.45, 0.7, 1, 1 } }
+
+local function Short(v) if v == nil then return "" end return (v < 0 and "-" or "") .. Peon.ShortGold(math.abs(v)) end
+
+function O.DrawChart()
+    local ch = O.chart
+    if not ch then return end
+    local d = ns.Trend.Series(mod.db.trendRange or "d7")
+    O.series = d
+    ch:SetData(d.n, {
+        { key = "gold", kind = "line", axis = "left", values = d.gold, color = O.COLORS.gold, width = 2, connect = true, label = L.TR_GOLD },
+        { key = "worth", kind = "line", axis = "left", values = d.worth, color = O.COLORS.worth, width = 2, connect = true, label = L.TR_WORTH },
+        { key = "trade", kind = "step", axis = "right", values = d.trade, color = O.COLORS.trade, width = 2, label = L.TR_TRADE },
+        { key = "zero", kind = "hline", axis = "right", value = 0, color = { 0.45, 0.7, 1, 0.3 } },
+    })
+    for k, off in pairs(mod.db.trendOff or {}) do if off then ch:SetShown(k, false) end end
+    ch:Draw()
+    if not O.legend and ch.CreateLegend then
+        O.legend = ch:CreateLegend(O.chartPanel, { "gold", "worth", "trade" }, function(key, on)
+            mod.db.trendOff = mod.db.trendOff or {}
+            mod.db.trendOff[key] = not on
+        end)
+        if O.legend and O.legend.frame then O.legend.frame:SetPoint("TOPRIGHT", O.chartPanel, "TOPRIGHT", -200, -8) end
+    end
+    for _, b in ipairs(O.rangeButtons or {}) do
+        if b.key == (mod.db.trendRange or "d7") then b:Disable() else b:Enable() end
+    end
+    O.ChartHover(nil)
+end
+
+-- Werte unter der Maus (oder Hinweis)
+function O.ChartHover(i)
+    local d = O.series
+    if not O.chartInfo then return end
+    if not i or not d or not d.ends[i] then
+        O.chartInfo:SetText(W.GREY .. L.TR_HINT .. "|r")
+        return
+    end
+    local fmt = (d.key == "d1" or d.key == "d7") and "%d.%m. %H:%M" or "%d.%m."
+    local parts = { date(fmt, d.ends[i]) }
+    if d.gold[i] then parts[#parts + 1] = L.TR_GOLD .. " " .. ns.Money(d.gold[i], true) end
+    if d.worth[i] then parts[#parts + 1] = L.TR_WORTH .. " " .. ns.Money(d.worth[i], true) end
+    parts[#parts + 1] = L.TR_TRADE .. " " .. W.Signed(d.trade[i] or 0)
+    O.chartInfo:SetText(table.concat(parts, "   "))
+end
+
+function O.BuildChart(c, a)
+    local U = Peon.UI
+    local p = U.Panel(c, "list")
+    p:SetPoint("BOTTOMLEFT", a.left, a.bottom)
+    p:SetPoint("BOTTOMRIGHT", -a.right, a.bottom)
+    p:SetHeight(O.CHART_H)
+    O.chartPanel = p
+    O.rangeButtons = {}
+    local prev
+    for _, r in ipairs(ns.Trend.RANGES) do
+        local b = U.Button(p, L["TR_" .. r.key:upper()], 50, function()
+            mod.db.trendRange = r.key
+            mod:Call("Diagramm", O.DrawChart)
+        end)
+        b.key = r.key
+        if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("TOPLEFT", 10, -6) end
+        O.rangeButtons[#O.rangeButtons + 1] = b
+        prev = b
+    end
+    O.chartInfo = p:CreateFontString(nil, "ARTWORK", U.FONT.small)
+    O.chartInfo:SetPoint("BOTTOMLEFT", 12, 8)
+    O.chartInfo:SetPoint("BOTTOMRIGHT", -12, 8)
+    O.chartInfo:SetJustifyH("LEFT")
+    local w = (U.WINDOW_W - 2 * U.EDGE - 1) - 20
+    O.chart = Peon.NewChart(p, {
+        width = w, height = O.CHART_H - 58, left = 56, right = 56, grid = 3,
+        leftFormat = Short, rightFormat = Short,
+        onHover = function(_, i) O.ChartHover(i) end,
+        onLeave = function() O.ChartHover(nil) end,
+    })
+    O.chart.frame:SetPoint("TOPLEFT", 10, -32)
 end
 
 -- Text fuer die Statuszeile
@@ -176,7 +262,8 @@ function O.Build(c)
     end
     local panel = U.Panel(c, "list", true)
     panel:SetPoint("TOPLEFT", a.left, -(a.top + th + 6))
-    panel:SetPoint("BOTTOMRIGHT", -a.right, a.bottom)
+    panel:SetPoint("BOTTOMRIGHT", -a.right, a.bottom + O.CHART_H + 4)
+    O.BuildChart(c, a)
     O.panel = panel
     O.table = U.Table(panel, {
         columns = {

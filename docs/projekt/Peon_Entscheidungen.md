@@ -2,6 +2,15 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Begriffe, Diagramm, Info (Ledger 0.14.4 und 0.14.5)
+
+- **Begriffe** (KarloDerBaer): Vermögen = Gold + Marktwert. „Marktwert“ ist der heutige Wert, „Lagerkosten“ (statt Lagerwert) das, was die Waren gekostet haben. Alle Begriffe stehen im Reiter Info.
+- **Startbestand kostet 0** (KarloDerBaer): Er zählt ohnehin nicht zum Gewinn. Ändert 0.14.3 (Marktwert beim Neustart) und `Peon_Ledger_Zuordnen.md` (Anfangsbestand zum Marktpreis).
+- **Offener Gewinn nur im Bestand** (KarloDerBaer), ohne Startbestand.
+- **Vermögen je Charakter in der Übersicht**, Kachel „Vermögen gesamt“ (KarloDerBaer).
+- **Diagramm in der Übersicht** mit Gold, Vermögen und Handelsgewinn (KarloDerBaer). Gold und Vermögen lassen sich nicht aus dem Verlauf nachrechnen, deshalb merkt Ledger sie ab 0.14.5 bei Ereignissen (Claude), ohne regelmäßigen Takt.
+- **Abweichungen im Reiter Info aufgeschlüsselt** (KarloDerBaer).
+
 ## 12.11.2026: Startbestand und Reihenfolge der Kosten (Ledger 0.14.3)
 
 - **Startbestand als Sondereinnahme (Variante C, KarloDerBaer):** Was beim Neustart des Buchs da war, behält zur Information den Marktwert, sein Verkauf zählt aber nicht als Handelsgewinn. Kosten 0 hätte jeden alten Verkauf als vollen Gewinn gezeigt, Marktwert allein zeigte falsche Verluste.

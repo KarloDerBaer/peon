@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.14.5
+
+Kurz: Neuer Reiter Info: alle Begriffe zum Nachlesen und die Abweichungen der Kontrollrechnung im Einzelnen.
+Kurz: In der Übersicht zeigt ein Diagramm Gold, Vermögen und Handelsgewinn über einen Tag bis zu allem.
+Kurz: Der Startbestand kostet jetzt 0 und ist im Bestand als „Start“ markiert. Er zählt nicht zum Gewinn.
+Kurz: Neue Spalte „Offener Gewinn“ im Bestand. Aus „Lagerwert“ wird „Lagerkosten“, aus „Wert“ wird „Marktwert“.
+
+- 0.14.5 (12.11.2026): Begriffe geklärt mit KarloDerBaer.
+  - **Startbestand kostet 0** (vorher Marktwert beim Neustart): Anfangsbestand, Neustart des Buchs, Abweichungen, Korrekturen, Post vom Twink ohne bekannten Versand. Hergestelltes nur aus Startbestand bleibt Startbestand. Im Bestand zeigt „Kosten Ø“ dann „0 · Start“, der Tooltip der Zeile nennt die Stück aus dem Startbestand. `Cost.Info` liefert zusätzlich `sn` (Stück Startbestand), das nächste Stück folgt der eingestellten Reihenfolge.
+  - **Begriffe:** „Lagerkosten“ statt „Lagerwert“, „Marktwert“ statt „Wert“ und „Waren“. Vermögen = Gold + Marktwert.
+  - **Offener Gewinn** im Bestand (Spalte und Summenzeile): Marktwert minus Lagerkosten der Stücke ohne Startbestand.
+  - **Diagramm in der Übersicht** (neu `Trend.lua`): Gold und Vermögen aller Charaktere werden bei Ereignissen gemerkt (höchstens einmal je Minute, je 15 Minuten ein Stand, älter als 1 Tag einer je Stunde, älter als 7 Tage einer je Tag, `realms[Realm].trend`). Handelsgewinn aus den Bewegungen, aufsummiert ab Beginn des Zeitraums. Zeiträume 1 T, 7 T, 30 T, 90 T, Alles, Legende zum Ein- und Ausblenden, Werte unter der Maus. Einstellungen `trendRange`, `trendOff`.
+  - **Reiter Info** (neu `Info.lua`): Begriffe mit Bildlauf (`L.INFO_TERMS`), offene Abweichungen des eingeloggten Charakters und verbuchte Abweichungen der letzten 30 Tage.
+  - Übersicht etwas kleiner (Platz für das Diagramm), Fenster mit fünf Reitern.
+
 ## 0.14.4
 
 Kurz: Die Übersicht zeigt jetzt das Vermögen jedes Charakters, oben steht „Vermögen gesamt“.

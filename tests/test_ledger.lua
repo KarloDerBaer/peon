@@ -321,7 +321,7 @@ SlashCmdList.PEON_LEDGER("")
 local W = ns.Window
 local function rowsOf(t) return t.items end
 check(W.IsOpen() and W.current == "overview" and #rowsOf(ns.Overview.table) == 2, "Fenster: Uebersicht mit zwei Charakteren")
-check(#W.tabButtons == 4 and W.tabButtons[1].text == "Übersicht" and W.tabButtons[3].text == "Buch", "0.14: vier Reiter (Uebersicht, Bestand, Buch, Verlauf)")
+check(#W.tabButtons == 5 and W.tabButtons[1].text == "Übersicht" and W.tabButtons[3].text == "Buch" and W.tabButtons[5].text == "Info", "0.14.5: fuenf Reiter (Uebersicht, Bestand, Buch, Verlauf, Info)")
 check(ns.Overview.TileText("gold"):find("2 Charaktere", 1, true), "Kachel Gold gesamt: " .. ns.Overview.TileText("gold"))
 check(ns.Overview.TileText("worth"):find("Peon_Broker", 1, true), "Kachel Vermoegen ohne Broker: Hinweis")
 check(ns.Overview.tiles.mail == nil, "0.14.1: keine Kachel Post (erst am Briefkasten bekannt)")
@@ -865,7 +865,8 @@ check(ns.Worth(4306, 2, 0) == nil and ns.Worth(4306, 2, 2) == 0, "ns.Worth: ohne
 ns.Window.Select("stock")
 local sv for _, r in ipairs(ns.Stock.table.items) do if r.id == 2589 then sv = r end end
 local e = ns.Stock.Collect("*", "all")[2589]
-check(sv and e.bound == 2 + 7 + 1 and sv.value == 10 * (sv.total - e.bound) + 3 * e.bound and ns.Stock.Status():find("Wert", 1, true), "Bestand: Spalte Wert (Gebundenes Haendlerpreis) und Summe")
+check(sv and e.bound == 2 + 7 + 1 and sv.value == 10 * (sv.total - e.bound) + 3 * e.bound and ns.Stock.Status():find("Marktwert", 1, true), "Bestand: Spalte Marktwert (Gebundenes Haendlerpreis) und Summe")
+check(sv.startAll and sv.open == nil and ns.Stock.footer.texts.open ~= nil, "0.14.5: nur Startbestand: Kosten 0 (Start), kein offener Gewinn")
 -- Taschen lesen: gebundene Stueck werden gemerkt
 BAGS[0][9] = { itemID = 6129, stackCount = 1, isBound = true }
 I.quiet = true; I.ScanBags(); I.quiet = false
@@ -953,10 +954,10 @@ check(math.abs(Co.Info(5002).next - 150) < 0.01 and Co.Info(5003).next == 0, "Po
 -- Anfangsbestand zum Marktwert beim Start (eingefroren)
 me.start = { t = t0 - 100, places = { bags = { t = t0 - 100, items = { [5004] = 3 } } } }
 Co.Invalidate()
-check(math.abs(Co.Info(5004).next - 100) < 0.01 and me.start.v[5004] == 100, "Anfangsbestand: Marktwert beim Start, gemerkt")
+check(Co.Info(5004).next == 0 and Co.Info(5004).sn == 3 and Co.Info(5004).value == 0, "0.14.5: Anfangsbestand ist Startbestand mit Kosten 0")
 Peon.modules.broker = { ItemValue = function(_, id, n) return 999 * (n or 1) end }
 Co.Invalidate()
-check(math.abs(Co.Info(5004).next - 100) < 0.01, "Wert bleibt eingefroren, auch wenn der Markt sich aendert")
+check(Co.Info(5004).next == 0, "Startbestand bleibt bei 0, auch wenn der Markt sich aendert")
 Peon.modules.broker = nil
 -- Hoechstens 30 Posten
 local lots = { lots = {} }
@@ -1028,7 +1029,7 @@ Peon.modules.broker = { ItemValue = function(_, id, n) return 50 * (n or 1) end 
 table.insert(realm.moves, E(60, T, "twink", 4306, 2, nil, { x = G }))
 Co.Invalidate()
 local tw = realm.moves[#realm.moves]
-check(math.abs(Co.Info(4306, T).next - 50) < 0.01 and tw.v == 50, "Post vom Twink ohne Versand: Marktwert, gemerkt")
+check(Co.Info(4306, T).next == 0 and Co.Info(4306, T).sn == 2, "0.14.5: Post vom Twink ohne Versand: Startbestand, Kosten 0")
 Peon.modules.broker = nil
 -- Schnittstelle: ohne Charakter = eingeloggter, "*" = alle
 check(select(3, mod:Cost(2589)) == 10 and select(3, mod:Cost(2589, "*")) == 25 and select(3, mod:Cost(2589, G)) == 15, "mod:Cost je Charakter")
@@ -1571,6 +1572,66 @@ do
   me.start, realm.moves, realm.lotBase = keepS, keepM, keepB
   ns.Cost.Invalidate()
 end
+-- ----- 0.14.5: Startbestand Kosten 0, offener Gewinn, Diagramm, Info -----
+do
+  local me = realm.chars["Mirel Dorna"]
+  local keepS, keepM, keepB, keepT = me.start, realm.moves, realm.lotBase, realm.trend
+  local t0 = time() - 3 * 86400
+  realm.lotBase = nil
+  me.start = { t = t0, places = { bags = { t = t0, items = { [7101] = 4, [7102] = 2 } } } }
+  realm.moves = {
+    { t = t0 + 10, c = "Mirel Dorna", k = "craft", id = 7101, n = -4, x = "Rezept" },   -- nur Startbestand verbraucht
+    { t = t0 + 10, c = "Mirel Dorna", k = "craft", id = 7103, n = 1, x = "Rezept" },
+    { t = t0 + 20, c = "Mirel Dorna", k = "ahbuy", id = 7102, n = 3, m = -300 },         -- 3 gekauft zu 1s
+    { t = t0 + 30, c = "Mirel Dorna", k = "ahsold", id = 7102, n = -1, m = 250, q = 1 }, -- neueste zuerst: gekauft
+  }
+  ns.Cost.Invalidate()
+  local p = ns.Cost.Info(7103)
+  check(p and p.n == 1 and p.sn == 1 and p.value == 0, "Hergestelltes nur aus Startbestand bleibt Startbestand (Kosten 0)")
+  check(ns.Cost.Result(realm.moves[4]).sale and math.abs(ns.Cost.Result(realm.moves[4]).profit - 150) < 0.01, "Verkauf gekaufter Ware: Gewinn 1s 50c")
+  -- offener Gewinn im Bestand: 2 gekaufte zu 1s, 2 Startbestand, Marktwert 2s je Stueck
+  local keepP = me.places
+  me.places = { bags = { t = 1, items = { [7102] = 4 } } }
+  Peon.modules.broker = { ItemValue = function(_, id, n) return 200 * (n or 1) end }
+  ns.Window.Select("stock"); mod.db.stockChar = "*"; mod.db.stockPlace = "all"; mod.db.stockCat = "all"
+  ns.Stock.search = nil; if ns.Stock.searchBox then ns.Stock.searchBox:SetText("") end
+  ns.Window.Refresh()
+  local row for _, r in ipairs(ns.Stock.table.items) do if r.id == 7102 then row = r end end
+  check(row and row.startN == 2 and math.abs(row.open - (2 * 200 - 200)) < 0.01, "offener Gewinn: nur gekaufte Stuecke (2 x 2s Marktwert - 2s Kosten)")
+  -- Verlauf fuer das Diagramm
+  realm.trend = {}
+  local T0 = time()
+  ns.Trend.Record(true, T0 - 5 * 3600)
+  money = money + 5000; ns.Inventory.ScanMoney()
+  ns.Trend.Record(false, T0 - 5 * 3600 + 30)
+  check(#realm.trend == 1, "hoechstens ein Stand je Minute")
+  ns.Trend.Record(true, T0 - 3600)
+  check(#realm.trend == 2 and realm.trend[2].w ~= nil, "Stand mit Gold und Vermoegen")
+  local d = ns.Trend.Series("d1", T0)
+  check(d.n == 24 and d.gold[1] == nil and d.gold[20] == realm.trend[1].g and d.gold[24] == realm.trend[2].g, "Reihe 1 Tag: 24 Stunden, vor dem ersten Stand leer")
+  local d7 = ns.Trend.Series("d7", T0)
+  check(d7.trade[d7.n] and math.abs(d7.trade[d7.n] - 150) < 0.01, "Handelsgewinn im Zeitraum aufsummiert")
+  realm.trend = { { t = T0 - 10 * 86400, g = 1 }, { t = T0 - 10 * 86400 + 60, g = 2 }, { t = T0 - 2 * 86400, g = 3 }, { t = T0 - 2 * 86400 + 120, g = 4 }, { t = T0 - 60, g = 5 } }
+  check(ns.Trend.Thin(T0) == 2 and realm.trend[1].g == 2 and realm.trend[2].g == 4, "Ausduennen: alt ein Stand je Tag bzw. je Stunde")
+  ns.Window.Select("overview")
+  check(ns.Overview.chart and ns.Overview.series and #ns.Overview.rangeButtons == 5, "Diagramm in der Uebersicht mit fuenf Zeitraeumen")
+  ns.Overview.rangeButtons[1].scripts.OnClick()
+  check(mod.db.trendRange == "d1" and ns.Overview.series.key == "d1", "Zeitraum waehlen")
+  ns.Overview.ChartHover(24)
+  check(ns.Overview.chartInfo.text:find("Gold", 1, true), "Werte unter der Maus")
+  mod.db.trendRange = "d7"
+  -- Info
+  realm.moves[#realm.moves + 1] = { t = time(), c = "Mirel Dorna", k = "diff", id = 7102, n = -1, x = "Kontrollrechnung" }
+  ns.Moves.Changed()
+  ns.Window.Select("info")
+  check(#ns.Info.terms >= 15 and ns.Info.terms[1].term == "Gold", "Info: Begriffe")
+  check(#ns.Info.table.items == 1 and ns.Info.table.items[1].id == 7102, "Info: verbuchte Abweichungen")
+  check(ns.Info.open.text ~= "", "Info: offene Abweichungen")
+  Peon.modules.broker = nil
+  me.start, realm.moves, realm.lotBase, realm.trend, me.places = keepS, keepM, keepB, keepT, keepP
+  ns.Cost.Invalidate()
+  ns.Window.Select("overview")
+end
 -- ----- einmaliger Neustart des Buchs (ab 0.14) -----
 -- 0.14.1: Kosten aus dem bisherigen Verlauf bleiben, fehlende Stueck zum Marktwert
 do
@@ -1590,8 +1651,8 @@ do
   ns.Moves.ResetBook()
   ns.Cost.Invalidate()
   local info = ns.Cost.Info(2589)
-  check(info and info.n == 15 and math.abs(info.value - (5 * 100 + 10 * 300)) < 0.01, "Zuruecksetzen: Kosten bleiben (neueste 15 Stueck: 5 zu 1s, 10 zu 3s), nicht Marktwert")
-  check(math.abs(ns.Cost.Info(4306).next - 50) < 0.01, "ohne bisherige Kosten: Marktwert")
+  check(info and info.n == 15 and info.value == 0 and info.sn == 15, "0.14.5: Zuruecksetzen: alles ist Startbestand mit Kosten 0")
+  check(ns.Cost.Info(4306).next == 0 and ns.Cost.Info(4306).sn == 2, "auch ohne bisherige Kosten")
   check(mod:LastBuy(2589) == 300, "zuletzt gezahlt bleibt beim Zuruecksetzen")
   Peon.modules.broker = nil
   me.start, realm.moves, realm.lotBase, me.places = keepS, keepM, keepB, keepP

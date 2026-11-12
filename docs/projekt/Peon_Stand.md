@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 12.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.0 / Broker 0.84.0 / Bridge 0.9.2 (bis 0.3.0 Peon_Client) / Peon Manager 0.28.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.4 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 12.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.0 / Broker 0.84.0 / Bridge 0.9.2 (bis 0.3.0 Peon_Client) / Peon Manager 0.28.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.5 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.20.0, API 20
@@ -115,11 +115,12 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Verlauf der Versionen: `docs/changelog/Peon_Bridge.md`
 - Im Spiel prüfen (nach dem Start): Optionsseite zeigt „Kanal broker freigeschaltet“ und „Peon Manager: Werte vom … (Version 0.6.0)“.
 
-## Peon_Ledger – 0.14.4 (Bestand, Buch und Postfenster)
+## Peon_Ledger – 0.14.5 (Bestand, Buch und Postfenster)
 
 - **Neuaufbau gebaut (0.14.0, 12.11.2026):** Konzept `Peon_Ledger_Neuaufbau.md`, alle Bauabschnitte E1 bis E7 (E6 in Broker 0.84.0). Kontrollrechnung, Erfassung an der Quelle (Buch beginnt einmal neu), zuletzt gezahlt/verkauft, Fenster mit `Peon.UI` und vier Reitern (Übersicht, Bestand, Buch, Verlauf), Postfenster Peon Post mit Eingang und Senden. Reiter Gegenstände, Gegenstand und Umsatz sowie Alt+Klick entfallen, Gegenstände zeigt Broker. **Nicht veröffentlicht.** Erster Test im Spiel am 12.11.2026 (Entwicklung), Rückmeldungen in 0.14.1 umgesetzt, Rest der Prüfliste im Changelog 0.14.0 offen. Alte Daten von vor dem Neustart des Buchs gesichert in `<Archiv>\Ledger_vor_0.14`.
 - Dateien ab 0.14: Locales.lua, Ledger.lua, Inventory.lua, Moves.lua, Cost.lua, Check.lua, Last.lua, Tooltip.lua, Window.lua, Overview.lua, Stock.lua, History.lua, Book.lua, Mail.lua, Pick.lua (nur noch Tastenbelegung), Probe.lua, Options.lua, Bindings.xml. Catalog.lua und Item.lua entfallen.
 - Braucht ab 0.14 Peon API 19 (`Peon.UI` mit Zeilenfarben), der einmalige Hinweis nutzt API 20, wenn vorhanden.
+- Neu ab 0.14.5: Dateien Trend.lua (Verlauf für das Diagramm) und Info.lua (Reiter Info), Einstellungen `trendRange`, `trendOff`, je Realm `trend`. Startbestand kostet 0.
 - Neu ab 0.14.3: Einstellung `costOrder` (lifo Standard, fifo), Posten mit `s` = Startbestand, `bookV` 4.
 - Neue Einstellungen ab 0.14.2: `stockCat`, `tooltipLayout` (Tooltip-Bausteine). Je Realm `pre` (beim Neustart laufende Auktionen und Verkaufsbriefe, für die Sondereinnahme), `bookV` 3. Bewegungen: `sp` = Sondereinnahme.
 - Neue Einstellungen ab 0.14: `stockChar`, `stockPlace`, `bookChar`, `bookView`, `historyChar`, `mailWindow` (eigenes Postfenster, Standard an), `mailFilter`, `mailRecent`. Entfallen: `itemPeriod`, `itemMarge`, `itemOff`, `itemLast`, `catalogFilter`. Neu je Realm: `bookV` (Stand des Buchs, 2 ab 0.14), `last = { buy, sale }` (zuletzt gezahlt/verkauft vor dem Zusammenfassen). Bewegungen: neue Art `diff` (Abweichung), Verkaufszeilen aus der Rechnung tragen `n` (Abgang), `claimed`. Post je Charakter: `places.mail.list` mit Ablauf je Brief.
