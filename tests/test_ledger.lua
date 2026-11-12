@@ -332,7 +332,10 @@ do
   for _, r in ipairs(rowsOf(ns.Overview.table)) do if r.me then rowT = r end end
   local hasMail = false
   for _, c in ipairs(ns.Overview.table.o.columns) do if c.key == "mailSort" then hasMail = true end end
-  check(not hasMail and #ns.Overview.table.o.columns == 5, "0.14.1: Uebersicht ohne Spalte Post")
+  local hasWorth = false
+  for _, c in ipairs(ns.Overview.table.o.columns) do if c.key == "worth" then hasWorth = true end end
+  check(not hasMail and hasWorth and #ns.Overview.table.o.columns == 6, "0.14.4: Uebersicht ohne Post, mit Vermoegen je Charakter")
+  check(ns.Overview.tiles.worth.title.text == "Vermögen gesamt", "Kachel heisst Vermoegen gesamt")
   tt.lines = {}
   ns.Overview.RowTooltip({}, rowT)
   local found

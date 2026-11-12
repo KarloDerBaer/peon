@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.14.4
+
+Kurz: Die Übersicht zeigt jetzt das Vermögen jedes Charakters, oben steht „Vermögen gesamt“.
+
+- 0.14.4 (12.11.2026): Spalte Vermögen in der Übersicht (Gold + heutiger Marktwert der Waren), Kachel heißt „Vermögen gesamt“ (Wunsch KarloDerBaer). Lagerwert bleibt daneben (was die Waren gekostet haben).
+
 ## 0.14.3
 
 Kurz: Was beim Neustart des Buchs schon da war, gilt als Startbestand. Verkaufst du davon etwas, ist das eine Sondereinnahme und kein Handelsgewinn.

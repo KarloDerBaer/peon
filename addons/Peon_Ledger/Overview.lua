@@ -1,7 +1,8 @@
 -- Peon_Ledger - Overview.lua
 -- Reiter "Uebersicht": "Wie stehe ich da?" (ab 0.14 mit Peon.UI, Konzept Peon_Ledger_Neuaufbau.md Abschnitt 6.1)
 --   oben drei Kacheln: Gold gesamt (Aenderung heute), Vermoegen, Handelsgewinn heute
---   darunter alle Charaktere des Realms: Name, Stufe, Gold, Lagerwert, zuletzt gesehen
+--   darunter alle Charaktere des Realms: Name, Stufe, Gold, Lagerwert, Vermoegen (ab 0.14.4), zuletzt gesehen
+--   Lagerwert = was die Waren gekostet haben, Vermoegen = Gold + heutiger Marktwert der Waren (Broker).
 --   Ab 0.14.1 ohne Post (KarloDerBaer): Das Spiel nennt die Post erst am Briefkasten, die Zahl war oft veraltet.
 -- Vermoegen = Gold + Wert der Gegenstaende (Preise von Peon_Broker), Gebundenes zum Haendlerpreis (ns.Worth).
 
@@ -183,9 +184,11 @@ function O.Build(c)
               format = function(v, r) return W.ClassColored(v, r.class) .. (r.me and (GREY .. " " .. L.OV_ME .. "|r") or "") end,
               sort = function(r) return W.Lower(r.name) end },
             { key = "level", title = L.COL_LEVEL, width = 60, align = "RIGHT" },
-            { key = "money", title = L.COL_GOLD, width = 130, align = "RIGHT", format = function(v) return v and ns.Money(v, true) or (GREY .. "–|r") end },
-            { key = "lager", title = L.COL_LAGER, width = 150, align = "RIGHT", format = function(v) return v and v > 0 and ns.Money(math.floor(v + 0.5), true) or (GREY .. "–|r") end },
-            { key = "seen", title = L.COL_SEEN, width = 110, align = "RIGHT", format = function(v, r) return r.me and L.AGE_NOW or ns.Age(v) end,
+            { key = "money", title = L.COL_GOLD, width = 120, align = "RIGHT", format = function(v) return v and ns.Money(v, true) or (GREY .. "–|r") end },
+            { key = "lager", title = L.COL_LAGER, width = 120, align = "RIGHT", format = function(v) return v and v > 0 and ns.Money(math.floor(v + 0.5), true) or (GREY .. "–|r") end },
+            { key = "worth", title = L.COL_WORTH, width = 130, align = "RIGHT", format = function(v) return v and ns.Money(math.floor(v + 0.5), true) or (GREY .. "–|r") end,
+              sort = function(r) return r.worth or -1 end },
+            { key = "seen", title = L.COL_SEEN, width = 90, align = "RIGHT", format = function(v, r) return r.me and L.AGE_NOW or ns.Age(v) end,
               sort = function(r) return r.me and math.huge or (r.seen or 0) end },
         },
         sortKey = "money", sortDesc = true,
