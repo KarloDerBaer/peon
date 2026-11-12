@@ -60,7 +60,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
         radarBuyoutOn = true,   -- Radar (ab 0.71): Art Aufkauf zeigen
         buyoutMinQty = 200,     -- Aufkauf (ab 0.71): Massenware erst ab so vielen Stueck im Angebot
         buyoutMinLevels = 5,    -- Aufkauf (ab 0.71): und so vielen Preisstufen
-        buyoutMinSales = 50,    -- Aufkauf (ab 0.71): und so viel Absatz je Tag
+        buyoutMinSales = 50,
+        buyoutTargetPct = 20,   -- Aufkauf (ab 0.79): Ziel hoechstens so viel % ueber der oberen Grenze des ueblichen Bereichs    -- Aufkauf (ab 0.71): und so viel Absatz je Tag
         radarRenew   = true,    -- Radar (ab 0.71): gezeigte Moeglichkeiten regelmaessig erneuern
         radarRenewSec = 60,     -- Radar (ab 0.71): jede Moeglichkeit so oft live pruefen (Sekunden)
         radarRenewMax = 120,    -- Radar (ab 0.71): reicht das Budget nicht, hoechstens so selten (Sekunden)
@@ -95,7 +96,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  buyoutHours = { 1, 24, 1 }, focusEvery = { 3, 30, 1 },
                  focusRate = { 2, 90, 1 }, focusWindow = { 2, 30, 1 }, focusFirst = { 10, 120, 5 }, focusSure = { 30, 600, 10 },
                  focusMore = { 0, 100, 5 }, focusGrow = { 1, 50, 1 }, focusPriceTol = { 0, 10, 1 },
-                 buyoutMinQty = { 0, 100000, 10 }, buyoutMinLevels = { 2, 12, 1 }, buyoutMinSales = { 0, 100000, 5 },
+                 buyoutMinQty = { 0, 100000, 10 }, buyoutMinLevels = { 2, 12, 1 }, buyoutMinSales = { 0, 100000, 5 }, buyoutTargetPct = { 0, 200, 5 },
                  radarRenewSec = { 15, 600, 15 }, radarRenewMax = { 30, 1200, 30 }, radarSearchPct = { 0, 80, 5 },
                  salesWindow = { 1, 24, 1 }, salesMidMin = { 10, 600, 10 }, salesSureMin = { 20, 1440, 10 },
                  salesCancelPct = { 0, 50, 5 } },

@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.79.0
+
+Kurz: Der Aufkauf rechnet nicht mehr gegen einzelne überteuerte Angebote. Gekauft wird nur bis zur oberen Grenze des üblichen Bereichs, das Ziel liegt höchstens 20 % darüber (einstellbar). Ohne üblichen Bereich gibt es keinen Aufkauf.
+
+- 0.79.0 (12.11.2026): **Aufkauf nur im üblichen Bereich** (Rückmeldung KarloDerBaer, 12.11.2026, Beispiel Langzahniger Matschschnapper: Ziel 1s 8c bei üblich 7c bis 10c, 687 Stück samt der Stufen zu 40c bis 1s 5c).
+  - „Kaufen bis“ einer Aufkauf-Chance liegt nie über der oberen Grenze des üblichen Bereichs.
+  - Das Ziel liegt höchstens `buyoutTargetPct` über dieser Grenze (Vorgabe 20 %, 0 bis 200, Radar-Einstellungen unter Aufkauf).
+  - Ohne üblichen Bereich keine Aufkauf-Chance (Grund `band`). Bisher war das nur ein Punkt beim Risiko.
+  - Gilt nur für Chancen aus dem Radar. Ein eigenes Ziel oder „Kaufen bis“ im Fokus gilt ohne diese Grenzen.
+  - Tests: 4 neue Prüfungen mit dem Beispiel aus dem Spiel.
+  - **Im Spiel prüfen:** Radar zeigt keine Aufkäufe mehr mit Zielen weit über dem üblichen Bereich. Einstellung „Ziel höchstens über üblich“.
+
 ## 0.78.0
 
 Kurz: Im Fokus steht „Menge, Kosten, Gewinn“ über dem Kaufknopf jetzt immer, auch wenn der Knopf grau ist.

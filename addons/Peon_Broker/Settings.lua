@@ -73,6 +73,7 @@ S.SPECS.radar = {
     { "check", "radarBuyoutOn", "SET_RADAR_BUYOUT", "SET_RADAR_BUYOUT_TIP" },
     { "money", "dealMinMarket", "SET_RADAR_MIN_GAIN", 100, off = BuyoutOff },
     { "slider", "buyoutHours", "SET_RADAR_HOURS", 1, 24, 1, function(v) return L.SET_HOURS_FMT:format(v) end, off = BuyoutOff },
+    { "slider", "buyoutTargetPct", "SET_RADAR_TARGET_PCT", 0, 100, 5, function(v) return L.SET_PCT_FMT:format(v) end, off = BuyoutOff },
     { "slider", "buyoutMinQty", "SET_RADAR_MIN_QTY", 0, 5000, 50, function(v) return L.SET_QTY_FMT:format(v) end, off = BuyoutOff },
     { "slider", "buyoutMinLevels", "SET_RADAR_MIN_LEVELS", 2, 12, 1, function(v) return tostring(v) end, off = BuyoutOff },
     { "slider", "buyoutMinSales", "SET_RADAR_MIN_SALES", 0, 2000, 10, function(v) return L.SET_QTY_FMT:format(v) end, off = BuyoutOff },

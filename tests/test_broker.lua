@@ -1523,7 +1523,7 @@ end)()
     -- Fokus-Seite mit laufender Messung
     local keepOpen, keepStats, keepBand, keepMoney = ns.Scan.ahOpen, ns.Sales.Stats, D.Band, GetMoney
     ns.Sales.Stats = function() return { perHour = 50, level = 3 } end
-    D.Band = function() return { trend = "calm" } end
+    D.Band = function() return { trend = "calm", low = 900, high = 1600 } end   -- ab 0.79: ueblicher Bereich ist Pflicht
     GetMoney = function() return 1000000 end
     mod.acc.commodity[7952] = true
     market.items[7952] = { m = 1000, md = 1500, q = 180, n = 3, t = clock, lv = "1000:50;1100:30;1500:100", nm = "Messstein", ql = 1 }
@@ -3750,6 +3750,35 @@ end)()
   R.entries[7983] = nil
   F.key, ns.Scan.ahOpen = keepKey, keepOpen
   ns.Buy.live[7982] = nil
+end)()
+
+-- ===== 0.79: Aufkauf nur im ueblichen Bereich =====
+;(function()
+  local BO = ns.Buyout
+  local keepStats, keepBand, keepCtx = ns.Sales.Stats, D.Band, BO.CTX_TIME
+  local band = { trend = "calm", low = 7, high = 10 }
+  ns.Sales.Stats = function() return { perHour = 70, level = 3 } end
+  D.Band = function() return band end
+  BO.CTX_TIME, BO.ctx = 0, {}
+  mod.db.buyoutMinQty, mod.db.buyoutMinLevels, mod.db.buyoutMinSales, mod.db.buyoutHours, mod.db.dealMinMarket = 200, 5, 50, 24, 0
+  mod.acc.commodity[7991] = true
+  -- Beispiel aus dem Spiel (Langzahniger Matschschnapper): ueblich 7c bis 10c, darueber einzelne ueberteuerte Stufen
+  local rows = D.ParseLevels("8:442;10:113;40:20;67:20;100:40;105:52;108:10;150:100")
+  local d = BO.Find({ q = 797 }, rows, 7991, 1000000)
+  check(d and d.ref <= 12 and d.limit <= 10 and d.qty == 442, "0.79: nur bis zur oberen Grenze kaufen, Ziel hoechstens 20 % darueber: "
+    .. tostring(d and d.qty) .. " bis " .. tostring(d and d.limit) .. ", Ziel " .. tostring(d and d.ref))
+  mod.db.dealMinMarket = 50
+  local d2, why2 = BO.Find({ q = 797 }, rows, 7991, 1000000)
+  check(d2 == nil and why2 == "gain", "0.79: mit Mindestgewinn 50s bleibt keine Chance (vorher Ziel 1s 8c mit 687 Stueck)")
+  band = { trend = "calm" }
+  local d3, why3 = BO.Find({ q = 797 }, rows, 7991, 1000000)
+  check(d3 == nil and why3 == "band", "0.79: ohne ueblichen Bereich kein Aufkauf")
+  band = { trend = "calm", low = 7, high = 10 }
+  mod.db.buyoutTargetPct = 100
+  local d4 = BO.Find({ q = 797 }, D.ParseLevels("8:442;10:113;19:300;40:20;67:20"), 7991, 1000000)
+  check(d4 and d4.ref == 19 and d4.limit == 10 and d4.qty == 555, "0.79: Grenze fuer das Ziel einstellbar (100 %: Ziel 19c)")
+  mod.db.buyoutTargetPct, mod.db.buyoutHours, mod.db.buyoutMinQty, mod.db.buyoutMinLevels, mod.db.buyoutMinSales = 20, 2, 0, 2, 0
+  ns.Sales.Stats, D.Band, BO.CTX_TIME, BO.ctx = keepStats, keepBand, keepCtx, {}
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

@@ -47,6 +47,8 @@ function B.MinGain() return (tonumber(mod.db.dealMinMarket) or 50) * 100 end
 function B.MinQty() return tonumber(mod.db.buyoutMinQty) or 200 end
 function B.MinLevels() return tonumber(mod.db.buyoutMinLevels) or 5 end
 function B.MinSales() return tonumber(mod.db.buyoutMinSales) or 50 end
+-- ab 0.79 (KarloDerBaer 12.11.2026): Ziel hoechstens so viel Prozent ueber der oberen Grenze des ueblichen Bereichs
+function B.TargetPct() return (tonumber(mod.db.buyoutTargetPct) or 20) / 100 end
 
 -- Schnelle Vorauswahl beim Laden aus der Datenbank: Massenware mit genug Preisstufen und Menge im Angebot
 function B.Candidate(e, key)
@@ -76,7 +78,8 @@ end
 
 -- Beste Stelle fuer einen Aufkauf. rows = Preisstufen { price, qty, own } (Scan oder live), budget = Gold, das
 -- ausgegeben werden darf (nil = unbekannt, dann ohne Grenze), commodity = Warenart (nil = aus der Datenbank),
--- ctx = B.Context (optional). Rueckgabe: Chance oder nil, Grund ("item", "levels", "gain", "gold", "sales", "trend", "slow")
+-- ctx = B.Context (optional). Rueckgabe: Chance oder nil, Grund ("item", "levels", "mass", "band", "gain", "gold", "sales",
+-- "trend", "slow")
 function B.Find(e, rows, key, budget, commodity, ctx)
     local D = ns.Data
     if commodity == false or (commodity == nil and not D.IsCommodity(key)) then return nil, "item" end
@@ -87,9 +90,18 @@ function B.Find(e, rows, key, budget, commodity, ctx)
     for _, l in ipairs(lv) do total = total + l.qty end
     if type(e) == "table" and type(e.q) == "number" and e.q > total then total = e.q end   -- Scan: alle Stueck, nicht nur 12 Stufen
     if total < B.MinQty() or #lv < math.min(B.MinLevels(), 12) then return nil, "mass" end
+    -- ab 0.79: ueblicher Bereich ist Pflicht. Kaufen bis nie ueber seiner oberen Grenze, das Ziel hoechstens
+    -- B.TargetPct darueber. Vorher rechnete der Aufkauf gegen einzelne ueberteuerte Angebote (Ziel 1s 8c bei ueblich
+    -- 7c bis 10c, 687 Stueck samt der Stufen zu 40c bis 1s 5c).
+    ctx = ctx or B.Context(e, key)
+    local band = ctx.band
+    if type(band) ~= "table" or type(band.high) ~= "number" or band.high <= 0 then return nil, "band" end
+    local maxBuy, maxTarget = band.high, band.high * (1 + B.TargetPct())
     local cut, minGain = D.Cut(), B.MinGain()
     local cands, qty, cost, poor = {}, 0, 0, false
     for i = 1, #lv - 1 do
+        if lv[i].price > maxBuy then break end                    -- ueberteuert: nicht mitkaufen
+        if lv[i + 1].price > maxTarget then break end             -- Ziel waere ueberteuert, weiter oben nur noch teurer
         qty, cost = qty + lv[i].qty, cost + lv[i].qty * lv[i].price
         if budget and cost > budget then poor = true; break end   -- teurer wird es nur noch
         local target = lv[i + 1].price
@@ -97,7 +109,6 @@ function B.Find(e, rows, key, budget, commodity, ctx)
         if gain >= minGain then cands[#cands + 1] = { i = i, qty = qty, cost = cost, target = target, gain = gain } end
     end
     if #cands == 0 then return nil, poor and "gold" or "gain" end
-    ctx = ctx or B.Context(e, key)
     if not ctx.perHour or ctx.perHour <= 0 then return nil, "sales" end
     if ctx.perHour * 24 < B.MinSales() then return nil, "mass" end   -- ab 0.71: zu wenig Absatz je Tag
     if ctx.band and ctx.band.trend == "down" then return nil, "trend" end

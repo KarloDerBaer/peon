@@ -2,6 +2,15 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Aufkauf nur im üblichen Bereich (Broker 0.79.0)
+
+Ändert die Regel vom 11.11.2026 „Der übliche Bereich filtert nicht“ (Vorschlag Claude, KarloDerBaer einverstanden):
+
+- **Kaufen bis nie über der oberen Grenze des üblichen Bereichs.**
+- **Ziel höchstens 20 % über dieser Grenze**, einstellbar. Grund: Einzelne überteuerte Angebote stellen weder den üblichen noch den aktuellen Preis dar.
+- **Ohne üblichen Bereich kein Aufkauf.** Ohne Verlauf lässt sich nicht sagen, ob ein Preis überteuert ist.
+- **Eigene Werte im Fokus ohne diese Grenzen.**
+
 ## 12.11.2026: Fokus neu geordnet (Broker 0.77.0)
 
 - **Aufbau links nach Vorgabe von KarloDerBaer**, Risiko nach „Verkauft in“.
