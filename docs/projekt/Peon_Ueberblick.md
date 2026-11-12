@@ -31,12 +31,12 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 | Addon | Version | SavedVariables | Befehl |
 |---|---|---|---|
-| Peon | 0.18.0 | `PeonDB` | /peon |
+| Peon | 0.19.0 | `PeonDB` | /peon |
 | Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
 | Peon_Fishing (früher FishingPlus) | 1.6.0 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
-| Peon_Broker (neu, Auktionshaus) | 0.73.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
-| Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.9.1 | `PeonBridgeDB` | /peon bridge |
+| Peon_Broker (neu, Auktionshaus) | 0.74.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
+| Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.9.2 | `PeonBridgeDB` | /peon bridge |
 | Peon_Feedback | 0.4.0 | `PeonFeedbackDB` | /feedback |
 | Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
 | Peon_Ledger (neu, Bestand und Buch) | 0.13.0 | `PeonLedgerDB` | /ledger |
@@ -45,7 +45,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
-## Kern-API (Peon.API = 18)
+## Kern-API (Peon.API = 19)
 
 Die API wird nur erweitert, nie geändert (sonst brechen alle Module). Bei neuen Funktionen `Peon.API` erhöhen.
 
@@ -165,7 +165,7 @@ local left = UI.Panel(win, "left")                -- Bereich, Hintergrund aus UI
 UI.SectionTab(left, "Einstellungen")               -- Beschriftung über dem Bereich
 UI.FormRow(left, "Anzahl", UI.Input(left, 134, { numeric = true }), 11, -20)
 local t = UI.Table(UI.Panel(win, "list", true), { columns = { … }, sortKey = "name", icon = true, empty = "…" })
-t:SetData(items); t:SetLoading(true, "Suche...")
+t:SetData(items); t:SetLoading(true, "Suche...")   -- API 19: Option rowBg = function(item) return r, g, b, a end
 UI.BottomTabs(win, { { "a", "Übersicht" } }, fn):Select("a"); UI.StatusBar(win):SetText("…")
 -- weiter: UI.Button (normal/"gold"), UI.IconButton, UI.RefreshButton, UI.SearchBox, UI.MoneyInput, UI.Money,
 -- UI.Dropdown, UI.FilterDropdown, UI.Check, UI.Slider, UI.CategoryList, UI.TopTabs, UI.Badge, UI.ItemIcon,

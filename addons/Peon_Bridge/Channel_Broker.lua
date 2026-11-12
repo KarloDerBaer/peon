@@ -304,7 +304,6 @@ function E.ScanEnd(info)
     if next(cur.tips) then e.tips = cur.tips end
     E.Push(e)
     mod:Dbg(L.MSG_SCAN_ADDED:format(e.offers, e.lines))
-    if ns.ShowButton then mod:Call("Knopf", ns.ShowButton) end
     return e
 end
 

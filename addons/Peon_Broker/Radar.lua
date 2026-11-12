@@ -530,8 +530,46 @@ function R.NextKey()
     return nil
 end
 
+-- ab 0.74: Laeuft gerade ein Kauf (eigener oder in Blizzards Fenster)? Dann schickt Broker keine Abfragen.
+-- Vermutung zu "Interner Auktionsfehler" (KarloDerBaer 12.11.2026, kam schon vor dem Neuaufbau): Eine Suche
+-- zwischen Preis holen und Bestaetigen stoert den Kauf. Erkannt ueber die Ereignisse des Spiels, ohne Blizzards
+-- Funktionen anzufassen: COMMODITY_PRICE_UPDATED (Preis da) bis COMMODITY_PURCHASE_SUCCEEDED/FAILED.
+R.BUY_HOLD = 15   -- Sekunden: so lange gilt ein Kauf nach dem Preis als laufend (ohne Abschluss-Ereignis)
+function ns.Buying()
+    if R.job then return true end
+    return (R.buyUntil or 0) > Now()
+end
+
+-- Fehlermeldung des Auktionshauses merken (/broker pruefen fehler): was lief gerade?
+R.ERR_KEEP = 20
+function R.LogAHError(code)
+    local acc = mod.acc
+    if type(acc.ahErrors) ~= "table" then acc.ahErrors = {} end
+    local list = acc.ahErrors
+    list[#list + 1] = {
+        t = time(), code = code ~= nil and tostring(code) or nil,
+        sinceSend = R.lastSend and math.floor((Now() - R.lastSend) * 10 + 0.5) / 10 or nil,
+        pending = R.pending and tostring(R.pending.key) or nil, focus = R.focus and tostring(R.focus.key) or nil,
+        job = R.job and R.job.stage or nil, buying = (R.buyUntil or 0) > Now() or nil,
+        scan = R.running or nil,
+    }
+    while #list > R.ERR_KEEP do table.remove(list, 1) end
+end
+
+function R.ErrorReport()
+    local list = mod.acc.ahErrors
+    if type(list) ~= "table" or #list == 0 then mod:Print(L.AHERR_NONE); return end
+    mod:Print(L.AHERR_HEAD:format(#list))
+    for i = math.max(1, #list - 9), #list do
+        local e = list[i]
+        mod:Print(L.AHERR_LINE:format(date and date("%H:%M:%S", e.t) or tostring(e.t), tostring(e.code or "-"),
+            e.sinceSend and tostring(e.sinceSend) or "-", e.pending or "-", e.job or (e.buying and "Kauf") or "-"))
+    end
+end
+
 function R.Tick()
     if not R.loop then return end
+    if ns.Buying() and not R.job then R.Schedule(); return end   -- ab 0.74: fremder Kauf laeuft, warten
     if not (AHOpen() and R.Active()) then R.Halt(); return end
     if R.running and not R.Shown() then R.running = false end   -- der Radar-Scan laeuft nur auf der Seite Radar
     if ns.Scan.state then R.OnFullScan(); return end
@@ -888,6 +926,7 @@ function R.OnPriceUpdated(unitPrice, totalPrice)
     if Num(unitPrice) and unitPrice > job.limit then
         -- nicht mehr so guenstig: abbrechen, Treffer neu pruefen lassen
         pcall(AHApi().CancelCommoditiesPurchase)
+        R.buyUntil = nil
         mod:Print(L.RADAR_GONE:format(job.name))
         R.MarkGone(R.entries[job.key], L.RADAR_GONE_PRICE:format(Money(unitPrice)))
         R.entries[job.key] = nil
@@ -1279,11 +1318,11 @@ function R.Init()
     -- weitere Teile der Ergebnisse (ab 0.20.1)
     pcall(mod.RegisterEvent, mod, "COMMODITY_SEARCH_RESULTS_ADDED", function(_, itemID) OnResults(true, itemID) end)
     pcall(mod.RegisterEvent, mod, "ITEM_SEARCH_RESULTS_ADDED", function(_, itemKey) OnResults(false, itemKey) end)
-    mod:RegisterEvent("COMMODITY_PRICE_UPDATED", function(_, unit, total) R.OnPriceUpdated(unit, total) end)
-    mod:RegisterEvent("COMMODITY_PURCHASE_SUCCEEDED", function() R.OnBought(true) end)
-    mod:RegisterEvent("COMMODITY_PURCHASE_FAILED", function() R.OnBought(false) end)
+    mod:RegisterEvent("COMMODITY_PRICE_UPDATED", function(_, unit, total) R.buyUntil = Now() + R.BUY_HOLD; R.OnPriceUpdated(unit, total) end)
+    mod:RegisterEvent("COMMODITY_PURCHASE_SUCCEEDED", function() R.buyUntil = nil; R.OnBought(true) end)
+    mod:RegisterEvent("COMMODITY_PURCHASE_FAILED", function() R.buyUntil = nil; R.OnBought(false) end)
     mod:RegisterEvent("AUCTION_HOUSE_PURCHASE_COMPLETED", function(_, auctionID) R.OnBought(true, auctionID) end)
-    mod:RegisterEvent("AUCTION_HOUSE_SHOW_ERROR", function() R.stats.errors = R.stats.errors + 1; R.OnError() end)
+    mod:RegisterEvent("AUCTION_HOUSE_SHOW_ERROR", function(_, code) R.stats.errors = R.stats.errors + 1; R.LogAHError(code); R.OnError() end)
     -- Bremse des Spiels (aus dem modernen Auktionshaus; in Forever unbekannt, deshalb geschuetzt)
     pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED", function()
         R.stats.dropped = R.stats.dropped + 1
@@ -1314,7 +1353,7 @@ function R.Init()
         end
     end)
     pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_THROTTLED_MESSAGE_QUEUED", function() R.stats.queued = R.stats.queued + 1 end)
-    mod:RegisterEvent("AUCTION_HOUSE_CLOSED", function() R.Halt(); R.job = nil end)
+    mod:RegisterEvent("AUCTION_HOUSE_CLOSED", function() R.Halt(); R.job = nil; R.buyUntil = nil end)
     mod:On("SCAN_DONE", function()
         if R.Shown() then R.Open() elseif R.Active() then R.LoadIfStale(); R.Refresh() end
     end)

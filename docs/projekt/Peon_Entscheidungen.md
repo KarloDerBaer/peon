@@ -2,6 +2,16 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Nachbesserungen nach dem zweiten Test (Broker 0.74.0, Bridge 0.9.2, Peon 0.19.0)
+
+- **Brokers Flächen über Blizzards Ansichten nur ohne offenen Broker-Reiter** (Claude, Rückmeldung KarloDerBaer): Die Liste der Auktionen liegt wie Brokers eigene Reiter über dem ganzen Inhalt.
+- **Einstellungen im großen Fenster mit OK und Abbrechen** (KarloDerBaer).
+- **Kein „Jetzt prüfen“ im Fokus** (KarloDerBaer).
+- **Abfluss bei Massenware über die Preisstufen** (Claude): Die Auktionsnummern der Massenware wechseln offenbar zwischen zwei Abfragen. Kauf und neues Angebot auf derselben Stufe im selben Abstand heben sich auf, bei wenigen Sekunden Abstand selten.
+- **Keine Abfragen während eines Kaufs** (Claude, Vermutung zu „Interner Auktionsfehler“): erkannt über die Ereignisse des Spiels, ohne Blizzards Funktionen anzufassen. Die Meldungen werden gemerkt, um die Vermutung im Spiel zu prüfen.
+- **Knopf „An Manager“ entfällt** (KarloDerBaer): Übergeben unter Mehr, Datenlage reicht.
+- **Kern-API 19: Zeilenfarbe in `UI.Table`** (Claude, für die gelbe Zielstufe): nur eine neue Option, nichts geändert.
+
 ## 12.11.2026: Nachbesserungen nach dem ersten Test von Stufe 2 (Broker 0.69.0 bis 0.73.0)
 
 Anmerkungen von KarloDerBaer nach dem ersten Blick ins Spiel, abgestimmt im Gespräch am 12.11.2026.

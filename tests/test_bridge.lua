@@ -184,7 +184,7 @@ local ph = io.open("Peon_Bridge/Data.lua")
 if ph then local txt = ph:read("*a"); ph:close(); local env = {}; local fn = assert(loadstring(txt)); setfenv(fn, env); fn(); check(true, "Data.lua laesst sich laden" .. (env.PeonBridgeData and " (Werte des Managers)" or " (Platzhalter)")) end
 check(meta.Peon_Bridge.Title == "|cff8ccf4dPeon|r Bridge" and mod.key == "bridge", "Titel und Modul-Schluessel")
 check(type(PeonBridgeDB.queue) == "table" and #PeonBridgeDB.queue == 0 and PeonBridgeDB.fmt == 1, "Warteschlange angelegt, Format 1")
-check(PeonBridgeDB.queueMax == 10 and PeonBridgeDB.liveMax == 500 and PeonBridgeDB.offerButton == true, "Standardwerte 10 / 500 / Knopf an")
+check(PeonBridgeDB.queueMax == 10 and PeonBridgeDB.liveMax == 500 and PeonBridgeDB.offerButton == nil, "Standardwerte 10 / 500, ab 0.9.2 kein Knopf An Manager")
 check(ns.channels.broker and ns.channelOrder[1] == "broker", "Kanal broker angemeldet")
 
 -- ===== Ohne Freischaltung: nichts aufzeichnen, keine Werte fuer Broker (0.4.0) =====
@@ -269,11 +269,8 @@ check(e.names and e.names[2770] == "Kupfererz|1|5|1" and e.names[2589] == "Leine
 check(type(e.names[6611]) == "string" and e.names[6611]:match("^|2|0|"), "Variante: ohne Namen, mit Haendlerpreis: " .. tostring(e.names[6611]))
 local market = nsb.Data.Market()
 check(market.items[2770].m == 120 and market.items[2589].m == 30, "Broker rechnet unveraendert")
-check(_G.PeonBridgeSendButton and _G.PeonBridgeSendButton.shown and _G.PeonBridgeSendButton.parent == _G.PeonBrokerScanButton, "Knopf \"An Manager\" unter Brokers Scan-Knopf")
-_G.PeonBridgeSendButton.scripts.OnClick(_G.PeonBridgeSendButton)
-check(reloads == 1, "Knopf loest Reload aus")
+check(_G.PeonBridgeSendButton == nil, "0.9.2: nach dem Scan kein Knopf An Manager")
 fire("AUCTION_HOUSE_CLOSED")
-check(not _G.PeonBridgeSendButton.shown, "Knopf weg, wenn das Auktionshaus schliesst")
 fire("AUCTION_HOUSE_SHOW")
 
 -- ===== Live-Abfragen =====
@@ -477,12 +474,10 @@ for _, c in ipairs(mod.page.controls or {}) do end
 popupShown = nil
 POPUPS.PEON_BRIDGE_CLEAR.OnAccept()
 check(#PeonBridgeDB.queue == 0 and said("Warteschlange geleert"), "Warteschlange leeren")
-mod.db.offerButton = false
-_G.PeonBridgeSendButton:Hide()
 RunScan()
-check(not _G.PeonBridgeSendButton.shown, "Knopf abschaltbar")
+check(ns.ShowButton == nil, "0.9.2: Knopf An Manager ganz entfernt")
 mod:ResetDefaults()
-check(mod.db.offerButton == true and #PeonBridgeDB.queue == 1, "Standardwerte: Warteschlange bleibt")
+check(#PeonBridgeDB.queue == 1, "Standardwerte: Warteschlange bleibt")
 
 -- ===== Ohne Broker =====
 do

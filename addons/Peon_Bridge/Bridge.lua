@@ -22,11 +22,12 @@ local mod = Peon:NewModule(ADDON_NAME, {
     defaults = {
         queueMax    = 10,           -- Komplettscans bis zur Abholung
         liveMax     = 500,          -- Live-Abfragen bis zur Abholung (0 = keine)
-        offerButton = true,         -- nach einem Scan Knopf "An Manager" anbieten
         freshDays   = 7,            -- Werte des Managers gelten so viele Tage (Rechenmodell Kapitel 8, FRISCH)
     },
     ranges   = { queueMax = { 1, 30, 1 }, liveMax = { 0, 2000, 50 }, freshDays = { 1, 30, 1 } },
     onSlash  = function(m, cmd) ns.Slash(cmd) end,
+    -- ab 0.9.2: Knopf "An Manager" nach dem Scan entfaellt (KarloDerBaer 12.11.2026, Broker: Mehr, Datenlage reicht)
+    migrate  = function(m, acc) if type(acc) == "table" then acc.offerButton = nil end end,
 })
 ns.mod = mod
 

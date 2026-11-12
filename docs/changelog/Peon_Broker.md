@@ -2,6 +2,35 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.74.0
+
+Kurz: Die Liste der Auktionen deckt Blizzards Ansicht jetzt ganz ab, und keine Broker-Fläche liegt mehr über anderen Reitern wie Einkaufen.
+Kurz: Die Einstellungen von Radar und Fokus öffnen in einem großen Fenster mit OK und Abbrechen.
+Kurz: Im Fokus steht der übliche Bereich, die Preisstufe des Ziels ist gelb hinterlegt, „Jetzt prüfen“ entfällt.
+Kurz: Der Abfluss im Fokus zählt jetzt über die Preisstufen. Vorher sprang er bei Massenware, obwohl sich nichts tat.
+Kurz: Während eines Kaufs schickt Broker keine Abfragen mehr. Das soll die Meldung „Interner Auktionsfehler“ verhindern.
+
+- 0.74.0 (12.11.2026): **Nachbesserungen nach dem zweiten Test** (Rückmeldung KarloDerBaer, 12.11.2026). Braucht für die gelbe Zeile Peon 0.19.0 (API 19), läuft ohne sie weiter.
+  - **Liste der Auktionen** wie Brokers eigene Reiter: ganze Fläche ab der Titelleiste, undurchsichtig, mit Brokers Statuszeile. Vorher schienen Blizzards Reiter Auktionen/Gebote, Spalten und Knöpfe durch.
+  - **Keine Überlagerung mehr:** Die Liste der Auktionen, „Zum Einstellen“ und der Knopf „Angebote“ verschwinden, sobald ein Broker-Reiter offen ist (`AHTabs.PlaceOverlays`). Sie lagen vorher über Einkaufen und den anderen Seiten.
+  - **Zum Einstellen** sitzt 40 Punkte weiter links, Blizzards Knopf „Neu laden“ ist wieder frei.
+  - **Angebote: <Name>** steht unten rechts in Blizzards Ergebnisliste statt über den Knöpfen Filter und Suchen und verschwindet bei jedem Wechsel der Ansicht und bei Broker-Reitern.
+  - **Einstellungen** in einem Fenster so groß wie das Broker-Fenster, über dem Auktionshaus, zwei Spalten, jede Zeile mit Beschriftung links und Feld rechts. Änderungen gelten erst mit OK, Abbrechen und ESC verwerfen sie.
+  - **Fokus:** „Jetzt prüfen“ entfällt (er fragt ohnehin laufend). Neue Zeile „Üblich“ mit dem üblichen Bereich aus dem Verlauf. Die Preisstufe des Ziels ist gelb hinterlegt, wenn es dort Angebote gibt (`rowBg`, Kern API 19). Angaben etwas dichter.
+  - **Abfluss über Preisstufen** (Massenware): Je Stufe zählt die Menge. Weniger Stück, solange alle günstigeren Stufen auch weniger wurden, ist verkauft. Weniger über einer Stufe, die stehen blieb, ist abgebrochen. Mehr ist neu. Vorher über die Auktionsnummern: Die sind bei Massenware offenbar nicht von Abfrage zu Abfrage gleich, jede neue Nummer zählte als „weg und neu“, der Abfluss sprang. Einzelgegenstände bleiben beim Vergleich der Nummern.
+  - **Pause beim Kaufen:** Vom Preis des Spiels (`COMMODITY_PRICE_UPDATED`) bis zum Abschluss (`COMMODITY_PURCHASE_SUCCEEDED/FAILED`, höchstens 15 Sek.) schicken Fokus, Radar und Einkaufen keine Abfragen. Gilt auch für Käufe in Blizzards eigenem Fenster. Vermutung: „Interner Auktionsfehler“ kommt von einer Suche zwischen Preis und Bestätigen.
+  - **Meldungen des Auktionshauses merken:** `/broker pruefen fehler` zeigt die letzten 10 mit Zeit, Nummer, Sekunden seit Brokers letzter Abfrage, Gegenstand der Abfrage und ob gerade gekauft wurde (`ahErrors`). Damit lässt sich klären, ob die Meldung von Broker kommt.
+  - **Einkaufen:** Haken „Twinks mitzählen“ oben neben dem runden Bild (lag unter „Entfernen“), Formularzeilen etwas eingerückt, damit die grauen Zusätze nicht über den Rand ragen.
+  - Tests: 20 neue oder geänderte Prüfungen.
+  - **Im Spiel prüfen:**
+    1. Auktionen: nichts von Blizzard scheint durch, danach auf Einkaufen wechseln: sauber?
+    2. Verkaufen: „Zum Einstellen“ links neben Blizzards Knopf Neu laden.
+    3. Im Markt zeigen: Knopf „Angebote“ unten rechts in der Liste, verschwindet beim Wechsel.
+    4. Einstellungen von Radar und Fokus: großes Fenster, nichts überlagert, OK und Abbrechen.
+    5. Fokus: Zeile „Üblich“, gelbe Zielstufe, Abfluss bleibt ruhig, wenn sich an den Stufen nichts ändert.
+    6. Kaufen: kommt „Interner Auktionsfehler“ noch? Wenn ja, danach `/broker pruefen fehler` und das Ergebnis an Claude.
+    7. Einkaufen: Haken oben, nichts überlagert.
+
 ## 0.73.0
 
 Kurz: „Im Markt zeigen“ springt am Auktionshaus jetzt selbst auf Blizzards Markt. Steht der Gegenstand schon in der Liste, gehen seine Angebote sofort auf, sonst erscheint über der Liste der Knopf „Angebote: <Name>“.

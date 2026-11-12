@@ -127,6 +127,43 @@ function M.Compare(A, B, target)
     return { t = B.t, gap = gap, sold = sold, cancelled = cancelled, newUnder = newUnder, newAll = newAll }
 end
 
+-- ab 0.74: Massenware ueber die Preisstufen vergleichen statt ueber Auktionsnummern. Im Spiel sprang der Abfluss,
+-- obwohl sich an den Stufen nichts aenderte: Die Nummern der Massenware-Angebote sind offenbar nicht von Abfrage zu
+-- Abfrage gleich, jede neue Nummer zaehlte als "alt weg, neu da". Je Preisstufe zaehlt jetzt nur die Menge:
+--   weniger Stueck, solange alle guenstigeren Stufen auch weniger wurden  -> verkauft (man kauft von unten)
+--   weniger Stueck ueber einer Stufe, die stehen blieb                     -> abgebrochen
+--   mehr Stueck                                                          -> neu (unter dem Ziel: Zufluss)
+-- Kauf und neues Angebot im selben Abstand auf derselben Stufe heben sich auf. Bei kurzen Abstaenden selten.
+function M.CompareLevels(A, B, target)
+    local gap = B.t - A.t
+    local cap = math.huge
+    if A.partial then cap = math.min(cap, A.maxP) end
+    if B.partial then cap = math.min(cap, B.maxP) end
+    local prices = {}
+    for p in pairs(A.levels) do if p <= cap then prices[#prices + 1] = p end end
+    table.sort(prices)
+    local sold, cancelled, newUnder, newAll, intact = 0, 0, 0, 0, false
+    for _, p in ipairs(prices) do
+        local a, b = A.levels[p], B.levels[p] or 0
+        if b >= a then
+            intact = true
+        else
+            if intact then cancelled = cancelled + (a - b) else sold = sold + (a - b) end
+            if b > 0 then intact = true end
+        end
+    end
+    for p, b in pairs(B.levels) do
+        if p <= cap then
+            local a = A.levels[p] or 0
+            if b > a then
+                newAll = newAll + (b - a)
+                if target and p < target then newUnder = newUnder + (b - a) end
+            end
+        end
+    end
+    return { t = B.t, gap = gap, sold = sold, cancelled = cancelled, newUnder = newUnder, newAll = newAll, byLevels = true }
+end
+
 -- Antwort auf eine Abfrage im Fokus. rows = Preisstufen mit offers (Live.lua), t = Zeit (GetTime)
 function M.Add(key, rows, t)
     if type(rows) ~= "table" or key == nil then return end
@@ -145,14 +182,28 @@ function M.Add(key, rows, t)
     local under = 0
     for _, l in ipairs(lv) do if target and l.price < target then under = under + l.qty end end
     local s = { t = t, offers = offers, min = lv[1] and lv[1].price or nil, under = under, partial = rows.partial and true or false, maxP = maxP }
+    if rows.commodity then   -- ab 0.74: Preisstufen fuer den Vergleich (alle Stueck, auch eigene)
+        local levels, top = {}, 0
+        for _, r in ipairs(rows) do
+            if Num(r.price) and Num(r.qty) and r.qty > 0 then
+                levels[r.price] = (levels[r.price] or 0) + r.qty
+                if r.price > top then top = r.price end
+            end
+        end
+        s.levels = levels
+        if rows.partial then s.maxP = top end
+    end
     local prev = c.samples[#c.samples]
-    if prev and t > prev.t then c.pairs[#c.pairs + 1] = M.Compare(prev, s, target) end
+    if prev and t > prev.t then
+        if prev.levels and s.levels then c.pairs[#c.pairs + 1] = M.CompareLevels(prev, s, target)
+        else c.pairs[#c.pairs + 1] = M.Compare(prev, s, target) end
+    end
     c.t0 = c.t0 or t
     c.samples[#c.samples + 1] = s
     while #c.samples > M.KEEP do table.remove(c.samples, 1) end
     while #c.pairs > M.KEEP do table.remove(c.pairs, 1) end
     -- alte Angebotslisten brauchen nur die letzten beiden Abfragen
-    for i = 1, #c.samples - 2 do c.samples[i].offers = nil end
+    for i = 1, #c.samples - 2 do c.samples[i].offers, c.samples[i].levels = nil, nil end
 end
 
 -- Messwerte. Rueckgabe nil (noch keine Messung) oder

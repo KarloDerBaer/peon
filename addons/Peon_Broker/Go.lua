@@ -301,7 +301,7 @@ function Go.TryOffer()
     if not w then return end
     if (GetTime and GetTime() or 0) > w.until_ then Go.HideOffer(); return end
     local row = Go.BrowseRow(w.key)
-    if not row or InCombat() then return end
+    if not row or InCombat() or (ns.AHTabs and ns.AHTabs.current) then return end
     local b = Go.OfferButton()
     if not b then return end
     SetClick(b, row)
@@ -309,7 +309,8 @@ function Go.TryOffer()
     local f = AHF()
     local brf = f and rawget(f, "BrowseResultsFrame")
     b:ClearAllPoints()
-    if type(brf) == "table" then b:SetPoint("BOTTOMRIGHT", brf, "TOPRIGHT", 0, 4) else b:SetPoint("TOP", f, "TOP", 0, -60) end
+    -- ab 0.74 unten rechts in Blizzards Ergebnisliste (vorher ueber Blizzards Knoepfen Filter und Suchen)
+    if type(brf) == "table" then b:SetPoint("BOTTOMRIGHT", brf, "BOTTOMRIGHT", -26, 8) else b:SetPoint("BOTTOM", f, "BOTTOM", 0, 40) end
     b:Show()
 end
 

@@ -482,14 +482,14 @@ end
 -- Knopf und Flaeche an Blizzards sichtbare Liste legen, ausserhalb von Verkaufen verstecken
 function LT.Place()
     if not LT.toggle then return end
-    local list = LT.InSell() and LT.SellList() or nil
+    local list = LT.InSell() and not (ns.AHTabs and ns.AHTabs.current) and LT.SellList() or nil
     if not list then
         LT.toggle:Hide()
         LT.panel:Hide()
         return
     end
     LT.toggle:ClearAllPoints()
-    LT.toggle:SetPoint("BOTTOMRIGHT", list, "TOPRIGHT", 0, 4)
+    LT.toggle:SetPoint("BOTTOMRIGHT", list, "TOPRIGHT", -40, 4)   -- ab 0.74: Blizzards Knopf Neu laden bleibt frei
     LT.toggle:Show()
     LT.panel:ClearAllPoints()
     LT.panel:SetPoint("TOPLEFT", list, "TOPLEFT", 0, 0)

@@ -822,6 +822,10 @@ function UI.Table(panel, o)
         create = function(row)
             row.stripe = row:CreateTexture(nil, "BACKGROUND")
             row.stripe:SetAllPoints()
+            -- API 19: eigene Hintergrundfarbe je Zeile (o.rowBg)
+            row.tint = row:CreateTexture(nil, "BACKGROUND", nil, 1)
+            row.tint:SetAllPoints()
+            row.tint:Hide()
             row.hl = row:CreateTexture(nil, "OVERLAY")
             row.hl:SetAllPoints()
             if not UI.SetAtlas(row.hl, "auctionhouse-ui-row-highlight", false) then row.hl:SetColorTexture(1, 1, 1, 0.08) end
@@ -856,6 +860,10 @@ function UI.Table(panel, o)
                 row.stripe:SetColorTexture(1, 1, 1, (idx % 2 == 1) and 0.03 or 0)
             end
             row.sel:SetShown(t.selected == item)
+            -- API 19: o.rowBg(item) -> r, g, b, a (nil = keine eigene Farbe)
+            local tr, tg, tb, ta
+            if o.rowBg then tr, tg, tb, ta = o.rowBg(item) end
+            if tr then row.tint:SetColorTexture(tr, tg, tb, ta or 0.25); row.tint:Show() else row.tint:Hide() end
             local x = 0
             for ci, c in ipairs(o.columns) do
                 local fs = row.cells[ci]

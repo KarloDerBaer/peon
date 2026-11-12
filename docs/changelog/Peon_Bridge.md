@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.9.2
+
+Kurz: Der Knopf „An Manager“ nach einem Scan entfällt. Übergeben geht weiter in Broker unter Mehr, Datenlage.
+
+- 0.9.2 (12.11.2026): Knopf „An Manager“ am Auktionshaus und die Einstellung dazu (`offerButton`) entfernt (Wunsch KarloDerBaer, 12.11.2026). Der gespeicherte Wert wird beim Laden gelöscht. Übergeben weiter mit `/peon bridge senden`, auf der Optionsseite und in Broker unter Mehr, Datenlage.
+  - Tests: angepasst.
+
 ## 0.9.1
 
 Kurz: Der Knopf „An Manager“ erscheint nach einem Scan jetzt oben rechts über dem Auktionshaus, weil Brokers Scan-Knopf in die Titelleiste gewandert ist.

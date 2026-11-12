@@ -499,7 +499,7 @@ end
 function B.Query(key, done)
     local ah = AHApi()
     if not AHOpen() or not (ah.SendSearchQuery or ah.SendSellSearchQuery) then return false end
-    if ah.IsThrottledMessageSystemReady and not ah.IsThrottledMessageSystemReady() then
+    if (ns.Buying and ns.Buying()) or (ah.IsThrottledMessageSystemReady and not ah.IsThrottledMessageSystemReady()) then   -- ab 0.74: nicht waehrend eines Kaufs
         if C_Timer then C_Timer.After(0.5, function() B.Query(key, done) end) end
         return true
     end
@@ -756,12 +756,14 @@ function B.OnPriceUpdated(unitPrice, totalPrice)
         if not ok then B.buying = nil; mod:Print(L.BUY_FAILED); B.UpdateView() end
     end, function()
         pcall(ah.CancelCommoditiesPurchase)
+        if ns.Radar then ns.Radar.buyUntil = nil end   -- ab 0.74: abgebrochen, Abfragen wieder frei
         B.buying = nil
         B.UpdateView()
     end)
 end
 
 function B.OnBought(ok)
+    if ns.Radar then ns.Radar.buyUntil = nil end   -- ab 0.74: Kauf vorbei, Abfragen wieder frei (vor B.Query)
     local job = B.buying
     if not job then return end
     B.buying = nil
@@ -876,6 +878,7 @@ end
 --   unten   Kaufzeile: was der Klick kauft, "Im Markt zeigen", Gold-Knopf "Kaufen"
 -- Linksklick waehlt, Doppelklick zeigt im Markt, Rechtsklick oeffnet das Gegenstandsmenue (Go.Click).
 B.LEFT_W = 240
+B.FORM_X = 30   -- ab 0.74: Formularzeilen etwas eingerueckt, damit die grauen Zusaetze nicht ueber den Rand ragen
 
 -- Peon.UI-Tabelle mit den Aufrufen, die B.Refresh nutzt
 local function Adapt(t)
@@ -939,14 +942,14 @@ function B.Build(c)
     end)
     B.deleteButton:SetPoint("LEFT", B.newButton, "RIGHT", 4, 0)
 
-    B.nameBox = UI.Input(left, 116)
-    UI.FormRow(left, L.BUY_F_NAME, B.nameBox, 0, -40)
+    B.nameBox = UI.Input(left, 94)
+    UI.FormRow(left, L.BUY_F_NAME, B.nameBox, B.FORM_X, -40)
     B.nameBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
         if cur and not B.filling and (self:GetText() or "") ~= "" and cur.name ~= self:GetText() then cur.name = self:GetText(); B.Touch(cur); B.Refresh() end
     end)
     B.pctBox = UI.Input(left, 60, { numeric = true })
-    local pr = UI.FormRow(left, L.BUY_F_PCT, B.pctBox, 0, -76, L.BUY_F_PCT_SUB)
+    local pr = UI.FormRow(left, L.BUY_F_PCT, B.pctBox, B.FORM_X, -76, L.BUY_F_PCT_SUB)
     UI.SetTooltip(B.pctBox, { L.BUY_F_PCT, L.BUY_F_PCT_TIP })
     B.pctBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
@@ -968,7 +971,7 @@ function B.Build(c)
     local il = UI.Text(ib, "heading", L.BUY_ITEM_HEAD)
     il:SetPoint("TOPLEFT", 14, -10)
     B.maxBox = UI.Input(ib, 80)
-    UI.FormRow(ib, L.BUY_F_MAX, B.maxBox, 0, -34, L.BUY_F_MAX_SUB)
+    UI.FormRow(ib, L.BUY_F_MAX, B.maxBox, B.FORM_X, -34, L.BUY_F_MAX_SUB)
     B.maxBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
         if B.filling or not cur or not B.selected then return end
@@ -985,7 +988,7 @@ function B.Build(c)
         end
     end)
     B.wishBox = UI.Input(ib, 80, { numeric = true })
-    B.wishRow = UI.FormRow(ib, L.BUY_F_WISH, B.wishBox, 0, -70, L.BUY_F_WISH_SUB)
+    B.wishRow = UI.FormRow(ib, L.BUY_F_WISH, B.wishBox, B.FORM_X, -70, L.BUY_F_WISH_SUB)
     B.wishBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
         if B.filling or not cur or not B.selected then return end
@@ -999,7 +1002,7 @@ function B.Build(c)
     end)
     -- ab 0.68 (H4, Konzept 6.6): Beobachtung mit Grenze nach oben ("verkaufen ab"), an der Stelle des Ziels
     B.upBox = UI.Input(ib, 80)
-    B.upRow = UI.FormRow(ib, L.BUY_F_UP, B.upBox, 0, -70, L.BUY_F_UP_SUB)
+    B.upRow = UI.FormRow(ib, L.BUY_F_UP, B.upBox, B.FORM_X, -70, L.BUY_F_UP_SUB)
     B.upBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
         if B.filling or not cur or not cur.watch or not B.selected then return end
@@ -1017,7 +1020,8 @@ function B.Build(c)
         mod.db.keepAllChars = on
         mod:Call("Einkaufsliste", B.Refresh)
     end, { L.KEEP_ALL_CHARS, L.BUY_ALL_CHARS_HINT })
-    B.allChars:SetPoint("BOTTOMLEFT", 8, 6)
+    -- ab 0.74 oben neben dem runden Bild (unten lag der Haken unter "Entfernen")
+    B.allChars:SetPoint("TOPLEFT", c, "TOPLEFT", 66, 0)
 
     -- Rechts: Gegenstaende der Liste
     local right = UI.Panel(c, "list", true)

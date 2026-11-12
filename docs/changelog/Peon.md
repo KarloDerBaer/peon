@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.19.0
+
+Kurz: Listen im Stil des Auktionshauses können einzelne Zeilen farbig hinterlegen (zum Beispiel die Zielstufe im Fokus von Broker).
+
+- 0.19.0 (12.11.2026): **Kern-API 19:** `UI.Table` kennt die Option `rowBg = function(item) return r, g, b, a end`. Die Zeile bekommt diese Hintergrundfarbe (über den Streifen, unter Markierung und Auswahl), `nil` heißt keine. Ältere Module ohne die Option sehen keinen Unterschied, Module mit der Option laufen auf älteren Kernen ohne Farbe weiter.
+  - Tests: Prüfbefehl auf die neue Version angepasst.
+
 ## 0.18.0
 
 Kurz: Neues Beispielfenster `/peon ui` mit allen Bausteinen für ein einheitliches Aussehen der Peon-Fenster im Stil des Auktionshauses. Dazu der Prüfbefehl `/peon ui pruefen`, der ausliest, welche Grafiken Blizzards Fenster wirklich zeigen.

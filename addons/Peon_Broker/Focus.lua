@@ -254,6 +254,8 @@ function F.Rows(d)
         elseif F.ManualTarget(d.key) then extra = " " .. GREY .. L.FOCUS_OWN_MARK .. "|r" end
         rows[#rows + 1] = { L.FOCUS_R_TARGET, Money(d.ref) .. extra }
     end
+    -- ab 0.74: ueblicher Bereich aus dem Verlauf (KarloDerBaer 12.11.2026)
+    rows[#rows + 1] = { L.FOCUS_R_BAND, F.BandText(d) }
     if Num(best.gain) then rows[#rows + 1] = { L.FOCUS_R_GAIN, R.SignedMoney(math.floor(best.gain + 0.5)) } end
     if d.kind == "buyout" or d.own then   -- ab 0.65 (H1)
         rows[#rows + 1] = { L.FOCUS_R_SELLS, F.SellsText(d) }
@@ -265,15 +267,26 @@ function F.Rows(d)
     return rows
 end
 
--- Preisstufen der letzten Live-Abfrage mit Summen; gruen, was der Kauf nimmt
-function F.Tiers(limit)
+-- Ueblicher Bereich als Text ("1s 20c bis 1s 60c", sonst "unbekannt")
+function F.BandText(d)
+    local band = d and d.band
+    if not band and F.key ~= nil then band = ns.Buyout.Context(nil, F.key).band end
+    if type(band) == "table" and Num(band.low) and Num(band.high) then
+        return L.FOCUS_BAND:format(Money(math.floor(band.low + 0.5)), Money(math.floor(band.high + 0.5)))
+    end
+    return GREY .. L.FOCUS_BAND_NONE .. "|r"
+end
+
+-- Preisstufen der letzten Live-Abfrage mit Summen; gruen, was der Kauf nimmt, gelb die Stufe des Ziels (ab 0.74)
+function F.Tiers(limit, target)
     local rows = F.LiveRows()
     local out = {}
     if not rows then return out end
     local cum, cost = 0, 0
     for _, l in ipairs(ns.Data.Available(rows)) do
         cum, cost = cum + l.qty, cost + l.qty * l.price
-        out[#out + 1] = { price = l.price, qty = l.qty, cum = cum, cost = cost, inBuy = Num(limit) and l.price <= limit or false }
+        out[#out + 1] = { price = l.price, qty = l.qty, cum = cum, cost = cost, inBuy = Num(limit) and l.price <= limit or false,
+                          isTarget = Num(target) and l.price == target or false }
     end
     return out
 end
@@ -281,7 +294,7 @@ end
 ---------------------------------------------------------------------------
 -- Anzeige
 ---------------------------------------------------------------------------
-F.ROW_Y, F.ROW_STEP = -158, 19
+F.ROW_Y, F.ROW_STEP = -146, 18   -- ab 0.74 dichter, Platz fuer den ueblichen Bereich
 
 function F.Build(c)
     local UI = Peon.UI
@@ -298,9 +311,9 @@ function F.Build(c)
     F.header:SetScript("OnEnter", function(self) if F.key ~= nil then W.ShowItemTooltip(self, F.key) end end)
     F.header:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     F.verdict = UI.Text(left, "big", "")
-    F.verdict:SetPoint("TOPLEFT", 16, -94)
+    F.verdict:SetPoint("TOPLEFT", 16, -88)
     F.why = UI.Text(left, "text", "", UI.LEFT_W - 32)
-    F.why:SetPoint("TOPLEFT", 16, -118)
+    F.why:SetPoint("TOPLEFT", 16, -110)
     F.rows = {}
     for i = 1, 9 do
         local r = {}
@@ -363,10 +376,7 @@ function F.Build(c)
         if ns.Settings then mod:Call("Einstellungen", ns.Settings.Toggle, "focus", c) end
     end)
     F.settingsButton:SetPoint("BOTTOMRIGHT", right, "TOPRIGHT", -2, 4)
-    F.refreshButton = UI.Button(c, L.FOCUS_REFRESH, 110, function()
-        if F.key ~= nil and AHOpen() then ns.Radar.SetFocus(F.key) end
-    end)
-    F.refreshButton:SetPoint("RIGHT", F.settingsButton, "LEFT", -4, 0)
+    -- ab 0.74 ohne "Jetzt pruefen": der Fokus fragt ohnehin laufend ab (KarloDerBaer 12.11.2026)
     F.tiers = UI.Table(right, {
         columns = {
             { key = "price", title = L.ITEM_TIER_PRICE, align = "RIGHT", format = function(v) return Money(v) end,
@@ -376,6 +386,7 @@ function F.Build(c)
             { key = "cost", title = L.ITEM_TIER_COST, width = 110, align = "RIGHT", format = function(v) return Money(v) end },
         },
         sortKey = "price", empty = L.FOCUS_TIER_WAIT,
+        rowBg = function(r) if r and r.isTarget then return 1, 0.82, 0, 0.22 end end,   -- ab 0.74 (Kern API 19)
         -- ab 0.70: Klick auf eine Preisstufe macht ihren Preis zum Ziel
         onClick = function(item, button) if item and Num(item.price) and button ~= "RightButton" then F.SetTarget(item.price) end end,
     })
@@ -502,7 +513,6 @@ function F.Update()
     local has = key ~= nil
     local live = AHOpen()
     On(F.marketButton, has); On(F.itemButton, has)
-    On(F.refreshButton, has and live and not ns.Scan.state)
     On(F.autoButton, has and live and F.ManualTarget(key) ~= nil)
     if not has then
         F.header:Set(nil, "", 1)
@@ -534,7 +544,7 @@ function F.Update()
     end
     -- Preisstufen nur aus der letzten Live-Abfrage (ab 0.70)
     local limit = d and not d.gone and d.limit or nil
-    F.tiers:SetData(F.Tiers(limit))
+    F.tiers:SetData(F.Tiers(limit, d and not d.gone and d.ref or nil))
     local _, t = F.LiveRows()
     if not live then F.stand:SetText(GREY .. L.TAB_AH_ONLY .. "|r")
     elseif t then F.stand:SetText(L.FOCUS_LIVE:format(ns.Scan.Age(t)))

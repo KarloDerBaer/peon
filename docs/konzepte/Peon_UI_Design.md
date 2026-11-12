@@ -103,7 +103,7 @@ Alle Schriften sind FRIZQT (Text) oder ARIALN (Zahlen), mit Schatten 1,-1.
 | Haken | `UI.Check(parent, text, an, fn, tooltip)` | `UICheckButtonTemplate`, Text `GameFontNormal` |
 | Schieberegler | `UI.Slider(parent, breite, min, max, schritt, wert, fn)` | `MinimalSliderWithSteppersTemplate` (Wert rechts daneben). `"classic"` nur noch als Rückfall |
 | Formularzeile | `UI.FormRow(parent, text, feld, x, y, zusatz)` | Verkaufsfenster |
-| Liste mit Kopf, Sortierung, Streifen, Auswahl, Bildlauf | `UI.Table(panel, { columns, sortKey, icon, empty })` | `ColumnDisplayButtonShortTemplate`, `auctionhouse-rowstripe-1/2`, `-row-highlight`, `-row-select`, `-ui-sortarrow`, `WowScrollBoxList`, `MinimalScrollBar` |
+| Liste mit Kopf, Sortierung, Streifen, Auswahl, Bildlauf | `UI.Table(panel, { columns, sortKey, icon, empty, rowBg })`, `rowBg(item)` gibt eine Zeilenfarbe (ab API 19) | `ColumnDisplayButtonShortTemplate`, `auctionhouse-rowstripe-1/2`, `-row-highlight`, `-row-select`, `-ui-sortarrow`, `WowScrollBoxList`, `MinimalScrollBar` |
 | Leere Liste, Ladeanzeige | `t:SetData({})`, `t:SetLoading(true, text)` | goldener Hinweis wie „Tipp:“, `SpinnerTemplate` |
 | Kategorieliste (3 Stufen, auf- und zuklappbar) | `UI.CategoryList(panel, nodes, fn)`, Schlüssel wie `"Handwerkswaren/Stoff"` oder `parent` | `auctionhouse-nav-button`, `-secondary`, `-tertiary-filterline` |
 | Statuszeile | `UI.StatusBar(win)`, `:SetText`, `.money` | `InsetFrameTemplate` 24 hoch |

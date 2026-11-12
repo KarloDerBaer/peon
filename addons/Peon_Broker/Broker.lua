@@ -129,6 +129,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
             elseif r == "beruf" or r == "craft" then ns.Craft.Probe()
             elseif r == "ah" then ns.AHTabs.Probe()
             elseif r == "zeit" or r == "time" then ns.Radar.PerfReport()   -- ab 0.69
+            elseif r == "fehler" or r == "errors" then ns.Radar.ErrorReport()   -- ab 0.74
             else ns.Probe.Run() end
         elseif cmd == "pur" or cmd == "blizzard" then
             -- ab 0.41: "Blizzard pur" an oder aus (laedt neu, darum mit Rueckfrage)

@@ -60,39 +60,66 @@ end
 
 function O.Build(af)
     if O.panel or not O.Enabled() then return end
-    local UI = Peon.UI
+    local UI, T, W = Peon.UI, ns.AHTabs, ns.Window
     local f = rawget(_G, "AuctionHouseFrame")
     if not (UI and af and f) then return end
+    -- ab 0.74 wie Brokers eigene Reiter (AHTabs, T.page): ganze Flaeche ab der Titelleiste, undurchsichtig, mit
+    -- Statuszeile. Vorher nur ueber Blizzards Ansicht Auktionen, da schienen Blizzards Reiter und Spalten durch.
     local p = CreateFrame("Frame", "PeonBrokerAuctionsPanel", f)
-    p:SetFrameLevel(370)
+    p:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -22)
+    p:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4)
+    p:SetFrameLevel(T.PAGE_LEVEL or 370)
     p:EnableMouse(true)
-    p:SetPoint("TOPLEFT", af, "TOPLEFT", 0, 0)
-    p:SetPoint("BOTTOMRIGHT", af, "BOTTOMRIGHT", 0, 0)
+    local under = p:CreateTexture(nil, "BACKGROUND", nil, -8)
+    under:SetAllPoints(p)
+    under:SetColorTexture(0.05, 0.05, 0.05, 1)
+    local bg = p:CreateTexture(nil, "BACKGROUND", nil, 1)
+    bg:SetAllPoints(p)
+    if not (T.CopyFrameBg and T.CopyFrameBg(f, bg)) then bg:SetColorTexture(0.08, 0.08, 0.08, 1) end
+    if W.NewStatus then
+        local bar = W.NewStatus(p)
+        bar:ClearAllPoints()
+        bar:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 2, 27)
+        bar:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -2, 3)
+        if bar.SetFrameLevel then bar:SetFrameLevel((p:GetFrameLevel() or 1) + 6) end
+        O.status = bar
+    end
+    p:SetScript("OnShow", function()
+        if W.FillStatus then W.FillStatus(O.status) end
+        if T.HideHighStrata then T.HideHighStrata(true) end
+    end)
+    p:SetScript("OnHide", function()
+        if T.HideHighStrata and not (T.page and T.page:IsShown()) then T.HideHighStrata(false) end
+    end)
     p:Hide()
     O.panel = p
-    -- oben
-    O.summary = UI.Text(p, "text", "")
-    O.summary:SetPoint("TOPLEFT", 10, -10)
-    O.blizz = UI.Button(p, L.AUCO_BLIZZARD, 150, function() O.SetOn(false) end)
-    O.blizz:SetPoint("TOPRIGHT", -4, -4)
+    -- Inhalt wie Einkaufen: oben eine Leiste neben dem runden Bild, darunter die Liste, unten die Knoepfe
+    local c = CreateFrame("Frame", nil, p)
+    c:SetPoint("TOPLEFT", f, "TOPLEFT", W.SIDE, -(W.TOP_BAR or 30))
+    c:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -W.SIDE, W.BOTTOM)
+    O.content = c
+    O.summary = UI.Text(c, "text", "")
+    O.summary:SetPoint("TOPLEFT", 70, -10)
+    O.blizz = UI.Button(c, L.AUCO_BLIZZARD, 140, function() O.SetOn(false) end)
+    O.blizz:SetPoint("TOPRIGHT", -2, -4)
     UI.SetTooltip(O.blizz, { L.AUCO_BLIZZARD, L.AUCO_BLIZZARD_TIP })
-    O.check = UI.Button(p, L.AUCX_CHECK, 90, function()
+    O.check = UI.Button(c, L.AUCX_CHECK, 90, function()
         if ns.Auctions then mod:Call("Auktionen", ns.Auctions.StartLive) end
         O.Update(true)
     end)
-    O.check:SetPoint("RIGHT", O.blizz, "LEFT", -4, 0)
+    O.check:SetPoint("RIGHT", O.blizz, "LEFT", -6, 0)
     UI.SetTooltip(O.check, { L.AUCX_CHECK, L.AUCX_CHECK_HINT })
-    O.filter = UI.FilterDropdown(p, L.AUCO_FILTER, function(root)
+    O.filter = UI.FilterDropdown(c, L.AUCO_FILTER, function(root)
         for _, k in ipairs(O.STATUS) do
             root:CreateCheckbox(L["AUCO_ST_" .. k:upper()], function() return not O.Hidden()[k] end,
                 function() O.Hidden()[k] = not O.Hidden()[k] or nil; O.Update(true) end)
         end
     end)
-    O.filter:SetPoint("RIGHT", O.check, "LEFT", -6, 0)
+    O.filter:SetPoint("RIGHT", O.check, "LEFT", -8, 0)
     if O.filter.SetWidth then O.filter:SetWidth(110) end
     -- Liste
-    local lp = UI.Panel(p, "list", true)
-    lp:SetPoint("TOPLEFT", 0, -32)
+    local lp = UI.Panel(c, "list", true)
+    lp:SetPoint("TOPLEFT", 0, -34)
     lp:SetPoint("BOTTOMRIGHT", 0, 32)
     O.listPanel = lp
     O.list = UI.Table(lp, {
@@ -116,16 +143,16 @@ function O.Build(af)
     })
     function O.list:GetItems() return self.items end
     -- unten
-    O.cancelOne = UI.Button(p, L.AUCO_CANCEL, 150, function() O.CancelSelected() end)
-    O.cancelOne:SetPoint("BOTTOMRIGHT", -4, 4)
-    O.cancelUnder = UI.Button(p, L.AUCX_CANCEL_NONE, 190, function()
+    O.cancelOne = UI.Button(c, L.AUCO_CANCEL, 150, function() O.CancelSelected() end)
+    O.cancelOne:SetPoint("BOTTOMRIGHT", -2, 4)
+    O.cancelUnder = UI.Button(c, L.AUCX_CANCEL_NONE, 190, function()
         if ns.Lots then mod:Call("Auktionen", ns.Lots.CancelNext) end
         O.Update(true)
     end)
     O.cancelUnder:SetPoint("RIGHT", O.cancelOne, "LEFT", -6, 0)
     UI.SetTooltip(O.cancelUnder, { L.AUCX_CANCEL_NONE:gsub(" %(0%)", ""), L.AUCX_CANCEL_HINT })
-    O.market = ns.Go.MarketButton(p, 150, function() return O.sel and { key = O.sel.key, name = O.sel.name } or nil end)   -- ab 0.73 sicher
-    O.market:SetPoint("BOTTOMLEFT", 4, 4)
+    O.market = ns.Go.MarketButton(c, 150, function() return O.sel and { key = O.sel.key, name = O.sel.name } or nil end)   -- ab 0.73 sicher
+    O.market:SetPoint("BOTTOMLEFT", 0, 4)
     -- Sichtbar, solange Blizzards Ansicht Auktionen offen ist
     if af.HookScript then
         af:HookScript("OnShow", function() mod:Call("Auktionen", O.Place) end)
@@ -137,11 +164,14 @@ end
 function O.Place()
     if not O.panel then return end
     local af = ns.AuctionsAH.Frame()
-    local show = O.Enabled() and af ~= nil and af.IsShown and af:IsShown() and true or false
+    local show = O.Enabled() and af ~= nil and af.IsShown and af:IsShown() and not (ns.AHTabs and ns.AHTabs.current) and true or false
     O.panel:SetShown(show)
     local h = ns.AuctionsAH.header
     if h and h.own then h.own:SetShown(not show and af ~= nil and ns.AHTouch()) end
-    if show then O.Update(true) end
+    if show then
+        if ns.Window.FillStatus then ns.Window.FillStatus(O.status) end
+        O.Update(true)
+    end
 end
 
 -- Broker-Liste an oder aus (Blizzard-Ansicht bleibt fuer Gebote)

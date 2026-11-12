@@ -1263,7 +1263,7 @@ end)()
     check(F.header.name.text == "Billigzeug" and plain(F.verdict.text) == "KAUFEN" and F.stand.text:find("live", 1, true), "N6: Fokus mit Urteil, Markt live")
     local fr = {}
     for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr[#fr + 1] = r.label.text .. "=" .. plain(r.value.text) end end
-    check(table.concat(fr, "|") == "Art=Händler|Kaufen bis=3c|Menge=15|Einsatz=45c|Ziel=10c beim Händler|Gewinn=+1s 5c", "N6: Angaben zur Chance: " .. table.concat(fr, "|"))
+    check(table.concat(fr, "|") == "Art=Händler|Kaufen bis=3c|Menge=15|Einsatz=45c|Ziel=10c beim Händler|Üblich=unbekannt|Gewinn=+1s 5c", "N6: Angaben zur Chance: " .. table.concat(fr, "|"))
     check(#F.tiers.items == 2 and F.tiers.items[1].inBuy and not F.tiers.items[2].inBuy, "N6: Preisstufen aus der Live-Antwort, markiert was der Kauf nimmt")
     -- Kaufen: Preis vom Spiel, dann bestaetigen
     local started, confirmed
@@ -1310,7 +1310,7 @@ end)()
     local fr2 = {}
     for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr2[#fr2 + 1] = r.label.text .. "=" .. plain(r.value.text) end end
     check(F.ManualTarget(2770) == 200 and F.buyButton.text == "Kaufen 15" and not F.autoButton.disabled and F.targetInput:GetAmount() == 200
-        and table.concat(fr2, "|"):find("Art=Eigenes Ziel|Kaufen bis=1s 50c|Menge=15|Einsatz=17s 50c|Ziel=2s (eigenes)|Gewinn=+11s", 1, true),
+        and table.concat(fr2, "|"):find("Art=Eigenes Ziel|Kaufen bis=1s 50c|Menge=15|Einsatz=17s 50c|Ziel=2s (eigenes)|Üblich=", 1, true),
         "0.70: Klick auf eine Preisstufe macht sie zum Ziel: " .. table.concat(fr2, "|"))
     F.SetTargetTyped(105)
     check(F.ManualTarget(2770) == 105 and F.buyButton.text == "Kaufen 10" and plain(F.verdict.text) == "KEIN GEWINN" and not F.buyButton.disabled,
@@ -3486,9 +3486,16 @@ end)()
   local rate
   for _, c in ipairs(f.controls) do if c.row[2] == "focusRate" then rate = c end end
   check(rate and plain(rate.value.text) == "12 (alle 5 Sek.)", "0.70: Abfragen pro Minute mit Abstand: " .. tostring(rate and plain(rate.value.text)))
-  local h = rate.frame.scripts and rate.frame.scripts.OnValueChanged
-  if h then h(rate.frame, 90) end
-  check(not h or (mod.db.focusRate == 90 and plain(rate.value.text) == "90 (alle 0,7 Sek.)"), "0.70: Regler schreibt den Wert")
+  S.Set("focus", "focusRate", 90)   -- wie ein Zug am Regler (Blizzards Regler fehlt im Nachbau)
+  check(mod.db.focusRate == 12 and S.Get("focus", "focusRate") == 90, "0.74: Regler aendert erst den Entwurf")
+  f.ok.scripts.OnClick(f.ok)
+  check(mod.db.focusRate == 90 and not f:IsShown(), "0.74: OK uebernimmt und schliesst")
+  S.Toggle("focus")
+  check(plain(rate.value.text) == "90 (alle 0,7 Sek.)", "0.74: beim Oeffnen stehen die gespeicherten Werte da")
+  S.Set("focus", "focusRate", 30)
+  f.cancel.scripts.OnClick(f.cancel)
+  check(mod.db.focusRate == 90 and not f:IsShown(), "0.74: Abbrechen verwirft")
+  S.Toggle("focus")
   mod.db.focusRate = 12
   mod.db.focusWindow, mod.db.focusFirst = 3, 60
   M.Sync()
@@ -3555,8 +3562,11 @@ end)()
     if c.row[2] == "radarSpecOn" then spec = c end
   end
   check(f:IsShown() and vendor and spec and spec.frame.disabled, "0.71: Radar-Einstellungen mit Haendler, Aufkauf, Spekulation (grau)")
+  vendor.frame:SetChecked(false)
   vendor.frame.scripts.OnClick(vendor.frame)
-  check(mod.db.radarVendorOn == (vendor.frame:GetChecked() and true or false), "0.71: Haken schreibt die Einstellung")
+  check(S.Get("radar", "radarVendorOn") == false and mod.db.radarVendorOn ~= false, "0.74: Haken aendert erst den Entwurf")
+  f.ok.scripts.OnClick(f.ok)
+  check(mod.db.radarVendorOn == false, "0.74: OK uebernimmt")
   mod.db.radarVendorOn = false
   check(R.KIND_ON.vendor == false and R.KIND_ON.buyout == true, "0.71: Art Haendler abgeschaltet")
   mod.db.radarVendorOn = true
@@ -3606,6 +3616,11 @@ end)()
   check(not O.panel.shown and X.header.own.shown and mod.db.aucOwnList == false, "0.72: Blizzard-Ansicht (Gebote), Knopf Broker-Liste fuehrt zurueck")
   X.header.own.scripts.OnClick(X.header.own)
   check(O.panel.shown and mod.db.aucOwnList == true, "0.72: zurueck zur Broker-Liste")
+  ns.AHTabs.current = "buy"
+  O.Place()
+  check(not O.panel.shown, "0.74: Broker-Reiter offen: Liste der Auktionen weg (lag sonst ueber Einkaufen)")
+  ns.AHTabs.current = nil
+  O.Place()
   ah.AuctionsFrame.shown = false
   O.Place()
   check(not O.panel.shown, "0.72: nur sichtbar, solange Blizzards Ansicht Auktionen offen ist")
@@ -3658,6 +3673,58 @@ end)()
   check(attr.type == nil and jumped == 2770, "0.73: unterwegs der bisherige Weg (Markt aus Scandaten)")
   AuctionHouseFrame, ns.Window.AtAH, ns.Buy.ShowInAH, Go.Market = keepAH, keepAt, keepShow, keepMarket
   Go.offer, Go.offerWant = nil, nil
+end)()
+
+-- ===== 0.74: Nachbesserungen nach dem zweiten Test =====
+;(function()
+  local M, R, F = ns.Measure, ns.Radar, ns.Focus
+  -- Abfluss ueber Preisstufen: neue Nummern bei gleichen Stufen sind keine Verkaeufe
+  local function lv(list, idBase)
+    local rows = { offers = {}, commodity = true }
+    for i, o in ipairs(list) do
+      rows[#rows + 1] = { price = o[1], qty = o[2], own = 0 }
+      rows.offers[#rows.offers + 1] = { id = idBase + i, q = o[2], p = o[1] }
+    end
+    return rows
+  end
+  R.entries[7981] = { key = 7981, kind = "buyout", ref = 150, qty = 10, rows = {} }   -- Ziel 1s 50c
+  M.Start(7981)
+  M.Add(7981, lv({ { 100, 10 }, { 120, 20 }, { 150, 50 } }, 100), 0)
+  M.Add(7981, lv({ { 100, 10 }, { 120, 20 }, { 150, 50 } }, 200), 10)
+  local pr = M.cur.pairs[#M.cur.pairs]
+  check(pr.byLevels and pr.sold == 0 and pr.cancelled == 0 and pr.newAll == 0, "0.74: gleiche Stufen mit neuen Nummern: kein Abfluss, kein Zufluss")
+  M.Add(7981, lv({ { 100, 4 }, { 120, 20 }, { 150, 50 } }, 300), 20)
+  pr = M.cur.pairs[#M.cur.pairs]
+  check(pr.sold == 6 and pr.cancelled == 0, "0.74: unterste Stufe kleiner: verkauft")
+  M.Add(7981, lv({ { 100, 4 }, { 120, 20 }, { 140, 5 } }, 400), 30)
+  pr = M.cur.pairs[#M.cur.pairs]
+  check(pr.sold == 0 and pr.cancelled == 50 and pr.newUnder == 5, "0.74: Stufe ueber einer stehenden weg: abgebrochen, neue Stufe unter dem Ziel: Zufluss")
+  M.Stop()
+  R.entries[7981] = nil
+  -- Pause waehrend eines Kaufs, Fehlerprotokoll
+  R.buyUntil, R.job = nil, nil
+  check(not ns.Buying(), "0.74: kein Kauf")
+  fire("COMMODITY_PRICE_UPDATED", 10, 100)
+  check(ns.Buying(), "0.74: Preis vom Spiel da: Kauf laeuft, Broker fragt nicht ab")
+  fire("COMMODITY_PURCHASE_SUCCEEDED")
+  check(not ns.Buying(), "0.74: Kauf fertig: Abfragen wieder frei")
+  mod.acc.ahErrors = nil
+  fire("AUCTION_HOUSE_SHOW_ERROR", 9)
+  check(type(mod.acc.ahErrors) == "table" and #mod.acc.ahErrors == 1 and mod.acc.ahErrors[1].code == "9", "0.74: Meldung des Auktionshauses gemerkt")
+  local n0 = #out
+  R.ErrorReport()
+  check(#out > n0 and plain(out[#out]):find("Nummer 9", 1, true), "0.74: /broker pruefen fehler zeigt die Meldung")
+  -- Fokus: Stufe des Ziels gelb, ueblicher Bereich
+  ns.Buy.live[7982] = { rows = { { price = 50, qty = 5, own = 0 }, { price = 80, qty = 7, own = 0 } }, t = time() + 1, commodity = true }
+  local keepKey, keepOpen = F.key, ns.Scan.ahOpen
+  F.key, ns.Scan.ahOpen, F.since = 7982, true, 0
+  local tiers = F.Tiers(50, 80)
+  check(tiers[2].isTarget and not tiers[1].isTarget and F.tiers.o.rowBg(tiers[2]) == 1 and F.tiers.o.rowBg(tiers[1]) == nil,
+    "0.74: Stufe zum Ziel mit gelbem Hintergrund")
+  check(plain(F.BandText({ band = { low = 120, high = 160 } })) == "1s 20c bis 1s 60c", "0.74: ueblicher Bereich als Text")
+  check(F.refreshButton == nil, "0.74: kein Knopf Jetzt pruefen mehr")
+  F.key, ns.Scan.ahOpen = keepKey, keepOpen
+  ns.Buy.live[7982] = nil
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

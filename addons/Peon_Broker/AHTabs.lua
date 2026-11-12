@@ -254,6 +254,7 @@ function T.Open(key)
         W.FillStatus(T.status)
     end
     if ns.Go then ns.Go.OnTab(key) end
+    T.PlaceOverlays()
     if PlaySound and SOUNDKIT and SOUNDKIT.IG_CHARACTER_INFO_TAB then pcall(PlaySound, SOUNDKIT.IG_CHARACTER_INFO_TAB) end
     mod:Dbg("Eigener Reiter im Auktionshaus: " .. key)
     return true
@@ -347,6 +348,15 @@ function T.Close()
     if was then T.Leave(was) end
     for _, tab in pairs(T.tabs) do Deselect(tab) end
     if was then RestoreBlizzardTabs(AHFrame()) end
+    T.PlaceOverlays()
+end
+
+-- ab 0.74: Brokers Zusatzflaechen ueber Blizzards Ansichten (Liste der Auktionen, Zum Einstellen, Angebote-Knopf)
+-- nur zeigen, solange kein Broker-Reiter offen ist (sie lagen sonst ueber Einkaufen und Co.)
+function T.PlaceOverlays()
+    if ns.AuctionsOwn and ns.AuctionsOwn.Place then mod:Call("Auktionen", ns.AuctionsOwn.Place) end
+    if ns.Lots and ns.Lots.Place then mod:Call("Posten", ns.Lots.Place) end
+    if T.current and ns.Go and ns.Go.HideOffer then ns.Go.HideOffer() end
 end
 
 -- Teile von Blizzard in einer hoeheren Schicht (ab 0.64.1): Der Favoriten-Stern in der Kaufansicht eines Gegenstands
