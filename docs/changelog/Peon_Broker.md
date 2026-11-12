@@ -2,6 +2,27 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.71.0
+
+Kurz: Aufkauf gilt nur noch für echte Massenware (Vorgabe ab 200 Stück, 5 Preisstufen und 50 Stück Absatz am Tag, einstellbar). Einzelne oder selten angebotene Gegenstände erscheinen nicht mehr als Aufkauf.
+Kurz: Der Radar hat ein Fenster „Einstellungen“: welche Möglichkeiten er zeigt (Händler, Aufkauf, Spekulation kommt später) mit ihren Grenzen, und ob die gezeigten Möglichkeiten regelmäßig erneuert werden.
+Kurz: Der Knopf „Radar-Scan“ sucht wieder neue Möglichkeiten, wahlweise in der Beobachtung, unter allen Massenwaren oder in allem. Die gezeigten Möglichkeiten werden dabei zuerst erneuert.
+Kurz: „Zum Einstellen“ steht jetzt unter Verkaufen über Blizzards Liste. Posten wählen, „Ins Verkaufsfenster legen“ klicken, fertig.
+
+- 0.71.0 (12.11.2026): **Nachbesserungen Stufe 2, Schritte 3 und 4: Radar und Zum Einstellen** (Anmerkungen KarloDerBaer, 12.11.2026).
+  - **Aufkauf nur für Massenware:** `Buyout.Find` verlangt mindestens `buyoutMinQty` Stück im Angebot (200, aus dem Scan zählt die ganze Menge, nicht nur die 12 gespeicherten Stufen), mindestens `buyoutMinLevels` Preisstufen (5) und mindestens `buyoutMinSales` Stück Absatz am Tag (50). Grund im Code `mass`. Die Vorauswahl aus dem Scan prüft Menge und Stufen schon vorher. Beispiel aus dem Spiel: Heckenschützen-Zielfernrohr mit 16 Stück in 4 Stufen ist kein Aufkauf mehr.
+  - **Arten abschaltbar:** `radarVendorOn`, `radarBuyoutOn` (beide an). Eine abgeschaltete Art wird gar nicht erst gerechnet.
+  - **Fenster Einstellungen im Radar:** Händler (an/aus, Gewinn ab), Aufkauf (an/aus, Gewinn ab, wieder verkauft in, Massenware: Menge, Preisstufen, Absatz je Tag), Spekulation (grau, kommt später), Goldreserve, Ton, Erneuern (an/aus, alle, spätestens alle), Anteil des Radar-Scans. Ändern rechnet die Chancen aus der Datenbank neu.
+  - **Erneuern** (`radarRenew`, an): Solange die Seite Radar am Auktionator offen ist, prüft Broker jede gezeigte Möglichkeit spätestens nach `radarRenewSec` (60 Sek.) live. Reicht das Budget von etwa 92 Abfragen je Minute nicht, wird der Abstand länger, höchstens `radarRenewMax` (120 Sek.). Die Statuszeile nennt den Abstand.
+  - **Radar-Scan wieder als Suche:** Knopf „Radar-Scan“ mit Auswahl daneben (`radarScanMode`): Beobachten (immer wieder die Beobachtung), Massenware (alle bekannten Massenwaren in zufälliger Reihenfolge), Alles (alle bekannten Gegenstände in zufälliger Reihenfolge). Er bekommt, was das Erneuern übrig lässt, mindestens `radarSearchPct` (20 %). Neue Möglichkeiten erscheinen mit Ton wie früher. Die Statuszeile nennt Auswahl, Abfragen je Minute und Fortschritt der Runde.
+  - **Zum Einstellen unter Verkaufen:** Der Knopf „Zum Einstellen (n)“ sitzt über Blizzards Angebotsliste rechts und legt Brokers Liste der Posten darüber. Blizzards Liste bleibt darunter unberührt. Klick wählt einen Posten, der Knopf „Ins Verkaufsfenster legen“ darunter ist ein **sicherer Knopf** (`SecureActionButtonTemplate`) mit dem Makro `/click <Taschenplatz> RightButton`. Das ist derselbe Klick wie der Rechtsklick in der Tasche, Blizzards eigener Code legt den Gegenstand hinein. Taschenplätze mit Namen: Peon_Bags (`PeonBagsItemN`), sonst Blizzards `ContainerFrameNItemM`. Ohne passenden Platz steht „Rechtsklick in der Tasche“, mit Ware in der Post „Liegt noch in der Post“, im Kampf „Nicht im Kampf“ (Attribute nur außerhalb des Kampfs). Im Radar gibt es den Knopf nicht mehr.
+  - Tests: 30 neue oder geänderte Prüfungen.
+  - **Im Spiel prüfen:**
+    1. Radar: Zielfernrohr und andere seltene Gegenstände kein Aufkauf mehr. Einstellungen öffnen und Werte ändern.
+    2. Radar offen lassen: „erneuert alle … Sek.“ in der Statuszeile, die Spalte Stand springt zurück.
+    3. Radar-Scan mit Massenware: neue Möglichkeiten erscheinen, Abfragen je Minute in der Statuszeile.
+    4. **Sicherer Knopf (wichtig):** Ware eines Postens in der Tasche, Verkaufen, „Zum Einstellen“, Posten wählen, „Ins Verkaufsfenster legen“. Liegt der Gegenstand danach im Verkaufsfenster? Danach einen nicht verkaufbaren Gegenstand in der Tasche per Rechtsklick benutzen (wie bei Fehlerbericht 10): keine Meldung „Aktion wegen AddOn blockiert“?
+
 ## 0.70.0
 
 Kurz: Der Fokus arbeitet nur noch am Auktionshaus und zeigt nur Live-Angebote. Unterwegs merkt er sich den Gegenstand für den nächsten Besuch.

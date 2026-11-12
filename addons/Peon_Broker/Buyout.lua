@@ -42,10 +42,20 @@ B.RISK_MID, B.RISK_HIGH = 1, 3
 function B.MaxHours() return tonumber(mod.db.buyoutHours) or 2 end
 function B.MinGain() return (tonumber(mod.db.dealMinMarket) or 50) * 100 end
 
--- Schnelle Vorauswahl beim Laden aus der Datenbank: Massenware mit mindestens zwei gespeicherten Preisstufen
+-- ab 0.71 (KarloDerBaer, 12.11.2026): Aufkauf nur fuer echte Massenware, weil nur dort der Preis gut abzuschaetzen
+-- ist. Einzelne oder wenig angebotene Gegenstaende gehoeren spaeter zur Art "Spekulation".
+function B.MinQty() return tonumber(mod.db.buyoutMinQty) or 200 end
+function B.MinLevels() return tonumber(mod.db.buyoutMinLevels) or 5 end
+function B.MinSales() return tonumber(mod.db.buyoutMinSales) or 50 end
+
+-- Schnelle Vorauswahl beim Laden aus der Datenbank: Massenware mit genug Preisstufen und Menge im Angebot
 function B.Candidate(e, key)
     if type(e) ~= "table" or type(e.lv) ~= "string" or not e.lv:find(";", 1, true) then return false end
-    return ns.Data.IsCommodity(key) and true or false
+    if not ns.Data.IsCommodity(key) then return false end
+    local _, seps = e.lv:gsub(";", "")
+    if seps + 1 < math.min(B.MinLevels(), 12) then return false end
+    if type(e.q) == "number" and e.q < B.MinQty() then return false end
+    return true
 end
 
 -- Absatz und Trend eines Gegenstands (teuer): { sales, perHour, band }. Ab 0.69 je Gegenstand B.CTX_TIME Sekunden
@@ -72,6 +82,11 @@ function B.Find(e, rows, key, budget, commodity, ctx)
     if commodity == false or (commodity == nil and not D.IsCommodity(key)) then return nil, "item" end
     local lv = D.Available(rows)
     if #lv < 2 then return nil, "levels" end
+    -- ab 0.71: genug Menge im Angebot und genug Preisstufen (Massenware). Gespeichert sind hoechstens 12 Stufen.
+    local total = 0
+    for _, l in ipairs(lv) do total = total + l.qty end
+    if type(e) == "table" and type(e.q) == "number" and e.q > total then total = e.q end   -- Scan: alle Stueck, nicht nur 12 Stufen
+    if total < B.MinQty() or #lv < math.min(B.MinLevels(), 12) then return nil, "mass" end
     local cut, minGain = D.Cut(), B.MinGain()
     local cands, qty, cost, poor = {}, 0, 0, false
     for i = 1, #lv - 1 do
@@ -84,6 +99,7 @@ function B.Find(e, rows, key, budget, commodity, ctx)
     if #cands == 0 then return nil, poor and "gold" or "gain" end
     ctx = ctx or B.Context(e, key)
     if not ctx.perHour or ctx.perHour <= 0 then return nil, "sales" end
+    if ctx.perHour * 24 < B.MinSales() then return nil, "mass" end   -- ab 0.71: zu wenig Absatz je Tag
     if ctx.band and ctx.band.trend == "down" then return nil, "trend" end
     local maxH, best = B.MaxHours(), nil
     for _, c in ipairs(cands) do
@@ -105,7 +121,7 @@ end
 
 -- Chance mit neuem Gold neu rechnen (Preisstufen, Absatz und Trend bleiben). Rueckgabe: true = gilt noch
 function B.Refit(d, budget)
-    local nd = B.Find(nil, d.rows, d.key, budget, d.commodity, { sales = d.sales, perHour = d.perHour, band = d.band })
+    local nd = B.Find(ns.Data.Lookup(d.key), d.rows, d.key, budget, d.commodity, { sales = d.sales, perHour = d.perHour, band = d.band })
     if not nd then return false end
     for _, k in ipairs({ "gain", "qty", "cost", "offer", "limit", "ref", "net", "hours", "nextQty", "nearQty", "level", "unitGain" }) do
         d[k] = nd[k]

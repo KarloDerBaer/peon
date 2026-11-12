@@ -42,6 +42,37 @@ S.SPECS.focus = {
     { "head", "SET_FOCUS_BUY" },
     { "slider", "focusPriceTol", "SET_FOCUS_TOL", 0, 10, 1, function(v) return L.SET_PCT_FMT:format(v) end },
 }
+-- Radar: welche Moeglichkeiten mit ihren Grenzen, Erneuern, Radar-Scan (ab 0.71)
+local function VendorOff() return mod.db.radarVendorOn == false end
+local function BuyoutOff() return mod.db.radarBuyoutOn == false end
+local function RenewOff() return mod.db.radarRenew == false end
+S.SPECS.radar = {
+    title = "SET_RADAR_TITLE",
+    { "head", "SET_RADAR_KINDS" },
+    { "check", "radarVendorOn", "SET_RADAR_VENDOR", "SET_RADAR_VENDOR_TIP" },
+    { "money", "dealMinVendor", "SET_RADAR_MIN_GAIN", 1, off = VendorOff },
+    { "check", "radarBuyoutOn", "SET_RADAR_BUYOUT", "SET_RADAR_BUYOUT_TIP" },
+    { "money", "dealMinMarket", "SET_RADAR_MIN_GAIN", 100, off = BuyoutOff },
+    { "slider", "buyoutHours", "SET_RADAR_HOURS", 1, 24, 1, function(v) return L.SET_HOURS_FMT:format(v) end, off = BuyoutOff },
+    { "slider", "buyoutMinQty", "SET_RADAR_MIN_QTY", 0, 5000, 50, function(v) return L.SET_QTY_FMT:format(v) end, off = BuyoutOff },
+    { "slider", "buyoutMinLevels", "SET_RADAR_MIN_LEVELS", 2, 12, 1, function(v) return tostring(v) end, off = BuyoutOff },
+    { "slider", "buyoutMinSales", "SET_RADAR_MIN_SALES", 0, 2000, 10, function(v) return L.SET_QTY_FMT:format(v) end, off = BuyoutOff },
+    { "check", "radarSpecOn", "SET_RADAR_SPEC", "SET_RADAR_SPEC_TIP", off = function() return true end },
+    { "head", "SET_RADAR_GENERAL" },
+    { "money", "radarReserve", "SET_RADAR_RESERVE", 10000 },
+    { "check", "radarSound", "SET_RADAR_SOUND" },
+    { "check", "radarRenew", "SET_RADAR_RENEW", "SET_RADAR_RENEW_TIP" },
+    { "slider", "radarRenewSec", "SET_RADAR_RENEW_SEC", 15, 600, 15, function(v) return L.SET_SEC_FMT:format(v) end, off = RenewOff },
+    { "slider", "radarRenewMax", "SET_RADAR_RENEW_MAX", 30, 1200, 30, function(v) return L.SET_SEC_FMT:format(v) end, off = RenewOff },
+    { "slider", "radarSearchPct", "SET_RADAR_SEARCH_PCT", 0, 80, 5, function(v) return L.SET_PCT_FMT:format(v) end },
+}
+S.changed.radar = function()
+    local R = ns.Radar
+    if not R then return end
+    R.loaded = nil   -- Grenzen geaendert: Chancen aus der Datenbank neu rechnen
+    if R.Shown() then R.Open(); R.Wake() end
+end
+
 S.changed.focus = function() if ns.Focus then ns.Focus.chartN = nil; ns.Focus.Update() end end
 
 local function Disabled(row)

@@ -1217,22 +1217,40 @@ end)()
     fire("AUCTION_HOUSE_SHOW")
     T.tabs.radar.scripts.OnClick(T.tabs.radar)
     check(T.current == "radar" and Rd.Shown() and not Rd.scanButton.disabled and Rd.stats.sent == sent0, "N6: Radar am Auktionator, noch keine Abfrage")
-    -- Radar-Scan: nur die gezeigten Chancen
-    Rd.scanButton.scripts.OnClick(Rd.scanButton)
-    check(Rd.running and Rd.loop and Rd.scanButton.text == ns.L.RADAR_STOP, "N6: Radar-Scan gestartet")
-    local round = Rd.BuildRound()
-    check(#round == 1 and round[1] == 7801, "N6: Runde = die gezeigten Chancen")
+    -- ab 0.71: Erneuern der gezeigten Moeglichkeiten laeuft von selbst, solange der Radar offen ist
+    check(Rd.loop and Rd.Renewing() and Rd.scanButton.text == ns.L.RADAR_START, "0.71: Radar offen: Erneuern laeuft ohne Knopf")
     LIVE[7801] = { { unitPrice = 3, quantity = 15 }, { unitPrice = 12, quantity = 50 } }
     Rd.pending, Rd.lastSend = nil, -100
     now = now + 1; tick()
-    check(Rd.pending and Rd.pending.key == 7801, "N6: Radar-Scan fragt die Chance ab")
+    check(Rd.pending and Rd.pending.key == 7801, "0.71: Erneuern fragt die gezeigte Moeglichkeit ab")
     fire("COMMODITY_SEARCH_RESULTS_UPDATED", 7801)
     check(Rd.entries[7801].live and Rd.entries[7801].qty == 15 and Rd.list:GetItems()[1].checked ~= nil, "N6: Chance live bestaetigt, Menge neu")
     Rd.lastSend = -100
     now = now + 1; tick()
-    check(Rd.pending == nil, "N6: gerade geprueft: nicht gleich wieder (R.RECHECK)")
+    check(Rd.pending == nil and Rd.renewEvery == 60, "0.71: gerade geprueft: erst nach 60 Sek. wieder")
+    check(Rd.RenewInterval(200) == 120 and Rd.RenewInterval(100) > 60, "0.71: viele Moeglichkeiten: Abstand waechst, hoechstens 2 Min.")
+    -- Radar-Scan sucht neue Moeglichkeiten, hier unter allen Massenwaren
+    mod.db.radarScanMode = "mass"
     Rd.scanButton.scripts.OnClick(Rd.scanButton)
-    check(not Rd.running, "N6: Radar-Scan gestoppt")
+    check(Rd.running and Rd.loop and Rd.scanButton.text == ns.L.RADAR_STOP, "N6: Radar-Scan gestartet")
+    Rd.lastSend = -100
+    now = now + 1; tick()
+    check(Rd.pending and Rd.search and Rd.search.mode == "mass" and Rd.search.done == 1 and #Rd.search.keys >= 2, "0.71: Radar-Scan fragt eine Massenware ab")
+    local searched = Rd.pending.key
+    check(mod.acc.commodity[searched] or D.IsCommodity(searched), "0.71: nur Massenware: " .. tostring(searched))
+    Rd.pending = nil
+    check(plain(Rd.status.text):find("Massenware", 1, true), "0.71: Status nennt die Auswahl: " .. plain(Rd.status.text))
+    -- Anteil: faellig sind Erneuern und Suche, die Suche bekommt mindestens 20 %
+    Rd.mix = { renew = 9, search = 1 }
+    Rd.entries[7801].checked = nil
+    local k1, kind1 = Rd.NextKey()
+    Rd.mix = { renew = 1, search = 9 }
+    local k2, kind2 = Rd.NextKey()
+    check(kind1 == "search" and kind2 == "renew" and k2 == 7801, "0.71: Suche bekommt ihren Anteil, sonst zuerst Erneuern")
+    Rd.entries[7801].checked = GetTime()
+    Rd.scanButton.scripts.OnClick(Rd.scanButton)
+    check(not Rd.running and Rd.Renewing(), "N6/0.71: Radar-Scan gestoppt, Erneuern laeuft weiter")
+    mod.db.radarScanMode = "watch"
     -- Klick: Fokus fragt nur diesen Gegenstand ab
     Rd.list.list.rows[1].scripts.OnClick(Rd.list.list.rows[1], "LeftButton")
     check(T.current == "focus" and F.Shown() and F.key == 7801 and Rd.focus and Rd.focus.key == 7801 and Rd.loop and not Rd.running and T.back.shown,
@@ -1319,6 +1337,8 @@ end)()
 ;(function()
     local BO, F = ns.Buyout, ns.Focus
     BO.CTX_TIME = 0   -- ab 0.69: ohne Merken, die Tests aendern den Absatz zwischendurch (eigener Test unten)
+    -- ab 0.71: Grenze fuer Massenware (eigener Test unten), hier aus
+    mod.db.buyoutMinQty, mod.db.buyoutMinLevels, mod.db.buyoutMinSales = 0, 2, 0
     local keepStats, keepBand, keepMoney, keepMin = ns.Sales.Stats, D.Band, GetMoney, mod.db.dealMinMarket
     local sales = { perHour = 50, level = 3 }
     local band = { trend = "calm", low = 900, high = 1600 }
@@ -1344,6 +1364,19 @@ end)()
     mod.db.buyoutHours = 3
     check(BO.Find(e, rows, 7901, 1000000) ~= nil, "H1: hoechste Verkaufsdauer einstellbar (3 Std.)")
     mod.db.buyoutHours, sales.perHour = 2, 50
+    -- ab 0.71: nur echte Massenware (Heckenschuetzen-Zielfernrohr mit 16 Stueck war ein Aufkauf)
+    mod.db.buyoutMinQty, mod.db.buyoutMinLevels, mod.db.buyoutMinSales = 200, 5, 50
+    local few = D.ParseLevels("320:1;399:8;600:2;898:5")
+    local dm, whym = BO.Find({ q = 16 }, few, 7901, 1000000)
+    check(dm == nil and whym == "mass", "0.71: 16 Stueck in 4 Stufen: kein Aufkauf (Massenware ab 200 Stueck, 5 Stufen)")
+    local many = D.ParseLevels("1000:50;1100:30;1500:100;1600:100;1700:100")
+    check(BO.Find({ q = 380 }, many, 7901, 1000000) ~= nil, "0.71: 380 Stueck in 5 Stufen, 1200 Absatz am Tag: Aufkauf")
+    sales.perHour = 1
+    check(select(2, BO.Find({ q = 380 }, many, 7901, 1000000)) == "mass", "0.71: zu wenig Absatz je Tag (24 statt 50)")
+    sales.perHour = 50
+    check(BO.Candidate({ lv = "1:5;2:5", q = 10 }, 7901) == false and BO.Candidate({ lv = "1:50;2:50;3:50;4:50;5:50", q = 250 }, 7901) == true,
+        "0.71: Vorauswahl aus dem Scan nach Menge und Stufen")
+    mod.db.buyoutMinQty, mod.db.buyoutMinLevels, mod.db.buyoutMinSales = 0, 2, 0
     band.trend = "down"
     d, why = BO.Find(e, rows, 7901, 1000000)
     check(d == nil and why == "trend", "H1: Trend nach unten schliesst aus")
@@ -1531,23 +1564,8 @@ end)()
     local keepCount = C_Item.GetItemCount
     C_Item.GetItemCount = function(id) return id == 7961 and 0 or 0 end
     market.items[7961] = { m = 1400, md = 1500, q = 100, n = 2, t = clock, nm = "Postenstein", ql = 1 }
-    Win.Open("radar")
-    check(plain(Rd.lotsButton.text) == "Zum Einstellen (1)", "H3: Knopf im Radar mit Zahl")
-    Rd.lotsButton.scripts.OnClick(Rd.lotsButton)
-    check(Rd.view == "lots" and Rd.lotPanel.shown and not Rd.panel.shown and #Rd.lotList:GetItems() == 1, "H3: Liste Zum Einstellen statt der Chancen")
-    local r = Rd.lotList:GetItems()[1]
-    local cells = Rd.lotList.list.rows[1].cells
-    check(r.unit and math.floor(r.unit + 0.5) == 1038 and r.target == 1500 and r.now == 1400 and plain(cells[6].text) == "Post",
-        "H3: Zeile mit Einsatz je Stueck, Ziel, Markt jetzt, noch in der Post")
-    check(cells[5].text:find("ff5555", 1, true) ~= nil, "H3: Markt unter dem Ziel ist rot")
+    -- ab 0.71: die Liste "Zum Einstellen" steht im Reiter Verkaufen (eigener Test unten)
     C_Item.GetItemCount = function(id) return id == 7961 and 80 or 0 end
-    Rd.RefreshLots()
-    check(plain(Rd.lotList.list.rows[1].cells[6].text) == "80", "H3: Ware in der Tasche")
-    Rd.lotList.list.rows[1].scripts.OnClick(Rd.lotList.list.rows[1], "LeftButton")
-    check(said("Rechtsklick auf den Gegenstand in der Tasche"), "H3: Klick erklaert den Weg ins Verkaufsfenster")
-    Rd.lotsButton.scripts.OnClick(Rd.lotsButton)
-    check(Rd.view == "chances" and Rd.panel.shown and not Rd.lotPanel.shown, "H3: zurueck zu den Chancen")
-    Win.frame:Hide()
     -- Rat beim Verkaufen: Posten, Zielpreis eintragen
     local A = ns.Advice
     local origHook = rawget(_G, "hooksecurefunc")
@@ -3483,6 +3501,66 @@ end)()
   local acc = { focusEvery = 10 }
   mod.opts.migrate(mod, acc)
   check(acc.focusRate == 6, "0.70: alter Abstand 10 Sek. wird 6 Abfragen pro Minute")
+end)()
+
+-- ===== 0.71: Zum Einstellen im Reiter Verkaufen mit sicherem Knopf =====
+;(function()
+  local LT = ns.Lots
+  local keepAH, keepCC, keepCount = AuctionHouseFrame, C_Container, C_Item.GetItemCount
+  local ah = CreateFrame("Frame", "AuctionHouseFrame")
+  ah.CommoditiesSellFrame, ah.CommoditiesSellList = CreateFrame("Frame"), CreateFrame("Frame")
+  ah.ItemSellFrame, ah.ItemSellList = CreateFrame("Frame"), CreateFrame("Frame")
+  ah.ItemSellFrame.shown, ah.ItemSellList.shown = false, false
+  LT.toggle, LT.panel, LT.sel = nil, nil, nil
+  mod.char.lots, mod.char.lotSeq = {}, nil
+  LT.Add(7971, 40, 40000, 1500, "radar")
+  market.items[7971] = { m = 1400, md = 1500, q = 100, n = 2, t = clock, nm = "Kistenstein", ql = 1 }
+  C_Item.GetItemCount = function(id) return id == 7971 and 40 or 0 end
+  C_Container = setmetatable({ GetContainerNumSlots = function(bag) return bag == 0 and 4 or 0 end,
+    GetContainerItemID = function(bag, slot) return (bag == 0 and slot == 3) and 7971 or nil end,
+    GetContainerItemInfo = function() return { isLocked = false } end }, { __index = keepCC })
+  PeonBagsItem1 = CreateFrame("Button"); PeonBagsItem1.peonBag, PeonBagsItem1.peonSlot = 0, 2
+  PeonBagsItem2 = CreateFrame("Button"); PeonBagsItem2.peonBag, PeonBagsItem2.peonSlot = 0, 3
+  fire("AUCTION_HOUSE_SHOW")
+  check(LT.toggle and LT.toggle.shown and plain(LT.toggle.text) == "Zum Einstellen (1)" and not LT.panel.shown, "0.71: Knopf ueber Blizzards Liste im Verkaufen")
+  local attr = {}
+  LT.postButton.SetAttribute = function(_, k, v) attr[k] = v end
+  LT.toggle.scripts.OnClick(LT.toggle)
+  check(LT.panel.shown and #LT.list:GetItems() == 1 and plain(LT.toggle.text) == "Liste schließen" and LT.postButton.disabled,
+    "0.71: Liste der Posten ueber Blizzards Liste, noch nichts gewaehlt")
+  LT.list.o.onClick(LT.list:GetItems()[1], "LeftButton")
+  check(attr.type == "macro" and attr.macrotext == "/click PeonBagsItem2 RightButton" and not LT.postButton.disabled and LT.postButton.text == "Ins Verkaufsfenster legen",
+    "0.71: Posten gewaehlt: sicherer Knopf klickt den Taschenplatz rechts an: " .. tostring(attr.macrotext))
+  C_Item.GetItemCount = function() return 0 end
+  LT.RefreshPanel()
+  check(LT.postButton.disabled and LT.postButton.text == "Liegt noch in der Post" and attr.type == nil, "0.71: Ware noch in der Post: Knopf gesperrt")
+  ah.CommoditiesSellFrame.shown, ah.CommoditiesSellList.shown = false, false
+  LT.Place()
+  check(not LT.toggle.shown and not LT.panel.shown, "0.71: ausserhalb von Verkaufen nichts zu sehen")
+  PeonBagsItem1, PeonBagsItem2 = nil, nil
+  AuctionHouseFrame, C_Container, C_Item.GetItemCount = keepAH, keepCC, keepCount
+  LT.toggle, LT.panel, LT.sel = nil, nil, nil
+  mod.char.lots = {}
+  market.items[7971] = nil
+end)()
+
+-- ===== 0.71: Fenster Einstellungen im Radar, Arten abschaltbar =====
+;(function()
+  local S, R = ns.Settings, ns.Radar
+  S.Toggle("radar")
+  local f = S.frames.radar
+  local vendor, spec
+  for _, c in ipairs(f.controls) do
+    if c.row[2] == "radarVendorOn" then vendor = c end
+    if c.row[2] == "radarSpecOn" then spec = c end
+  end
+  check(f:IsShown() and vendor and spec and spec.frame.disabled, "0.71: Radar-Einstellungen mit Haendler, Aufkauf, Spekulation (grau)")
+  vendor.frame.scripts.OnClick(vendor.frame)
+  check(mod.db.radarVendorOn == (vendor.frame:GetChecked() and true or false), "0.71: Haken schreibt die Einstellung")
+  mod.db.radarVendorOn = false
+  check(R.KIND_ON.vendor == false and R.KIND_ON.buyout == true, "0.71: Art Haendler abgeschaltet")
+  mod.db.radarVendorOn = true
+  S.Hide("radar")
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

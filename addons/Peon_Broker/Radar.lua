@@ -31,7 +31,12 @@ R.NEW_TIME  = 60     -- Sekunden: so lange gilt ein Treffer als "neu" (gruen)
 function R.FocusEvery() return 60 / math.max(1, tonumber(mod.db.focusRate) or 12) end
 function R.PriceTol() return (tonumber(mod.db.focusPriceTol) or 1) / 100 end
 R.PRICE_TOL = 0.01   -- ab 0.66: Gesamtpreis des Spiels mehr als 1 % ueber dem erwarteten -> Warnung vor dem zweiten Klick
-R.KIND_ON = { vendor = true, buyout = true }   -- Arten im Radar (N6 nur Haendler, ab 0.65 dazu Aufkauf)
+-- Arten im Radar (N6 nur Haendler, ab 0.65 dazu Aufkauf, ab 0.71 je Art abschaltbar: radarVendorOn, radarBuyoutOn)
+R.KIND_ON = setmetatable({}, { __index = function(_, k)
+    if k == "vendor" then return mod.db.radarVendorOn ~= false end
+    if k == "buyout" then return mod.db.radarBuyoutOn ~= false end
+    return nil
+end })
 R.GONE_TIME = 30     -- Sekunden: so lange bleibt ein weggefallener Treffer grau mit Grund in der Liste (ab 0.20)
 R.LOG_MAX   = 200    -- so viele weggefallene Treffer merkt sich das Radar-Protokoll (PeonBrokerDB.radarLog)
 R.CONFIRM_AFTER = 3  -- Sekunden: "keine Angebote" nach so langer Zeit nochmal pruefen, erst dann weg (ab 0.20.1)
@@ -78,8 +83,8 @@ function R.Evaluate(key, rows, live, commodity)
     local hp = ns.VendorPrice(D.ItemID(key))
     -- ab 0.65: aus D.Deal nur noch die Art Haendler (die alte Art "unter dem ueblichen Preis" entfaellt), dazu der
     -- Aufkauf. Je Gegenstand zaehlt die Chance mit dem hoeheren Gewinn.
-    local deal = D.Deal(e, rows, hp, R.VendorOnly(), D.Day(), key)
-    local bo = ns.Buyout and ns.Buyout.Find(e, rows, key, R.Budget(), commodity) or nil
+    local deal = R.KIND_ON.vendor and D.Deal(e, rows, hp, R.VendorOnly(), D.Day(), key) or nil
+    local bo = R.KIND_ON.buyout and ns.Buyout and ns.Buyout.Find(e, rows, key, R.Budget(), commodity) or nil
     if bo and (not deal or bo.gain > deal.gain) then deal = bo end
     if not deal then return nil end
     deal.key = key
@@ -320,20 +325,14 @@ end
 ---------------------------------------------------------------------------
 -- Radar-Scan
 ---------------------------------------------------------------------------
--- Runde des Radar-Scans (ab 0.64): nur die gezeigten Chancen, die am laengsten nicht gepruefte zuerst.
--- Neue Gegenstaende sucht der Radar-Scan nicht, sie kommen aus dem naechsten Komplettscan.
-function R.BuildRound()
-    local round, budget = {}, R.Budget()
-    for key, d in pairs(R.entries) do
-        if R.Visible(d, budget) and ns.Buy.KnownKey(key) then round[#round + 1] = key end
-    end
-    table.sort(round, function(a, b)
-        local ca, cb = R.entries[a].checked or 0, R.entries[b].checked or 0
-        if ca ~= cb then return ca < cb end
-        return tostring(a) < tostring(b)
-    end)
-    return round
-end
+-- Ab 0.71 (KarloDerBaer, 12.11.2026) teilen sich zwei Aufgaben die etwa 92 Abfragen je Minute:
+--   Erneuern   Solange die Seite Radar offen ist (Einstellung radarRenew, Vorgabe an), wird jede gezeigte Moeglichkeit
+--              spaetestens nach radarRenewSec Sekunden live geprueft. Reicht das Budget nicht, wird der Abstand
+--              laenger, hoechstens radarRenewMax Sekunden.
+--   Radar-Scan (Knopf mit Auswahl) sucht neue Moeglichkeiten: Beobachten (immer wieder die Beobachtung), Massenware
+--              (alle bekannten Massenwaren in zufaelliger Reihenfolge) oder Alles (alle bekannten Gegenstaende).
+--              Er bekommt, was das Erneuern uebrig laesst, mindestens aber radarSearchPct Prozent.
+R.PER_MIN = 60 / R.INTERVAL
 
 -- Gegenstandsdaten im Spiel geladen? Sonst anfordern (Vermutung 0.16: sonst schickt das Spiel die Abfrage nicht ab)
 function R.ItemReady(key)
@@ -346,40 +345,114 @@ function R.ItemReady(key)
     return false
 end
 
--- Treffer aus dem Scan, die noch nicht live geprueft sind (hoechstens 2 Versuche je Treffer). Nur waehrend des
--- Radar-Scans: von selbst wird nichts live nachgeprueft (ab 0.64).
-function R.Unchecked()
-    if not R.running then return nil end
-    local best
-    for key, d in pairs(R.entries) do
-        if not d.live and (d.tries or 0) < 2 and (d.loadWait or 0) < 30 and (not best or d.gain > R.entries[best].gain) then best = key end
-    end
-    return best
+-- Erneuern aktiv? Nur auf der Seite Radar am Auktionator
+function R.Renewing()
+    return mod.db.radarRenew ~= false and AHOpen() and R.Shown()
 end
 
--- Abfrage-Schleife: laeuft beim Radar-Scan und, auch ohne ihn, bis alle Scan-Treffer einmal geprueft sind
+-- Anteil des Radar-Scans (0 bis 1)
+function R.SearchShare() return (tonumber(mod.db.radarSearchPct) or 20) / 100 end
+
+-- Abstand fuer das Erneuern: so kurz wie eingestellt, so lang wie noetig, hoechstens radarRenewMax
+function R.RenewInterval(n)
+    local minS = tonumber(mod.db.radarRenewSec) or 60
+    local maxS = math.max(minS, tonumber(mod.db.radarRenewMax) or 120)
+    local cap = R.PER_MIN * (R.running and (1 - R.SearchShare()) or 1)
+    local need = cap > 0 and (n or 0) * 60 / cap or maxS
+    return math.max(minS, math.min(maxS, need))
+end
+
+-- Naechste gezeigte Moeglichkeit, die dran ist (am laengsten nicht geprueft zuerst), sonst nil
+function R.NextRenew()
+    local budget, list = R.Budget(), {}
+    for key, d in pairs(R.entries) do
+        if R.Visible(d, budget) and ns.Buy.KnownKey(key) and not R.skip[key] and (d.loadWait or 0) < 30 then list[#list + 1] = d end
+    end
+    local every = R.RenewInterval(#list)
+    R.renewEvery = every
+    local now, best = Now(), nil
+    for _, d in ipairs(list) do
+        if not d.checked or now - d.checked >= every then
+            if not best or (d.checked or -1e9) < (best.checked or -1e9) then best = d end
+        end
+    end
+    return best and best.key or nil
+end
+
+-- Gegenstaende fuer den Radar-Scan je Auswahl
+function R.SearchKeys(mode)
+    local keys, D = {}, ns.Data
+    if mode == "watch" then
+        for key in pairs(ns.Watch and ns.Watch.Store() or {}) do keys[#keys + 1] = key end
+        table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+        return keys
+    end
+    local market = D.Market()
+    if not market then return keys end
+    for key, e in pairs(market.items) do
+        if type(e) == "table" and ns.Buy.KnownKey(key) and (mode == "all" or D.IsCommodity(key)) then keys[#keys + 1] = key end
+    end
+    return keys
+end
+
+local function Shuffle(t)
+    for i = #t, 2, -1 do
+        local j = math.random(i)
+        t[i], t[j] = t[j], t[i]
+    end
+    return t
+end
+
+-- Naechster Gegenstand des Radar-Scans (oder nil). peek = nur nachsehen, nicht weiterzaehlen
+function R.NextSearch(peek)
+    if not R.running then return nil end
+    local mode = mod.db.radarScanMode or "watch"
+    local sc = R.search
+    if not sc or sc.mode ~= mode then
+        sc = { mode = mode, keys = {}, index = 0, rounds = 0, done = 0 }
+        R.search = sc
+    end
+    for _ = 1, 50 do
+        if sc.index >= #sc.keys then
+            sc.keys = mode == "watch" and R.SearchKeys(mode) or Shuffle(R.SearchKeys(mode))
+            sc.index, sc.rounds = 0, sc.rounds + 1
+            if #sc.keys == 0 then return nil end
+        end
+        local key = sc.keys[sc.index + 1]
+        if R.skip[key] or not R.ItemReady(key) then
+            sc.index = sc.index + 1   -- ungeladene Daten werden angefordert und kommen in der naechsten Runde dran
+        else
+            if not peek then sc.index, sc.done = sc.index + 1, sc.done + 1 end
+            return key
+        end
+    end
+    return nil
+end
+
+-- Abfrage-Schleife: laeuft fuer Fokus, Erneuern, Radar-Scan und die zweite Pruefung "keine Angebote"
 function R.Wake()
     if R.loop or not AHOpen() or ns.Scan.state then return end
-    if not (R.running or R.focus or R.soon or R.Unchecked() ~= nil) then return end
+    if not (R.running or R.focus or R.soon or R.Renewing()) then return end
     R.loop = true
     R.gen = (R.gen or 0) + 1
     R.Schedule()
 end
 
+-- Radar-Scan an (Knopf)
 function R.Start()
     if R.running or not AHOpen() or ns.Scan.state then return end
     R.running = true
-    R.round = R.BuildRound()
-    R.index = 0
+    R.search = nil
+    R.mix = { renew = 0, search = 0 }
     R.stats = NewStats()
     R.stats.started = date and date("%Y-%m-%d %H:%M:%S") or nil
     mod.acc.radarStats = mod:IsDebug() and R.stats or nil   -- ab 0.28 nur mit /broker debug gespeichert
-    mod:Dbg(("Radar gestartet: %d Gegenstaende in der Runde"):format(#R.round))
+    mod:Dbg("Radar-Scan gestartet: " .. tostring(mod.db.radarScanMode))
     R.UpdateView()
     R.Wake()
 end
 
--- Radar-Scan aus (Knopf); die Schnellpruefung der Scan-Treffer laeuft ggf. weiter
+-- Radar-Scan aus (Knopf). Erneuern laeuft weiter, solange die Seite offen ist
 function R.Stop()
     if not R.running then return end
     R.running = false
@@ -433,23 +506,27 @@ function R.Schedule()
     C_Timer.After(R.TICK, function() if R.gen == gen then R.Tick() end end)
 end
 
--- Naechster Gegenstand des Radar-Scans: zuerst ungepruefte Scan-Treffer, dann reihum die gezeigten Chancen,
--- jede fruehestens nach R.RECHECK Sekunden wieder
+-- Naechster Gegenstand: zuerst die zweite Pruefung nach "keine Angebote", dann Erneuern und Radar-Scan im
+-- Verhaeltnis (der Radar-Scan bekommt mindestens radarSearchPct Prozent). Rueckgabe key, Art ("soon", "renew", "search")
 function R.NextKey()
     -- zweite Pruefung nach "keine Angebote" (ab 0.20.1)
     local soon = R.soon
-    if soon and R.entries[soon.key] and Now() >= soon.at then R.soon = nil; return soon.key end
+    if soon and R.entries[soon.key] and Now() >= soon.at then R.soon = nil; return soon.key, "soon" end
     if soon and not R.entries[soon.key] then R.soon = nil end
-    local first = R.Unchecked()
-    if first ~= nil then return first end
-    if not R.running then return nil end
-    if not R.round or R.index >= #R.round then R.round = R.BuildRound(); R.index = 0 end
-    while R.index < #R.round do
-        R.index = R.index + 1
-        local key = R.round[R.index]
-        local d = R.entries[key]
-        if d and not R.skip[key] and (not d.checked or Now() - d.checked >= R.RECHECK) and R.ItemReady(key) then return key end
+    local rk = R.Renewing() and R.NextRenew() or nil
+    local sk = R.running and R.NextSearch(true) or nil
+    local mix = R.mix or { renew = 0, search = 0 }
+    R.mix = mix
+    local useSearch = sk ~= nil and (rk == nil or mix.search < R.SearchShare() * (mix.renew + mix.search + 1))
+    if useSearch then
+        sk = R.NextSearch()
+        mix.search = mix.search + 1
+    elseif rk ~= nil then
+        mix.renew = mix.renew + 1
     end
+    if mix.renew + mix.search > 200 then mix.renew, mix.search = mix.renew / 2, mix.search / 2 end
+    if useSearch then return sk, "search" end
+    if rk ~= nil then return rk, "renew" end
     return nil
 end
 
@@ -502,7 +579,7 @@ function R.Tick()
             R.stats.notCached = (R.stats.notCached or 0) + 1
         elseif key ~= nil then
             R.Send(key)
-        elseif not R.running and not R.focus and not R.soon then
+        elseif not R.running and not R.focus and not R.soon and not R.Renewing() then
             R.loop = false
             R.UpdateView()
             return
@@ -947,18 +1024,44 @@ function R.JobText(job)
 end
 
 -- Stand in der oberen Zeile
+-- Auswahl des Radar-Scans (ab 0.71)
+function R.MODES()
+    return { { "watch", L.RADAR_MODE_WATCH }, { "mass", L.RADAR_MODE_MASS }, { "all", L.RADAR_MODE_ALL } }
+end
+
+function R.ModeText()
+    for _, m in ipairs(R.MODES()) do if m[1] == (mod.db.radarScanMode or "watch") then return m[2] end end
+    return L.RADAR_MODE_WATCH
+end
+
+-- Rueckfall ohne Blizzards Auswahlliste: Klick schaltet weiter
+function R.NextMode()
+    local list, cur = R.MODES(), mod.db.radarScanMode or "watch"
+    for i, m in ipairs(list) do
+        if m[1] == cur then mod.db.radarScanMode = list[(i % #list) + 1][1]; break end
+    end
+    R.search = nil
+    if R.modeDrop and R.modeDrop.SetText then R.modeDrop:SetText(R.ModeText()) end
+    R.UpdateView()
+end
+
 function R.StatusText()
     local st
     if ns.Scan.state then
         st = ORANGE .. L.RADAR_FULLSCAN .. "|r"
     elseif R.running then
         local mins = math.max(1 / 60, (Now() - R.stats.t0) / 60)
-        st = GREEN .. L.RADAR_RUNNING:format(math.floor(R.stats.sent / mins + 0.5), R.stats.sent) .. "|r"
+        local sc = R.search
+        st = GREEN .. L.RADAR_SCAN_STATUS:format(R.ModeText(), math.floor(R.stats.sent / mins + 0.5), sc and sc.done or 0,
+            sc and #sc.keys or 0) .. "|r"
     else
         local market = ns.Data.Market()
         local at = market and ns.Data.DataAt(market)
         if not at then st = ORANGE .. L.MM_NO_SCAN .. "|r"
         else st = GREY .. L.RADAR_STAND:format(ns.Scan.Age(at)) .. "|r" end
+    end
+    if R.renewEvery and R.Renewing() and not ns.Scan.state then
+        st = st .. "  " .. GREY .. L.RADAR_RENEW_STATUS:format(math.floor(R.renewEvery + 0.5)) .. "|r"
     end
     if not AHOpen() then st = st .. "  " .. ORANGE .. L.ST_NOT_LIVE .. "|r" end
     return st
@@ -1064,73 +1167,30 @@ end
 R.RISK_COLOR = { low = GREEN, mid = "|cffffd100", high = RED }
 
 -- Liste "Zum Einstellen" (ab 0.67, H3): Posten aus Aufkaeufen und abgebrochenen Auktionen
-function R.ShowLots(on)
-    R.view = on and "lots" or "chances"
-    if R.panel then R.panel:SetShown(not on) end
-    if R.lotPanel then R.lotPanel:SetShown(on) end
-    R.RefreshLots()
-end
-
-function R.RefreshLots()
-    if not R.lotsButton then return end
-    local n = ns.Lots and ns.Lots.Count() or 0
-    R.lotsButton:SetText(R.view == "lots" and L.LOTS_BACK or L.LOTS_BUTTON:format(n))
-    if R.view == "lots" and R.lotList then R.lotList:SetData(ns.Lots.Rows()) end
-end
-
-function R.BuildLots(c)
-    local UI = Peon.UI
-    local GREY_ = GREY
-    local p = UI.Panel(c, "list", true)
-    p:SetPoint("TOPLEFT", 0, -30)
-    p:SetPoint("BOTTOMRIGHT", 0, 0)
-    p:Hide()
-    R.lotPanel = p
-    R.lotList = UI.Table(p, {
-        columns = {
-            { key = "name", title = L.COL_ITEM, sort = function(r) return W.Lower(r.name) end,
-              color = function(r) return UI.QualityColor(r.quality or 1) end },
-            { key = "qty", title = L.FOCUS_R_QTY, width = 60, align = "RIGHT" },
-            { key = "unit", title = L.LOTS_COL_COST, width = 90, align = "RIGHT",
-              format = function(v) return v and Money(math.floor(v + 0.5)) or (GREY_ .. "-|r") end },
-            { key = "target", title = L.FOCUS_R_TARGET, width = 90, align = "RIGHT", format = function(v) return v and Money(v) or "?" end },
-            { key = "now", title = L.LOTS_COL_NOW, width = 90, align = "RIGHT",
-              format = function(v, r)
-                  if not v then return GREY_ .. "-|r" end
-                  local warn = r.target and v < r.target
-                  return (warn and RED or "") .. Money(v) .. (warn and "|r" or "")
-              end },
-            { key = "bags", title = L.LOTS_COL_BAGS, width = 80, align = "RIGHT",
-              format = function(v) if v and v > 0 then return tostring(v) end return GREY_ .. L.LOTS_MAIL .. "|r" end },
-        },
-        sortKey = "name", icon = true, empty = L.LOTS_EMPTY,
-        onClick = function(r, button)
-            if button == "RightButton" then ns.Lots.Menu(r, R.lotPanel) else mod:Call("Posten", ns.Lots.Pick, r) end
-        end,
-        onEnter = function(row, r)
-            if not r then return end
-            W.ShowItemTooltip(row, r.key)
-            if GameTooltip and r.target and r.now and r.now < r.target then
-                GameTooltip:AddLine(L.LOTS_UNDER_TARGET, 1, 0.4, 0.4, true)
-                GameTooltip:Show()
-            end
-        end,
-    })
-    function R.lotList:GetItems() return self.items end
-end
-
 function R.Build(c)
     local UI = Peon.UI
-    R.scanButton = UI.Button(c, L.RADAR_START, 170, function() if R.running then R.Stop() else mod:Call("Radar", R.Start) end end)
+    -- ab 0.71: Knopf "Radar-Scan" mit Auswahl, was gesucht wird, und Fenster Einstellungen
+    R.scanButton = UI.Button(c, L.RADAR_START, 150, function() if R.running then R.Stop() else mod:Call("Radar", R.Start) end end)
     R.scanButton:SetPoint("TOPRIGHT", -2, -2)
     UI.SetTooltip(R.scanButton, { L.RADAR_START, L.RADAR_SCAN_TIP })
-    -- ab 0.67 (H3): Umschalter zur Liste "Zum Einstellen"
-    R.lotsButton = UI.Button(c, L.LOTS_BUTTON:format(0), 160, function() R.ShowLots(R.view ~= "lots") end)
-    R.lotsButton:SetPoint("RIGHT", R.scanButton, "LEFT", -6, 0)
-    UI.SetTooltip(R.lotsButton, { L.LOTS_TITLE, L.LOTS_TIP })
+    R.modeDrop = UI.Dropdown(c, 130, R.MODES(), function() return mod.db.radarScanMode or "watch" end, function(v)
+        mod.db.radarScanMode = v
+        R.search = nil
+        if R.modeDrop.fallback then R.modeDrop:SetText(R.ModeText()) end
+        R.UpdateView()
+    end)
+    R.modeDrop:SetPoint("RIGHT", R.scanButton, "LEFT", -6, 0)
+    if R.modeDrop.fallback then
+        R.modeDrop:SetText(R.ModeText())
+        R.modeDrop:SetScript("OnClick", function() R.NextMode() end)
+    end
+    R.settingsButton = UI.Button(c, L.SETTINGS_BUTTON, 110, function()
+        if ns.Settings then mod:Call("Einstellungen", ns.Settings.Toggle, "radar") end
+    end)
+    R.settingsButton:SetPoint("RIGHT", R.modeDrop, "LEFT", -6, 0)
     R.status = UI.Text(c, "small", "")
     R.status:SetPoint("TOPLEFT", 8, -8)
-    R.status:SetPoint("RIGHT", R.lotsButton, "LEFT", -12, 0)
+    R.status:SetPoint("RIGHT", R.settingsButton, "LEFT", -12, 0)
     if R.status.SetWordWrap then R.status:SetWordWrap(false) end
     local p = UI.Panel(c, "list", true)
     p:SetPoint("TOPLEFT", 0, -30)
@@ -1179,8 +1239,6 @@ function R.Build(c)
         onEnter = function(row, r) if r then R.RowTooltip(row, r) end end,
     })
     function R.list:GetItems() return self.items end
-    R.BuildLots(c)
-    R.view = "chances"
     R.Open()
 end
 
@@ -1201,7 +1259,7 @@ end
 function R.Open()
     R.LoadIfStale()
     R.Refresh()
-    R.RefreshLots()
+    R.Wake()   -- ab 0.71: Erneuern der gezeigten Moeglichkeiten
 end
 
 function R.Init()

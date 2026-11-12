@@ -14,6 +14,10 @@ Anmerkungen von KarloDerBaer nach dem ersten Blick ins Spiel, abgestimmt im Gesp
 - **Erste Abfrage im Fokus ist eine Suche** (Claude, Fehler bei der Flitzdistel): „Neu laden“ schickt das Spiel nur ab, wenn es schon Ergebnisse für den Gegenstand hat. Bleibt eine Antwort aus, wechselt Broker zwischen Suche und Neu laden.
 - **Absatz und Trend je Gegenstand 5 Minuten gemerkt** (Claude, Bildrate): Vorher rechnete jede Antwort im Fokus den ganzen Verlauf neu. Ob das Diagramm bleibt, entscheidet die Zeitmessung `/broker pruefen zeit` im Spiel.
 - **Unterbotene abbrechen unten neben Blizzards „Auktionsabbruch“** (Claude, auf die Frage von KarloDerBaer).
+- **Aufkauf nur für Massenware** (KarloDerBaer, Startwerte vorgeschlagen von Claude und bestätigt): mindestens 200 Stück im Angebot, 5 Preisstufen, 50 Stück Absatz am Tag, alles einstellbar. Einzelnes und wenig Angebotenes gehört später zur Art Spekulation.
+- **Radar-Scan wieder als Suche** (KarloDerBaer): Beobachten, Massenware oder Alles, zufällige Reihenfolge, bis zu etwa 92 Abfragen je Minute, solange der Radar offen und der Scan an ist. Das ändert die Auslegung vom 11.11.2026 („prüft nur die gezeigten Chancen“).
+- **Erneuern vor Suchen** (KarloDerBaer): Gezeigte Möglichkeiten werden zuerst erneuert (Vorgabe jede Minute). Reicht das Budget nicht, wird der Abstand bis 2 Minuten länger. Der Radar-Scan behält immer mindestens 20 % (Claude, damit eine lange Liste ihn nicht ganz verdrängt).
+- **Zum Einstellen unter Verkaufen mit sicherem Knopf** (KarloDerBaer zu Ort, Claude zum Weg): Ein sicherer Knopf klickt per Makro den Taschenplatz rechts an. So legt Blizzards eigener Code den Gegenstand hinein, ohne dass Broker Blizzards Werte berührt. Das löst die Abweichung „Kein Hineinlegen per Klick“ vom 12.11.2026 auf, wenn der Test im Spiel sauber ist.
 
 ## 12.11.2026: Stufe 2 des Neuaufbaus, Startwerte (Broker 0.65.0 bis 0.68.0)
 

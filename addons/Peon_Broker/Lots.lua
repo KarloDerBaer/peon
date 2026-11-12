@@ -255,7 +255,7 @@ end
 
 function LT.Changed()
     LT.UpdateSellTab()
-    if ns.Radar and ns.Radar.RefreshLots then ns.Radar.RefreshLots() end
+    LT.RefreshPanel()
     if ns.Focus and ns.Focus.Update then ns.Focus.Update() end
 end
 
@@ -301,6 +301,216 @@ function LT.Menu(row, owner)
     end)
 end
 
+---------------------------------------------------------------------------
+-- Zum Einstellen im Reiter Verkaufen (ab 0.71, KarloDerBaer 12.11.2026, vorher im Radar)
+-- Knopf "Zum Einstellen (n)" ueber Blizzards Angebotsliste rechts. Er legt Brokers Liste der Posten darueber
+-- (eigene Flaeche, Blizzards Liste bleibt darunter unberuehrt). Ein Klick waehlt einen Posten, der Gold-Knopf
+-- darunter legt ihn ins Verkaufsfenster: ein sicherer Knopf (SecureActionButtonTemplate) mit dem Makro
+-- "/click <Taschenplatz> RightButton". Das ist derselbe Klick wie der Rechtsklick in der Tasche, Blizzards eigener
+-- Code legt den Gegenstand hinein, Broker beruehrt keine Werte (Fehlerberichte 10 und 11). Findet Broker keinen
+-- Taschenplatz mit Namen, sagt der Hinweis "Rechtsklick in der Tasche".
+---------------------------------------------------------------------------
+local function AHF() local f = rawget(_G, "AuctionHouseFrame"); return type(f) == "table" and f or nil end
+
+-- Blizzards Liste rechts im Verkaufen (Massenware oder Einzelgegenstand), die gerade zu sehen ist
+function LT.SellList()
+    local f = AHF()
+    if not f then return nil end
+    for _, name in ipairs({ "CommoditiesSellList", "ItemSellList" }) do
+        local l = rawget(f, name)
+        if type(l) == "table" and l.IsShown and l:IsShown() then return l end
+    end
+    return nil
+end
+
+-- Steht Blizzards Auktionshaus gerade auf Verkaufen?
+function LT.InSell()
+    local f = AHF()
+    if not (f and f.IsShown and f:IsShown()) then return false end
+    for _, name in ipairs({ "CommoditiesSellFrame", "ItemSellFrame" }) do
+        local sf = rawget(f, name)
+        if type(sf) == "table" and sf.IsShown and sf:IsShown() then return true end
+    end
+    return false
+end
+
+-- Erster Taschenplatz mit diesem Gegenstand: bag, slot
+function LT.FindBagSlot(key)
+    local cc = rawget(_G, "C_Container")
+    if not (cc and cc.GetContainerNumSlots and cc.GetContainerItemID) then return nil end
+    local id = ns.Data.ItemID(key)
+    for bag = 0, 5 do
+        local ok, n = pcall(cc.GetContainerNumSlots, bag)
+        for slot = 1, (ok and tonumber(n)) or 0 do
+            local ok2, iid = pcall(cc.GetContainerItemID, bag, slot)
+            if ok2 and iid == id then
+                local info = cc.GetContainerItemInfo and select(2, pcall(cc.GetContainerItemInfo, bag, slot))
+                if not (type(info) == "table" and info.isLocked) then return bag, slot end
+            end
+        end
+    end
+    return nil
+end
+
+-- Taschenknopf mit Namen fuer bag/slot: Peon_Bags (PeonBagsItemN), sonst Blizzards Taschenfenster
+function LT.FindButton(bag, slot)
+    for i = 1, 400 do
+        local b = rawget(_G, "PeonBagsItem" .. i)
+        if b == nil then break end
+        if b.peonBag == bag and b.peonSlot == slot then return "PeonBagsItem" .. i end
+    end
+    for f = 1, 13 do
+        for i = 1, 40 do
+            local name = "ContainerFrame" .. f .. "Item" .. i
+            local b = rawget(_G, name)
+            if b == nil then break end
+            local okB, bb = pcall(function() return b.GetBagID and b:GetBagID() end)
+            local okS, ss = pcall(function() return b:GetID() end)
+            if okB and okS and bb == bag and ss == slot then return name end
+        end
+    end
+    return nil
+end
+
+local function InCombat() return InCombatLockdown and InCombatLockdown() or false end
+
+-- Posten waehlen: den sicheren Knopf auf seinen Taschenplatz richten
+function LT.Select(row)
+    LT.sel = row
+    local b = LT.postButton
+    if not b then return end
+    local text, ready = L.LOTS_POST, false
+    if not row then
+        text = L.LOTS_PICK
+    elseif not ((row.bags or 0) > 0) then
+        text = L.LOTS_IN_MAIL
+    elseif InCombat() then
+        text = L.LOTS_COMBAT
+    else
+        local bag, slot = LT.FindBagSlot(row.key)
+        local name = bag and LT.FindButton(bag, slot)
+        if name then
+            b:SetAttribute("type", "macro")
+            b:SetAttribute("macrotext", "/click " .. name .. " RightButton")
+            ready = true
+        else
+            text = L.LOTS_NO_SLOT
+        end
+    end
+    if not ready and not InCombat() then b:SetAttribute("type", nil); b:SetAttribute("macrotext", nil) end
+    b:SetText(text)
+    if ready then b:Enable() else b:Disable() end
+    LT.postHint:SetText(ready and "" or (row and ((row.bags or 0) > 0 and L.LOTS_HINT_POST or L.LOTS_HINT_MAIL) or ""))
+end
+
+function LT.BuildPanel()
+    if LT.toggle or not ns.AHTouch() then return end
+    local f, UI = AHF(), Peon.UI
+    if not (f and UI) then return end
+    -- Knopf ueber Blizzards Liste rechts
+    local t = UI.Button(f, L.LOTS_BUTTON:format(0), 170, function() LT.ShowPanel(not (LT.panel and LT.panel:IsShown())) end)
+    t:SetFrameLevel(520)
+    UI.SetTooltip(t, { L.LOTS_TITLE, L.LOTS_TIP })
+    t:Hide()
+    LT.toggle = t
+    -- Flaeche ueber Blizzards Liste
+    local p = CreateFrame("Frame", "PeonBrokerLotsPanel", f)
+    p:SetFrameLevel(370)
+    p:EnableMouse(true)
+    p:Hide()
+    LT.panel = p
+    local lp = UI.Panel(p, "list", true)
+    lp:SetPoint("TOPLEFT", 0, 0)
+    lp:SetPoint("BOTTOMRIGHT", 0, 34)
+    LT.list = UI.Table(lp, {
+        columns = {
+            { key = "name", title = L.COL_ITEM, sort = function(r) return ns.Window.Lower(r.name) end,
+              color = function(r) return UI.QualityColor(r.quality or 1) end },
+            { key = "qty", title = L.FOCUS_R_QTY, width = 54, align = "RIGHT" },
+            { key = "unit", title = L.LOTS_COL_COST, width = 84, align = "RIGHT",
+              format = function(v) return v and ns.Tooltip.Money(math.floor(v + 0.5)) or "|cff999999-|r" end },
+            { key = "target", title = L.FOCUS_R_TARGET, width = 84, align = "RIGHT", format = function(v) return v and ns.Tooltip.Money(v) or "?" end },
+            { key = "now", title = L.LOTS_COL_NOW, width = 84, align = "RIGHT",
+              format = function(v, r)
+                  if not v then return "|cff999999-|r" end
+                  local warn = r.target and v < r.target
+                  return (warn and "|cffff5555" or "") .. ns.Tooltip.Money(v) .. (warn and "|r" or "")
+              end },
+            { key = "bags", title = L.LOTS_COL_BAGS, width = 70, align = "RIGHT",
+              format = function(v) if v and v > 0 then return tostring(v) end return "|cff999999" .. L.LOTS_MAIL .. "|r" end },
+        },
+        sortKey = "name", icon = true, empty = L.LOTS_EMPTY,
+        onClick = function(r, button)
+            if button == "RightButton" then LT.Menu(r, LT.panel) else mod:Call("Posten", LT.Select, r) end
+        end,
+        onEnter = function(row, r)
+            if not r then return end
+            ns.Window.ShowItemTooltip(row, r.key)
+            if GameTooltip and r.target and r.now and r.now < r.target then
+                GameTooltip:AddLine(L.LOTS_UNDER_TARGET, 1, 0.4, 0.4, true)
+                GameTooltip:Show()
+            end
+        end,
+    })
+    function LT.list:GetItems() return self.items end
+    -- sicherer Knopf: legt den gewaehlten Posten per Klick ins Verkaufsfenster
+    local b = CreateFrame("Button", "PeonBrokerLotPostButton", p, "SecureActionButtonTemplate,UIPanelButtonTemplate")
+    b:SetSize(230, 24)
+    b:SetPoint("BOTTOMLEFT", 4, 5)
+    if b.RegisterForClicks then b:RegisterForClicks("AnyUp", "AnyDown") end
+    b:SetText(L.LOTS_PICK)
+    b:Disable()
+    LT.postButton = b
+    LT.postHint = UI.Text(p, "small", "", 300)
+    LT.postHint:SetPoint("LEFT", b, "RIGHT", 10, 0)
+    -- sichtbar nur auf Verkaufen: an Blizzards Verkaufsfenster haengen (sichere Anhaenge)
+    for _, name in ipairs({ "CommoditiesSellFrame", "ItemSellFrame", "CommoditiesSellList", "ItemSellList" }) do
+        local sf = rawget(f, name)
+        if type(sf) == "table" and sf.HookScript then
+            sf:HookScript("OnShow", function() mod:Call("Posten", LT.Place) end)
+            sf:HookScript("OnHide", function() mod:Call("Posten", LT.Place) end)
+        end
+    end
+    LT.Place()
+end
+
+-- Knopf und Flaeche an Blizzards sichtbare Liste legen, ausserhalb von Verkaufen verstecken
+function LT.Place()
+    if not LT.toggle then return end
+    local list = LT.InSell() and LT.SellList() or nil
+    if not list then
+        LT.toggle:Hide()
+        LT.panel:Hide()
+        return
+    end
+    LT.toggle:ClearAllPoints()
+    LT.toggle:SetPoint("BOTTOMRIGHT", list, "TOPRIGHT", 0, 4)
+    LT.toggle:Show()
+    LT.panel:ClearAllPoints()
+    LT.panel:SetPoint("TOPLEFT", list, "TOPLEFT", 0, 0)
+    LT.panel:SetPoint("BOTTOMRIGHT", list, "BOTTOMRIGHT", 0, 0)
+    LT.RefreshPanel()
+end
+
+function LT.ShowPanel(on)
+    if not LT.panel then return end
+    LT.panel:SetShown(on and LT.InSell() and true or false)
+    LT.RefreshPanel()
+end
+
+function LT.RefreshPanel()
+    if not LT.toggle then return end
+    local open = LT.panel:IsShown()
+    LT.toggle:SetText(open and L.LOTS_BACK or L.LOTS_BUTTON:format(LT.Count()))
+    if not open then return end
+    local rows = LT.Rows()
+    LT.list:SetData(rows)
+    -- gewaehlten Posten mit frischen Zahlen behalten
+    local sel
+    for _, r in ipairs(rows) do if LT.sel and r.lot == LT.sel.lot then sel = r end end
+    LT.Select(sel)
+end
+
 function LT.Init()
     LT.Prune()
     mod:RegisterEvent("AUCTION_HOUSE_SHOW", function()
@@ -321,5 +531,8 @@ function LT.Init()
     pcall(mod.RegisterEvent, mod, "AUCTION_CANCELED", function(_, id) mod:Call("Posten", LT.OnCanceled, id) end)
     mod:RegisterEvent("ADDON_ACTION_BLOCKED", function(_, addon, fn) mod:Call("Posten", LT.OnBlocked, "ADDON_ACTION_BLOCKED", addon, fn) end)
     mod:RegisterEvent("ADDON_ACTION_FORBIDDEN", function(_, addon, fn) mod:Call("Posten", LT.OnBlocked, "ADDON_ACTION_FORBIDDEN", addon, fn) end)
-    pcall(mod.RegisterEvent, mod, "BAG_UPDATE_DELAYED", function() if ns.Radar and ns.Radar.RefreshLots then mod:Call("Posten", ns.Radar.RefreshLots) end end)
+    pcall(mod.RegisterEvent, mod, "BAG_UPDATE_DELAYED", function() mod:Call("Posten", LT.RefreshPanel) end)
+    mod:RegisterEvent("AUCTION_HOUSE_SHOW", function() mod:Call("Posten", LT.BuildPanel) end)
+    mod:RegisterEvent("AUCTION_HOUSE_CLOSED", function() if LT.panel then LT.panel:Hide() end end)
+    mod:RegisterEvent("PLAYER_REGEN_ENABLED", function() if LT.sel then mod:Call("Posten", LT.Select, LT.sel) end end)
 end
