@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 12.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.18.0 / Broker 0.69.0 / Bridge 0.9.1 (bis 0.3.0 Peon_Client) / Peon Manager 0.26.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.0 / Bags 0.6.0 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 12.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.18.0 / Broker 0.69.0 / Bridge 0.9.1 (bis 0.3.0 Peon_Client) / Peon Manager 0.26.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.13.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.18.0, API 18
@@ -148,7 +148,7 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Verlauf der Versionen: `docs/changelog/Peon_Feedback.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.3.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Mover – 0.1.0 (neu, Fenster verschieben)
+## Peon_Mover – 0.1.1 (neu, Fenster verschieben)
 
 - Konzept: `Peon_Mover_Konzept.md` (abgestimmt 06.10.2026). Dateien: Locales.lua, Frames.lua, Mover.lua, Options.lua; Symbol `Ability_Rogue_Sprint`.
 - SavedVariables: `PeonMoverDB` (accountweit): `enabled` (Verschieben erlaubt, Standard an), `frames[Fenstername] = { x, y, s, off }` (x/y = linke obere Ecke in UIParent-Einheiten, s = Größe, off = Mover für dieses Fenster aus). `frames` bleibt bei „Standardwerte“ erhalten.
@@ -167,7 +167,7 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Verlauf der Versionen: `docs/changelog/Peon_Panel.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.4.0, 0.3.0, 0.2.0, 0.1.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Bags – 0.6.0 (neu, Taschen, Bank, Gildenbank)
+## Peon_Bags – 0.6.1 (neu, Taschen, Bank, Gildenbank)
 
 - Konzept: `Peon_Bags_Konzept.md` (abgestimmt 07.10.2026), eigene Bereiche `Peon_Bags_Bereiche.md` (abgestimmt 06.11.2026). Ersetzt Bagnon, Bagnon_Bank, Bagnon_GuildBank und BagBrother (Twinks zeigt Ledger).
 - Dateien: Locales.lua, Bags.lua, Groups.lua (ab 0.3), Slots.lua, Window.lua, Setup.lua (ab 0.5, Leiste „Einstellen“), Inventory.lua, Bank.lua, Guild.lua, Options.lua; Symbol `INV_Misc_Bag_08`.

@@ -96,7 +96,8 @@ local function Win(name, protected)
   function f:HookScript(n, fn) local old = self.scripts[n] if old then self.scripts[n] = function(...) old(...) fn(...) end else self.scripts[n] = fn end end
   function f:GetScale() return self.scale end
   function f:SetScale(s) if combat and self.protected then error("BLOCKIERT SetScale " .. name) end self.scale = s end
-  function f:GetEffectiveScale() return self.scale * 0.8 end
+  function f:GetEffectiveScale() return self.scale * 0.8 * (self.parentScale or 1) end
+  function f:SetParent(p) self.parentScale = p and p.scale or 1 end
   function f:GetLeft() return self.left end
   function f:GetTop() return self.top end
   function f:GetNumPoints() return #self.pts end
@@ -277,6 +278,19 @@ check(ns.list:GetSelected() and ns.list:GetSelected().name == "CharacterFrame" a
 ns.Toggle("CharacterFrame")
 mod:ResetDefaults()
 check(PeonMoverDB.frames.CharacterFrame ~= nil, "Standardwerte behalten die Fensterpositionen")
+
+-- ===== Winzig versteckt (Peon_Bags: Rahmen mit Groesse 0,001) und zurueckgeholt =====
+do
+  local s = PeonMoverDB.frames.CharacterFrame
+  char:Show()
+  local x0, y0 = char.left, char.top
+  char:SetParent({ scale = 0.001 })
+  Blizz(char, 16, -116)                       -- Blizzard setzt die Lage, waehrend das Fenster versteckt ist
+  check(char.left < 10000 and char.top < 10000, "0.1.1: versteckt keine riesigen Abstaende")
+  char:SetParent({ scale = 1 })
+  check(near(char.left, x0) and near(char.top, y0) and s.x, "0.1.1: nach dem Zurueckholen wieder an der gespeicherten Stelle")
+  char:Hide()
+end
 
 -- ===== Alle zuruecksetzen =====
 SlashCmdList.PEON("mover zuruecksetzen")

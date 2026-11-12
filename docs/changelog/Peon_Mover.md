@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.1.1
+
+Kurz: Ein verschobenes Bankfenster springt nicht mehr nach rechts oben, wenn du in Peon Bags auf „Blizzard“ klickst.
+
+- 0.1.1 (12.11.2026, gefunden beim Fehlerbericht zu Bags 0.6.0):
+  - **Fehler:** Peon_Bags versteckt Blizzards Bankfenster in einem Rahmen mit Größe 0,001. Setzte Blizzard dabei die Lage, wandte der Mover die gespeicherte Stelle an und teilte sie durch die Größe des Fensters gegenüber dem Bildschirm (0,001). Die Abstände wurden so tausendfach, nach dem Zurückholen („Blizzard“) schob das Spiel das Fenster an den Rand nach rechts oben.
+  - **Behebung:** Ist ein Fenster so winzig (unter 5 % der Bildschirmgröße), setzt der Mover keine Lage. Wird ein Fenster umgehängt (`SetParent`, mitgelesen), wendet er die gespeicherte Stelle neu an. So steht das Bankfenster nach „Blizzard“ wieder an der verschobenen Stelle. Gilt ebenso für die Gildenbank.
+  - **Im Spiel geprüft (KarloDerBaer, 12.11.2026):** Nach „Blizzard“ steht das Bankfenster wieder an der verschobenen Stelle.
+
 ## 0.1.0
 
 Kurz: Fenster verschieben und ihre Größe ändern, die Stellen bleiben gespeichert.

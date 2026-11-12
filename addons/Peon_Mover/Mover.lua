@@ -104,8 +104,11 @@ function ns.Apply(w)
     applying = true
     local ok, err = pcall(function()
         if s.s and math.abs((f:GetScale() or 1) - s.s) > 0.001 then f:SetScale(s.s) end
-        if s.x and s.y then
-            local r = Rel(f)
+        local r = Rel(f)
+        -- winzig versteckt (z. B. Peon_Bags haengt das Bankfenster in einen Rahmen mit Groesse 0,001): Abstaende
+        -- waeren das Tausendfache, nach dem Zurueckholen saesse das Fenster am Bildschirmrand. Dann nichts setzen,
+        -- das Umhaengen zurueck (SetParent) wendet die Lage erneut an.
+        if s.x and s.y and r >= 0.05 then
             f:ClearAllPoints()
             f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", s.x / r, s.y / r)
         end
@@ -271,6 +274,13 @@ local function OnSetPoint(f, ...)
     if s and not s.off and s.x then ns.Apply(w) end
 end
 
+-- Fenster umgehaengt (anderer Eltern-Rahmen, andere Gesamtgroesse): gespeicherte Lage neu anwenden
+local function OnSetParent(f)
+    if applying then return end
+    local w = byFrame[f]
+    if w and not w.moving and f:IsShown() then ns.Apply(w) end
+end
+
 local function OnSetScale(f, scale)
     if applying then return end
     local w = byFrame[f]
@@ -312,6 +322,7 @@ local function Hook(w)
         hooksecurefunc(f, "ClearAllPoints", OnClearAllPoints)
         hooksecurefunc(f, "SetPoint", OnSetPoint)
         hooksecurefunc(f, "SetScale", OnSetScale)
+        if f.SetParent then hooksecurefunc(f, "SetParent", OnSetParent) end
     end)
     if not ok then
         mod:ReportError("Einhaengen " .. w.name, err)
