@@ -2,6 +2,23 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.72.0
+
+Kurz: Unter Auktionen zeigt Broker jetzt eine eigene Liste deiner Auktionen mit der Spalte Broker (Günstigstes, unterboten, zu teuer, verkauft) und einem Filter zum Ausblenden. Blizzards Ansicht bleibt im Hintergrund, für Gebote gibt es den Knopf „Blizzard-Ansicht“.
+Kurz: In der Liste kannst du eine Auktion wählen und abbrechen oder im Markt zeigen.
+
+- 0.72.0 (12.11.2026): **Nachbesserungen Stufe 2, Schritt 5: eigene Liste der Auktionen** (Anmerkungen KarloDerBaer, 12.11.2026). Neue Datei `AuctionsOwn.lua`.
+  - **Liste über Blizzards Ansicht:** eigene Fläche (Ebene 370) über Blizzards Ansicht Auktionen, solange diese offen ist. Blizzards Ansicht bleibt darunter offen und lädt weiter, Broker schreibt nichts hinein.
+  - **Spalten:** Gegenstand, Menge, Preis je Stück, Broker (Status als echte Spalte, sortierbar in der Reihenfolge Günstigstes, Gleichauf, Unterboten, Zu teuer, Verkauft), Restzeit (Stunden und Minuten, sonst Blizzards Stufe kurz bis sehr lang).
+  - **Filter** (Auswahl mit Haken, mehrfach): Status ausblenden (`aucHide`). Die Zeile oben nennt, wie viele der Filter ausblendet.
+  - **Knöpfe:** Prüfen (wie bisher), Blizzard-Ansicht (für Gebote, `aucOwnList` aus, zurück mit „Broker-Liste“ in Blizzards Kopfzeile), Auktion abbrechen (gewählte, wird ein Posten, Ziel ist das günstigste fremde Angebot minus Unterbieten oder ohne fremdes Angebot der bisherige Preis, `Lots.CancelRow`), Unterbotene abbrechen (n), Im Markt zeigen.
+  - Daten neu nur bei Änderung (Unterschrift aus Nummer, Status, fremdem Preis), die Uhr der Kopfzeile läuft alle 0,3 Sek.
+  - Tests: 9 neue Prüfungen.
+  - **Im Spiel prüfen:**
+    1. Auktionen: Brokers Liste deckt Blizzards Ansicht ganz ab? Spalten, Sortierung, Filter.
+    2. Eine Auktion wählen und abbrechen: kommt sie als Posten unter Verkaufen „Zum Einstellen“?
+    3. Blizzard-Ansicht, dort Gebote, zurück mit „Broker-Liste“.
+
 ## 0.71.0
 
 Kurz: Aufkauf gilt nur noch für echte Massenware (Vorgabe ab 200 Stück, 5 Preisstufen und 50 Stück Absatz am Tag, einstellbar). Einzelne oder selten angebotene Gegenstände erscheinen nicht mehr als Aufkauf.

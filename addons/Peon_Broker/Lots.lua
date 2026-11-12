@@ -210,14 +210,19 @@ end
 -- Ein Klick: naechste unterbotene Auktion abbrechen. Der neue Zielpreis ist das guenstigste fremde Angebot minus
 -- Unterbieten (wie Verkaufen, F15).
 function LT.CancelNext()
-    local r = LT.NextUndercut()
+    return LT.CancelRow((LT.NextUndercut()))
+end
+
+-- ab 0.72: eine bestimmte Auktion abbrechen (Liste "Meine Auktionen"). Neues Ziel: guenstigstes fremdes Angebot
+-- minus Unterbieten, ohne fremdes Angebot der bisherige Preis.
+function LT.CancelRow(r)
     local ah = AHApi()
     if not r or not (ah and ah.CancelAuction) then return false end
     if Peon.InCombat and Peon.InCombat() then mod:Print(L.SELL_COMBAT); return false end
     local ok = pcall(ah.CancelAuction, r.id)
     if not ok then mod:Print(L.LOTS_CANCEL_FAILED); return false end
     local unit = Num(r.price) and r.qty and r.qty > 0 and r.price or nil
-    local target = Num(r.other) and ns.Data.Undercut(r.other, r.key, mod.db) or nil
+    local target = Num(r.other) and ns.Data.Undercut(r.other, r.key, mod.db) or unit
     LT.cancelling = { id = r.id, key = r.key, qty = r.qty or 1, target = target, unit = unit, name = r.name }
     return true
 end

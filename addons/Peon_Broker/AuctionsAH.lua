@@ -177,6 +177,7 @@ function X.Update()
     if not ns.AHTouch() then return end
     X.UpdateHeader()
     X.UpdateRows()
+    if ns.AuctionsOwn then ns.AuctionsOwn.Update() end
 end
 
 -- Eigene Auktionen neu lesen (Blizzard fragt sie beim Oeffnen des Reiters selbst ab)
@@ -237,6 +238,14 @@ function X.Build()
     end)
     cb:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     h.cancel = cb
+    -- ab 0.72: zurueck zu Brokers Liste "Meine Auktionen" (AuctionsOwn.lua)
+    local ob = CreateFrame("Button", nil, h, "UIPanelButtonTemplate")
+    ob:SetSize(120, 20)
+    ob:SetPoint("RIGHT", b, "LEFT", -6, 0)
+    ob:SetText(L.AUCO_OWN)
+    ob:SetScript("OnClick", function() if ns.AuctionsOwn then ns.AuctionsOwn.SetOn(true) end end)
+    ob:Hide()
+    h.own = ob
     -- eigene Uhr: nur solange der Reiter zu sehen ist
     local elapsed = 0
     h:SetScript("OnUpdate", function(_, dt)
@@ -247,6 +256,7 @@ function X.Build()
     end)
     h:SetScript("OnShow", function() mod:Call("Auktionen", X.OnOwned) end)
     X.header = h
+    if ns.AuctionsOwn then mod:Call("Auktionen", ns.AuctionsOwn.Build, af) end
     return true
 end
 

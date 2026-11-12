@@ -3563,6 +3563,57 @@ end)()
   S.Hide("radar")
 end)()
 
+-- ===== 0.72: eigene Liste der Auktionen ueber Blizzards Ansicht =====
+;(function()
+  local X, O = ns.AuctionsAH, ns.AuctionsOwn
+  local keepAH = AuctionHouseFrame
+  local ah = CreateFrame("Frame", "AuctionHouseFrame")
+  ah.AuctionsFrame = CreateFrame("Frame")
+  ah.AuctionsFrame.AllAuctionsList = CreateFrame("Frame")
+  X.header, O.panel, O.sel, O.sig = nil, nil, nil, nil
+  local keepRead = ns.Auctions.Read
+  ns.Auctions.Read = function() return ns.Auctions.rows end
+  ns.Auctions.rows = {
+    { id = 31, key = 2770, itemID = 2770, name = "Kupfererz", status = "under", other = 40, price = 50, qty = 20, left = 7200 },
+    { id = 32, key = 2589, itemID = 2589, name = "Leinen", status = "best", price = 70, qty = 5, band = 1 },
+    { id = 33, key = 2592, itemID = 2592, name = "Wolle", sold = true, price = 90, qty = 1 },
+  }
+  fire("AUCTION_HOUSE_SHOW")
+  check(O.panel and O.panel.shown and #O.list:GetItems() == 3, "0.72: Brokers Liste liegt ueber Blizzards Ansicht Auktionen")
+  local cols = {}
+  for _, c in ipairs(O.list.o.columns) do cols[#cols + 1] = c.title end
+  check(table.concat(cols, ",") == "Gegenstand,Menge,Preis je Stück,Broker,Restzeit", "0.72: Spalte Broker als echte Spalte: " .. table.concat(cols, ","))
+  check(plain(O.cancelUnder.text) == "Unterbotene abbrechen (1)" and O.cancelOne.disabled and O.market.disabled, "0.72: Knoepfe unten, ohne Auswahl gesperrt")
+  O.Hidden().best, O.Hidden().sold = true, true
+  O.Update(true)
+  check(#O.list:GetItems() == 1 and O.list:GetItems()[1].id == 31 and plain(O.summary.text):find("2 per Filter ausgeblendet", 1, true),
+    "0.72: Filter blendet Guenstigstes und Verkauft aus")
+  mod.db.aucHide = {}
+  O.Update(true)
+  local r
+  for _, x in ipairs(O.list:GetItems()) do if x.id == 32 then r = x end end
+  O.list.o.onClick(r, "LeftButton")
+  check(not O.cancelOne.disabled and not O.market.disabled, "0.72: Auswahl gibt Abbrechen und Im Markt zeigen frei")
+  local cancelled
+  local keepCancel = AHs.CancelAuction
+  AHs.CancelAuction = function(id) cancelled = id end
+  ns.Lots.cancelling = nil
+  O.cancelOne.scripts.OnClick(O.cancelOne)
+  check(cancelled == 32 and ns.Lots.cancelling and ns.Lots.cancelling.target == 70, "0.72: gewaehlte Auktion abbrechen, Ziel bleibt der eigene Preis ohne fremdes Angebot")
+  ns.Lots.cancelling = nil
+  AHs.CancelAuction = keepCancel
+  O.blizz.scripts.OnClick(O.blizz)
+  check(not O.panel.shown and X.header.own.shown and mod.db.aucOwnList == false, "0.72: Blizzard-Ansicht (Gebote), Knopf Broker-Liste fuehrt zurueck")
+  X.header.own.scripts.OnClick(X.header.own)
+  check(O.panel.shown and mod.db.aucOwnList == true, "0.72: zurueck zur Broker-Liste")
+  ah.AuctionsFrame.shown = false
+  O.Place()
+  check(not O.panel.shown, "0.72: nur sichtbar, solange Blizzards Ansicht Auktionen offen ist")
+  ns.Auctions.Read, ns.Auctions.rows = keepRead, {}
+  X.header, O.panel, O.sel = nil, nil, nil
+  AuctionHouseFrame = keepAH
+end)()
+
 -- Keine unerwarteten Fehlermeldungen
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("hat einen Fehler gemeldet", 1, true) then n = n + 1 end end  -- erwartete Meldung aus dem Verkaufen-Test
 check(n == 0, "keine Fehlermeldungen")
