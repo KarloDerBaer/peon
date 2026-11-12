@@ -569,6 +569,20 @@ function F.UpdateMeasure(v)
 end
 
 -- Text und Zustand des Kaufknopfs
+-- ab 0.78: Zeile "Menge, Kosten, Gewinn" immer zeigen, auch wenn der Knopf gesperrt ist (KarloDerBaer 12.11.2026).
+-- Ohne Werte stehen Striche da. Waehrend eines Kaufs steht dort der Stand des Kaufs.
+function F.Summary(d)
+    local qty, cost, gain
+    if d then
+        local best = d.best or {}
+        qty = Num(best.qty) and best.qty > 0 and best.qty or (Num(d.qty) and d.qty or nil)
+        cost = Num(best.cost) and best.cost or (Num(d.cost) and d.cost or nil)
+        gain = Num(best.gain) and best.gain or (Num(d.gain) and d.gain or nil)
+    end
+    return L.FOCUS_SUMMARY_S:format(qty and tostring(qty) or "-", cost and Money(cost) or "-",
+        gain and ns.Radar.SignedMoney(math.floor(gain + 0.5)) or "-")
+end
+
 local function BuyState(d)
     local R = ns.Radar
     local job = R.job
@@ -579,19 +593,15 @@ local function BuyState(d)
             info = L.FOCUS_CONFIRM:format(job.qty or 0, Money(job.total or 0))
             if job.warn then info = ORANGE .. L.FOCUS_PRICE_WARN:format(Money(job.total or 0), Money(job.expect or 0)) .. "|r" end
         elseif job.items then info = L.FOCUS_BOUGHT:format(job.done or 0, job.qty or 0, Money(job.cost or 0)) end
+        if info == "" then info = F.Summary(d) end
         return R.JobText(job), job.stage == "confirm" or job.stage == "next", info
     end
-    if not d or d.gone then return L.BUY_BUY, false, "" end
+    local info = F.Summary(d)
+    if not d or d.gone then return L.BUY_BUY, false, info end
     local qty = d.best and d.best.qty or 0
-    if not AHOpen() then return L.FOCUS_BUY:format(qty), false, L.TAB_AH_ONLY end
+    if not AHOpen() then return L.FOCUS_BUY:format(qty), false, info end
     -- ab 0.70: mit eigenem Ziel geht Kaufen auch ohne Gewinn (eigene Entscheidung), nur nicht ohne Menge oder Gold
-    if qty < 1 or d.cant then return L.BUY_BUY, false, "" end
-    -- ab 0.76: Kosten und erwarteter Gewinn direkt ueber dem Knopf, ab 0.77 mit der Menge davor
-    local best = d.best or {}
-    local info = ""
-    if Num(best.cost) and Num(best.gain) then
-        info = L.FOCUS_SUMMARY:format(qty, Money(best.cost), ns.Radar.SignedMoney(math.floor(best.gain + 0.5)))
-    end
+    if qty < 1 or d.cant then return L.BUY_BUY, false, info end
     return L.FOCUS_BUY:format(qty), job == nil, info
 end
 
@@ -612,7 +622,7 @@ function F.Update()
         F.tiers:SetData({})
         F.stand:SetText("")
         F.UpdateMeasure(nil)
-        F.buyButton:SetText(L.BUY_BUY); F.buyButton:Disable(); F.buyInfo:SetText("")
+        F.buyButton:SetText(L.BUY_BUY); F.buyButton:Disable(); F.buyInfo:SetText(F.Summary(nil))
         return
     end
     local D = ns.Data

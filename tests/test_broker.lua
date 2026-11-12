@@ -1304,6 +1304,7 @@ end
     ns.Go.Focus({ key = 2770, name = "Kupfererz" })
     check(F.key == 2770 and plain(F.verdict.text) == "WARTE" and F.buyButton.disabled and F.header.name.text == "Kupfererz" and Rd.focus.key == 2770
         and #F.tiers.items == 0, "N6/0.70: Gegenstand ohne Chance im Fokus: wird abgefragt, ohne Live-Antwort keine Preisstufen")
+    check(plain(F.buyInfo.text) == "Menge: -    Kosten: -    Gewinn: -", "0.78: Zeile Menge, Kosten, Gewinn auch ohne Werte, mit Strichen")
     -- ab 0.70: ohne Chance kaufen, Ziel = zweite Preisstufe, per Klick auf eine Stufe oder von Hand
     mod.acc.commodity[2770] = true
     LIVE[2770] = { { unitPrice = 100, quantity = 10 }, { unitPrice = 150, quantity = 5 }, { unitPrice = 200, quantity = 50 } }
@@ -1320,6 +1321,12 @@ end
     F.SetTargetTyped(105)
     check(F.ManualTarget(2770) == 105 and F.buyButton.text == "Kaufen 10" and plain(F.verdict.text) == "KEIN GEWINN" and not F.buyButton.disabled,
         "0.70: Ziel von Hand, kein Gewinn, kaufen geht trotzdem")
+    local keepMoney2 = GetMoney
+    GetMoney = function() return 500 end
+    F.Update()
+    check(F.buyButton.disabled and plain(F.buyInfo.text):find("Menge: 10    Kosten: 10s", 1, true), "0.78: Knopf grau (zu wenig Gold), die Zeile bleibt: " .. plain(F.buyInfo.text))
+    GetMoney = keepMoney2
+    F.Update()
     F.autoButton.scripts.OnClick(F.autoButton)
     check(F.ManualTarget(2770) == nil and F.buyButton.text == "Kaufen 10" and F.autoButton.disabled, "0.70: Auto nimmt das eigene Ziel zurueck")
     -- ab 0.76: Ziel 2s (Klick), Kaufen bis 1s (Rechtsklick): nur die unterste Stufe, Kosten und Gewinn ueber dem Knopf

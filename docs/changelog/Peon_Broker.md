@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.78.0
+
+Kurz: Im Fokus steht „Menge, Kosten, Gewinn“ über dem Kaufknopf jetzt immer, auch wenn der Knopf grau ist.
+
+- 0.78.0 (12.11.2026): **Zeile über dem Kaufknopf immer sichtbar** (Wunsch KarloDerBaer, 12.11.2026). Auch bei grauem Knopf (zu wenig Gold, nichts unter dem Ziel, Chance vorbei, unterwegs) stehen Menge, Kosten und Gewinn da, ohne Werte mit Strichen. Während eines Kaufs steht dort wie bisher der Stand des Kaufs. Unbenutzte Texte entfernt.
+  - Tests: 2 neue Prüfungen.
+  - **Im Spiel prüfen:** Zeile bleibt bei grauem Knopf, zum Beispiel mit einem Ziel, unter dem nichts angeboten wird.
+
 ## 0.77.0
 
 Kurz: Die linke Seite im Fokus ist neu geordnet: Art mit „Auto“, Ziel und Kaufen bis als Eingabefelder, darunter Üblich, Verkauft in und Risiko. Menge, Kosten und Gewinn stehen mittig über dem Kaufknopf.
