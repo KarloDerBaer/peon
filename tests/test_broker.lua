@@ -1161,6 +1161,13 @@ Buy.pending = nil   -- offene Abfrage aus den Tests der Einkaufsliste
     AuctionHouseFrame.SetDisplayMode, AuctionHouseFrame.GetDisplayMode, AHs.GetItemKeyInfo, AuctionHouseFrameDisplayMode = nil, nil, nil, nil
 end)()
 
+-- ab 0.77: Angaben links im Fokus als Text (Art, Ziel und Kaufen bis aus den Feldern, darunter die Zeilen)
+local function FocusText(F)
+  local parts = { "Art=" .. plain(F.kindValue.text or ""), "Ziel=" .. tostring(F.targetInput:GetAmount()), "Kaufen bis=" .. tostring(F.limitInput:GetAmount()) }
+  for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then parts[#parts + 1] = r.label.text .. "=" .. plain(r.value.text) end end
+  return table.concat(parts, "|")
+end
+
 -- ===== Neuaufbau N6 (0.64): Radar schlank, Seite Fokus =====
 ;(function()
     local F, T = ns.Focus, ns.AHTabs
@@ -1262,9 +1269,8 @@ end)()
     fire("COMMODITY_SEARCH_RESULTS_UPDATED", 7801)
     check(not F.buyButton.disabled and F.buyButton.text == "Kaufen 15", "N6: Kaufen bereit")
     check(F.header.name.text == "Billigzeug" and plain(F.verdict.text) == "KAUFEN" and F.stand.text:find("live", 1, true), "N6: Fokus mit Urteil, Markt live")
-    local fr = {}
-    for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr[#fr + 1] = r.label.text .. "=" .. plain(r.value.text) end end
-    check(table.concat(fr, "|") == "Art=Händler|Kaufen bis=3c|Menge=15|Einsatz=45c|Ziel=10c beim Händler|Üblich=unbekannt|Gewinn=+1s 5c", "N6: Angaben zur Chance: " .. table.concat(fr, "|"))
+    check(FocusText(F) == "Art=Händler|Ziel=10|Kaufen bis=3|Üblich=unbekannt" and plain(F.buyInfo.text) == "Menge: 15    Kosten: 45c    Gewinn: +1s 5c",
+        "0.77: Angaben zur Chance: " .. FocusText(F) .. " / " .. plain(F.buyInfo.text))
     check(#F.tiers.items == 2 and F.tiers.items[1].inBuy and not F.tiers.items[2].inBuy, "N6: Preisstufen aus der Live-Antwort, markiert was der Kauf nimmt")
     -- Kaufen: Preis vom Spiel, dann bestaetigen
     local started, confirmed
@@ -1308,11 +1314,9 @@ end)()
     check(plain(F.verdict.text) == "EIGENES ZIEL" and F.buyButton.text == "Kaufen 10" and not F.buyButton.disabled and #F.tiers.items == 3,
         "0.70: ohne Chance: alles unter der zweiten Stufe kaufen: " .. plain(F.verdict.text) .. " / " .. tostring(F.buyButton.text))
     F.tiers.o.onClick(F.tiers.items[3], "LeftButton")
-    local fr2 = {}
-    for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr2[#fr2 + 1] = r.label.text .. "=" .. plain(r.value.text) end end
-    check(F.ManualTarget(2770) == 200 and F.buyButton.text == "Kaufen 15" and not F.autoButton.disabled and F.targetInput:GetAmount() == 200
-        and table.concat(fr2, "|"):find("Art=Eigenes Ziel|Kaufen bis=1s 50c|Menge=15|Einsatz=17s 50c|Ziel=2s (eigenes)|Üblich=", 1, true),
-        "0.70: Klick auf eine Preisstufe macht sie zum Ziel: " .. table.concat(fr2, "|"))
+    check(F.ManualTarget(2770) == 200 and F.buyButton.text == "Kaufen 15" and not F.autoButton.disabled
+        and FocusText(F):find("Art=Eigenes Ziel|Ziel=200|Kaufen bis=150|Üblich=", 1, true),
+        "0.70: Klick auf eine Preisstufe macht sie zum Ziel: " .. FocusText(F))
     F.SetTargetTyped(105)
     check(F.ManualTarget(2770) == 105 and F.buyButton.text == "Kaufen 10" and plain(F.verdict.text) == "KEIN GEWINN" and not F.buyButton.disabled,
         "0.70: Ziel von Hand, kein Gewinn, kaufen geht trotzdem")
@@ -1322,17 +1326,16 @@ end)()
     F.tiers.o.onClick(F.tiers.items[3], "LeftButton")
     F.tiers.o.onClick(F.tiers.items[1], "RightButton")
     check(F.ManualTarget(2770) == 200 and F.ManualLimit(2770) == 100 and F.buyButton.text == "Kaufen 10" and F.limitInput:GetAmount() == 100
-      and plain(F.buyInfo.text) == "Kosten: 10s    Gewinn: +9s",
+      and plain(F.buyInfo.text) == "Menge: 10    Kosten: 10s    Gewinn: +9s",
       "0.76: Rechtsklick setzt Kaufen bis, Ziel bleibt, Kosten und Gewinn ueber dem Knopf: " .. plain(F.buyInfo.text))
-    local fr3 = {}
-    for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr3[#fr3 + 1] = r.label.text .. "=" .. plain(r.value.text) end end
-    check(table.concat(fr3, "|"):find("Kaufen bis=1s (eigenes)|Menge=10|", 1, true) and F.tiers.items[1].inBuy and not F.tiers.items[2].inBuy and F.tiers.items[3].isTarget,
-      "0.76: nur bis Kaufen bis gruen, Ziel gelb: " .. table.concat(fr3, "|"))
+    check(F.tiers.items[1].inBuy and not F.tiers.items[2].inBuy and F.tiers.items[3].isTarget
+      and F.tiers.o.rowBg(F.tiers.items[1]) == 0.25 and F.tiers.o.rowBg(F.tiers.items[2]) == nil and F.tiers.o.rowBg(F.tiers.items[3]) == 1,
+      "0.77: gekaufte Stufen blau, Ziel gelb, dazwischen nichts")
     F.SetLimitTyped(150)
     check(F.buyButton.text == "Kaufen 15", "0.76: Kaufen bis von Hand")
     F.autoButton.scripts.OnClick(F.autoButton)
-    check(F.ManualTarget(2770) == nil and F.ManualLimit(2770) == nil and F.limitInput:GetAmount() == 0 and F.buyButton.text == "Kaufen 10",
-      "0.76: Auto nimmt Ziel und Kaufen bis zurueck")
+    check(F.ManualTarget(2770) == nil and F.ManualLimit(2770) == nil and F.limitInput:GetAmount() == 100 and F.targetInput:GetAmount() == 150
+      and F.buyButton.text == "Kaufen 10", "0.76/0.77: Auto nimmt Ziel und Kaufen bis zurueck, die Felder zeigen wieder die geltenden Werte")
     LIVE[2770] = nil
     -- Reiter verlassen: Abfragen aus
     T.tabs.buy.scripts.OnClick(T.tabs.buy)
@@ -1431,12 +1434,9 @@ end)()
     GetMoney = function() return 1000000 end
     -- im Fokus
     ns.Go.Focus({ key = 7901 })
-    local fr = {}
-    for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr[#fr + 1] = r.label.text .. "=" .. plain(r.value.text) end end
-    local all = table.concat(fr, "|")
-    check(all:find("Art=Aufkauf", 1, true) and all:find("Kaufen bis=11s", 1, true) and all:find("Menge=80", 1, true)
-        and all:find("Ziel=15s", 1, true) and all:find("Verkauft in=etwa 1,6 Std.", 1, true) and all:find("Risiko=mittel", 1, true),
-        "H1: Angaben im Fokus: " .. all)
+    local all = FocusText(F)
+    check(all:find("Art=Aufkauf|Ziel=1500|Kaufen bis=1100|Üblich=9s bis 16s|Verkauft in=etwa 1,6 Std.|Risiko=mittel", 1, true)
+        and plain(F.buyInfo.text):find("Menge: 80", 1, true), "H1/0.77: Angaben im Fokus: " .. all .. " / " .. plain(F.buyInfo.text))
     local riskRow
     for _, r in ipairs(F.rows) do if r.label.text == "Risiko" then riskRow = r end end
     check(riskRow and riskRow.tip and riskRow.tip[1] == ns.L.RISK_W_SLOW, "H1: Gruende fuer das Risiko im Tooltip der Zeile")
@@ -3726,7 +3726,7 @@ end)()
   local keepKey, keepOpen = F.key, ns.Scan.ahOpen
   F.key, ns.Scan.ahOpen, F.since = 7982, true, 0
   local tiers = F.Tiers(50, 80)
-  check(tiers[2].isTarget and not tiers[1].isTarget and F.tiers.o.rowBg(tiers[2]) == 1 and F.tiers.o.rowBg(tiers[1]) == nil,
+  check(tiers[2].isTarget and not tiers[1].isTarget and F.tiers.o.rowBg(tiers[2]) == 1 and F.tiers.o.rowBg(tiers[1]) == 0.25,
     "0.74: Stufe zum Ziel mit gelbem Hintergrund")
   check(plain(F.BandText({ band = { low = 120, high = 160 } })) == "1s 20c bis 1s 60c", "0.74: ueblicher Bereich als Text")
   check(F.refreshButton == nil, "0.74: kein Knopf Jetzt pruefen mehr")

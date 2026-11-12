@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.77.0
+
+Kurz: Die linke Seite im Fokus ist neu geordnet: Art mit „Auto“, Ziel und Kaufen bis als Eingabefelder, darunter Üblich, Verkauft in und Risiko. Menge, Kosten und Gewinn stehen mittig über dem Kaufknopf.
+Kurz: Rechts sind die Angebote, die gekauft werden, blau hinterlegt, die Stufe des Ziels gelb.
+
+- 0.77.0 (12.11.2026): **Fokus neu geordnet** (Wunsch KarloDerBaer, 12.11.2026).
+  - Reihenfolge links: Urteil mit Satz, Leerzeile, Art mit Knopf „Auto“ dahinter (setzt Ziel und Kaufen bis und damit die Art zurück), Ziel mit Eingabefeld und „Linksklick“ (gelb), Kaufen bis mit Eingabefeld und „Rechtsklick“ (blau), Leerzeile, Üblich, Verkauft in, Risiko (mit Gründen im Tooltip), Leerzeile, „Menge: … Kosten: … Gewinn: …“ mittig über dem Kaufknopf, Kaufknopf, Im Markt zeigen und Gegenstand.
+  - Aus der Liste entfallen Kaufen bis, Menge, Einsatz, Ziel und Gewinn (stehen in den Feldern oder über dem Knopf).
+  - Die Eingabefelder zeigen immer die Werte, die gerade gelten, auch die einer Chance aus dem Radar. Wer ein Feld ändert, bekommt die Art „Eigenes Ziel“. Während man tippt, überschreibt Broker das Feld nicht.
+  - Preisstufen rechts: gekaufte Stufen (bis Kaufen bis) blau hinterlegt, die Stufe des Ziels gelb. Der grüne Preistext entfällt. Der Hinweis neben „Markt jetzt“ entfällt (steht jetzt hinter den Feldern).
+  - Tests: angepasst.
+  - **Im Spiel prüfen:** Anordnung links (nichts überlagert, Felder und Hinweise in einer Zeile), Werte einer Radar-Chance in den Feldern, Feld ändern ergibt „Eigenes Ziel“, „Auto“, blaue und gelbe Zeilen rechts.
+
 ## 0.76.0
 
 Kurz: Im Fokus gibt es das Feld „Kaufen bis“. Ein Rechtsklick auf eine Preisstufe setzt es, so kauft man nur bis dorthin und das Ziel bleibt höher.

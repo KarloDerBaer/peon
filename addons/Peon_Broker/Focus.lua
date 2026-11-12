@@ -263,7 +263,9 @@ function F.SellsText(d)
     return ns.Buyout.HoursText(d.hours)
 end
 
--- Angaben: Liste aus { Beschriftung, Wert, tip = Zeilen fuer den Tooltip }
+-- Angaben unter den Eingabefeldern: Liste aus { Beschriftung, Wert, tip = Zeilen fuer den Tooltip }.
+-- Ab 0.77 (KarloDerBaer 12.11.2026) nur noch Ueblich, Verkauft in, Risiko. Art steht in eigener Zeile mit "Auto",
+-- Ziel und Kaufen bis in den Eingabefeldern, Menge, Kosten und Gewinn ueber dem Kaufknopf.
 function F.Rows(d)
     local R = ns.Radar
     local rows = {}
@@ -280,23 +282,8 @@ function F.Rows(d)
         end
         if not d then return rows end
     end
-    local best = d.best or {}
-    rows[#rows + 1] = { L.RADAR_COL_KIND, d.own and L.FOCUS_KIND_OWN or (L["RADAR_KIND_" .. tostring(d.kind):upper()] or tostring(d.kind)) }
-    if Num(d.limit) then rows[#rows + 1] = { L.FOCUS_R_LIMIT, Money(d.limit) .. (d.ownLimit and (" " .. GREY .. L.FOCUS_OWN_MARK .. "|r") or "") } end
-    local all = Num(d.qty) and d.qty or 0
-    local qty = Num(best.qty) and best.qty or all
-    rows[#rows + 1] = { L.FOCUS_R_QTY, (qty < all and qty > 0) and L.FOCUS_QTY_OF:format(qty, all) or tostring(all) }
-    if Num(best.cost) then rows[#rows + 1] = { L.FOCUS_R_COST, Money(best.cost) } end
-    if Num(d.ref) then
-        local extra = ""
-        if d.kind == "vendor" then extra = " " .. GREY .. L.FOCUS_AT_VENDOR .. "|r"
-        elseif F.ManualTarget(d.key) then extra = " " .. GREY .. L.FOCUS_OWN_MARK .. "|r" end
-        rows[#rows + 1] = { L.FOCUS_R_TARGET, Money(d.ref) .. extra }
-    end
-    -- ab 0.74: ueblicher Bereich aus dem Verlauf (KarloDerBaer 12.11.2026)
     rows[#rows + 1] = { L.FOCUS_R_BAND, F.BandText(d) }
-    if Num(best.gain) then rows[#rows + 1] = { L.FOCUS_R_GAIN, R.SignedMoney(math.floor(best.gain + 0.5)) } end
-    if d.kind == "buyout" or d.own then   -- ab 0.65 (H1)
+    if d.kind == "buyout" or d.own then
         rows[#rows + 1] = { L.FOCUS_R_SELLS, F.SellsText(d) }
         if d.risk then
             rows[#rows + 1] = { L.RADAR_COL_RISK, (R.RISK_COLOR[d.risk] or "") .. (L["RADAR_RISK_" .. d.risk:upper()] or d.risk) .. "|r",
@@ -304,6 +291,33 @@ function F.Rows(d)
         end
     end
     return rows
+end
+
+-- Art als Text (Zeile "Art" mit "Auto" dahinter)
+function F.KindText(d)
+    if not d or d.gone then return "" end
+    if d.own then return L.FOCUS_KIND_OWN end
+    return L["RADAR_KIND_" .. tostring(d.kind):upper()] or tostring(d.kind)
+end
+
+-- Eingabefelder zeigen die Werte, die gerade gelten (ab 0.77). Nicht, waehrend man darin tippt.
+local function Typing(m)
+    if not m then return false end
+    for _, k in ipairs({ "gold", "silver", "copper" }) do
+        local e = m[k]
+        if e and e.HasFocus and e:HasFocus() then return true end
+    end
+    return false
+end
+
+function F.SyncInputs(d)
+    local live = d and not d.gone
+    for _, f in ipairs({ { F.targetInput, live and d.ref }, { F.limitInput, live and d.limit } }) do
+        local m, v = f[1], f[2]
+        if m and not Typing(m) then
+            if Num(v) and v > 0 then m:SetAmount(v) else ClearMoney(m) end
+        end
+    end
 end
 
 -- Ueblicher Bereich als Text ("1s 20c bis 1s 60c", sonst "unbekannt")
@@ -316,7 +330,8 @@ function F.BandText(d)
     return GREY .. L.FOCUS_BAND_NONE .. "|r"
 end
 
--- Preisstufen der letzten Live-Abfrage mit Summen; gruen, was der Kauf nimmt, gelb die Stufe des Ziels (ab 0.74)
+-- Preisstufen der letzten Live-Abfrage mit Summen. Ab 0.77 blau hinterlegt, was der Kauf nimmt (bis Kaufen bis),
+-- gelb die Stufe des Ziels.
 function F.Tiers(limit, target)
     local rows = F.LiveRows()
     local out = {}
@@ -333,8 +348,9 @@ end
 ---------------------------------------------------------------------------
 -- Anzeige
 ---------------------------------------------------------------------------
-F.ROW_Y, F.ROW_STEP = -146, 18   -- ab 0.74 dichter, Platz fuer den ueblichen Bereich
-
+F.ROW_Y, F.ROW_STEP = -246, 20   -- ab 0.77: Ueblich, Verkauft in, Risiko unter den Eingabefeldern
+F.KIND_Y, F.TARGET_Y, F.LIMIT_Y = -150, -180, -210
+F.BLUE = "|cff4da6ff"
 function F.Build(c)
     local UI = Peon.UI
     F.frame = c
@@ -353,8 +369,35 @@ function F.Build(c)
     F.verdict:SetPoint("TOPLEFT", 16, -88)
     F.why = UI.Text(left, "text", "", UI.LEFT_W - 32)
     F.why:SetPoint("TOPLEFT", 16, -110)
+    -- ab 0.77: Art mit "Auto", Ziel (Linksklick), Kaufen bis (Rechtsklick)
+    local function Label(text, y)
+        local t = UI.Text(left, "label", text)
+        t:SetWidth(UI.LABEL_W)
+        t:SetJustifyH("RIGHT")
+        t:SetPoint("TOPLEFT", 8, y)
+        return t
+    end
+    F.kindLabel = Label(L.RADAR_COL_KIND, F.KIND_Y)
+    F.kindValue = UI.Text(left, "text", "")
+    F.kindValue:SetPoint("TOPLEFT", F.kindLabel, "TOPRIGHT", 12, 0)
+    F.autoButton = UI.Button(left, L.FOCUS_AUTO, 60, function() F.ResetOwn() end)
+    F.autoButton:SetPoint("LEFT", F.kindValue, "RIGHT", 10, 0)
+    UI.SetTooltip(F.autoButton, { L.FOCUS_AUTO, L.FOCUS_AUTO_TIP })
+    F.targetLabel = Label(L.FOCUS_R_TARGET, F.TARGET_Y)
+    F.targetInput = UI.MoneyInput(left, function(amount) F.SetTargetTyped(amount) end)
+    if F.targetInput.SetScale then F.targetInput:SetScale(0.8) end
+    F.targetInput:SetPoint("LEFT", F.targetLabel, "RIGHT", 8 / 0.8, 0)
+    F.targetHint = UI.Text(left, "small", "|cffffd100" .. L.FOCUS_LEFT_CLICK .. "|r")
+    F.targetHint:SetPoint("LEFT", F.targetInput, "RIGHT", 4, 0)
+    F.limitLabel = Label(L.FOCUS_R_LIMIT, F.LIMIT_Y)
+    F.limitInput = UI.MoneyInput(left, function(amount) F.SetLimitTyped(amount) end)
+    if F.limitInput.SetScale then F.limitInput:SetScale(0.8) end
+    F.limitInput:SetPoint("LEFT", F.limitLabel, "RIGHT", 8 / 0.8, 0)
+    F.limitHint = UI.Text(left, "small", F.BLUE .. L.FOCUS_RIGHT_CLICK .. "|r")
+    F.limitHint:SetPoint("LEFT", F.limitInput, "RIGHT", 4, 0)
+
     F.rows = {}
-    for i = 1, 9 do
+    for i = 1, 4 do
         local r = {}
         r.label = UI.Text(left, "label", "")
         r.label:SetWidth(UI.LABEL_W)
@@ -377,33 +420,15 @@ function F.Build(c)
         F.rows[i] = r
     end
 
-    -- ab 0.70: eigenes Ziel (von Hand oder per Klick auf eine Preisstufe), "Auto" nimmt es zurueck
-    F.targetLabel = UI.Text(left, "label", L.FOCUS_OWN_TARGET)
-    F.targetLabel:SetWidth(UI.LABEL_W)
-    F.targetLabel:SetJustifyH("RIGHT")
-    F.targetLabel:SetPoint("BOTTOMLEFT", 8, 126)
-    F.targetInput = UI.MoneyInput(left, function(amount) F.SetTargetTyped(amount) end)
-    F.targetInput:SetPoint("LEFT", F.targetLabel, "RIGHT", 6, 0)
-    if F.targetInput.SetScale then F.targetInput:SetScale(0.8) end
-    -- ab 0.76: eigenes "Kaufen bis" (Rechtsklick auf eine Preisstufe), darunter
-    F.limitLabel = UI.Text(left, "label", L.FOCUS_R_LIMIT)
-    F.limitLabel:SetWidth(UI.LABEL_W)
-    F.limitLabel:SetJustifyH("RIGHT")
-    F.limitLabel:SetPoint("BOTTOMLEFT", 8, 98)
-    F.limitInput = UI.MoneyInput(left, function(amount) F.SetLimitTyped(amount) end)
-    F.limitInput:SetPoint("LEFT", F.limitLabel, "RIGHT", 6, 0)
-    if F.limitInput.SetScale then F.limitInput:SetScale(0.8) end
-    F.autoButton = UI.Button(left, L.FOCUS_AUTO, 52, function() F.ResetOwn() end)
-    F.autoButton:SetPoint("BOTTOMRIGHT", left, "BOTTOMRIGHT", -8, 111)
-    UI.SetTooltip(F.autoButton, { L.FOCUS_AUTO, L.FOCUS_AUTO_TIP })
-
     F.buyButton = UI.Button(left, L.BUY_BUY, UI.LEFT_W - 20, function()
         local d = F.Plan()
         if d then mod:Call("Radar", ns.Radar.BuyStep, d, "best") end
     end, "gold")
     F.buyButton:SetPoint("BOTTOMLEFT", 10, 40)
-    F.buyInfo = UI.Text(left, "small", "", UI.LEFT_W - 32)
-    F.buyInfo:SetPoint("BOTTOMLEFT", F.buyButton, "TOPLEFT", 6, 6)
+    -- ab 0.77: Menge, Kosten, Gewinn mittig ueber dem Knopf
+    F.buyInfo = UI.Text(left, "text", "", UI.LEFT_W - 20)
+    F.buyInfo:SetJustifyH("CENTER")
+    F.buyInfo:SetPoint("BOTTOM", F.buyButton, "TOP", 0, 6)
     local half = math.floor((UI.LEFT_W - 26) / 2)
     F.marketButton = ns.Go.MarketButton(left, half, function() return F.key ~= nil and { key = F.key } or nil end)   -- ab 0.73 sicher
     F.marketButton:SetPoint("BOTTOMLEFT", 10, 10)
@@ -426,14 +451,16 @@ function F.Build(c)
     -- ab 0.74 ohne "Jetzt pruefen": der Fokus fragt ohnehin laufend ab (KarloDerBaer 12.11.2026)
     F.tiers = UI.Table(right, {
         columns = {
-            { key = "price", title = L.ITEM_TIER_PRICE, align = "RIGHT", format = function(v) return Money(v) end,
-              color = function(r) if r.inBuy then return 0.38, 0.88, 0.38 end return 1, 1, 1 end },
+            { key = "price", title = L.ITEM_TIER_PRICE, align = "RIGHT", format = function(v) return Money(v) end },
             { key = "qty", title = L.ITEM_COL_QTY, width = 80, align = "RIGHT" },
             { key = "cum", title = L.ITEM_TIER_CUM, width = 80, align = "RIGHT" },
             { key = "cost", title = L.ITEM_TIER_COST, width = 110, align = "RIGHT", format = function(v) return Money(v) end },
         },
         sortKey = "price", empty = L.FOCUS_TIER_WAIT,
-        rowBg = function(r) if r and r.isTarget then return 1, 0.82, 0, 0.22 end end,   -- ab 0.74 (Kern API 19)
+        rowBg = function(r)   -- Kern API 19: Ziel gelb (ab 0.74), gekaufte Stufen blau (ab 0.77)
+            if r and r.isTarget then return 1, 0.82, 0, 0.22 end
+            if r and r.inBuy then return 0.25, 0.55, 1, 0.22 end
+        end,
         -- ab 0.70: Klick auf eine Preisstufe macht ihren Preis zum Ziel, ab 0.76 Rechtsklick zu "Kaufen bis"
         onClick = function(item, button)
             if not (item and Num(item.price)) then return end
@@ -559,11 +586,11 @@ local function BuyState(d)
     if not AHOpen() then return L.FOCUS_BUY:format(qty), false, L.TAB_AH_ONLY end
     -- ab 0.70: mit eigenem Ziel geht Kaufen auch ohne Gewinn (eigene Entscheidung), nur nicht ohne Menge oder Gold
     if qty < 1 or d.cant then return L.BUY_BUY, false, "" end
-    -- ab 0.76: Kosten und erwarteter Gewinn direkt ueber dem Knopf
+    -- ab 0.76: Kosten und erwarteter Gewinn direkt ueber dem Knopf, ab 0.77 mit der Menge davor
     local best = d.best or {}
     local info = ""
     if Num(best.cost) and Num(best.gain) then
-        info = L.FOCUS_COST_GAIN:format(Money(best.cost), ns.Radar.SignedMoney(math.floor(best.gain + 0.5)))
+        info = L.FOCUS_SUMMARY:format(qty, Money(best.cost), ns.Radar.SignedMoney(math.floor(best.gain + 0.5)))
     end
     return L.FOCUS_BUY:format(qty), job == nil, info
 end
@@ -580,6 +607,8 @@ function F.Update()
         F.verdict:SetText("")
         F.why:SetText(GREY .. L.FOCUS_EMPTY .. "|r")
         for _, r in ipairs(F.rows) do r.label:SetText(""); r.value:SetText("") end
+        F.kindValue:SetText("")
+        F.SyncInputs(nil)
         F.tiers:SetData({})
         F.stand:SetText("")
         F.UpdateMeasure(nil)
@@ -597,6 +626,8 @@ function F.Update()
     local text, color, why = F.Verdict(d)
     F.verdict:SetText(color .. text .. "|r")
     F.why:SetText(why or "")
+    F.kindValue:SetText(live and F.KindText(d) or "")
+    F.SyncInputs(live and d or nil)
     local rows = live and F.Rows(d) or {}
     for i, r in ipairs(F.rows) do
         r.label:SetText(rows[i] and rows[i][1] or "")
@@ -608,7 +639,7 @@ function F.Update()
     F.tiers:SetData(F.Tiers(limit, d and not d.gone and d.ref or nil))
     local _, t = F.LiveRows()
     if not live then F.stand:SetText(GREY .. L.TAB_AH_ONLY .. "|r")
-    elseif t then F.stand:SetText(L.FOCUS_LIVE:format(ns.Scan.Age(t)) .. "  " .. GREY .. L.FOCUS_CLICK_HINT .. "|r")
+    elseif t then F.stand:SetText(L.FOCUS_LIVE:format(ns.Scan.Age(t)))
     else F.stand:SetText(GREY .. L.FOCUS_LIVE_WAIT .. "|r") end
     F.UpdateMeasure(F.LiveValues())
     local label, enabled, info = BuyState(d)

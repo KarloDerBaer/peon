@@ -2,6 +2,12 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Fokus neu geordnet (Broker 0.77.0)
+
+- **Aufbau links nach Vorgabe von KarloDerBaer**, Risiko nach „Verkauft in“.
+- **Felder zeigen immer die geltenden Werte** (Vorschlag Claude, bestätigt): auch bei einer Chance aus dem Radar, ändern macht daraus ein eigenes Ziel, „Auto“ holt die Werte der Chance zurück.
+- **Gekaufte Stufen blau, Ziel gelb, kein grüner Preistext mehr** (KarloDerBaer, Vorschlag Claude bestätigt).
+
 ## 12.11.2026: Fokus mit Kaufen bis (Broker 0.76.0)
 
 - **Kaufen bis per Rechtsklick, Ziel per Linksklick** (KarloDerBaer): Man kann ein höheres Ziel wählen, ohne alles darunter zu kaufen. „Auto“ setzt beides zurück (Claude).
