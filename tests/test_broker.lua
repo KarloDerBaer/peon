@@ -1195,18 +1195,16 @@ end)()
     rows[1].seenT = clock - 4000
     check(Rd.Risk(rows[1]) == "mid", "N6: alter, nie live gepruefter Stand: mittleres Risiko")
     rows[1].seenT = clock
-    -- unterwegs: Klick oeffnet den Fokus mit letztem Stand
+    -- unterwegs (ab 0.70): Fokus nur am Auktionshaus. Klick merkt den Gegenstand, die Seite bleibt
+    local n0 = #out
     Rd.list.list.rows[1].scripts.OnClick(Rd.list.list.rows[1], "LeftButton")
-    check(Win.current == "focus" and F.key == 7801 and mod.acc.focusKey == 7801 and ns.Go.back == "radar" and Rd.focus == nil,
-        "N6: Klick im Radar oeffnet den Fokus mit diesem Gegenstand, unterwegs ohne Abfrage")
-    check(F.header.name.text == "Billigzeug" and plain(F.verdict.text) == "KAUFEN" and F.buyButton.disabled and F.buyButton.text == "Kaufen 20"
-        and F.stand.text:find(ns.L.ST_NOT_LIVE, 1, true), "N6: Fokus unterwegs: Urteil und Angaben, Kaufen gesperrt")
-    local fr = {}
-    for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr[#fr + 1] = r.label.text .. "=" .. plain(r.value.text) end end
-    check(table.concat(fr, "|") == "Art=Händler|Kaufen bis=3c|Menge=20|Einsatz=60c|Ziel=10c beim Händler|Gewinn=+1s 40c", "N6: Angaben zur Chance: " .. table.concat(fr, "|"))
-    check(#F.tiers.items == 2 and F.tiers.items[1].inBuy and not F.tiers.items[2].inBuy, "N6: Preisstufen, markiert was der Kauf nimmt")
-    Win.back.scripts.OnClick(Win.back)
-    check(Win.current == "radar", "N6: Zurueck zum Radar")
+    check(Win.current == "radar" and F.key == 7801 and mod.acc.focusKey == 7801 and Rd.focus == nil and #out > n0 and out[#out]:find("Auktionshaus", 1, true),
+        "0.70: unterwegs merkt der Klick im Radar den Gegenstand fuer den Fokus, die Seite bleibt")
+    local focusTab
+    for _, b in ipairs(Win.tabs) do if b.key == "focus" then focusTab = b end end
+    check(focusTab and focusTab.disabled and Win.AH_ONLY.focus, "0.70: Reiter Fokus unterwegs grau wie Verkaufen")
+    Win.Open("focus")
+    check(Win.current ~= "focus", "0.70: Fokus laesst sich unterwegs nicht oeffnen")
     Win.frame:Hide()
 
     -- am Auktionator
@@ -1244,6 +1242,11 @@ end)()
     check(Rd.pending and Rd.pending.key == 7801 and Rd.focus.at > now, "N6: Abfrage fuer den Fokus, naechste nach R.FOCUS_EVERY")
     fire("COMMODITY_SEARCH_RESULTS_UPDATED", 7801)
     check(not F.buyButton.disabled and F.buyButton.text == "Kaufen 15", "N6: Kaufen bereit")
+    check(F.header.name.text == "Billigzeug" and plain(F.verdict.text) == "KAUFEN" and F.stand.text:find("live", 1, true), "N6: Fokus mit Urteil, Markt live")
+    local fr = {}
+    for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr[#fr + 1] = r.label.text .. "=" .. plain(r.value.text) end end
+    check(table.concat(fr, "|") == "Art=Händler|Kaufen bis=3c|Menge=15|Einsatz=45c|Ziel=10c beim Händler|Gewinn=+1s 5c", "N6: Angaben zur Chance: " .. table.concat(fr, "|"))
+    check(#F.tiers.items == 2 and F.tiers.items[1].inBuy and not F.tiers.items[2].inBuy, "N6: Preisstufen aus der Live-Antwort, markiert was der Kauf nimmt")
     -- Kaufen: Preis vom Spiel, dann bestaetigen
     local started, confirmed
     local keepS, keepC = AHs.StartCommoditiesPurchase, AHs.ConfirmCommoditiesPurchase
@@ -1271,10 +1274,32 @@ end)()
     PeonBroker_RadarBuy()
     check(started and started[1] == 7803, "N6: Taste kaufen: Chance im Fokus")
     Rd.job = nil
-    -- ein Gegenstand ohne Chance im Fokus
+    -- ein Gegenstand ohne Chance im Fokus (ohne fruehere Live-Antwort aus anderen Tests)
+    ns.Buy.live[2770] = nil
     ns.Go.Focus({ key = 2770, name = "Kupfererz" })
-    check(F.key == 2770 and plain(F.verdict.text) == "KEINE CHANCE" and F.buyButton.disabled and F.header.name.text == "Kupfererz" and Rd.focus.key == 2770,
-        "N6: Gegenstand ohne Chance im Fokus: wird trotzdem abgefragt")
+    check(F.key == 2770 and plain(F.verdict.text) == "WARTE" and F.buyButton.disabled and F.header.name.text == "Kupfererz" and Rd.focus.key == 2770
+        and #F.tiers.items == 0, "N6/0.70: Gegenstand ohne Chance im Fokus: wird abgefragt, ohne Live-Antwort keine Preisstufen")
+    -- ab 0.70: ohne Chance kaufen, Ziel = zweite Preisstufe, per Klick auf eine Stufe oder von Hand
+    mod.acc.commodity[2770] = true
+    LIVE[2770] = { { unitPrice = 100, quantity = 10 }, { unitPrice = 150, quantity = 5 }, { unitPrice = 200, quantity = 50 } }
+    Rd.pending, Rd.lastSend, Rd.focus.at = nil, -100, 0
+    now = now + 1; tick()
+    check(Rd.pending and Rd.pending.key == 2770 and Rd.pending.focus, "0.70: Abfrage fuer den Fokus")
+    fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
+    check(plain(F.verdict.text) == "EIGENES ZIEL" and F.buyButton.text == "Kaufen 10" and not F.buyButton.disabled and #F.tiers.items == 3,
+        "0.70: ohne Chance: alles unter der zweiten Stufe kaufen: " .. plain(F.verdict.text) .. " / " .. tostring(F.buyButton.text))
+    F.tiers.o.onClick(F.tiers.items[3], "LeftButton")
+    local fr2 = {}
+    for _, r in ipairs(F.rows) do if (r.label.text or "") ~= "" then fr2[#fr2 + 1] = r.label.text .. "=" .. plain(r.value.text) end end
+    check(F.ManualTarget(2770) == 200 and F.buyButton.text == "Kaufen 15" and not F.autoButton.disabled and F.targetInput:GetAmount() == 200
+        and table.concat(fr2, "|"):find("Art=Eigenes Ziel|Kaufen bis=1s 50c|Menge=15|Einsatz=17s 50c|Ziel=2s (eigenes)|Gewinn=+11s", 1, true),
+        "0.70: Klick auf eine Preisstufe macht sie zum Ziel: " .. table.concat(fr2, "|"))
+    F.SetTargetTyped(105)
+    check(F.ManualTarget(2770) == 105 and F.buyButton.text == "Kaufen 10" and plain(F.verdict.text) == "KEIN GEWINN" and not F.buyButton.disabled,
+        "0.70: Ziel von Hand, kein Gewinn, kaufen geht trotzdem")
+    F.autoButton.scripts.OnClick(F.autoButton)
+    check(F.ManualTarget(2770) == nil and F.buyButton.text == "Kaufen 10" and F.autoButton.disabled, "0.70: Auto nimmt das eigene Ziel zurueck")
+    LIVE[2770] = nil
     -- Reiter verlassen: Abfragen aus
     T.tabs.buy.scripts.OnClick(T.tabs.buy)
     check(Rd.focus == nil and not Rd.loop, "N6: Fokus verlassen: keine Abfragen mehr")
@@ -1436,9 +1461,9 @@ end)()
     M.Stop()
     check(M.cur == nil and M.Saved(7951) and M.Saved(7951).under == 10 and M.Saved(9999) == nil, "H2: letzte Messung gemerkt")
     -- Einstellung und Abfrage-Abstand
-    mod.db.focusEvery = 7
-    check(Rd.FocusEvery() == 7, "H2: Abstand im Fokus einstellbar")
-    mod.db.focusEvery = 5
+    mod.db.focusRate = 30
+    check(Rd.FocusEvery() == 2, "0.70: Abfragen pro Minute einstellbar (30 = alle 2 Sek.)")
+    mod.db.focusRate = 12
     -- Fokus-Seite mit laufender Messung
     local keepOpen, keepStats, keepBand, keepMoney = ns.Scan.ahOpen, ns.Sales.Stats, D.Band, GetMoney
     ns.Sales.Stats = function() return { perHour = 50, level = 3 } end
@@ -1449,9 +1474,8 @@ end)()
     Rd.entries, Rd.gone, Rd.lastVisible, Rd.loaded = {}, {}, nil, nil
     Rd.LoadIfStale()
     check(Rd.entries[7952] and Rd.entries[7952].kind == "buyout", "H2: Aufkauf fuer den Fokus vorhanden")
-    Win.Open("focus")
-    F.Set(7952)
     ns.Scan.ahOpen = true
+    F.Set(7952)
     M.Start(7952)
     M.Add(7952, rowsOf({ { 1, 50, 1000 }, { 2, 30, 1100 }, { 3, 100, 1500 } }), 0)
     M.Add(7952, rowsOf({ { 1, 20, 1000 }, { 2, 30, 1100 }, { 3, 100, 1500 } }), 60)
@@ -1470,13 +1494,13 @@ end)()
     F.Update()
     check(Rd.job.warn and plain(F.buyInfo.text):find("Achtung", 1, true), "H2: Gesamtpreis ueber dem erwarteten: Warnung vor dem Bestaetigen")
     Rd.job = nil
-    -- unterwegs: gemerkte Messung, als alt markiert
+    -- unterwegs (ab 0.70): nichts Altes, nur der Hinweis
     M.Stop()
     ns.Scan.ahOpen = false
     F.Update()
-    check(F.mHead.text:find(ns.L.ST_NOT_LIVE, 1, true) and plain(F.mRows[3].value.text):find("5", 1, true) and plain(F.verdict.text) == "KAUFEN",
-        "H2: unterwegs die letzte Messung, nicht live, Urteil aus der Chance")
-    Win.frame:Hide()
+    check(plain(F.verdict.text) == "NUR AM AUKTIONSHAUS" and #F.tiers.items == 0 and F.buyButton.disabled and plain(F.mRows[3].value.text) == "",
+        "0.70: unterwegs keine alten Werte im Fokus")
+    if Win.frame then Win.frame:Hide() end
     ns.Scan.ahOpen, ns.Sales.Stats, D.Band, GetMoney = keepOpen, keepStats, keepBand, keepMoney
     market.items[7952] = nil
     Rd.entries, Rd.gone, Rd.lastVisible, Rd.loaded = {}, {}, nil, nil
@@ -1578,14 +1602,14 @@ end)()
     -- Fokus bewacht den eingestellten Posten
     check(ns.Measure.ChanceTarget(7961) == 1500, "H3: Messung im Fokus misst unter dem eigenen Preis")
     local keepOpen = ns.Scan.ahOpen
-    ns.Scan.ahOpen = false
-    Win.Open("focus")
+    ns.Scan.ahOpen = true   -- ab 0.70 zeigt der Fokus nur am Auktionshaus etwas
+    ns.Buy.live[7961] = nil
     F.Set(7961)
     check(plain(F.verdict.text) == "GEKAUFT" and plain(F.why.text):find("15s", 1, true), "H3: Fokus nach dem Kauf: Posten unterwegs mit Ziel")
     for _, x in ipairs(LT.List()) do if x ~= lot then x.left = 0 end end
     F.Update()
     check(plain(F.verdict.text) == "EINGESTELLT" and F.rows[3].label.text == L.FOCUS_R_POSTED, "H3: Fokus zeigt den eingestellten Posten")
-    Win.frame:Hide()
+    if Win.frame then Win.frame:Hide() end
     ns.Scan.ahOpen = keepOpen
     -- Unterbotene abbrechen
     local X = ns.AuctionsAH
@@ -3433,6 +3457,32 @@ end)()
   R.PerfReport()
   check(#out > n0 and next(R.perf) == nil, "0.69: Bericht zeigt und leert die Messung")
   debugprofilestop = keepClock
+end)()
+
+-- ===== 0.70: Fenster Einstellungen im Fokus, Grenzen der Messung einstellbar =====
+;(function()
+  local S, M = ns.Settings, ns.Measure
+  S.Toggle("focus")
+  local f = S.frames.focus
+  check(f and f:IsShown() and #f.controls == 7, "0.70: Fenster Einstellungen des Fokus mit 7 Reglern")
+  local rate
+  for _, c in ipairs(f.controls) do if c.row[2] == "focusRate" then rate = c end end
+  check(rate and plain(rate.value.text) == "12 (alle 5 Sek.)", "0.70: Abfragen pro Minute mit Abstand: " .. tostring(rate and plain(rate.value.text)))
+  local h = rate.frame.scripts and rate.frame.scripts.OnValueChanged
+  if h then h(rate.frame, 90) end
+  check(not h or (mod.db.focusRate == 90 and plain(rate.value.text) == "90 (alle 0,7 Sek.)"), "0.70: Regler schreibt den Wert")
+  mod.db.focusRate = 12
+  mod.db.focusWindow, mod.db.focusFirst = 3, 60
+  M.Sync()
+  check(M.WINDOW == 180 and M.FIRST == 60, "0.70: Grenzen der Messung aus den Einstellungen")
+  mod.db.focusWindow, mod.db.focusFirst = 10, 30
+  M.Sync()
+  S.Toggle("focus")
+  check(not f:IsShown(), "0.70: zweiter Klick schliesst das Fenster")
+  -- Umzug der alten Einstellung
+  local acc = { focusEvery = 10 }
+  mod.opts.migrate(mod, acc)
+  check(acc.focusRate == 6, "0.70: alter Abstand 10 Sek. wird 6 Abfragen pro Minute")
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

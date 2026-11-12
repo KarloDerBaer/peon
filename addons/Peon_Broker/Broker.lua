@@ -48,7 +48,24 @@ local mod = Peon:NewModule(ADDON_NAME, {
         radarFlash   = 5,       -- neue Treffer: Zeile pulsiert so viele Sekunden (ab 0.19)
         radarReserve = 0,       -- Goldreserve in Gold: so viel gibt der Radar nie aus (ab 0.19)
         buyoutHours  = 2,       -- Aufkauf (ab 0.65): Menge muss sich in so vielen Stunden wieder verkaufen
-        focusEvery   = 5,       -- Fokus (ab 0.66): Abstand der Abfragen in Sekunden
+        focusEvery   = 5,       -- Fokus (0.66 bis 0.69): Abstand der Abfragen in Sekunden, ab 0.70 focusRate
+        focusRate    = 12,      -- Fokus (ab 0.70): Abfragen je Minute (12 = alle 5 Sek.), bis 90 (Grenze des Spiels)
+        focusWindow  = 10,      -- Fokus (ab 0.70): Messwerte aus den letzten so vielen Minuten
+        focusFirst   = 30,      -- Fokus (ab 0.70): erstes, vorlaeufiges Urteil nach so vielen Sekunden
+        focusSure    = 120,     -- Fokus (ab 0.70): Urteil ohne "vorlaeufig" ab so vielen Sekunden
+        focusMore    = 20,      -- Fokus (ab 0.70): "Kaufen" erst, wenn der Abfluss so viel % ueber dem Zufluss liegt
+        focusGrow    = 10,      -- Fokus (ab 0.70): Menge unter Ziel waechst/schrumpft ab so viel %
+        focusPriceTol = 1,      -- Fokus (ab 0.70): Warnung, wenn der Gesamtpreis so viel % ueber dem erwarteten liegt
+        radarVendorOn = true,   -- Radar (ab 0.71): Art Haendler zeigen
+        radarBuyoutOn = true,   -- Radar (ab 0.71): Art Aufkauf zeigen
+        buyoutMinQty = 200,     -- Aufkauf (ab 0.71): Massenware erst ab so vielen Stueck im Angebot
+        buyoutMinLevels = 5,    -- Aufkauf (ab 0.71): und so vielen Preisstufen
+        buyoutMinSales = 50,    -- Aufkauf (ab 0.71): und so viel Absatz je Tag
+        radarRenew   = true,    -- Radar (ab 0.71): gezeigte Moeglichkeiten regelmaessig erneuern
+        radarRenewSec = 60,     -- Radar (ab 0.71): jede Moeglichkeit so oft live pruefen (Sekunden)
+        radarRenewMax = 120,    -- Radar (ab 0.71): reicht das Budget nicht, hoechstens so selten (Sekunden)
+        radarSearchPct = 20,    -- Radar (ab 0.71): so viel % der Abfragen bleiben immer fuer den Such-Scan
+        radarScanMode = "watch",-- Radar (ab 0.71): Such-Scan ueber Beobachten, Massenware oder alles
         keepAllChars = false,   -- Reiter Behalten: Vorrat aller Charaktere aus Peon_Ledger (ab 0.22)
         salesWindow  = 6,       -- Absatz (ab 0.23.1): aktueller Absatz aus den Vergleichen der letzten Stunden
         salesMidMin  = 60,      -- Sicherheit: ab so vielen beobachteten Minuten gelbes statt rotes Zeichen
@@ -74,11 +91,16 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  dealMinMarket = { 0, 100000, 1 }, dealScans = { 1, 50, 1 }, dealDays = { 1, 14, 1 }, radarMaxAge = { 0, 240, 5 },
                  dealMargin = { 0, 100, 5 }, dealDepth = { 5, 100, 5 }, dealHold = { 6, 168, 6 }, radarFlash = { 0, 30, 1 }, radarReserve = { 0, 1000000, 1 },
                  buyoutHours = { 1, 24, 1 }, focusEvery = { 3, 30, 1 },
+                 focusRate = { 2, 90, 1 }, focusWindow = { 2, 30, 1 }, focusFirst = { 10, 120, 5 }, focusSure = { 30, 600, 10 },
+                 focusMore = { 0, 100, 5 }, focusGrow = { 1, 50, 1 }, focusPriceTol = { 0, 10, 1 },
+                 buyoutMinQty = { 0, 100000, 10 }, buyoutMinLevels = { 2, 12, 1 }, buyoutMinSales = { 0, 100000, 5 },
+                 radarRenewSec = { 15, 600, 15 }, radarRenewMax = { 30, 1200, 30 }, radarSearchPct = { 0, 80, 5 },
                  salesWindow = { 1, 24, 1 }, salesMidMin = { 10, 600, 10 }, salesSureMin = { 20, 1440, 10 },
                  salesCancelPct = { 0, 50, 5 } },
     choices  = { undercutMode = { copper = true, percent = true }, undercutMassMode = { copper = true, percent = true },
                  duration = { [2] = true, [8] = true, [24] = true },
                  radarKind = { both = true, vendor = true, market = true },
+                 radarScanMode = { watch = true, mass = true, all = true },
                  craftListWhich = { all = true, profit = true, top3 = true, top5 = true, top10 = true },
                  craftListMode = { money = true, pct = true },
                  radarSoundKey = { raid = true, ready = true, alarm = true, tell = true },
@@ -88,6 +110,10 @@ local mod = Peon:NewModule(ADDON_NAME, {
                               browse = true, focus = true, more = true } },   -- ab 0.59 (Neuaufbau N1)   -- ab 0.51 neue Reiter   -- ab 0.28 mit "start", ohne "book"
     keepOnReset = { windowPos = true, windowTab = true, keepAllChars = true, ahPlain = true },
     migrate  = function(m, acc)
+        -- ab 0.70: Abstand im Fokus als Abfragen je Minute
+        if acc.focusRate == nil and type(acc.focusEvery) == "number" and acc.focusEvery > 0 and acc.focusEvery ~= 5 then
+            acc.focusRate = math.max(2, math.min(90, math.floor(60 / acc.focusEvery + 0.5)))
+        end
         if ns.Data then ns.Data.Migrate(acc) end
         if ns.Sales then ns.Sales.Migrate(acc) end
     end,

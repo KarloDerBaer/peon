@@ -37,6 +37,16 @@ M.GROW   = 0.10    -- Menge unter Ziel waechst / schrumpft ab 10 % (und mindeste
 M.KEEP   = 240     -- hoechstens so viele Abfragen merken (Diagramm)
 M.TOL    = 5       -- Sekunden Toleranz fuer abgelaufene Angebote
 
+-- ab 0.70: Grenzen aus den Einstellungen des Fokus (Fenster Einstellungen)
+function M.Sync()
+    local db = mod.db
+    M.WINDOW = (tonumber(db.focusWindow) or 10) * 60
+    M.FIRST  = tonumber(db.focusFirst) or 30
+    M.SURE   = math.max(M.FIRST, tonumber(db.focusSure) or 120)
+    M.MORE   = 1 + (tonumber(db.focusMore) or 20) / 100
+    M.GROW   = (tonumber(db.focusGrow) or 10) / 100
+end
+
 M.cur = nil        -- { key, t0, target, samples = { { t, offers, min, under, partial, maxP } }, pairs = { { t, gap, sold, newUnder, cancelled } } }
 
 local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
@@ -44,6 +54,10 @@ local function Now() return GetTime and GetTime() or time() end
 
 -- Zielpreis der Chance im Fokus (nil = keine Chance)
 function M.ChanceTarget(key)
+    -- ab 0.70: eigenes Ziel im Fokus geht vor
+    local F = ns.Focus
+    local own = F and F.ManualTarget and F.ManualTarget(key)
+    if Num(own) and own > 0 then return own end
     local R = ns.Radar
     local d = R and (R.entries[key])
     if d and Num(d.ref) and d.ref > 0 then return d.ref end
@@ -145,6 +159,7 @@ end
 -- { key, target, elapsed, n, out (je Min.), inUnder (je Min.), under, underTrend ("grow"/"same"/"shrink"),
 --   min, minTrend ("fall"/"same"/"rise"), every (tatsaechlicher Abstand in Sek.), moved }
 function M.Values(now)
+    M.Sync()
     local c = M.cur
     if not c or #c.samples == 0 then return nil end
     now = now or c.samples[#c.samples].t
@@ -183,7 +198,8 @@ end
 
 -- Urteil aus den Messwerten: "wait_first" (noch zu frueh), "buy", "wait", "away"; Satz; vorlaeufig
 function M.Verdict(v)
-    if not v or v.n < 2 or v.elapsed < M.FIRST then return "first", L.MEASURE_W_FIRST, true end
+    M.Sync()
+    if not v or v.n < 2 or v.elapsed < M.FIRST then return "first", L.MEASURE_W_FIRST:format(M.FIRST), true end
     local early = v.elapsed < M.SURE
     if v.underTrend == "grow" then return "away", L.MEASURE_W_GROW, early end
     if v.minTrend == "fall" then return "away", L.MEASURE_W_FALL, early end

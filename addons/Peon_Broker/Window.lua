@@ -33,7 +33,7 @@ W.TABS = {
     { key = "prices",   label = "NTAB_ITEM" },       -- Gegenstand
     { key = "more",     label = "NTAB_MORE" },       -- Mehr: Haendler, Neutral, Datenlage
 }
-W.AH_ONLY = { sell = true }                          -- unterwegs grau
+W.AH_ONLY = { sell = true, focus = true }   -- ab 0.70 auch der Fokus (nur Live-Daten, KarloDerBaer 12.11.2026)                          -- unterwegs grau
 W.BAR = { buy = true }                               -- Seiten mit oberer Leiste neben dem Bild
 W.DEFAULT = "prices"
 W.pages = {}          -- key -> { build = fn(content), refresh = fn(), enter = fn(), leave = fn() }

@@ -2,6 +2,26 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.70.0
+
+Kurz: Der Fokus arbeitet nur noch am Auktionshaus und zeigt nur Live-Angebote. Unterwegs merkt er sich den Gegenstand für den nächsten Besuch.
+Kurz: Im Fokus kannst du jetzt immer kaufen: Ein Klick auf eine Preisstufe oder ein eigenes Ziel kauft alles darunter, mit Menge, Einsatz, Gewinn und Verkaufsdauer.
+Kurz: Der Fokus fragt so oft ab, wie du willst (2 bis 90 Abfragen pro Minute), und hat ein Fenster „Einstellungen“ mit allen Grenzen für das Urteil.
+
+- 0.70.0 (12.11.2026): **Nachbesserungen Stufe 2, Schritt 2: Fokus nur live** (Anmerkungen KarloDerBaer, 12.11.2026). Neue Datei `Settings.lua`.
+  - **Nur am Auktionshaus:** Der Reiter Fokus ist unterwegs grau wie Verkaufen (`W.AH_ONLY`). „In den Fokus“ unterwegs (Menü, Klick im Radar) merkt den Gegenstand und sagt, dass der Fokus am Auktionshaus startet.
+  - **Nur Live-Daten:** Die Preisstufen rechts kommen aus der letzten Live-Abfrage dieses Besuchs (`Buy.live`, nicht älter als der neue Gegenstand und das Öffnen des Auktionshauses, `Scan.ahShownAt`), nie aus dem Komplettscan. Vor der ersten Antwort steht „Warte auf die erste Live-Antwort“. Die gemerkte Messung für unterwegs wird nicht mehr gezeigt.
+  - **Eigenes Ziel und Kaufen ohne Chance:** Feld „Eigenes Ziel“ (Geld eingeben) und Klick auf eine Preisstufe setzen das Ziel, „Auto“ nimmt es zurück. Gekauft wird alles unter dem Ziel (Art „Eigenes Ziel“), mit Kaufen bis, Menge, Einsatz, Gewinn, Verkaufsdauer und Risiko wie beim Aufkauf. Ohne Chance gilt die zweite Preisstufe als Ziel. Kaufen geht auch ohne Gewinn („KEIN GEWINN“ in Orange), nur nicht ohne Menge oder Gold. Der Kauf wird wie ein Aufkauf ein Posten zum Einstellen. Ein neues Ziel beginnt die Messung neu, weil „Menge unter Ziel“ für ein Ziel gilt. Eine eben weggefallene Chance zeigt „VORBEI“, bis man ein eigenes Ziel wählt.
+  - **Abfragen pro Minute:** neue Einstellung `focusRate` (2 bis 90, Vorgabe 12 = alle 5 Sek.) ersetzt `focusEvery`. Ein geänderter alter Wert wird umgerechnet. Der Kopf der Messung zeigt den Abstand mit Komma.
+  - **Fenster Einstellungen** (Knopf neben „Jetzt prüfen“): Abfragen pro Minute, Messwerte aus den letzten n Minuten (`focusWindow`), erstes Urteil nach (`focusFirst`), sicheres Urteil nach (`focusSure`), Vorsprung des Abflusses (`focusMore`), Menge wächst ab (`focusGrow`), Warnung beim Kauf ab (`focusPriceTol`). Die Werte waren bisher feste Startwerte in `Measure.lua`.
+  - **Diagramm** zeichnet nur noch neu, wenn eine neue Abfrage dazukam.
+  - Tests: 21 neue oder geänderte Prüfungen.
+  - **Im Spiel prüfen:**
+    1. Unterwegs: Reiter Fokus grau, „In den Fokus“ meldet sich im Chat.
+    2. Am Auktionshaus: Fokus zeigt erst „Warte“, dann live die Preisstufen.
+    3. Klick auf eine Preisstufe: Ziel, Menge, Gewinn, Kaufen. Ziel von Hand, „Auto“.
+    4. Einstellungen: Abfragen pro Minute auf 30, 60 und 90 stellen und „tatsächlich … Sek.“ im Kopf der Messung ansehen. Ab wann meldet das Spiel Fehler oder bleiben Antworten aus?
+
 ## 0.69.0
 
 Kurz: Der Fokus misst jetzt auch Gegenstände, die nicht aus dem Radar kommen (vorher blieb er bei „beginnt mit der nächsten Abfrage“ stehen).

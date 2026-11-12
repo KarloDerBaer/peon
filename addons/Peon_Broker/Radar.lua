@@ -27,8 +27,9 @@ R.WAIT      = 1      -- Sekunden: so lange auf eine Antwort warten (Antworten ko
 R.RECHECK   = 15     -- Sekunden: Treffer spaetestens so oft nachpruefen
 R.FRESH     = 10     -- Sekunden: so alt darf die Pruefung vor einem Kauf sein (Einzelgegenstand)
 R.NEW_TIME  = 60     -- Sekunden: so lange gilt ein Treffer als "neu" (gruen)
--- ab 0.66 (H2): Abstand der Abfragen im Fokus aus der Einstellung focusEvery (Vorgabe 5, 3 bis 30 Sekunden)
-function R.FocusEvery() return tonumber(mod.db.focusEvery) or 5 end
+-- Abstand der Abfragen im Fokus in Sekunden. Ab 0.70 aus focusRate (Abfragen je Minute, 2 bis 90, Vorgabe 12).
+function R.FocusEvery() return 60 / math.max(1, tonumber(mod.db.focusRate) or 12) end
+function R.PriceTol() return (tonumber(mod.db.focusPriceTol) or 1) / 100 end
 R.PRICE_TOL = 0.01   -- ab 0.66: Gesamtpreis des Spiels mehr als 1 % ueber dem erwarteten -> Warnung vor dem zweiten Klick
 R.KIND_ON = { vendor = true, buyout = true }   -- Arten im Radar (N6 nur Haendler, ab 0.65 dazu Aufkauf)
 R.GONE_TIME = 30     -- Sekunden: so lange bleibt ein weggefallener Treffer grau mit Grund in der Liste (ab 0.20)
@@ -819,7 +820,7 @@ function R.OnPriceUpdated(unitPrice, totalPrice)
     end
     job.total, job.unit = totalPrice, unitPrice
     -- ab 0.66: Gesamtpreis hoeher als erwartet -> Warnung vor dem zweiten Klick (Konzept 6.1)
-    job.warn = (Num(totalPrice) and Num(job.expect) and job.expect > 0 and totalPrice > job.expect * (1 + R.PRICE_TOL)) or nil
+    job.warn = (Num(totalPrice) and Num(job.expect) and job.expect > 0 and totalPrice > job.expect * (1 + R.PriceTol())) or nil
     job.stage = "confirm"
     R.UpdateView()
 end
@@ -834,7 +835,8 @@ function R.FinishJob(ok)
     if n > 0 then
         mod:Print(L.BUY_DONE:format(n, job.name, cost and Money(cost) or "?"))
         -- ab 0.67 (H3): ein Aufkauf wird ein Posten zum Einstellen (kommt per Post)
-        if job.kind == "buyout" and ns.Lots then ns.Lots.Add(job.key, n, cost, job.target, "radar") end
+        -- ab 0.70 auch ein Kauf mit eigenem Ziel im Fokus
+        if (job.kind == "buyout" or job.kind == "own") and ns.Lots then ns.Lots.Add(job.key, n, cost, job.target, "radar") end
     end
     -- Rest pruefen lassen: Treffer bleibt, bis die naechste Abfrage zeigt, was noch da ist
     local d = R.entries[job.key]

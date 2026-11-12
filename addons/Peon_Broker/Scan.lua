@@ -377,6 +377,7 @@ end
 function S.Init()
     mod:RegisterEvent("AUCTION_HOUSE_SHOW", function()
         S.ahOpen = true
+        S.ahShownAt = time()   -- ab 0.70: der Fokus zeigt nur Live-Daten aus diesem Besuch
         S.CreateButton()
         S.UpdateButton()
         mod:Call("Taschen", ns.Data.CheckBags)

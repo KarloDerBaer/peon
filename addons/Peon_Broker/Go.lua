@@ -88,6 +88,12 @@ function Go.Focus(item)
         mod:Print(L.GO_NONE)
         return false
     end
+    -- ab 0.70: der Fokus arbeitet nur am Auktionshaus. Unterwegs merkt Broker den Gegenstand fuer den naechsten Besuch.
+    if not ns.Window.AtAH() then
+        ns.Focus.Set(key)
+        mod:Print(L.FOCUS_LATER:format(tostring(item.name or ns.Data.ItemName(key) or key)))
+        return true
+    end
     local from = Go.Here()
     Go.jumping = true
     local ok, err = pcall(function()

@@ -2,6 +2,19 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Nachbesserungen nach dem ersten Test von Stufe 2 (Broker 0.69.0 bis 0.75.0)
+
+Anmerkungen von KarloDerBaer nach dem ersten Blick ins Spiel, abgestimmt im Gespräch am 12.11.2026.
+
+- **Fokus nur am Auktionshaus und nur live** (KarloDerBaer): Unterwegs ist der Reiter grau wie Verkaufen, die Preisstufen kommen nur aus Live-Abfragen dieses Besuchs. „In den Fokus“ unterwegs merkt den Gegenstand für den nächsten Besuch (Claude).
+- **Kaufen im Fokus immer möglich** (KarloDerBaer): eigenes Ziel von Hand oder per Klick auf eine Preisstufe, gekauft wird alles unter dem Ziel. Ohne Chance gilt die zweite Preisstufe als Ziel (wie bisher in der Messung). Kaufen geht auch ohne Gewinn, nur nicht ohne Menge oder Gold. Der Kauf wird ein Posten wie ein Aufkauf (Claude).
+- **Ein neues Ziel beginnt die Messung neu** (Claude): „Menge unter Ziel“ und „Zufluss unter Ziel“ gelten für ein bestimmtes Ziel, alte Werte würden sonst ein falsches Urteil geben.
+- **Abfragen pro Minute statt Sekunden** (KarloDerBaer): 2 bis 90, Vorgabe 12 (alle 5 Sek.). 90 ist die Grenze, die das Spiel ungefähr annimmt. Ob das im Spiel geht, zeigt erst der Test.
+- **Grenzen des Urteils einstellbar** (KarloDerBaer: „alle relevanten Einstellungen“): Fenster der Messung, erstes und sicheres Urteil, Vorsprung des Abflusses, Wachstum der Menge, Warnung beim Kauf. Startwerte wie am 12.11.2026 festgelegt.
+- **Erste Abfrage im Fokus ist eine Suche** (Claude, Fehler bei der Flitzdistel): „Neu laden“ schickt das Spiel nur ab, wenn es schon Ergebnisse für den Gegenstand hat. Bleibt eine Antwort aus, wechselt Broker zwischen Suche und Neu laden.
+- **Absatz und Trend je Gegenstand 5 Minuten gemerkt** (Claude, Bildrate): Vorher rechnete jede Antwort im Fokus den ganzen Verlauf neu. Ob das Diagramm bleibt, entscheidet die Zeitmessung `/broker pruefen zeit` im Spiel.
+- **Unterbotene abbrechen unten neben Blizzards „Auktionsabbruch“** (Claude, auf die Frage von KarloDerBaer).
+
 ## 12.11.2026: Stufe 2 des Neuaufbaus, Startwerte (Broker 0.65.0 bis 0.68.0)
 
 Grenzwerte, die das Konzept offen lässt, mit Startwert von Claude. Mit echten Daten nachzuschärfen, KarloDerBaer prüft im Spiel.
