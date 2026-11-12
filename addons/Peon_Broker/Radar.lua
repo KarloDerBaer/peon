@@ -429,10 +429,36 @@ function R.NextSearch(peek)
     return nil
 end
 
--- Abfrage-Schleife: laeuft fuer Fokus, Erneuern, Radar-Scan und die zweite Pruefung "keine Angebote"
+-- Beobachten (ab 0.83, KarloDerBaer 12.11.2026): Solange der Reiter Beobachten am Auktionator offen ist, fragt Broker
+-- alle beobachteten Gegenstaende reihum ab, so schnell es geht, der am laengsten nicht gepruefte zuerst.
+-- Jede Antwort aktualisiert den Preis und prueft die Alarme (Kaufen bis, Zielpreis).
+R.watchSent = {}   -- key -> Zeit der letzten Abfrage (Reihenfolge)
+R.watchAt = {}     -- key -> Zeit der letzten Antwort (Spalte Stand)
+function R.WatchShown()
+    return ns.WatchPage ~= nil and ns.WatchPage.Shown ~= nil and ns.WatchPage.Shown()
+end
+
+function R.Watching()
+    return AHOpen() and R.WatchShown() and next(ns.Watch and ns.Watch.Store() or {}) ~= nil
+end
+
+-- Naechster beobachteter Gegenstand (am laengsten nicht abgefragt zuerst), sonst nil
+function R.NextWatch()
+    local best, bestT
+    for key in pairs(ns.Watch.Store()) do
+        if ns.Buy.KnownKey(key) and not R.skip[key] then
+            local t = R.watchSent[key] or -1e9
+            if not best or t < bestT or (t == bestT and tostring(key) < tostring(best)) then best, bestT = key, t end
+        end
+    end
+    if best ~= nil then R.watchSent[best] = Now(); R.watchCur = best end
+    return best
+end
+
+-- Abfrage-Schleife: laeuft fuer Fokus, Erneuern, Radar-Scan, Beobachten und die zweite Pruefung "keine Angebote"
 function R.Wake()
     if R.loop or not AHOpen() or ns.Scan.state then return end
-    if not (R.running or R.focus or R.soon or R.Renewing()) then return end
+    if not (R.running or R.focus or R.soon or R.Renewing() or R.Watching()) then return end
     R.loop = true
     R.gen = (R.gen or 0) + 1
     R.Schedule()
@@ -513,6 +539,10 @@ function R.NextKey()
     local soon = R.soon
     if soon and R.entries[soon.key] and Now() >= soon.at then R.soon = nil; return soon.key, "soon" end
     if soon and not R.entries[soon.key] then R.soon = nil end
+    if R.Watching() then   -- ab 0.83: Reiter Beobachten offen, nur die Beobachtung
+        local wk = R.NextWatch()
+        if wk ~= nil then return wk, "watch" end
+    end
     local rk = R.Renewing() and R.NextRenew() or nil
     local sk = R.running and R.NextSearch(true) or nil
     local mix = R.mix or { renew = 0, search = 0 }
@@ -617,7 +647,8 @@ function R.Tick()
             R.stats.notCached = (R.stats.notCached or 0) + 1
         elseif key ~= nil then
             R.Send(key)
-        elseif not R.running and not R.focus and not R.soon and not R.Renewing() then
+        elseif not R.running and not R.focus and not R.soon and not R.Renewing() and not R.Watching() then
+            R.watchCur = nil
             R.loop = false
             R.UpdateView()
             return
@@ -713,6 +744,12 @@ function R.Apply(p, rows, commodity, cached)
     if not cached then
         ns.Buy.live[p.key] = { rows = rows, t = time(), commodity = commodity }
         R.Perf("daten", ns.Data.ApplyLive, p.key, rows, time())
+    end
+    -- ab 0.83: beobachteter Gegenstand: Stand merken, Alarme pruefen, Liste neu zeigen
+    if ns.Watch and ns.Watch.Is(p.key) then
+        R.watchAt[p.key] = Now()
+        if not cached then mod:Call("Beobachtung", ns.Watch.Check, { p.key }) end
+        if ns.WatchPage and ns.WatchPage.Shown and ns.WatchPage.Shown() then mod:Call("Beobachten", ns.WatchPage.Refresh) end
     end
     if rows.partial then R.stats.partial = (R.stats.partial or 0) + 1 end
     -- ab 0.66 (H2): Antwort auf die Abfrage im Fokus in die Messung
@@ -1374,7 +1411,7 @@ function R.Shown()
 end
 
 function R.Active()
-    return R.Shown() or (ns.Focus ~= nil and ns.Focus.Shown())
+    return R.Shown() or (ns.Focus ~= nil and ns.Focus.Shown()) or R.WatchShown()
 end
 
 -- Treffer, die das Radar gerade zeigen wuerde (fuer die Zahl am Reiter)

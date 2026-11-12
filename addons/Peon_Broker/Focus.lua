@@ -454,13 +454,13 @@ function F.Build(c)
     F.targetInput = UI.MoneyInput(left, function(amount) F.SetTargetTyped(amount) end)
     if F.targetInput.SetScale then F.targetInput:SetScale(0.8) end
     F.targetInput:SetPoint("LEFT", F.targetLabel, "RIGHT", 8 / 0.8, 0)
-    F.targetHint = UI.Text(left, "small", "|cffffd100" .. L.FOCUS_LEFT_CLICK .. "|r")
+    F.targetHint = UI.Text(left, "small", "|cffffd100" .. L.FOCUS_RIGHT_CLICK .. "|r")   -- ab 0.83 Rechtsklick (vorher Linksklick)
     F.targetHint:SetPoint("LEFT", F.targetInput, "RIGHT", 4, 0)
     F.limitLabel = Label(L.FOCUS_R_LIMIT, F.LIMIT_Y)
     F.limitInput = UI.MoneyInput(left, function(amount) F.SetLimitTyped(amount) end)
     if F.limitInput.SetScale then F.limitInput:SetScale(0.8) end
     F.limitInput:SetPoint("LEFT", F.limitLabel, "RIGHT", 8 / 0.8, 0)
-    F.limitHint = UI.Text(left, "small", F.BLUE .. L.FOCUS_RIGHT_CLICK .. "|r")
+    F.limitHint = UI.Text(left, "small", F.BLUE .. L.FOCUS_LEFT_CLICK .. "|r")   -- ab 0.83 Linksklick (vorher Rechtsklick)
     F.limitHint:SetPoint("LEFT", F.limitInput, "RIGHT", 4, 0)
 
     F.rows = {}
@@ -535,10 +535,11 @@ function F.Build(c)
             if r and r.isTarget then return 1, 0.82, 0, 0.22 end
             if r and r.inBuy then return 0.25, 0.55, 1, 0.22 end
         end,
-        -- ab 0.70: Klick auf eine Preisstufe macht ihren Preis zum Ziel, ab 0.76 Rechtsklick zu "Kaufen bis"
+        -- ab 0.70: Klick auf eine Preisstufe macht ihren Preis zum Ziel, ab 0.76 Rechtsklick zu "Kaufen bis".
+        -- ab 0.83 getauscht (KarloDerBaer, 12.11.2026): Linksklick "Kaufen bis", Rechtsklick Zielpreis. Farben bleiben.
         onClick = function(item, button)
             if not (item and Num(item.price)) then return end
-            if button == "RightButton" then F.SetLimit(item.price) else F.SetTarget(item.price) end
+            if button == "RightButton" then F.SetTarget(item.price) else F.SetLimit(item.price) end
         end,
     })
     F.BuildMeasure(c, right)

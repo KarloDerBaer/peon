@@ -38,10 +38,11 @@ const ALL = [
   // ab 0.26.0 (Neuaufbau H5): Seiten und Reihenfolge wie im Spiel (Markt, Einkaufen mit Beobachtung, Radar, Mehr)
   { key: 'overview', label: 'Übersicht' },
   { key: 'items', label: 'Markt' },
-  { key: 'shopping', label: 'Einkaufen (WIP)' },
-  { key: 'favorites', label: 'Beobachtung' },
-  { key: 'chances', label: 'Radar' },
-  { key: 'vendors', label: 'Händler' },
+  // ab 0.28.0 (KarloDerBaer): Einkaufen, Beobachtung, Radar und Händler muessen ueberarbeitet werden, nur ein Hinweis
+  { key: 'shopping', label: 'Einkaufen (WIP)', wip: true },
+  { key: 'favorites', label: 'Beobachtung (WIP)', wip: true },
+  { key: 'chances', label: 'Radar (WIP)', wip: true },
+  { key: 'vendors', label: 'Händler (WIP)', wip: true },
   { key: 'sources', label: 'Datenlage' },
   { key: 'modules', label: 'Updates', always: true },
   { key: 'reports', label: 'Rückmeldungen', always: true },
@@ -51,6 +52,7 @@ const GROUPS = computed(() => (data.value ? data.value.modules.filter((m) => m.e
   key: m.key, title: m.navTitle || m.title, views: ALL.filter((n) => m.views.includes(n.key)),
 })) : []));
 const NAV_BOTTOM = ALL.filter((n) => n.always);
+const wipPage = computed(() => ALL.find((n) => n.wip && n.key === view.value) || null);
 const broker = computed(() => !!(data.value && data.value.views.includes('overview')));
 
 const current = computed(() => {
@@ -238,6 +240,10 @@ onMounted(() => {
       <div class="page" ref="pageEl" v-if="data && settings">
         <KeepAlive :include="['Overview', 'Items', 'Chances', 'Shopping']">
           <Overview v-if="view === 'overview'" :data="data" :market="current" :now="now" :theme="settings.theme" :stamp="stampOf('overview')" :settings="settings" @go="go($event)" @open="openItem" @save="saveSettings" />
+          <section v-else-if="wipPage" class="wip">
+            <h1>{{ wipPage.label }}</h1>
+            <p class="wip-note">Überarbeitung notwendig! Derzeit nur im Spiel verfügbar.</p>
+          </section>
           <Items v-else-if="view === 'items'" key="items" :market="current" :now="now" :stamp="stampOf('items')" :settings="settings" @open="openItem" @save="saveQuiet" />
           <Items v-else-if="view === 'favorites'" key="favorites" favorites :market="current" :now="now" :stamp="stampOf('favorites')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />
           <Shopping v-else-if="view === 'shopping'" :market="current" :stamp="stampOf('shopping')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />
@@ -257,6 +263,9 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.wip { display: grid; gap: 12px; }
+.wip h1 { margin: 0; }
+.wip-note { margin: 0; padding: 12px 14px; border: 1px solid var(--warn); border-radius: var(--radius-s); color: var(--warn); font-weight: 500; }
 .shell { display: grid; grid-template-columns: 196px 1fr; grid-template-rows: minmax(0, 1fr); height: 100%; }
 .rail { background: var(--panel); border-right: 1px solid var(--line-soft); display: flex; flex-direction: column; padding: 18px 12px; gap: 2px; }
 .mark { display: flex; align-items: center; gap: 10px; padding: 0 8px 22px; font-family: var(--font-cond); font-weight: 600; font-size: 18px; }

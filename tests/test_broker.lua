@@ -156,6 +156,19 @@ check(type(PeonBrokerDB) == "table" and PeonBrokerDB.debug == false, "PeonBroker
 check(PeonBrokerDB.dataVersion == 2 and next(PeonBrokerDB.markets) == nil and PeonBrokerDB.tooltipSales == nil and PeonBrokerDB.minimapShow == true, "Umstellung: alte Preisdaten geloescht, Einstellungen bleiben")
 local migMsg = false for _, l in ipairs(out) do if l:find("Neues Rechenmodell", 1, true) then migMsg = true end end
 check(migMsg, "Hinweis im Chat: bitte neu scannen")
+-- ab 0.83: Standardwerte fuer Radar und Fokus nach KarloDerBaers Einstellungen
+do
+  local d = mod.db
+  check(d.dealMinVendor == 100 and d.buyoutMinQty == 500 and d.buyoutMinLevels == 4 and d.buyoutMinSales == 270 and d.focusRate == 90
+    and d.focusFirst == 10 and d.focusSure == 60 and d.focusMore == 10 and d.radarScanMode == "mass", "0.83: neue Standardwerte fuer Radar und Fokus")
+end
+-- Die Tests darunter rechnen mit den Werten bis 0.82 (Zeiten und Mengen der Beispiele)
+local function OldDefaults()
+  local d = mod.db
+  d.dealMinVendor, d.buyoutMinQty, d.buyoutMinLevels, d.buyoutMinSales, d.focusRate = 10, 200, 5, 50, 12
+  d.focusFirst, d.focusSure, d.focusMore, d.radarScanMode = 30, 120, 20, "watch"
+end
+OldDefaults()
 fire("PLAYER_LOGIN")
 check(cats.Peon and cats.Peon.subs[1] == "Broker", "Seite unter Peon > Broker")
 check(SlashCmdList.PEON_BROKER ~= nil and SLASH_PEON_BROKER1 == "/broker", "/broker angemeldet")
@@ -1315,7 +1328,7 @@ end
     fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
     check(plain(F.verdict.text) == "EIGENES ZIEL" and F.buyButton.text == "Kaufen 10" and not F.buyButton.disabled and #F.tiers.items == 3,
         "0.70: ohne Chance: alles unter der zweiten Stufe kaufen: " .. plain(F.verdict.text) .. " / " .. tostring(F.buyButton.text))
-    F.tiers.o.onClick(F.tiers.items[3], "LeftButton")
+    F.tiers.o.onClick(F.tiers.items[3], "RightButton")   -- ab 0.83 Rechtsklick fuer das Ziel
     check(F.ManualTarget(2770) == 200 and F.buyButton.text == "Kaufen 15" and not F.autoButton.disabled
         and FocusText(F):find("Art=Eigenes Ziel|Ziel=200|Kaufen bis=150|Üblich=", 1, true),
         "0.70: Klick auf eine Preisstufe macht sie zum Ziel: " .. FocusText(F))
@@ -1331,8 +1344,9 @@ end
     F.autoButton.scripts.OnClick(F.autoButton)
     check(F.ManualTarget(2770) == nil and F.buyButton.text == "Kaufen 10" and F.autoButton.disabled, "0.70: Auto nimmt das eigene Ziel zurueck")
     -- ab 0.76: Ziel 2s (Klick), Kaufen bis 1s (Rechtsklick): nur die unterste Stufe, Kosten und Gewinn ueber dem Knopf
-    F.tiers.o.onClick(F.tiers.items[3], "LeftButton")
-    F.tiers.o.onClick(F.tiers.items[1], "RightButton")
+    F.tiers.o.onClick(F.tiers.items[3], "RightButton")   -- ab 0.83 getauscht: Rechtsklick Ziel, Linksklick Kaufen bis
+    F.tiers.o.onClick(F.tiers.items[1], "LeftButton")
+    check(plain(F.targetHint.text) == "Rechtsklick" and plain(F.limitHint.text) == "Linksklick", "0.83: Hinweise neben den Feldern getauscht")
     check(F.ManualTarget(2770) == 200 and F.ManualLimit(2770) == 100 and F.buyButton.text == "Kaufen 10" and F.limitInput:GetAmount() == 100
       and plain(F.buyInfo.text) == "Menge: 10    Kosten: 10s    Gewinn: +9s",
       "0.76: Rechtsklick setzt Kaufen bis, Ziel bleibt, Kosten und Gewinn ueber dem Knopf: " .. plain(F.buyInfo.text))
@@ -2756,6 +2770,7 @@ Win.Refresh()
   T.built = built
   mod:ResetDefaults()
   check(mod.acc.ahPlain == true, "U0: Standardwerte lassen Blizzard pur stehen")
+  OldDefaults()
   SlashCmdList.PEON_BROKER("pur")
   check(popupShown and popupShown.name == "PEON_BROKER_AH_PLAIN_OFF", "U0: /broker pur fragt beim Zurueckschalten nach")
   StaticPopupDialogs.PEON_BROKER_AH_PLAIN_OFF.OnAccept()
@@ -3804,6 +3819,13 @@ end)()
   local row
   for _, r in ipairs(WP.list:GetItems()) do if r.key == 7995 then row = r end end
   check(row and row.price == 150 and row.limit == 100 and row.target == 200 and row.advice == nil, "0.82: Zeile mit Preis, Kaufen bis, Zielpreis")
+  -- ab 0.83: einfacher Klick waehlt nur aus, Doppelklick oeffnet den Fokus
+  local keyBefore = F.key
+  WP.list.o.onClick(row, "LeftButton")
+  check(WP.selected == row and F.key == keyBefore and not WP.removeButton.disabled and not WP.marketButton.disabled,
+    "0.83: Klick waehlt aus, Knoepfe Entfernen und Im Markt zeigen gehen")
+  check(WP.sellButton and WP.sellButton.disabled and WP.sellWhy == "Nur am Auktionator.", "0.83: Verkaufen unterwegs gesperrt, mit Grund")
+  check(plain(WP.hint.text) == "Klick: auswählen, Doppelklick: Im Fokus öffnen", "0.83: Hinweis links oben")
   WP.list.o.onClick(row, "LeftButton")
   check(F.key == 7995 and F.ManualTarget(7995) == 200 and F.ManualLimit(7995) == 100 and F.manualSrc == "watch" and F.origin == "watch"
     and F.backButton.text == "Zurück zu Beobachten", "0.82: Klick in Beobachten: Fokus mit Kaufen bis und Zielpreis, zurueck zu Beobachten")
@@ -3831,6 +3853,113 @@ end)()
   D.Market(nil, true).items[7995] = nil
   ns.Scan.ahOpen = keepOpen
   if Win.frame then Win.frame:Hide() end
+end)()
+
+-- ab 0.83: Beobachten am Auktionator laufend abfragen, Stand und Alarme
+;(function()
+  local Wt, WP, T = ns.Watch, ns.WatchPage, ns.AHTabs
+  local function tick() local n = #timers; for i = math.max(1, n - 4), n do timers[i]() end end
+  local keepOpen, keepCur = ns.Scan.ahOpen, T.current
+  local mk = D.Market(nil, true)
+  for _, k in ipairs({ 7997, 7998 }) do
+    mk.items[k] = { m = 150, md = 160, q = 300, n = 5, t = clock, nm = "Wachstein " .. k, ql = 1 }
+    mod.acc.commodity[k] = true
+    Wt.Add(k, { name = "Wachstein " .. k })
+    Wt.SetLimit(k, "abs", 100)
+  end
+  LIVE[7997] = { { unitPrice = 90, quantity = 5 }, { unitPrice = 150, quantity = 10 } }
+  LIVE[7998] = { { unitPrice = 140, quantity = 5 } }
+  ns.Scan.ahOpen = false
+  Win.Open("watch")
+  check(not Rd.Watching() and plain(WP.live.text) == ns.L.WATCH_OFF, "0.83: unterwegs keine Abfragen, Hinweis rechts oben")
+  ns.Scan.ahOpen = true
+  if not Rd.WatchShown() then T.current = "watch" end
+  check(Rd.WatchShown() and Rd.Watching(), "0.83: Reiter Beobachten am Auktionator: laufend abfragen")
+  Rd.pending, Rd.lastSend, Rd.focus, Rd.running = nil, -100, nil, false
+  Rd.watchSent, Rd.watchAt = {}, {}
+  Rd.loop = false
+  WP.Refresh()
+  check(Rd.loop, "0.83: Anzeigen der Seite startet die Schleife")
+  local seen, before = {}, #out
+  for _ = 1, 2 do
+    now = now + 1; tick()
+    local p = Rd.pending
+    check(p and (p.key == 7997 or p.key == 7998) and not seen[p.key], "0.83: reihum der naechste beobachtete Gegenstand: " .. tostring(p and p.key))
+    seen[p.key] = true
+    fire("COMMODITY_SEARCH_RESULTS_UPDATED", p.key)
+    check(Rd.watchAt[p.key] and Rd.pending == nil, "0.83: Antwort gemerkt (Spalte Stand)")
+    Rd.lastSend = -100
+  end
+  check(mk.items[7997].m == 90 and Wt.Store()[7997].hit and not Wt.Store()[7998].hit, "0.83: Preis aktualisiert, Alarm bei Kaufen bis")
+  local alarm = false
+  for i = before + 1, #out do if out[i]:find("Wachstein 7997", 1, true) then alarm = true end end
+  check(alarm, "0.83: Alarm im Chat")
+  local row
+  for _, r in ipairs(WP.list:GetItems()) do if r.key == 7997 then row = r end end
+  check(row and row.price == 90 and row.advice == "buy" and row.age and plain(WP.AgeText(row.age)) == "jetzt", "0.83: Zeile mit neuem Preis, Rat KAUFEN, Stand jetzt")
+  check(plain(WP.AgeText(42)) == "vor 42 Sek." and plain(WP.AgeText(nil)) == "-", "0.83: Stand in Sekunden, ohne Abfrage Strich")
+  check(plain(WP.live.text):match("^Aktualisiert laufend%.+$"), "0.83: rechts oben nur Aktualisiert laufend mit Punkten: " .. plain(WP.live.text))
+  WP.dots = 3; WP.ticking = false; WP.Tick()
+  check(plain(WP.live.text) == "Aktualisiert laufend.", "0.83: Punkte wandern von ... zurueck zu .")
+  -- Verkaufen am Auktionator: sicherer Knopf klickt den Taschenplatz rechts an, vorher blendet Broker seinen Reiter aus
+  do
+    local keepCC, keepBuilt = C_Container, T.built
+    T.built = true
+    C_Container = setmetatable({ GetContainerNumSlots = function(bag) return bag == 0 and 4 or 0 end,
+      GetContainerItemID = function(bag, slot) return (bag == 0 and slot == 2) and 7997 or nil end,
+      GetContainerItemInfo = function() return { isLocked = false } end }, { __index = keepCC })
+    PeonBagsItem1 = CreateFrame("Button"); PeonBagsItem1.peonBag, PeonBagsItem1.peonSlot = 0, 2
+    local attr = {}
+    WP.sellButton.SetAttribute = function(_, k, v) attr[k] = v end
+    WP.list.o.onClick(row, "LeftButton")
+    check(ns.Window.AtAH() and attr.type == "macro" and attr.macrotext == "/click PeonBagsItem1 RightButton" and not WP.sellButton.disabled,
+      "0.83: Verkaufen: sicherer Knopf auf den Taschenplatz: " .. tostring(attr.macrotext))
+    local closed = false
+    local keepClose = T.Close
+    T.Close = function() closed = true end
+    T.current = "watch"
+    WP.sellButton.scripts.PreClick(WP.sellButton)
+    check(closed, "0.83: vor dem Klick blendet Broker seinen Reiter aus")
+    T.Close = keepClose
+    for _, r in ipairs(WP.list:GetItems()) do if r.key == 7998 then WP.list.o.onClick(r, "LeftButton") end end
+    check(WP.sellButton.disabled and attr.type == nil and WP.sellWhy == "Der Gegenstand ist nicht in der Tasche.", "0.83: nicht in der Tasche: gesperrt, mit Grund")
+    PeonBagsItem1, C_Container, T.built = nil, keepCC, keepBuilt
+    WP.clickKey = nil
+  end
+  -- Rat neu KAUFEN: die Zeile leuchtet kurz auf, sonst keine Hintergrundfarbe
+  check(row.flash == "buy" and WP.list.o.rowBg(row) == 0.38, "0.83: neuer Rat KAUFEN leuchtet kurz gruen")
+  local other
+  for _, r in ipairs(WP.list:GetItems()) do if r.key == 7998 then other = r end end
+  check(other and other.flash == nil and WP.list.o.rowBg(other) == nil, "0.83: ohne neuen Rat keine Hintergrundfarbe")
+  now = now + 2
+  WP.Refresh()
+  check(row.flash == nil and WP.list.o.rowBg(row) == nil, "0.83: nach 1,5 Sek. wieder ohne Farbe")
+  -- laufende Antworten tauschen die Zeilen nicht aus (sonst geht ein Klick verloren)
+  local items = WP.list:GetItems()
+  local first = items[1]
+  WP.Refresh()
+  check(WP.list:GetItems() == items and WP.list:GetItems()[1] == first, "0.83: gleiche Zeilen werden nur neu gefuellt, nicht getauscht")
+  -- Warnung aus: kein Chat (Haken unten links)
+  check(WP.alarmCheck and WP.alarmCheck:GetChecked() and plain(WP.alarmCheck.label.text) == "Warnung", "0.83: Haken Warnung an")
+  WP.alarmCheck:SetChecked(false); WP.alarmCheck.scripts.OnClick(WP.alarmCheck)
+  check(mod.db.watchAlarm == false, "0.83: Haken aus speichert watchAlarm")
+  Wt.Store()[7998].hit = nil
+  mk.items[7998].m = 50
+  local n0 = #out
+  Wt.Check({ 7998 })
+  local said = false
+  for i = n0 + 1, #out do if out[i]:find("Wachstein 7998", 1, true) then said = true end end
+  check(Wt.Store()[7998].hit and not said, "0.83: Warnung aus: Treffer gemerkt, aber keine Meldung im Chat")
+  mod.db.watchAlarm = true
+  -- Reiter verlassen: Schleife haelt an
+  Rd.pending = nil
+  T.current = "radar"
+  if Win.frame then Win.frame:Hide() end
+  now = now + 1; tick()
+  check(not Rd.Watching(), "0.83: Reiter zu: keine Abfragen mehr")
+  Wt.Remove(7997); Wt.Remove(7998)
+  mk.items[7997], mk.items[7998] = nil, nil
+  ns.Scan.ahOpen, T.current = keepOpen, keepCur
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

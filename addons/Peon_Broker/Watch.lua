@@ -129,8 +129,10 @@ function Wt.Check(keys)
             if hit and not w.hit then
                 w.hit = true
                 n = n + 1
-                mod:Print(L.WATCH_ALARM:format(w.name or ns.Data.ItemName(key, e) or tostring(key), Money(e.m), Money(limit)))
-                if mod.db.radarSound and ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert) end
+                if mod.db.watchAlarm ~= false then   -- ab 0.83: Haken unter Beobachten
+                    mod:Print(L.WATCH_ALARM:format(w.name or ns.Data.ItemName(key, e) or tostring(key), Money(e.m), Money(limit)))
+                    if mod.db.radarSound and ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert) end
+                end
             elseif not hit and w.hit and (type(e) ~= "table" or e.gone or (limit and Num(e.m) and e.m > limit)) then
                 w.hit = nil
             end
@@ -140,8 +142,10 @@ function Wt.Check(keys)
             if upHit and not w.upHit then
                 w.upHit = true
                 n = n + 1
-                mod:Print(L.WATCH_ALARM_UP:format(w.name or ns.Data.ItemName(key, e) or tostring(key), Money(e.m), Money(up)))
-                if mod.db.radarSound and ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert) end
+                if mod.db.watchAlarm ~= false then
+                    mod:Print(L.WATCH_ALARM_UP:format(w.name or ns.Data.ItemName(key, e) or tostring(key), Money(e.m), Money(up)))
+                    if mod.db.radarSound and ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert) end
+                end
             elseif not upHit and w.upHit and (type(e) ~= "table" or e.gone or (up and Num(e.m) and e.m < up) or not up) then
                 w.upHit = nil
             end

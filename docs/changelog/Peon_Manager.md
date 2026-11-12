@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.28.0
+
+Kurz: Einkaufen, Beobachtung, Radar und Händler werden überarbeitet und sind derzeit nur im Spiel verfügbar.
+
+- 0.28.0 (12.11.2026): **Vier Seiten in Überarbeitung** (Rückmeldung KarloDerBaer nach der Vorabversion v2026.11.12-test). Einkaufen, Beobachtung, Radar und Händler heißen in der Seitenleiste „(WIP)“ und zeigen nur „Überarbeitung notwendig! Derzeit nur im Spiel verfügbar.“ (`wip` in der Liste `ALL` in `App.vue`). Der Abgleich der Beobachtung mit dem Spiel und die Meldung von Windows für die Einkaufsliste laufen weiter.
+  - **Im echten Programm prüfen:** Seitenleiste und die vier Seiten.
+
 ## 0.27.0
 
 Kurz: Das Update-Fenster zeigt je Teil eine kurze Anmerkung und die Punkte Neu, Geändert, Behoben und Entfernt, wie im Text des Release auf GitHub.

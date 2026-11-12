@@ -2,6 +2,24 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.83.0
+
+Kurz: Unter Beobachten aktualisiert Broker am Auktionator laufend alle Preise, solange der Reiter offen ist. Alarme kommen sofort, die Spalte Stand zeigt das Alter, und eine Zeile leuchtet kurz auf, wenn sie jetzt zum Kaufen oder Verkaufen rät.
+Kurz: Ein Haken unter Beobachten schaltet die Warnung im Chat und den Ton ab.
+Kurz: Unter Beobachten wählt ein Klick den Gegenstand aus, ein Doppelklick öffnet ihn im Fokus. Der neue Knopf „Verkaufen“ legt den gewählten Gegenstand aus der Tasche in Blizzards Verkaufsfenster.
+Kurz: Im Fokus setzt jetzt ein Linksklick auf eine Preisstufe „Kaufen bis“, ein Rechtsklick den Zielpreis.
+Kurz: Neue Standardwerte für Radar und Fokus, zum Beispiel 90 Abfragen pro Minute im Fokus und Aufkauf erst ab 500 Stück.
+
+- 0.83.0 (12.11.2026): **Beobachten laufend, Klicks im Fokus, neue Standardwerte** (Rückmeldung nach der Vorabversion v2026.11.12-test).
+  - **Beobachten:** Solange der Reiter am Auktionator offen ist, fragt die Abfrage-Schleife (Radar.lua) alle beobachteten Gegenstände reihum ab, so schnell es geht, der am längsten nicht abgefragte zuerst (`R.Watching`, `R.NextWatch`). Jede Antwort aktualisiert den Preis, prüft die Alarme (`Watch.Check`) und zeigt die Liste neu. Neue Spalte „Stand“ (jetzt, vor X Sek., vor X Min.), rechts oben „Aktualisiert laufend“ mit wanderndem Punkt (. .. ..., alle 0,4 Sek.), unterwegs der Hinweis, dass es nur am Auktionator geht. Eine Zeile leuchtet 1,5 Sek. auf, wenn ihr Rat neu KAUFEN (grün) oder VERKAUFEN (gold) wird, sonst keine Hintergrundfarbe (Wunsch KarloDerBaer: eine wandernde Markierung war zu unruhig).
+  - **Klicks unter Beobachten** (Wunsch KarloDerBaer): Klick wählt aus (für Verkaufen, Im Markt zeigen und Entfernen), Doppelklick öffnet den Fokus, Rechtsklick weiter das Menü. Hinweis links oben „Klick: auswählen, Doppelklick: Im Fokus öffnen“. Laufende Antworten tauschen die Daten der Liste nicht mehr aus, sondern füllen die vorhandenen Zeilen neu. Vorher konnte ein Austausch zwischen Drücken und Loslassen der Maustaste den Klick verschlucken.
+  - **Knopf „Verkaufen“** unten (sicherer Knopf `PeonBrokerWatchSellButton`, wie „Ins Verkaufsfenster legen“ bei den Posten): Makro `/click <Taschenplatz> RightButton`, Blizzards eigener Code wechselt auf Verkaufen und legt den Gegenstand hinein. Vorher blendet Broker seinen Reiter aus. Gesperrt ohne Auswahl, unterwegs, ohne den Gegenstand in der Tasche und ohne Taschenplatz mit Namen, der Tooltip nennt den Grund. Broker schaltet Blizzards Ansicht nicht selbst um (Fehlerberichte 10 und 11).
+  - **Haken „Warnung“** unten links (`watchAlarm`, Vorgabe an): aus heißt keine Meldung im Chat und kein Ton. Treffer werden trotzdem gemerkt (Rat und Zahl am Reiter).
+  - **Fokus:** Linksklick auf eine Preisstufe setzt „Kaufen bis“ (blau), Rechtsklick den Zielpreis (gelb). Bisher umgekehrt. Hinweise neben den Feldern getauscht, Farben bleiben.
+  - **Standardwerte** nach KarloDerBaers Einstellungen: Händler-Mindestgewinn 1s (bisher 10c), Aufkauf ab 500 Stück (200), 4 Preisstufen (5), 270 Absatz am Tag (50), Fokus 90 Abfragen pro Minute (12), erstes Urteil nach 10 Sek. (30), sicher nach 60 Sek. (120), Kaufen ab 10 % mehr Abfluss (20 %), Radar-Scan Massenware (Beobachten). Gespeicherte Werte bleiben, wer von 0.40 kommt, bekommt die neuen Werte für alles außer dem Händler-Mindestgewinn.
+  - Tests: Prüfung der neuen Standardwerte, die älteren Tests rechnen weiter mit den Werten bis 0.82. Neuer Block „Beobachten laufend“.
+  - **Im Spiel prüfen:** Reiter Beobachten am Auktionator: Preise und Stand laufen, Punkte wandern, Zeile leuchtet bei neuem Rat kurz auf, Alarm kommt, Haken Warnung. Klick wählt, Doppelklick öffnet den Fokus, Verkaufen legt den Gegenstand ins Verkaufsfenster. Klicks im Fokus.
+
 ## 0.82.0
 
 Kurz: Beobachten ist wieder ein eigener Reiter. Ein Klick auf einen Gegenstand öffnet ihn im Fokus mit seinem „Kaufen bis“ und Zielpreis.
