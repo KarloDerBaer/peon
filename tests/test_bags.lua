@@ -408,8 +408,20 @@ fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 8)
 fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 8)
 local blz
 for _, f in ipairs(allFrames) do if f.text == "Blizzard" and f.parent == bw.buttons then blz = f end end
+local costChecks, goldChecks = 0, 0
+BankFrame.BankPanel = { MoneyDisplay = { Refresh = function() costChecks = costChecks + 1 end },
+                        MoneyFrame = { Refresh = function() goldChecks = goldChecks + 1 end } }
+-- Text am Bankfenster (z. B. eine Muenze): muss nach dem Zurueckholen neu gesetzt (neu gemessen) werden
+local coinText = { text = "10", sets = {} }
+function coinText:GetObjectType() return "FontString" end
+function coinText:GetText() return self.text end
+function coinText:SetText(t) self.text = t; self.sets[#self.sets + 1] = t end
+BankFrame.GetRegions = function() return coinText end
 blz.scripts.OnClick(blz)
 check(not bw:IsShown() and BankFrame:GetParent() == UIParent and bankClosed == 1, "Blizzard-Knopf zeigt Blizzards Bank")
+check(costChecks >= 1 and goldChecks >= 1, "0.6.1: Blizzard-Knopf berechnet Kosten und eigenes Gold neu")
+check(#coinText.sets >= 2 and coinText.sets[1] == "" and coinText.text == "10", "0.6.1: Texte neu gemessen, Text bleibt gleich")
+BankFrame.BankPanel, BankFrame.GetRegions = nil, nil
 ShowUIPanel(BankFrame)
 check(BankFrame:GetParent() == UIParent, "dieser Besuch bleibt bei Blizzard")
 fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 8)

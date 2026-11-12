@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.6.1
+
+Kurz: Über den Knopf „Blizzard“ im Bankfenster kannst du wieder Bankfächer kaufen. Kosten und Kaufen-Knopf erscheinen wieder.
+
+- 0.6.1 (12.11.2026, Fehlerbericht aus dem Spiel):
+  - **Fehler:** Mit Peon_Bags fehlten in Blizzards Bankfenster unten die Kosten und der Knopf „Kaufen“, auch nach Klick auf „Blizzard“. Ohne Peon_Bags ging es.
+  - **Befund im Spiel:** Laut Spiel waren Text „Kosten:“ und Kaufen-Knopf eingeblendet (`IsShown`), das Fenster hing wieder an `UIParent`, Bankart 0 (Charakter). Sie waren also da, aber nicht zu sehen. Ein Neuprüfen der Einblendung allein (erster Versuch) half nicht.
+  - **Ursache (im Spiel gemessen):** Der Kaufen-Knopf lag bei x = 4878, das Bankfenster endet bei 496. Er hängt rechts am Betrag (`BankPanel.MoneyDisplay`), und dieser war riesig breit. Peon_Bags versteckt Blizzards Bankfenster in einem Rahmen mit Größe 0,001. Dort misst das Spiel Texte riesig breit, weil Schrift eine Mindestgröße hat. Blizzards Geldanzeigen setzen jede Münze auf die gemessene Textbreite (`MoneyFrame_Update`), und das Spiel behält die Messung, solange sich der Text nicht ändert. Dasselbe beim eigenen Gold unten rechts (`BankPanel.MoneyFrame`): Dort war nur „16“ zu sehen, Gold und Silber lagen außerhalb. „Kosten:“ selbst war richtig breit (Text vor dem Verstecken gesetzt).
+  - **Behebung:** Beim Zurückholen eines versteckten Fensters (`ns.Untuck`, Bank und Gildenbank) setzt Peon_Bags alle Texte des Fensters einmal neu, damit das Spiel sie neu misst, und lässt beide Geldanzeigen der Bank neu berechnen (`Refresh`). Das passiert sofort und noch einmal einen Bildaufbau später. Gilt für den Knopf „Blizzard“ und für das Abschalten von „Taschen und Bank ersetzen“ bei offener Bank. Blizzards Kauf selbst bleibt unberührt.
+  - **Hinweis zur Fehlersuche:** Die ersten beiden Fassungen wurden im Spiel nie geladen, Peon_Bags stand im AddOns-Ordner auf Manager (echter Ordner 0.6.0), nicht auf Entwicklung.
+  - **Im Spiel geprüft (KarloDerBaer, 12.11.2026):** Bank öffnen, „Blizzard“ klicken: Kosten, Betrag und „Kaufen“ sind da. Gildenbank mit „Blizzard“ noch nicht geprüft.
+  - Das Springen des Fensters nach rechts oben dabei kam von Peon_Mover, behoben in Mover 0.1.1.
+
 ## 0.6.0
 
 Kurz: Kleine Abschnitte stehen jetzt nebeneinander, so bleiben weniger Plätze leer. Abschalten kannst du das unter „Einstellen“.

@@ -38,13 +38,59 @@ function ns.Tuck(frame)
     frame:SetParent(ns.Tiny())
 end
 
+-- Texte neu setzen, damit das Spiel ihre Breite neu misst. Im winzigen Rahmen (Groesse 0,001) misst es Texte
+-- riesig breit (Schrift hat eine Mindestgroesse) und behaelt das, solange sich der Text nicht aendert. Blizzards
+-- Geldanzeigen setzen jede Muenze auf diese Breite (MoneyFrame_Update). In der Bank lag der Kaufen-Knopf, der
+-- rechts am Betrag haengt, so bei x = 4878, das Fenster endet bei 496 (Fehlerbericht 0.6.0).
+local function RemeasureTexts(frame, depth)
+    if depth > 8 then return end
+    for _, r in ipairs({ frame:GetRegions() }) do
+        if type(r) == "table" and r.GetObjectType and r:GetObjectType() == "FontString" then
+            local t = r:GetText()
+            if type(t) == "string" and not Peon.IsSecret(t) and t ~= "" then r:SetText(""); r:SetText(t) end
+        end
+    end
+    for _, c in ipairs({ frame:GetChildren() }) do
+        if type(c) == "table" then RemeasureTexts(c, depth + 1) end
+    end
+end
+
+-- Geldanzeigen eines Blizzard-Fensters neu berechnen lassen (Bank: Kosten unten links, eigenes Gold unten rechts)
+local function RefreshMoney(frame)
+    local panel = rawget(frame, "BankPanel")
+    if type(panel) ~= "table" then return end
+    for _, key in ipairs({ "MoneyDisplay", "MoneyFrame" }) do
+        local m = rawget(panel, key)
+        if type(m) == "table" and type(m.Refresh) == "function" then pcall(m.Refresh, m) end
+    end
+end
+
+local function Remeasure(frame)
+    if not frame:IsShown() or frame:GetParent() == ns.Tiny() then return end
+    pcall(RemeasureTexts, frame, 0)
+    RefreshMoney(frame)
+end
+
 function ns.Untuck(frame)
     if not frame or frame:GetParent() ~= ns.Tiny() then return end
     if ns.Locked(frame) then ns.Defer("untuck:" .. tostring(frame), function() ns.Untuck(frame) end) return end
     frame:SetParent(frame.peonParent or UIParent)
+    Remeasure(frame)
+    -- die neue Groesse gilt vielleicht erst nach dem naechsten Bildaufbau: dann noch einmal
+    local CT = rawget(_G, "C_Timer")
+    if CT and type(CT.After) == "function" then CT.After(0, function() Remeasure(frame) end) end
 end
 
 local function BankFrame() return rawget(_G, "BankFrame") end
+
+-- Blizzards Bankfenster wieder zeigen (Untuck misst Texte und Geldanzeigen neu)
+local function ShowBlizzardBank()
+    local bf = BankFrame()
+    if not bf then return end
+    ns.Untuck(bf)
+    if not bf:IsShown() and type(rawget(_G, "ShowUIPanel")) == "function" then pcall(ShowUIPanel, bf) end
+    if bf:IsShown() and bf:GetParent() ~= ns.Tiny() then pcall(bf.Raise, bf) end
+end
 
 local function CloseBank()
     local CB = rawget(_G, "C_Bank")
@@ -141,7 +187,7 @@ function ns.UpdateReplaceBank()
     if not w then return end
     if ns.bankOpen and not Replacing() then
         byGame = true; w:Hide(); byGame = false
-        ns.Untuck(BankFrame())
+        ShowBlizzardBank()
     elseif ns.bankOpen and Replacing() then
         OnBankShow()
     end
@@ -167,9 +213,7 @@ function ns.InitBank()
     w:AddButton(L.BTN_BLIZZARD, 80, L.BTN_BLIZZARD_TIP, function()
         blizzVisit = true
         byGame = true; w:Hide(); byGame = false
-        ns.Untuck(BankFrame())
-        local bf = BankFrame()
-        if bf and not bf:IsShown() and type(rawget(_G, "ShowUIPanel")) == "function" then pcall(ShowUIPanel, bf) end
+        ShowBlizzardBank()
     end)
     w:AddSetupButton()
     w.OnSearch = function()
