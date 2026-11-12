@@ -138,10 +138,13 @@ function MA.Rows()
             r.special = true
             r.label = L.MAIL_K_SPECIAL
         -- Gewinn eines Verkaufs (ungefaehr): Erloes - Kosten der Stuecke laut Ledger (naechstes Stueck)
-        elseif kind == "sale" and id and r.money then
-            local info = ns.Cost and ns.Cost.Info(id)
-            r.profit = r.money - (n or 1) * ((info and info.next) or 0)
-            r.profitEst = info == nil
+        elseif kind == "sale" and id and r.money and ns.Cost then
+            -- ab 0.14.3: wie die Kostenrechnung (Reihenfolge, Startbestand = Sondereinnahme)
+            local c1, m1, sn1, sc1 = ns.Cost.Peek(id, n or 1)
+            local res = ns.Cost.SaleResult(r.money, n or 1, c1, m1, sn1, sc1, 0)
+            r.cost = res.cost
+            if res.sale then r.profit = res.profit else r.special = true; r.label = L.MAIL_K_SPECIAL end
+            r.partSpecial = res.sale and res.special or nil
         end
         rows[#rows + 1] = r
     end
@@ -482,8 +485,8 @@ function MA.RowTooltip(row, r)
     end
     if r.money then GameTooltip:AddDoubleLine(L.MAIL_TT_MONEY, ns.Money(r.money), 0.8, 0.8, 0.8, 1, 1, 1) end
     if r.profit then
-        local info = r.id and ns.Cost and ns.Cost.Info(r.id)
-        GameTooltip:AddDoubleLine(L.MAIL_TT_COST, ns.Money(math.floor((r.n or 1) * ((info and info.next) or 0) + 0.5)), 0.8, 0.8, 0.8, 1, 1, 1)
+        GameTooltip:AddDoubleLine(L.MAIL_TT_COST, ns.Money(math.floor((r.cost or 0) + 0.5)), 0.8, 0.8, 0.8, 1, 1, 1)
+        if r.partSpecial then GameTooltip:AddDoubleLine(L.MV_SPECIAL, ns.Money(math.floor(r.partSpecial + 0.5)), 0.8, 0.8, 0.8, 1, 1, 1) end
         GameTooltip:AddDoubleLine(L.MAIL_TT_PROFIT, W.Signed(r.profit), 1, 0.82, 0, 1, 1, 1)
     end
     if r.special then GameTooltip:AddLine(L.MAIL_TT_SPECIAL, 1, 0.82, 0, true) end

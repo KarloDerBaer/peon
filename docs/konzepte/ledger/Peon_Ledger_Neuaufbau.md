@@ -74,7 +74,7 @@ Die Befunde B2, B3 und B7 werden als Abläufe in den Tests nachgebaut (Kauf, Bri
 
 ## 4. Zuletzt gezahlter Preis
 
-Die Kosten bleiben wie entschieden nach „älteste zuerst“ (FIFO). Sie sind richtig für den Gewinn. Zusätzlich merkt sich Ledger je Gegenstand den **letzten Kauf**:
+Die Kosten bleiben wie entschieden nach „älteste zuerst“ (FIFO). Sie sind richtig für den Gewinn. **Geändert in Ledger 0.14.3:** Reihenfolge einstellbar, Standard „neueste zuerst“, Startbestand als Sondereinnahme (`Peon_Entscheidungen.md`, 12.11.2026). Zusätzlich merkt sich Ledger je Gegenstand den **letzten Kauf**:
 
 ```
 last[itemID] = { t = Zeit, unit = Stückpreis, n = Menge, src = "ah" | "vendor" | "cod" | "trade", c = Charakter }

@@ -761,6 +761,11 @@ end)()
 ;(function()
 local Mv, Bk = ns.Moves, ns.Book
 realm.moves = {}
+-- ohne Anfangsbestand: Verkaeufe aus dem Startbestand waeren ab 0.14.3 Sondereinnahmen
+local keepStart, keepBase = realm.chars["Mirel Dorna"].start, realm.lotBase
+realm.chars["Mirel Dorna"].start = { t = 0, places = {} }
+realm.lotBase = nil
+ns.Cost.Invalidate()
 local now = os.time()
 local function add(dt, k, id, n, m, extra) local e = { t = now - dt, c = "Mirel Dorna", k = k, id = id, n = n, m = m } for a, b in pairs(extra or {}) do e[a] = b end realm.moves[#realm.moves + 1] = e return e end
 add(100, "ahsold", 2589, nil, 900, { q = 3, cut = 50 })     -- 3 Stueck verkauft, 9s erhalten
@@ -818,6 +823,8 @@ Bk.book.view:Select("kinds")
 -- Erloes aus Rechnung: Gegenstand ueber den Namen gefunden
 check(ns.Inventory.FindItemID("Schwacher Heiltrank") == 118, "Gegenstand nach Namen")
 mod.db.bookPeriod = "d7"
+realm.chars["Mirel Dorna"].start, realm.lotBase = keepStart, keepBase
+ns.Cost.Invalidate()
 end)()
 
 -- ===== L6: Zusammenspiel mit Peon_Broker =====
@@ -873,6 +880,7 @@ I.Changed()
 end)()
 
 -- ===== 0.7: Zuordnen (Kosten nach "aelteste zuerst", Beispiel aus Peon_Ledger_Zuordnen.md) =====
+mod.db.costOrder = "fifo"   -- ab 0.14.3 einstellbar, diese Beispiele rechnen aelteste zuerst
 ;(function()
 local Co = ns.Cost
 local me = realm.chars["Mirel Dorna"]
@@ -1056,6 +1064,8 @@ me.start, realm.moves = savedStart, savedMoves
 Co.Invalidate()
 end)()
 
+mod.db.costOrder = "lifo"
+ns.Cost.Invalidate()
 -- ===== ab 0.8: Herstellen im Verlauf zusammengefasst =====
 ;(function()
 local Mv = ns.Moves
@@ -1527,6 +1537,37 @@ inbox = {}
 end)()
 
 ;(function()
+-- ----- 0.14.3: Startbestand ist Sondereinnahme, Reihenfolge einstellbar -----
+do
+  local me = realm.chars["Mirel Dorna"]
+  local keepS, keepM, keepB = me.start, realm.moves, realm.lotBase
+  local t0 = time() - 1000
+  realm.lotBase = nil
+  me.start = { t = t0, places = { bags = { t = t0, items = { [7001] = 10 } } } }
+  Peon.modules.broker = { ItemValue = function(_, id, n) return 100 * (n or 1) end }
+  local function run(order)
+    mod.db.costOrder = order
+    realm.moves = {
+      { t = t0 + 10, c = "Mirel Dorna", k = "ahbuy", id = 7001, n = 5, m = -1500 },             -- 5 gekauft zu 3s
+      { t = t0 + 20, c = "Mirel Dorna", k = "ahsold", id = 7001, n = -5, m = 2000, q = 5 },     -- 5 verkauft fuer 20s
+      { t = t0 + 30, c = "Mirel Dorna", k = "ahsold", id = 7001, n = -7, m = 2800, q = 7 },     -- 7 verkauft fuer 28s
+    }
+    ns.Cost.Invalidate()
+    return ns.Cost.Result(realm.moves[2]), ns.Cost.Result(realm.moves[3]), ns.Book.Collect("all", false)
+  end
+  local a, b, bk = run("lifo")
+  check(a.sale and math.abs(a.profit - 500) < 0.01 and not a.special, "neueste zuerst: gekaufte Ware geht zuerst, Gewinn 5s")
+  check(b.special and not b.sale and math.abs(b.special - 2800) < 0.01, "danach Startbestand: Sondereinnahme, kein Handelsgewinn")
+  check(math.abs(bk.trade - 500) < 0.01 and math.abs(bk.special - 2800) < 0.01 and bk.kinds.special.inc == 2800 and bk.kinds.ahsold.inc == 2000, "Buch: Handelsgewinn nur aus gekaufter Ware")
+  a, b, bk = run("fifo")
+  check(a.special and not a.sale and math.abs(a.special - 2000) < 0.01, "aelteste zuerst: erst der Startbestand (Sondereinnahme)")
+  check(b.sale and math.abs(b.special - 2800 * 5 / 7) < 0.01 and math.abs(b.profit - (2800 * 2 / 7 - 600)) < 0.01, "gemischter Verkauf: anteilig Sondereinnahme und Handelsgewinn")
+  mod.db.costOrder = "lifo"
+  check(select(2, ns.Cost.Peek(7001, 3)) == 0, "Vorschau ohne Entnahme")
+  Peon.modules.broker = nil
+  me.start, realm.moves, realm.lotBase = keepS, keepM, keepB
+  ns.Cost.Invalidate()
+end
 -- ----- einmaliger Neustart des Buchs (ab 0.14) -----
 -- 0.14.1: Kosten aus dem bisherigen Verlauf bleiben, fehlende Stueck zum Marktwert
 do
@@ -1563,7 +1604,7 @@ local keepA = meC.places.auctions
 meC.places.auctions = { t = 1, items = { [2840] = 4 } }
 meC.places.mail = meC.places.mail or { t = 1, items = {} }
 meC.places.mail.list = { { m = 500, ah = true, sold = "Bronzebarren", q = 2 } }
-check(ns.MigrateBook() == true and #realm.moves == 0 and realm.bookV == 3 and said("neu aufgebaut"), "Neuaufbau: Buch einmal neu begonnen (ab 0.14.2 Stand 3)")
+check(ns.MigrateBook() == true and #realm.moves == 0 and realm.bookV == 4 and said("neu aufgebaut"), "Neuaufbau: Buch einmal neu begonnen (ab 0.14.3 Stand 4)")
 local pre = realm.pre["Mirel Dorna"]
 check(pre and pre.auctions[2840] == 4 and pre.sold["Bronzebarren"] == 2, "0.14.2: laufende Auktionen und Verkaufsbriefe beim Neustart gemerkt")
 -- Erloes einer gemerkten Auktion: Sondereinnahme, kein Handelsgewinn
@@ -1576,7 +1617,7 @@ ns.Moves.MarkSpecial(sp3, "Kupferbarren")
 ns.Cost.Invalidate()
 local bk = ns.Book.Collect("all", false)
 check(sp.sp and sp2.sp and not sp3.sp and not pre.auctions[2840] and not pre.sold["Bronzebarren"], "Sondereinnahme fuer gemerkte Auktion und Brief, danach wieder normal")
-check(bk.special == 1400 and bk.kinds.special.inc == 1400 and bk.nsales == 1 and ns.Moves.Label(sp) == "Sondereinnahme", "Buch: Sondereinnahme eigene Art, kein Handelsgewinn")
+check(bk.special == 1400 and bk.kinds.special.inc == 1400 and bk.nsales == 1 and ns.Moves.Label(sp) == "Sondereinnahme", "Buch: Sondereinnahme eigene Art, kein Handelsgewinn (der Startbestand von 4 ist danach verbraucht)")
 check(ns.Cost.Result(sp).special == 900 and not ns.Cost.Result(sp).sale, "Kosten: Sondereinnahme ist kein Verkauf")
 meC.places.auctions = keepA
 meC.places.mail.list = nil

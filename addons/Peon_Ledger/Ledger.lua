@@ -47,6 +47,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         stockChar     = "*",     -- Bestand: Charakter (ab 0.14)
         stockPlace    = "all",   -- Bestand: Ort (ab 0.14)
         stockCat      = "all",   -- Bestand: Kategorie (ab 0.14.2)
+        costOrder     = "lifo",  -- Kosten: neueste zuerst (lifo) oder aelteste zuerst (fifo), ab 0.14.3
         mailWindow    = true,    -- eigenes Postfenster statt Blizzards Postfach (ab 0.14)
         mailFilter    = "all",   -- Postfenster: Filter nach Art (ab 0.14)
         mailRecent    = {},      -- Postfenster: zuletzt angeschriebene Empfaenger (ab 0.14)
@@ -56,6 +57,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
     choices  = { windowTab = { overview = true, stock = true, history = true, book = true },
                  bookPeriod = { today = true, d7 = true, d30 = true, all = true },
                  bookView = { kinds = true, items = true },
+                 costOrder = { lifo = true, fifo = true },
                  stockPlace = { all = true, bags = true, bank = true, mail = true, auctions = true, equip = true, transit = true },
                  stockCat = { all = true, equip = true, trade = true, consum = true, recipe = true, bag = true, quest = true, other = true },
                  mailFilter = { all = true, sale = true, buy = true, ["return"] = true, other = true },
@@ -326,7 +328,7 @@ mod:On("INIT", function()
 end)
 -- Ab 0.14 (Neuaufbau, KarloDerBaer): Die Erfassung im Auktionshaus und in der Post ist neu. Das Buch jedes Realms
 -- beginnt deshalb einmal neu (alte Zeilen hatten die Luecken aus Abschnitt 3.2 des Konzepts).
-ns.BOOK_VERSION = 3   -- 3 ab 0.14.2: noch einmal neu, mit Sondereinnahme fuer laufende Auktionen
+ns.BOOK_VERSION = 4   -- 3 ab 0.14.2 (Sondereinnahme), 4 ab 0.14.3 (Startbestand markiert, Variante C)
 function ns.MigrateBook()
     local r = ns.Inventory.RealmData()
     if (tonumber(r.bookV) or 0) >= ns.BOOK_VERSION then return false end
@@ -342,6 +344,12 @@ mod:On("LOGIN", function()
     mod:Call("Bewegungen", ns.Moves.OnLogin)
     mod:Call("Buch", ns.MigrateBook)
     mod:Call("Kontrollrechnung", ns.Check.OnLogin)
+end)
+-- Reihenfolge der Kosten geaendert: neu rechnen (ab 0.14.3)
+mod:On("CHANGED", function()
+    if ns.Cost then ns.Cost.Invalidate() end
+    if ns.Last then ns.Last.dirty = true end
+    if ns.Window and ns.Window.OnData then ns.Window.OnData() end
 end)
 mod:On("COMBAT_END", function() mod:Call("Bestand", ns.Inventory.Flush) end)
 

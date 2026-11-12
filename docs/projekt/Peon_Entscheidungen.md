@@ -2,6 +2,11 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Startbestand und Reihenfolge der Kosten (Ledger 0.14.3)
+
+- **Startbestand als Sondereinnahme (Variante C, KarloDerBaer):** Was beim Neustart des Buchs da war, behält zur Information den Marktwert, sein Verkauf zählt aber nicht als Handelsgewinn. Kosten 0 hätte jeden alten Verkauf als vollen Gewinn gezeigt, Marktwert allein zeigte falsche Verluste.
+- **Reihenfolge einstellbar, Standard „neueste zuerst“** (KarloDerBaer, Vorschlag Claude): Ändert „älteste zuerst“ vom 03.10.2026 (`Peon_Ledger_Zuordnen.md`). Beim Aufkaufen und teurer Einstellen zeigt „neueste zuerst“ den Gewinn sofort, der Startbestand bleibt unten liegen. „Zuletzt gezahlt“ bleibt eine eigene Anzeige.
+
 ## 12.11.2026: Sondereinnahme, Bestand, Tooltip (Ledger 0.14.2)
 
 - **Auktionen von vor dem Neustart sind eine Sondereinnahme** (KarloDerBaer): Ledger kennt ihr Einstellen nicht. Ihr Erlös zählt wie eine Bestandsaufnahme und nicht als Handelsgewinn. Ebenso jeder Erlös, der keinem Gegenstand zuzuordnen ist.

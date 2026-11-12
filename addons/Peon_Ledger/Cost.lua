@@ -14,7 +14,12 @@
 --   Zugaenge derselben Art am selben Tag zum gleichen Preis werden zusammengefasst; hoechstens C.MAX_LOTS Posten,
 --   darueber werden die aeltesten zu einem Posten mit ihren Durchschnittskosten zusammengelegt.
 -- fee[itemID] = offene Gebuehren (Einstellgebuehren, Abbruchkosten), mindern den Gewinn des naechsten Verkaufs.
--- res[Eintrag] = Ergebnis je Bewegung: { sale, cost, fee, profit, miss } | { use } | { unit } | { general } | { mat }
+-- res[Eintrag] = Ergebnis je Bewegung: { sale, cost, fee, profit, miss, special } | { use } | { unit } | { general } | { mat }
+--
+-- Ab 0.14.3 (KarloDerBaer): Reihenfolge einstellbar (costOrder): "lifo" = neueste zuerst (Standard), "fifo" =
+-- aelteste zuerst. Posten des Startbestands (Anfangsbestand, Neustart des Buchs, Abweichungen, Korrekturen) tragen
+-- s = true. Was aus ihnen verkauft wird, ist eine Sondereinnahme wie eine Bestandsaufnahme: kein Handelsgewinn,
+-- nur der Rest des Verkaufs (gekaufte oder hergestellte Ware) zaehlt als Handelsgewinn.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -55,17 +60,23 @@ local function Sub(st, c)
 end
 C.Sub = Sub
 
-local function AddLot(st, id, n, c, t, noMerge)
+-- neueste zuerst? (Einstellung costOrder, Standard "lifo")
+function C.LIFO()
+    return not (mod.db and mod.db.costOrder == "fifo")
+end
+
+local function AddLot(st, id, n, c, t, noMerge, s)
     if not id or not Num(n) or n <= 0 then return nil end
     c = (Num(c) and c > 0) and c or 0
+    s = s and true or nil
     local q = st.lots[id]
     if not q then q = {}; st.lots[id] = q end
     local last = q[#q]
-    if not noMerge and last and not last.wait and Day(last.t) == Day(t) and math.abs(last.c - c) < 0.5 then
+    if not noMerge and last and not last.wait and last.s == s and Day(last.t) == Day(t) and math.abs(last.c - c) < 0.5 then
         last.n = last.n + n
         return last
     end
-    local lot = { t = t or 0, n = n, c = c }
+    local lot = { t = t or 0, n = n, c = c, s = s }
     q[#q + 1] = lot
     C.Cap(q)
     return lot
@@ -77,8 +88,9 @@ function C.Cap(q)
     if #q > C.MAX_LOTS then
         local k = #q - C.MAX_LOTS + 1
         local n2, v2 = 0, 0
-        for i = 1, k do n2 = n2 + q[i].n; v2 = v2 + q[i].n * q[i].c end
-        local merged = { t = q[k].t, n = n2, c = n2 > 0 and v2 / n2 or 0 }
+        local allS = true
+        for i = 1, k do n2 = n2 + q[i].n; v2 = v2 + q[i].n * q[i].c; if not q[i].s then allS = false end end
+        local merged = { t = q[k].t, n = n2, c = n2 > 0 and v2 / n2 or 0, s = allS or nil }
         for _ = 1, k do table.remove(q, 1) end
         table.insert(q, 1, merged)
     end
@@ -92,11 +104,11 @@ local function InsertLot(st, id, lot)
     local pos = #q + 1
     for i, x in ipairs(q) do if (x.t or 0) > (lot.t or 0) then pos = i; break end end
     local prev = q[pos - 1]
-    if prev and not prev.wait and Day(prev.t) == Day(lot.t) and math.abs(prev.c - lot.c) < 0.5 then
+    if prev and not prev.wait and prev.s == (lot.s or nil) and Day(prev.t) == Day(lot.t) and math.abs(prev.c - lot.c) < 0.5 then
         prev.n = prev.n + lot.n
         return
     end
-    table.insert(q, pos, { t = lot.t or 0, n = lot.n, c = lot.c or 0 })
+    table.insert(q, pos, { t = lot.t or 0, n = lot.n, c = lot.c or 0, s = lot.s or nil })
     C.Cap(q)
 end
 C.InsertLot = InsertLot
@@ -105,35 +117,55 @@ C.InsertLot = InsertLot
 local function TakeLots(st, id, n)
     local q = id and st.lots[id]
     local out, left = {}, n or 0
-    while q and left > 0 and q[1] do
-        local lot = q[1]
+    local lifo = C.LIFO()
+    while q and left > 0 and #q > 0 do
+        local i = lifo and #q or 1
+        local lot = q[i]
         local k = math.min(left, lot.n)
-        out[#out + 1] = { t = lot.t, n = k, c = lot.c }
+        out[#out + 1] = { t = lot.t, n = k, c = lot.c, s = lot.s }
         lot.n = lot.n - k
         left = left - k
-        if lot.n <= 0 then table.remove(q, 1) end
+        if lot.n <= 0 then table.remove(q, i) end
     end
     if q and #q == 0 then st.lots[id] = nil end
     return out, left
 end
 C.TakeLots = TakeLots
 
--- n Stueck entnehmen, aelteste zuerst; Rueckgabe: Kosten zusammen, Stueck ohne Posten
+-- n Stueck entnehmen (neueste oder aelteste zuerst, C.LIFO); Rueckgabe: Kosten zusammen, Stueck ohne Posten,
+-- davon Stueck und Kosten aus dem Startbestand (ab 0.14.3)
 local function Take(st, id, n)
     local q = id and st.lots[id]
-    local cost, left = 0, n or 0
-    while q and left > 0 and q[1] do
-        local lot = q[1]
+    local cost, left, sn, sc = 0, n or 0, 0, 0
+    local lifo = C.LIFO()
+    while q and left > 0 and #q > 0 do
+        local i = lifo and #q or 1
+        local lot = q[i]
         local k = math.min(left, lot.n)
         cost = cost + k * lot.c
+        if lot.s then sn, sc = sn + k, sc + k * lot.c end
         lot.n = lot.n - k
         left = left - k
-        if lot.n <= 0 then table.remove(q, 1) end
+        if lot.n <= 0 then table.remove(q, i) end
     end
     if q and #q == 0 then st.lots[id] = nil end
-    return cost, left
+    return cost, left, sn, sc
 end
 C.Take = Take
+
+-- Ergebnis eines Verkaufs (ab 0.14.3): Stueck aus dem Startbestand sind Sondereinnahme (anteiliger Erloes),
+-- der Rest zaehlt als Handelsgewinn. cnt = verkaufte Stueck, cost/sn/sc aus Take, fee = Gebuehren
+local function SaleResult(m, cnt, cost, miss, sn, sc, fee)
+    sn, sc = sn or 0, sc or 0
+    cnt = math.max(cnt or 1, 1)
+    if sn <= 0 then return { sale = true, cost = cost, fee = fee, profit = m - cost - fee, miss = miss } end
+    local special = m * math.min(sn, cnt) / cnt
+    local rest = cnt - sn
+    if rest <= 0 then return { special = special, cost = cost, specialN = sn } end
+    local tcost = cost - sc
+    return { sale = true, cost = tcost, fee = fee, profit = (m - special) - tcost - fee, miss = miss, special = special, specialN = sn }
+end
+C.SaleResult = SaleResult
 
 ---------------------------------------------------------------------------
 -- Ereignisse: Anfangsbestand + Bewegungen, zeitlich geordnet
@@ -295,7 +327,7 @@ local function Twink(st, e, id, n)
         while q and left > 0 and q[1] do
             local lot = q[1]
             local k = math.min(left, lot.n)
-            InsertLot(st, id, { t = lot.t, n = k, c = lot.c })
+            InsertLot(st, id, { t = lot.t, n = k, c = lot.c, s = lot.s })
             lot.n = lot.n - k
             left = left - k
             if lot.n <= 0 then table.remove(q, 1) end
@@ -304,7 +336,7 @@ local function Twink(st, e, id, n)
         if left > 0 then
             -- Versand vor Beginn der Aufzeichnung: zum Marktwert (beim ersten Rechnen gemerkt, wie der Anfangsbestand)
             if not Num(e.v) then e.v = C.MarketValue(id) or 0 end
-            InsertLot(st, id, { t = e.t or 0, n = left, c = e.v })
+            InsertLot(st, id, { t = e.t or 0, n = left, c = e.v, s = true })
         end
     end
 end
@@ -312,18 +344,18 @@ end
 function C.Apply(st, e, groups)
     Sub(st, e.c)
     if e.start then
-        AddLot(st, e.id, e.n, StartValue(e.s, e.id), e.t)
+        AddLot(st, e.id, e.n, StartValue(e.s, e.id), e.t, nil, true)
         return
     end
     local k, id, n, m = e.k, e.id, e.n or 0, e.m or 0
     if k == "twink" then Twink(st, e, id, n); return end
     if k == "posted" or k == "ahback" or k == "ahreturn" then return end   -- Umbuchung
-    if k == "diff" then   -- ab 0.14: Abweichung der Kontrollrechnung, Kosten wie eine Korrektur
-        if id and n > 0 then AddLot(st, id, n, e.v or 0, e.t) elseif id and n < 0 then Take(st, id, -n) end
+    if k == "diff" then   -- ab 0.14: Abweichung der Kontrollrechnung, Kosten wie eine Korrektur (Startbestand)
+        if id and n > 0 then AddLot(st, id, n, e.v or 0, e.t, nil, true) elseif id and n < 0 then Take(st, id, -n) end
         return
     end
     if k == "fix" then
-        if id and n > 0 then AddLot(st, id, n, e.v or 0, e.t) elseif id and n < 0 then Take(st, id, -n) end
+        if id and n > 0 then AddLot(st, id, n, e.v or 0, e.t, nil, true) elseif id and n < 0 then Take(st, id, -n) end
         return
     end
     if k == "ahfee" then
@@ -350,9 +382,9 @@ function C.Apply(st, e, groups)
             AddLot(st, id, n, unit, e.t)
             st.res[e] = { unit = unit }
         elseif id and n < 0 then
-            local cost, miss = Take(st, id, -n)
+            local cost, miss, sn, sc = Take(st, id, -n)
             local got = m > 0 and m or 0
-            st.res[e] = { sale = true, cost = cost, fee = 0, profit = got - cost, miss = miss }
+            st.res[e] = SaleResult(got, -n, cost, miss, sn, sc, 0)
         end
         return
     end
@@ -387,11 +419,11 @@ function C.Apply(st, e, groups)
             local pre = st.pre[id] or 0
             local use = math.min(pre, cnt)
             st.pre[id] = pre - use
-            local cost, miss = 0, 0
-            if cnt - use > 0 then cost, miss = Take(st, id, cnt - use) end
+            local cost, miss, sn, sc = 0, 0, 0, 0
+            if cnt - use > 0 then cost, miss, sn, sc = Take(st, id, cnt - use) end
             local fee = st.fee[id] or 0
             st.fee[id] = nil
-            st.res[e] = { sale = true, cost = cost, fee = fee, profit = m - cost - fee, miss = miss }
+            st.res[e] = SaleResult(m, cnt, cost, miss, sn, sc, fee)
         elseif id and n < 0 then
             -- Gegenstand weg (Auktionsliste): Kosten fuer den Erloes vormerken
             local cnt = -n
@@ -400,10 +432,10 @@ function C.Apply(st, e, groups)
             st.pre[id] = pre - use
             cnt = cnt - use
             if cnt > 0 then
-                local cost = Take(st, id, cnt)
+                local cost, _, sn, sc = Take(st, id, cnt)
                 local sq = st.soldQ[id]
                 if not sq then sq = {}; st.soldQ[id] = sq end
-                sq[#sq + 1] = { n = cnt, cost = cost }
+                sq[#sq + 1] = { n = cnt, cost = cost, sn = sn, sc = sc }
             end
         elseif m > 0 then
             if not id then
@@ -411,25 +443,29 @@ function C.Apply(st, e, groups)
                 return
             end
             local q = e.q or 1
-            local cost, left = 0, q
+            local cost, left, sn, sc = 0, q, 0, 0
             local sq = st.soldQ[id]
             while sq and left > 0 and sq[1] do
                 local s = sq[1]
                 local kk = math.min(left, s.n)
                 local part = s.n > 0 and s.cost * kk / s.n or 0
+                local spart = (s.sn or 0) > 0 and math.min(kk, s.sn) or 0
+                local scpart = spart > 0 and (s.sc or 0) * spart / s.sn or 0
+                sn, sc = sn + spart, sc + scpart
+                s.sn, s.sc = (s.sn or 0) - spart, (s.sc or 0) - scpart
                 cost, s.cost, s.n, left = cost + part, s.cost - part, s.n - kk, left - kk
                 if s.n <= 0 then table.remove(sq, 1) end
             end
             local miss = 0
             if left > 0 then
                 -- Auktionsliste kam (noch) nicht: jetzt aus dem Bestand nehmen und fuer spaeter vormerken
-                local c2, mm = Take(st, id, left)
-                cost, miss = cost + c2, mm
+                local c2, mm, sn2, sc2 = Take(st, id, left)
+                cost, miss, sn, sc = cost + c2, mm, sn + sn2, sc + sc2
                 st.pre[id] = (st.pre[id] or 0) + (left - mm)
             end
             local fee = st.fee[id] or 0
             st.fee[id] = nil
-            st.res[e] = { sale = true, cost = cost, fee = fee, profit = m - cost - fee, miss = miss }
+            st.res[e] = SaleResult(m, q, cost, miss, sn, sc, fee)
         end
         return
     end
@@ -472,7 +508,7 @@ local function CopyLots(src)
     local lots = {}
     for id, q in pairs(type(src) == "table" and src or {}) do
         local c = {}
-        for i, lot in ipairs(q) do c[i] = { t = lot.t, n = lot.n, c = lot.c } end
+        for i, lot in ipairs(q) do c[i] = { t = lot.t, n = lot.n, c = lot.c, s = lot.s } end
         lots[id] = c
     end
     return lots
@@ -563,10 +599,10 @@ local function Fit(q, want, t, id)
         if left <= 0 then break end
         local lot = q[i]
         local k = math.min(lot.n, left)
-        table.insert(out, 1, { t = lot.t, n = k, c = lot.c })
+        table.insert(out, 1, { t = lot.t, n = k, c = lot.c, s = true })   -- ab 0.14.3: Startbestand
         left = left - k
     end
-    if left > 0 then table.insert(out, 1, { t = t, n = left, c = C.MarketValue(id) or 0 }) end
+    if left > 0 then table.insert(out, 1, { t = t, n = left, c = C.MarketValue(id) or 0, s = true }) end
     return out
 end
 
@@ -600,6 +636,26 @@ end
 ---------------------------------------------------------------------------
 -- Abfragen
 ---------------------------------------------------------------------------
+-- Was kostete der Verkauf von n Stueck jetzt? (ohne etwas zu entnehmen, ab 0.14.3 fuer das Postfenster)
+-- Rueckgabe wie Take: Kosten, Stueck ohne Posten, Stueck und Kosten aus dem Startbestand
+function C.Peek(id, n, char)
+    local st = C.State()
+    local x = st.chars[char or ns.CharName()]
+    local q = x and x.lots[id]
+    local cost, left, sn, sc = 0, n or 0, 0, 0
+    if not q then return cost, left, sn, sc end
+    local lifo = C.LIFO()
+    local i, step = lifo and #q or 1, lifo and -1 or 1
+    while left > 0 and q[i] do
+        local lot = q[i]
+        local k = math.min(left, lot.n)
+        cost = cost + k * lot.c
+        if lot.s then sn, sc = sn + k, sc + k * lot.c end
+        left = left - k
+        i = i + step
+    end
+    return cost, left, sn, sc
+end
 -- Kosten eines Gegenstands (ab 0.9 je Charakter): naechstes Stueck, Durchschnitt, Stueck mit Posten, Lagerwert.
 -- char: nil = eingeloggter Charakter, "*" = alle Charaktere. Posten "unterwegs" (Post an diesen Twink) zaehlen mit,
 -- das naechste Stueck kommt aber aus dem, was der Charakter schon hat.

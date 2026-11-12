@@ -86,8 +86,19 @@ function B.Collect(period, onlyMe, now, char)
         local side = Side(e)
         if e.k == "ahreturn" and e.id and (e.n or 0) > 0 then Item(e.id).back = Item(e.id).back + e.n end
         if side == "move" then return end
-        Money(e.sp and "special" or e.k, e.m)   -- ab 0.14.2: Sondereinnahme eigene Art
-        if e.sp and e.m and e.m > 0 then res.special = (res.special or 0) + e.m end
+        -- Sondereinnahme eigene Art (ab 0.14.2 Auktionen von vor dem Neustart, ab 0.14.3 Verkauf aus dem Startbestand)
+        local zr = ns.Cost and ns.Cost.Result(e)
+        local sp = 0
+        if e.m and e.m > 0 then
+            if e.sp then sp = e.m elseif zr and zr.special then sp = math.min(e.m, zr.special) end
+        end
+        if sp > 0 then
+            Money("special", sp)
+            res.special = (res.special or 0) + sp
+            Money(e.k, e.m - sp)
+        else
+            Money(e.k, e.m)
+        end
         if e.k == "ahsold" and e.cut then res.cut = res.cut + e.cut end
         if e.id then
             local it = Item(e.id)

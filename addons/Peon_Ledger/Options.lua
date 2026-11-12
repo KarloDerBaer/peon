@@ -90,6 +90,7 @@ function ns.CreateOptions()
 
     -- Buch
     page:Add(left, page:Header(L.HDR_BOOK), 6)
+    page:Add(left, page:Dropdown("costOrder", L.OPT_COST_ORDER, { { "lifo", L.COST_LIFO }, { "fifo", L.COST_FIFO } }, L.OPT_COST_ORDER_HINT), 8)
     page:Add(left, page:Button(L.BTN_COST_RECALC, function()
         ns.Cost.Invalidate()
         local ok = pcall(ns.Cost.State)

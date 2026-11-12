@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.14.3
+
+Kurz: Was beim Neustart des Buchs schon da war, gilt als Startbestand. Verkaufst du davon etwas, ist das eine Sondereinnahme und kein Handelsgewinn.
+Kurz: Neu einstellbar ist, welche Stücke beim Verkaufen zuerst weggehen. Standard ist jetzt „neueste zuerst“: Aufkaufen und teurer Einstellen zeigt den Gewinn sofort.
+
+- 0.14.3 (12.11.2026): Variante C und Reihenfolge der Kosten (KarloDerBaer).
+  - **Startbestand:** Posten aus Anfangsbestand, Neustart des Buchs, Abweichungen, Korrekturen und Post vom Twink ohne bekannten Versand tragen das Kennzeichen `s`. Verkäufe daraus (Auktionshaus und Händler) sind Sondereinnahme. Mischt ein Verkauf Startbestand und gekaufte Ware, wird der Erlös nach Stück aufgeteilt (`Cost.SaleResult`). Im Buch steht der Anteil unter „Sondereinnahme“, Handelsgewinn nur aus gekaufter oder hergestellter Ware. Lagerwert zählt den Startbestand weiter mit dem Marktwert beim Neustart.
+  - **Reihenfolge einstellbar** (`costOrder`): „neueste zuerst“ (Standard) oder „älteste zuerst“, unter Optionen > Buch. Gilt für Verkauf, Verbrauch, Material und Post an Twinks. Ein Wechsel rechnet alles neu.
+  - Postfenster: Gewinn und Sondereinnahme wie die Kostenrechnung (`Cost.Peek`, ohne etwas zu entnehmen).
+  - Buch beginnt noch einmal neu (`ns.BOOK_VERSION = 4`), damit der Startbestand markiert ist.
+
 ## 0.14.2
 
 Kurz: Das Buch beginnt noch einmal neu. Verkäufe von Auktionen, die schon vorher liefen, zählen als Sondereinnahme und nicht als Handelsgewinn.
