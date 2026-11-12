@@ -111,7 +111,7 @@ end
 function S.Status()
     local s = S.sums
     if not s then return nil end
-    local t = L.STOCK_COUNT:format(s.n)
+    local t = ns.Plural(s.n, "STOCK_COUNT")
     if ns.HasBroker() then t = t .. "  ·  " .. L.STOCK_VALUE:format(ns.Money(s.value, true)) end
     return t .. "  ·  " .. L.STOCK_LAGER:format(ns.Money(math.floor(s.lager + 0.5), true))
 end

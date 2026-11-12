@@ -125,8 +125,8 @@ function K.StatusText()
     local open = K.Run().n
     local recent = K.Recent()
     if open == 0 and recent == 0 then return L.CHECK_OK end
-    if open > 0 then return L.CHECK_OPEN:format(open) end
-    return L.CHECK_RECENT:format(recent, K.DAYS)
+    if open > 0 then return ns.Plural(open, "CHECK_OPEN") end
+    return ns.Plural(recent, "CHECK_RECENT", K.DAYS)
 end
 
 function K.OnLogin()

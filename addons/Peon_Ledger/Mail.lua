@@ -303,6 +303,7 @@ function MA.Create()
 end
 
 function MA.SelectTab(key)
+    MA.CloseReader()
     MA.tab = key
     for k, p in pairs(MA.pages or {}) do p:SetShown(k == key) end
     -- Rechtsklick in der Tasche haengt an, solange die Seite Senden offen ist (wie Blizzards Seite)
@@ -345,6 +346,7 @@ function MA.BuildInbox()
     local panel = U.Panel(c, "list", true)
     panel:SetPoint("TOPLEFT", left, "TOPRIGHT", 4, 0)
     panel:SetPoint("BOTTOMRIGHT", -a.right, a.bottom)
+    MA.listPanel = panel
     MA.table = U.Table(panel, {
         icon = true,
         columns = {
@@ -359,8 +361,95 @@ function MA.BuildInbox()
         empty = L.MAIL_EMPTY,
         rowBg = function(r) if r.cod then return 1, 0.2, 0.2, 0.12 end end,
         onEnter = function(row, r) MA.RowTooltip(row, r) end,
-        onClick = function(r, button) if button == "LeftButton" then MA.Take(r) end end,
+        onClick = function(r, button)
+            -- ab 0.14.1: Brief ohne Gold und Anhang wird gelesen, Rechtsklick liest jeden Brief
+            if button == "RightButton" or MA.TextOnly(r) then MA.Read(r) elseif button == "LeftButton" then MA.Take(r) end
+        end,
     })
+    MA.BuildReader(c, panel)
+end
+
+-- Brief ohne Gold und ohne Anhang (nur Text)
+function MA.TextOnly(r) return not r.cod and (r.money or 0) == 0 and (r.letter.count or 0) == 0 end
+
+-- Lesen (ab 0.14.1): Betreff, Absender, Text. Antworten, Loeschen (leere Briefe) bzw. Zurueckschicken.
+function MA.BuildReader(c, panel)
+    local U = Peon.UI
+    local f = U.Panel(c, "list")
+    f:SetAllPoints(panel)
+    f:SetFrameLevel((panel:GetFrameLevel() or 1) + 20)
+    f:EnableMouse(true)
+    f:Hide()
+    f.subject = U.Text(f, "heading", "", 460)
+    f.subject:SetPoint("TOPLEFT", 16, -14)
+    f.from = U.Text(f, "sub", "", 460)
+    f.from:SetPoint("TOPLEFT", f.subject, "BOTTOMLEFT", 0, -4)
+    f.body = U.Text(f, "text", "", 460)
+    f.body:SetPoint("TOPLEFT", f.from, "BOTTOMLEFT", 0, -14)
+    f.back = U.Button(f, L.MAIL_READ_BACK, 100, function() MA.CloseReader() end)
+    f.back:SetPoint("BOTTOMLEFT", 14, 12)
+    f.reply = U.Button(f, L.MAIL_READ_REPLY, 110, function() MA.Reply() end)
+    f.reply:SetPoint("LEFT", f.back, "RIGHT", 8, 0)
+    f.del = U.Button(f, L.MAIL_READ_DELETE, 120, function() MA.DeleteOrReturn() end)
+    f.del:SetPoint("BOTTOMRIGHT", -14, 12)
+    MA.reader = f
+end
+
+function MA.Read(r)
+    if not r or not MA.reader then return end
+    local f = MA.reader
+    local body
+    local fn = G("GetInboxText")
+    if type(fn) == "function" then
+        local ok, text = pcall(fn, r.index)
+        if ok and type(text) == "string" and not Peon.IsSecret(text) then body = text end
+    end
+    MA.reading = r
+    f.subject:SetText(r.subject or r.content or "")
+    f.from:SetText(r.sender and (L.MAIL_TT_FROM .. ": " .. r.sender) or "")
+    f.body:SetText((body and body ~= "") and body or (GREY .. L.MAIL_READ_EMPTY .. "|r"))
+    local canDelete = false
+    local cd = G("InboxItemCanDelete")
+    if type(cd) == "function" then local ok, v = pcall(cd, r.index); canDelete = ok and v and true or false end
+    f.canDelete = canDelete
+    f.del:SetText(canDelete and L.MAIL_READ_DELETE or L.MAIL_READ_RETURN)
+    if MA.TextOnly(r) then f.del:Enable() else f.del:SetShown(canDelete or (r.kind == "player")) end
+    f.reply:SetShown(r.kind == "player" or r.kind == "twink")
+    f:Show()
+end
+
+function MA.CloseReader()
+    MA.reading = nil
+    if MA.reader then MA.reader:Hide() end
+end
+
+function MA.Reply()
+    local r = MA.reading
+    if not r or not r.sender then return end
+    MA.CloseReader()
+    MA.tabs:Select("send")
+    MA.send.to:SetText(r.sender:match("^(%S+)") or r.sender)
+    local subj = r.subject or ""
+    MA.send.subject:SetText(subj ~= "" and L.MAIL_READ_RE:format(subj) or "")
+    MA.RefreshSend()
+end
+
+function MA.DeleteOrReturn()
+    local r = MA.reading
+    if not r then return end
+    local f = MA.reader
+    local i = r.index
+    if f.canDelete then
+        Peon.UI.Confirm(L.MAIL_READ_DELETE_Q, L.MAIL_READ_DELETE, nil, function()
+            local fn = G("DeleteInboxItem")
+            if type(fn) == "function" then pcall(fn, i) end
+            MA.CloseReader()
+        end)
+    else
+        local fn = G("ReturnInboxItem")
+        if type(fn) == "function" then pcall(fn, i) end
+        MA.CloseReader()
+    end
 end
 
 function MA.DaysText(d)
@@ -377,11 +466,15 @@ function MA.RowTooltip(row, r)
     if r.sender then GameTooltip:AddDoubleLine(L.MAIL_TT_FROM, r.sender, 0.8, 0.8, 0.8, 1, 1, 1) end
     local inv = r.letter.invoice
     if inv and inv.kind == "seller" then
-        if inv.buyout then GameTooltip:AddDoubleLine(L.MAIL_TT_GROSS, ns.Money(inv.buyout), 0.8, 0.8, 0.8, 1, 1, 1) end
+        if inv.gross then
+            local q = inv.count or 1
+            local each = q > 1 and ("  " .. GREY .. L.MAIL_TT_EACH:format(ns.Money(math.floor(inv.gross / q + 0.5))) .. "|r") or ""
+            GameTooltip:AddDoubleLine(L.MAIL_TT_GROSS, ns.Money(inv.gross) .. each, 0.8, 0.8, 0.8, 1, 1, 1)
+        end
         if inv.cut then GameTooltip:AddDoubleLine(L.MAIL_TT_CUT, "-" .. ns.Money(inv.cut), 0.8, 0.8, 0.8, 1, 1, 1) end
         if inv.deposit and inv.deposit > 0 then GameTooltip:AddDoubleLine(L.MAIL_TT_DEPOSIT, "+" .. ns.Money(inv.deposit), 0.8, 0.8, 0.8, 1, 1, 1) end
-    elseif inv and inv.kind == "buyer" and inv.buyout then
-        GameTooltip:AddDoubleLine(L.MAIL_TT_PAID, ns.Money(inv.buyout), 0.8, 0.8, 0.8, 1, 1, 1)
+    elseif inv and inv.kind == "buyer" and math.max(inv.bid or 0, inv.buyout or 0) > 0 then
+        GameTooltip:AddDoubleLine(L.MAIL_TT_PAID, ns.Money(math.max(inv.bid or 0, inv.buyout or 0)), 0.8, 0.8, 0.8, 1, 1, 1)
     end
     if r.money then GameTooltip:AddDoubleLine(L.MAIL_TT_MONEY, ns.Money(r.money), 0.8, 0.8, 0.8, 1, 1, 1) end
     if r.profit then
@@ -391,7 +484,12 @@ function MA.RowTooltip(row, r)
     end
     if r.cod then GameTooltip:AddLine(L.MAIL_TT_COD:format(ns.Money(r.cod)), 1, 0.3, 0.3, true) end
     if r.letter.loading then GameTooltip:AddLine(L.MAIL_TT_LOADING, 0.6, 0.6, 0.6, true) end
-    GameTooltip:AddLine(r.cod and L.MAIL_TT_CLICK_COD or L.MAIL_TT_CLICK, 0.6, 0.6, 0.6, true)
+    if MA.TextOnly(r) then
+        GameTooltip:AddLine(L.MAIL_TT_CLICK_READ, 0.6, 0.6, 0.6, true)
+    else
+        GameTooltip:AddLine(r.cod and L.MAIL_TT_CLICK_COD or L.MAIL_TT_CLICK, 0.6, 0.6, 0.6, true)
+        GameTooltip:AddLine(L.MAIL_TT_RIGHT_READ, 0.6, 0.6, 0.6, true)
+    end
     GameTooltip:Show()
 end
 
@@ -404,7 +502,7 @@ function MA.UpdateButtons()
         MA.btnAH:SetText(run.mode == "ah" and txt or L.MAIL_AH_SHORT)
         MA.btnAll:SetText(run.mode == "all" and txt or L.MAIL_ALL)
     else
-        MA.btnAH:SetText(L.MAIL_AH_BTN:format(s.ah, ns.Money(s.ahMoney, true)))
+        MA.btnAH:SetText(s.ahMoney > 0 and L.MAIL_AH_BTN:format(ns.Money(s.ahMoney, true)) or L.MAIL_AH_SHORT)
         MA.btnAll:SetText(L.MAIL_ALL)
     end
     local function En(b, on) if on then b:Enable() else b:Disable() end end
@@ -427,7 +525,7 @@ function MA.RefreshInbox()
     for _, r in ipairs(rows) do if f == true or (f and f[r.kind]) then shown[#shown + 1] = r end end
     MA.table:SetData(shown)
     local ln = MA.lines
-    ln.letters:Set(L.MAIL_L_LETTERS:format(s.letters), ns.Money(s.money))
+    ln.letters:Set(ns.Plural(s.letters, "MAIL_L_LETTERS"), ns.Money(s.money))
     ln.sale:Set(L.MAIL_L_SALE:format(s.sale), ns.Money(s.saleMoney))
     ln.profit:Set(L.MAIL_L_PROFIT, s.sale > 0 and W.Signed(s.profit) or (GREY .. "–|r"))
     ln.buy:Set(L.MAIL_L_BUY, tostring(s.buy))
@@ -586,7 +684,7 @@ function MA.RefreshSend()
     local own = ns.Moves.OwnChar(to)
     local twink = own and own ~= ns.CharName()
     local lines = {}
-    if #items > 0 then lines[#lines + 1] = L.MAIL_ATTACH_VALUE:format(#items, ns.Money(math.floor(value + 0.5))) end
+    if #items > 0 then lines[#lines + 1] = ns.Plural(#items, "MAIL_ATTACH_VALUE", ns.Money(math.floor(value + 0.5))) end
     if twink then lines[#lines + 1] = GREEN .. L.MAIL_TWINK_HINT:format(own) .. "|r" end
     S.attachValue:SetText(table.concat(lines, "\n"))
     local priceFn = G("GetSendMailPrice")
@@ -698,6 +796,7 @@ end
 
 -- neue Briefe gelesen (Inventory.ScanMail)
 function MA.OnInbox()
+    if MA.reading and not (ns.Inventory.letters or {})[MA.reading.index] then MA.CloseReader() end
     if MA.win and MA.win:IsShown() and MA.tab ~= "send" then MA.RefreshInbox() end
 end
 

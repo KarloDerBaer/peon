@@ -3,7 +3,7 @@
 ## Notes: Inventory of all characters, bookkeeping and mailbox for the Peon addon collection.
 ## Notes-deDE: Bestand aller Charaktere, Buchführung und Postfenster für Peon.
 ## Author: KarloDerBaer
-## Version: 0.14.0
+## Version: 0.14.1
 ## Dependencies: Peon
 ## Group: Peon
 ## IconTexture: Interface\Icons\INV_Scroll_03

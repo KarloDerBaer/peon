@@ -204,6 +204,12 @@ function ns.Realm()
     return realm
 end
 
+-- Text mit Anzahl in Einzahl oder Mehrzahl (ab 0.14.1): L[key .. "_1"] fuer genau 1, sonst L[key]
+function ns.Plural(n, key, ...)
+    local fmt = (n == 1 and rawget(L, key .. "_1")) or L[key]
+    return fmt:format(n, ...)
+end
+
 -- Geldbetrag als kurzer Text (ohne Muenzsymbole): "12g 3s 4c"
 function ns.MoneyText(c)
     if type(c) ~= "number" or Peon.IsSecret(c) then return "?" end

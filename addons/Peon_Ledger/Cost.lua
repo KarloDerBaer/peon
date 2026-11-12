@@ -523,6 +523,56 @@ function C.Absorb(old, limit)
     C.dirty = true
 end
 
+-- Buch zuruecksetzen mit Kosten (ab 0.14.1): Posten aus dem bisherigen Stand (st) passend zum neuen Anfangsbestand.
+-- Je Charakter und Gegenstand so viele Stueck wie er jetzt hat (Taschen, Bank, Auktionen, Ausruestung): die
+-- neuesten Posten bleiben, fehlt etwas, kommt es zum Marktwert dazu (als aeltester Posten). "Unterwegs" (Post an
+-- Twinks) bleibt passend zum Ort transit. Rueckgabe lotBase mit untilT nach dem Anfangsbestand (zaehlt dann nicht
+-- noch einmal zum Marktwert).
+C.CARRY_PLACES = { "bags", "bank", "auctions", "equip" }
+local function Fit(q, want, t, id)
+    local have = 0
+    for _, lot in ipairs(q or {}) do have = have + lot.n end
+    local out = {}
+    -- neueste behalten: von hinten auffuellen
+    local left = want
+    for i = #(q or {}), 1, -1 do
+        if left <= 0 then break end
+        local lot = q[i]
+        local k = math.min(lot.n, left)
+        table.insert(out, 1, { t = lot.t, n = k, c = lot.c })
+        left = left - k
+    end
+    if left > 0 then table.insert(out, 1, { t = t, n = left, c = C.MarketValue(id) or 0 }) end
+    return out
+end
+
+function C.CarryOver(st, t)
+    local r = ns.Inventory.RealmData()
+    local chars, transit = {}, {}
+    for name, c in pairs(r.chars) do
+        local hold = {}
+        for _, place in ipairs(C.CARRY_PLACES) do
+            local p = c.start and c.start.places and c.start.places[place]
+            if type(p) == "table" and type(p.items) == "table" then
+                for id, n in pairs(p.items) do if Num(n) and n > 0 then hold[id] = (hold[id] or 0) + n end end
+            end
+        end
+        local old = st.chars and st.chars[name]
+        local lots = {}
+        for id, n in pairs(hold) do lots[id] = Fit(old and old.lots and old.lots[id], n, t, id) end
+        local fee = {}
+        for id, f in pairs(old and old.fee or {}) do if hold[id] then fee[id] = f end end
+        chars[name] = { lots = lots, fee = fee }
+        local tr = c.places and c.places.transit
+        if type(tr) == "table" and type(tr.items) == "table" and st.transit and st.transit[name] then
+            local q = {}
+            for id, n in pairs(tr.items) do if Num(n) and n > 0 then q[id] = Fit(st.transit[name][id], n, t, id) end end
+            transit[name] = q
+        end
+    end
+    return { untilT = t + 1, chars = chars, transit = transit }
+end
+
 ---------------------------------------------------------------------------
 -- Abfragen
 ---------------------------------------------------------------------------

@@ -381,7 +381,7 @@ function M.LetterMoney(l)
     local kind = M.LetterKind(l)
     if kind == "sold" then
         local inv = l.invoice
-        local info = inv and { id = inv.item and ns.Inventory.FindItemID(inv.item), q = inv.count or 1, cut = inv.cut, gross = inv.buyout } or nil
+        local info = inv and { id = inv.item and ns.Inventory.FindItemID(inv.item), q = inv.count or 1, cut = inv.cut, gross = inv.gross } or nil
         if not inv then
             -- Rechnung noch nicht geladen (ab 0.6): Gegenstand aus dem Betreff ("Auktion erfolgreich: Name")
             local name = (Str(l.subject) or ""):match(":%s*(.-)%s*$")
@@ -660,7 +660,9 @@ function M.FindPurchase(id, net, letter)
     local list = M.List()
     local now = time()
     local inv = type(letter) == "table" and letter.invoice or nil
-    local paid = inv and (inv.buyout or inv.bid) or nil
+    -- ab 0.14.1 der groessere Wert: Forever schreibt bei Massenware teils die Menge ins Feld Sofortkauf
+    local paid = inv and math.max(inv.bid or 0, inv.buyout or 0) or nil
+    if paid == 0 then paid = nil end
     for i = #list, math.max(1, #list - M.MERGE_LOOKBACK), -1 do
         local e = list[i]
         if (e.t or 0) < now - M.MATCH_DAYS * 86400 then break end
@@ -1094,6 +1096,15 @@ end
 function M.ResetBook()
     local I = ns.Inventory
     local r = I.RealmData()
+    -- ab 0.14.1: Kosten und "zuletzt" aus dem bisherigen Verlauf behalten (vorher galt der ganze Bestand als zum
+    -- heutigen Marktwert gekauft, das zeigte beim ersten Verkauf falsche Gewinne und Verluste)
+    local carry
+    if ns.Cost then
+        ns.Cost.Invalidate()
+        local ok, st = pcall(ns.Cost.State)
+        if ok and type(st) == "table" then carry = st end
+    end
+    if ns.Last then pcall(ns.Last.Persist) end
     M.pending, M.transit, M.takes, M.draft = nil, {}, {}, {}
     I.quiet = true
     I.ScanMoney()
@@ -1104,8 +1115,8 @@ function M.ResetBook()
     I.quiet = nil
     r.moves = {}
     r.weeks = nil
-    r.lotBase = nil   -- Kosten beginnen neu (ab 0.7)
-    if ns.Last then ns.Last.Clear() end   -- zuletzt gezahlt/verkauft beginnt neu (ab 0.14)
+    r.lotBase = nil
+    if ns.Last then ns.Last.dirty = true end   -- zuletzt gezahlt/verkauft bleibt (realms[Realm].last)
     local t = time()
     for _, c in pairs(r.chars) do
         local start = { t = t, money = c.money, places = {} }
@@ -1118,6 +1129,7 @@ function M.ResetBook()
         end
         c.start = start
     end
+    if carry and ns.Cost then r.lotBase = ns.Cost.CarryOver(carry, t) end
     M.Changed()
     I.Changed()
 end

@@ -173,7 +173,7 @@ function H.Refresh()
     H.n = #rows
 end
 
-function H.Status() return H.n and L.HIST_COUNT:format(H.n) or nil end
+function H.Status() return H.n and ns.Plural(H.n, "HIST_COUNT") or nil end
 
 local function ItemText(v, r)
     if not r.id then return r.x and (GREY .. r.x .. "|r") or "" end
@@ -229,7 +229,7 @@ function H.Build(c)
     H.moves = U.Check(c, L.HIST_MOVES, mod.db.historyMoves ~= false, function(on)
         mod.db.historyMoves = on
         mod:Call("Verlauf", W.Refresh)
-    end, L.HIST_MOVE_HINT)
+    end, { L.HIST_MOVES, L.HIST_MOVE_HINT })   -- Tooltip als Liste (0.14.1, Fehler mit Text)
     H.moves:SetPoint("LEFT", H.charDD, "RIGHT", 8, 0)
     local panel = U.Panel(c, "list", true)
     panel:SetPoint("TOPLEFT", a.left, -a.top)

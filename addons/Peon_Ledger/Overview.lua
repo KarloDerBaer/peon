@@ -1,7 +1,8 @@
 -- Peon_Ledger - Overview.lua
 -- Reiter "Uebersicht": "Wie stehe ich da?" (ab 0.14 mit Peon.UI, Konzept Peon_Ledger_Neuaufbau.md Abschnitt 6.1)
---   oben vier Kacheln: Gold gesamt (Aenderung heute), Vermoegen, Handelsgewinn heute, Post wartet
---   darunter alle Charaktere des Realms: Name, Stufe, Gold, Lagerwert, Post, zuletzt gesehen
+--   oben drei Kacheln: Gold gesamt (Aenderung heute), Vermoegen, Handelsgewinn heute
+--   darunter alle Charaktere des Realms: Name, Stufe, Gold, Lagerwert, zuletzt gesehen
+--   Ab 0.14.1 ohne Post (KarloDerBaer): Das Spiel nennt die Post erst am Briefkasten, die Zahl war oft veraltet.
 -- Vermoegen = Gold + Wert der Gegenstaende (Preise von Peon_Broker), Gebundenes zum Haendlerpreis (ns.Worth).
 
 local ADDON_NAME, ns = ...
@@ -84,16 +85,6 @@ function O.ExpText(t)
     return txt
 end
 
-local function MailText(v, r)
-    local m = r.mail
-    if not m then return GREY .. "–|r" end
-    if (m.letters or 0) == 0 then return GREY .. "0|r" end
-    local txt = tostring(m.letters)
-    if (m.money or 0) > 0 then txt = txt .. " · " .. ns.Money(m.money, true) end
-    if m.next then txt = txt .. " · " .. O.ExpText(m.next) end
-    return txt
-end
-
 -- Kachel: Ueberschrift, grosser Wert, kleiner Zusatz
 local function Tile(parent, x, y, w, h, title)
     local U = Peon.UI
@@ -120,7 +111,7 @@ function O.Refresh()
     local t = O.Totals(rows)
     O.totals = t
     local today = ns.Book.Collect("today", false)
-    O.tiles.gold:Set(ns.Money(t.money, true), L.OV_TODAY:format(W.Signed(today.profit)) .. "  ·  " .. L.OV_CHARS:format(t.chars))
+    O.tiles.gold:Set(ns.Money(t.money, true), L.OV_TODAY:format(W.Signed(today.profit)) .. "  ·  " .. ns.Plural(t.chars, "OV_CHARS"))
     if ns.HasBroker() then
         local sub = L.OV_ITEMS_VALUE:format(ns.Money(t.items, true))
         if t.missing > 0 then sub = sub .. GREY .. "  ·  " .. L.OV_NOPRICE:format(t.missing) .. "|r" end
@@ -129,20 +120,13 @@ function O.Refresh()
         O.tiles.worth:Set(GREY .. "–|r", GREY .. L.OV_NOBROKER .. "|r")
     end
     local lager = ns.Cost and ns.Cost.TotalValue() or 0
-    O.tiles.trade:Set(W.Signed(today.trade or 0), L.OV_TRADE_SUB:format(today.nsales or 0, ns.Money(math.floor(lager + 0.5), true)))
-    if t.mailKnown then
-        local sub = (t.mailMoney > 0) and L.OV_MAIL_GOLD:format(ns.Money(t.mailMoney, true)) or ""
-        if t.nextExp then sub = sub .. (sub ~= "" and "  ·  " or "") .. L.OV_MAIL_NEXT:format(O.ExpText(t.nextExp)) end
-        O.tiles.mail:Set(L.OV_MAIL_LETTERS:format(t.letters), sub)
-    else
-        O.tiles.mail:Set(GREY .. "–|r", GREY .. L.OV_MAIL_UNKNOWN .. "|r")
-    end
+    O.tiles.trade:Set(W.Signed(today.trade or 0), ns.Plural(today.nsales or 0, "OV_TRADE_SUB", ns.Money(math.floor(lager + 0.5), true)))
 end
 
 -- Text fuer die Statuszeile
 function O.Status()
     local t = O.totals
-    return t and L.OV_STATUS:format(ns.Realm(), t.chars) or nil
+    return t and (ns.Realm() .. "  ·  " .. ns.Plural(t.chars, "OV_CHARS")) or nil
 end
 
 -- Kachelinhalt als Text (Tests, Fehlersuche)
@@ -167,9 +151,6 @@ function O.RowTooltip(row, r)
             GameTooltip:AddDoubleLine(L["PLACE_" .. key:upper()], right, 1, 1, 1, 0.8, 0.8, 0.8)
         end
     end
-    if r.mail then
-        GameTooltip:AddDoubleLine(L.PLACE_MAIL, L.TT_MAIL:format(r.mail.letters or 0, ns.Money(r.mail.money or 0), r.mail.ah or 0), 1, 1, 1, 0.8, 0.8, 0.8)
-    end
     if r.worth then
         GameTooltip:AddDoubleLine(L.TT_WORTH, ns.Money(r.worth), 1, 0.82, 0, 1, 1, 1)
         GameTooltip:AddDoubleLine(L.TT_WORTH_ITEMS, ns.Money(r.itemsValue or 0), 0.8, 0.8, 0.8, 0.8, 0.8, 0.8)
@@ -186,9 +167,9 @@ function O.Build(c)
     local a = W.Area()
     O.tiles = {}
     local gap = 4
-    local tw = math.floor((a.width - 3 * gap) / 4)
+    local defs = { { "gold", L.OV_T_GOLD }, { "worth", L.OV_T_WORTH }, { "trade", L.OV_T_TRADE } }
+    local tw = math.floor((a.width - (#defs - 1) * gap) / #defs)
     local th = 64
-    local defs = { { "gold", L.OV_T_GOLD }, { "worth", L.OV_T_WORTH }, { "trade", L.OV_T_TRADE }, { "mail", L.OV_T_MAIL } }
     for i, d in ipairs(defs) do
         O.tiles[d[1]] = Tile(c, a.left + (i - 1) * (tw + gap), -a.top, tw, th, d[2])
     end
@@ -203,9 +184,8 @@ function O.Build(c)
               sort = function(r) return W.Lower(r.name) end },
             { key = "level", title = L.COL_LEVEL, width = 60, align = "RIGHT" },
             { key = "money", title = L.COL_GOLD, width = 130, align = "RIGHT", format = function(v) return v and ns.Money(v, true) or (GREY .. "–|r") end },
-            { key = "lager", title = L.COL_LAGER, width = 130, align = "RIGHT", format = function(v) return v and v > 0 and ns.Money(math.floor(v + 0.5), true) or (GREY .. "–|r") end },
-            { key = "mailSort", title = L.COL_MAIL, width = 170, align = "RIGHT", format = MailText },
-            { key = "seen", title = L.COL_SEEN, width = 80, align = "RIGHT", format = function(v, r) return r.me and L.AGE_NOW or ns.Age(v) end,
+            { key = "lager", title = L.COL_LAGER, width = 150, align = "RIGHT", format = function(v) return v and v > 0 and ns.Money(math.floor(v + 0.5), true) or (GREY .. "–|r") end },
+            { key = "seen", title = L.COL_SEEN, width = 110, align = "RIGHT", format = function(v, r) return r.me and L.AGE_NOW or ns.Age(v) end,
               sort = function(r) return r.me and math.huge or (r.seen or 0) end },
         },
         sortKey = "money", sortDesc = true,

@@ -99,7 +99,7 @@ function ns.CreateOptions()
     end, L.BTN_RESET_BOOK_HINT), 4)
     page:Add(left, page:Button(L.BTN_CHECK, function()
         local n = ns.Check.Run().n
-        mod:Print(n == 0 and L.CHECK_OK or L.CHECK_OPEN:format(n))
+        mod:Print(n == 0 and L.CHECK_OK or ns.Plural(n, "CHECK_OPEN"))
     end, L.BTN_CHECK_HINT), 4)
     page:Add(left, page:Text(function() return L.BOOK_INFO:format(#ns.Moves.List()) end), 16)
 

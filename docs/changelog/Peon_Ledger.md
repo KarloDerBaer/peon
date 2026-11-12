@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.14.1
+
+Kurz: Beim Neustart des Buchs behält Ledger, was deine Waren gekostet haben. Vorher galt alles als zum heutigen Marktpreis gekauft, dadurch zeigte die Post bei Verkäufen falsche Verluste.
+Kurz: Im Postfenster stimmt der Verkaufspreis jetzt, und Briefe mit Text lassen sich lesen, beantworten und löschen.
+Kurz: Die Übersicht zeigt keine Post mehr, weil das Spiel sie erst am Briefkasten verrät.
+
+- 0.14.1 (12.11.2026): Rückmeldungen von KarloDerBaer zum ersten Test.
+  - **Behoben:** Fehler beim Haken „Umbuchungen“ im Verlauf (`UIKit.lua:110`, Tooltip als Text statt Liste).
+  - **Behoben:** Verkaufspreis aus der Rechnung. Forever schreibt bei Massenware die Menge in das Feld Sofortkauf (echte Daten: 102 bei 102 Stück). Ledger rechnet ihn jetzt aus dem Gold im Brief: Preis = Gold + Anteil − Einzahlung (`invoice.gross`). Das betraf Ø Verkaufspreis, zuletzt verkauft und den Tooltip im Postfenster. Beim Kauf gilt der größere Wert aus Gebot und Sofortkauf.
+  - **Geändert:** „Buch zurücksetzen“ und der einmalige Neustart behalten die Kosten (`Cost.CarryOver`): je Charakter und Gegenstand die neuesten Posten passend zum Bestand, nur Fehlendes zum Marktwert. „Zuletzt gezahlt/verkauft“ bleibt ebenfalls.
+  - **Neu:** Briefe lesen im Postfenster. Klick auf einen Brief ohne Gold und Anhang öffnet ihn, Rechtsklick jeden Brief. Antworten (Seite Senden mit Empfänger und „AW:“), Löschen mit Rückfrage bzw. Zurückschicken.
+  - **Geändert:** Knopf „Auktionshaus-Post“ nur mit dem Gold. Übersicht mit drei Kacheln, ohne Kachel und Spalte Post (Wunsch KarloDerBaer). Einzahl in Texten („1 Brief“, „1 Abweichung“).
+
 ## 0.14.0
 
 Kurz: Ledger hat ein neues, übersichtliches Fenster mit vier Reitern: Übersicht, Bestand, Buch und Verlauf. Alles zu einem einzelnen Gegenstand zeigt jetzt Broker.

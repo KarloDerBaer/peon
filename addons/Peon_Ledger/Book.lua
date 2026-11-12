@@ -230,7 +230,7 @@ end
 function B.Status()
     local res = B.book.res
     if not res then return nil end
-    return L.BK_STATUS:format(res.nsales)
+    return ns.Plural(res.nsales, "BK_STATUS")
 end
 
 local function Pieces(v) if not v or v == 0 then return GREY .. "–|r" end return tostring(v) end

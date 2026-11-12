@@ -297,15 +297,15 @@ check(W.IsOpen() and W.current == "overview" and #rowsOf(ns.Overview.table) == 2
 check(#W.tabButtons == 4 and W.tabButtons[1].text == "Übersicht" and W.tabButtons[3].text == "Buch", "0.14: vier Reiter (Uebersicht, Bestand, Buch, Verlauf)")
 check(ns.Overview.TileText("gold"):find("2 Charaktere", 1, true), "Kachel Gold gesamt: " .. ns.Overview.TileText("gold"))
 check(ns.Overview.TileText("worth"):find("Peon_Broker", 1, true), "Kachel Vermoegen ohne Broker: Hinweis")
-check(ns.Overview.TileText("mail"):find("2 Briefe", 1, true), "Kachel Post wartet: " .. ns.Overview.TileText("mail"))
+check(ns.Overview.tiles.mail == nil, "0.14.1: keine Kachel Post (erst am Briefkasten bekannt)")
 check(ns.Overview.TileText("trade"):find("Verkäufe", 1, true), "Kachel Handelsgewinn heute")
 check(W.statusText and W.statusText:find("Charaktere", 1, true), "Statuszeile: " .. tostring(W.statusText))
 do
   local rowT
   for _, r in ipairs(rowsOf(ns.Overview.table)) do if r.me then rowT = r end end
-  local col
-  for _, c in ipairs(ns.Overview.table.o.columns) do if c.key == "mailSort" then col = c end end
-  check(col.format(nil, rowT):find("^2"), "Uebersicht: Spalte Post (Briefe)")
+  local hasMail = false
+  for _, c in ipairs(ns.Overview.table.o.columns) do if c.key == "mailSort" then hasMail = true end end
+  check(not hasMail and #ns.Overview.table.o.columns == 5, "0.14.1: Uebersicht ohne Spalte Post")
   tt.lines = {}
   ns.Overview.RowTooltip({}, rowT)
   local found
@@ -1395,8 +1395,25 @@ for _, r in ipairs(rows) do by[r.kind] = r end
 check(#rows == 4 and by.sale and by.buy and by.player and by.system, "vier Briefe: Verkauf, Kauf, Spieler, System")
 check(by.sale.content == "Bronzebarren ×2" and by.sale.profit and by.buy.content:find("Wollstoff ×20", 1, true), "Inhalt aus Rechnung bzw. Anhang, Gewinn beim Verkauf")
 check(by.player.cod == 500 and MA.DaysText(0.5):find("Std", 1, true) and MA.DaysText(2.5):find("2", 1, true), "Nachnahme und Ablauf")
+check(ns.Plural(1, "MAIL_L_LETTERS") == "1 Brief" and ns.Plural(3, "MAIL_L_LETTERS") == "3 Briefe", "0.14.1: Einzahl und Mehrzahl")
 check(MA.sum.sale == 1 and MA.sum.soon == 2 and MA.sum.cod == 1 and MA.sum.ah == 2, "Summen links")
-check(MA.btnAH.text:find("Auktionshaus-Post (2", 1, true), "Knopf Auktionshaus-Post mit Anzahl: " .. tostring(MA.btnAH.text))
+check(MA.btnAH.text:find("Auktionshaus-Post (", 1, true) and not MA.btnAH.text:find("(2 ", 1, true) and MA.btnAH.text:find("SilverIcon", 1, true), "0.14.1: Knopf Auktionshaus-Post nur mit Gold: " .. tostring(MA.btnAH.text))
+check(by.sale.letter.invoice.gross == 2000, "0.14.1: Verkaufspreis = Gold im Brief + Anteil - Einzahlung (Forever: Sofortkauf-Feld ist die Menge)")
+-- Brief nur mit Text: Klick liest
+local textRow = by.system
+check(MA.TextOnly(textRow) and not MA.TextOnly(by.sale), "Brief ohne Gold und Anhang erkannt")
+GetInboxText = function(i) return i == 4 and "Hallo Welt" or "" end
+InboxItemCanDelete = function() return true end
+local deleted
+DeleteInboxItem = function(i) deleted = i end
+MA.table.o.onClick(textRow, "LeftButton")
+check(MA.reading == textRow and MA.reader.body.text == "Hallo Welt" and MA.reader.del.text == "Löschen", "Klick auf Textbrief: lesen mit Loeschen")
+MA.DeleteOrReturn()
+Peon.UI.dialog.onYes()
+check(deleted == 4 and not MA.reading, "Loeschen nach Rueckfrage")
+MA.table.o.onClick(by.sale, "RightButton")
+check(MA.reading == by.sale, "Rechtsklick liest jeden Brief")
+MA.CloseReader()
 check(MA.statusText:find("10 Taschenplätze frei", 1, true), "Statuszeile: freie Plaetze")
 mod.db.mailFilter = "sale"; MA.Refresh()
 check(#MA.table.items == 1, "Filter Verkaeufe")
@@ -1466,6 +1483,33 @@ end)()
 
 ;(function()
 -- ----- einmaliger Neustart des Buchs (ab 0.14) -----
+-- 0.14.1: Kosten aus dem bisherigen Verlauf bleiben, fehlende Stueck zum Marktwert
+do
+  local me = realm.chars["Mirel Dorna"]
+  local keepS, keepM, keepB, keepP = me.start, realm.moves, realm.lotBase, me.places
+  for name in pairs(realm.chars) do if name ~= "Mirel Dorna" then realm.chars[name] = nil end end
+  local t0 = time() - 1000
+  me.start = { t = t0 - 10, places = {} }
+  realm.lotBase = nil
+  realm.moves = { { t = t0, c = "Mirel Dorna", k = "ahbuy", id = 2589, n = 10, m = -1000 },     -- 10 zu 1s
+                  { t = t0 + 1, c = "Mirel Dorna", k = "ahbuy", id = 2589, n = 10, m = -3000 } } -- 10 zu 3s
+  ns.Cost.Invalidate()
+  BAGS[0] = { { itemID = 2589, stackCount = 15 }, { itemID = 4306, stackCount = 2 } }
+  BAGS[1] = nil
+  me.places.bank = { t = 1, items = {} }
+  Peon.modules.broker = { ItemValue = function(_, id, n) return 50 * (n or 1) end }
+  ns.Moves.ResetBook()
+  ns.Cost.Invalidate()
+  local info = ns.Cost.Info(2589)
+  check(info and info.n == 15 and math.abs(info.value - (5 * 100 + 10 * 300)) < 0.01, "Zuruecksetzen: Kosten bleiben (neueste 15 Stueck: 5 zu 1s, 10 zu 3s), nicht Marktwert")
+  check(math.abs(ns.Cost.Info(4306).next - 50) < 0.01, "ohne bisherige Kosten: Marktwert")
+  check(mod:LastBuy(2589) == 300, "zuletzt gezahlt bleibt beim Zuruecksetzen")
+  Peon.modules.broker = nil
+  me.start, realm.moves, realm.lotBase, me.places = keepS, keepM, keepB, keepP
+  ns.Inventory.RealmData().last = nil
+  ns.Last.dirty = true
+  ns.Cost.Invalidate()
+end
 realm.bookV = nil
 local keep = realm.moves
 realm.moves = { { t = time(), c = "Mirel Dorna", k = "loot", id = 2589, n = 1 } }

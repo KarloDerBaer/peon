@@ -406,8 +406,13 @@ function I.ScanMail()
             if oki and type(kind) == "string" and not Peon.IsSecret(kind) then
                 letter.invoice = { kind = kind, item = type(itemName) == "string" and not Peon.IsSecret(itemName) and itemName or nil,
                     player = type(player) == "string" and not Peon.IsSecret(player) and player or nil,
+                    bid = Num(bid) and bid or nil,
                     buyout = Num(buyout) and buyout or nil, deposit = Num(deposit) and deposit or nil, cut = Num(cut) and cut or nil,
                     count = Num(qty) and qty or nil }
+                -- ab 0.14.1: Verkaufspreis aus dem Gold im Brief. Forever schreibt bei Massenware die Menge ins Feld
+                -- Sofortkauf (echte Daten: "Sofortkauf" 102 bei 102 Stueck fuer 386s). Gold = Preis - Anteil + Einzahlung.
+                local inv = letter.invoice
+                if kind == "seller" and okh and Num(m) and m > 0 and inv.cut then inv.gross = m + inv.cut - (inv.deposit or 0) end
             end
         end
         letter.ah = letter.invoice ~= nil or I.IsAHSender(letter.sender)

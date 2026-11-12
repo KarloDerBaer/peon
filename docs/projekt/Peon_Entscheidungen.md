@@ -2,6 +2,13 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Nach dem ersten Test (Ledger 0.14.1)
+
+- **Übersicht ohne Post** (KarloDerBaer): Das Spiel nennt Briefe nur am offenen Briefkasten, für Twinks gar nicht. Die Zahl war meist veraltet.
+- **Neustart des Buchs behält die Kosten** (Claude, nach dem falschen Verlust im Postfenster): Bisher galt der ganze Bestand als zum heutigen Marktpreis gekauft. Jetzt bleiben die Posten aus dem bisherigen Verlauf, nur Fehlendes kommt zum Marktwert dazu. Ändert die Regel „Anfangsbestand zum Marktpreis“ aus `Peon_Ledger_Zuordnen.md` für diesen Fall.
+- **Verkaufspreis aus dem Gold im Brief** (Claude): Forever schreibt bei Massenware die Menge ins Feld Sofortkauf der Rechnung.
+- **Briefe lesen im Postfenster** (Wunsch KarloDerBaer): Klick liest Textbriefe, Rechtsklick jeden Brief, mit Antworten und Löschen.
+
 ## 12.11.2026: Umsetzung Neuaufbau Ledger (Ledger 0.14.0, Broker 0.84.0)
 
 - **Alles in einem Schritt gebaut** (KarloDerBaer: „Baue bitte gleich alles“), die Woche Probelauf nach E1 entfällt. Die Kontrollrechnung zeigt die restlichen Lücken im Alltag.
