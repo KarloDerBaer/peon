@@ -31,9 +31,11 @@ end
 -- Seite, die gerade zu sehen ist (Reiter im Auktionshaus oder im Broker-Fenster), sonst nil
 function Go.Here()
     local W, T = ns.Window, ns.AHTabs
-    if W.AtAH() then return T.current end
-    if W.IsOpen() then return W.current end
-    return nil
+    local here
+    if W.AtAH() then here = T.current elseif W.IsOpen() then here = W.current end
+    -- ab 0.82: unter Mehr der Unterpunkt (zum Beispiel Gegenstand), damit "Zurueck" genau dorthin fuehrt
+    if here == "more" and W.more and W.more.current then return W.more.current end
+    return here
 end
 
 function Go.UpdateBack()
@@ -88,21 +90,25 @@ function Go.Focus(item)
         mod:Print(L.GO_NONE)
         return false
     end
+    local from = item.from or Go.Here()
     -- ab 0.70: der Fokus arbeitet nur am Auktionshaus. Unterwegs merkt Broker den Gegenstand fuer den naechsten Besuch.
     if not ns.Window.AtAH() then
         ns.Focus.Set(key)
+        ns.Focus.FromPage(key, from)
         mod:Print(L.FOCUS_LATER:format(tostring(item.name or ns.Data.ItemName(key) or key)))
         return true
     end
-    local from = Go.Here()
     Go.jumping = true
     local ok, err = pcall(function()
         ns.Window.Open("focus")
         ns.Focus.Set(key)
+        ns.Focus.FromPage(key, from)
     end)
     Go.jumping = false
     if not ok then error(err, 0) end
-    if from and from ~= "focus" then Go.SetBack(from) else Go.UpdateBack() end
+    -- ab 0.82: zurueck fuehrt der Knopf unten im Fokus (Radar oder Beobachten), nicht die Titelleiste
+    Go.back = nil
+    Go.UpdateBack()
     return true
 end
 

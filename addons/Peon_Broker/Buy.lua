@@ -80,7 +80,7 @@ end
 
 function B.CurrentList()
     -- ab 0.49 (U8): Beobachtung als eigene Liste
-    if mod.char and mod.char.listSel == "watch" and ns.Watch then return ns.Watch.PseudoList(), "watch" end
+    -- ab 0.82 hat die Beobachtung einen eigenen Reiter (WatchPage.lua), Einkaufen zeigt nur noch Einkaufslisten
     local lists = B.Lists()
     local i = tonumber(mod.char and mod.char.listSel) or 1
     return lists[i] or lists[1], lists[i] and i or 1
@@ -278,7 +278,6 @@ function B.CountBuyable()
     local n = 0
     local lists = {}
     for _, l in ipairs(B.Lists()) do lists[#lists + 1] = l end
-    if ns.Watch then lists[#lists + 1] = ns.Watch.PseudoList() end
     for _, l in ipairs(lists) do
         for _, r in ipairs(B.ListRows(l)) do
             if r.advice == "buy" or r.advice == "part" then n = n + 1 end
@@ -785,11 +784,6 @@ end
 function B.Refresh()
     if not B.view then return end
     local names = {}
-    if ns.Watch then   -- Beobachtung als besondere Liste, immer oben (ab 0.62, Neuaufbau N4)
-        local wn = 0
-        for _ in pairs(ns.Watch.Store()) do wn = wn + 1 end
-        names[#names + 1] = { index = "watch", name = L.WATCH_LIST, count = wn, pos = 0 }
-    end
     for i, l in ipairs(B.Lists()) do
         local n = { index = i, name = l.name, count = 0, pos = i }
         for _ in pairs(l.items) do n.count = n.count + 1 end

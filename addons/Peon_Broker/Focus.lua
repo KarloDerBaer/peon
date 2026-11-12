@@ -23,6 +23,8 @@ ns.Focus = F
 F.key = nil      -- Gegenstand im Fokus (Schluessel wie in der Preisdatenbank), gemerkt in PeonBrokerDB.focusKey
 F.manual = nil   -- ab 0.70: eigenes Ziel { key, price } (nur diese Sitzung)
 F.manualLimit = nil   -- ab 0.76: eigenes "Kaufen bis" { key, price }: nur bis zu diesem Preis kaufen, Ziel bleibt
+F.manualSrc = nil     -- ab 0.82: "watch" = eigene Werte kommen aus der Beobachtung (Art "Beobachten"), sonst "own"
+F.origin = "watch"    -- ab 0.82: wohin "Zurueck" fuehrt: "radar" (von dort gekommen) oder "watch" (sonst)
 F.since = 0      -- ab 0.70: Live-Daten zaehlen erst ab hier (time(), neuer Gegenstand oder Auktionshaus geoeffnet)
 
 local GREY, GREEN, ORANGE, YELLOW = "|cff999999", "|cff60e060", "|cffff9933", "|cffffd100"
@@ -106,6 +108,7 @@ end
 -- "Kaufen bis" setzen (Rechtsklick auf eine Preisstufe), price = nil: wieder alles unter dem Ziel
 function F.SetLimit(price)
     if F.key == nil then return end
+    F.manualSrc = "own"
     if Num(price) and price > 0 then F.manualLimit = { key = F.key, price = math.floor(price) } else F.manualLimit = nil end
     if F.limitInput then
         if F.manualLimit then F.limitInput:SetAmount(F.manualLimit.price) else ClearMoney(F.limitInput) end
@@ -116,13 +119,14 @@ end
 -- Getipptes "Kaufen bis" (0 = leer)
 function F.SetLimitTyped(amount)
     if F.key == nil then return end
+    F.manualSrc = "own"
     if Num(amount) and amount > 0 then F.manualLimit = { key = F.key, price = math.floor(amount) } else F.manualLimit = nil end
     F.Update()
 end
 
 -- "Auto": eigenes Ziel und eigenes "Kaufen bis" zurueck
 function F.ResetOwn()
-    F.manualLimit = nil
+    F.manualLimit, F.manualSrc = nil, nil
     ClearMoney(F.limitInput)
     F.SetTarget(nil)
 end
@@ -137,6 +141,7 @@ end
 -- Eigenes Ziel setzen (price = nil: wieder das Ziel der Chance bzw. die zweite Preisstufe)
 function F.SetTarget(price)
     if F.key == nil then return end
+    F.manualSrc = price and "own" or nil
     SetManual(price)
     if F.manual and F.targetInput then F.targetInput:SetAmount(F.manual.price) else F.ClearInput() end
     F.Update()
@@ -145,12 +150,70 @@ end
 -- Getipptes Ziel (Betrag 0 = leer: zurueck zum Ziel der Chance)
 function F.SetTargetTyped(amount)
     if F.key == nil then return end
+    F.manualSrc = "own"
     SetManual(amount)
     F.Update()
 end
 
 function F.ClearInput()
     ClearMoney(F.targetInput)
+end
+
+-- ab 0.82: Fokus geoeffnet von einer Seite. Aus dem Radar: zurueck zum Radar. Sonst zurueck zu Beobachten, und ist
+-- der Gegenstand beobachtet, gelten seine gespeicherten Werte (Kaufen bis, Zielpreis) als eigene Werte.
+function F.FromPage(key, from)
+    if from == "focus" then return end           -- naechste Chance aus dem Fokus heraus: Herkunft bleibt
+    F.origin = (from == "radar") and "radar" or "watch"
+    if F.origin == "watch" then F.LoadWatch(key) end
+    F.UpdateBack()
+    F.Update()
+end
+
+function F.LoadWatch(key)
+    local Wt = ns.Watch
+    if not (Wt and key ~= nil and Wt.Is(key)) then return false end
+    local w = Wt.Store()[key]
+    local limit = Wt.Limit(key)
+    F.manual = Num(w.up) and w.up > 0 and { key = key, price = w.up } or nil
+    F.manualLimit = Num(limit) and limit > 0 and { key = key, price = math.floor(limit) } or nil
+    F.manualSrc = (F.manual or F.manualLimit) and "watch" or nil
+    if ns.Measure and ns.Measure.cur and ns.Measure.cur.key == key then ns.Measure.Start(key) end
+    return true
+end
+
+-- Speichern: Gegenstand in die Beobachtung, mit den geltenden Werten (Kaufen bis = Grenze nach unten,
+-- Zielpreis = Grenze nach oben). Vorhandene Eintraege werden aktualisiert.
+function F.Save()
+    local key = F.key
+    if key == nil or not ns.Watch then return false end
+    local d = AHOpen() and F.Plan() or nil
+    local live = d and not d.gone
+    local target = F.ManualTarget(key) or (live and d.ref) or nil
+    local limit = F.ManualLimit(key) or (live and d.limit) or nil
+    local Wt, D = ns.Watch, ns.Data
+    local e = D.Lookup(key)
+    local name = (d and d.name) or D.ItemName(key, e) or tostring(key)
+    if not Wt.Is(key) then
+        Wt.Add(key, { name = name, quality = (d and d.quality) or (type(e) == "table" and e.ql) or nil, icon = ns.Buy.Icon(D.ItemID(key)) })
+    end
+    Wt.SetLimit(key, Num(limit) and "abs" or nil, limit)
+    Wt.SetUp(key, target)
+    if F.manual or F.manualLimit then F.manualSrc = "watch" end
+    mod:Print(L.FOCUS_SAVED:format(name, Num(limit) and Money(limit) or "-", Num(target) and Money(target) or "-"))
+    if ns.WatchPage then ns.WatchPage.Refresh() end
+    F.Update()
+    return true
+end
+
+-- Knopf "Zurueck zu ..." unten im Fokus
+function F.UpdateBack()
+    if not F.backButton then return end
+    local label = F.origin == "radar" and L.TAB_RADAR or L.NTAB_WATCH
+    F.backButton:SetText(L.FOCUS_BACK:format(label))
+end
+
+function F.GoBack()
+    ns.Window.Open(F.origin == "radar" and "radar" or "watch")
 end
 
 -- Kauf "alles unter dem Ziel" aus den Live-Stufen. Rueckgabe: Plan wie eine Chance (kind "own") oder nil
@@ -296,7 +359,7 @@ end
 -- Art als Text (Zeile "Art" mit "Auto" dahinter)
 function F.KindText(d)
     if not d or d.gone then return "" end
-    if d.own then return L.FOCUS_KIND_OWN end
+    if d.own then return F.manualSrc == "watch" and L.FOCUS_KIND_WATCH or L.FOCUS_KIND_OWN end
     return L["RADAR_KIND_" .. tostring(d.kind):upper()] or tostring(d.kind)
 end
 
@@ -352,7 +415,7 @@ end
 ---------------------------------------------------------------------------
 -- Anzeige
 ---------------------------------------------------------------------------
-F.ROW_Y, F.ROW_STEP = -246, 20   -- ab 0.77: Ueblich, Verkauft in, Risiko unter den Eingabefeldern
+F.ROW_Y, F.ROW_STEP = -240, 18   -- ab 0.77: Ueblich, Verkauft in, Risiko unter den Eingabefeldern (ab 0.82 enger)
 F.KIND_Y, F.TARGET_Y, F.LIMIT_Y = -150, -180, -210
 F.BLUE = "|cff4da6ff"
 function F.Build(c)
@@ -428,18 +491,25 @@ function F.Build(c)
         local d = F.Plan()
         if d then mod:Call("Radar", ns.Radar.BuyStep, d, "best") end
     end, "gold")
-    F.buyButton:SetPoint("BOTTOMLEFT", 10, 40)
+    F.buyButton:SetPoint("BOTTOMLEFT", 10, 70)
     -- ab 0.77: Menge, Kosten, Gewinn mittig ueber dem Knopf
     F.buyInfo = UI.Text(left, "text", "", UI.LEFT_W - 20)
     F.buyInfo:SetJustifyH("CENTER")
     F.buyInfo:SetPoint("BOTTOM", F.buyButton, "TOP", 0, 6)
     local half = math.floor((UI.LEFT_W - 26) / 2)
     F.marketButton = ns.Go.MarketButton(left, half, function() return F.key ~= nil and { key = F.key } or nil end)   -- ab 0.73 sicher
-    F.marketButton:SetPoint("BOTTOMLEFT", 10, 10)
+    F.marketButton:SetPoint("BOTTOMLEFT", 10, 40)
     F.itemButton = UI.Button(left, L.NTAB_ITEM, half, function()
         if F.key ~= nil then mod:Call("Sprung", ns.Go.Item, { key = F.key }) end
     end)
     F.itemButton:SetPoint("LEFT", F.marketButton, "RIGHT", 6, 0)
+    -- ab 0.82: Zurueck (Radar oder Beobachten) und Speichern (in die Beobachtung)
+    F.backButton = UI.Button(left, L.FOCUS_BACK:format(L.NTAB_WATCH), half, function() mod:Call("Sprung", F.GoBack) end)
+    F.backButton:SetPoint("BOTTOMLEFT", 10, 10)
+    F.saveButton = UI.Button(left, L.FOCUS_SAVE, half, function() mod:Call("Beobachtung", F.Save) end)
+    F.saveButton:SetPoint("LEFT", F.backButton, "RIGHT", 6, 0)
+    UI.SetTooltip(F.saveButton, { L.FOCUS_SAVE, L.FOCUS_SAVE_TIP })
+    F.UpdateBack()
 
     -- rechts: der Markt in diesem Moment. Oben die Preisstufen, darunter ab 0.66 (H2) Messung und Diagramm
     local right = UI.Panel(c, "list", true)
@@ -614,7 +684,7 @@ function F.Update()
     local key = F.key
     local has = key ~= nil
     local live = AHOpen()
-    On(F.marketButton, has); On(F.itemButton, has)
+    On(F.marketButton, has); On(F.itemButton, has); On(F.saveButton, has)
     On(F.autoButton, has and live and (F.ManualTarget(key) ~= nil or F.ManualLimit(key) ~= nil))
     if not has then
         F.header:Set(nil, "", 1)
@@ -666,7 +736,7 @@ end
 function F.Set(key)
     if key == nil then return end
     if key ~= F.key then
-        F.manual, F.manualLimit = nil, nil
+        F.manual, F.manualLimit, F.manualSrc = nil, nil, nil
         ClearMoney(F.limitInput)
         F.since = time()
         F.chartN = nil

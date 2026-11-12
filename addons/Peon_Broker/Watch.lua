@@ -6,7 +6,7 @@
 -- Preisalarm: Liegt das guenstigste Angebot auf oder unter der Grenze, meldet Broker das einmal im Chat und mit
 -- Ton (wie das Radar) und erst wieder, nachdem der Preis darueber lag. Geprueft nach jedem Komplettscan, nach
 -- dem Stand vom Manager (Anmelden) und nach jeder Live-Abfrage.
--- Im Auktionshaus steht die Beobachtung als eigene Liste im Reiter Einkaufen (Buy.lua, Pseudo-Liste "watch").
+-- Ab 0.82 eigener Reiter Beobachten (WatchPage.lua). up heisst dort "Zielpreis" (Preis, ab dem man verkaufen wuerde).
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -148,6 +148,7 @@ function Wt.Check(keys)
         end
     end
     if n > 0 and ns.Buy and ns.Buy.UpdateBadge then pcall(ns.Buy.UpdateBadge) end
+    if ns.WatchPage and ns.WatchPage.UpdateBadge then pcall(ns.WatchPage.UpdateBadge) end   -- ab 0.82
     return n
 end
 

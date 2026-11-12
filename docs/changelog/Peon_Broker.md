@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.82.0
+
+Kurz: Beobachten ist wieder ein eigener Reiter. Ein Klick auf einen Gegenstand öffnet ihn im Fokus mit seinem „Kaufen bis“ und Zielpreis.
+Kurz: Im Fokus gibt es „Speichern“ (in die Beobachtung, mit Kaufen bis und Zielpreis) und „Zurück“ (zum Radar oder zu Beobachten).
+Kurz: Gegenstand steht jetzt unter Mehr. Zahlen an den Reitern erscheinen als roter Kreis.
+
+- 0.82.0 (12.11.2026): **Beobachten und Fokus** (Wunsch KarloDerBaer, 12.11.2026). Neue Datei `WatchPage.lua`.
+  - **Reiter Beobachten** zwischen Einkaufen und Radar: Gegenstand, Preis (günstigstes Angebot), Kaufen bis, Zielpreis, Üblich, Rat (KAUFEN, wenn der Preis auf oder unter Kaufen bis liegt, VERKAUFEN, wenn er auf oder über dem Zielpreis liegt). Klick öffnet den Gegenstand im Fokus, Rechtsklick das Menü, unten Im Markt zeigen und Entfernen. Die Zahl am Reiter zählt KAUFEN und VERKAUFEN. In Einkaufen steht die Beobachtung nicht mehr. Der Zielpreis ist die bisherige Grenze nach oben (`up`, Meldung, wenn der Preis darüber liegt), „Verkaufen ab“ entfällt.
+  - **Fokus:** „Ziel“ heißt jetzt „Zielpreis“. Aus Beobachten (und bei jedem Öffnen, das nicht aus dem Radar kommt) gelten die gespeicherten Werte als eigene Werte, die Art heißt dann „Beobachten“, nach einer Änderung „Eigenes Ziel“. Neu unten: „Zurück zu Radar“ oder „Zurück zu Beobachten“ (je nach Herkunft, ohne Radar immer Beobachten) und „Speichern“ (legt den Gegenstand unter Beobachten an oder aktualisiert ihn mit Kaufen bis als Grenze nach unten und Zielpreis). Der Zurück-Knopf in der Titelleiste entfällt für den Fokus. Üblich, Verkauft in und Risiko stehen enger.
+  - **Gegenstand unter Mehr** (erster Unterpunkt). Reiter unten: Markt, Verkaufen, Auktionen, Einkaufen, Beobachten, Radar, Fokus, Mehr. Sprünge zum Gegenstand öffnen Mehr mit Gegenstand.
+  - **Zahlen an den Reitern als roter Kreis** (`Peon.UI.Badge`, wie im UI-Design), am Auktionshaus auch bei Blizzards Reiter Verkaufen. Vorher „Einkaufen (1)“ im Text. Blinken lässt jetzt den Kreis pulsieren.
+  - **Einkaufen:** Spalte „Günstigst“ heißt „Preis“.
+  - Tests: 25 neue oder geänderte Prüfungen.
+  - **Im Spiel prüfen:** Passen die acht Reiter unten in die Breite? Reiter Beobachten, Klick in den Fokus mit Werten, Speichern, Zurück. Gegenstand unter Mehr. Rote Kreise an Einkaufen, Beobachten, Radar und Verkaufen.
+
 ## 0.81.1
 
 Kurz: Im Fokus bleibt ein eigener Wert bei „Kaufen bis“ jetzt im Feld stehen, statt zu verschwinden.

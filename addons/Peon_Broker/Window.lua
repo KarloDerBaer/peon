@@ -28,14 +28,14 @@ W.TABS = {
     { key = "sell",     label = "TAB_SELL" },        -- Verkaufen (nur am Auktionator, Blizzards Seite)
     { key = "auctions", label = "NTAB_AUCTIONS" },   -- Auktionen
     { key = "buy",      label = "AHTAB_SHOP" },      -- Einkaufen
+    { key = "watch",    label = "NTAB_WATCH" },      -- Beobachten (ab 0.82 eigener Reiter)
     { key = "radar",    label = "TAB_RADAR" },
     { key = "focus",    label = "NTAB_FOCUS" },
-    { key = "prices",   label = "NTAB_ITEM" },       -- Gegenstand
-    { key = "more",     label = "NTAB_MORE" },       -- Mehr: Haendler, Neutral, Datenlage
+    { key = "more",     label = "NTAB_MORE" },       -- Mehr: Gegenstand (ab 0.82), Haendler, Neutral, Datenlage
 }
 W.AH_ONLY = { sell = true, focus = true }   -- ab 0.70 auch der Fokus (nur Live-Daten, KarloDerBaer 12.11.2026)                          -- unterwegs grau
 W.BAR = { buy = true }                               -- Seiten mit oberer Leiste neben dem Bild
-W.DEFAULT = "prices"
+W.DEFAULT = "watch"
 W.pages = {}          -- key -> { build = fn(content), refresh = fn(), enter = fn(), leave = fn() }
 W.contents = {}       -- key -> Rahmen der Seite
 
@@ -54,6 +54,7 @@ W.QUALITY = { [0] = "ff9d9d9d", [1] = "ffffffff", [2] = "ff1eff00", [3] = "ff007
 
 function W.TabLabel(key)
     for _, t in ipairs(W.TABS) do if t.key == key then return L[t.label] or key end end
+    for _, t in ipairs(W.MORE or {}) do if t.key == key then return L[t.label] or key end end   -- ab 0.82
     return key
 end
 
@@ -216,6 +217,8 @@ end
 
 -- Gueltiger Reiter fuer das Fenster
 local function ValidKey(key)
+    -- ab 0.82: Unterpunkte von Mehr (zum Beispiel Gegenstand) gelten, W.Select oeffnet dann Mehr mit dem Unterpunkt
+    if key and W.pages[key] then for _, t in ipairs(W.MORE) do if t.key == key then return key end end end
     if key and W.pages[key] and not W.AH_ONLY[key] then
         for _, t in ipairs(W.TABS) do if t.key == key then return key end end
     end
@@ -318,6 +321,7 @@ end
 -- Die Beobachtung steht ab 0.62 als besondere Liste in Einkaufen.
 ---------------------------------------------------------------------------
 W.MORE = {
+    { key = "prices",  label = "NTAB_ITEM" },        -- ab 0.82: Gegenstand unter Mehr (KarloDerBaer 12.11.2026)
     { key = "vendors", label = "MORE_VENDORS" },
     { key = "market",  label = "MORE_NEUTRAL" },
     { key = "sources", label = "MORE_DATA" },

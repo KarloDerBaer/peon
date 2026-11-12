@@ -27,10 +27,10 @@ ns.AHTabs = T
 -- Einkaufen, Radar, Fokus, Gegenstand, Mehr. Die Schluessel sind die der Seiten im Broker-Fenster (W.pages).
 T.TABS = {
     { key = "buy",    label = "AHTAB_SHOP" },
+    { key = "watch",  label = "NTAB_WATCH" },   -- ab 0.82
     { key = "radar",  label = "AHTAB_RADAR" },
     { key = "focus",  label = "NTAB_FOCUS" },
-    { key = "prices", label = "NTAB_ITEM" },
-    { key = "more",   label = "NTAB_MORE" },
+    { key = "more",   label = "NTAB_MORE" },    -- ab 0.82 mit Gegenstand
 }
 -- Rahmenebenen (Blizzards Fenstervorlage, nachgelesen im Zweig forever, SharedUIPanelTemplates.xml): rundes Bild 400,
 -- Metallrahmen 500, Titel und Schliessen 510. Brokers Flaeche liegt ueber Blizzards Inhalt, aber unter dem Bild
@@ -466,6 +466,7 @@ function T.Build()
         tab:SetPoint("LEFT", prev, "RIGHT", T.TAB_GAP, 0)
         tab:SetScript("OnClick", function() mod:Call("Auktionshaus-Reiter", T.Open, def.key) end)
         if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, tab, 20, nil, 70) end
+        T.AddBadge(tab)
         Deselect(tab)
         T.tabs[def.key] = tab
         prev = tab
@@ -568,6 +569,25 @@ end
 ---------------------------------------------------------------------------
 T.BLINK_SPEED = 2.5   -- Wechsel je Sekunde
 
+-- ab 0.82: Zahl am Reiter als roter Kreis wie im UI-Design (Peon.UI.Badge), vorher "Einkaufen (1)" im Text.
+-- Auch an Blizzards Reiter Verkaufen (eigener Rahmen am Reiter, Blizzards Text bleibt).
+function T.AddBadge(tab)
+    local UI = Peon.UI
+    if tab.badge or not (UI and UI.Badge) then return end
+    tab.badge = UI.Badge(tab)
+    local fs = tab.Text or (tab.GetFontString and tab:GetFontString())
+    if fs then tab.badge:SetPoint("LEFT", fs, "RIGHT", 4, 0) else tab.badge:SetPoint("RIGHT", -10, 0) end
+end
+
+function T.ShowBadge(tab, n)
+    if not tab then return end
+    T.AddBadge(tab)
+    if tab.badge then tab.badge:SetCount(n or 0) end
+    local UI = Peon.UI
+    if UI and UI.FitTab then UI.FitTab(tab)
+    elseif PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, tab, 20, nil, 70) end
+end
+
 function T.SetBadge(key, n, blink)
     local tab = T.tabs[key]
     if n == nil or n <= 0 then T.badges[key] = nil else T.badges[key] = { n = n, blink = blink and T.current ~= key } end
@@ -576,19 +596,20 @@ function T.SetBadge(key, n, blink)
     local def
     for _, d in ipairs(T.TABS) do if d.key == key then def = d end end
     local b = T.badges[key]
-    tab:SetText(L[def.label] .. (b and (" (" .. b.n .. ")") or ""))
-    if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, tab, 20, nil, 70) end
+    tab:SetText(L[def.label])
+    T.ShowBadge(tab, b and b.n or 0)
     T.AlignSoon()
-    if b and b.blink then
+    -- Blinken: der rote Kreis pulsiert (bis 0.81 der Text)
+    if b and b.blink and tab.badge then
         tab.blinkT = 0
         tab:SetScript("OnUpdate", function(self, dt)
             self.blinkT = (self.blinkT or 0) + (dt or 0)
             local a = 0.55 + 0.45 * math.abs(math.sin(self.blinkT * T.BLINK_SPEED))
-            if self.Text and self.Text.SetAlpha then self.Text:SetAlpha(a) end
+            if self.badge.SetAlpha then self.badge:SetAlpha(a) end
         end)
     else
         tab:SetScript("OnUpdate", nil)
-        if tab.Text and tab.Text.SetAlpha then tab.Text:SetAlpha(1) end
+        if tab.badge and tab.badge.SetAlpha then tab.badge:SetAlpha(1) end
     end
 end
 

@@ -346,4 +346,5 @@ Anmerkungen von KarloDerBaer, abgestimmt im Gespräch. Einzelheiten in `Peon_Ent
 - **Zum Einstellen** steht unter Verkaufen über Blizzards Liste, ein sicherer Knopf legt den Posten ins Verkaufsfenster (löst die Abweichung aus 0.67.0, wenn der Test sauber ist).
 - **Auktionen:** eigene Liste über Blizzards Ansicht mit Spalte Broker und Filter (ersetzt in 4.5 „Blizzards Seite mit Spalte Broker“), Gebote bleiben bei Blizzard.
 - **Im Markt zeigen** mit sicherem Knopf: Blizzard schaltet selbst um (löst die Abweichung aus 0.64.1, wenn der Test sauber ist).
+- **Beobachten eigener Reiter** (Broker 0.82.0): Ersetzt in 4.3 „Beobachtung ist eine besondere Liste“. Reiter: Markt, Verkaufen, Auktionen, Einkaufen, Beobachten, Radar, Fokus, Mehr (mit Gegenstand). Fokus mit Speichern und Zurück.
 - **Aufkauf im üblichen Bereich** (Broker 0.79.0): Ersetzt in 6.1 „Der übliche Bereich aus dem Verlauf filtert nicht“. Kaufen bis höchstens bis zur oberen Grenze, Ziel höchstens 20 % darüber, ohne üblichen Bereich kein Aufkauf.

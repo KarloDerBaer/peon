@@ -8,6 +8,15 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Einmal je Konto, für alle**, auch bei neuer Installation. Gesehen gilt, sobald das Fenster offen war. Grund: Twinks sollen nicht jedes Mal dasselbe zeigen, neue Nutzer brauchen die Hinweise genauso.
 - `/peon neu` zeigt alle Hinweise wieder.
 
+## 12.11.2026: Beobachten als eigener Reiter (Broker 0.82.0)
+
+- **Beobachten eigener Reiter, nicht mehr in Einkaufen** (KarloDerBaer). Ändert den Neuaufbau (4.3: Beobachtung als besondere Liste). Spalten passend zu Beobachtung und Fokus, nicht die der Einkaufsliste.
+- **Zielpreis = Grenze nach oben** (KarloDerBaer): Der Zielpreis ist der Preis, ab dem man verkaufen würde, die Meldung kommt, wenn der Preis darüber liegt. „Verkaufen ab“ entfällt. Kaufen bis bleibt die Grenze nach unten.
+- **Fokus öffnet mit den gespeicherten Werten, Art „Beobachten“** (KarloDerBaer), außer er kommt aus dem Radar (Claude).
+- **Zurück im Fokus unten** zu Radar oder Beobachten, ohne Radar immer Beobachten (KarloDerBaer). Der Knopf in der Titelleiste entfällt dort (Claude, damit es nicht zwei gibt).
+- **Gegenstand unter Mehr** (KarloDerBaer), damit die Reiterleiste nicht zu breit wird.
+- **Zahl am Reiter als roter Kreis** wie im UI-Design (KarloDerBaer).
+
 ## 12.11.2026: Stand vom Manager auch für Neutral (Broker 0.80.0)
 
 - **Beim Anmelden Heimat und Neutral übernehmen** (KarloDerBaer): Die aktuellen Preise des neutralen Markts aus der Blizzard-API kamen sonst nie an. Der neutrale Markt entsteht nur mit Werten des Managers (Claude).

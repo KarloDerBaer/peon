@@ -245,10 +245,10 @@ function LT.UpdateSellTab()
     local f = rawget(_G, "AuctionHouseFrame")
     local tab = type(f) == "table" and rawget(f, "SellTab") or nil
     if type(tab) ~= "table" or not tab.SetText or not ns.AHTouch() then return end
-    local base = L.AHTAB_SELL_BASE
-    local n = LT.Count()
-    tab:SetText(n > 0 and (base .. " (" .. n .. ")") or base)
-    if PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, tab, 20, nil, 70) end
+    -- ab 0.82: Zahl als roter Kreis (wie Brokers Reiter), der Text bleibt "Verkaufen"
+    tab:SetText(L.AHTAB_SELL_BASE)
+    if ns.AHTabs and ns.AHTabs.ShowBadge then ns.AHTabs.ShowBadge(tab, LT.Count())
+    elseif PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, tab, 20, nil, 70) end
     if ns.AHTabs and ns.AHTabs.AlignSoon then ns.AHTabs.AlignSoon() end
 end
 
