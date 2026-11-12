@@ -1248,19 +1248,22 @@ function R.Build(c)
               end },
             { key = "showGain", title = L.RADAR_COL_GAIN, width = 130, align = "RIGHT",
               format = function(v, r)
-                  if r.gone then return ORANGE .. L.RADAR_GONE_SHORT .. "|r" end
+                  -- ab 0.75: auch weggefallene Chancen zeigen den Gewinn (grau), "weg" steht unter Art
                   local text = Money(math.floor((v or 0) + 0.5))
-                  return (r.cant and GREY or GREEN) .. text .. "|r"
+                  return ((r.cant or r.gone) and GREY or GREEN) .. text .. "|r"
               end,
               -- ab 0.65: Gewinn, rotes Risiko nach unten (Konzept 6.1)
               sort = function(r)
-                  if r.gone then return -1e15 end
+                  if r.gone then return -1e15 + (r.showGain or 0) end
                   local g = r.showGain or 0
                   if r.risk == "high" then return g - 1e13 end
                   return g
               end },
             { key = "kind", title = L.RADAR_COL_KIND, width = 110, align = "RIGHT",
-              format = function(v) return L["RADAR_KIND_" .. tostring(v):upper()] or tostring(v) end },
+              format = function(v, r)
+                  if r and r.gone then return ORANGE .. L.RADAR_GONE_SHORT .. "|r" end
+                  return L["RADAR_KIND_" .. tostring(v):upper()] or tostring(v)
+              end },
             { key = "risk", title = L.RADAR_COL_RISK, width = 100, align = "RIGHT",
               format = function(v) return v and ((R.RISK_COLOR[v] or "") .. (L["RADAR_RISK_" .. v:upper()] or v) .. "|r") or "" end,
               sort = function(r) return ({ low = 1, mid = 2, high = 3 })[r.risk] or 9 end },

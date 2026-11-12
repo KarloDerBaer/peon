@@ -166,13 +166,11 @@ end
 --   1. Klick: Steht der Gegenstand schon in Blizzards Ergebnisliste, klickt der Knopf diese Zeile an: die Angebote
 --      gehen sofort auf. Sonst klickt er Blizzards Reiter "Markt", danach sucht Broker den Gegenstand
 --      (SendBrowseQuery wie seit 0.64.1).
---   2. Klick: Sobald die Zeile in Blizzards Liste steht, erscheint ueber der Liste der Gold-Knopf
---      "Angebote: <Name>" (ebenfalls sicher), der genau diese Zeile anklickt.
+--   2. Klick (ab 0.75): selbst auf die Zeile in Blizzards Liste (der Knopf "Angebote" entfaellt).
 -- Broker liest Blizzards Liste nur (ForEachFrame, rowData). Attribute nur ausserhalb des Kampfs, im Kampf und
 -- unterwegs bleibt es beim bisherigen Weg (Go.Market).
 ---------------------------------------------------------------------------
 Go.marketButtons = {}
-Go.OFFER_TIME = 20   -- Sekunden: so lange steht "Angebote: <Name>" ueber Blizzards Liste
 
 local function AHF() local f = rawget(_G, "AuctionHouseFrame"); return type(f) == "table" and f or nil end
 local function InCombat() return InCombatLockdown and InCombatLockdown() or false end
@@ -239,15 +237,11 @@ function Go.PostMarket(b, down)
     if not Go.Acts(down) then return end
     local item = b.getItem and b.getItem()
     if not item then mod:Print(L.GO_NONE); return end
-    if b.stage == "row" then
-        Go.HideOffer()
-        return
-    end
+    if b.stage == "row" then return end
     if b.stage == "tab" then
         local from = Go.Here()
         if ns.AHTabs and ns.AHTabs.current then ns.AHTabs.Close() end
         ns.Buy.ShowInAH({ key = KeyOf(item), itemKey = item.itemKey })
-        Go.WaitOffer(KeyOf(item), item.name)
         if from then Go.SetBack(from) end
         return
     end
@@ -274,60 +268,10 @@ function Go.MarketButton(parent, width, getItem)
     return b
 end
 
--- Gold-Knopf "Angebote: <Name>" ueber Blizzards Ergebnisliste, sicher auf die Zeile gerichtet
-function Go.OfferButton()
-    if Go.offer then return Go.offer end
-    local f = AHF()
-    if not f then return nil end
-    local ok, b = pcall(CreateFrame, "Button", "PeonBrokerOfferButton", f, "SecureActionButtonTemplate,UIPanelGoldButtonTemplate")
-    if not ok or not b then return nil end
-    b:SetSize(220, 24)
-    b:SetFrameLevel(520)
-    if b.RegisterForClicks then b:RegisterForClicks("AnyUp", "AnyDown") end
-    b:SetScript("PostClick", function(_, _, down) if Go.Acts(down) then Go.HideOffer() end end)
-    b:Hide()
-    Go.offer = b
-    return b
-end
-
--- Auf die Zeile warten (Blizzards Liste fuellt sich mit dem Ereignis der Suche)
-function Go.WaitOffer(key, name)
-    Go.offerWant = { key = key, name = name or ns.Data.ItemName(key, ns.Data.Lookup(key)) or tostring(key), until_ = (GetTime and GetTime() or 0) + Go.OFFER_TIME }
-    Go.TryOffer()
-end
-
-function Go.TryOffer()
-    local w = Go.offerWant
-    if not w then return end
-    if (GetTime and GetTime() or 0) > w.until_ then Go.HideOffer(); return end
-    local row = Go.BrowseRow(w.key)
-    if not row or InCombat() or (ns.AHTabs and ns.AHTabs.current) then return end
-    local b = Go.OfferButton()
-    if not b then return end
-    SetClick(b, row)
-    b:SetText(L.GO_OFFERS:format(w.name))
-    local f = AHF()
-    local brf = f and rawget(f, "BrowseResultsFrame")
-    b:ClearAllPoints()
-    -- ab 0.74 unten rechts in Blizzards Ergebnisliste (vorher ueber Blizzards Knoepfen Filter und Suchen)
-    if type(brf) == "table" then b:SetPoint("BOTTOMRIGHT", brf, "BOTTOMRIGHT", -26, 8) else b:SetPoint("BOTTOM", f, "BOTTOM", 0, 40) end
-    b:Show()
-end
-
-function Go.HideOffer()
-    Go.offerWant = nil
-    if Go.offer then
-        Go.offer:Hide()
-        SetClick(Go.offer, nil)
-    end
-end
+-- Der Gold-Knopf "Angebote: <Name>" (0.73 bis 0.74) entfaellt (KarloDerBaer 12.11.2026: stoert, wird nicht gebraucht).
+-- Nach dem Sprung auf Markt klickt man selbst auf die Zeile. Go.HideOffer bleibt, weil AHTabs es aufruft.
+function Go.HideOffer() end
 
 function Go.InitMarket()
-    pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", function()
-        if Go.offerWant and C_Timer then C_Timer.After(0.2, function() mod:Call("Sprung", Go.TryOffer) end) end
-    end)
-    pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_BROWSE_RESULTS_ADDED", function()
-        if Go.offerWant and C_Timer then C_Timer.After(0.2, function() mod:Call("Sprung", Go.TryOffer) end) end
-    end)
-    mod:RegisterEvent("AUCTION_HOUSE_CLOSED", function() Go.HideOffer() end)
+    -- ab 0.75 nichts mehr zu tun (Knopf "Angebote" entfaellt)
 end

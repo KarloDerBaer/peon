@@ -422,6 +422,10 @@ function LT.BuildPanel()
     local p = CreateFrame("Frame", "PeonBrokerLotsPanel", f)
     p:SetFrameLevel(370)
     p:EnableMouse(true)
+    -- ab 0.75 undurchsichtig: unten schienen Blizzards Zeilen durch
+    local under = p:CreateTexture(nil, "BACKGROUND", nil, -8)
+    under:SetAllPoints(p)
+    under:SetColorTexture(0.05, 0.05, 0.05, 1)
     p:Hide()
     LT.panel = p
     local lp = UI.Panel(p, "list", true)
@@ -500,6 +504,8 @@ end
 function LT.ShowPanel(on)
     if not LT.panel then return end
     LT.panel:SetShown(on and LT.InSell() and true or false)
+    -- ab 0.75: Spalten erst verteilen, wenn die Flaeche ihre Breite hat (vorher lagen die Ueberschriften uebereinander)
+    if LT.panel:IsShown() and LT.list and LT.list.Layout then LT.list.Layout(); if LT.list.list and LT.list.list.Refresh then LT.list.list:Refresh() end end
     LT.RefreshPanel()
 end
 

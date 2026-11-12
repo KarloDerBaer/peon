@@ -1086,7 +1086,8 @@ Buy.pending = nil   -- offene Abfrage aus den Tests der Einkaufsliste
     Rd.Apply({ key = 7777, itemID = 7777 }, { { price = 12, qty = 20, own = 0 } }, true)
     check(Rd.entries[7777] == nil and Rd.gone[7777] and Rd.gone[7777].goneWhy:find("günstigstes jetzt", 1, true), "Live: guenstige Angebote weg -> grau mit Grund")
     local ghostRow for i, it in ipairs(Rd.list:GetItems()) do if it.gone then ghostRow = i end end
-    check(ghostRow and plain(Rd.list.list.rows[ghostRow].cells[2].text) == "weg", "Spalte Gewinn zeigt „weg“")
+    check(ghostRow and plain(Rd.list.list.rows[ghostRow].cells[3].text) == "weg" and plain(Rd.list.list.rows[ghostRow].cells[2].text) ~= "weg"
+      and plain(Rd.list.list.rows[ghostRow].cells[2].text) ~= "", "0.75: „weg“ steht unter Art, der moegliche Gewinn bleibt sichtbar")
     now = now + 31
     Rd.Refresh()
     check(Rd.gone[7777] == nil and #Rd.list:GetItems() == 0, "nach 30 Sek. aus der Liste")
@@ -3642,7 +3643,6 @@ end)()
   local searched, jumped
   ns.Buy.ShowInAH = function(row) searched = row.key; return true end
   Go.Market = function(item) jumped = item.key; return true end
-  Go.offer = nil
   local b = Go.MarketButton(CreateFrame("Frame"), 120, function() return { key = 2770, name = "Kupfererz" } end)
   local attr = {}
   b.SetAttribute = function(_, k, v) attr[k] = v end
@@ -3652,27 +3652,19 @@ end)()
   b.scripts.PreClick(b, "LeftButton", false)
   check(attr.type == "click" and attr.clickbutton == ah.BuyTab and b.stage == "tab", "0.73: ohne Zeile klickt der Knopf Blizzards Reiter Markt")
   b.scripts.PostClick(b, "LeftButton", false)
-  check(searched == 2770 and Go.offerWant and Go.offerWant.key == 2770 and not (Go.offer and Go.offer.shown), "0.73: danach sucht Broker, Angebote-Knopf wartet auf die Zeile")
+  check(searched == 2770, "0.73: danach sucht Broker den Gegenstand im Markt")
   local row = CreateFrame("Button")
   row.rowData = { itemKey = { itemID = 2770 } }
   rows[1] = row
-  Go.offer = nil
-  Go.TryOffer()
-  local oattr = {}
-  Go.offer.SetAttribute = function(_, k, v) oattr[k] = v end
-  Go.TryOffer()
-  check(Go.offer.shown and plain(Go.offer.text) == "Angebote: Kupfererz" and oattr.type == "click" and oattr.clickbutton == row,
-    "0.73: Zeile da: Gold-Knopf Angebote klickt genau diese Zeile")
   b.scripts.PreClick(b, "LeftButton", false)
   check(attr.clickbutton == row and b.stage == "row", "0.73: Zeile schon da: der Knopf oeffnet die Angebote direkt")
   b.scripts.PostClick(b, "LeftButton", false)
-  check(Go.offerWant == nil and not Go.offer.shown, "0.73: danach verschwindet der Angebote-Knopf")
+  check(Go.TryOffer == nil and Go.WaitOffer == nil and rawget(_G, "PeonBrokerOfferButton") == nil, "0.75: kein Knopf Angebote mehr")
   ns.Window.AtAH = function() return false end
   b.scripts.PreClick(b, "LeftButton", false)
   b.scripts.PostClick(b, "LeftButton", false)
   check(attr.type == nil and jumped == 2770, "0.73: unterwegs der bisherige Weg (Markt aus Scandaten)")
   AuctionHouseFrame, ns.Window.AtAH, ns.Buy.ShowInAH, Go.Market = keepAH, keepAt, keepShow, keepMarket
-  Go.offer, Go.offerWant = nil, nil
 end)()
 
 -- ===== 0.74: Nachbesserungen nach dem zweiten Test =====

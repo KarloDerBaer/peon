@@ -2,6 +2,11 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Nachbesserungen nach dem dritten Test (Broker 0.75.0)
+
+- **Knopf „Angebote“ entfällt** (KarloDerBaer): Der zweite Klick auf die Zeile in Blizzards Liste reicht.
+- **Weggefallene Chancen behalten den Gewinn** (KarloDerBaer): „weg“ unter Art, damit man sie noch beobachten kann.
+
 ## 12.11.2026: Nachbesserungen nach dem zweiten Test (Broker 0.74.0, Bridge 0.9.2, Peon 0.19.0)
 
 - **Brokers Flächen über Blizzards Ansichten nur ohne offenen Broker-Reiter** (Claude, Rückmeldung KarloDerBaer): Die Liste der Auktionen liegt wie Brokers eigene Reiter über dem ganzen Inhalt.

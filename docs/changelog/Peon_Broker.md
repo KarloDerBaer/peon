@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.75.0
+
+Kurz: Im Radar zeigen weggefallene Chancen weiter den möglichen Gewinn, „weg“ steht jetzt unter Art.
+Kurz: Der Knopf „Angebote“ nach „Im Markt zeigen“ entfällt.
+
+- 0.75.0 (12.11.2026): **Nachbesserungen nach dem dritten Test** (Rückmeldung KarloDerBaer, 12.11.2026).
+  - **Diagramm im Fokus:** mindestens 60 Plätze, von links gefüllt (`F.CHART_SLOTS`), und nichts zeichnet über den Rand (`SetClipsChildren`). Mit nur zwei Abfragen war jeder Balken so breit wie das halbe Diagramm und ragte hinaus.
+  - **Radar:** Weggefallene Chancen zeigen in der Spalte Gewinn weiter den möglichen Gewinn (grau), „weg“ steht in der Spalte Art. So lässt sich eine solche Chance noch in die Beobachtung übernehmen.
+  - **Zum Einstellen:** Spalten werden erst verteilt, wenn die Liste ihre Breite hat (die Überschriften lagen übereinander). Die Fläche ist undurchsichtig, unten schienen Blizzards Zeilen durch.
+  - **Knopf „Angebote: <Name>“ entfernt** (Wunsch KarloDerBaer). „Im Markt zeigen“ springt weiter auf Markt und sucht den Gegenstand, steht er schon in der Liste, gehen die Angebote direkt auf. Sonst klickt man selbst auf die Zeile.
+  - Tests: angepasst.
+  - **Im Spiel prüfen:** Diagramm beim Start einer Messung, ausgegraute Chancen im Radar, Spalten unter „Zum Einstellen“, „Im Markt zeigen“ ohne zusätzlichen Knopf.
+
 ## 0.74.0
 
 Kurz: Die Liste der Auktionen deckt Blizzards Ansicht jetzt ganz ab, und keine Broker-Fläche liegt mehr über anderen Reitern wie Einkaufen.
