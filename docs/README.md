@@ -24,6 +24,7 @@
 | Ledger | [Peon_Ledger_Konzept.md](konzepte/ledger/Peon_Ledger_Konzept.md) | Bestand und Buch |
 | Ledger | [Peon_Ledger_Zuordnen.md](konzepte/ledger/Peon_Ledger_Zuordnen.md) | Kosten, Lagerwert und Handelsgewinn |
 | Ledger | [Peon_Ledger_Gegenstand.md](konzepte/ledger/Peon_Ledger_Gegenstand.md) | Reiter Gegenstand, Kosten je Charakter |
+| Ledger | [Peon_Ledger_Neuaufbau.md](konzepte/ledger/Peon_Ledger_Neuaufbau.md) | Neuaufbau: Erfassung prüfen, vier Seiten, Postfenster |
 | Manager | [Peon_Client_Design.md](konzepte/manager/Peon_Client_Design.md) | Programm Peon Client und Modul Peon_Client (jetzt Peon Manager mit Modul Peon Broker Client und Peon_Bridge) |
 | Manager | [Peon_GitHub_Design.md](konzepte/manager/Peon_GitHub_Design.md) | GitHub-Repo, Peon Manager, Peon_Bridge, Umsetzungsplan |
 | Manager | [Peon_Blizzard_API.md](konzepte/manager/Peon_Blizzard_API.md) | Blizzard-API für Forever: Aufbau, Häuser, offene Fragen, Beobachter |

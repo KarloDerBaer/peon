@@ -2,6 +2,17 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Neuaufbau von Ledger (Konzept `Peon_Ledger_Neuaufbau.md`)
+
+- **Erst die Erfassung, dann die Anzeige** (KarloDerBaer, Vorschlag Claude). Die Prüfung der echten Daten einer Woche zeigte echte Lücken: Gold geht um rund 9,9g nicht auf, Verkäufe im Auktionshaus werden meist nur als Gold erfasst, Käufe finden ihre Ware oft nicht (Briefe noch nicht geladen).
+- **Kontrollrechnung:** Ledger rechnet Gold und Bestand selbst nach und zeigt Abweichungen (Claude). Grund: Der Spieler soll nie selbst nachrechnen müssen.
+- **Auktionshaus und Post an der Quelle erfassen:** Kauf beim Bestätigen, Verkauf aus der Rechnung, Briefe erst nach dem Laden, Post zählt zum Bestand (Claude).
+- **Zuletzt gezahlt und zuletzt verkauft** zusätzlich zu den Kosten nach „älteste zuerst“, alle Käufe mit Quelle (KarloDerBaer).
+- **Buch wird nach dem Umbau der Erfassung zurückgesetzt** (KarloDerBaer), weil die alten Zeilen die Lücken enthalten.
+- **Vier Seiten** mit `Peon.UI`: Übersicht (Kachel Handelsgewinn heute), Bestand, Buch (Umsatz wird „Nach Gegenstand“, Beute und Quests nur „Nach Art“), Verlauf. Reiter Gegenstände und Gegenstand entfallen, Gegenstand zeigt Broker (KarloDerBaer).
+- **Eigenes Postfenster „Peon Post“** mit Blizzards Postfach im Hintergrund, Eingang und eigene Seite Senden (KarloDerBaer). Klick auf einen Brief nimmt ihn, Knöpfe „Auktionshaus-Post einsammeln“ und „Alles einsammeln“, nie Nachnahme. Ändert die Entscheidung vom 03.10.2026 (kein eigener Einsammel-Knopf).
+- **Art einer Bewegung von Hand ändern:** später, erst nach der neuen Erfassung (KarloDerBaer).
+
 ## 12.11.2026: Text des Release ohne Entwickler-Verlauf
 
 - **Tabelle** mit Addon/Modul, Version alt, Version neu und Anmerkung, dazu eine Zeile für den Peon Manager. „Version alt“ ist der Stand des letzten normalen Release. Unveränderte Teile stehen mit „unverändert“ drin.
