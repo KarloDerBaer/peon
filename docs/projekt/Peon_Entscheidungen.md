@@ -2,7 +2,7 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
-## 12.11.2026: Nachbesserungen nach dem ersten Test von Stufe 2 (Broker 0.69.0 bis 0.75.0)
+## 12.11.2026: Nachbesserungen nach dem ersten Test von Stufe 2 (Broker 0.69.0 bis 0.73.0)
 
 Anmerkungen von KarloDerBaer nach dem ersten Blick ins Spiel, abgestimmt im Gespräch am 12.11.2026.
 
