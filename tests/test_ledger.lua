@@ -1632,6 +1632,17 @@ do
   ns.Cost.Invalidate()
   ns.Window.Select("overview")
 end
+-- 0.14.5: frueher gespeicherter Startbestand mit Marktwert wird beim Laden 0
+do
+  local keepB, keepM = realm.lotBase, realm.moves
+  realm.moves = {}
+  realm.lotBase = { untilT = time() + 1000, chars = { ["Mirel Dorna"] = { lots = { [7201] = { { t = 1, n = 3, c = 500, s = true }, { t = 2, n = 1, c = 300 } } }, fee = {} } }, transit = {} }
+  ns.Cost.Invalidate()
+  local i = ns.Cost.Info(7201)
+  check(i.n == 4 and i.value == 300 and i.sn == 3, "alter Startbestand im gespeicherten Stand: Kosten 0, gekaufte bleiben")
+  realm.lotBase, realm.moves = keepB, keepM
+  ns.Cost.Invalidate()
+end
 -- ----- einmaliger Neustart des Buchs (ab 0.14) -----
 -- 0.14.1: Kosten aus dem bisherigen Verlauf bleiben, fehlende Stueck zum Marktwert
 do

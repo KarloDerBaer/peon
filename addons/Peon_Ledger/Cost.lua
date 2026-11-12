@@ -515,7 +515,8 @@ local function CopyLots(src)
     local lots = {}
     for id, q in pairs(type(src) == "table" and src or {}) do
         local c = {}
-        for i, lot in ipairs(q) do c[i] = { t = lot.t, n = lot.n, c = lot.c, s = lot.s } end
+        -- ab 0.14.5: Startbestand kostet 0, auch in frueher gespeicherten Posten (Neustart mit 0.14.3/0.14.4)
+        for i, lot in ipairs(q) do c[i] = { t = lot.t, n = lot.n, c = lot.s and 0 or lot.c, s = lot.s } end
         lots[id] = c
     end
     return lots
