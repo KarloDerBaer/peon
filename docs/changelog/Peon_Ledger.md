@@ -2,6 +2,32 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.14.0
+
+Kurz: Ledger hat ein neues, übersichtliches Fenster mit vier Reitern: Übersicht, Bestand, Buch und Verlauf. Alles zu einem einzelnen Gegenstand zeigt jetzt Broker.
+Kurz: Ledger rechnet selbst nach, ob Gold und Bestand zu allem passen, was erfasst wurde. Abweichungen stehen in der Statuszeile und im Verlauf.
+Kurz: Käufe und Verkäufe im Auktionshaus und die Post werden genauer erfasst. Deshalb beginnt das Buch einmal neu mit deinem aktuellen Bestand.
+Kurz: Neu ist „zuletzt gezahlt“ und „zuletzt verkauft“ je Gegenstand, im Tooltip, im Bestand und in Broker.
+Kurz: Am Briefkasten öffnet sich Peon Post: alle Briefe mit Gewinn und Ablauf, Einsammeln mit einem Klick und eine eigene Seite zum Senden.
+
+- 0.14.0 (12.11.2026): **Neuaufbau** nach `docs/konzepte/ledger/Peon_Ledger_Neuaufbau.md` (Bauabschnitte E1 bis E5 und E7, E6 in Broker 0.84.0).
+  - **E1 Kontrollrechnung** (neu `Check.lua`): Anfangsbestand plus alle Bewegungen gegen das gelesene Gold und den Bestand (Taschen, Bank, Auktionen, Ausrüstung, mit Wochensummen). Beim Einloggen (nach 25 Sek.) werden Abweichungen als neue Art `diff` („Abweichung“, Umbuchung, zählt nicht als Gewinn) verbucht. Statuszeile im Fenster: „Erfassung in Ordnung“, „n Abweichungen offen“ oder „n Abweichungen in 7 Tagen“. Knopf „Kontrollrechnung jetzt“ in den Optionen. Der Verlauf hebt unsichere Zeilen (Abweichung, sonstiges, geschätzt) gelb hervor.
+  - **E2 Erfassung an der Quelle** (`Moves.lua`, `Inventory.lua`, `Cost.lua`):
+    - Kauf und Einstellgebühr: Das neueste Ereignis entscheidet, ein Kauf gilt nur für eine Goldänderung (vorher galt ein Kauf kurz nach dem Einstellen als Gebühr und umgekehrt).
+    - Gegenstand eines Kaufs nur einmal und höchstens 60 Sek. alt (vorher 120 Sek., konnte einem anderen Kauf zufallen). Neu mitgelesen: `ConfirmCommoditiesPurchase` und `PlaceBid` (Einzelgegenstand über `C_AuctionHouse.GetAuctionInfoByID` bzw. Blizzards Kaufansicht).
+    - Briefe, die das Spiel noch lädt (Betreff „Rufe Daten ab“), werden erkannt und nach 0,5 Sek. neu gelesen. Ware aus so einem Brief gilt als Kauf, wenn ein offener Kauf dieses Gegenstands da ist, sonst als „Auktion zurück“ (vorher immer „zurück“).
+    - Verkauf aus der Rechnung: Die Zeile mit dem Erlös trägt auch den Abgang (`n`), der Ort „Auktionen“ wird kleiner (`M.SaleItems`). Meldet die Auktionsliste den Verkauf später, wird er nicht doppelt gezählt (`M.ClaimSale`). `Cost.Apply` rechnet so eine Zeile in einem Schritt.
+    - Briefentwurf (`M.draft`): Gegenstände, die bei offenem Postfach die Tasche verlassen, werden erst beim Abschicken verbucht (an Twink oder an andere). Kommen sie zurück, gibt es keine Bewegung. Wird nicht abgeschickt, folgt nach dem Schließen ein Abgang ohne Zusammenhang.
+    - Je Brief neu: Tage bis zum Ablauf, Symbol, gelesen, zurückgeschickt. Je Charakter bleibt der letzte Stand des Postfachs mit Ablauf (`places.mail.list`, `Inventory.MailInfo`).
+    - Mitgelesene Aufrufe werden nur einmal eingehängt (`M.hooked`), `Moves.Init` darf erneut laufen.
+    - **Buch beginnt einmal neu** (`ns.MigrateBook`, `realms[Realm].bookV = 2`): beim ersten Einloggen je Realm, mit Chatmeldung und einmaligem Hinweis (Kern-API 20).
+  - **E3 zuletzt gezahlt und verkauft** (neu `Last.lua`): letzter Kauf (Auktionshaus, Händler, Nachnahme, Handel mit Gold) und letzter Verkauf (Auktionshaus netto nach Anteil, Händler) je Gegenstand, accountweit je Realm, gesichert in `realms[Realm].last` vor dem Zusammenfassen. Schnittstellen `mod:LastBuy(id)` und `mod:LastSale(id)` (Preis je Stück, Zeit, Stück, Quelle). Tooltip „Kosten … · zuletzt …“, mit Umschalt beide mit Menge, Quelle und Datum.
+  - **E4 neues Fenster** mit `Peon.UI` (800 × 538, braucht Kern-API 19): Übersicht (Kacheln Gold gesamt, Vermögen, Handelsgewinn heute, Post wartet, Tabelle der Charaktere mit Stufe, Gold, Lagerwert, Post, zuletzt gesehen), Bestand (Suche, Charakter, Ort, auch Post, Spalten Menge, Wo, Kosten Ø, Zuletzt, Marktwert), Buch (Summen links mit Handelsgewinn und Gesamtgewinn, rechts „Nach Art“ und „Nach Gegenstand“), Verlauf (Suche, Art, Charakter, Umbuchungen). Statuszeile mit Kontrollrechnung und Gold aller Charaktere. Klick auf einen Gegenstand öffnet Broker, Rechtsklick das Gegenstandsmenü.
+  - **Entfernt:** Reiter Gegenstände (`Catalog.lua`) und Gegenstand (`Item.lua`, Diagramme), Reiter Umsatz (jetzt Buch „Nach Gegenstand“), Alt+Klick auf Gegenstände. Einstellungen `itemPeriod`, `itemMarge`, `itemOff`, `itemLast`, `catalogFilter` entfallen. `mod:ShowItem(id)` öffnet Brokers Seite Gegenstand (ohne Broker den Bestand mit Suche). Die Tastenbelegung „Gegenstand unter der Maus“ bleibt und führt ebenfalls zu Broker.
+  - **E5 und E7 Postfenster Peon Post** (neu `Mail.lua`): Blizzards Postfach bleibt unsichtbar offen (winziger Rahmen wie Peon_Bags, nachgelesen: `MailMixin:OnHide` ruft `CloseMail`). Eingang mit Summen, Filter, Tabelle (Inhalt, Art, Gold, Gewinn, Ablauf, Nachnahme rot), Klick nimmt einen Brief (Nachnahme mit Rückfrage), „Auktionshaus-Post einsammeln“ und „Alles einsammeln“ (nie Nachnahme, 0,15 Sek. Abstand und `C_Mail.IsCommandPending` wie Blizzards „Alle öffnen“, Stopp bei vollen Taschen und Kampf). Seite Senden mit Empfänger (Twinks und zuletzt angeschriebene), Betreff, Text, Gold oder Nachnahme, zwölf Anhängen (ziehen oder Rechtsklick in der Tasche über `SetSendMailShowing`), Porto und Wert der Anhänge. Knopf „Blizzard“ für einen Besuch, Einstellung `mailWindow` für immer.
+  - Neue Einstellungen: `stockChar`, `stockPlace`, `bookChar`, `bookView`, `historyChar`, `mailWindow`, `mailFilter`, `mailRecent`.
+  - **Im Spiel prüfen:** Postfenster (bleibt der Briefkasten offen, Rechtsklick in der Tasche auf der Seite Senden, Einsammeln, Nachnahme), Kauf von Einzelgegenständen (kommt der Gegenstand über `PlaceBid` an), Briefe „Rufe Daten ab“, Verkauf aus der Rechnung, Kontrollrechnung nach ein paar Tagen Spielen (wie viele Abweichungen, welche Arten), Briefentwurf (verlässt ein angehängter Gegenstand die Tasche schon beim Anhängen).
+
 ## 0.13.1
 
 Kurz: Broker kann jetzt sehen, was du zuletzt beim Händler bezahlt hast, und rechnet im Berufsfenster damit.

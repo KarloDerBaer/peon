@@ -1,6 +1,12 @@
 -- Peon_Ledger - Window.lua
--- Ledger-Fenster (Bauabschnitt L2) im Stil des Broker-Fensters: Rahmen wie das Auktionshaus, Reiter unten.
--- Reiter ab 0.2: Uebersicht (Overview.lua), Bestand (Stock.lua); ab 0.3 Verlauf (History.lua); ab 0.4 Buch und Gegenstände (Book.lua). Oeffnen: /ledger, Minimap-Button. Escape schliesst.
+-- Ledger-Fenster. Ab 0.14 (Neuaufbau E4, Konzept Peon_Ledger_Neuaufbau.md Abschnitt 6) mit Peon.UI wie Broker:
+-- Fenster 800 x 538 im Look des Auktionshauses, vier Reiter unten, Statuszeile mit Kontrollrechnung und Gold.
+--   Uebersicht (Overview.lua)  "Wie stehe ich da?"
+--   Bestand (Stock.lua)        "Was habe ich wo?"
+--   Buch (Book.lua)            "Was habe ich verdient, und wofuer ging Gold weg?"
+--   Verlauf (History.lua)      "Was ist passiert?"
+-- Jeder Reiter meldet sich mit W.pages[key] = { build = fn(content), refresh = fn() } an.
+-- Oeffnen: /ledger, Minimap-Button, Panel. ESC schliesst.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -9,34 +15,23 @@ local mod = ns.mod
 local W = {}
 ns.Window = W
 
-W.WIDTH, W.HEIGHT = 760, 500   -- ab 0.7 breiter (Spalten Kosten, Gewinn, Lagerwert)
-W.TOP = 64
 W.TABS = {
     { key = "overview", label = "TAB_OVERVIEW" },
     { key = "stock",    label = "TAB_STOCK" },
-    { key = "history",  label = "TAB_HISTORY" },
     { key = "book",     label = "TAB_BOOK" },
-    { key = "items",    label = "TAB_SALES" },    -- ab 0.10 "Umsatz" (vorher "Gegenstaende")
-    { key = "catalog",  label = "TAB_CATALOG" },  -- ab 0.10: alle bekannten Gegenstaende (Catalog.lua)
-    { key = "item",     label = "TAB_ITEM" },     -- ab 0.9 (Item.lua)
+    { key = "history",  label = "TAB_HISTORY" },
 }
 W.pages = {}
-
--- In Arbeit: Diese Reiter zeigen nur einen Hinweis, bis sie ueberarbeitet sind (Wunsch KarloDerBaer, 07.11.2026)
-W.WIP = { catalog = true, item = true }
-
-local function BuildWip(c)
-    local t = c:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    t:SetPoint("CENTER", 0, 20)
-    t:SetText(L.TAB_WIP)
-    c.wipText = t
-end
+W.contents = {}
 W.QUALITY = { [0] = "ff9d9d9d", [1] = "ffffffff", [2] = "ff1eff00", [3] = "ff0070dd", [4] = "ffa335ee", [5] = "ffff8000" }
+W.GREY, W.GREEN, W.RED, W.YELLOW = "|cff999999", "|cff40c040", "|cffe05050", "|cffffd100"
 
-local function TryFrame(kind, name, parent, template)
-    local ok, f = pcall(CreateFrame, kind, name, parent, template)
-    if ok and f then return f end
-    return nil
+local function UI() return Peon.UI end
+
+-- Masse der Bereiche (Peon_UI_Design.md Abschnitt 3)
+function W.Area()
+    local U = UI()
+    return { top = U.TOP, bottom = U.BOTTOM, left = U.EDGE, right = U.EDGE + 1, width = U.WINDOW_W - 2 * U.EDGE - 1 }
 end
 
 local function SavePosition(f)
@@ -46,92 +41,20 @@ local function SavePosition(f)
     mod.db.windowPos = { point = point, rel = rel, x = math.floor(x + 0.5), y = math.floor(y + 0.5) }
 end
 
-function W.Inset(parent)
-    local f = TryFrame("Frame", nil, parent, "InsetFrameTemplate")
-    if not f then
-        f = CreateFrame("Frame", nil, parent)
-        local bg = f:CreateTexture(nil, "BACKGROUND")
-        bg:SetAllPoints()
-        bg:SetColorTexture(0, 0, 0, 0.4)
-    end
-    return f
-end
-
-local TAB_TEMPLATES = { { "PanelTabButtonTemplate", 3 }, { "CharacterFrameTabButtonTemplate", -15 } }
-
-local function CreateTab(f, i, tab, prev)
-    local b, gap
-    for _, t in ipairs(TAB_TEMPLATES) do
-        b = TryFrame("Button", "PeonLedgerFrameTab" .. i, f, t[1])
-        if b then gap = t[2]; W.tabStyle = t[1]; break end
-    end
-    if not b then
-        b = CreateFrame("Button", "PeonLedgerFrameTab" .. i, f, "UIPanelButtonTemplate")
-        b:SetSize(112, 24)
-        gap = 4
-        W.tabStyle = "button"
-    end
-    if prev then b:SetPoint("LEFT", prev, "RIGHT", gap, 0) else b:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 12, 2) end
-    b:SetText(L[tab.label])
-    if W.tabStyle ~= "button" and PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, b, 0) end
-    b.key = tab.key
-    b:SetID(i)
-    b:SetScript("OnClick", function() W.Select(tab.key) end)
-    return b
-end
-
 function W.Create()
     if W.frame then return W.frame end
-    local f = TryFrame("Frame", "PeonLedgerFrame", UIParent, "ButtonFrameTemplate")
-    if f then
-        if f.SetTitle then pcall(f.SetTitle, f, ("|c%sPeon|r Ledger"):format(Peon.COLOR)) end
-        if f.SetPortraitToAsset then pcall(f.SetPortraitToAsset, f, "Interface\\Icons\\INV_Scroll_03") end
-        if type(f.Inset) == "table" and f.Inset.Hide then f.Inset:Hide() end
-    else
-        f = CreateFrame("Frame", "PeonLedgerFrame", UIParent, "BackdropTemplate")
-        if f.SetBackdrop then
-            f:SetBackdrop({ bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-                edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border", tile = true, tileSize = 32, edgeSize = 24,
-                insets = { left = 6, right = 6, top = 6, bottom = 6 } })
-        end
-        local title = f:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-        title:SetPoint("TOP", 0, -14)
-        title:SetText(("|c%sPeon|r Ledger"):format(Peon.COLOR))
-        local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-        close:SetPoint("TOPRIGHT", -4, -4)
-    end
-    f:SetSize(W.WIDTH, W.HEIGHT)
-    f:SetFrameStrata("HIGH")
-    f:SetClampedToScreen(true)
-    f:SetMovable(true)
-    f:EnableMouse(true)
-    f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    local U = UI()
+    local f = U.Window("PeonLedgerFrame", { title = ("|c%sPeon|r Ledger"):format(Peon.COLOR), icon = "Interface\\Icons\\INV_Scroll_03" })
     f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); SavePosition(self) end)
+    local defs = {}
+    for _, t in ipairs(W.TABS) do defs[#defs + 1] = { t.key, L[t.label] } end
+    W.tabs = U.BottomTabs(f, defs, function(key) if not W.selecting then W.Select(key) end end)
     W.tabButtons = {}
-    local prev
-    for i, tab in ipairs(W.TABS) do
-        prev = CreateTab(f, i, tab, prev)
-        W.tabButtons[i] = prev
-    end
-    local foot = f:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-    foot:SetPoint("BOTTOMLEFT", 14, 9)
-    foot:SetPoint("BOTTOMRIGHT", -14, 9)
-    foot:SetJustifyH("LEFT")
-    W.footer = foot
-    W.contents = {}
+    for i, t in ipairs(W.tabs) do t.text = defs[i][2]; W.tabButtons[i] = t end
+    W.status = U.StatusBar(f)
     f:SetScript("OnShow", function() mod:Call("Fenster", W.Refresh) end)
-    if type(UISpecialFrames) == "table" then tinsert(UISpecialFrames, "PeonLedgerFrame") end
-    f:Hide()
     W.frame = f
     return f
-end
-
-local function MarkTab(b, on)
-    if W.tabStyle ~= "button" and PanelTemplates_SelectTab and PanelTemplates_DeselectTab then
-        pcall(on and PanelTemplates_SelectTab or PanelTemplates_DeselectTab, b)
-    end
-    if on then b:LockHighlight() else b:UnlockHighlight() end
 end
 
 function W.Place()
@@ -146,10 +69,12 @@ function W.Place()
 end
 
 function W.Open(tab)
+    if Peon.InCombat and Peon.InCombat() then mod:Print(L.MSG_COMBAT); return end
     W.Create()
     W.Place()
     W.Select(tab or W.current or mod.db.windowTab)
     W.frame:Show()
+    W.Refresh()
 end
 
 function W.Toggle(tab)
@@ -159,18 +84,20 @@ end
 function W.IsOpen() return W.frame ~= nil and W.frame:IsShown() end
 
 function W.Select(key)
+    W.Create()
     if not W.pages[key] then key = "overview" end
     W.current = key
     mod.db.windowTab = key
-    for _, b in ipairs(W.tabButtons) do MarkTab(b, b.key == key) end
+    W.selecting = true
+    if W.tabs and W.tabs.Select then W.tabs:Select(key) end
+    W.selecting = nil
     for k, c in pairs(W.contents) do if k ~= key then c:Hide() end end
     local c = W.contents[key]
     if not c then
         c = CreateFrame("Frame", nil, W.frame)
-        c:SetPoint("TOPLEFT", 12, -W.TOP)
-        c:SetPoint("BOTTOMRIGHT", -12, 26)
+        c:SetAllPoints()
         W.contents[key] = c
-        if W.WIP[key] then BuildWip(c) else W.pages[key].build(c) end
+        W.pages[key].build(c)
     end
     c:Show()
     if W.frame:IsShown() then W.Refresh() end
@@ -178,10 +105,21 @@ end
 
 function W.Refresh()
     if not W.frame then return end
-    local total, n = ns.Inventory.TotalMoney()
-    W.footer:SetText(L.FOOTER:format(ns.Realm(), n, ns.Money(total)))
     local page = W.current and W.pages[W.current]
-    if page and page.refresh and not W.WIP[W.current] then page.refresh() end
+    if page and page.refresh then page.refresh() end
+    W.UpdateStatus()
+end
+
+-- Statuszeile: links Kontrollrechnung (bzw. Text der Seite), rechts Gold aller Charaktere
+function W.UpdateStatus()
+    if not W.status then return end
+    local total = ns.Inventory.TotalMoney()
+    if W.status.money then W.status.money:SetAmount(math.max(0, total or 0)) end
+    local page = W.current and W.pages[W.current]
+    local text = page and page.status and page.status() or nil
+    local check = ns.Check and ns.Check.StatusText() or ""
+    W.statusText = text and (text .. "   ·   " .. check) or check
+    W.status:SetText(W.statusText)
 end
 
 -- Neue Daten (Bestand geaendert): offenes Fenster einmal je Bild auffrischen
@@ -196,7 +134,9 @@ function W.OnData()
     end
 end
 
+---------------------------------------------------------------------------
 -- Hilfen fuer die Reiter
+---------------------------------------------------------------------------
 function W.Lower(s)
     return (tostring(s or ""):lower():gsub("Ä", "ä"):gsub("Ö", "ö"):gsub("Ü", "ü"))
 end
@@ -219,36 +159,43 @@ function W.ShowItemTooltip(owner, id)
     if ok then GameTooltip:Show() else GameTooltip:Hide() end
 end
 
--- Auswahlliste (ab 0.6): neue Menue-API (WowStyle1DropdownTemplate), sonst Knopf zum Durchschalten.
--- items = { { Wert, Text }, ... } oder Funktion; get/set lesen und schreiben den Wert
-function W.Dropdown(parent, width, items, get, set)
-    local function Items() return type(items) == "function" and items() or items end
-    local dd
-    local ok = pcall(function() dd = CreateFrame("DropdownButton", nil, parent, "WowStyle1DropdownTemplate") end)
-    if ok and dd and dd.SetupMenu then
-        dd:SetWidth(width)
-        dd:SetupMenu(function(owner, root)
-            for _, it in ipairs(Items()) do
-                root:CreateRadio(it[2], function() return get() == it[1] end, function() set(it[1]) end)
-            end
-        end)
-        dd.Update = function() if dd.GenerateMenu then dd:GenerateMenu() end end
-        return dd
-    end
-    local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    b:SetSize(width, 22)
-    b.Update = function()
-        local v = get()
-        for _, it in ipairs(Items()) do if it[1] == v then b:SetText(it[2]) end end
-    end
-    b:SetScript("OnClick", function()
-        local list, v, idx = Items(), get(), 0
-        for i, it in ipairs(list) do if it[1] == v then idx = i end end
-        local nxt = list[idx % #list + 1]
-        if nxt then set(nxt[1]); b.Update() end
-    end)
-    b.Update()
-    return b
+-- Geld mit Vorzeichen in Gruen/Rot, 0 grau
+function W.Signed(v)
+    if not v or math.abs(v) < 0.5 then return W.GREY .. "0|r" end
+    return (v > 0 and W.GREEN .. "+" or W.RED .. "-") .. "|r" .. ns.Money(math.floor(math.abs(v) + 0.5))
+end
+
+-- Geld oder grauer Strich
+function W.MoneyOr(v)
+    if not v then return W.GREY .. "–|r" end
+    return ns.Money(math.floor(v + 0.5))
+end
+
+-- Auswahlliste der Charaktere: "*" = alle, sonst Name
+function W.CharItems()
+    local items = { { "*", L.ALL_CHARS } }
+    local names = ns.Inventory.CharNames and ns.Inventory.CharNames() or {}
+    for _, n in ipairs(names) do items[#items + 1] = { n, n } end
+    return items
+end
+
+-- Zeile "Beschriftung ... Wert" in einem Bereich (Uebersicht, Buch, Post)
+function W.ValueLine(parent, y, width)
+    local l = parent:CreateFontString(nil, "ARTWORK", UI().FONT.label)
+    l:SetPoint("TOPLEFT", 14, y)
+    l:SetJustifyH("LEFT")
+    local v = parent:CreateFontString(nil, "ARTWORK", UI().FONT.text)
+    v:SetPoint("TOPRIGHT", -14, y)
+    v:SetJustifyH("RIGHT")
+    if width then l:SetWidth(width) end
+    return { label = l, value = v, Set = function(self, a, b) self.label:SetText(a or ""); self.value:SetText(b or "") end }
+end
+
+-- Rechtsklick auf einen Gegenstand: Gegenstandsmenue des Kerns (wenn vorhanden)
+function W.ItemMenu(id, owner)
+    if not id or not Peon.OpenItemMenu then return end
+    local name = ns.Inventory.ItemInfo(id)
+    pcall(Peon.OpenItemMenu, { id = id, name = name, link = "item:" .. id }, owner)
 end
 
 function W.Init() end

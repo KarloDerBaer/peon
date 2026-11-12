@@ -378,16 +378,28 @@ function I.ScanMail()
     local header, item = rawget(_G, "GetInboxHeaderInfo"), rawget(_G, "GetInboxItem")
     local invoiceFn = rawget(_G, "GetInboxInvoiceInfo")
     I.letters = {}   -- je Brief: Absender, Betreff, Gold, Anhaenge, Rechnung (fuer die Gruende der Bewegungen)
+    local loading = false
+    local waiting = rawget(_G, "RETRIEVING_DATA")
     for i = 1, shown do
         letters = letters + 1
-        local okh, _, _, sender, subject, m, cod, _, count = pcall(header, i)
-        local letter = { items = {} }
+        local okh, icon, _, sender, subject, m, cod, days, count, wasRead, wasReturned = pcall(header, i)
+        local letter = { items = {}, index = i }
         I.letters[i] = letter
         if okh then
             letter.sender = type(sender) == "string" and not Peon.IsSecret(sender) and sender or nil
             letter.subject = type(subject) == "string" and not Peon.IsSecret(subject) and subject or nil
             letter.money = Num(m) and m or 0
             letter.cod = Num(cod) and cod > 0 and cod or nil   -- Nachnahme (ab 0.7, Kosten des Erhaltenen)
+            letter.days = Num(days) and days or nil            -- Tage bis zum Ablauf (ab 0.14)
+            letter.icon = (icon ~= nil and not Peon.IsSecret(icon)) and icon or nil
+            letter.read = wasRead and true or nil
+            letter.returned = wasReturned and true or nil
+            letter.count = Num(count) and count or 0
+        end
+        -- ab 0.14: noch nicht geladen (Betreff "Rufe Daten ab" oder ohne Absender) -> spaeter noch einmal lesen
+        if okh and type(waiting) == "string" and letter.subject == waiting then
+            letter.loading = true
+            loading = true
         end
         if type(invoiceFn) == "function" then
             local oki, kind, itemName, player, bid, buyout, deposit, cut, _, _, _, qty = pcall(invoiceFn, i)
@@ -414,7 +426,38 @@ function I.ScanMail()
             end
         end
     end
-    I.SetPlace(I.Char(), "mail", items, { money = money, letters = letters, total = Num(total) and total or letters, used = used })
+    -- je Brief ein kurzer Stand fuer die Post aller Charaktere (ab 0.14): Gold, Anhaenge, Ablauf als Zeitpunkt
+    local list = {}
+    for _, l in ipairs(I.letters) do
+        list[#list + 1] = { m = l.money ~= 0 and l.money or nil, n = l.count ~= 0 and l.count or nil,
+            exp = l.days and (time() + math.floor(l.days * 86400)) or nil, ah = l.ah or nil, cod = l.cod }
+    end
+    I.SetPlace(I.Char(), "mail", items, { money = money, letters = letters, total = Num(total) and total or letters, used = used, list = list })
+    if not loading then I.mailTries = 0 end
+    if loading and not I.mailRetry and (I.mailTries or 0) < 10 then
+        I.mailRetry = true
+        I.mailTries = (I.mailTries or 0) + 1
+        local CT = rawget(_G, "C_Timer")
+        if CT and CT.After then
+            CT.After(0.5, function() I.mailRetry = nil; if I.open.mail then mod:Call("Bestand", I.ScanMail) end end)
+        else
+            I.mailRetry = nil
+        end
+    end
+    if ns.Mail and ns.Mail.OnInbox then mod:Call("Post", ns.Mail.OnInbox) end
+end
+
+-- Briefe, die bald ablaufen, und Gold in der Post je Charakter (ab 0.14, letzter gesehener Stand)
+-- Rueckgabe { letters, money, ah, next = Zeitpunkt des naechsten Ablaufs } oder nil (Postfach nie gesehen)
+function I.MailInfo(c)
+    local p = c and c.places and c.places.mail
+    if type(p) ~= "table" then return nil end
+    local res = { letters = p.letters or 0, money = p.money or 0, ah = 0, t = p.t }
+    for _, l in ipairs(type(p.list) == "table" and p.list or {}) do
+        if l.ah then res.ah = res.ah + 1 end
+        if l.exp and (not res.next or l.exp < res.next) then res.next = l.exp end
+    end
+    return res
 end
 
 -- Eigene Auktionen (wenn das Spiel sie meldet): laufende als Bestand, verkaufte nur gezaehlt
@@ -511,6 +554,7 @@ function I.OnBankOpen()
 end
 
 function I.OnMailOpen()
+    if not I.open.mail then I.letters = {}; I.mailTries = 0 end   -- ab 0.14: Briefe des letzten Besuchs gelten nicht mehr
     I.open.mail = true
 end
 

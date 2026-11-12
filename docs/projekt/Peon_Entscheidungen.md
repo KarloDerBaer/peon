@@ -2,6 +2,14 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 12.11.2026: Umsetzung Neuaufbau Ledger (Ledger 0.14.0, Broker 0.84.0)
+
+- **Alles in einem Schritt gebaut** (KarloDerBaer: „Baue bitte gleich alles“), die Woche Probelauf nach E1 entfällt. Die Kontrollrechnung zeigt die restlichen Lücken im Alltag.
+- **Abweichungen werden beim Einloggen verbucht**, nicht laufend (Claude): Direkt nach einer Bewegung (Bank offen, Brief unterwegs) gäbe es falsche Abweichungen. Das Fenster zeigt offene Abweichungen jederzeit.
+- **Postfenster über einen winzigen Rahmen** wie Peon_Bags mit der Bank (Claude): Blizzards `MailMixin:OnHide` ruft `CloseMail`, nachgelesen im Zweig forever. Rechtsklick in der Tasche auf der Seite Senden über `SetSendMailShowing(true)`, ohne Blizzards Reiter anzufassen.
+- **Ein eigener Rahmen je Modul statt Kern-Baustein** (Claude): Der Rahmen für Blizzards Fenster im Hintergrund steht vorerst in Bags und Ledger je einmal. Ein gemeinsamer Baustein im Kern bleibt als offener Punkt.
+- **Tastenbelegung „Gegenstand unter der Maus“ bleibt** und führt zu Brokers Seite Gegenstand, Alt+Klick entfällt wie entschieden (Claude).
+
 ## 12.11.2026: Neuaufbau von Ledger (Konzept `Peon_Ledger_Neuaufbau.md`)
 
 - **Erst die Erfassung, dann die Anzeige** (KarloDerBaer, Vorschlag Claude). Die Prüfung der echten Daten einer Woche zeigte echte Lücken: Gold geht um rund 9,9g nicht auf, Verkäufe im Auktionshaus werden meist nur als Gold erfasst, Käufe finden ihre Ware oft nicht (Briefe noch nicht geladen).

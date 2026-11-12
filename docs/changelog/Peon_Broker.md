@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.84.0
+
+Kurz: Auf der Seite Gegenstand steht unter „Mein Bestand“ jetzt auch, was du zuletzt bezahlt und zuletzt bekommen hast (mit Peon_Ledger).
+
+- 0.84.0 (12.11.2026): Für den Neuaufbau von Ledger 0.14.0 (Bauabschnitt E6).
+  - Neue Schnittstelle `mod:ShowItem(id)`: Seite Gegenstand mit diesem Gegenstand (über `Go.Item`). Ledger öffnet sie bei Klicks und mit `/ledger <Name>`, weil es keine eigene Gegenstandsseite mehr hat.
+  - „Mein Bestand“ zeigt „Zuletzt gezahlt“ und „Zuletzt verkauft“ mit Menge und Datum (`mod:LastBuy`, `mod:LastSale` aus Ledger).
+  - Händlerpreise: Der letzte Kauf laut Ledger kommt aus `mod:LastBuy` (Quelle Händler), `mod:VendorBuy` bleibt als Rückfall für ältere Ledger.
+
 ## 0.83.0
 
 Kurz: Unter Beobachten aktualisiert Broker am Auktionator laufend alle Preise, solange der Reiter offen ist. Alarme kommen sofort, die Spalte Stand zeigt das Alter, und eine Zeile leuchtet kurz auf, wenn sie jetzt zum Kaufen oder Verkaufen rät.

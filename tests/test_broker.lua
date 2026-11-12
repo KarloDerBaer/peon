@@ -3116,7 +3116,16 @@ end)()
   local hasHead, hasCost = false, false
   for _, r in ipairs(ns.Item.shownRows) do if r.head == "Mein Bestand" then hasHead = true end; if r[1] == "Kosten je Stück" then hasCost = true end end
   check(hasHead and hasCost, "N2: Abschnitt Mein Bestand auf der Seite Gegenstand")
+  -- 0.84: zuletzt gezahlt und zuletzt verkauft aus Ledger 0.14
+  Peon.modules.ledger.LastBuy = function(_, id) return 150, os.time(), 2, "vendor" end
+  Peon.modules.ledger.LastSale = function(_, id) return 190.4, os.time(), 5, "ah" end
+  sl = ns.Item.StockRows(2770, ns.Tooltip.Context(2770, D.LinkFromKey(2770), 1))
+  check(#sl == 5 and sl[3][1] == "Zuletzt gezahlt" and plain(sl[3][2]):find("1s 50c (2,", 1, true) and sl[4][1] == "Zuletzt verkauft" and plain(sl[4][2]):find("1s 90c (5,", 1, true),
+    "0.84: Mein Bestand mit zuletzt gezahlt und verkauft (" .. plain(sl[3][2]) .. ")")
   Peon.modules.ledger = nil
+  -- 0.84: mod:ShowItem fuer Ledger (Seite Gegenstand)
+  P.key = nil
+  check(mod:ShowItem(2770) and P.key == 2770, "0.84: mod:ShowItem oeffnet die Seite Gegenstand")
   Win.Select("prices")
 end)()
 

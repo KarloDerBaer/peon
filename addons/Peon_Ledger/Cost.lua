@@ -318,6 +318,10 @@ function C.Apply(st, e, groups)
     local k, id, n, m = e.k, e.id, e.n or 0, e.m or 0
     if k == "twink" then Twink(st, e, id, n); return end
     if k == "posted" or k == "ahback" or k == "ahreturn" then return end   -- Umbuchung
+    if k == "diff" then   -- ab 0.14: Abweichung der Kontrollrechnung, Kosten wie eine Korrektur
+        if id and n > 0 then AddLot(st, id, n, e.v or 0, e.t) elseif id and n < 0 then Take(st, id, -n) end
+        return
+    end
     if k == "fix" then
         if id and n > 0 then AddLot(st, id, n, e.v or 0, e.t) elseif id and n < 0 then Take(st, id, -n) end
         return
@@ -353,7 +357,18 @@ function C.Apply(st, e, groups)
         return
     end
     if k == "ahsold" then
-        if id and n < 0 then
+        if id and n < 0 and m > 0 then
+            -- ab 0.14 (Erfassung an der Quelle): Rechnung mit Ware und Erloes in einer Zeile
+            local cnt = -n
+            local pre = st.pre[id] or 0
+            local use = math.min(pre, cnt)
+            st.pre[id] = pre - use
+            local cost, miss = 0, 0
+            if cnt - use > 0 then cost, miss = Take(st, id, cnt - use) end
+            local fee = st.fee[id] or 0
+            st.fee[id] = nil
+            st.res[e] = { sale = true, cost = cost, fee = fee, profit = m - cost - fee, miss = miss }
+        elseif id and n < 0 then
             -- Gegenstand weg (Auktionsliste): Kosten fuer den Erloes vormerken
             local cnt = -n
             local pre = st.pre[id] or 0

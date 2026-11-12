@@ -57,6 +57,7 @@ function ns.CreateOptions()
     page:Add(left, page:Header(L.HDR_SHOW), 6)
     page:Add(left, page:Check("minimapShow", L.OPT_MINIMAP), 4)
     page:Add(left, page:Check("tooltipShow", L.OPT_TOOLTIP, L.OPT_TOOLTIP_HINT), 4)
+    page:Add(left, page:Check("mailWindow", L.OPT_MAIL, L.OPT_MAIL_HINT), 4)
     page:Add(left, page:Button(L.BTN_WINDOW, function() ns.Window.Toggle() end), 16)
 
     -- Charaktere
@@ -96,6 +97,10 @@ function ns.CreateOptions()
     page:Add(left, page:Button(L.BTN_RESET_BOOK, function()
         if StaticPopup_Show then StaticPopup_Show("PEON_LEDGER_RESET_BOOK", ns.Realm()) else ns.ResetBook() end
     end, L.BTN_RESET_BOOK_HINT), 4)
+    page:Add(left, page:Button(L.BTN_CHECK, function()
+        local n = ns.Check.Run().n
+        mod:Print(n == 0 and L.CHECK_OK or L.CHECK_OPEN:format(n))
+    end, L.BTN_CHECK_HINT), 4)
     page:Add(left, page:Text(function() return L.BOOK_INFO:format(#ns.Moves.List()) end), 16)
 
     -- Pruefung (Entwicklung)

@@ -1,6 +1,6 @@
 # Peon_Ledger: Konzept Neuaufbau
 
-Stand: 12.11.2026, **von KarloDerBaer freigegeben** (Abschnitt 10). Noch nichts davon gebaut. Ausgangsversion Ledger 0.13.1. Baut auf `Peon_Ledger_Konzept.md` und `Peon_Ledger_Zuordnen.md` auf. Vorbild ist der Neuaufbau von Broker (`docs/konzepte/broker/Peon_Broker_Neuaufbau.md`).
+Stand: 12.11.2026, **von KarloDerBaer freigegeben** (Abschnitt 10), **gebaut in Ledger 0.14.0 und Broker 0.84.0** (alle Bauabschnitte E1 bis E7), Prüfung im Spiel steht aus. Ausgangsversion Ledger 0.13.1. Baut auf `Peon_Ledger_Konzept.md` und `Peon_Ledger_Zuordnen.md` auf. Vorbild ist der Neuaufbau von Broker (`docs/konzepte/broker/Peon_Broker_Neuaufbau.md`).
 
 ## 1. Ausgangslage
 
@@ -247,4 +247,5 @@ E1 kommt zuerst, weil es uns zeigt, welche Lücken nach E2 noch übrig sind. E4 
 
 ### Offen
 
-- Nichts. Konzept freigegeben am 12.11.2026, Bau beginnt mit E1.
+- Prüfung im Spiel (Liste im Changelog von Ledger 0.14.0).
+- Gemeinsamer Kern-Baustein für Blizzard-Fenster im Hintergrund (Bags und Ledger nutzen je eine eigene Kopie).

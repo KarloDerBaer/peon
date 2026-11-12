@@ -1,12 +1,11 @@
 -- Peon_Ledger - Book.lua
--- Buch (Bauabschnitt L5): Auswertung der Bewegungen (Moves.lua) je Zeitraum und Charakter.
---   Reiter "Buch":        Einnahmen, Ausgaben, Gebuehren und Gewinn, aufgeteilt nach Art.
---   Reiter "Gegenstände": je Gegenstand Zugang/Abgang (Stueck), im Auktionshaus verkauft/zurueck, Verkaufsquote,
---                         Einnahmen und Ausgaben.
--- Gewinn = Einnahmen - Ausgaben - Gebuehren (nur Gold; Umbuchungen zaehlen nicht). Verkaeufe im Auktionshaus
--- zaehlen mit dem erhaltenen Betrag (nach Abzug des Anteils, mit zurueckgezahlter Einstellgebuehr); der Anteil
--- steht zur Information dabei. Gebuehren = gezahlte Einstellgebuehren und Abbruchkosten.
--- Verkaufsquote (Rechenmodell 1.8) = verkauft / (verkauft + zurueck) in Stueck, letzte 30 Tage, ab 3 Stueck.
+-- Buch: Auswertung der Bewegungen (Moves.lua) je Zeitraum und Charakter.
+-- Ab 0.14 (Neuaufbau E4, Konzept Peon_Ledger_Neuaufbau.md Abschnitt 6.3) ein Reiter mit Peon.UI:
+--   oben Zeitraum und Charakter, links die Summen (zuerst Handelsgewinn und Gesamtgewinn), rechts zwei Ansichten:
+--   "Nach Art" (Einnahmen und Ausgaben je Art) und "Nach Gegenstand" (ersetzt den Reiter Umsatz).
+-- Gewinn = Einnahmen - Ausgaben - Gebuehren (nur Gold, Umbuchungen zaehlen nicht). Handelsgewinn (Zuordnen, Cost.lua)
+-- = Erloes - Wareneinsatz - Gebuehren der verkauften Stuecke. Beute, Quests und Verbrauch nur unter "Nach Art".
+-- Verkaufsquote = verkauft / (verkauft + zurueck) in Stueck, letzte 30 Tage, ab 3 Stueck.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -16,17 +15,13 @@ local W = ns.Window
 local B = {}
 ns.Book = B
 
-local GREY = "|cff999999"
-local GREEN = "|cff40c040"
-local RED = "|cffe05050"
+local GREY = W.GREY
 
 B.PERIODS = { { key = "today", label = "BK_TODAY" }, { key = "d7", label = "BK_D7" }, { key = "d30", label = "BK_D30" }, { key = "all", label = "BK_ALL" } }
 B.RATE_DAYS = 30
 B.RATE_MIN = 3
--- Reihenfolge der Arten im Buch
 B.ORDER = { "ahsold", "ahbuy", "ahfee", "vendor", "buyback", "repair", "loot", "quest", "craft", "trade", "mail", "taxi", "trainer", "other" }
 
--- Beginn eines Zeitraums (Sekunden seit 1970) oder nil fuer "Alles"
 function B.From(period, now)
     now = now or time()
     if period == "today" then
@@ -39,16 +34,17 @@ end
 
 local function Side(e) return ns.Moves.Side(e) end
 
--- Auswertung: { kinds = { [Art] = { inc, exp } }, inc, exp, fee, cut, items = { [id] = {...} } }
+-- Auswertung: { kinds = { [Art] = { inc, exp } }, inc, exp, fee, cut, items = { [id] = {...} }, sales, cogs, tfee, trade, use }
 function B.Collect(period, onlyMe, now, char)
     local from = B.From(period, now)
     local me = char or ns.CharName()
     if char then onlyMe = true end
     local res = { kinds = {}, inc = 0, exp = 0, fee = 0, cut = 0, items = {},
-                  sales = 0, cogs = 0, tfee = 0, trade = 0, use = 0, nsales = 0 }   -- ab 0.7: Zuordnen
+                  sales = 0, cogs = 0, tfee = 0, trade = 0, use = 0, nsales = 0 }
     local function Item(id)
         local it = res.items[id]
-        if not it then it = { id = id, nin = 0, nout = 0, sold = 0, back = 0, inc = 0, exp = 0, gross = 0, grossQ = 0, profit = nil, cogs = 0, use = 0 }; res.items[id] = it end
+        if not it then it = { id = id, nin = 0, nout = 0, sold = 0, back = 0, inc = 0, exp = 0, gross = 0, grossQ = 0,
+            profit = nil, cogs = 0, use = 0, buyN = 0, buyV = 0, sellN = 0, sellV = 0 }; res.items[id] = it end
         return it
     end
     local function Money(k, m)
@@ -97,17 +93,24 @@ function B.Collect(period, onlyMe, now, char)
             if e.n and e.n > 0 then it.nin = it.nin + e.n elseif e.n and e.n < 0 then it.nout = it.nout - e.n end
             if e.m and e.m > 0 then it.inc = it.inc + e.m elseif e.m and e.m < 0 then it.exp = it.exp - e.m end
             if e.k == "ahsold" and e.m and e.m > 0 then
-                it.sold = it.sold + (e.q or 1)
-                -- Ø Verkaufspreis je Stueck (ab 0.6): Sofortkaufpreis aus der Rechnung, sonst Erloes + Anteil
+                local q = e.q or (e.n and -e.n) or 1
+                it.sold = it.sold + q
                 local g = e.gross or (e.m + (e.cut or 0))
-                if e.q or e.gross then it.gross = it.gross + g; it.grossQ = it.grossQ + (e.q or 1) end
+                if e.q or e.gross then it.gross = it.gross + g; it.grossQ = it.grossQ + q end
+                it.sellN, it.sellV = it.sellN + q, it.sellV + e.m
+            elseif e.k == "vendor" and (e.n or 0) < 0 and (e.m or 0) > 0 then
+                it.sellN, it.sellV = it.sellN + (-e.n), it.sellV + e.m
+            end
+            -- Einkauf (ab 0.14): Auktionshaus, Haendler, Rueckkauf
+            if (e.k == "ahbuy" or e.k == "vendor" or e.k == "buyback") and (e.m or 0) < 0 then
+                local q = (e.n and e.n > 0) and e.n or e.q
+                if q and q > 0 then it.buyN, it.buyV = it.buyN + q, it.buyV - e.m end
             end
         end
     end
     for _, e in ipairs(ns.Moves.List()) do
         if (not from or (e.t or 0) >= from) and (not onlyMe or e.c == me) then Use(e) end
     end
-    -- "Alles": auch die Wochensummen (Eintraege aelter als 90 Tage)
     if not from then
         local weeks = ns.Inventory.RealmData().weeks
         if type(weeks) == "table" then
@@ -116,7 +119,7 @@ function B.Collect(period, onlyMe, now, char)
                     local c, k, id = key:match("^(.-)|(.-)|(.-)$")
                     if c and (not onlyMe or c == me) then
                         id = tonumber(id)
-                        Use({ c = c, k = k, id = (id and id > 0) and id or nil, n = sum.n, m = sum.m })   -- ohne Zuordnen (kein Eintrag mehr)
+                        Use({ c = c, k = k, id = (id and id > 0) and id or nil, n = sum.n, m = sum.m })
                     end
                 end
             end
@@ -126,14 +129,13 @@ function B.Collect(period, onlyMe, now, char)
     return res
 end
 
--- Verkaufsquote eines Gegenstands (alle Charaktere, letzte 30 Tage): Quote 0..1 oder nil, verkauft, zurueck
 function B.SellRate(id, days, now)
     now = now or time()
     local from = now - (days or B.RATE_DAYS) * 86400
     local sold, back = 0, 0
     for _, e in ipairs(ns.Moves.List()) do
         if e.id == id and (e.t or 0) >= from then
-            if e.k == "ahsold" and e.m and e.m > 0 then sold = sold + (e.q or 1)
+            if e.k == "ahsold" and e.m and e.m > 0 then sold = sold + (e.q or (e.n and -e.n) or 1)
             elseif e.k == "ahreturn" and (e.n or 0) > 0 then back = back + e.n end
         end
     end
@@ -145,64 +147,6 @@ local function Rate(it)
     if it.sold + it.back < B.RATE_MIN then return nil end
     return it.sold / (it.sold + it.back)
 end
-
-local function MoneyCell(v, sign)
-    if not v or v == 0 then return GREY .. "–|r" end
-    return (sign > 0 and GREEN or RED) .. "|r" .. ns.Money(v)
-end
-
-local function Signed(v)
-    if not v or v == 0 then return GREY .. "0|r" end
-    return (v > 0 and GREEN .. "+" or RED .. "-") .. "|r" .. ns.Money(math.abs(v))
-end
-
----------------------------------------------------------------------------
--- Gemeinsame Kopfzeile: Zeitraum-Knoepfe und "Nur dieser Charakter"
----------------------------------------------------------------------------
-function B.Header(page, inset)
-    page.periodButtons = {}
-    local prev
-    for _, p in ipairs(B.PERIODS) do
-        local b = CreateFrame("Button", nil, inset, "UIPanelButtonTemplate")
-        b:SetSize(76, 22)
-        if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("TOPLEFT", 12, -8) end
-        b:SetText(L[p.label])
-        b.key = p.key
-        b:SetScript("OnClick", function()
-            mod.db.bookPeriod = p.key
-            mod:Call("Buch", W.Refresh)
-        end)
-        page.periodButtons[#page.periodButtons + 1] = b
-        prev = b
-    end
-    local cb = CreateFrame("CheckButton", nil, inset, "UICheckButtonTemplate")
-    cb:SetSize(22, 22)
-    cb:SetPoint("LEFT", prev, "RIGHT", 10, 0)
-    local label = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    label:SetPoint("LEFT", cb, "RIGHT", 2, 0)
-    label:SetText(L.HIST_ONLY_ME)
-    cb.label = label
-    cb:SetScript("OnClick", function(self)
-        mod.db.bookOnlyMe = self:GetChecked() and true or false
-        mod:Call("Buch", W.Refresh)
-    end)
-    page.onlyMe = cb
-end
-
-function B.UpdateHeader(page)
-    for _, b in ipairs(page.periodButtons or {}) do
-        if b.LockHighlight then
-            if b.key == mod.db.bookPeriod then b:LockHighlight() else b:UnlockHighlight() end
-        end
-        if b.SetEnabled then b:SetEnabled(b.key ~= mod.db.bookPeriod) end
-    end
-    if page.onlyMe then page.onlyMe:SetChecked(mod.db.bookOnlyMe == true) end
-end
-
----------------------------------------------------------------------------
--- Reiter "Buch"
----------------------------------------------------------------------------
-B.book = {}
 
 function B.BookRows(res)
     local rows = {}
@@ -222,147 +166,163 @@ function B.BookRows(res)
     return rows
 end
 
-function B.RefreshBook()
-    local page = B.book
-    if not page.list then return end
-    B.UpdateHeader(page)
-    local res = B.Collect(mod.db.bookPeriod, mod.db.bookOnlyMe == true)
-    page.list:SetData(B.BookRows(res))
-    page.sums:SetText(L.BK_SUMS:format(GREEN .. ns.Money(res.inc) .. "|r", RED .. ns.Money(res.exp) .. "|r", RED .. ns.Money(res.fee) .. "|r"))
-    page.profit:SetText(L.BK_PROFIT:format(Signed(res.profit)))
-    page.cut:SetText(res.cut > 0 and (GREY .. L.BK_CUT:format(ns.Money(res.cut)) .. "|r") or "")
-    -- Handelsgewinn (Zuordnen, ab 0.7): Erloes - Wareneinsatz - Gebuehren; Verbrauch nur zur Info
-    page.trade:SetText(L.BK_TRADE:format(Signed(res.trade), ns.Money(res.sales), ns.Money(res.cogs), ns.Money(res.tfee))
-        .. (res.use > 0 and ("   " .. GREY .. L.BK_USE:format(ns.Money(res.use)) .. "|r") or ""))
-end
-
-function B.BuildBook(c)
-    local page = B.book
-    local inset = W.Inset(c)
-    inset:SetAllPoints()
-    B.Header(page, inset)
-    local total = W.WIDTH - 24 - 8 - 24
-    page.list = Peon.NewList(inset, {
-        columns = {
-            { key = "label", title = L.COL_KIND, width = total - 3 * 120, sortValue = function(r) return r.order end },
-            { key = "inc", title = L.BK_INC, width = 120, align = "RIGHT", format = function(v) return MoneyCell(v, 1) end },
-            { key = "exp", title = L.BK_EXP, width = 120, align = "RIGHT", format = function(v) return MoneyCell(v, -1) end },
-            { key = "sum", title = L.BK_SUM, width = 120, align = "RIGHT", format = function(v) return Signed(v) end },
-        },
-        rows = 11, rowHeight = 19, sortKey = "label",
-        emptyText = L.BK_EMPTY,
-    })
-    page.list.frame:SetPoint("TOPLEFT", 4, -36)
-    page.sums = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    page.sums:SetPoint("BOTTOMLEFT", 12, 34)
-    page.trade = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    page.trade:SetPoint("BOTTOMLEFT", 12, 54)
-    page.profit = inset:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    page.profit:SetPoint("BOTTOMLEFT", 12, 12)
-    page.cut = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    page.cut:SetPoint("BOTTOMRIGHT", -12, 12)
-end
-
----------------------------------------------------------------------------
--- Reiter "Gegenstände"
----------------------------------------------------------------------------
-B.items = {}
-
-function B.ItemRows(res, search, onlyMe)
-    local who = onlyMe and ns.CharName() or "*"   -- ab 0.9: Kosten je Charakter
+-- Zeilen "Nach Gegenstand": nur Gegenstaende mit Kauf oder Verkauf
+function B.ItemRows(res, search, char)
+    local who = (char and char ~= "*") and char or "*"
     local filter = search and W.Lower(search) or ""
     local rows = {}
     for id, it in pairs(res.items) do
-        local name, quality, icon = ns.Inventory.ItemInfo(id)
-        name = name or ("#" .. id)
-        if filter == "" or W.Lower(name):find(filter, 1, true) then
-            rows[#rows + 1] = { id = id, name = name, quality = quality, icon = icon, nin = it.nin, nout = it.nout,
-                sold = it.sold, back = it.back, rate = Rate(it), inc = it.inc, exp = it.exp,
-                avg = it.grossQ > 0 and math.floor(it.gross / it.grossQ + 0.5) or nil,
-                cost = (ns.Cost and ns.Cost.Info(id, who)) and ns.Cost.Info(id, who).avg or nil,   -- Kosten je Stueck (Ø Bestand, ab 0.7)
-                profit = it.profit, cogs = it.cogs, use = it.use }
+        if it.buyN > 0 or it.sellN > 0 or it.sold > 0 or it.back > 0 then
+            local name, quality, icon = ns.Inventory.ItemInfo(id)
+            name = name or ("#" .. id)
+            if filter == "" or W.Lower(name):find(filter, 1, true) then
+                local info = ns.Cost and ns.Cost.Info(id, who)
+                rows[#rows + 1] = { id = id, name = name, quality = quality, icon = icon,
+                    buyN = it.buyN > 0 and it.buyN or nil, sellN = it.sellN > 0 and it.sellN or nil,
+                    buyAvg = it.buyN > 0 and it.buyV / it.buyN or nil,
+                    sellAvg = it.sellN > 0 and it.sellV / it.sellN or nil,
+                    avg = it.grossQ > 0 and math.floor(it.gross / it.grossQ + 0.5) or nil,
+                    sold = it.sold, back = it.back, rate = Rate(it), inc = it.inc, exp = it.exp,
+                    cost = info and info.avg or nil, profit = it.profit, cogs = it.cogs, use = it.use }
+            end
         end
     end
     return rows
 end
 
-function B.RefreshItems()
-    local page = B.items
-    if not page.list then return end
-    B.UpdateHeader(page)
-    local res = B.Collect(mod.db.bookPeriod, mod.db.bookOnlyMe == true)
-    local rows = B.ItemRows(res, page.search, mod.db.bookOnlyMe == true)
-    page.list:SetData(rows)
-    page.count:SetText(GREY .. L.STOCK_COUNT:format(#rows) .. "|r")
+---------------------------------------------------------------------------
+-- Reiter "Buch"
+---------------------------------------------------------------------------
+B.book = {}
+
+-- Charakter der Auswahl (nil = alle). Frueher "Nur dieser Charakter" (bookOnlyMe)
+function B.Char()
+    local c = mod.db.bookChar or "*"
+    if c ~= "*" and not ns.Inventory.RealmData().chars[c] then c = "*" end
+    return c ~= "*" and c or nil
+end
+
+function B.Refresh()
+    local page = B.book
+    if not page.kinds then return end
+    if page.charDD and page.charDD.GenerateMenu then pcall(page.charDD.GenerateMenu, page.charDD) end
+    local char = B.Char()
+    local res = B.Collect(mod.db.bookPeriod, char ~= nil, nil, char)
+    page.res = res
+    local s = page.lines
+    s.trade:Set(L.BK_L_TRADE, W.Signed(res.trade))
+    s.profit:Set(L.BK_L_PROFIT, W.Signed(res.profit))
+    s.inc:Set(L.BK_L_INC, ns.Money(res.inc))
+    s.exp:Set(L.BK_L_EXP, ns.Money(res.exp))
+    s.fee:Set(L.BK_L_FEE, ns.Money(res.fee))
+    s.sales:Set(L.BK_L_SALES, ns.Money(res.sales))
+    s.cogs:Set(L.BK_L_COGS, ns.Money(math.floor(res.cogs + 0.5)))
+    s.cut:Set(L.BK_L_CUT, ns.Money(res.cut))
+    s.use:Set(GREY .. L.BK_L_USE .. "|r", GREY .. ns.Money(math.floor(res.use + 0.5)) .. "|r")
+    page.kinds:SetData(B.BookRows(res))
+    page.items:SetData(B.ItemRows(res, page.search, char))
+    local view = mod.db.bookView == "items" and "items" or "kinds"
+    page.kindsPanel:SetShown(view == "kinds")
+    page.itemsPanel:SetShown(view == "items")
+    if page.searchBox then page.searchBox:SetShown(view == "items") end
+end
+
+function B.Status()
+    local res = B.book.res
+    if not res then return nil end
+    return L.BK_STATUS:format(res.nsales)
 end
 
 local function Pieces(v) if not v or v == 0 then return GREY .. "–|r" end return tostring(v) end
 
-function B.BuildItems(c)
-    local page = B.items
-    local inset = W.Inset(c)
-    inset:SetAllPoints()
-    B.Header(page, inset)
-    local total = W.WIDTH - 24 - 8 - 24
-    page.list = Peon.NewList(inset, {
-        columns = {
-            { key = "name", title = L.COL_ITEM, width = total - (46 * 4 + 50 + 70 + 70 + 80 + 80 * 2),
-              format = function(v, r) return "|T" .. tostring(r.icon or "Interface\\Icons\\INV_Misc_QuestionMark") .. ":16:16:0:0|t " .. W.Colored(v, r.quality) end,
-              sortValue = function(r) return W.Lower(r.name) end },
-            { key = "nin", title = L.BK_COL_IN, width = 46, align = "RIGHT", format = Pieces },
-            { key = "nout", title = L.BK_COL_OUT, width = 46, align = "RIGHT", format = Pieces },
-            { key = "sold", title = L.BK_COL_SOLD, width = 46, align = "RIGHT", format = Pieces },
-            { key = "back", title = L.BK_COL_BACK, width = 46, align = "RIGHT", format = Pieces },
-            { key = "rate", title = L.BK_COL_RATE, width = 50, align = "RIGHT",
-              format = function(v) return v and (math.floor(v * 100 + 0.5) .. " %") or (GREY .. "–|r") end,
-              sortValue = function(r) return r.rate or -1 end },
-            { key = "avg", title = L.BK_COL_AVG, width = 70, align = "RIGHT",
-              format = function(v) return v and ns.Money(v) or (GREY .. "–|r") end, sortValue = function(r) return r.avg or -1 end },
-            { key = "cost", title = L.BK_COL_COST, width = 70, align = "RIGHT",
-              format = function(v) return v and ns.Money(math.floor(v + 0.5)) or (GREY .. "–|r") end, sortValue = function(r) return r.cost or -1 end },
-            { key = "profit", title = L.BK_COL_PROFIT, width = 80, align = "RIGHT",
-              format = function(v) return v and Signed(math.floor(v + 0.5)) or (GREY .. "–|r") end, sortValue = function(r) return r.profit or -math.huge end },
-            { key = "inc", title = L.BK_INC, width = 80, align = "RIGHT", format = function(v) return MoneyCell(v, 1) end },
-            { key = "exp", title = L.BK_EXP, width = 80, align = "RIGHT", format = function(v) return MoneyCell(v, -1) end },
-        },
-        rows = 14, rowHeight = 19, sortKey = "inc", sortDesc = true,
-        onClick = function(list, r, button) if button == "LeftButton" and r.id then mod:ShowItem(r.id) end end,   -- ab 0.9
-        onEnter = function(list, r, row)
-            W.ShowItemTooltip(row, r.id)
-            if GameTooltip and r.rate then
-                GameTooltip:AddLine(L.BK_RATE_TT:format(r.sold, r.sold + r.back), 0.8, 0.8, 0.8)
-                GameTooltip:Show()
-            end
-            if GameTooltip and r.avg then
-                GameTooltip:AddLine(L.BK_AVG_TT:format(ns.Money(r.avg)), 0.8, 0.8, 0.8)
-                GameTooltip:Show()
-            end
-            if GameTooltip and r.profit then
-                GameTooltip:AddLine(L.BK_PROFIT_TT:format(ns.Money(math.floor((r.cogs or 0) + 0.5)), Signed(math.floor(r.profit + 0.5))), 0.8, 0.8, 0.8)
-                GameTooltip:Show()
-            end
-            if GameTooltip and (r.use or 0) > 0 then
-                GameTooltip:AddLine(L.BK_USE:format(ns.Money(math.floor(r.use + 0.5))), 0.6, 0.6, 0.6)
-                GameTooltip:Show()
-            end
-        end,
-        onLeave = function() if GameTooltip then GameTooltip:Hide() end end,
-        emptyText = L.BK_EMPTY,
-    })
-    page.list.frame:SetPoint("TOPLEFT", 4, -36)
-    local box = CreateFrame("EditBox", nil, inset, "InputBoxTemplate")
-    box:SetSize(130, 20)
-    box:SetPoint("TOPRIGHT", -12, -9)
-    box:SetAutoFocus(false)
-    box:SetScript("OnTextChanged", function(self) page.search = self:GetText(); mod:Call("Buch", B.RefreshItems) end)
-    box:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
-    page.searchBox = box
-    page.count = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    page.count:SetPoint("BOTTOMLEFT", 10, 12)
-    page.hint = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    page.hint:SetPoint("BOTTOMRIGHT", -10, 12)
-    page.hint:SetText(GREY .. L.BK_ITEMS_HINT .. "|r")
+function B.ItemTooltip(row, r)
+    W.ShowItemTooltip(row, r.id)
+    if not GameTooltip then return end
+    if r.rate then GameTooltip:AddLine(L.BK_RATE_TT:format(r.sold, r.sold + r.back), 0.8, 0.8, 0.8) end
+    if r.avg then GameTooltip:AddLine(L.BK_AVG_TT:format(ns.Money(r.avg)), 0.8, 0.8, 0.8) end
+    if r.profit then GameTooltip:AddLine(L.BK_PROFIT_TT:format(ns.Money(math.floor((r.cogs or 0) + 0.5)), W.Signed(r.profit)), 0.8, 0.8, 0.8) end
+    if (r.use or 0) > 0 then GameTooltip:AddLine(L.BK_USE:format(ns.Money(math.floor(r.use + 0.5))), 0.6, 0.6, 0.6) end
+    GameTooltip:Show()
 end
 
-W.pages.book = { build = B.BuildBook, refresh = B.RefreshBook }
-W.pages.items = { build = B.BuildItems, refresh = B.RefreshItems }
+function B.Build(c)
+    local U = Peon.UI
+    local a = W.Area()
+    local page = B.book
+    -- Zeitraum und Charakter oben rechts
+    local periods = {}
+    for _, p in ipairs(B.PERIODS) do periods[#periods + 1] = { p.key, L[p.label] } end
+    page.periodDD = U.Dropdown(c, 120, periods, function() return mod.db.bookPeriod end,
+        function(v) mod.db.bookPeriod = v; mod:Call("Buch", W.Refresh) end)
+    page.charDD = U.Dropdown(c, 170, W.CharItems, function() return mod.db.bookChar or "*" end,
+        function(v) mod.db.bookChar = v; mod:Call("Buch", W.Refresh) end)
+    page.charDD:SetPoint("TOPRIGHT", -16, -32)
+    page.periodDD:SetPoint("RIGHT", page.charDD, "LEFT", -8, 0)
+    -- links die Summen
+    local lw = 260
+    local left = U.Panel(c, "left")
+    left:SetPoint("TOPLEFT", a.left, -a.top)
+    left:SetPoint("BOTTOMLEFT", a.left, a.bottom)
+    left:SetWidth(lw)
+    page.left = left
+    local head = left:CreateFontString(nil, "ARTWORK", U.FONT.heading)
+    head:SetPoint("TOPLEFT", 14, -12)
+    head:SetText(L.BK_HEAD)
+    page.lines = {}
+    local keys = { "trade", "profit", "-", "inc", "exp", "fee", "-", "sales", "cogs", "cut", "-", "use" }
+    local y = -38
+    for _, k in ipairs(keys) do
+        if k == "-" then
+            y = y - 10
+        else
+            page.lines[k] = W.ValueLine(left, y)
+            y = y - 22
+        end
+    end
+    U.Font(page.lines.trade.value, "big"); U.Font(page.lines.profit.value, "big")
+    local hint = U.Text(left, "sub", L.BK_HINT, lw - 28)
+    hint:SetPoint("BOTTOMLEFT", 14, 12)
+    -- rechts zwei Ansichten
+    local function RightPanel()
+        local p = U.Panel(c, "list", true)
+        p:SetPoint("TOPLEFT", left, "TOPRIGHT", 4, 0)
+        p:SetPoint("BOTTOMRIGHT", -a.right, a.bottom)
+        return p
+    end
+    page.kindsPanel = RightPanel()
+    page.itemsPanel = RightPanel()
+    page.view = U.TopTabs(c, { { "kinds", L.BK_VIEW_KINDS }, { "items", L.BK_VIEW_ITEMS } }, function(key)
+        mod.db.bookView = key
+        mod:Call("Buch", W.Refresh)
+    end)
+    if page.view[1] then page.view[1]:SetPoint("BOTTOMLEFT", page.kindsPanel, "TOPLEFT", 10, -2) end
+    page.kinds = U.Table(page.kindsPanel, {
+        columns = {
+            { key = "label", title = L.COL_KIND, sort = function(r) return r.order end },
+            { key = "inc", title = L.BK_INC, width = 120, align = "RIGHT", format = function(v) return v ~= 0 and (W.GREEN .. ns.Money(v) .. "|r") or (GREY .. "–|r") end },
+            { key = "exp", title = L.BK_EXP, width = 120, align = "RIGHT", format = function(v) return v ~= 0 and (W.RED .. ns.Money(v) .. "|r") or (GREY .. "–|r") end },
+            { key = "sum", title = L.BK_SUM, width = 120, align = "RIGHT", format = function(v) return W.Signed(v) end },
+        },
+        sortKey = "label", empty = L.BK_EMPTY,
+    })
+    page.items = U.Table(page.itemsPanel, {
+        icon = true,
+        columns = {
+            { key = "name", title = L.COL_ITEM, format = function(v, r) return W.Colored(v, r.quality) end, sort = function(r) return W.Lower(r.name) end },
+            { key = "buyN", title = L.BK_COL_BOUGHT, width = 64, align = "RIGHT", format = Pieces },
+            { key = "sellN", title = L.BK_COL_SOLD, width = 64, align = "RIGHT", format = Pieces },
+            { key = "buyAvg", title = L.BK_COL_BUYAVG, width = 90, align = "RIGHT", format = function(v) return W.MoneyOr(v) end },
+            { key = "sellAvg", title = L.BK_COL_SELLAVG, width = 90, align = "RIGHT", format = function(v) return W.MoneyOr(v) end },
+            { key = "profit", title = L.BK_COL_PROFIT, width = 96, align = "RIGHT", format = function(v) return v and W.Signed(v) or (GREY .. "–|r") end,
+              sort = function(r) return r.profit or -math.huge end },
+        },
+        sortKey = "profit", sortDesc = true, empty = L.BK_EMPTY_ITEMS,
+        onEnter = function(row, r) B.ItemTooltip(row, r) end,
+        onClick = function(r, button) if button == "RightButton" then W.ItemMenu(r.id) elseif r.id then mod:ShowItem(r.id) end end,
+    })
+    page.searchBox = U.SearchBox(c, 170, function(text) page.search = text; mod:Call("Buch", W.Refresh) end)
+    page.searchBox:SetPoint("TOPLEFT", 80, -32)
+    page.view:Select(mod.db.bookView == "items" and "items" or "kinds")
+end
+
+W.pages.book = { build = B.Build, refresh = B.Refresh, status = B.Status }

@@ -49,6 +49,7 @@ M.KINDS = {
     destroy  = { side = "out" },
     other    = { side = "both" },
     fix      = { side = "move" },   -- Korrektur aus "Inventur neu" (ab 0.6), zaehlt nicht als Gewinn
+    diff     = { side = "move" },   -- Abweichung der Kontrollrechnung (ab 0.14, Check.lua), zaehlt nicht als Gewinn
 }
 
 -- Filter im Verlauf (ab 0.6): Gruppe -> Arten
@@ -58,7 +59,7 @@ M.GROUPS = {
     { key = "use", kinds = { "use" } }, { key = "quest", kinds = { "quest" } }, { key = "craft", kinds = { "craft" } },
     { key = "trade", kinds = { "trade" } }, { key = "mail", kinds = { "mail", "twink" } },
     { key = "travel", kinds = { "taxi", "trainer" } }, { key = "destroy", kinds = { "destroy" } },
-    { key = "fix", kinds = { "fix" } }, { key = "other", kinds = { "other" } },
+    { key = "fix", kinds = { "fix", "diff" } }, { key = "other", kinds = { "other" } },
 }
 function M.InGroup(k, group)
     if not group or group == "all" then return true end
@@ -122,6 +123,7 @@ end
 function M.Changed()
     M.cache = nil
     if ns.Cost then ns.Cost.dirty = true end
+    if ns.Last then ns.Last.dirty = true end
     if ns.Window and ns.Window.OnData then ns.Window.OnData() end
 end
 
@@ -149,6 +151,7 @@ function M.Prune(now)
             keep[#keep + 1] = e
         end
     end
+    if ns.Last and moved > 0 then mod:Call("Zuletzt", ns.Last.Persist) end
     if ns.Cost and moved > 0 then
         local old = {}
         for _, e in ipairs(list) do if (e.t or now) < limit then old[#old + 1] = e end end
@@ -284,7 +287,9 @@ end
 -- Art eines Briefes: "won" (Auktion gekauft), "sold" (Erloes), "return" (Auktion zurueck), "outbid", "ah", "mail"
 -- Zuerst die Rechnung (Forever: auch gekaufte Auktionen haben eine, Art "buyer"); ein Brief vom Auktionshaus
 -- mit Gegenstand ohne Kaufrechnung ist eine zurueckgekommene Auktion (abgelaufen/abgebrochen).
-function M.LetterKind(l)
+-- Ab 0.14: Ist der Betreff noch nicht geladen ("Rufe Daten ab", ohne Rechnung), entscheidet ein offener Kauf
+-- dieses Gegenstands (id, net): dann ist es ein Kauf, sonst eine zurueckgekommene Auktion.
+function M.LetterKind(l, id, net)
     if type(l) ~= "table" then return nil end
     local inv = l.invoice and l.invoice.kind
     if inv == "buyer" then return "won" end
@@ -292,7 +297,11 @@ function M.LetterKind(l)
     if l.ah then
         local k = M.AHLetterKind(l.subject)
         if k == "won" or k == "sold" or k == "outbid" then return k end
-        if k == "expired" or k == "cancelled" or next(l.items or {}) then return "return" end
+        if k == "expired" or k == "cancelled" then return "return" end
+        if next(l.items or {}) then
+            if id and M.FindPurchase(id, math.max(1, net or 1), l) then return "won" end
+            return "return"
+        end
         return "ah"
     end
     return "mail"
@@ -451,7 +460,7 @@ function M.ItemReason(id, net, d)
     -- aus der Post (Brief war noch nicht bekannt) oder neue Post beim Oeffnen des Postfachs
     if net > 0 and (d.mail or 0) > 0 then
         local l = LetterFor(id)
-        local kind = M.LetterKind(l)
+        local kind = M.LetterKind(l, id, net)
         if kind == "won" then return "ahbuy", nil, l end
         if kind == "return" then return nil, "ahreturn", l end
         local own = l and M.OwnChar(l.sender)
@@ -468,14 +477,19 @@ function M.ItemReason(id, net, d)
     if M.IsOpen("trade") then return "trade", M.tradePartner end
     if M.IsOpen("mail") then
         local send = R("send", 10)
+        if send and send.used then send = nil end   -- ab 0.14: Brief schon ueber den Entwurf verbucht
         if net < 0 and send then
             local own = M.OwnChar(send.to)
             if own and own ~= ns.CharName() then return "twink", own end
             return "mail", send.to
         end
+        -- ab 0.14: an einen Brief gehaengt, noch nicht abgeschickt -> Briefentwurf (erst SendMail verbucht)
+        local use = R("use", 10)
+        if net < 0 and M.open.mail and not (use and (use.id == nil or use.id == id)) then return nil, "draft" end
+        if net > 0 and (M.draft[id] or 0) > 0 then return nil, "undraft" end
         local l = net > 0 and (M.TakeItem(id) or LetterFor(id)) or nil
         if l then
-            local kind = M.LetterKind(l)
+            local kind = M.LetterKind(l, id, net)
             if kind == "won" then return "ahbuy", nil, l end
             if kind == "return" then return nil, "ahreturn", l end
             local own = M.OwnChar(l.sender)
@@ -510,10 +524,21 @@ function M.MoneyReason(m)
         return "repair"
     end
     if M.IsOpen("auction") then
-        if m < 0 and R("ahpurchase", 10) then return "ahbuy" end
-        if m < 0 and R("posted", 15) then return "ahfee" end
-        if m < 0 and R("cancel", 15) then return "ahfee", L.MV_X_CANCEL end
-        if m < 0 then return "ahbuy" end
+        if m < 0 then
+            -- ab 0.14: das neueste Ereignis entscheidet (Kauf kurz nach dem Einstellen ist keine Gebuehr und
+            -- umgekehrt), ein Kauf gilt nur fuer eine Goldaenderung
+            local buy, post, cancel = R("ahpurchase", 10), R("posted", 15), R("cancel", 15)
+            if buy and buy.used then buy = nil end
+            if cancel and cancel.used then cancel = nil end
+            local best, bt = nil, -math.huge
+            if buy and buy.t >= bt then best, bt = "buy", buy.t end
+            if post and post.t > bt then best, bt = "post", post.t end
+            if cancel and cancel.t > bt then best, bt = "cancel", cancel.t end
+            if best == "buy" then buy.used = true; return "ahbuy" end
+            if best == "post" then return "ahfee" end
+            if best == "cancel" then cancel.used = true; return "ahfee", L.MV_X_CANCEL end
+            return "ahbuy"
+        end
         return "other"
     end
     if M.IsOpen("mail") then
@@ -648,6 +673,76 @@ function M.FindPurchase(id, net, letter)
     return nil
 end
 
+-- Verkauf aus der Rechnung (ab 0.14): Die Rechnung nennt Gegenstand und Menge, die Ware ist damit weg.
+-- Hat die Auktionsliste den Verkauf schon als Abgang gemeldet (Zeile "Auktion verkauft" ohne Erloes), bleibt es
+-- dabei. Sonst traegt die Zeile mit dem Erloes auch den Abgang (n), und der Ort "Auktionen" wird kleiner.
+function M.SaleItems(e, id, q)
+    if type(e) ~= "table" or not Num(q) or q <= 0 then return end
+    local list = M.List()
+    local from = (e.t or time()) - M.MATCH_DAYS * 86400
+    for i = #list, math.max(1, #list - M.MERGE_LOOKBACK), -1 do
+        local s = list[i]
+        if (s.t or 0) < from then break end
+        if s ~= e and s.k == "ahsold" and s.c == e.c and s.id == id and (s.n or 0) < 0 and not s.m and not s.paid then
+            s.paid = true
+            return
+        end
+    end
+    e.n = -q
+    if e.c == ns.CharName() then ns.Inventory.RemoveFromPlace(ns.Inventory.Char(), "auctions", id, q) end
+    M.Changed()
+end
+
+-- Auktionsliste meldet einen Verkauf (ab 0.14): schon ueber die Rechnung verbucht? Rueckgabe: noch offene Menge
+function M.ClaimSale(id, cnt)
+    local list = M.List()
+    local me = ns.CharName()
+    local from = time() - M.MATCH_DAYS * 86400
+    for i = #list, math.max(1, #list - M.MERGE_LOOKBACK), -1 do
+        if cnt <= 0 then break end
+        local s = list[i]
+        if (s.t or 0) < from then break end
+        if s.k == "ahsold" and s.c == me and s.id == id and (s.n or 0) < 0 and Num(s.m) and s.m > 0 then
+            local free = -s.n - (s.claimed or 0)
+            if free > 0 then
+                local k = math.min(free, cnt)
+                s.claimed = (s.claimed or 0) + k
+                cnt = cnt - k
+            end
+        end
+    end
+    return cnt
+end
+
+-- Briefentwurf (ab 0.14): angehaengte Gegenstaende, noch nicht abgeschickt. [itemID] = Stueck
+M.draft = {}
+
+-- Abgeschickt: Entwurf verbuchen (an Twink = Umbuchung und beim Twink unterwegs, sonst Post an andere)
+function M.SendDraft(to)
+    local own = M.OwnChar(to)
+    if own == ns.CharName() then own = nil end
+    for id, n in pairs(M.draft) do
+        if n > 0 then
+            if own then
+                M.Add("twink", id, -n, nil, own)
+                ns.Inventory.AddToPlace(ns.Inventory.Char(own), "transit", id, n)
+            else
+                M.Add("mail", id, -n, nil, Str(to))
+            end
+        end
+    end
+    M.draft = {}
+end
+
+-- Postfach zu, Entwurf nicht abgeschickt und nicht zurueck: Abgang wie ohne Zusammenhang
+function M.DropDraft()
+    if M.pending then M.Flush() end
+    for id, n in pairs(M.draft) do
+        if n > 0 then M.Add(Usable(id) and "use" or "other", id, -n) end
+    end
+    M.draft = {}
+end
+
 -- Gesammelte Aenderungen verbuchen
 function M.Flush()
     local b = M.pending
@@ -661,7 +756,14 @@ function M.Flush()
         for place, v in pairs(d) do if place ~= "mail" then net = net + v end end
         if net ~= 0 then
             local k, x, letter = M.ItemReason(id, net, d)
-            if k == nil and x == "ahreturn" then
+            if k == nil and x == "draft" then
+                M.draft[id] = (M.draft[id] or 0) - net        -- an einen Brief gehaengt (ab 0.14)
+            elseif k == nil and x == "undraft" then
+                local back = math.min(net, M.draft[id] or 0)   -- vom Brief zurueck in die Tasche
+                M.draft[id] = (M.draft[id] or 0) - back
+                if M.draft[id] <= 0 then M.draft[id] = nil end
+                if net - back > 0 then M.Add("other", id, net - back) end
+            elseif k == nil and x == "ahreturn" then
                 -- Auktion kommt per Post zurueck: Gegenstand war schon als "Auktion" im Bestand (Umbuchung);
                 -- fuer die Verkaufsquote als "zurueck" vermerkt
                 ns.Inventory.RemoveFromPlace(ns.Inventory.Char(), "auctions", id, net)
@@ -699,6 +801,7 @@ function M.Flush()
                 local e = M.Add(k, info and info.id, nil, l.money, x)
                 if e and info then e.q, e.cut, e.gross = info.q, info.cut, info.gross end
                 if e and k == "ahsold" and (not info or info.guess) then M.MatchSale(e, info and info.id) end
+                if e and k == "ahsold" and info and info.id and not info.guess then M.SaleItems(e, info.id, info.q or 1) end
             end
             m = 0
         end
@@ -714,15 +817,21 @@ function M.Flush()
             if e and info then e.q, e.cut, e.gross = info.q, info.cut, info.gross end
             -- ohne Rechnung: Gegenstand und Menge aus dem passenden Verkauf (ab 0.6)
             if e and k == "ahsold" and m > 0 and (not info or info.guess) then M.MatchSale(e, info and info.id) end
+            -- Rechnung mit Gegenstand und Menge (ab 0.14): die Ware ist damit sicher weg
+            if e and k == "ahsold" and m > 0 and info and info.id and not info.guess then M.SaleItems(e, info.id, info.q or 1) end
             -- Einstellgebuehr / Abbruchkosten: Gegenstand dazu (ab 0.7, fuer Kosten und Handelsgewinn)
             if e and k == "ahfee" and not e.id then
                 local src = (x == L.MV_X_CANCEL) and M.Recent("cancel", 15) or M.Recent("postedItem", 15)
                 if src and Num(src.id) then e.id = src.id end
             end
             -- Auktion gekauft: Gegenstand des mitgelesenen Kaufs (ab 0.6), der Gegenstand aus der Post kommt dazu
+            -- ab 0.14 nur einmal und hoechstens 60 Sekunden alt (vorher 120, konnte einem anderen Kauf zufallen)
             if e and k == "ahbuy" and m < 0 then
-                local b = M.Recent("ahbuyitem", 120)
-                if b and Num(b.id) then e.id, e.q = b.id, Num(b.qty) and b.qty or nil end
+                local b = M.Recent("ahbuyitem", 60)
+                if b and Num(b.id) and not b.used then
+                    e.id, e.q = b.id, Num(b.qty) and b.qty or nil
+                    b.used = true
+                end
             end
         end
         if k == "twink" and m < 0 and x then
@@ -754,6 +863,7 @@ function M.OnAuctions(old, new, info)
         if d < 0 then
             local s = (sold[id] or 0) - (oldSold[id] or 0)
             local soldNow = math.min(-d, math.max(0, s))
+            if soldNow > 0 then soldNow = M.ClaimSale(id, soldNow) end   -- ab 0.14: Rechnung war schon da
             if soldNow > 0 then
                 local e = M.Add("ahsold", id, -soldNow)
                 local g = info and info.soldGross and info.soldGross[id]
@@ -768,8 +878,10 @@ end
 ---------------------------------------------------------------------------
 -- Ereignisse und mitgelesene Aufrufe
 ---------------------------------------------------------------------------
+M.hooked = {}
 local function Hook(path, fn)
     if not hooksecurefunc then return false end
+    if M.hooked[path] then return true end   -- ab 0.14: jeder Aufruf nur einmal mitgelesen (Init darf erneut laufen)
     local tblName, key = path:match("^([%w_]+)%.([%w_]+)$")
     local ok = pcall(function()
         if tblName then
@@ -780,6 +892,7 @@ local function Hook(path, fn)
             hooksecurefunc(path, fn)
         end
     end)
+    if ok then M.hooked[path] = true end
     return ok
 end
 M.Hook = Hook
@@ -818,13 +931,24 @@ local function PimWindow(kind)
 end
 
 function M.Init()
+    M.InitEvents()
+    M.InitHooks()
+end
+
+-- Ereignisse nur einmal anmelden
+function M.InitEvents()
+    if M.eventsDone then return end
+    M.eventsDone = true
     -- Fenster
     Ev("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", function(_, kind) local w = PimWindow(kind); if w then M.Open(w) end end)
-    Ev("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", function(_, kind) local w = PimWindow(kind); if w then M.Close(w) end end)
+    Ev("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", function(_, kind)
+        local w = PimWindow(kind)
+        if w == "mail" then M.CloseMail() elseif w then M.Close(w) end
+    end)
     Ev("MERCHANT_SHOW", function() M.Open("merchant") end)
     Ev("MERCHANT_CLOSED", function() M.Close("merchant") end)
     Ev("MAIL_SHOW", function() M.Open("mail") end)
-    Ev("MAIL_CLOSED", function() M.Close("mail") end)
+    Ev("MAIL_CLOSED", function() M.CloseMail() end)
     Ev("AUCTION_HOUSE_SHOW", function() M.Open("auction") end)
     Ev("AUCTION_HOUSE_CLOSED", function() M.Close("auction") end)
     Ev("TAXIMAP_OPENED", function() M.Open("taxi") end)
@@ -866,7 +990,11 @@ function M.Init()
         local c = M.ctx.craft
         if c and M.open.skill then c.t = Now() end   -- Herstellen laeuft noch (mehrere Stueck)
     end)
-    -- mitgelesene Aufrufe (hooksecurefunc: nach dem Aufruf, aendert nichts)
+end
+
+-- mitgelesene Aufrufe (hooksecurefunc: nach dem Aufruf, aendert nichts). Ab 0.14 erneut aufrufbar: Fehlende
+-- Funktionen (z. B. aus spaet geladenen Teilen des Spiels) werden dann nachgeholt, vorhandene nicht doppelt.
+function M.InitHooks()
     Hook("BuyMerchantItem", function() M.Note("buy") end)
     Hook("BuybackItem", function() M.Note("buyback") end)
     Hook("RepairAllItems", function() M.Note("repair") end)
@@ -900,7 +1028,11 @@ function M.Init()
             local ok, v = pcall(fn)
             if ok and Num(v) then money = v end
         end
-        M.Note("send", { to = Str(to), money = money })
+        local note = M.Note("send", { to = Str(to), money = money })
+        if M.pending then M.Flush() end
+        -- ab 0.14: angehaengte Gegenstaende jetzt verbuchen. Danach gilt der Brief als erledigt, was jetzt noch die
+        -- Tasche verlaesst, gehoert zum naechsten Brief (Entwurf).
+        if next(M.draft) then M.SendDraft(to); note.used = true end
     end)
     -- Post nehmen: Brief merken (Index aus dem letzten Lesen des Postfachs). "Alle öffnen" ruft AutoLootMailItem
     -- (Gegenstaende und Gold eines Briefes) bzw. TakeInboxMoney je Brief auf.
@@ -915,6 +1047,46 @@ function M.Init()
     Hook("AcceptTrade", function() M.Note("tradeaccept") end)
     -- Kauf von Massenware: Gegenstand und Menge (ab 0.6, fuer "Auktion gekauft" in einer Zeile)
     Hook("C_AuctionHouse.StartCommoditiesPurchase", function(itemID, qty) M.Note("ahbuyitem", { id = itemID, qty = qty }) end)
+    -- ab 0.14: Bestaetigen frischt den Kauf auf (zwischen Start und Bestaetigen koennen Sekunden liegen)
+    Hook("C_AuctionHouse.ConfirmCommoditiesPurchase", function(itemID, qty) M.Note("ahbuyitem", { id = itemID, qty = qty }) end)
+    -- ab 0.14: Einzelgegenstand gekauft (Sofortkauf oder Gebot): Gegenstand aus der Auktion bzw. Blizzards Kaufansicht
+    Hook("C_AuctionHouse.PlaceBid", function(auctionID, amount)
+        local id = M.BidItem(auctionID)
+        M.Note("ahbuyitem", { id = id, qty = 1, amount = Num(amount) and amount or nil })
+    end)
+end
+
+-- Gegenstand einer Auktion, auf die geboten oder die gekauft wird (ab 0.14). nil, wenn das Spiel ihn nicht nennt
+function M.BidItem(auctionID)
+    local ah = rawget(_G, "C_AuctionHouse")
+    if ah and type(ah.GetAuctionInfoByID) == "function" and Num(auctionID) then
+        local ok, info = pcall(ah.GetAuctionInfoByID, auctionID)
+        if ok and type(info) == "table" and type(info.itemKey) == "table" and Num(info.itemKey.itemID) then return info.itemKey.itemID end
+    end
+    local f = rawget(_G, "AuctionHouseFrame")
+    local buy = type(f) == "table" and rawget(f, "ItemBuyFrame") or nil
+    if type(buy) == "table" then
+        local key = rawget(buy, "itemKey")
+        if type(key) ~= "table" and type(buy.GetItemKey) == "function" then
+            local ok, k = pcall(buy.GetItemKey, buy)
+            if ok then key = k end
+        end
+        if type(key) == "table" and Num(key.itemID) then return key.itemID end
+    end
+    return nil
+end
+
+-- Postfach zu (ab 0.14): Entwurf kurz danach aufloesen. Was zurueck in die Tasche kommt, gehoert nicht dazu
+-- (Blizzard legt Anhaenge beim Schliessen zurueck), der Rest war kein Brief.
+function M.CloseMail()
+    M.Close("mail")
+    if not next(M.draft) then return end
+    local CT = rawget(_G, "C_Timer")
+    if CT and CT.After then
+        CT.After(M.WINDOW + 1, function() if not M.open.mail then mod:Call("Bewegungen", M.DropDraft) end end)
+    else
+        M.DropDraft()
+    end
 end
 
 -- Buch zuruecksetzen (Optionen): Verlauf und Wochensummen dieses Realms loeschen, aktuellen Stand neu lesen
@@ -922,7 +1094,7 @@ end
 function M.ResetBook()
     local I = ns.Inventory
     local r = I.RealmData()
-    M.pending, M.transit, M.takes = nil, {}, {}
+    M.pending, M.transit, M.takes, M.draft = nil, {}, {}, {}
     I.quiet = true
     I.ScanMoney()
     I.ScanBags()
@@ -933,6 +1105,7 @@ function M.ResetBook()
     r.moves = {}
     r.weeks = nil
     r.lotBase = nil   -- Kosten beginnen neu (ab 0.7)
+    if ns.Last then ns.Last.Clear() end   -- zuletzt gezahlt/verkauft beginnt neu (ab 0.14)
     local t = time()
     for _, c in pairs(r.chars) do
         local start = { t = t, money = c.money, places = {} }

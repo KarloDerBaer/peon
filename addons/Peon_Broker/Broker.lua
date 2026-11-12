@@ -152,6 +152,11 @@ ns.mod = mod
 
 -- Schnittstelle fuer andere Module (nur lesend): Wert eines Gegenstands (Zeile 1 des Tooltips) fuer count Stueck
 function mod:ItemValue(id, count) return ns.ItemValue(id, count) end
+-- Ab 0.84 (fuer Peon_Ledger 0.14): Seite Gegenstand mit diesem Gegenstand zeigen (Ledger hat keine eigene mehr)
+function mod:ShowItem(id)
+    if type(id) ~= "number" or not ns.Go then return false end
+    return ns.Go.Item({ id = id })
+end
 
 -- Ab 0.27 (fuer den Ledger-Reiter "Gegenstand", Konzept Peon_Ledger_Gegenstand.md): Verlauf eines Gegenstands im
 -- aktuellen Markt, aelteste zuerst. Je Eintrag { day, week (nur Wochenwerte), min, median, qty, scans,

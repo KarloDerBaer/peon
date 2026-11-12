@@ -98,6 +98,16 @@ function P.StockRows(key, ctx)
     end
     local cost = P.OwnCost(id)
     if cost then out[#out + 1] = { L.ITEM_COST, Money(cost) } end
+    -- ab 0.84 (Ledger 0.14): zuletzt gezahlt und zuletzt verkauft, mit Datum und Menge
+    local led = P.Ledger()
+    for _, w in ipairs({ { "LastBuy", L.ITEM_LAST_BUY }, { "LastSale", L.ITEM_LAST_SALE } }) do
+        if led and type(led[w[1]]) == "function" then
+            local ok, unit, t, n = pcall(led[w[1]], led, id)
+            if ok and Num(unit) then
+                out[#out + 1] = { w[2], L.ITEM_LAST_TEXT:format(Money(math.floor(unit + 0.5)), tonumber(n) or 1, date("%d.%m.", tonumber(t) or 0)) }
+            end
+        end
+    end
     local left, right = ns.Tooltip.BlockText("own", "rate", ctx or {})
     if left then out[#out + 1] = { left, right } end
     return out

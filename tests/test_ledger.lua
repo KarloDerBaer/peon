@@ -289,41 +289,42 @@ check(tt.lines[2] and tt.lines[2]:find("Bestand: 48 (Mirel 43, Borin 5)", 1, tru
 check(tt.lines[3] and tt.lines[3]:find("Mirel Dorna | Taschen 15, Bank 20, Auktionen 8", 1, true), "mit Umschalt: Orte je Charakter")
 tt.lines = {}; tt.link = "item:99999"; ttPost(tt, {})
 check(#tt.lines == 0, "niemand hat ihn: keine Zeile")
--- Fenster
--- Gegenstaende und Gegenstand in Arbeit (0.13.0): Fuer die Pruefungen den Hinweis abschalten, am Ende pruefen
-check(ns.Window.WIP.catalog == true and ns.Window.WIP.item == true, "0.13: Gegenstaende und Gegenstand in Arbeit")
-local wipKeep = ns.Window.WIP
-ns.Window.WIP = {}
+-- Fenster (ab 0.14 mit Peon.UI, vier Reiter)
 SlashCmdList.PEON_LEDGER("")
 local W = ns.Window
-check(W.IsOpen() and W.current == "overview" and #ns.Overview.list:GetItems() == 2, "Fenster: Uebersicht mit zwei Charakteren")
-check(ns.Overview.BlockText("worth"):find("Gold (2 Charaktere)", 1, true), "Gold aller Charaktere im Block Vermoegen")
-check(ns.Overview.list.rowsVisible == 5, "ab 0.8: Charakterliste mit 5 Zeilen")
-check(ns.Overview.BlockText("slots"):find("Taschen frei", 1, true) and ns.Overview.BlockText("slots"):find("Laufende Auktionen", 1, true), "ab 0.8: Block Plaetze")
+local function rowsOf(t) return t.items end
+check(W.IsOpen() and W.current == "overview" and #rowsOf(ns.Overview.table) == 2, "Fenster: Uebersicht mit zwei Charakteren")
+check(#W.tabButtons == 4 and W.tabButtons[1].text == "Übersicht" and W.tabButtons[3].text == "Buch", "0.14: vier Reiter (Uebersicht, Bestand, Buch, Verlauf)")
+check(ns.Overview.TileText("gold"):find("2 Charaktere", 1, true), "Kachel Gold gesamt: " .. ns.Overview.TileText("gold"))
+check(ns.Overview.TileText("worth"):find("Peon_Broker", 1, true), "Kachel Vermoegen ohne Broker: Hinweis")
+check(ns.Overview.TileText("mail"):find("2 Briefe", 1, true), "Kachel Post wartet: " .. ns.Overview.TileText("mail"))
+check(ns.Overview.TileText("trade"):find("Verkäufe", 1, true), "Kachel Handelsgewinn heute")
+check(W.statusText and W.statusText:find("Charaktere", 1, true), "Statuszeile: " .. tostring(W.statusText))
 do
-  local col, rowT
-  for _, c in ipairs(ns.Overview.list.columns) do if c.key == "bags" then col = c end end
-  for _, r in ipairs(ns.Overview.list:GetItems()) do if r.me then rowT = r end end
-  local txt = col.format(rowT.bags, rowT)
-  check(txt:match("^%d+/%d+$"), "Uebersicht: Taschen als belegt/alle Plaetze (" .. txt .. ")")
-  for _, c in ipairs(ns.Overview.list.columns) do
-    if c.key == "mail" then check(c.format(rowT.mail, rowT) == "1", "Uebersicht: Post = 1 Anhang (statt 4 Stueck)") end
-    if c.key == "auctions" then check(c.format(rowT.auctions, rowT) == "1" and c.sortValue(rowT) == 1, "Uebersicht: Auktionen = 1 Auktion (statt 8 Stueck), sortiert nach Plaetzen") end
-  end
-  local lst = ns.Overview.list
-  for _, row in ipairs(lst.rowFrames or lst.rows or {}) do
-    if row.item and row.item.me and row.scripts.OnEnter then row.scripts.OnEnter(row) end
-  end
+  local rowT
+  for _, r in ipairs(rowsOf(ns.Overview.table)) do if r.me then rowT = r end end
+  local col
+  for _, c in ipairs(ns.Overview.table.o.columns) do if c.key == "mailSort" then col = c end end
+  check(col.format(nil, rowT):find("^2"), "Uebersicht: Spalte Post (Briefe)")
+  tt.lines = {}
+  ns.Overview.RowTooltip({}, rowT)
   local found
   for _, l in ipairs(tt.lines) do if l:find(" frei)", 1, true) and l:find("Stück", 1, true) then found = l end end
   check(found, "Zeilen-Tooltip: Stueck und Plaetze (" .. tostring(found) .. ")")
 end
 W.Select("stock")
-local rows = ns.Stock.list:GetItems()
-check(#rows == 3, "Bestand: alle Gegenstaende (ab 0.7.2 ohne Briefkasten)")
-ns.Stock.searchBox:SetText("lein"); ns.Stock.searchBox.scripts.OnTextChanged(ns.Stock.searchBox)
-rows = ns.Stock.list:GetItems()
+local rows = rowsOf(ns.Stock.table)
+check(#rows == 4, "Bestand: alle Gegenstaende, ab 0.14 mit Ware in der Post (" .. #rows .. ")")
+ns.Stock.searchBox:SetText("lein"); ns.Stock.searchBox.scripts.OnTextChanged(ns.Stock.searchBox, true)
+rows = rowsOf(ns.Stock.table)
 check(#rows == 1 and rows[1].total == 48 and rows[1].where:find("Mirel: Taschen 15, Bank 20, Auktionen 8 · Borin: Taschen 5", 1, true), "Suche, Wo-Spalte")
+mod.db.stockChar = "Borin Stein"; W.Refresh()
+rows = rowsOf(ns.Stock.table)
+check(#rows == 1 and rows[1].total == 5 and rows[1].where == "Taschen 5", "Bestand: nur ein Charakter")
+mod.db.stockChar = "*"; mod.db.stockPlace = "mail"; ns.Stock.searchBox:SetText(""); ns.Stock.searchBox.scripts.OnTextChanged(ns.Stock.searchBox, true)
+rows = rowsOf(ns.Stock.table)
+check(#rows == 1 and rows[1].id == 1529 and rows[1].where:find("Post 4", 1, true), "Bestand: Ort Post (gekauft, noch nicht abgeholt)")
+mod.db.stockPlace = "all"; W.Refresh()
 -- Optionen: Twink loeschen
 if mod.panel.scripts.OnShow then mod.panel.scripts.OnShow(mod.panel) end
 local cl
@@ -673,29 +674,30 @@ Mv.paused = true; bags(); settle(); Mv.paused = nil
 -- Verlauf: Filter nach Art
 ns.Window.Select("history")
 mod.db.historyKind = "fix"; ns.History.Refresh()
-local onlyFix = true for _, r in ipairs(ns.History.list:GetItems()) do if r.e.k ~= "fix" then onlyFix = false end end
+local onlyFix = true for _, r in ipairs(ns.History.table.items) do if r.e.k ~= "fix" then onlyFix = false end end
 local function nEnt(rows) local n = 0 for _, r in ipairs(rows) do n = n + (r.grp and #r.grp.list or 1) end return n end
-check(onlyFix and nEnt(ns.History.list:GetItems()) == 2 and #ns.History.list:GetItems() == 1, "Verlauf: nur Korrekturen (ab 0.8.1 eine Zeile)")
+check(onlyFix and nEnt(ns.History.table.items) == 2 and #ns.History.table.items == 1, "Verlauf: nur Korrekturen (ab 0.8.1 eine Zeile)")
 mod.db.historyKind = "ah"; ns.History.Refresh()
-local onlyAh = #ns.History.list:GetItems() > 0
-for _, r in ipairs(ns.History.list:GetItems()) do if not Mv.InGroup(r.e.k, "ah") then onlyAh = false end end
+local onlyAh = #ns.History.table.items > 0
+for _, r in ipairs(ns.History.table.items) do if not Mv.InGroup(r.e.k, "ah") then onlyAh = false end end
 check(onlyAh, "Verlauf: nur Auktionshaus")
 mod.db.historyKind = "all"
 -- Verlauf
 ns.Window.Select("history")
-local rows = ns.History.list:GetItems()
+local rows = ns.History.table.items
 local nEntries = 0 for _, r in ipairs(rows) do nEntries = nEntries + (r.grp and #r.grp.list or 1) end
 check(nEntries == #realm.moves and (rows[1].e == realm.moves[#realm.moves] or (rows[1].grp and rows[1].grp.list[1] == realm.moves[#realm.moves])), "Verlauf: alle Eintraege (Herstellen zusammengefasst), neueste zuerst")
-ns.History.searchBox:SetText("kupfer"); ns.History.searchBox.scripts.OnTextChanged(ns.History.searchBox)
-rows = ns.History.list:GetItems()
+ns.History.searchBox:SetText("kupfer"); ns.History.searchBox.scripts.OnTextChanged(ns.History.searchBox, true)
+rows = ns.History.table.items
 check(#rows >= 3, "Verlauf: Suche (" .. #rows .. ")")
-ns.History.searchBox:SetText(""); ns.History.searchBox.scripts.OnTextChanged(ns.History.searchBox)
+ns.History.searchBox:SetText(""); ns.History.searchBox.scripts.OnTextChanged(ns.History.searchBox, true)
 ns.History.moves:SetChecked(false); ns.History.moves.scripts.OnClick(ns.History.moves)
-local nm = 0 for _, r in ipairs(ns.History.list:GetItems()) do if r.side == "move" then nm = nm + 1 end end
+local nm = 0 for _, r in ipairs(ns.History.table.items) do if r.side == "move" then nm = nm + 1 end end
 check(nm == 0 and mod.db.historyMoves == false, "Verlauf: Umbuchungen ausblenden")
 ns.History.moves:SetChecked(true); ns.History.moves.scripts.OnClick(ns.History.moves)
-local col for _, c in ipairs(ns.History.list.columns) do if c.key == "m" then col = c end end
+local col for _, c in ipairs(ns.History.table.o.columns) do if c.key == "m" then col = c end end
 check(col.format(nil, { m = -1030 }):find("-", 1, true), "Verlauf: Gold mit Vorzeichen")
+check(ns.History.Unsure({ e = { k = "other" } }) and not ns.History.Unsure({ e = { k = "loot" } }), "0.14: unsichere Zeilen (sonstiges) markiert")
 -- Alte Eintraege -> Wochensummen
 table.insert(realm.moves, 1, { t = os.time() - 100 * 86400, c = "Mirel Dorna", k = "loot", id = 2770, n = 4 })
 local moved = Mv.Prune()
@@ -752,21 +754,27 @@ realm.weeks = { ["2026-20"] = { ["Mirel Dorna|vendor|4306"] = { n = -10, m = 400
 local ra = Bk.Collect("all")
 check(ra.kinds.vendor.inc == 450 and ra.items[4306].nout == 12, "Alles: mit Wochensummen")
 realm.weeks = nil
--- Reiter
+-- Reiter (ab 0.14: Summen links, Ansichten Nach Art und Nach Gegenstand)
 ns.Window.Select("book")
-local rows = Bk.book.list:GetItems()
-check(#rows >= 5 and Bk.book.profit.text:find("Gewinn", 1, true), "Reiter Buch: Arten und Gewinn")
-for _, b in ipairs(Bk.book.periodButtons) do if b.key == "d30" then b.scripts.OnClick() end end
-check(mod.db.bookPeriod == "d30", "Zeitraum waehlen")
-ns.Window.Select("items"); mod.db.bookPeriod = "d7"; ns.Book.items.search = nil; ns.Book.RefreshItems()
-rows = Bk.items.list:GetItems()
+local rows = Bk.book.kinds.items
+check(#rows >= 5 and Bk.book.lines.profit.label.text == "Gesamtgewinn" and Bk.book.lines.trade.label.text == "Handelsgewinn", "Reiter Buch: Arten, Handelsgewinn und Gesamtgewinn")
+mod.db.bookPeriod = "d30"; ns.Window.Refresh()
+check(Bk.book.res.kinds.vendor.exp == 100, "Zeitraum 30 Tage")
+mod.db.bookPeriod = "d7"; mod.db.bookChar = "Mirel Dorna"; ns.Window.Refresh()
+check(Bk.book.res.exp == 1000 and not Bk.book.res.kinds.repair, "Buch: nur ein Charakter")
+mod.db.bookChar = "*"
+Bk.book.view:Select("items")
+rows = Bk.book.items.items
 local row for _, x in ipairs(rows) do if x.id == 2589 then row = x end end
-check(row and row.sold == 4 and row.back == 2 and math.abs(row.rate - 4 / 6) < 0.001, "Reiter Gegenstaende: Quote")
-local col for _, c in ipairs(Bk.items.list.columns) do if c.key == "rate" then col = c end end
-check(col.format(row.rate) == "67 %", "Quote in Prozent")
+check(mod.db.bookView == "items" and Bk.book.itemsPanel:IsShown() ~= false, "Ansicht Nach Gegenstand")
+check(row and row.sold == 4 and row.back == 2 and math.abs(row.rate - 4 / 6) < 0.001 and row.sellN == 4, "Nach Gegenstand: verkauft, zurueck, Quote")
 check(row.avg == 316, "Ø Verkaufspreis je Stueck: (950 + 315) / 4 = 316 (" .. tostring(row.avg) .. ")")
-Bk.items.searchBox:SetText("zzz"); Bk.items.searchBox.scripts.OnTextChanged(Bk.items.searchBox)
-check(#Bk.items.list:GetItems() == 0, "Gegenstaende: Suche")
+local r159 for _, x in ipairs(Bk.ItemRows(Bk.Collect("d30"), nil, nil)) do if x.id == 159 then r159 = x end end
+check(r159 and r159.buyN == 5 and r159.buyAvg == 20, "Nach Gegenstand: gekauft und Ø Einkauf")
+Bk.book.search = "zzz"; ns.Window.Refresh()
+check(#Bk.book.items.items == 0, "Nach Gegenstand: Suche")
+Bk.book.search = nil
+Bk.book.view:Select("kinds")
 -- Erloes aus Rechnung: Gegenstand ueber den Namen gefunden
 check(ns.Inventory.FindItemID("Schwacher Heiltrank") == 118, "Gegenstand nach Namen")
 mod.db.bookPeriod = "d7"
@@ -783,20 +791,16 @@ I.Changed()
 check(mod:StockOthers(2589) == 5 + 7 + 2 + 4, "Vorrat der Twinks fuer Broker: Taschen, Bank, unterwegs, Accountbank (ohne Briefkasten, Auktionen, Angelegtes)")
 -- ohne Broker: kein Vermoegen
 ns.Window.Select("overview")
-local rows = ns.Overview.list:GetItems()
+local rows = ns.Overview.table.items
 local g for _, r in ipairs(rows) do if r.name == "Borin Stein" then g = r end end
-check(g and g.worth == nil and ns.Overview.BlockText("worth"):find("braucht Peon_Broker", 1, true), "ohne Broker: kein Vermoegen, Hinweis im Block")
+check(g and g.worth == nil and ns.Overview.TileText("worth"):find("Peon_Broker", 1, true), "ohne Broker: kein Vermoegen, Hinweis in der Kachel")
 -- Broker (nachgebaut): 10c je Stueck
 Peon.modules.broker = { ItemValue = function(_, id, n) if id == 2589 then return 10 * n end return nil end }
 ns.Overview.Refresh()
-rows = ns.Overview.list:GetItems()
+rows = ns.Overview.table.items
 for _, r in ipairs(rows) do if r.name == "Borin Stein" then g = r end end
 check(g.worth == 50000 + 10 * (5 + 7 + 2 + 9) and g.itemsValue == 230, "Vermoegen: Gold + Gegenstaende (ab 0.7.1 ohne Post-Gold, ohne Angelegtes)")
-check(ns.Overview.BlockText("worth"):find("Gesamt", 1, true) and ns.Overview.BlockText("worth"):find("Gegenstände", 1, true), "Vermoegen aller Charaktere im Block")
-local col for _, c in ipairs(ns.Overview.list.columns) do if c.key == "worth" then col = c end end
-check(col and col.format(g.worth, g) ~= "", "Spalte Vermoegen")
--- ab 0.6: Gewinn heute/7/30 Tage, Ausruestung im Vermoegen (Option), Wert im Bestand
-check(ns.Overview.BlockText("profit"):find("Heute", 1, true) and ns.Overview.BlockText("profit"):find("30 Tage", 1, true) and ns.Overview.BlockText("profit"):find("Handelsgewinn 7 Tage", 1, true), "Uebersicht: Block Gewinn heute / 7 / 30 Tage, Handelsgewinn")
+check(ns.Overview.TileText("worth"):find("Waren", 1, true), "Vermoegen aller Charaktere in der Kachel: " .. ns.Overview.TileText("worth"))
 -- ab 0.7.3: angelegte Ausruestung zaehlt immer, Gebundenes (auch Angelegtes) nur mit dem Haendlerpreis
 local origGII = C_Item.GetItemInfo
 C_Item.GetItemInfo = function(id) local p = ({ [2589] = 3 })[id] return "x", nil, 1, 1, 1, "", "", 20, "", 1, p end
@@ -804,14 +808,14 @@ realm.chars["Borin Stein"].places.bags.bound = { [2589] = 2 }
 realm.chars["Borin Stein"].places.bank.bound = { [2589] = 99 }   -- mehr gebunden als da: hoechstens alle
 I.Changed()
 ns.Overview.Refresh()
-for _, r in ipairs(ns.Overview.list:GetItems()) do if r.name == "Borin Stein" then g = r end end
+for _, r in ipairs(ns.Overview.table.items) do if r.name == "Borin Stein" then g = r end end
 check(g.worth == 50000 + 10 * (3 + 2 + 9) + 3 * (2 + 7 + 1), "Vermoegen: Gebundenes und Angelegtes zum Haendlerpreis (" .. tostring(g.worth) .. ")")
 check(ns.Worth(2589, 4, 4) == 12 and ns.Worth(2589, 4, 0) == 40 and ns.Worth(2589, 4, 1) == 33, "ns.Worth: gebunden Haendlerpreis, sonst Broker")
 check(ns.Worth(4306, 2, 0) == nil and ns.Worth(4306, 2, 2) == 0, "ns.Worth: ohne Brokerpreis nil, nur gebunden ohne Haendlerpreis 0")
 ns.Window.Select("stock")
-local sv for _, r in ipairs(ns.Stock.list:GetItems()) do if r.id == 2589 then sv = r end end
-local e = I.AllItems()[2589]
-check(sv and e.bound == 2 + 7 + 1 and sv.value == 10 * (sv.total - e.bound) + 3 * e.bound and ns.Stock.count.text:find("Wert", 1, true), "Bestand: Spalte Wert (Gebundenes Haendlerpreis) und Summe")
+local sv for _, r in ipairs(ns.Stock.table.items) do if r.id == 2589 then sv = r end end
+local e = ns.Stock.Collect("*", "all")[2589]
+check(sv and e.bound == 2 + 7 + 1 and sv.value == 10 * (sv.total - e.bound) + 3 * e.bound and ns.Stock.Status():find("Wert", 1, true), "Bestand: Spalte Wert (Gebundenes Haendlerpreis) und Summe")
 -- Taschen lesen: gebundene Stueck werden gemerkt
 BAGS[0][9] = { itemID = 6129, stackCount = 1, isBound = true }
 I.quiet = true; I.ScanBags(); I.quiet = false
@@ -872,9 +876,9 @@ check(Co.Text(2447):find("Kosten 2", 1, true) and not Co.Text(2447):find("Ø", 1
 local b = ns.Book.Collect("all", false)
 check(math.abs(b.trade - 2190) < 0.01 and math.abs(b.cogs - 80) < 0.01 and b.tfee == 50 and b.sales == 2320 and math.abs(b.use - 20) < 0.01,
     "Buch: Handelsgewinn 21s 90c (Erloes 23s 20c - Wareneinsatz 80c - Gebuehren 50c), Verbrauch 20c")
-ns.Window.Select("items"); mod.db.bookPeriod = "d7"; ns.Book.items.search = nil; ns.Book.RefreshItems()
-local row for _, x in ipairs(ns.Book.items.list:GetItems()) do if x.id == 929 then row = x end end
-check(row and math.abs(row.profit - 2190) < 0.01, "Reiter Gegenstaende: Gewinn je Gegenstand")
+ns.Window.Select("book"); mod.db.bookPeriod = "d7"; ns.Window.Refresh()
+local row for _, x in ipairs(ns.Book.book.items.items) do if x.id == 929 then row = x end end
+check(row and math.abs(row.profit - 2190) < 0.01, "Buch Nach Gegenstand: Gewinn je Gegenstand")
 -- Durchschnitt im Tooltip, wenn die Posten verschieden sind
 table.insert(realm.moves, E(130, "ahbuy", 2447, 10, -3000))
 Co.Invalidate()
@@ -1031,25 +1035,22 @@ Mv.Changed()
 mod.db.historyKind = "all"
 ns.Window.Select("history")
 ns.History.Refresh()
-local rows = ns.History.list:GetItems()
+local rows = ns.History.table.items
 local grp, single
 for _, r in ipairs(rows) do if r.grp then grp = r elseif r.x == "Anderes Rezept" then single = r end end
 check(#rows == 3, "Herstellen: ein Vorgang = eine Zeile (" .. #rows .. " Zeilen)")
 check(grp and grp.id == 2447 and grp.n == 2 and grp.grp.mats[2452] == -2 and grp.grp.mats[159] == -2 and #grp.grp.list == 6, "Herstellen: Ergebnis x2, Material summiert")
 check(single and not single.grp and single.id == 2447, "anderes Rezept: eigene Zeile")
-local col for _, c in ipairs(ns.History.list.columns) do if c.key == "name" then col = c end end
+local col for _, c in ipairs(ns.History.table.o.columns) do if c.key == "name" then col = c end end
 local txt = col.format(grp.name, grp)
 check(txt:find("×2", 1, true) and txt:find(" aus 2 ", 1, true), "Herstellen: Material grau dahinter (" .. txt .. ")")
 tt.lines = {}
-local lst = ns.History.list
-for _, row in ipairs(lst.rowFrames or lst.rows or {}) do
-  if row.item == grp and row.scripts.OnEnter then row.scripts.OnEnter(row) end
-end
+ns.History.RowTooltip({}, grp)
 local hasMat for _, l in ipairs(tt.lines) do if l:find("Material:", 1, true) then hasMat = true end end
 check(hasMat, "Herstellen: Tooltip mit Material")
-ns.History.searchBox:SetText(string.lower(select(1, ns.Inventory.ItemInfo(159)) or "#159")); ns.History.searchBox.scripts.OnTextChanged(ns.History.searchBox)
-check(#ns.History.list:GetItems() >= 1 and ns.History.list:GetItems()[1].grp, "Suche findet Herstellen auch ueber das Material")
-ns.History.searchBox:SetText(""); ns.History.searchBox.scripts.OnTextChanged(ns.History.searchBox)
+ns.History.searchBox:SetText(string.lower(select(1, ns.Inventory.ItemInfo(159)) or "#159")); ns.History.searchBox.scripts.OnTextChanged(ns.History.searchBox, true)
+check(#ns.History.table.items >= 1 and ns.History.table.items[1].grp, "Suche findet Herstellen auch ueber das Material")
+ns.History.searchBox:SetText(""); ns.History.searchBox.scripts.OnTextChanged(ns.History.searchBox, true)
 realm.moves = saved
 Mv.Changed()
 end)()
@@ -1086,11 +1087,11 @@ Mv.Changed()
 mod.db.historyKind = "all"; mod.db.historyMoves = true; mod.db.historyOnlyMe = false
 ns.Window.Select("history")
 ns.History.Refresh()
-local rows = ns.History.list:GetItems()
+local rows = ns.History.table.items
 local by = {}
 for _, r in ipairs(rows) do by[#by + 1] = r end
 local function find(fn) for _, r in ipairs(rows) do if fn(r) then return r end end end
-local col for _, c in ipairs(ns.History.list.columns) do if c.key == "name" then col = c end end
+local col for _, c in ipairs(ns.History.table.o.columns) do if c.key == "name" then col = c end end
 local ret = find(function(r) return r.e.k == "ahreturn" end)
 check(ret and ret.grp and ret.id == 2589 and ret.n == 8 and #ret.grp.list == 2, "Serie: Auktion zurueck (Alle oeffnen) eine Zeile")
 local p1 = find(function(r) return r.e.k == "posted" and r.id == 2589 end)
@@ -1113,13 +1114,11 @@ local nl = 0 for _, r in ipairs(rows) do if r.e.k == "loot" then nl = nl + 1 end
 check(nl == 2, "Tagessummen (Beute) bleiben einzeln")
 check(#rows == 11, "insgesamt 11 Zeilen (" .. #rows .. ")")
 tt.lines = {}
-for _, row in ipairs(ns.History.list.rowFrames or ns.History.list.rows or {}) do
-  if row.item == vs and row.scripts.OnEnter then row.scripts.OnEnter(row) end
-end
+ns.History.RowTooltip({}, vs)
 local tsum, tgrp for _, l in ipairs(tt.lines) do if l:find("Summe", 1, true) then tsum = true end if l:find("zusammengefasst", 1, true) then tgrp = true end end
 check(tsum and tgrp, "Tooltip: Eintraege einzeln mit Summe")
 mod.db.historyMoves = false; ns.History.Refresh()
-p1 = nil for _, r in ipairs(ns.History.list:GetItems()) do if r.e.k == "ahfee" and r.id == 2589 then p1 = r end end
+p1 = nil for _, r in ipairs(ns.History.table.items) do if r.e.k == "ahfee" and r.id == 2589 then p1 = r end end
 check(p1 and not p1.grp, "ohne Umbuchungen: Gebuehr allein")
 mod.db.historyMoves = true
 realm.moves = saved
@@ -1127,192 +1126,33 @@ Mv.Changed()
 end)()
 
 ;(function()
--- ===== ab 0.9: Reiter "Gegenstand" (G5) =====
-local Co, It = ns.Cost, ns.Item
-local T = "Mirel Dorna"
-local me = realm.chars[T]
-local savedStart, savedMoves = me.start, realm.moves
--- heute 12 Uhr: "vor n Tagen" bleibt auch ueber eine Zeitumstellung hinweg am richtigen Tag (sonst Fehler zwischen 23 und 24 Uhr)
-local nd = os.date("*t")
-local now = os.time({ year = nd.year, month = nd.month, day = nd.day, hour = 12 })
-local today = Co.DayOf(now)
-local function at(daysAgo) return now - daysAgo * 86400 end
-me.start = { t = at(20), places = {} }
-realm.lotBase = nil
-mod.acc.items = mod.acc.items or {}
+-- ===== ab 0.14: Gegenstand zeigen (Broker), Suche, Tastenbelegung =====
 mod.acc.items[2592] = { n = "Wollstoff", q = 1, i = 132889 }
-realm.moves = {
-  { t = at(10), c = T, k = "loot", id = 2592, n = 30, d = 1 },
-  { t = at(8), c = T, k = "ahbuy", id = 2592, n = 20, m = -1600 },     -- 80c
-  { t = at(3), c = T, k = "ahsold", id = 2592, n = -10 },
-  { t = at(3) + 60, c = T, k = "ahsold", m = 950, id = 2592, q = 10, gross = 1000 },
-}
-Co.Invalidate()
--- Broker-Ersatz: Verlauf ueber 12 Tage, Marktwert 74c Min
-local hist = {}
-for k = 11, 0, -1 do hist[#hist + 1] = { day = today - k, min = 70 + (k % 3), median = 80, qty = 1200, scans = 2, low = 70, high = 92, sales = (k < 5) and 600 or nil } end
-Peon.modules.broker = {
-  ItemValue = function(_, id, n) return math.floor(74 * 0.95) * (n or 1) end,
-  History = function(_, id) return id == 2592 and hist or {} end,
-  MarketInfo = function(_, id) return id == 2592 and { min = 74, median = 81, qty = 1240, offers = 30, commodity = true, low = 70, high = 92, perHour = 30, level = 2, vendor = 33 } or nil end,
-}
-check(It.Find("wollstoff") == 2592 and It.Find("woll") == 2592 and It.Find("2592") == 2592 and It.Find("|cnIQ1:|Hitem:2592::|h[x]|h|r") == 2592, "Gegenstand finden: Name, Teil, Nummer, Link")
-local d = It.Data(2592, T, 30, today)
-check(d.n == 30 and d.from == today - 29, "30 Tage")
-check(d.st[30] == 40 and d.st[30 - 10] == 30 and d.st[1] == nil, "Bestand je Tag (vor dem ersten Zugang leer)")
-check(math.abs(d.cost[30] - (20 * 0 + 20 * 80) / 40) < 0.01, "Kosten Ø heute: 10 Beute verkauft, Rest 20 Beute + 20 Kauf (" .. tostring(d.cost[30]) .. ")")
-check(d.loot[20] == 30 and d.buy[22] == 80 and d.buyN[22] == 20 and d.sell[27] == 100 and d.sellM[27], "Beute, Kauf, Verkauf (Preis je Stueck aus der Rechnung)")
-check(d.median[30] == 80 and d.min[19] ~= nil and d.min[18] == nil, "Marktdaten nur, wo Broker welche hat")
-check(d.sales[30] == 600 and d.sales[19] == nil, "Absatz je Tag")
-check(math.abs(d.be[30] - d.cost[30] / 0.95) < 0.01 and d.marge[30] and math.abs(d.marge[30] - (d.min[30] * 0.95 - d.cost[30])) < 0.01, "ohne Verlust ab und Marge je Tag")
--- Luecken im Markt fuellen
-local arr = { nil, 10, nil, nil, 40, nil }
-It.Interp(arr, 6)
-check(arr[1] == nil and arr[3] == 20 and arr[4] == 30 and arr[6] == nil, "Luecken linear gefuellt, nicht davor/danach")
-check(It.Streak({ -1, 2, 3, 4 }, 4, true) == 3 and It.Streak({ 1, -2 }, 2, false) == 1, "seit n Tagen")
-check(It.AxisMoney(74) == "74c" and It.AxisMoney(150) == "1,5s" and It.AxisMoney(2000) == "20s" and It.AxisMoney(25000) == "2,5g", "Achsen-Beschriftung")
--- Reiter oeffnen
+check(ns.FindItem("wollstoff") == 2592 and ns.FindItem("woll") == 2592 and ns.FindItem("2592") == 2592 and ns.FindItem("|cnIQ1:|Hitem:2592::|h[x]|h|r") == 2592, "Gegenstand finden: Name, Teil, Nummer, Link")
+-- ohne Broker: Bestand mit Suche
 mod:ShowItem(2592)
-check(ns.Window.current == "item" and It.id == 2592 and mod.db.itemLast == 2592, "mod:ShowItem oeffnet den Reiter")
-check(It.chartA.n == 30 and It.chartB.n == 30, "zwei Diagramme")
--- ab 0.10 nach Einheit getrennt: oben nur Gold, unten nur Stueck
-local ra = It.chartA.range.left
-local rb = It.chartB.range.left
-check(ra and rb and ra[2] >= 92 and rb[2] >= 40 and rb[2] < 92, "0.10: Preis-Diagramm in Gold, Stueck-Diagramm mit deinem Bestand (" .. tostring(ra and ra[2]) .. " / " .. tostring(rb and rb[2]) .. ")")
-local rightA = false
-for _, sr in ipairs(It.chartA.series) do if sr.axis == "right" then rightA = true end end
-check(not rightA and It.chartB.range.right and It.chartB.range.right[2] >= 1240, "0.10: Menge im AH rechts im Stueck-Diagramm, keine zweite Achse im Preis-Diagramm")
-local zoneBtn
-for _, b in ipairs(It.legendA.buttons) do if b.key == "zone" then zoneBtn = b end end
-check(zoneBtn and zoneBtn.fs.text == "Gewinnzone", "0.10: Legende zeigt 'Gewinnzone' (nicht 'zone')")
-local keysA = {}
-for _, b in ipairs(It.legendA.buttons) do keysA[#keysA + 1] = b.key end
-check(table.concat(keysA, ",") == "mn,md,band,cost,zone,ven", "0.10: alle Preis-Linien in der Legende (" .. table.concat(keysA, ",") .. ")")
-check(It.margeBox.title.text == "Verkaufen lohnt" and It.margeBox.big.text:find("Kosten 0", 1, true), "Marge-Kasten: naechstes Stueck gesammelt -> Kosten 0, Erloes")
-check(It.rows.be.r.text and It.rows.stock.r.text == tostring(ns.Inventory.Count(2592).total) or true, "Textspalte gefuellt")
-check(It.rows.sales.r.text:find("30/Std.", 1, true) and It.rows.band.l.text == "Üblich", "Absatz und ueblicher Bereich")
-It.Hover(27)
-local hl = {}
-for _, l in ipairs(It.hoverLines or {}) do hl[#hl + 1] = l[1] .. (l[2] and ("=" .. l[2]) or "") end
-local htext = table.concat(hl, "|")
-check(htext:find("Preis je Stück", 1, true) and htext:find("verkauft 10", 1, true) and htext:find("Stück|Bestand", 1, true) and htext:find("Menge im AH", 1, true), "0.10: Werte-Kasten nach Einheit (" .. htext .. ")")
-It.Hover(nil)
-check(It.hoverLines == nil and It.info2.text:find("Maus", 1, true), "ohne Maus: Kasten weg, Hinweis")
--- 0.10.2: Menge im AH als eigene Zeile, kurze Texte, Hinweis bei nur einem Tag Daten
-check(It.rows.qty.l.text == "Menge im AH" and It.rows.qty.r.text ~= "" and not It.sub.text:find("im AH", 1, true), "0.10.2: Menge im AH eigene Zeile, nicht mehr im abgeschnittenen Untertitel")
-check(It.margeBox.big.text == "Kosten 0", "0.10.2: kurzer Text im Marge-Kasten, wird nicht abgeschnitten")
-check(d.daysWithData > 1, "0.10.2: mehrere Tage mit Daten (" .. tostring(d.daysWithData) .. ")")
-local keepData = It.data
-It.data = { daysWithData = 1 }
-It.Hover(nil)
-check(It.info2.text:find("einem Tag", 1, true), "0.10.2: nur ein Tag Daten: Hinweis statt Maus-Text")
-It.data = keepData
-It.Hover(nil)
-local one = It.Data(424242, T, 30, today)
-check(one.daysWithData == 0, "0.10.2: Gegenstand ohne Daten zaehlt 0 Tage")
--- Zeitraum, Marge-Streifen, Linien an/aus werden gemerkt
-for _, b in ipairs(It.periodBtns) do if b.period == 7 then b.scripts.OnClick() end end
-check(mod.db.itemPeriod == 7 and It.chartA.n == 7, "Zeitraum 7 Tage")
-It.margeBtn.scripts.OnClick()
-local yOff = It.chartB.frame.points[1][3]
-check(mod.db.itemMarge and It.chartM.n == 7, "Marge-Streifen an")
-local lo, hi = It.chartM:GetRange("left")
-check(lo == -hi, "Marge-Streifen: Achse um 0")
-It.margeBtn.scripts.OnClick()
-check(not mod.db.itemMarge and It.chartB.frame.points[1][3] ~= yOff, "Marge-Streifen aus, Diagramme neu angeordnet")
-local lb
-for _, b in ipairs(It.legendB.buttons) do if b.key == "loot" then lb = b end end
-check(lb and not It.chartB:IsShownKey("loot"), "Beute standardmaessig aus")
-lb.scripts.OnClick()
-check(It.chartB:IsShownKey("loot") and mod.db.itemOff.loot == false, "Beute an, gemerkt")
-mod.db.itemPeriod = 0; It.Refresh()
-check(It.data.from <= today - 11 and It.chartA.n == It.data.n, "Alles: ab dem ersten Wert")
--- Charakter
-It.char = "*"; It.Refresh()
-check(It.hdrChar.text == "Alle Charaktere", "Auswahl alle Charaktere")
-It.char = T; It.Refresh()
--- 0.10: Reiter "Gegenstaende" (alle bekannten), alter Reiter heisst "Umsatz"
-local tabText = {}
-for _, b in ipairs(ns.Window.tabButtons) do tabText[b.key] = b.text end
-check(tabText.items == "Umsatz" and tabText.catalog == "Gegenstände" and tabText.item == "Gegenstand", "0.10: Reiter Umsatz und Gegenstaende")
-Peon.modules.broker.MarketItems = function() return { [2592] = { min = 74, qty = 1240, name = "Wollstoff", quality = 1, t = time() },
-  [9999] = { min = 500, qty = 3, name = "Nur im AH", quality = 2, t = time() }, [9998] = { min = 9, qty = 0, gone = true, name = "Weg", t = time() } } end
-ns.Window.Select("catalog")
-local CT = ns.Catalog
-local function crow(id) for _, r in ipairs(CT.list:GetItems()) do if r.id == id then return r end end end
-check(crow(9999) and crow(2592) and crow(2592).min == 74 and crow(2589) and crow(2589).total == 35, "0.10: Gegenstaende aus Bestand, Verlauf und Auktionshaus")
-check(crow(9998) and crow(9998).min == nil and crow(9998).qty == 0, "0.10: im AH weg -> Menge 0, kein Min")
-mod.db.catalogFilter = "stock"; CT.Refresh()
-check(not crow(9999) and crow(2589) and not crow(2592), "0.10: Filter Im Bestand")
-mod.db.catalogFilter = "ah"; CT.Refresh()
-check(crow(9999) and crow(9999).name == "Nur im AH", "0.10: Filter Auktionshaus (Name von Broker)")
-mod.db.catalogFilter = "all"; CT.search = "nur im"; CT.Refresh()
-check(#CT.list:GetItems() == 1 and crow(9999), "0.10: Suche nach Namensteil")
-CT.search = "2592"; CT.Refresh()
-check(crow(2592), "0.10: Suche nach Nummer")
-CT.search = nil; CT.Refresh()
--- ohne Broker
-Peon.modules.broker = nil
-It.Refresh()
-check(It.sub.text:find("Peon_Broker", 1, true) and not It.data.hasMarket and It.chartA.n > 0, "ohne Broker: nur die eigenen Werte")
--- Chatbefehl
-ns.Window.Select("overview")
-SlashCmdList["PEON_LEDGER"] = SlashCmdList["PEON_LEDGER"]
+check(ns.Window.current == "stock" and ns.Stock.search == "Wollstoff", "ohne Broker: Bestand mit Suche nach dem Namen")
+-- mit Broker: dessen Seite Gegenstand
+local shown
+Peon.modules.broker = { ShowItem = function(_, id) shown = id end, ItemValue = function() return nil end }
+mod:ShowItem(2589)
+check(shown == 2589, "mit Broker: Seite Gegenstand in Broker")
 mod.opts.onSlash(mod, "wollstoff", "")
-check(ns.Window.current == "item" and It.id == 2592, "/ledger wollstoff")
+check(shown == 2592, "/ledger wollstoff")
 mod.opts.onSlash(mod, "gibtsnicht", "")
 check(said("nicht gefunden"), "/ledger mit unbekanntem Namen")
--- Klick in Bestand oeffnet den Gegenstand
-ns.Window.Select("stock")
-ns.Stock.list.o.onClick(ns.Stock.list, { id = 2592 }, "LeftButton")
-check(ns.Window.current == "item", "Klick im Bestand oeffnet den Reiter")
-mod.db.itemPeriod = 30; mod.db.itemOff = {}
-me.start, realm.moves = savedStart, savedMoves
-Co.Invalidate()
-end)()
-
-;(function()
--- ===== ab 0.9.1: Alt+Klick und Tastenbelegung (Pick.lua) =====
-local P = ns.Pick
-local owner = {}
+-- Tastenbelegung: Gegenstand unter der Maus
 function tt:IsShown() return self.shown end
-function tt:GetOwner() return owner end
-local function reset() ns.Window.Select("overview"); P.last = nil end
-reset()
-tt.link = "|cnIQ1:|Hitem:2592::::|h[Wollstoff]|h|r"; tt.shown = true
-altDown = true
-fire("GLOBAL_MOUSE_DOWN", "LeftButton")
-check(ns.Window.current == "item" and ns.Item.id == 2592, "Alt+Klick ueber einem Gegenstands-Tooltip oeffnet den Reiter")
-reset()
-owner = { action = 5 }
-fire("GLOBAL_MOUSE_DOWN", "LeftButton")
-check(ns.Window.current == "overview", "Aktionsleiste: Alt+Klick wird ausgelassen")
-owner = { GetName = function() return "MultiBarBottomLeftButton3" end }
-fire("GLOBAL_MOUSE_DOWN", "LeftButton")
-check(ns.Window.current == "overview", "Aktionsleiste (am Namen erkannt) ausgelassen")
+tt.link = "|cnIQ1:|Hitem:2447::::|h[Friedensblume]|h|r"; tt.shown = true
 PeonLedger_ShowHoverItem()
-check(ns.Window.current == "item" and ns.Item.id == 2592, "Tastenbelegung geht auch auf Aktionsleisten")
-reset(); owner = {}
-fire("GLOBAL_MOUSE_DOWN", "RightButton")
-check(ns.Window.current == "overview", "Alt+Rechtsklick: nichts")
-ctrlDown = true
-fire("GLOBAL_MOUSE_DOWN", "LeftButton")
-check(ns.Window.current == "overview", "Strg+Alt+Klick: nichts")
-ctrlDown = false
-altDown = false
-fire("GLOBAL_MOUSE_DOWN", "LeftButton")
-check(ns.Window.current == "overview", "Klick ohne Alt: nichts")
-altDown = true
+check(shown == 2447, "Tastenbelegung zeigt den Gegenstand in Broker")
 tt.shown = false
-HandleModifiedItemClick("|cffffffff|Hitem:2589::::|h[Leinenstoff]|h|r")
-check(ns.Window.current == "item" and ns.Item.id == 2589, "Alt+Klick auf einen Chat-Link")
-ns.Window.Select("overview")
-HandleModifiedItemClick("|cffffffff|Hitem:2589::::|h[Leinenstoff]|h|r")
-check(ns.Window.current == "overview", "derselbe Klick ueber zwei Wege oeffnet nur einmal")
-altDown = false
 PeonLedger_ShowHoverItem()
 check(said("Kein Gegenstand unter der Maus"), "Tastenbelegung ohne Tooltip: Hinweis")
-tt.IsShown, tt.GetOwner, tt.shown = nil, nil, nil
+tt.IsShown, tt.shown = nil, nil
+Peon.modules.broker = nil
+ns.Stock.search = nil
+ns.Window.Select("overview")
 end)()
 
 -- Texte fuer Peon_Panel (ab 0.11)
@@ -1343,17 +1183,300 @@ check(Plain(ns.PanelMoney(4567)) == "45s 67c", "0.12: unter 1g mit Kupfer")
 check(Plain(ns.PanelMoney(123456789)) == "12,3kg","0.12: ab 1000g gekuerzt: " .. Plain(ns.PanelMoney(123456789)))
 check(mod.launcher:GetText("goldMe"):find("UI-GoldIcon", 1, true),"0.12: Gold mit Muenzsymbol: " .. mod.launcher:GetText("goldMe"))
 
--- ===== Gegenstaende und Gegenstand in Arbeit (0.13.0) =====
-W.WIP = wipKeep
-for _, key in ipairs({ "catalog", "item" }) do
-  if W.contents[key] then W.contents[key]:Hide() end
-  W.contents[key] = nil
-  W.Select(key)
-  check(W.current == key and W.contents[key].wipText and W.contents[key].wipText.text == ns.L.TAB_WIP, "0.13: Reiter " .. key .. " zeigt nur den Hinweis")
-end
-mod:ShowItem(2592)
-check(W.current == "item", "0.13: Gegenstand oeffnen fuehrt zum Hinweis")
-W.Refresh()
+-- ===== 0.14: Neuaufbau =====
+;(function()
+-- ----- E1: Kontrollrechnung -----
+local Mv, K = ns.Moves, ns.Check
+local T, G = "Mirel Dorna", "Borin Stein"
+local me = realm.chars[T]
+local saved = { start = me.start, moves = realm.moves, places = me.places, money = me.money, weeks = realm.weeks }
+realm.weeks = nil
+me.places = { bags = { t = 1, items = { [2589] = 10, [118] = 2 } }, bank = { t = 1, items = { [2589] = 5 } },
+              auctions = { t = 1, items = { [2840] = 3 } }, mail = { t = 1, items = { [9999] = 7 } } }
+me.money = 5000
+me.start = { t = 1, money = 1000, places = { bags = { t = 1, items = { [2589] = 4 } } } }
+local now = time()
+realm.moves = {
+  { t = now - 50, c = T, k = "loot", id = 2589, n = 11, d = "x" },
+  { t = now - 40, c = T, k = "vendor", id = 118, n = 2, m = -100 },
+  { t = now - 30, c = T, k = "loot", id = 2840, n = 3, d = "x" },
+  { t = now - 30, c = T, k = "posted", id = 2840, n = -3 },   -- Umbuchung: zaehlt nicht
+  { t = now - 20, c = T, k = "ahsold", m = 4100 },
+  { t = now - 10, c = G, k = "loot", m = 999 },                 -- anderer Charakter
+}
+Mv.Changed()
+local res = K.Run(T)
+check(res.n == 0 and res.gold == 0, "Kontrollrechnung: Gold und Bestand gehen auf (Post zaehlt nicht, eingestellt ist Umbuchung)")
+me.money = 5600
+me.places.bags.items[2589] = 9
+res = K.Run(T)
+check(res.n == 2 and res.gold == 600 and res.items[2589] == -1, "Kontrollrechnung: 6s zu viel, 1 Leinenstoff zu wenig")
+check(ns.Check.StatusText():find("2 Abweichungen offen", 1, true), "Statuszeile: offene Abweichungen")
+Mv.pending = { items = {}, money = {}, gen = 1 }
+check(K.Book(T) == 0, "nicht verbuchen, solange Bewegungen offen sind")
+Mv.pending = nil
+local p0 = ns.Book.Collect("all", false).profit
+check(K.Book(T) == 2 and K.Run(T).n == 0, "Abweichungen verbucht, danach geht die Rechnung auf")
+local d = realm.moves[#realm.moves]
+check(d.k == "diff" and Mv.Side(d) == "move" and ns.Book.Collect("all", false).profit == p0, "Abweichung zaehlt nicht als Gewinn")
+check(Mv.Label({ k = "diff", m = 600 }) == "Abweichung", "Bezeichnung Abweichung")
+check(K.Recent() == 2 and ns.Check.StatusText():find("2 Abweichungen in 7 Tagen", 1, true), "Statuszeile: Abweichungen der letzten 7 Tage")
+check(Mv.InGroup("diff", "fix"), "Filter Korrekturen zeigt auch Abweichungen")
+-- Wochensummen zaehlen mit
+realm.moves = {}
+realm.weeks = { ["2026-40"] = { [T .. "|loot|2589|"] = nil, [T .. "|loot|2589"] = { n = 11 }, [T .. "|vendor|118"] = { n = 2, m = -100 },
+  [T .. "|loot|2840"] = { n = 3 }, [T .. "|posted|2840"] = { n = -3 }, [T .. "|ahsold|0"] = { m = 4700 } } }
+me.places.bags.items[2589] = 10
+check(K.Run(T).n == 0, "Kontrollrechnung mit Wochensummen")
+realm.weeks = nil
+me.start, realm.moves, me.places, me.money = saved.start, saved.moves, saved.places, saved.money
+realm.weeks = saved.weeks
+Mv.Changed()
+end)()
+
+;(function()
+-- ----- E2: Erfassung an der Quelle -----
+local Mv, I = ns.Moves, ns.Inventory
+local T = "Mirel Dorna"
+local me = realm.chars[T]
+local saved = { moves = realm.moves, start = me.start }
+realm.moves = {}
+Mv.Changed()
+local clock = 100000
+GetTime = function() return clock end
+local function settle() clock = clock + 2; local list = timers; timers = {}; for _, f in ipairs(list) do f() end end
+local function bags() fire("BAG_UPDATE", 0); fire("BAG_UPDATE_DELAYED") end
+local function last() return realm.moves[#realm.moves] end
+timers = {}
+Mv.pending, Mv.open, Mv.closed, Mv.ctx, Mv.draft = nil, {}, {}, {}, {}
+Mv.paused = true; fire("PLAYER_MONEY"); Mv.paused = nil   -- Gold der frueheren Tests (Sitzung) angleichen
+-- Kauf kurz nach dem Einstellen: der Kauf, nicht die Gebuehr
+fire("AUCTION_HOUSE_SHOW")
+fire("AUCTION_HOUSE_AUCTION_CREATED", 1)
+clock = clock + 3
+fire("COMMODITY_PURCHASE_SUCCEEDED")
+money = money - 777; fire("PLAYER_MONEY"); settle()
+check(last().k == "ahbuy" and last().m == -777, "Kauf kurz nach dem Einstellen ist ein Kauf (vorher Einstellgebuehr)")
+fire("AUCTION_HOUSE_AUCTION_CREATED", 2)
+money = money - 30; fire("PLAYER_MONEY"); settle()
+check(last().k == "ahfee" and last().m == -30, "danach Einstellen: Gebuehr (Kauf schon verbraucht)")
+-- Gegenstand des Kaufs nur einmal
+Mv.Note("ahbuyitem", { id = 2772, qty = 5 })
+fire("COMMODITY_PURCHASE_SUCCEEDED"); money = money - 500; fire("PLAYER_MONEY"); settle()
+check(last().id == 2772 and last().q == 5, "Kauf mit Gegenstand")
+fire("COMMODITY_PURCHASE_SUCCEEDED"); money = money - 120; fire("PLAYER_MONEY"); settle()
+check(last().m == -120 and last().id == nil, "zweiter Kauf bekommt nicht denselben Gegenstand")
+-- Einzelgegenstand: PlaceBid mitgelesen, Gegenstand aus der Auktion
+C_AuctionHouse.PlaceBid = function() end
+C_AuctionHouse.GetAuctionInfoByID = function(aid) if aid == 77 then return { itemKey = { itemID = 6611 } } end end
+Mv.Init()   -- Haken neu (PlaceBid gab es vorher nicht)
+C_AuctionHouse.PlaceBid(77, 2500)
+fire("AUCTION_HOUSE_PURCHASE_COMPLETED"); money = money - 2500; fire("PLAYER_MONEY"); settle()
+check(last().k == "ahbuy" and last().id == 6611 and last().q == 1, "Einzelgegenstand gekauft: Gegenstand bekannt (B6)")
+fire("AUCTION_HOUSE_CLOSED")
+clock = clock + 100
+-- Brief noch nicht geladen ("Rufe Daten ab"): offener Kauf -> Kauf, nicht "Auktion zurueck"
+RETRIEVING_DATA = "Rufe Daten ab"
+local buy = Mv.Add("ahbuy", 3576, nil, -400); buy.q = 4
+inbox = { { nil, nil, "Auktionshaus der Allianz", "Rufe Daten ab", 0, 0, 30, 1 } }
+GetInboxItem = function(i, a) if i == 1 and a == 1 then return "Zinnbarren", 3576, 1, 4, 1 end end
+GetInboxInvoiceInfo = function() end
+local nt = #timers
+fire("MAIL_SHOW"); fire("MAIL_INBOX_UPDATE")
+check(I.letters[1].loading and #timers > nt, "Brief noch nicht geladen: erkannt, erneutes Lesen geplant")
+local n0 = #realm.moves
+AutoLootMailItem(1)
+BAGS[0][14] = { itemID = 3576, stackCount = 4 }
+inbox = {}; fire("MAIL_INBOX_UPDATE"); bags(); settle()
+check(#realm.moves == n0 and buy.n == 4 and buy.id == 3576, "Ware aus ungeladenem Brief an den offenen Kauf gehaengt (B3)")
+-- Rechnung mit Ware: Abgang in derselben Zeile, Ort Auktionen kleiner
+me.places.auctions = { t = 1, items = { [2841] = 5 }, used = 1 }
+inbox = { { nil, nil, "Auktionshaus der Allianz", "Auktion erfolgreich: Bronzebarren", 950, 0, 30, nil } }
+GetInboxItem = function() end
+GetInboxInvoiceInfo = function(i) return "seller", "Bronzebarren", "Bob", 0, 1000, 0, 50, nil, nil, nil, 5 end
+fire("MAIL_INBOX_UPDATE"); settle()
+TakeInboxMoney(1)
+money = money + 950; fire("PLAYER_MONEY"); settle()
+local sale = last()
+check(sale.k == "ahsold" and sale.m == 950 and sale.n == -5 and sale.q == 5 and not me.places.auctions.items[2841], "Verkauf aus der Rechnung: Ware weg, Ort Auktionen kleiner (B2)")
+check(Mv.ClaimSale(2841, 5) == 0 and Mv.ClaimSale(2841, 1) == 1, "Auktionsliste meldet den Verkauf spaeter: nicht doppelt")
+local z = ns.Cost.Result(sale)
+check(z and z.sale and z.profit, "Kosten: Verkauf mit Ware und Erloes in einer Zeile")
+inbox = {}; fire("MAIL_INBOX_UPDATE"); settle()
+-- Briefentwurf: angehaengt, abgeschickt an Twink
+realm.chars["Borin Stein"] = realm.chars["Borin Stein"] or { places = {}, start = { places = {} } }
+BAGS[0][14] = nil; bags(); settle()
+check(Mv.draft[3576] == 4 and #realm.moves == n0 + 1, "an den Brief gehaengt: noch keine Bewegung (Entwurf)")
+SendMail("Borin", "Zinn", "")
+local tw = last()
+check(tw.k == "twink" and tw.id == 3576 and tw.n == -4 and not next(Mv.draft) and realm.chars["Borin Stein"].places.transit.items[3576] >= 4, "abgeschickt: Post an Twink (B7)")
+-- angehaengt und zurueck in die Tasche: nichts
+BAGS[0][14] = { itemID = 4306, stackCount = 2 }
+Mv.paused = true; bags(); settle(); Mv.paused = nil
+n0 = #realm.moves
+BAGS[0][14] = nil; bags(); settle()
+BAGS[0][14] = { itemID = 4306, stackCount = 2 }; bags(); settle()
+check(#realm.moves == n0 and not next(Mv.draft), "angehaengt und wieder abgenommen: keine Bewegung")
+-- angehaengt, Postfach zu, nicht abgeschickt: danach ein Abgang ohne Zusammenhang
+BAGS[0][14] = nil; bags(); settle()
+fire("MAIL_CLOSED")
+settle()
+check(last().k == "other" and last().id == 4306 and last().n == -2 and not next(Mv.draft), "Entwurf nicht abgeschickt: Abgang ohne Zusammenhang")
+clock = clock + 100
+GetTime = function() return 1 end
+RETRIEVING_DATA = nil
+realm.moves, me.start = saved.moves, saved.start
+Mv.Changed()
+end)()
+
+;(function()
+-- ----- E3: zuletzt gezahlt und zuletzt verkauft -----
+local Mv, LB = ns.Moves, ns.Last
+local T = "Mirel Dorna"
+local saved = realm.moves
+realm.moves = {
+  { t = 10, c = T, k = "ahbuy", id = 500, n = 4, m = -400 },
+  { t = 20, c = T, k = "vendor", id = 500, n = 2, m = -300 },
+  { t = 30, c = T, k = "ahsold", id = 500, m = 950, q = 5, gross = 1000, cut = 50 },
+  { t = 40, c = T, k = "vendor", id = 501, n = -3, m = 30 },
+  { t = 50, c = T, k = "mail", id = 502, n = 2, paid = 500 },
+  { t = 60, c = T, k = "trade", m = -900, x = "Bob" },
+  { t = 61, c = T, k = "trade", id = 503, n = 3, x = "Bob" },
+  { t = 70, c = T, k = "ahbuy", m = -800, q = 2, id = 504 },
+  { t = 80, c = T, k = "loot", id = 500, n = 9 },
+}
+Mv.Changed()
+local u, t, n, src = mod:LastBuy(500)
+check(u == 150 and t == 20 and n == 2 and src == "vendor", "zuletzt gezahlt: letzter Kauf (Haendler), Beute zaehlt nicht")
+u, t, n, src = mod:LastSale(500)
+check(u == 190 and n == 5 and src == "ah", "zuletzt verkauft: netto nach Anteil je Stueck")
+check(mod:LastSale(501) == 10 and select(4, mod:LastSale(501)) == "vendor", "zuletzt verkauft beim Haendler")
+check(mod:LastBuy(502) == 250 and select(4, mod:LastBuy(502)) == "cod", "Nachnahme")
+check(mod:LastBuy(503) == 300 and select(4, mod:LastBuy(503)) == "trade", "Handel mit Gold")
+check(mod:LastBuy(504) == 400, "Auktionskauf, Ware noch in der Post (Menge aus dem Kauf)")
+check(mod:LastBuy(9999) == nil, "ohne Kauf: nil")
+-- Tooltip: zuletzt gezahlt, auch ohne Bestand
+tt.lines = {}; tt.link = "|cffffffff|Hitem:504::::|h[X]|h|r"; ttPost(tt, {})
+check(tt.lines[1] and tt.lines[1]:find("zuletzt", 1, true), "Tooltip: zuletzt gezahlt (" .. tostring(tt.lines[1]) .. ")")
+shift = true; tt.lines = {}; tt.link = "|cffffffff|Hitem:500::::|h[X]|h|r"; ttPost(tt, {}); shift = false
+local hasBuy, hasSale
+for _, l in ipairs(tt.lines) do if l:find("Zuletzt gezahlt", 1, true) then hasBuy = true end if l:find("Zuletzt verkauft", 1, true) then hasSale = true end end
+check(hasBuy and hasSale, "Tooltip mit Umschalt: letzter Kauf und Verkauf")
+-- bleibt nach dem Zusammenfassen
+LB.Persist()
+realm.moves = {}
+Mv.Changed()
+check(mod:LastBuy(500) == 150 and mod:LastSale(501) == 10, "nach dem Zusammenfassen gemerkt")
+LB.Clear()
+check(mod:LastBuy(500) == nil, "Buch zurueckgesetzt: beginnt leer")
+realm.moves = saved
+Mv.Changed()
+end)()
+
+;(function()
+-- ----- E5/E7: Postfenster -----
+local MA, I = ns.Mail, ns.Inventory
+local showing
+SetSendMailShowing = function(on) showing = on end
+C_Container.CalculateTotalNumberOfFreeBagSlots = function() return 10 end
+inbox = {
+  { nil, nil, "Auktionshaus der Allianz", "Auktion erfolgreich: Bronzebarren", 1900, 0, 29.5, nil },
+  { nil, nil, "Auktionshaus der Allianz", "Auktion gewonnen: Wollstoff", 0, 0, 2.5, 1 },
+  { nil, nil, "Bob Baum", "Ware", 0, 500, 0.5, 1 },
+  { nil, nil, "Kesha", "Willkommen", 0, 0, 20, nil },
+}
+GetInboxItem = function(i, a) if a ~= 1 then return end if i == 2 then return "Wollstoff", 2592, 1, 20, 1 elseif i == 3 then return "Ware", 5005, 1, 2, 1 end end
+GetInboxInvoiceInfo = function(i) if i == 1 then return "seller", "Bronzebarren", "Bob", 0, 2000, 0, 100, nil, nil, nil, 2 elseif i == 2 then return "buyer", "Wollstoff", "Bob", 0, 600, 0, 0 end end
+fire("MAIL_SHOW"); fire("MAIL_INBOX_UPDATE")
+check(MA.win and MA.open and MA.tab == "inbox", "Briefkasten: Peon Post offen, Seite Eingang")
+local rows = MA.table.items
+local by = {}
+for _, r in ipairs(rows) do by[r.kind] = r end
+check(#rows == 4 and by.sale and by.buy and by.player and by.system, "vier Briefe: Verkauf, Kauf, Spieler, System")
+check(by.sale.content == "Bronzebarren ×2" and by.sale.profit and by.buy.content:find("Wollstoff ×20", 1, true), "Inhalt aus Rechnung bzw. Anhang, Gewinn beim Verkauf")
+check(by.player.cod == 500 and MA.DaysText(0.5):find("Std", 1, true) and MA.DaysText(2.5):find("2", 1, true), "Nachnahme und Ablauf")
+check(MA.sum.sale == 1 and MA.sum.soon == 2 and MA.sum.cod == 1 and MA.sum.ah == 2, "Summen links")
+check(MA.btnAH.text:find("Auktionshaus-Post (2", 1, true), "Knopf Auktionshaus-Post mit Anzahl: " .. tostring(MA.btnAH.text))
+check(MA.statusText:find("10 Taschenplätze frei", 1, true), "Statuszeile: freie Plaetze")
+mod.db.mailFilter = "sale"; MA.Refresh()
+check(#MA.table.items == 1, "Filter Verkaeufe")
+mod.db.mailFilter = "all"; MA.Refresh()
+-- Einsammeln: nur Auktionshaus, nie Nachnahme
+local taken = {}
+local oM, oI = TakeInboxMoney, TakeInboxItem
+TakeInboxMoney = function(i) taken[#taken + 1] = "money" .. i; return oM(i) end
+TakeInboxItem = function(i, a) taken[#taken + 1] = "item" .. i .. ":" .. tostring(a); return oI(i, a) end
+timers = {}
+MA.Collect("ah")
+check(taken[1] == "money1" and MA.run, "Einsammeln: zuerst das Gold des Verkaufs")
+table.remove(inbox, 1)
+GetInboxItem = function(i, a) if a ~= 1 then return end if i == 1 then return "Wollstoff", 2592, 1, 20, 1 elseif i == 2 then return "Ware", 5005, 1, 2, 1 end end
+GetInboxInvoiceInfo = function(i) if i == 1 then return "buyer", "Wollstoff", "Bob", 0, 600, 0, 0 end end
+local list = timers; timers = {}; for _, f in ipairs(list) do f() end
+check(taken[2] == "item1:1", "dann die gekaufte Ware")
+table.remove(inbox, 1)
+GetInboxItem = function(i, a) if a == 1 and i == 1 then return "Ware", 5005, 1, 2, 1 end end
+GetInboxInvoiceInfo = function() end
+list = timers; timers = {}; for _, f in ipairs(list) do f() end
+check(#taken == 2 and not MA.run and said("Post eingesammelt (2)"), "Nachnahme und Systembrief bleiben, fertig")
+-- Klick auf Nachnahme fragt vorher
+MA.Take({ index = 1, cod = 500, letter = {} })
+check(Peon.UI.dialog and Peon.UI.dialog.onYes, "Nachnahme: Rueckfrage")
+Peon.UI.dialog.onYes()
+check(taken[3] == "item1:1", "nach Ja: bezahlt und genommen")
+TakeInboxMoney, TakeInboxItem = oM, oI
+-- Senden
+local sent, setM
+GetSendMailItem = function(i) if i == 1 then return "Leinenstoff", 2589, 1, 20, 1 end end
+GetSendMailPrice = function() return 30 end
+SetSendMailMoney = function(v) setM = v; return true end
+SetSendMailCOD = function() end
+local oS = SendMail
+SendMail = function(to, subj, body) sent = { to, subj, body }; return oS(to, subj, body) end
+MA.tabs:Select("send")
+check(MA.tab == "send" and showing == true, "Seite Senden: Rechtsklick in der Tasche haengt an (SetSendMailShowing)")
+MA.send.to:SetText("Borin"); MA.RefreshSend()
+check(MA.send.slots[1].has and MA.send.attachValue.text:find("Umbuchung", 1, true), "Anhang und Hinweis: an Twink ist eine Umbuchung")
+check(MA.send.cost.text:find("Porto", 1, true), "Porto angezeigt")
+local items = {}
+for _, it in ipairs(MA.Recipients()) do items[#items + 1] = it[1] end
+check(table.concat(items, ","):find("Borin", 1, true), "Empfaenger: Liste der Twinks")
+MA.Send()
+check(sent and sent[1] == "Borin" and sent[2] == "Leinenstoff (20)" and setM == 0, "Abschicken: Betreff aus dem Anhang")
+fire("MAIL_SEND_SUCCESS")
+check(mod.db.mailRecent[1] == "Borin" and said("Brief an Borin abgeschickt"), "zuletzt angeschrieben gemerkt")
+SendMail = oS
+MA.tabs:Select("inbox")
+check(showing == false, "zurueck im Eingang: Senden aus")
+-- eigenes Fenster zu: Briefkasten schliessen
+local closed
+CloseMail = function() closed = true end
+MA.OnWindowHide()
+check(closed, "Fenster zu (ESC): Briefkasten wird geschlossen")
+fire("MAIL_CLOSED")
+check(not MA.open, "Briefkasten zu")
+-- Einstellung: Blizzards Postfach
+mod.db.mailWindow = false
+fire("MAIL_SHOW")
+check(not MA.Replacing(), "Einstellung aus: Blizzards Postfach")
+fire("MAIL_CLOSED")
+mod.db.mailWindow = true
+inbox = {}
+end)()
+
+;(function()
+-- ----- einmaliger Neustart des Buchs (ab 0.14) -----
+realm.bookV = nil
+local keep = realm.moves
+realm.moves = { { t = time(), c = "Mirel Dorna", k = "loot", id = 2589, n = 1 } }
+check(ns.MigrateBook() == true and #realm.moves == 0 and realm.bookV == 2 and said("neu aufgebaut"), "Neuaufbau: Buch einmal neu begonnen")
+realm.moves = { { t = time(), c = "Mirel Dorna", k = "loot", id = 2589, n = 1 } }
+check(ns.MigrateBook() == false and #realm.moves == 1, "nur einmal")
+realm.moves = keep
+ns.Moves.Changed()
+check(mod.AddNotice and mod:AddNotice({ id = "neuaufbau-2026-11", title = "x" }) == false, "Hinweis zum Neuaufbau angemeldet (gleiche id ein zweites Mal abgelehnt)")
+end)()
+
 
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end
 check(n == 0, "keine Fehlermeldungen")

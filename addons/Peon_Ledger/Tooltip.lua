@@ -3,6 +3,8 @@
 --   ohne Umschalt:  Ledger  Kosten 2s (Ø 1s 50c)           (Kosten des naechsten Stuecks, Durchschnitt des Bestands)
 --   mit Umschalt:   zusaetzlich "Bestand: 25 (Mirel 20, Borin 5)" und je Charakter die Orte ("Taschen 5, Bank 15")
 --   Ohne Posten (keine Kosten bekannt) ohne Umschalt nur "Ledger (Umschalt)", wenn jemand den Gegenstand hat.
+--   Ab 0.14: dahinter "zuletzt 2s 40c" (zuletzt gezahlt, nur wenn anders als die Kosten), mit Umschalt der letzte
+--   Kauf und der letzte Verkauf mit Datum (Last.lua).
 -- Nur der aktuelle Realm; zeigt nichts, wenn niemand den Gegenstand hat.
 
 local ADDON_NAME, ns = ...
@@ -32,18 +34,37 @@ function T.PlacesText(places)
     return table.concat(parts, ", ")
 end
 
+function T.LastLines(tooltip, last, sale)
+    if last then
+        tooltip:AddDoubleLine("  " .. L.TT_LAST_BUY, L.TT_LAST_TEXT:format(ns.Money(math.floor(last.unit + 0.5)), last.n,
+            ns.Stock.SourceText(last.src), date("%d.%m.", last.t)), GREY[1], GREY[2], GREY[3], COLOR[1], COLOR[2], COLOR[3])
+    end
+    if sale then
+        tooltip:AddDoubleLine("  " .. L.TT_LAST_SALE, L.TT_LAST_TEXT:format(ns.Money(math.floor(sale.unit + 0.5)), sale.n,
+            ns.Stock.SourceText(sale.src), date("%d.%m.", sale.t)), GREY[1], GREY[2], GREY[3], COLOR[1], COLOR[2], COLOR[3])
+    end
+end
+
 function T.AddLines(tooltip, link)
     if not mod.db or not mod.db.tooltipShow then return false end
     local id = T.ItemID(link)
     if not id then return false end
     local c = ns.Inventory.Count(id)
     local cost = ns.Cost and ns.Cost.Text(id)
+    local last = ns.Last and ns.Last.Buy(id)
+    local sale = ns.Last and ns.Last.Sale(id)
+    if last then
+        local nx = ns.Cost and ns.Cost.Info(id)
+        local lt = L.TT_LAST:format(ns.Money(math.floor(last.unit + 0.5)))
+        if not nx or math.abs((nx.next or 0) - last.unit) >= 1 then cost = cost and (cost .. " · " .. lt) or lt end
+    end
     if c.total <= 0 and not cost then return false end
     local shift = IsShiftKeyDown and IsShiftKeyDown() and true or false
     local title = ("|c%sLedger|r"):format(Peon.COLOR)
     if not shift and c.total > 0 then title = title .. " |cff777777" .. L.TT_SHIFT_HINT .. "|r" end
     tooltip:AddDoubleLine(title, cost or "", 1, 1, 1, COLOR[1], COLOR[2], COLOR[3])
-    if not shift or c.total <= 0 then return true end
+    if not shift then return true end
+    if c.total <= 0 then T.LastLines(tooltip, last, sale); return true end
     local parts = {}
     for i, ch in ipairs(c.chars) do
         if i > 3 then parts[#parts + 1] = "…"; break end
@@ -58,6 +79,7 @@ function T.AddLines(tooltip, link)
         if ct then right = right .. " · " .. ct end
         tooltip:AddDoubleLine("    " .. ch.name, right, GREY[1], GREY[2], GREY[3], GREY[1], GREY[2], GREY[3])
     end
+    T.LastLines(tooltip, last, sale)
     return true
 end
 

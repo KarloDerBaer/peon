@@ -1,6 +1,7 @@
 -- Peon_Ledger - History.lua
--- Reiter "Verlauf" (L3): alle Bewegungen von Gegenstaenden und Gold, neueste zuerst.
--- Suche (Gegenstand, Art, Charakter, Zusatz), Auswahl "nur dieser Charakter", Umbuchungen ein/aus.
+-- Reiter "Verlauf" (L3): "Was ist passiert?" Alle Bewegungen von Gegenstaenden und Gold, neueste zuerst.
+-- Ab 0.14 mit Peon.UI (Konzept Peon_Ledger_Neuaufbau.md Abschnitt 6.4): Suche, Art, Charakter, Umbuchungen ein/aus.
+-- Unsichere Zuordnungen (geschaetzt, ohne Grund, Abweichung der Kontrollrechnung) sind gelb hinterlegt.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -111,7 +112,8 @@ function H.Rows()
     local filter = H.search and W.Lower(H.search) or ""
     local me = ns.CharName()
     local showMoves = mod.db.historyMoves ~= false
-    local onlyMe = mod.db.historyOnlyMe == true
+    local char = mod.db.historyChar or "*"
+    if mod.db.historyOnlyMe == true then char = me end
     local kind = mod.db.historyKind or "all"
     local rows = {}
     local list = M.List()
@@ -137,7 +139,7 @@ function H.Rows()
     for i = #list, 1, -1 do
         local e = list[i]
         local side = M.Side(e)
-        if (showMoves or side ~= "move" or (kind ~= "all" and kind ~= "ah")) and (not onlyMe or e.c == me) and M.InGroup(e.k, kind) then
+        if (showMoves or side ~= "move" or (kind ~= "all" and kind ~= "ah")) and (char == "*" or e.c == char) and M.InGroup(e.k, kind) then
             local key, gap = H.Family(e)
             if key and grp and grp.key == key and grp.c == e.c and math.abs((grp.last or 0) - (e.t or 0)) <= gap then
                 grp.list[#grp.list + 1] = e
@@ -154,18 +156,29 @@ function H.Rows()
     return rows
 end
 
-function H.Refresh()
-    if not H.list then return end
-    if H.kind and H.kind.Update then H.kind.Update() end
-    local rows = H.Rows()
-    H.list:SetData(rows)
-    H.count:SetText(GREY .. L.HIST_COUNT:format(#rows) .. "|r")
+-- Unsichere Zuordnung: Erloes geschaetzt, sonstiges, Abweichung (gelb hinterlegt)
+function H.Unsure(r)
+    local e = r.e
+    if not e then return false end
+    if e.k == "diff" or e.k == "other" or e.est or e.split then return true end
+    if r.grp then for _, x in ipairs(r.grp.list) do if x.k == "diff" or x.k == "other" or x.est then return true end end end
+    return false
 end
+
+function H.Refresh()
+    if not H.table then return end
+    if H.charDD and H.charDD.GenerateMenu then pcall(H.charDD.GenerateMenu, H.charDD) end
+    local rows = H.Rows()
+    H.table:SetData(rows)
+    H.n = #rows
+end
+
+function H.Status() return H.n and L.HIST_COUNT:format(H.n) or nil end
 
 local function ItemText(v, r)
     if not r.id then return r.x and (GREY .. r.x .. "|r") or "" end
     local n = r.n or r.e.q or 0
-    local txt = "|T" .. tostring(r.icon or "Interface\\Icons\\INV_Misc_QuestionMark") .. ":16:16:0:0|t " .. W.Colored(r.name, r.quality)
+    local txt = W.Colored(r.name, r.quality)
     if math.abs(n) > 1 then txt = txt .. " ×" .. math.abs(n) end
     if r.grp and r.grp.matText ~= "" then txt = txt .. GREY .. "  " .. r.grp.matText .. "|r" end
     return txt
@@ -176,72 +189,67 @@ local function MoneyText(v, r)
     return (r.m > 0 and GREEN .. "+" or RED .. "-") .. "|r" .. ns.Money(math.abs(r.m))
 end
 
+function H.RowTooltip(row, r)
+    if not GameTooltip then return end
+    if r.id then W.ShowItemTooltip(row, r.id) else GameTooltip:SetOwner(row, "ANCHOR_RIGHT") end
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine((H.COLOR[r.side] or "") .. r.label .. "|r · " .. tostring(r.c))
+    if r.x then GameTooltip:AddLine(r.x, 0.8, 0.8, 0.8) end
+    if r.grp then H.CraftTooltip(r) GameTooltip:Show() return end
+    local z = ns.Cost and ns.Cost.Result(r.e)
+    if z and z.sale then
+        GameTooltip:AddLine(L.HIST_TT_SALE:format(ns.Money(math.floor((z.cost or 0) + 0.5)), ns.Money(math.floor((z.fee or 0) + 0.5)),
+            ((z.profit or 0) >= 0 and "|cff40c040+" or "|cffe05050-") .. "|r" .. ns.Money(math.floor(math.abs(z.profit or 0) + 0.5))), 1, 0.82, 0)
+        if (z.miss or 0) > 0 then GameTooltip:AddLine(L.HIST_TT_MISS:format(z.miss), 0.6, 0.6, 0.6, true) end
+    elseif z and z.use and not z.traded then
+        GameTooltip:AddLine(L.HIST_TT_USE:format(ns.Money(math.floor(z.use + 0.5))), 0.8, 0.8, 0.8)
+    elseif z and z.unit then
+        GameTooltip:AddLine(L.HIST_TT_UNIT:format(ns.Money(math.floor(z.unit + 0.5))), 0.8, 0.8, 0.8)
+    end
+    if r.e and r.e.est then GameTooltip:AddLine(L.HIST_TT_EST, 1, 0.82, 0, true) end
+    if r.e and r.e.k == "diff" then GameTooltip:AddLine(L.HIST_TT_DIFF, 1, 0.82, 0, true) end
+    if r.d then GameTooltip:AddLine(L.HIST_DAILY:format(r.cnt or 1), 0.6, 0.6, 0.6, true) end
+    if r.side == "move" then GameTooltip:AddLine(L.HIST_MOVE_HINT, 0.6, 0.6, 0.6, true) end
+    GameTooltip:Show()
+end
+
 function H.Build(c)
-    local inset = W.Inset(c)
-    inset:SetAllPoints()
-    local total = W.WIDTH - 24 - 8 - 24
-    H.list = Peon.NewList(inset, {
-        columns = {
-            { key = "t", title = L.COL_TIME, width = 80,
-              format = function(v, r) return r.d and (date("%d.%m.", v) .. GREY .. " " .. L.HIST_DAY .. "|r") or date("%d.%m. %H:%M", v) end },
-            { key = "c", title = L.COL_CHAR, width = 70, format = function(v) return Short(v) end },
-            { key = "label", title = L.COL_KIND, width = 130,
-              format = function(v, r) return (H.COLOR[r.side] or "") .. v .. "|r" end },
-            { key = "name", title = L.COL_ITEM, width = total - 80 - 70 - 130 - 100, format = ItemText,
-              sortValue = function(r) return W.Lower(r.name or r.x or "") end },
-            { key = "m", title = L.COL_GOLD, width = 100, align = "RIGHT", format = MoneyText,
-              sortValue = function(r) return r.m or 0 end },
-        },
-        rows = 15, rowHeight = 19, sortKey = "t", sortDesc = true,
-        onClick = function(list, r, button) if button == "LeftButton" and r.id then mod:ShowItem(r.id) end end,   -- ab 0.9
-        onEnter = function(list, r, row)
-            if not GameTooltip then return end
-            if r.id then W.ShowItemTooltip(row, r.id) else GameTooltip:SetOwner(row, "ANCHOR_RIGHT") end
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine((H.COLOR[r.side] or "") .. r.label .. "|r · " .. tostring(r.c))
-            if r.x then GameTooltip:AddLine(r.x, 0.8, 0.8, 0.8) end
-            if r.grp then H.CraftTooltip(r) GameTooltip:Show() return end
-            -- Zuordnen (ab 0.7): Wareneinsatz und Gewinn, Verbrauch, Kosten je Stueck
-            local z = ns.Cost and ns.Cost.Result(r.e)
-            if z and z.sale then
-                GameTooltip:AddLine(L.HIST_TT_SALE:format(ns.Money(math.floor((z.cost or 0) + 0.5)), ns.Money(math.floor((z.fee or 0) + 0.5)),
-                    ((z.profit or 0) >= 0 and "|cff40c040+" or "|cffe05050-") .. "|r" .. ns.Money(math.floor(math.abs(z.profit or 0) + 0.5))), 1, 0.82, 0)
-                if (z.miss or 0) > 0 then GameTooltip:AddLine(L.HIST_TT_MISS:format(z.miss), 0.6, 0.6, 0.6, true) end
-            elseif z and z.use and not z.traded then
-                GameTooltip:AddLine(L.HIST_TT_USE:format(ns.Money(math.floor(z.use + 0.5))), 0.8, 0.8, 0.8)
-            elseif z and z.unit then
-                GameTooltip:AddLine(L.HIST_TT_UNIT:format(ns.Money(math.floor(z.unit + 0.5))), 0.8, 0.8, 0.8)
-            end
-            if r.d then GameTooltip:AddLine(L.HIST_DAILY:format(r.cnt or 1), 0.6, 0.6, 0.6, true) end
-            if r.side == "move" then GameTooltip:AddLine(L.HIST_MOVE_HINT, 0.6, 0.6, 0.6, true) end
-            GameTooltip:Show()
-        end,
-        onLeave = function() if GameTooltip then GameTooltip:Hide() end end,
-        emptyText = L.HIST_EMPTY,
-    })
-    H.list.frame:SetPoint("TOPLEFT", 4, -34)
-    local box = CreateFrame("EditBox", nil, inset, "InputBoxTemplate")
-    box:SetSize(180, 20)
-    box:SetPoint("TOPLEFT", 14, -8)
-    box:SetAutoFocus(false)
-    box:SetScript("OnTextChanged", function(self) H.search = self:GetText(); mod:Call("Verlauf", H.Refresh) end)
-    box:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
-    H.searchBox = box
-    H.onlyMe = H.Check(inset, L.HIST_ONLY_ME, "historyOnlyMe", false)
-    H.onlyMe:SetPoint("LEFT", box, "RIGHT", 12, 0)
-    H.moves = H.Check(inset, L.HIST_MOVES, "historyMoves", true)
-    H.moves:SetPoint("LEFT", H.onlyMe.label, "RIGHT", 12, 0)
-    -- Filter nach Art (ab 0.6)
+    local U = Peon.UI
+    local a = W.Area()
+    H.searchBox = U.SearchBox(c, 200, function(text) H.search = text; mod:Call("Verlauf", W.Refresh) end)
+    H.searchBox:SetPoint("TOPLEFT", 80, -32)
     local items = {}
     for _, g in ipairs(ns.Moves.GROUPS) do items[#items + 1] = { g.key, L["HIST_KIND_" .. g.key:upper()] or g.key } end
-    H.kind = W.Dropdown(inset, 150, items, function() return mod.db.historyKind or "all" end,
-        function(v) mod.db.historyKind = v; mod:Call("Verlauf", H.Refresh) end)
-    H.kind:SetPoint("TOPRIGHT", -10, -7)
-    H.count = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    H.count:SetPoint("BOTTOMLEFT", 10, 12)
-    H.hint = inset:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    H.hint:SetPoint("BOTTOMRIGHT", -10, 12)
-    H.hint:SetText(GREY .. L.HIST_HINT .. "|r")
+    H.kind = U.Dropdown(c, 150, items, function() return mod.db.historyKind or "all" end,
+        function(v) mod.db.historyKind = v; mod:Call("Verlauf", W.Refresh) end)
+    H.kind:SetPoint("LEFT", H.searchBox, "RIGHT", 12, 0)
+    H.charDD = U.Dropdown(c, 160, W.CharItems, function() return mod.db.historyChar or "*" end,
+        function(v) mod.db.historyChar = v; mod.db.historyOnlyMe = false; mod:Call("Verlauf", W.Refresh) end)
+    H.charDD:SetPoint("LEFT", H.kind, "RIGHT", 8, 0)
+    H.moves = U.Check(c, L.HIST_MOVES, mod.db.historyMoves ~= false, function(on)
+        mod.db.historyMoves = on
+        mod:Call("Verlauf", W.Refresh)
+    end, L.HIST_MOVE_HINT)
+    H.moves:SetPoint("LEFT", H.charDD, "RIGHT", 8, 0)
+    local panel = U.Panel(c, "list", true)
+    panel:SetPoint("TOPLEFT", a.left, -a.top)
+    panel:SetPoint("BOTTOMRIGHT", -a.right, a.bottom)
+    H.table = U.Table(panel, {
+        icon = true,
+        columns = {
+            { key = "name", title = L.COL_ITEM, format = ItemText, sort = function(r) return W.Lower(r.name or r.x or "") end },
+            { key = "t", title = L.COL_TIME, width = 100,
+              format = function(v, r) return r.d and (date("%d.%m.", v) .. GREY .. " " .. L.HIST_DAY .. "|r") or date("%d.%m. %H:%M", v) end },
+            { key = "c", title = L.COL_CHAR, width = 90, format = function(v) return Short(v) end },
+            { key = "label", title = L.COL_KIND, width = 150, format = function(v, r) return (H.COLOR[r.side] or "") .. v .. "|r" end },
+            { key = "m", title = L.COL_GOLD, width = 120, align = "RIGHT", format = MoneyText, sort = function(r) return r.m or 0 end },
+        },
+        sortKey = "t", sortDesc = true,
+        empty = L.HIST_EMPTY,
+        rowBg = function(r) if H.Unsure(r) then return 1, 0.82, 0, 0.12 end end,
+        onEnter = function(row, r) H.RowTooltip(row, r) end,
+        onClick = function(r, button) if button == "RightButton" then W.ItemMenu(r.id) elseif r.id then mod:ShowItem(r.id) end end,
+    })
 end
 
 -- Tooltip einer zusammengefassten Zeile: Herstellen mit Ergebnis/Material/Kosten je Stueck,
@@ -292,22 +300,4 @@ function H.CraftTooltip(r)
     GameTooltip:AddLine(L.HIST_TT_GROUPN:format(#g.list), 0.6, 0.6, 0.6, true)
 end
 
--- kleines Haekchen mit Text, Wert in mod.db[key] (Standard def)
-function H.Check(parent, text, key, def)
-    local b = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
-    b:SetSize(22, 22)
-    local label = parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    label:SetPoint("LEFT", b, "RIGHT", 2, 0)
-    label:SetText(text)
-    b.label = label
-    local v = mod.db[key]
-    if v == nil then v = def end
-    b:SetChecked(v and true or false)
-    b:SetScript("OnClick", function(self)
-        mod.db[key] = self:GetChecked() and true or false
-        mod:Call("Verlauf", H.Refresh)
-    end)
-    return b
-end
-
-W.pages.history = { build = H.Build, refresh = H.Refresh }
+W.pages.history = { build = H.Build, refresh = H.Refresh, status = H.Status }

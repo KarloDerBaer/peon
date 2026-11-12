@@ -5,6 +5,9 @@
 --   Uebersicht und Bestand (Window.lua, Overview.lua, Stock.lua), Minimap-Button. Nur ereignisgesteuert.
 -- Stand 0.3 (L3): Bewegungen von Gegenstaenden und Gold mit Grund (Moves.lua), Reiter Verlauf (History.lua).
 -- Stand 0.4 (L5): Buch und Gegenstaende mit Verkaufsquote (Book.lua). L4 (eigener Knopf "Post einsammeln") entfaellt.
+-- Ab 0.14 Neuaufbau (Konzept Peon_Ledger_Neuaufbau.md): Kontrollrechnung (Check.lua), Erfassung an der Quelle
+--   (Moves.lua), zuletzt gezahlt/verkauft (Last.lua), Fenster mit Peon.UI und vier Reitern, Postfenster (Mail.lua).
+--   Reiter Gegenstaende und Gegenstand entfallen, alles zu einem Gegenstand zeigt Broker (mod:ShowItem).
 
 -- Schnittstelle fuer andere Module (z. B. Broker, L6), nur lesend:
 --   mod:SellRate(itemID [, Tage])  -> Quote 0..1 oder nil (unter 3 Stueck), verkauft, zurueck
@@ -12,6 +15,9 @@
 --   mod:StockOthers(itemID)        -> Stueck der anderen Charaktere (Taschen, Bank, Post) + Accountbank
 --   mod:Cost(itemID [, Charakter])  -> Kosten naechstes Stueck, Durchschnitt, Stueck, Lagerwert (ab 0.7, Cost.lua);
 --                                     ab 0.9 je Charakter: ohne Angabe der eingeloggte, "*" = alle Charaktere
+--   mod:LastBuy(itemID)            -> zuletzt gezahlt je Stueck, Zeit, Stueck, Quelle ("ah", "vendor", "cod", "trade") (ab 0.14)
+--   mod:LastSale(itemID)           -> zuletzt verkauft je Stueck (netto), Zeit, Stueck, Quelle ("ah", "vendor") (ab 0.14)
+--   mod:ShowItem(itemID)           -> Gegenstand zeigen: Seite Gegenstand in Broker (ab 0.14), sonst Bestand mit Suche
 -- Ab 0.5 (L6): Vermoegen mit Brokers Wert (ns.Value, Broker: mod:ItemValue).
 -- PeonLedgerDB (accountweit): realms[Realm].chars[Vorname Nachname] = Bestand; items[itemID] = { n, q, i };
 --   probe*, bankLog (Fehlersuche Bank).
@@ -30,26 +36,31 @@ local mod = Peon:NewModule(ADDON_NAME, {
         windowPos    = {},
         windowTab    = "overview",
         historyMoves  = true,    -- Verlauf: Umbuchungen zeigen
-        historyOnlyMe = false,   -- Verlauf: nur eingeloggter Charakter
-        bookPeriod    = "d7",    -- Buch/Gegenstände: Zeitraum (today, d7, d30, all)
-        bookOnlyMe    = false,   -- Buch/Gegenstände: nur eingeloggter Charakter
+        historyOnlyMe = false,   -- Verlauf: nur eingeloggter Charakter (bis 0.13, ab 0.14 historyChar)
+        historyChar   = "*",     -- Verlauf: Charakter ("*" = alle, ab 0.14)
         historyKind   = "all",   -- Verlauf: Filter nach Art (ab 0.6)
-        itemPeriod    = 30,      -- Reiter Gegenstand (ab 0.9): Zeitraum in Tagen, 0 = alles
-        itemMarge     = false,   -- Reiter Gegenstand: Marge-Streifen
-        itemOff       = {},      -- Reiter Gegenstand: an/aus je Linie (true = aus)
-        itemLast      = 0,       -- Reiter Gegenstand: zuletzt gezeigter Gegenstand
-        catalogFilter = "all",   -- Reiter Gegenstaende (ab 0.10): all / stock / moved / ah
+        bookPeriod    = "d7",    -- Buch: Zeitraum (today, d7, d30, all)
+        bookOnlyMe    = false,   -- (bis 0.13, ab 0.14 bookChar)
+        bookChar      = "*",     -- Buch: Charakter (ab 0.14)
+        bookView      = "kinds", -- Buch: Ansicht "Nach Art" oder "Nach Gegenstand" (ab 0.14)
+        stockChar     = "*",     -- Bestand: Charakter (ab 0.14)
+        stockPlace    = "all",   -- Bestand: Ort (ab 0.14)
+        mailWindow    = true,    -- eigenes Postfenster statt Blizzards Postfach (ab 0.14)
+        mailFilter    = "all",   -- Postfenster: Filter nach Art (ab 0.14)
+        mailRecent    = {},      -- Postfenster: zuletzt angeschriebene Empfaenger (ab 0.14)
         session       = {},      -- Gold zu Beginn der Sitzung (ab 0.12): who, money, uebersteht /reload
     },
     ranges   = { minimapAngle = { 0, 359, 1 } },
-    choices  = { windowTab = { overview = true, stock = true, history = true, book = true, items = true, catalog = true, item = true },
-                 catalogFilter = { all = true, stock = true, moved = true, ah = true },
-                 itemPeriod = { [7] = true, [30] = true, [90] = true, [0] = true },
+    choices  = { windowTab = { overview = true, stock = true, history = true, book = true },
                  bookPeriod = { today = true, d7 = true, d30 = true, all = true },
+                 bookView = { kinds = true, items = true },
+                 stockPlace = { all = true, bags = true, bank = true, mail = true, auctions = true, equip = true, transit = true },
+                 mailFilter = { all = true, sale = true, buy = true, ["return"] = true, other = true },
                  historyKind = { all = true, ah = true, vendor = true, loot = true, use = true, quest = true, craft = true,
                                  trade = true, mail = true, travel = true, destroy = true, fix = true, other = true } },
-    keepOnReset = { windowPos = true, windowTab = true, historyMoves = true, historyOnlyMe = true, bookPeriod = true, bookOnlyMe = true, historyKind = true,
-                    itemPeriod = true, itemMarge = true, itemOff = true, itemLast = true, catalogFilter = true, session = true },
+    keepOnReset = { windowPos = true, windowTab = true, historyMoves = true, historyOnlyMe = true, historyChar = true, bookPeriod = true,
+                    bookOnlyMe = true, bookChar = true, bookView = true, historyKind = true, stockChar = true, stockPlace = true,
+                    mailFilter = true, mailRecent = true, session = true },
     slash    = { "/ledger" },
     onSlash  = function(m, cmd, rest)
         if cmd == "pruefen" or cmd == "prüfen" or cmd == "check" or cmd == "probe" then
@@ -57,9 +68,9 @@ local mod = Peon:NewModule(ADDON_NAME, {
         elseif cmd == "optionen" or cmd == "options" or cmd == "config" then
             m:OpenOptions()
         elseif cmd and cmd ~= "" then
-            -- ab 0.9: /ledger <Name, Nummer oder Link> zeigt den Gegenstand im Reiter "Gegenstand"
+            -- /ledger <Name, Nummer oder Link> zeigt den Gegenstand (ab 0.14 in Broker, sonst im Bestand)
             local text = cmd .. ((rest and rest ~= "") and (" " .. rest) or "")
-            local id = ns.Item and ns.Item.Find(text)
+            local id = ns.FindItem(text)
             if id then m:ShowItem(id) else m:Print(L.ITEM_NOT_FOUND:format(text)) end
         else
             ns.Window.Toggle()
@@ -90,6 +101,51 @@ function mod:Cost(id, char)
     local info = ns.Cost.Info(id, char)
     if not info then return nil end
     return info.next, info.avg, info.n, info.value
+end
+
+-- Zuletzt gezahlt und zuletzt verkauft (ab 0.14, Last.lua): Preis je Stueck, Zeit, Stueck, Quelle; nil ohne Kauf
+function mod:LastBuy(id)
+    local b = ns.Last and type(id) == "number" and ns.Last.Buy(id)
+    if not b then return nil end
+    return b.unit, b.t, b.n, b.src
+end
+function mod:LastSale(id)
+    local b = ns.Last and type(id) == "number" and ns.Last.Sale(id)
+    if not b then return nil end
+    return b.unit, b.t, b.n, b.src
+end
+
+-- Gegenstand zeigen (ab 0.14): Seite Gegenstand in Broker, ohne Broker der Bestand mit Suche nach dem Namen
+function mod:ShowItem(id)
+    if type(id) ~= "number" then return end
+    local ok, b = pcall(Peon.GetModule, Peon, "broker")
+    if ok and type(b) == "table" and type(b.ShowItem) == "function" then
+        local done = pcall(b.ShowItem, b, id)
+        if done then return end
+    end
+    local name = ns.Inventory.ItemInfo(id) or tostring(id)
+    ns.Window.Open("stock")
+    ns.Stock.search = name
+    if ns.Stock.searchBox then ns.Stock.searchBox:SetText(name) end
+    ns.Window.Refresh()
+end
+
+-- Gegenstand nach Name (auch Teil), Nummer oder Link
+function ns.FindItem(text)
+    if type(text) ~= "string" or text == "" then return nil end
+    local id = tonumber(text:match("item:(%d+)")) or tonumber(text:match("^%s*(%d+)%s*$"))
+    if id then return id end
+    local q = ns.Window.Lower((text:gsub("^%s+", ""):gsub("%s+$", "")))
+    if q == "" then return nil end
+    local best
+    for k, it in pairs(mod.acc.items or {}) do
+        if type(it) == "table" and type(it.n) == "string" then
+            local n = ns.Window.Lower(it.n)
+            if n == q then return k end
+            if not best and n:find(q, 1, true) then best = k end
+        end
+    end
+    return best
 end
 
 -- Letzter Kauf beim Haendler (ab 0.13.1, fuer Brokers Berufsfenster): Preis je Stueck und Zeit, nil ohne Kauf
@@ -242,7 +298,7 @@ mod:RegisterEvent("PLAYER_ENTERING_WORLD", function(_, isLogin)
 end)
 
 mod:On("INIT", function()
-    if (Peon.API or 0) < 10 then   -- ab 0.9: Diagramm-Baustein (API 10)
+    if (Peon.API or 0) < 19 or not Peon.UI then   -- ab 0.14: Peon.UI mit Zeilenfarben (API 19)
         mod:Error(L.MSG_OLD_CORE)
         return
     end
@@ -252,14 +308,33 @@ mod:On("INIT", function()
     mod:Call("Bewegungen", ns.Moves.Init)
     mod:Call("Tooltip", ns.Tooltip.Init)
     mod:Call("Fenster", ns.Window.Init)
-    if ns.Pick then mod:Call("Gegenstand", ns.Pick.Init) end   -- ab 0.9.1: Alt+Klick, Tastenbelegung
+    mod:Call("Post", ns.Mail.Init)   -- ab 0.14: eigenes Postfenster
+    if mod.AddNotice then mod:AddNotice({
+        id = "neuaufbau-2026-11", date = "12.11.2026", title = L.NOTICE_TITLE,
+        text = { L.NOTICE_1, L.NOTICE_2, L.NOTICE_3 },
+    }) end
     mod:Call("Minimap", CreateMinimapButton)
 end)
+-- Ab 0.14 (Neuaufbau, KarloDerBaer): Die Erfassung im Auktionshaus und in der Post ist neu. Das Buch jedes Realms
+-- beginnt deshalb einmal neu (alte Zeilen hatten die Luecken aus Abschnitt 3.2 des Konzepts).
+ns.BOOK_VERSION = 2
+function ns.MigrateBook()
+    local r = ns.Inventory.RealmData()
+    if (tonumber(r.bookV) or 0) >= ns.BOOK_VERSION then return false end
+    local had = type(r.moves) == "table" and #r.moves > 0
+    if had then ns.Moves.ResetBook() end
+    r.bookV = ns.BOOK_VERSION
+    if had then mod:Print(L.MSG_BOOK_NEW:format(ns.Realm())) end
+    return had
+end
+
 mod:On("LOGIN", function()
     mod:Call("Bestand", ns.Inventory.OnLogin)
     mod:Call("Bewegungen", ns.Moves.OnLogin)
+    mod:Call("Buch", ns.MigrateBook)
+    mod:Call("Kontrollrechnung", ns.Check.OnLogin)
 end)
 mod:On("COMBAT_END", function() mod:Call("Bestand", ns.Inventory.Flush) end)
 
 -- Bereiche für Rückmeldungen in Peon_Feedback (Kern ab API 9)
-if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Prüfung", "Bestand", "Übersicht", "Bewegungen", "Post", "Buch", "Kosten", "Gegenstand", "Tooltip", "Fenster", "Optionen" }) end
+if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Prüfung", "Bestand", "Übersicht", "Bewegungen", "Post", "Postfenster", "Buch", "Kosten", "Kontrollrechnung", "Tooltip", "Fenster", "Optionen" }) end

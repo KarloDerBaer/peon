@@ -48,6 +48,11 @@ function V.Price(id)
     local old = type(mod.acc) == "table" and type(mod.acc.merchant) == "table" and mod.acc.merchant[id]
     if type(old) == "table" and Num(old.p) and old.p > 0 then return old.p, "seen", old.w end
     local l = ns.Craft and ns.Craft.Ledger and ns.Craft.Ledger()
+    -- ab 0.84: zuletzt gezahlt laut Ledger 0.14, wenn der letzte Kauf beim Haendler war
+    if l and type(l.LastBuy) == "function" then
+        local ok, p, _, _, src = pcall(l.LastBuy, l, id)
+        if ok and src == "vendor" and Num(p) and p > 0 then return p, "ledger" end
+    end
     if l and type(l.VendorBuy) == "function" then
         local ok, p = pcall(l.VendorBuy, l, id)
         if ok and Num(p) and p > 0 then return p, "ledger" end
