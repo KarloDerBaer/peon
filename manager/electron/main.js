@@ -105,6 +105,23 @@ if (!app.requestSingleInstanceLock()) {
     if (hits.length > 5) new Notification({ title: 'Peon Manager: Einkaufsliste', body: `Dazu ${hits.length - 5} weitere auf deinen Listen.`, icon }).show();
   }
 
+  // Beobachten (ab 0.32.0): Meldung von Windows, wenn ein Preis eine Grenze mit Glocke erreicht.
+  // Ein Klick waehlt das Konto und oeffnet die Seite Beobachten mit dieser Zeile.
+  async function notifyWatch() {
+    if (!svc.broker) return;
+    const hits = await svc.broker.watchCheck();
+    if (!hits.length || !svc.settings.watchNotify || !Notification.isSupported()) return;
+    for (const h of hits.slice(0, 5)) {
+      const body = h.which === 'buy'
+        ? `${h.name} gibt es ab ${shopMoney(h.price)}, Kaufen bis ist ${shopMoney(h.limit)} (${h.label}).`
+        : `${h.name} steht bei ${shopMoney(h.price)}, dein Zielpreis ist ${shopMoney(h.limit)} (${h.label}).`;
+      const n = new Notification({ title: h.which === 'buy' ? 'Peon Manager: Kaufen' : 'Peon Manager: Verkaufen', body: h.acctName ? `${body} Konto ${h.acctName}.` : body, icon });
+      n.on('click', async () => { showWindow(); if (h.acct) await svc.broker.selectAccount(h.acct); send('openWatch', { market: h.market, key: h.key }); });
+      n.show();
+    }
+    if (hits.length > 5) new Notification({ title: 'Peon Manager: Beobachten', body: `Dazu ${hits.length - 5} weitere Grenzen erreicht.`, icon }).show();
+  }
+
   // Laeuft WoW? Daraus folgt der Hinweis in der Kopfleiste
   async function watchGame() {
     if (!svc.broker) return;
@@ -125,6 +142,7 @@ if (!app.requestSingleInstanceLock()) {
       }
       if (r.imported > 0 && tray) tray.setToolTip(`Peon Manager: ${r.imported} neue Momentaufnahmen`);
       notifyShop().catch(() => {});
+      notifyWatch().catch(() => {});
       send('changed', { what: 'spiel', why, imported: r.imported });
       return r;
     } catch (e) {
@@ -366,6 +384,12 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('accounts', () => (svc.broker ? svc.broker.accounts() : { list: [], waiting: [], selected: null }));
     ipcMain.handle('accountSelect', async (_e, id) => { const r = await svc.broker.selectAccount(String(id)); send('changed', { what: 'konto' }); return r; });
     ipcMain.handle('accountName', async (_e, id, name) => { const r = await svc.broker.nameAccount(String(id), String(name || '')); send('changed', { what: 'konto' }); return r; });
+    // Seite Beobachten (ab 0.32.0)
+    const watchChanged = async (r) => { const v = await r; notifyWatch().catch(() => {}); return v; };
+    ipcMain.handle('watchView', (_e, market) => (svc.broker ? svc.broker.watchView(String(market)) : { rows: [] }));
+    ipcMain.handle('watchSetBuy', (_e, key, kind, value) => watchChanged(svc.broker.setWatchBuy(String(key), kind || null, value == null ? null : Number(value))));
+    ipcMain.handle('watchSetUp', (_e, key, value) => watchChanged(svc.broker.setWatchUp(String(key), value == null ? null : Number(value))));
+    ipcMain.handle('watchSetBell', (_e, key, which, on) => watchChanged(svc.broker.setWatchBell(String(key), which || null, !!on)));
     // Abgleich nachvollziehen (ab 0.31.0): Protokoll, Geloeschtes, Wiederherstellen
     ipcMain.handle('syncLog', (_e, area, origin) => (svc.broker ? svc.broker.syncLog({ area: area || null, origin: origin || null }) : []));
     ipcMain.handle('syncTrash', (_e, area) => (svc.broker ? svc.broker.syncTrash({ area: area || null }) : []));

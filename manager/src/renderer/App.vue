@@ -10,6 +10,7 @@ import Modules from './views/Modules.vue';
 import Reports from './views/Reports.vue';
 import Shopping from './views/Shopping.vue';
 import Vendors from './views/Vendors.vue';
+import Watch from './views/Watch.vue';
 import UpdateDialog from './components/UpdateDialog.vue';
 import SyncPanel from './components/SyncPanel.vue';
 import Star from './components/Star.vue';
@@ -41,7 +42,7 @@ const ALL = [
   { key: 'items', label: 'Markt' },
   // ab 0.28.0 (KarloDerBaer): Einkaufen, Beobachtung, Radar und Händler muessen ueberarbeitet werden, nur ein Hinweis
   { key: 'shopping', label: 'Einkaufen (WIP)', wip: true },
-  { key: 'favorites', label: 'Beobachtung (WIP)', wip: true },
+  { key: 'favorites', label: 'Beobachten' },   // ab 0.32.0 neu (A4), Name wie im Spiel
   { key: 'chances', label: 'Radar (WIP)', wip: true },
   { key: 'vendors', label: 'Händler (WIP)', wip: true },
   { key: 'sources', label: 'Datenlage' },
@@ -53,6 +54,7 @@ const GROUPS = computed(() => (data.value ? data.value.modules.filter((m) => m.e
   key: m.key, title: m.navTitle || m.title, views: ALL.filter((n) => m.views.includes(n.key)),
 })) : []));
 const NAV_BOTTOM = ALL.filter((n) => n.always);
+const watchFocus = ref(null);   // ab 0.32.0: Zeile, die Beobachten nach einer Meldung zeigt
 const wipPage = computed(() => ALL.find((n) => n.wip && n.key === view.value) || null);
 const broker = computed(() => !!(data.value && data.value.views.includes('overview')));
 
@@ -182,6 +184,8 @@ onMounted(() => {
   // Klick auf die Meldung der Einkaufsliste
   api.onOpenUpdates(() => load().then(() => { showUpdates.value = true; }));
   api.onOpenItem(({ market: mk, key }) => { market.value = mk; push({ view: 'item', itemKey: key, origin: 'shopping' }); });
+  // Klick auf die Meldung von Beobachten (ab 0.32.0): Seite Beobachten mit der Zeile
+  api.onOpenWatch(({ market: mk, key }) => { market.value = mk; watchFocus.value = { key, at: Date.now() }; go('favorites'); load(); });
   setInterval(() => { now.value = Math.floor(Date.now() / 1000); }, 30000);
 });
 </script>
@@ -248,7 +252,7 @@ onMounted(() => {
             <SyncPanel v-if="wipPage.key === 'shopping' || wipPage.key === 'favorites'" :area="wipPage.key === 'shopping' ? 'shop' : 'watch'" :stamp="stamp" :now="now" />
           </section>
           <Items v-else-if="view === 'items'" key="items" :market="current" :now="now" :stamp="stampOf('items')" :settings="settings" @open="openItem" @save="saveQuiet" />
-          <Items v-else-if="view === 'favorites'" key="favorites" favorites :market="current" :now="now" :stamp="stampOf('favorites')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />
+          <Watch v-else-if="view === 'favorites'" :market="current" :now="now" :stamp="stampOf('favorites')" :settings="settings" :focus="watchFocus" @open="openItem" @save="saveQuiet" @go="go($event)" />
           <Shopping v-else-if="view === 'shopping'" :market="current" :stamp="stampOf('shopping')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />
           <Vendors v-else-if="view === 'vendors'" :market="current" :now="now" :stamp="stampOf('vendors')" @open="openItem" />
           <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @loaded="itemLoaded" @go="go($event)" @open="openItem" />

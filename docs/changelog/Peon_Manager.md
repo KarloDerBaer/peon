@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.32.0
+
+Kurz: Die Seite Beobachten ist neu: Preis, Kaufen bis, Zielpreis und Rat wie im Spiel. Die Grenzen änderst du direkt in der Liste.
+Kurz: Mit den Glocken je Gegenstand meldet sich der Manager über Windows, wenn ein Preis Kaufen bis oder den Zielpreis erreicht.
+
+- 0.32.0 (13.11.2026): Angleichung des Managers, Bauabschnitt A4 (Konzept `docs/konzepte/manager/Peon_Manager_Angleichung.md` 4.1 und 4.3). Nur der Manager.
+  - **Seite Beobachten** (neu `views/Watch.vue`, ersetzt die eingegrenzte Gegenstandsliste, in der Seitenleiste „Beobachten“ wie im Spiel statt „Beobachtung (WIP)“): Gegenstand, Preis im letzten Stand des gewählten Markts, Kaufen bis (Gold oder % unter dem üblichen Preis, umschaltbar, bei % zeigt der Tooltip den Betrag), Zielpreis, Üblich, Rat (KAUFEN auf oder unter Kaufen bis, VERKAUFEN auf oder über dem Zielpreis), Glocken, Entfernen. Rat zuerst. Hinzufügen über die Suche oder den Stern. „wartet auf /reload“ an Zeilen, deren Änderung noch nicht im Spiel ist. Auswahl des Kontos bei mehreren Konten. Darunter „Gelöscht“ und „Protokoll“ (A3).
+  - **Rechnung** (`watchRow`, `watchView`): Kaufen bis in % rechnet mit demselben Vergleichspreis wie die Einkaufsliste (Mittel der Woche, sonst Median).
+  - **Glocken** je Gegenstand und Grenze, nur im Manager (`meta` `bells:<Kennung>`), bei neuen Einträgen aus, beim Entfernen gelöscht. Hauptschalter `watchNotify` (Standard an) oben auf der Seite.
+  - **Meldung über Windows** (`watchCheck`, `notifyWatch` in `electron/main.js`): nach jedem neuen Stand und nach Eingaben, für alle Konten und Märkte. Einmal je Überschreiten, wieder erst nach einem Preis auf der anderen Seite, ohne Preis im Stand bleibt der Zustand. Die Meldung nennt Markt und bei mehreren Konten den Namen des Kontos. Ein Klick wählt das Konto und öffnet Beobachten mit der Zeile.
+  - Tests: neue Datei `test/beobachten.test.js` (4 Tests: Ansicht und Rat, Glocken und Meldungen, je Konto, Eingaben). Alle 201 Tests grün, Oberfläche gebaut. `test/ui/shots.js` klickt auf „Beobachten“.
+  - **Im echten Programm prüfen:** Seite Beobachten mit echten Daten (Preise, Rat, Üblich), Kaufen bis zwischen Gold und % umschalten, Glocke an, Meldung nach dem nächsten Stand der Blizzard-API, Klick auf die Meldung.
+
 ## 0.31.0
 
 Kurz: Unter Einkaufen und Beobachtung siehst du jetzt, was der Abgleich mit dem Spiel getan hat, und kannst Gelöschtes 30 Tage lang wiederherstellen.

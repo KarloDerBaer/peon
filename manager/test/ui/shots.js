@@ -48,7 +48,7 @@ srv.listen(0, async () => {
     if (theme === 'dark') {
       await page.click('nav >> text=Einkaufen'); await page.waitForTimeout(300);
       await page.screenshot({ path: `${out}/einkaufsliste.png` });
-      await page.click('nav >> text=Beobachtung'); await page.waitForTimeout(300);
+      await page.click('nav >> text=Beobachten'); await page.waitForTimeout(300);
       await page.screenshot({ path: `${out}/favoriten.png` });
       await page.click('nav >> text=Markt'); await page.waitForTimeout(400);
       await page.screenshot({ path: `${out}/gegenstaende.png` });

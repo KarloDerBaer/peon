@@ -639,8 +639,89 @@ class BrokerClient {
 
   setFavorite(key, on) {
     const n = on ? this.db.prepare('SELECT name, quality FROM items WHERE key = ?').get(String(key)) : null;
-    this.watchEdit((d, now) => (on ? watching.add(d, key, now, { name: n && n.name, quality: n && n.quality }) : watching.remove(d, key, now)));
+    const removed = this.watchEdit((d, now) => (on ? watching.add(d, key, now, { name: n && n.name, quality: n && n.quality }) : watching.remove(d, key, now)));
+    if (!on && removed) this.setWatchBell(key, null, false);   // ab 0.32.0: neue Eintraege beginnen ohne Glocken
     return this.favorites();
+  }
+
+  // ---------- Seite Beobachten und Meldungen (ab 0.32.0, Angleichung A4, Konzept 4.1 und 4.3) ----------
+  // Glocken je Konto nur im Manager, nicht abgeglichen: meta bells:<Kennung> = { [Schluessel]: { buy, up } }, ohne Eintrag aus
+  watchBells(acct = this.acctSel()) { return this.meta(acct ? `bells:${acct}` : 'bells') || {}; }
+
+  // Glocke setzen: which "buy" (Kaufen bis) oder "up" (Zielpreis), null = beide
+  setWatchBell(key, which, on) {
+    const acct = this.acctSel();
+    const b = this.watchBells(acct);
+    const k = String(key);
+    const cur = { ...(b[k] || {}) };
+    for (const w of which ? [which] : ['buy', 'up']) { if (on) cur[w] = true; else delete cur[w]; }
+    if (Object.keys(cur).length) b[k] = cur; else delete b[k];
+    this.meta(acct ? `bells:${acct}` : 'bells', b);
+    return true;
+  }
+
+  // Eine Zeile: Preis im letzten Stand, Kaufen bis (Betrag oder aus % gerechnet, Vergleichspreis wie bei der Einkaufsliste),
+  // Zielpreis, Rat wie im Spiel: KAUFEN auf oder unter Kaufen bis, VERKAUFEN auf oder ueber dem Zielpreis
+  watchRow(key, w, cur, bell, wait = []) {
+    const ref = cur ? (cur.avg7 ?? cur.median ?? null) : null;
+    const buyLimit = w.lim != null ? w.lim : w.pct != null && ref != null ? Math.floor(ref * (1 - w.pct / 100)) : null;
+    const price = cur && cur.inLast && cur.min != null ? cur.min : null;
+    const advice = price == null ? null : buyLimit != null && price <= buyLimit ? 'buy' : w.up != null && price >= w.up ? 'sell' : null;
+    const info = cur ? null : this.db.prepare('SELECT name, quality FROM items WHERE key = ?').get(String(key));
+    return { key, name: (cur && cur.name) || w.name || (info && info.name) || null, quality: cur ? cur.quality : (w.q ?? (info && info.quality) ?? null),
+      price, qty: cur && cur.inLast ? cur.qty : 0, band: (cur && cur.band) || null, ref,
+      buy: w.lim != null ? { lim: w.lim } : w.pct != null ? { pct: w.pct } : null, buyLimit, up: w.up ?? null, advice,
+      bells: { buy: !!(bell && bell.buy), up: !!(bell && bell.up) }, wait: wait.some((p) => p.startsWith(`w|${key}|`)) };
+  }
+
+  // Ansicht Beobachten fuer einen Markt (gewaehltes Konto). Rat zuerst, dann nach Name
+  watchView(marketKey) {
+    const acct = this.acctSel();
+    const d = this.watchDoc(acct);
+    const mid = this.marketId(marketKey);
+    const list = mid == null ? { items: [], lastScan: null } : this.listOf(mid, marketKey);
+    const byKey = new Map(list.items.map((x) => [x.key, x]));
+    const bells = this.watchBells(acct);
+    const wait = this.waiting(acct);
+    const order = { buy: 0, sell: 1 };
+    const rows = Object.entries(d.items).map(([k, w]) => this.watchRow(k, w, byKey.get(k), bells[k], wait))
+      .sort((a, b) => (order[a.advice] ?? 2) - (order[b.advice] ?? 2) || String(a.name || a.key).localeCompare(String(b.name || b.key), 'de'));
+    return { rows, lastScan: list.lastScan || null, running: !!(this.gameState && this.gameState.running) };
+  }
+
+  // Nach neuen Daten: Welche Grenze mit Glocke ist gerade erreicht? Gemeldet wird einmal und erst wieder, nachdem der
+  // Preis auf der anderen Seite der Grenze lag. Ohne Preis im letzten Stand bleibt der Zustand. Alle Konten und Maerkte.
+  watchCheck() {
+    const was = this.meta('watchHits') || {};
+    const next = {}, out = [];
+    const reg = this.acctReg();
+    const markets = this.db.prepare('SELECT id, key FROM markets').all();
+    for (const acct of this.acctIds()) {
+      const bells = this.watchBells(acct);
+      const d = this.watchDoc(acct);
+      const keys = Object.keys(bells).filter((k) => d.items[k]);
+      if (!keys.length) continue;
+      for (const m of markets) {
+        const byKey = new Map(this.listOf(m.id, m.key).items.map((x) => [x.key, x]));
+        for (const k of keys) {
+          const row = this.watchRow(k, d.items[k], byKey.get(k), bells[k]);
+          for (const which of ['buy', 'up']) {
+            if (!row.bells[which]) continue;
+            const limit = which === 'buy' ? row.buyLimit : row.up;
+            if (limit == null) continue;
+            const id = `${acct}|${m.id}|${k}|${which}`;
+            const hit = row.price == null ? !!was[id] : which === 'buy' ? row.price <= limit : row.price >= limit;
+            if (!hit) continue;
+            next[id] = 1;
+            if (!was[id] && row.price != null) {
+              out.push({ acct, acctName: acct && reg[acct] ? reg[acct].name : null, market: m.key, label: marketLabel(m.key), key: k, name: row.name || k, which, price: row.price, limit });
+            }
+          }
+        }
+      }
+    }
+    this.meta('watchHits', next);
+    return out;
   }
 
   // Kaufen bis: kind 'abs' (Kupfer) oder 'pct' (% unter dem Vergleichspreis), null = keine Grenze (ab 0.30.0)
