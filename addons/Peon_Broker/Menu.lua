@@ -39,6 +39,8 @@ function M.AddToList(i, item)
 end
 
 function M.Build(root, item)
+    -- ab 0.88: Kiste mit Paketliste, vorgeschlagenes Paket auf die Liste Handelsauftrag (Pack.lua)
+    if ns.Pack then ns.Pack.AddMenu(root, item) end
     -- ab 0.59 (Neuaufbau N1): dieselben Spruenge wie in Brokers Listen (Go.lua)
     root:CreateButton(L.GO_MARKET, function() mod:Call("Menue", ns.Go.Market, item) end)
     root:CreateButton(L.MENU_INFO, function() mod:Call("Menue", ns.Go.Item, item) end)

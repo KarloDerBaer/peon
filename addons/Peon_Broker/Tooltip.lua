@@ -607,6 +607,7 @@ function T.OnItem(tooltip, data)
     if link == nil or Peon.IsSecret(link) then return end
     -- ab 0.87: Paketliste lesen, bevor eigene Zeilen dazukommen
     local packs = ns.Pack and ns.Pack.FromTooltip(tooltip, data)
+    if ns.Pack and tooltip == GameTooltip then ns.Pack.Remember(link, packs) end   -- ab 0.88: fuer das Menue
     local shown = T.AddLines(tooltip, link, T.StackCount(data))
     if packs and ns.Pack.Render(tooltip, packs) then shown = true end
     local ex = T.extra

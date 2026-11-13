@@ -2,6 +2,12 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 13.11.2026: Paketvergleich bei Kisten (Broker 0.87 und 0.88)
+
+- **Kosten je Paket im Tooltip, das günstigste markiert** (KarloDerBaer): Für die Kiste muss man ein Paket abgeben, gesucht ist also das günstigste, nicht das wertvollste. Was in den Taschen liegt, kostet nichts.
+- **Vergleich über den Namen** (Claude): Die Paketliste ist nur Text, ohne Gegenstandsnummern.
+- **Auf die Einkaufsliste über das Peon-Menü statt per Rechtsklick** (KarloDerBaer, Vorschlag Claude): Ein einfacher Rechtsklick benutzt die Kiste, das kann Broker nicht verhindern. Ziel ist die Liste „Handelsauftrag“.
+
 ## 13.11.2026: Angleichung des Managers, Teil 1 (Konzept `Peon_Manager_Angleichung.md`, freigegeben)
 
 - **Teil 1 freigegeben**, Bau ab A1 (KarloDerBaer).

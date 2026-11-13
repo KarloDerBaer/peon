@@ -2,6 +2,51 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.88.0
+
+Kurz: Bei Kisten mit Paketauswahl kannst du das günstigste Paket über das Peon-Menü (Strg+Rechtsklick) auf die Einkaufsliste „Handelsauftrag“ setzen.
+
+- 0.88.0 (13.11.2026): Paket auf die Einkaufsliste (Wunsch von KarloDerBaer).
+  - Im Peon-Gegenstandsmenü steht bei einer Kiste mit Paketliste ganz oben „Auf „Handelsauftrag“: 16× Kupferrohre“. Der Eintrag setzt das günstigste Paket mit seiner Menge auf die Liste „Handelsauftrag“, die bei Bedarf angelegt wird. Wie bei den Materialien aus dem Berufsfenster ist die Menge der Wunsch, was fehlt, rechnet die Liste selbst gegen den Vorrat. Zweimal ausgewählt bleibt es ein Eintrag.
+  - Liegt das günstigste Paket schon ganz in den Taschen oder hat kein Paket einen Preis, gibt es keinen Eintrag.
+  - Unter dem Paketvergleich im Tooltip steht ein grauer Hinweis auf das Menü.
+  - Ein einfacher Rechtsklick benutzt die Kiste, darum das Menü (mit KarloDerBaer abgestimmt).
+  - Neu in `Pack.lua`: `P.Remember`, `P.ForItem`, `P.Best`, `P.ToList`, `P.AddMenu`. `Menu.lua` ruft `P.AddMenu` zuerst auf.
+  - Tests: Hinweis im Tooltip, Menüpunkt, Liste angelegt, zweimal ausgewählt, Paket schon vorhanden.
+  - **Im Spiel prüfen:** Strg+Rechtsklick auf eine Abgefangene Kiste: oben steht das günstigste Paket. Anklicken: Meldung im Chat, unter Einkaufen gibt es die Liste „Handelsauftrag“ mit dem Teil und der Menge.
+
+## 0.87.3
+
+Kurz: Der Paketvergleich findet jetzt auch Teile, deren Name in deinen Preisdaten fehlte, zum Beispiel den Großen leuchtenden Splitter.
+
+- 0.87.3 (13.11.2026): „kein Preis“ beim Großen leuchtenden Splitter, obwohl Broker einen Preis hat.
+  - Im Heimatmarkt fehlte bei rund einem Fünftel der Einträge der Name (etwa bei Daten aus dem Peon Manager). Das Namensverzeichnis entsteht jetzt aus allen Märkten (`P.BuildIndex`), der Preis kommt weiter aus dem Heimatmarkt.
+  - Wird ein Name trotzdem nicht gefunden, fragt Broker für Einträge ohne Namen einmal das Spiel (`P.FillHome`, je Gegenstand höchstens zweimal je Sitzung) und merkt sich gefundene Namen im Eintrag.
+  - Die Paketliste selbst nennt keine Gegenstandsnummern, nur Text. Deshalb bleibt es beim Vergleich über den Namen.
+  - Tests: Name nur in einem anderen Markt, Name vom Spiel nachgefragt. Mit den echten Daten geprüft: alle sieben Teile beider Kisten gefunden.
+  - **Im Spiel prüfen:** `/reload`, Kiste des Gesellen: auch die großen leuchtenden Splitter haben einen Preis.
+
+## 0.87.2
+
+Kurz: Der Paketvergleich findet jetzt auch Teile wie „kleine leuchtende Splitter“, und das günstigste Paket hat einen grünen Haken statt eines leeren Kastens.
+
+- 0.87.2 (13.11.2026): Zwei Fehler aus dem ersten Test im Spiel.
+  - Hinter dem günstigsten Paket stand ein leerer Kasten, weil die Schrift des Spiels das Zeichen „←“ nicht kennt. Jetzt steht dort der grüne Haken der Bereitschaftsabfrage (`P.BEST_ICON`).
+  - Gebeugte Namen wurden nicht gefunden: „kleine leuchtende Splitter“ in der Liste, „Kleiner leuchtender Splitter“ im Scan. `P.Norm` nimmt jetzt jedem Wort die Endung (`P.Stem`) und macht Ä, Ö, Ü am Anfang klein. Mit den echten Scan-Daten geprüft: über 23.000 Namen, keine zwei fallen zusammen.
+  - Tests: gebeugte Wörter, Mehrzahl mit Adjektiv, Umlaut am Anfang, verschiedene Teile bleiben verschieden, kein Pfeilzeichen.
+  - **Im Spiel prüfen:** `/reload`, Kiste des Gesellen: alle vier Pakete mit Preis, Haken hinter dem günstigsten.
+
+## 0.87.1
+
+Kurz: Der Paketvergleich im Tooltip erscheint jetzt auch wirklich, zum Beispiel bei der Abgefangenen Kiste.
+
+- 0.87.1 (13.11.2026): Paketvergleich blieb im Spiel leer.
+  - Die Paketliste steht im Spiel mit Zeilenumbrüchen in einer einzigen Tooltip-Zeile („Benutzen: … Liste:“ und darunter die Pakete). `Pack.lua` teilt solche Texte jetzt in Zeilen.
+  - Namen werden ohne Leerzeichen, Bindestriche und Artikel verglichen (`P.Norm`): „Handvoll Kupferbolzen“ aus der Liste passt zu „Eine Hand voll Kupferbolzen“ aus dem Scan.
+  - Findet Broker eine Liste, aber kein Teil, steht das in der Fehlersuche (`/broker debug`).
+  - Tests: Liste in einer Zeile, Namensvergleich, Test-Kiste wie im Spiel.
+  - **Im Spiel prüfen:** `/reload`, dann mit der Maus auf die Abgefangene Kiste.
+
 ## 0.87.0
 
 Kurz: Bei Kisten, für die du eines von mehreren Paketen abgeben musst, zeigt der Tooltip jetzt, was jedes Paket kostet. Was du schon in den Taschen hast, zählt als kostenlos. Das günstigste Paket steht oben und ist grün markiert.

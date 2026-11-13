@@ -3983,15 +3983,38 @@ end)()
   local mk = D.Market(nil, true)
   mk.items[7801] = { m = 300, md = 300, q = 50, n = 5, t = clock, nm = "Kupferrohr", ql = 1 }
   mk.items[7802] = { m = 500, md = 500, q = 50, n = 5, t = clock, nm = "Kupfermodulator", ql = 1 }
-  mk.items[7803] = { m = 40, md = 40, q = 50, n = 5, t = clock, nm = "Handvoll Kupferbolzen", ql = 1 }
+  mk.items[7803] = { m = 40, md = 40, q = 50, n = 5, t = clock, nm = "Eine Hand voll Kupferbolzen", ql = 1 }
   P.cache = nil
   check(P.Find("Kupferrohre") == 7801 and P.Find("Kupfermodulatoren") == 7802 and P.Find("Handvoll Kupferbolzen") == 7803, "0.87: Name gefunden, auch in der Mehrzahl")
   check(P.Find("Mithrilrohre") == nil, "0.87: unbekannter Name ergibt nichts")
+  -- 0.87.3: Name nur in einem anderen Markt, im Heimatmarkt nur der Preis
+  local other = D.Market("Anderer Markt", true)
+  other.items[7805] = { m = 7788, t = clock, nm = "Großer leuchtender Splitter" }
+  mk.items[7805] = { m = 3099, md = 3099, q = 5, n = 2, t = clock }
+  P.cache = nil
+  check(P.Find("große leuchtende Splitter") == 7805, "0.87.3: Name aus einem anderen Markt")
+  -- 0.87.3: Eintrag ganz ohne Namen: das Spiel nennt ihn (Stub: 'Gegenstand7806')
+  mk.items[7806] = { m = 77, md = 77, q = 5, n = 2, t = clock }
+  check(P.Find("Gegenstand7806") == 7806 and mk.items[7806].nm == "Gegenstand7806", "0.87.3: Name vom Spiel nachgefragt und gemerkt")
+  D.DeleteMarket("Anderer Markt")
+  mk.items[7805], mk.items[7806] = nil, nil
+  P.cache = nil
   local keepCount = C_Item.GetItemCount
   local BAGS = { [7801] = 10 }
   C_Item.GetItemCount = function(id) return BAGS[id] or 0 end
-  local KISTE = { "Abgefangene Kiste", "Benutzen: Füllt die Kiste mit einem beliebigen Paket von der folgenden Liste:",
-    "- 16 Handvoll Kupferbolzen", "- 16 Kupferrohre", "- 4 Kupfermodulatoren" }
+  -- 0.87.1: im Spiel steht die Liste mit Zeilenumbruechen in einer einzigen Tooltip-Zeile
+  local KISTE_RAW = { "Abgefangene Kiste: Bauteile des Lehrlings", "Benötigt Stufe 10",
+    "|cff00ff00Benutzen: Füllt die Kiste mit einem beliebigen Paket von der folgenden Liste:\n- 16 Handvoll Kupferbolzen\n- 16 Kupferrohre\n- 4 Kupfermodulatoren|r" }
+  local rawData = { lines = {} }
+  for i, t in ipairs(KISTE_RAW) do rawData.lines[i] = { leftText = t } end
+  local KISTE = P.TooltipTexts(GameTooltip, rawData)
+  check(#P.Parse(KISTE) == 3, "0.87.1: Liste in einer Tooltip-Zeile mit Zeilenumbruechen wird geteilt")
+  check(P.Norm("Eine Hand voll Kupferbolzen") == P.Norm("Handvoll Kupferbolzen"), "0.87.1: 'Eine Hand voll' passt zu 'Handvoll'")
+  check(P.Norm("Kleiner leuchtender Splitter") == P.Norm("kleine leuchtende Splitter"), "0.87.2: gebeugte Woerter passen (Splitter)")
+  check(P.Norm("Große Astralessenz") == P.Norm("große Astralessenzen"), "0.87.2: Mehrzahl mit Adjektiv (Astralessenz)")
+  check(P.Norm("Öliger Schuppen") == P.Norm("ölige Schuppen"), "0.87.2: Umlaut am Anfang")
+  check(P.Norm("Kupferrohr") ~= P.Norm("Kupfermodulator") and P.Norm("Großer Splitter") ~= P.Norm("Kleiner Splitter"), "0.87.2: verschiedene Teile bleiben verschieden")
+  check(not P.RightText({ cost = 5, have = 0, need = 1, best = true }):find("←", 1, true), "0.87.2: kein Pfeilzeichen mehr (Kasten im Spiel)")
   local list = P.Calc(P.Parse(KISTE))
   check(list[1].id == 7803 and list[1].cost == 640 and list[1].best, "0.87: Bolzen 16 x 40c = 6s 40c, am guenstigsten, steht oben")
   check(list[2].id == 7801 and list[2].have == 10 and list[2].need == 6 and list[2].cost == 1800, "0.87: Rohre: 10 in den Taschen, 6 x 3s fehlen")
@@ -4004,16 +4027,15 @@ end)()
   list = P.Calc(P.Parse(KISTE))
   check(list[3].name == "Kupfermodulatoren" and list[3].cost == nil and plain(P.RightText(list[3])):find("kein Preis", 1, true), "0.87: ohne Preis am Ende, 'kein Preis'")
   -- ganzer Tooltip ueber die Tooltip-Daten
-  local data = { lines = {} }
-  for i, t in ipairs(KISTE) do data.lines[i] = { leftText = t } end
+  local data = rawData
   tt.lines, tt.link = {}, "|cff1eff00|Hitem:7800::::::::20:1488:::::::::|h[Abgefangene Kiste]|h|r"
   ttCallback(GameTooltip, data)
   local txt = {}
   for i, l in ipairs(tt.lines) do txt[i] = plain(l) end
   local head, rohr
-  for _, l in ipairs(txt) do
+  for i, l in ipairs(txt) do
     if l:find("Pakete (Kosten)", 1, true) then head = true end
-    if l:find("16× Kupferrohre", 1, true) and l:find("←", 1, true) then rohr = true end
+    if l:find("16× Kupferrohre", 1, true) and tt.lines[i]:find("ReadyCheck-Ready", 1, true) then rohr = true end
   end
   check(head and rohr, "0.87: Tooltip zeigt Pakete, Rohre markiert")
   mod.db.tooltipPacks = false
@@ -4023,6 +4045,41 @@ end)()
   for _, l in ipairs(tt.lines) do if plain(l):find("Pakete", 1, true) then any = true end end
   check(not any, "0.87: Schalter aus: kein Paketvergleich")
   mod.db.tooltipPacks = true
+  -- 0.88: vorgeschlagenes Paket ueber das Peon-Menue auf die Liste Handelsauftrag
+  BAGS[7801] = 10
+  tt.lines = {}
+  ttCallback(GameTooltip, data)
+  local hint = false
+  for _, l in ipairs(tt.lines) do if plain(l):find("Strg+Rechtsklick", 1, true) then hint = true end end
+  check(hint, "0.88: Tooltip nennt das Peon-Menue")
+  check(P.ForItem({ id = 7800 }) ~= nil and P.ForItem({ id = 7801 }) == nil, "0.88: Menue kennt die Pakete der zuletzt gezeigten Kiste")
+  local buttons = {}
+  local sub = { CreateButton = function() end, CreateRadio = function() end, CreateCheckbox = function() end, CreateDivider = function() end }
+  setmetatable(sub, { __index = function() return function() return sub end end })
+  local root = { CreateButton = function(_, text, fn) buttons[#buttons + 1] = { text = text, fn = fn } return sub end,
+    CreateDivider = function() end, CreateTitle = function() end }
+  sub.CreateButton = function() return sub end
+  ns.Menu.Build(root, { id = 7800, link = tt.link, name = "Abgefangene Kiste" })
+  check(buttons[1] and plain(buttons[1].text) == "Auf „Handelsauftrag“: 16× Handvoll Kupferbolzen", "0.88: erster Menuepunkt ist das guenstigste Paket")
+  local lists = ns.Buy.Lists()
+  local before = #lists
+  buttons[1].fn()
+  local hl = lists[#lists]
+  check(#lists == before + 1 and hl.name == "Handelsauftrag" and hl.items[7803] and hl.items[7803].wish == 16, "0.88: Liste Handelsauftrag angelegt, 16 Bolzen gewuenscht")
+  check(said("16× Gegenstand7803 auf der Liste „Handelsauftrag“"), "0.88: Meldung im Chat")
+  buttons[1].fn()
+  check(#lists == before + 1 and hl.items[7803].wish == 16, "0.88: zweimal: keine zweite Liste, Menge bleibt")
+  local n0 = 0; for _ in pairs(hl.items) do n0 = n0 + 1 end
+  check(n0 == 1, "0.88: nur das eine Paket auf der Liste")
+  ns.Buy.DeleteList(#lists)
+  -- alles schon da: kein Menuepunkt, kein Hinweis
+  BAGS[7801], BAGS[7803] = 20, 16
+  tt.lines = {}
+  ttCallback(GameTooltip, data)
+  buttons = {}
+  ns.Menu.Build(root, { id = 7800, link = tt.link })
+  check(not plain(buttons[1].text):find("Handelsauftrag", 1, true), "0.88: Paket schon vorhanden: kein Menuepunkt")
+  BAGS[7803] = nil
   C_Item.GetItemCount = keepCount
   mk.items[7801], mk.items[7803] = nil, nil
   P.cache = nil
