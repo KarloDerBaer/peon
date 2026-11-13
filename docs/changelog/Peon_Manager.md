@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.30.0
+
+Kurz: Änderst du an einer Einkaufsliste im Spiel und im Manager verschiedene Werte, bleiben jetzt beide erhalten.
+Kurz: Der Manager kennt jetzt Kaufen bis und Zielpreis deiner Beobachtung aus dem Spiel.
+
+- 0.30.0 (13.11.2026): Angleichung des Managers, Bauabschnitt A2 (Konzept `docs/konzepte/manager/Peon_Manager_Angleichung.md` 3.2 bis 3.4). Braucht Broker 0.89.
+  - **Abgleich je Wert** (`shopping.js`): gleiche Regeln wie Brokers `Shop.lua` 0.89 (`fieldT`, `fill`, `stamp`, `newFrom`, `mergeFields`). Name und Rabatt einer Liste, Menge und Höchstpreis eines Eintrags mit eigener Zeit in `t`. Ohne `t` gilt `u`. `setItem` und `updateList` vermerken nur die geänderten Werte, `forGame` gibt `t` der Liste mit.
+  - **Beobachtung mit Grenzen** (neue Datei `watching.js`): Einträge `{ u, lim, pct, up, t: { buy, up }, name, q, icon }` statt nur der Zeit. Abgleich je Wert wie `Wt.Merge` in Broker. Neu im Broker Client `setWatchBuy(key, kind, value)` und `setWatchUp(key, value)` (für die Seite Beobachten in A4). Eine Zahl von früher gilt als Eintrag nur mit `u`. Der Stern legt Name und Qualität mit an.
+  - Aus `Peon_Broker.lua` liest der Manager jetzt den ganzen Eintrag der Beobachtung (ohne die Merker des Alarms).
+  - **Löschmarken halten ein Jahr** statt 60 Tage, bei Listen und Beobachtung.
+  - Tests: neue Datei `test/je-wert.test.js` (6 Tests, darunter 3000 Zufallsfälle gegen `Watch.lua` über `test/lua/watch_compare.lua` und der Weg der Grenzen ins Spiel und zurück), der Vergleich mit `Shop.lua` jetzt mit 3000 Fällen und Zeiten je Wert. Alle 191 Tests grün, Oberfläche gebaut.
+  - **Im echten Programm prüfen:** zusammen mit A3 bis A5, weil die Grenzen erst die Seite Beobachten zeigt.
+
 ## 0.29.0
 
 Kurz: Einkaufslisten und Beobachtung gelten jetzt je WoW-Konto, wie im Spiel. Unter Datenlage siehst du deine Konten, gibst ihnen einen Namen und wählst, welches Konto der Manager zeigt.

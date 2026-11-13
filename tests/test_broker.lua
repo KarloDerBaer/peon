@@ -2605,9 +2605,21 @@ end)()
   check(brokerMod:MergeShop({ lists = { { id = id, name = "Alt", pct = 1, u = 5, items = {} } } }) == false and lists[1].name == "Neu benannt", "0.34: aelterer Stand aendert nichts")
   check(brokerMod:MergeShop({ gone = { items = { [id .. "|2770"] = later + 1 } } }) == true and lists[1].items[2770] == nil, "0.34: Loeschmarke aus dem Manager")
   check(brokerMod:MergeShop(nil) == false, "0.34: ohne Daten nichts")
-  PeonBrokerDB.listsGone.items.alt = clock - 90 * 86400
+  PeonBrokerDB.listsGone.items.alt = clock - 366 * 86400
+  PeonBrokerDB.listsGone.items.jung = clock - 300 * 86400
   brokerMod:MergeShop({})
-  check(PeonBrokerDB.listsGone.items.alt == nil, "0.34: alte Loeschmarken verfallen")
+  check(PeonBrokerDB.listsGone.items.alt == nil, "0.34: alte Loeschmarken verfallen (ab 0.89 nach einem Jahr)")
+  check(PeonBrokerDB.listsGone.items.jung ~= nil, "0.89: Loeschmarken unter einem Jahr bleiben")
+  PeonBrokerDB.listsGone.items.jung = nil
+
+  -- ab 0.89: Abgleich je Wert
+  local it = lists[1].items[2589] or lists[1].items["15000:Name des Wolfs"]
+  local L1 = lists[1]
+  L1.name = "Eigener Name"; B.Touch(L1, "name")
+  local tName = L1.t.name
+  check(tName == L1.u and type(L1.t.pct) == "number" and L1.t.pct < tName, "0.89: eigene Aenderung setzt nur die Zeit dieses Werts")
+  brokerMod:MergeShop({ lists = { { id = L1.id, name = "Manager-Name", pct = 33, u = tName + 5, t = { name = tName - 1, pct = tName + 5 }, items = {} } } })
+  check(L1.name == "Eigener Name" and L1.pct == 33, "0.89: Name bleibt (eigener neuer), Rabatt kommt aus dem Manager")
 end)()
 
 -- Texte fuer Peon_Panel (ab 0.35)

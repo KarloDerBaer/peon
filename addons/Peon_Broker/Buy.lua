@@ -157,7 +157,7 @@ function B.AddMaterials(mats, n)
             e.icon = e.icon or B.Icon(m.id)
             e.wish = math.max(tonumber(e.wish) or 0, need)
             e.v = (m.vendor and (not m.ah or m.vendor <= m.ah)) and true or nil
-            B.Touch(e)
+            B.Touch(e, "wish")
             list.items[m.id] = e
             added = added + 1
         end
@@ -167,9 +167,13 @@ function B.AddMaterials(mats, n)
     return added, list
 end
 
--- Aenderung an einer Liste oder einem Eintrag vermerken (Abgleich mit dem Manager)
-function B.Touch(obj)
-    if obj then obj.u = Shop().NextU(time(), obj.u) end
+-- Aenderung an einer Liste oder einem Eintrag vermerken (Abgleich mit dem Manager).
+-- Ab 0.89 je Wert: f = "name" oder "pct" (Liste), "wish" oder "max" (Eintrag)
+function B.Touch(obj, f)
+    if not obj then return end
+    if f == nil then obj.u = Shop().NextU(time(), obj.u); return end   -- ganzer Eintrag wie bis 0.88
+    local spec = (f == "name" or f == "pct") and Shop().LIST_SPEC or Shop().ITEM_SPEC
+    Shop().Stamp(obj, spec, f, time())
 end
 
 -- Listen aus dem Manager einmischen, die Bridge ruft das beim Laden auf (Data.lua). Rueckgabe: true bei Aenderung
@@ -940,7 +944,7 @@ function B.Build(c)
     UI.FormRow(left, L.BUY_F_NAME, B.nameBox, B.FORM_X, -40)
     B.nameBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
-        if cur and not B.filling and (self:GetText() or "") ~= "" and cur.name ~= self:GetText() then cur.name = self:GetText(); B.Touch(cur); B.Refresh() end
+        if cur and not B.filling and (self:GetText() or "") ~= "" and cur.name ~= self:GetText() then cur.name = self:GetText(); B.Touch(cur, "name"); B.Refresh() end
     end)
     B.pctBox = UI.Input(left, 60, { numeric = true })
     local pr = UI.FormRow(left, L.BUY_F_PCT, B.pctBox, B.FORM_X, -76, L.BUY_F_PCT_SUB)
@@ -949,7 +953,7 @@ function B.Build(c)
         local cur = B.CurrentList()
         if cur and not B.filling then
             local v = math.max(0, math.min(90, tonumber(self:GetText() or "") or 0))
-            if v ~= cur.pct then cur.pct = v; B.Touch(cur) end
+            if v ~= cur.pct then cur.pct = v; B.Touch(cur, "pct") end
             B.Refresh()
         end
     end)
@@ -977,7 +981,7 @@ function B.Build(c)
         end
         local it = cur.items[B.selected.key]
         if it then
-            if v ~= it.max then it.max = v; B.Touch(it) end
+            if v ~= it.max then it.max = v; B.Touch(it, "max") end
             B.Refresh()
         end
     end)
@@ -990,7 +994,7 @@ function B.Build(c)
         if it then
             local v = tonumber(self:GetText() or "")
             if v and v < 1 then v = nil end
-            if v ~= it.wish then it.wish = v; B.Touch(it) end
+            if v ~= it.wish then it.wish = v; B.Touch(it, "wish") end
             B.Refresh()
         end
     end)

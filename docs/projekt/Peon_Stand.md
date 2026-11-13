@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 13.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.0 / Broker 0.88.0 / Bridge 0.10.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.29.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.7 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 13.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.0 / Broker 0.89.0 / Bridge 0.10.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.30.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.7 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.20.0, API 20
@@ -49,9 +49,11 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.88.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.89.0 (neu, Auktionshaus-Helfer)
 
 - **Paketvergleich im Tooltip (ab 0.87.0, Fehler behoben bis 0.87.3):** Neue Datei `Pack.lua`. Bei Gegenständen mit einer Liste von Paketen zur Auswahl (Zeilen `- 16 Kupferrohre`, ab zwei Paketen) zeigt Broker die Kosten je Paket. Teile werden über den Namen gefunden (Namen aus allen Märkten, fehlende Namen im Heimatmarkt fragt Broker beim Spiel nach, Wörter ohne Endung verglichen, `P.Norm`), Preis je Stück wie im Berufsfenster (`Craft.BuyPrice`), was in den Taschen liegt, kostet nichts. Das günstigste Paket steht oben, grün mit Haken. Schalter `tooltipPacks` unter Preise im Tooltip. Ab 0.88.0 steht im Peon-Gegenstandsmenü (Strg+Rechtsklick) oben „Auf „Handelsauftrag“: …“, das setzt das günstigste fehlende Paket auf die Einkaufsliste Handelsauftrag (wird bei Bedarf angelegt, `P.ToList`). Nicht veröffentlicht.
+
+- **Abgleich je Wert (ab 0.89.0, Manager-Angleichung A2):** Listen und Einträge mit Zeit je Wert in `t` (`Shop.lua`: `S.MergeFields`, `S.Stamp`), Beobachtung mit `t.buy` und `t.up` (`Wt.Merge`), Kaufen bis und Zielpreis gehen mit dem Manager hin und zurück. Löschmarken ein Jahr. Nicht veröffentlicht.
 
 - **Kennung des Kontos (ab 0.85.0, Manager-Angleichung A1):** `mod:AcctId()`, gespeichert in `PeonBrokerDB.acct`, angelegt beim ersten Laden. Der Manager hält darüber Einkaufslisten und Beobachtung je WoW-Konto auseinander. Nicht veröffentlicht.
 
@@ -74,10 +76,11 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.83.0, 0.82.0, 0.81.1, 0.81.0, 0.80.0, 0.79.0, 0.78.0, 0.77.0, 0.76.0, 0.75.1, 0.75.0, 0.74.0, 0.73.0, 0.72.0, 0.71.0, 0.70.0, 0.69.0, 0.68.0, 0.67.0, 0.66.0, 0.65.0, 0.64.1, 0.64.0, 0.63.0, 0.62.0, 0.61.0, 0.60.1, 0.60.0, 0.59.1, 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.29.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.30.0
 
-- **Angleichung nach dem Neuaufbau von Broker und Ledger:** Konzept `docs\konzepte\manager\Peon_Manager_Angleichung.md`, Teil 1 (Einkaufslisten und Beobachten) freigegeben am 13.11.2026. Bauabschnitte A1 bis A5, danach Teil 2 (Chancen, Marktübersicht) und Teil 3 (Daten für Broker).
+- **Angleichung nach dem Neuaufbau von Broker und Ledger:** Konzept `docs\konzepte\manager\Peon_Manager_Angleichung.md`, Teil 1 (Einkaufslisten und Beobachten) freigegeben am 13.11.2026. Bauabschnitte A1 bis A5 (A1 und A2 gebaut), danach Teil 2 (Chancen, Marktübersicht) und Teil 3 (Daten für Broker).
 - **Konten (ab 0.29.0, A1):** Einkaufslisten und Beobachtung je WoW-Konto (`meta` `shop:<Kennung>`, `watch:<Kennung>`, `accts`, `acctFolders`, `acctSel`, `acctMigrated`), `Data.lua` mit `accts`, Abschnitt Konten unter Datenlage. Der frühere gemischte Stand ging an das erste Konto mit Kennung. Nicht veröffentlicht, im echten Programm noch nicht geprüft (Prüfliste im Changelog bei 0.29.0). Braucht Broker 0.85 und Bridge 0.10, alle drei zusammen veröffentlichen.
+- **Abgleich je Wert (ab 0.30.0, A2):** `shopping.js` mit Zeiten je Wert, neue Datei `watching.js` (Beobachtung mit Kaufen bis und Zielpreis, `setWatchBuy`, `setWatchUp`), Löschmarken ein Jahr. Braucht Broker 0.89. Nicht veröffentlicht.
 
 - **Seiten in Überarbeitung (ab 0.28.0):** Einkaufen, Beobachtung, Radar und Händler heißen „(WIP)“ und zeigen nur „Überarbeitung notwendig! Derzeit nur im Spiel verfügbar.“ (`wip` in `ALL`, `App.vue`). Abgleich der Beobachtung und Meldungen laufen weiter.
 

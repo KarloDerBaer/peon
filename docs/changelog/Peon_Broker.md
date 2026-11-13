@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.89.0
+
+Kurz: Änderst du an einer Einkaufsliste im Spiel und im Peon Manager verschiedene Werte, bleiben jetzt beide erhalten.
+Kurz: Kaufen bis und Zielpreis der Beobachtung gleichen sich jetzt auch mit dem Peon Manager ab.
+
+- 0.89.0 (13.11.2026): Angleichung des Managers, Bauabschnitt A2 (Konzept `docs/konzepte/manager/Peon_Manager_Angleichung.md` 3.2 bis 3.4). Braucht Manager 0.30.
+  - **Abgleich je Wert** (`Shop.lua`): Name und Rabatt einer Liste, Menge und Höchstpreis eines Eintrags tragen ihre eigene Zeit in `t`, die neuere gewinnt (`S.MergeFields`). Ohne `t` (Daten von vor 0.89) gilt `u` für alle Werte, das verhält sich wie bisher. Name, Qualität und Symbol werden nur ergänzt, wo sie fehlen. Eigene Änderungen vermerkt `B.Touch(obj, Wert)` über `S.Stamp`.
+  - **Beobachtung je Wert** (`Watch.lua`): Kaufen bis (`lim` oder `pct`, Zeit `t.buy`) und Zielpreis (`up`, Zeit `t.up`) gehen mit dem Manager hin und zurück. Der reine Abgleich steht in `Wt.Merge`, ein neuer Wert aus dem Manager setzt den Merker des Alarms zurück. Ein Manager vor 0.30 schickt nur eine Zahl, dann zählt nur, ob beobachtet wird.
+  - **Löschmarken halten ein Jahr** statt 60 Tage.
+  - Tests: Jahr der Löschmarken und Abgleich je Wert in `test_broker.lua`. Im Manager vergleichen `shop_compare.lua` und `watch_compare.lua` je 3000 Zufallsfälle mit den Regeln in JavaScript.
+  - **Im Spiel prüfen:** Unter Beobachten Kaufen bis und Zielpreis setzen, `/reload`: Beides steht im Manager. Im Manager eine Grenze ändern, `/reload`: Sie ist im Spiel.
+
 ## 0.88.0
 
 Kurz: Bei Kisten mit Paketauswahl kannst du das günstigste Paket über das Peon-Menü (Strg+Rechtsklick) auf die Einkaufsliste „Handelsauftrag“ setzen.

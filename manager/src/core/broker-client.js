@@ -12,6 +12,7 @@ const broker = require('./broker');
 const history = require('./history');
 const retention = require('./retention');
 const shopping = require('./shopping');
+const watching = require('./watching');
 const zlib = require('node:zlib');
 const { parseLua } = require('./lua');
 const { parseRows, itemKey, unitPrice } = require('./stats');
@@ -599,90 +600,64 @@ class BrokerClient {
   }
 
   // ---------- Beobachtung (bis 0.23 Favoriten) ----------
-  // Je Konto in meta watch:<Kennung> = { items: { Schluessel: u }, gone: { Schluessel: u } }.
+  // Je Konto in meta watch:<Kennung>, Aufbau und Regeln in watching.js (ab 0.30.0 mit Kaufen bis und Zielpreis).
   // Konto null: der fruehere gemischte Stand (meta watch, bis 0.28.0 Tabelle favorites und meta watchGone).
   watchDoc(acct = this.acctSel()) {
     const d = this.meta(acct ? `watch:${acct}` : 'watch');
-    if (d) return { items: { ...(d.items || {}) }, gone: { ...(d.gone || {}) } };
-    if (acct) return { items: {}, gone: {} };
+    if (d) return watching.clean(d);
+    if (acct) return watching.empty();
     const items = {};
     for (const r of this.db.prepare('SELECT item_key, added FROM favorites').all()) items[r.item_key] = r.added || 0;
-    return { items, gone: { ...(this.meta('watchGone') || {}) } };
+    return watching.clean({ items, gone: this.meta('watchGone') || {} });
   }
 
   saveWatch(acct, d) { this.meta(acct ? `watch:${acct}` : 'watch', d); }
 
   favorites(acct = this.acctSel()) {
-    return Object.entries(this.watchDoc(acct).items).sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1)).map(([k]) => k);
+    return Object.entries(this.watchDoc(acct).items).sort((a, b) => a[1].u - b[1].u || (a[0] < b[0] ? -1 : 1)).map(([k]) => k);
   }
 
   watchGone(acct = this.acctSel()) { return this.watchDoc(acct).gone; }
 
-  setFavorite(key, on) {
+  // Eingabe im Manager (gewaehltes Konto): speichern und gleich fuer das Spiel bereitlegen
+  watchEdit(fn) {
     const acct = this.acctSel();
     const d = this.watchDoc(acct);
-    const k = String(key);
-    let changed = false;
-    if (on && d.items[k] === undefined) {
-      d.items[k] = this.now();
-      delete d.gone[k];
-      changed = true;
-    } else if (!on && d.items[k] !== undefined) {
-      d.gone[k] = Math.max(this.now(), (d.items[k] || 0) + 1);
-      delete d.items[k];
-      changed = true;
-    }
+    const changed = fn(d, this.now());
     if (changed) { this.saveWatch(acct, d); this.writeBridge('beobachtung'); }
-    return this.favorites(acct);
-  }
-
-  // Beobachtung eines Kontos einmischen: je Gegenstand gewinnt die neuere Aenderung, Loeschmarken halten. true bei Aenderung
-  static mergeWatch(d, w, now) {
-    let changed = false;
-    for (const [k, u] of Object.entries(w.items || {})) {
-      const have = d.items[k];
-      const local = have !== undefined ? have : (d.gone[k] || 0);
-      if (u > local || (have === undefined && !d.gone[k])) {
-        d.items[k] = u || now;
-        if (d.gone[k] !== undefined) delete d.gone[k];
-        changed = true;
-      }
-    }
-    for (const [k, u] of Object.entries(w.gone || {})) {
-      const have = d.items[k];
-      if (have !== undefined && u > have) { delete d.items[k]; d.gone[k] = u; changed = true; }
-      else if (have === undefined && u > (d.gone[k] || 0)) { d.gone[k] = u; changed = true; }
-    }
     return changed;
   }
 
-  // Beobachtung aus dem Spiel einmischen (ab 0.24, ab 0.29.0 je Konto). Rueckgabe: true bei Aenderung
+  setFavorite(key, on) {
+    const n = on ? this.db.prepare('SELECT name, quality FROM items WHERE key = ?').get(String(key)) : null;
+    this.watchEdit((d, now) => (on ? watching.add(d, key, now, { name: n && n.name, quality: n && n.quality }) : watching.remove(d, key, now)));
+    return this.favorites();
+  }
+
+  // Kaufen bis: kind 'abs' (Kupfer) oder 'pct' (% unter dem Vergleichspreis), null = keine Grenze (ab 0.30.0)
+  setWatchBuy(key, kind, value) { return this.watchEdit((d, now) => watching.setBuy(d, key, kind || null, value, now)); }
+  // Zielpreis in Kupfer, leer = keine Grenze (ab 0.30.0)
+  setWatchUp(key, value) { return this.watchEdit((d, now) => watching.setUp(d, key, value, now)); }
+
+  // Beobachtung aus dem Spiel einmischen (ab 0.24, ab 0.29.0 je Konto, ab 0.30.0 je Wert). Rueckgabe: true bei Aenderung
   watchFromGame(results) {
     const docs = new Map();
     for (const r of results) {
       if (!r.watch) continue;
       const acct = this.acctOfResult(r);
       if (acct === undefined) continue;
-      if (!docs.has(acct)) docs.set(acct, { d: this.watchDoc(acct), changed: false });
+      if (!docs.has(acct)) { const d = this.watchDoc(acct); docs.set(acct, { d, changed: watching.purge(d, this.now()) }); }
       const x = docs.get(acct);
-      if (BrokerClient.mergeWatch(x.d, r.watch, this.now())) x.changed = true;
+      if (watching.merge(x.d, r.watch)) x.changed = true;
     }
-    // Loeschmarken nach 60 Tagen vergessen (wie bei den Einkaufslisten)
-    const old = this.now() - 60 * 86400;
     let any = false;
-    for (const [acct, x] of docs) {
-      for (const [k, u] of Object.entries(x.d.gone)) if (u < old) { delete x.d.gone[k]; x.changed = true; }
-      if (x.changed) { this.saveWatch(acct, x.d); any = true; }
-    }
+    for (const [acct, x] of docs) if (x.changed) { this.saveWatch(acct, x.d); any = true; }
     return any;
   }
 
-  // Beobachtung fuer Data.lua: { items: { Schluessel: u }, gone: { Schluessel: u } } oder null
-  watchForGame(acct = this.acctSel()) {
-    const d = this.watchDoc(acct);
-    if (!Object.keys(d.items).length && !Object.keys(d.gone).length) return null;
-    return d;
-  }
+  // Beobachtung fuer Data.lua oder null
+  watchForGame(acct = this.acctSel()) { return watching.forGame(this.watchDoc(acct)); }
+
   // ---------- Haendler (ab 0.25, Umbau Broker U11) ----------
   // Aus Peon_Broker.lua: je NPC gewinnt der neuere Besuch (t). Gespeichert in meta "vendors".
   vendorsFromGame(results) {

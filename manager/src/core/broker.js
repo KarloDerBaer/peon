@@ -65,10 +65,17 @@ function importFile(db, file) {
   const acc = g.PeonBrokerDB;
   // Kennung des WoW-Kontos (ab Broker 0.85, Manager 0.29.0), fehlt bei aelterem Broker
   const res = { file, acct: acc && typeof acc.acct === 'string' && acc.acct ? acc.acct : null, markets: [], shop: acc && (acc.lists || acc.listsGone) ? { lists: acc.lists, gone: acc.listsGone } : null };
-  // Beobachtung (ab Broker 0.49, Manager 0.24): { items: { Schluessel: u }, gone: { Schluessel: u } }
+  // Beobachtung (ab Broker 0.49, Manager 0.24): { items: { Schluessel: Eintrag }, gone: { Schluessel: u } }.
+  // Ab Manager 0.30.0 der ganze Eintrag mit Kaufen bis, Zielpreis und Zeiten je Wert (watching.js), ohne Merker des Alarms
   if (acc && (acc.watch || acc.watchGone)) {
     const items = {};
-    for (const [k, w] of Object.entries(acc.watch || {})) items[String(k)] = Number(w && w.u) || 0;
+    for (const [k, w] of Object.entries(acc.watch || {})) {
+      if (!w || typeof w !== 'object') { items[String(k)] = Number(w) || 0; continue; }
+      const e = { u: Number(w.u) || 0 };
+      for (const f of ['lim', 'pct', 'up', 'name', 'q', 'icon']) if (w[f] !== undefined && w[f] !== null && typeof w[f] !== 'object') e[f] = w[f];
+      if (w.t && typeof w.t === 'object') e.t = { ...w.t };
+      items[String(k)] = e;
+    }
     const gone = {};
     for (const [k, u] of Object.entries(acc.watchGone || {})) gone[String(k)] = Number(u) || 0;
     res.watch = { items, gone };

@@ -9,6 +9,7 @@ const { execFileSync } = require('node:child_process');
 const { Service } = require('../src/core/service');
 const { marketLabel, sameMarket } = require('../src/core/markets');
 const shopping = require('../src/core/shopping');
+const watching = require('../src/core/watching');
 const { parseLua, toLua } = require('../src/core/lua');
 const { parseTip } = require('../src/core/game');
 const { marketId } = require('../src/core/db');
@@ -137,10 +138,10 @@ test('Beobachtung (Manager 0.24): Abgleich mit dem Spiel, neuere Aenderung gewin
   assert.ok(!b.favorites().includes('3192:Kurzes Bastardschwert des Gorillas'));
   // fuer Data.lua
   const w = b.watchForGame();
-  assert.equal(w.items['2770'], NOW + 200);
+  assert.equal(w.items['2770'].u, NOW + 200);
   assert.equal(w.gone['3192:Kurzes Bastardschwert des Gorillas'], NOW + 300);
-  // alte Loeschmarken verfallen nach 60 Tagen
-  clock.t = NOW + 61 * 86400;
+  // alte Loeschmarken verfallen nach einem Jahr (bis 0.29.0 nach 60 Tagen)
+  clock.t = NOW + 366 * 86400;
   b.watchFromGame([{ watch: { items: {}, gone: {} } }]);
   assert.equal(b.watchGone()['999'], undefined);
   svc.close();
@@ -170,7 +171,7 @@ test('Beobachtung steht in Data.lua, je Konto (ab 0.29.0)', () => {
   b.importGame();
   b.setFavorite('2770', true);
   const g = parseLua(fs.readFileSync(path.join(ad, 'Data.lua')));
-  assert.equal(g.PeonBridgeData.accts.kA_1.watch.items['2770'], NOW, 'gleich nach dem Stern');
+  assert.equal(g.PeonBridgeData.accts.kA_1.watch.items['2770'].u, NOW, 'gleich nach dem Stern');
   assert.equal(g.PeonBridgeData.watch, undefined, 'nicht mehr oben fuer alle Konten');
   svc.close();
 });
@@ -219,17 +220,28 @@ test('Einkaufsliste: neuere Aenderung gewinnt, Loeschmarken halten, keine Wieder
 const REPO = path.join(__dirname, '..', '..');
 const LUA = path.join(REPO, 'tools', process.platform === 'win32' ? 'lua5.1.exe' : 'lua5.1-linux');
 
-test('Einkaufsliste: gleiches Ergebnis wie Broker (Shop.lua, 1500 Zufallsfaelle)', { skip: !fs.existsSync(LUA) }, () => {
+test('Einkaufsliste: gleiches Ergebnis wie Broker (Shop.lua, 3000 Zufallsfaelle, ab 0.30.0 je Wert)', { skip: !fs.existsSync(LUA) }, () => {
   let seed = 17;
   const rnd = (n) => { seed = (seed * 16807) % 2147483647; return seed % n; };
   const IDS = ['g1_1', 'm2_2', 'g3_3'], KEYS = ['2770', '2589', '15000:Name des Wolfs'];
+  // Zeiten je Wert: manchmal keine (Daten von vor 0.30.0), manchmal nur fuer einen Wert
+  const times = (u, fields) => { if (rnd(3) === 0) return undefined; const t = {}; for (const f of fields) if (rnd(3)) t[f] = u - rnd(4); return t; };
   const side = () => {
     const lists = [];
     for (const id of IDS) {
       if (rnd(3) === 0) continue;
       const items = {};
-      for (const k of KEYS) if (rnd(2)) { const it = { u: 100 + rnd(6) }; if (rnd(2)) it.wish = 1 + rnd(9); if (rnd(3) === 0) it.max = 100 * (1 + rnd(9)); items[k] = it; }
-      lists.push({ id, name: `L${rnd(4)}`, pct: rnd(4) * 10, u: 100 + rnd(6), items });
+      for (const k of KEYS) if (rnd(2)) {
+        const it = { u: 100 + rnd(6) };
+        if (rnd(2)) it.wish = 1 + rnd(9);
+        if (rnd(3) === 0) it.max = 100 * (1 + rnd(9));
+        if (rnd(3) === 0) it.name = `N${rnd(3)}`;
+        const t = times(it.u, ['wish', 'max']); if (t) it.t = t;
+        items[k] = it;
+      }
+      const l = { id, name: `L${rnd(4)}`, pct: rnd(4) * 10, u: 100 + rnd(6), items };
+      const t = times(l.u, ['name', 'pct']); if (t) l.t = t;
+      lists.push(l);
     }
     const gone = { lists: {}, items: {} };
     for (const id of IDS) {
@@ -238,7 +250,7 @@ test('Einkaufsliste: gleiches Ergebnis wie Broker (Shop.lua, 1500 Zufallsfaelle)
     }
     return { lists, gone };
   };
-  const cases = Array.from({ length: 1500 }, () => ({ a: side(), b: side() }));
+  const cases = Array.from({ length: 3000 }, () => ({ a: side(), b: side() }));
   const file = path.join(tmp(), 'cases.lua');
   fs.writeFileSync(file, `CASES = ${toLua(cases)}\n`);
   const out = execFileSync(LUA, [path.join(__dirname, 'lua', 'shop_compare.lua'), path.join(REPO, 'addons', 'Peon_Broker'), file]).toString().trim().split(/\r?\n/);
@@ -248,7 +260,8 @@ test('Einkaufsliste: gleiches Ergebnis wie Broker (Shop.lua, 1500 Zufallsfaelle)
   cases.forEach((c, i) => {
     const d = shopping.clean(JSON.parse(JSON.stringify(c.a)));
     shopping.merge(d, c.b);
-    const parts = [...d.lists].sort((x, y) => (x.id < y.id ? -1 : 1)).map((l) => `${l.id}=${l.name},${v(l.pct)},${v(l.u)}[${sorted(l.items).map((k) => `${k}:${v(l.items[k].wish)}:${v(l.items[k].max)}:${v(l.items[k].u)}`).join(' ')}]`);
+    const tt = (o, f) => (o.t ? o.t[f] : undefined);
+    const parts = [...d.lists].sort((x, y) => (x.id < y.id ? -1 : 1)).map((l) => `${l.id}=${l.name},${v(l.pct)},${v(l.u)},${v(tt(l, 'name'))},${v(tt(l, 'pct'))}[${sorted(l.items).map((k) => { const it = l.items[k]; return `${k}:${v(it.wish)}:${v(it.max)}:${v(it.u)}:${v(tt(it, 'wish'))}:${v(tt(it, 'max'))}:${v(it.name)}`; }).join(' ')}]`);
     const g = [...sorted(d.gone.lists).map((k) => `L${k}=${v(d.gone.lists[k])}`), ...sorted(d.gone.items).map((k) => `I${k}=${v(d.gone.items[k])}`)];
     const js = `${parts.join(';')}#${g.join(';')}`;
     if (js !== out[i]) { if (bad < 3) console.log('ABWEICHUNG', i, '\nJS ', js, '\nLua', out[i], '\n', JSON.stringify(c)); bad++; }

@@ -1,15 +1,25 @@
 -- Peon_Broker - Shop.lua
--- Abgleich der Einkaufslisten mit dem Peon Manager. Beide Seiten koennen aendern, je Eintrag gewinnt die neuere Aenderung.
--- Aufbau: lists = { { id, name, pct, u, items = { [Schluessel] = { wish, max, name, q, icon, u } } } },
+-- Abgleich der Einkaufslisten mit dem Peon Manager. Beide Seiten koennen aendern.
+-- Aufbau: lists = { { id, name, pct, u, t, items = { [Schluessel] = { wish, max, name, q, icon, u, t } } } },
 --         gone = { lists = { [id] = Zeit }, items = { ["id|Schluessel"] = Zeit } } (Loeschmarken).
--- Bei gleicher Zeit bleibt der eigene Stand. Die Regeln muessen gleich bleiben wie in manager/src/core/shopping.js.
+-- u = letzte Aenderung des ganzen Eintrags (Anlegen, Loeschen), t = Zeit je Wert.
+-- Ab 0.89 (Manager-Angleichung A2, Peon_Manager_Angleichung.md 3.2): Abgleich je Wert. Jeder Wert (Name und Rabatt
+-- einer Liste, Menge und Hoechstpreis eines Eintrags) traegt seine eigene Zeit in t, die neuere gewinnt. Ohne t
+-- (Daten von vor 0.89) gilt u fuer alle Werte. Name, Qualitaet und Symbol eines Gegenstands sind nur Anzeige und
+-- werden ergaenzt, wo sie fehlen. Bei gleicher Zeit bleibt der eigene Stand.
+-- Die Regeln muessen gleich bleiben wie in manager/src/core/shopping.js (Test: umbau2.test.js, shop_compare.lua).
 
 local ADDON_NAME, ns = ...
 
 local S = {}
 ns.Shop = S
 
-S.GONE_DAYS = 60   -- so lange bleiben Loeschmarken stehen
+S.GONE_DAYS = 365   -- so lange bleiben Loeschmarken stehen (bis 0.88 60 Tage)
+
+-- Werte mit eigener Zeit: f = Name der Zeit in t, keys = Felder, die zusammen diesen Wert bilden,
+-- reset = Merker, der bei einem neuen Wert aus dem Abgleich wegfaellt
+S.LIST_SPEC = { { f = "name", keys = { "name" } }, { f = "pct", keys = { "pct" } } }
+S.ITEM_SPEC = { { f = "wish", keys = { "wish" } }, { f = "max", keys = { "max" } } }
 
 local function Num(v) return tonumber(v) or 0 end
 
@@ -25,11 +35,68 @@ local function KeyOf(text)
     return tonumber(text) or text
 end
 
-local function Copy(it, u)
+-- Zeit eines Werts: eigene Zeit, sonst die Zeit des ganzen Eintrags
+function S.FieldT(obj, f)
+    local t = type(obj.t) == "table" and obj.t[f]
+    if type(t) == "number" then return t end
+    return Num(obj.u)
+end
+
+-- Felder, die nicht als Anzeige ergaenzt werden: u, t, die Werte mit Zeit und extra
+function S.Skip(spec, extra)
+    local skip = { u = true, t = true }
+    for _, s in ipairs(spec) do for _, k in ipairs(s.keys) do skip[k] = true end end
+    for _, k in ipairs(extra or {}) do skip[k] = true end
+    return skip
+end
+S.LIST_SKIP = S.Skip(S.LIST_SPEC, { "id", "items" })
+S.ITEM_SKIP = S.Skip(S.ITEM_SPEC)
+
+-- Fehlende Zeiten aus u eintragen, bevor sich u aendert
+function S.Fill(obj, spec)
+    if type(obj.t) ~= "table" then obj.t = {} end
+    for _, s in ipairs(spec) do
+        if type(obj.t[s.f]) ~= "number" then obj.t[s.f] = Num(obj.u) end
+    end
+end
+
+-- Eigene Aenderung eines Werts vermerken: u und die Zeit des Werts neu (immer spaeter als vorher)
+function S.Stamp(obj, spec, f, now)
+    S.Fill(obj, spec)
+    obj.u = S.NextU(now, obj.u, obj.t[f])
+    obj.t[f] = obj.u
+    return obj.u
+end
+
+-- Neuer Eintrag aus dem Abgleich: Kopie ohne Tabellen, Zeiten je Wert eingetragen
+function S.NewFrom(inc, spec)
     local c = {}
-    for k, v in pairs(it) do c[k] = v end
-    c.u = u
+    for k, v in pairs(inc) do if type(v) ~= "table" and k ~= "m" then c[k] = v end end
+    c.u = Num(inc.u)
+    c.t = {}
+    for _, s in ipairs(spec) do c.t[s.f] = S.FieldT(inc, s.f) end
     return c
+end
+
+-- inc in einen vorhandenen Eintrag cur einmischen: je Wert die neuere Zeit, Anzeige nur, wo sie fehlt, u = die neuere.
+-- Rueckgabe: true, wenn sich etwas geaendert hat
+function S.MergeFields(cur, inc, spec, skip)
+    local changed = false
+    S.Fill(cur, spec)
+    for _, s in ipairs(spec) do
+        local ti = S.FieldT(inc, s.f)
+        if ti > cur.t[s.f] then
+            for _, k in ipairs(s.keys) do cur[k] = inc[k] end
+            if s.reset then cur[s.reset] = nil end
+            cur.t[s.f] = ti
+            changed = true
+        end
+    end
+    for k, v in pairs(inc) do
+        if not skip[k] and k ~= "m" and cur[k] == nil and type(v) ~= "table" then cur[k] = v; changed = true end
+    end
+    if Num(inc.u) > Num(cur.u) then cur.u = Num(inc.u); changed = true end
+    return changed
 end
 
 -- inc = { lists, gone } einmischen. Rueckgabe: true, wenn sich etwas geaendert hat
@@ -46,26 +113,28 @@ function S.Merge(lists, gone, inc)
                 if goneL >= iu then
                     skip = true
                 else
-                    l = { id = il.id, name = il.name, pct = il.pct, u = iu, items = {} }
+                    l = S.NewFrom(il, S.LIST_SPEC)
+                    l.items = {}
                     lists[#lists + 1] = l
                     gone.lists[il.id] = nil
                     changed = true
                 end
-            elseif iu > Num(l.u) then
-                l.name, l.pct, l.u = il.name, il.pct, iu
+            elseif S.MergeFields(l, il, S.LIST_SPEC, S.LIST_SKIP) then
                 changed = true
             end
             if not skip then
                 for key, it in pairs(type(il.items) == "table" and il.items or {}) do
-                    local u = type(it) == "table" and Num(it.u) or 0
-                    local gk = il.id .. "|" .. tostring(key)
-                    local cur = l.items[key]
-                    local newer
-                    if cur then newer = u > Num(cur.u) else newer = u > Num(gone.items[gk]) end
-                    if newer and type(it) == "table" then
-                        l.items[key] = Copy(it, u)
-                        gone.items[gk] = nil
-                        changed = true
+                    if type(it) == "table" then
+                        local u = Num(it.u)
+                        local gk = il.id .. "|" .. tostring(key)
+                        local cur = l.items[key]
+                        if cur then
+                            if S.MergeFields(cur, it, S.ITEM_SPEC, S.ITEM_SKIP) then changed = true end
+                        elseif u > Num(gone.items[gk]) then
+                            l.items[key] = S.NewFrom(it, S.ITEM_SPEC)
+                            gone.items[gk] = nil
+                            changed = true
+                        end
                     end
                 end
             end

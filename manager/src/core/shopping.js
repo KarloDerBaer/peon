@@ -1,10 +1,80 @@
 'use strict';
 // Peon Manager - Einkaufslisten (Modul Peon Broker Client). Gleicher Aufbau wie im Spiel (Peon_Broker, Shop.lua):
-//   { lists: [{ id, name, pct, u, items: { [Schluessel]: { wish, max, name, q, icon, u } } }], gone: { lists: { id: t }, items: { 'id|Schluessel': t } } }
-// u = letzte Aenderung, gone = Loeschmarken. Beide Seiten koennen aendern, je Eintrag gewinnt die neuere Aenderung.
-// Das Spiel liefert ueber Peon_Broker.lua, der Manager ueber Data.lua. Die Regeln muessen gleich bleiben wie in Shop.lua (Test: umbau2.test.js).
+//   { lists: [{ id, name, pct, u, t, items: { [Schluessel]: { wish, max, name, q, icon, u, t } } }], gone: { lists: { id: t }, items: { 'id|Schluessel': t } } }
+// u = letzte Aenderung des ganzen Eintrags (Anlegen, Loeschen), t = Zeit je Wert, gone = Loeschmarken.
+// Ab 0.30.0 (Angleichung A2, Peon_Manager_Angleichung.md 3.2): Abgleich je Wert. Name und Rabatt einer Liste, Menge und
+// Hoechstpreis eines Eintrags tragen ihre eigene Zeit, die neuere gewinnt. Ohne t (Daten von vor 0.30.0) gilt u.
+// Name, Qualitaet und Symbol eines Gegenstands sind nur Anzeige und werden ergaenzt, wo sie fehlen.
+// Das Spiel liefert ueber Peon_Broker.lua, der Manager ueber Data.lua. Die Regeln muessen gleich bleiben wie in Shop.lua
+// (Test: umbau2.test.js mit test/lua/shop_compare.lua). m = Eingabe im Manager, die das Spiel noch nicht hat.
 
-const GONE_DAYS = 60;   // so lange bleiben Loeschmarken stehen
+const GONE_DAYS = 365;   // so lange bleiben Loeschmarken stehen (bis 0.29.0 60 Tage)
+
+// Werte mit eigener Zeit: f = Name der Zeit in t, keys = Felder dieses Werts, reset = Merker, der bei neuem Wert wegfaellt
+const LIST_SPEC = [{ f: 'name', keys: ['name'] }, { f: 'pct', keys: ['pct'] }];
+const ITEM_SPEC = [{ f: 'wish', keys: ['wish'] }, { f: 'max', keys: ['max'] }];
+
+const num = (v) => Number(v) || 0;
+
+// Felder, die nicht als Anzeige ergaenzt werden
+function skipOf(spec, extra = []) {
+  return new Set(['u', 't', 'm', ...spec.flatMap((s) => s.keys), ...extra]);
+}
+const LIST_SKIP = skipOf(LIST_SPEC, ['id', 'items']);
+const ITEM_SKIP = skipOf(ITEM_SPEC);
+
+// Zeit eines Werts: eigene Zeit, sonst die Zeit des ganzen Eintrags
+function fieldT(obj, f) {
+  const t = obj.t && typeof obj.t === 'object' ? obj.t[f] : undefined;
+  return typeof t === 'number' ? t : num(obj.u);
+}
+
+// Fehlende Zeiten aus u eintragen, bevor sich u aendert
+function fill(obj, spec) {
+  if (!obj.t || typeof obj.t !== 'object') obj.t = {};
+  for (const s of spec) if (typeof obj.t[s.f] !== 'number') obj.t[s.f] = num(obj.u);
+}
+
+// Neue Zeit fuer eine Aenderung: immer spaeter als die letzte, auch innerhalb einer Sekunde
+const nextU = (now, ...old) => Math.max(now, ...old.map((x) => num(x) + 1));
+
+// Eigene Aenderung eines Werts vermerken (wie S.Stamp)
+function stamp(obj, spec, f, now) {
+  fill(obj, spec);
+  obj.u = nextU(now, obj.u, obj.t[f]);
+  obj.t[f] = obj.u;
+  return obj.u;
+}
+
+// Neuer Eintrag aus dem Abgleich: Kopie ohne Tabellen, Zeiten je Wert eingetragen
+function newFrom(inc, spec) {
+  const c = {};
+  for (const [k, v] of Object.entries(inc)) if (k !== 'm' && v !== null && v !== undefined && typeof v !== 'object') c[k] = v;
+  c.u = num(inc.u);
+  c.t = {};
+  for (const s of spec) c.t[s.f] = fieldT(inc, s.f);
+  return c;
+}
+
+// inc in einen vorhandenen Eintrag cur einmischen (wie S.MergeFields). true, wenn sich etwas geaendert hat
+function mergeFields(cur, inc, spec, skip) {
+  let changed = false;
+  fill(cur, spec);
+  for (const s of spec) {
+    const ti = fieldT(inc, s.f);
+    if (ti > cur.t[s.f]) {
+      for (const k of s.keys) { if (inc[k] === undefined || inc[k] === null) delete cur[k]; else cur[k] = inc[k]; }
+      if (s.reset) delete cur[s.reset];
+      cur.t[s.f] = ti;
+      changed = true;
+    }
+  }
+  for (const [k, v] of Object.entries(inc)) {
+    if (!skip.has(k) && cur[k] === undefined && v !== null && v !== undefined && typeof v !== 'object') { cur[k] = v; changed = true; }
+  }
+  if (num(inc.u) > num(cur.u)) { cur.u = num(inc.u); delete cur.m; changed = true; }
+  return changed;
+}
 
 const empty = () => ({ lists: [], gone: { lists: {}, items: {} } });
 
@@ -28,23 +98,24 @@ function merge(doc, inc) {
     let l = doc.lists.find((x) => x.id === il.id);
     if (!l) {
       if (goneL >= il.u) continue;
-      l = { id: il.id, name: il.name, pct: il.pct, u: il.u, items: {} };
+      l = newFrom(il, LIST_SPEC);
+      l.items = {};
       doc.lists.push(l);
       if (goneL) delete doc.gone.lists[il.id];
       changed = true;
-    } else if (il.u > l.u) {
-      l.name = il.name; l.pct = il.pct; l.u = il.u; delete l.m;
+    } else if (mergeFields(l, il, LIST_SPEC, LIST_SKIP)) {
       changed = true;
     }
     for (const [key, it] of Object.entries(il.items)) {
-      const u = Number(it && it.u) || 0;
+      if (!it || typeof it !== 'object') continue;
+      const u = Number(it.u) || 0;
       const gk = `${il.id}|${key}`;
       const goneI = Number(doc.gone.items[gk]) || 0;
       const cur = l.items[key];
-      if (cur ? u > (Number(cur.u) || 0) : u > goneI) {
-        const next = { ...it, u };
-        delete next.m;
-        l.items[key] = next;
+      if (cur) {
+        if (mergeFields(cur, it, ITEM_SPEC, ITEM_SKIP)) changed = true;
+      } else if (u > goneI) {
+        l.items[key] = newFrom(it, ITEM_SPEC);
         if (goneI) delete doc.gone.items[gk];
         changed = true;
       }
@@ -85,14 +156,11 @@ function forGame(doc) {
     lists: doc.lists.map((l) => {
       const items = {};
       for (const [k, it] of Object.entries(l.items)) { const c = { ...it }; delete c.m; items[k] = c; }
-      return { id: l.id, name: l.name, pct: l.pct, u: l.u, items };
+      return { id: l.id, name: l.name, pct: l.pct, u: l.u, ...(l.t ? { t: l.t } : {}), items };
     }),
     gone: doc.gone,
   };
 }
-
-// Neue Zeit fuer eine Aenderung: immer spaeter als die letzte, auch innerhalb einer Sekunde
-const nextU = (now, ...old) => Math.max(now, ...old.map((x) => (Number(x) || 0) + 1));
 
 function newList(doc, name, now) {
   const id = `m${now}_${Math.floor(Math.random() * 1e6)}`;
@@ -113,9 +181,8 @@ function deleteList(doc, id, now) {
 function updateList(doc, id, { name, pct } = {}, now) {
   const l = doc.lists.find((x) => x.id === id);
   if (!l) return null;
-  if (name !== undefined && String(name).trim()) l.name = String(name).trim();
-  if (pct !== undefined) l.pct = Math.max(0, Math.min(90, Math.round(Number(pct) || 0)));
-  l.u = nextU(now, l.u);
+  if (name !== undefined && String(name).trim()) { l.name = String(name).trim(); stamp(l, LIST_SPEC, 'name', now); }
+  if (pct !== undefined) { l.pct = Math.max(0, Math.min(90, Math.round(Number(pct) || 0))); stamp(l, LIST_SPEC, 'pct', now); }
   l.m = 1;
   return l;
 }
@@ -149,9 +216,8 @@ function setItem(doc, id, key, { wish, max } = {}, now) {
   const l = doc.lists.find((x) => x.id === id);
   const it = l && l.items[String(key)];
   if (!it) return null;
-  if (wish !== undefined) { if (Number(wish) >= 1) it.wish = Math.floor(Number(wish)); else delete it.wish; }
-  if (max !== undefined) { if (Number(max) > 0) it.max = Math.round(Number(max)); else delete it.max; }
-  it.u = nextU(now, it.u);
+  if (wish !== undefined) { if (Number(wish) >= 1) it.wish = Math.floor(Number(wish)); else delete it.wish; stamp(it, ITEM_SPEC, 'wish', now); }
+  if (max !== undefined) { if (Number(max) > 0) it.max = Math.round(Number(max)); else delete it.max; stamp(it, ITEM_SPEC, 'max', now); }
   it.m = 1;
   return it;
 }
@@ -174,4 +240,5 @@ function money(copper) {
   return [g ? `${g}g` : '', s ? `${s}s` : '', k || (!g && !s) ? `${k}c` : ''].filter(Boolean).join(' ');
 }
 
-module.exports = { empty, clean, merge, purge, forGame, newList, deleteList, updateList, addItem, removeItem, setItem, pending, money, GONE_DAYS };
+module.exports = { empty, clean, merge, purge, forGame, newList, deleteList, updateList, addItem, removeItem, setItem, pending, money, GONE_DAYS,
+  LIST_SPEC, ITEM_SPEC, fieldT, fill, stamp, nextU, newFrom, mergeFields };

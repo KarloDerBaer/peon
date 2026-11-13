@@ -3,6 +3,8 @@
 --   PeonBrokerDB.watch[Schluessel] = { u, name, q, icon, lim (Kupfer) oder pct (% unter dem Vergleichspreis), hit,
 --                                      up (Grenze nach oben in Kupfer, ab 0.68), upHit }
 --   PeonBrokerDB.watchGone[Schluessel] = Zeit (Loeschmarke, wie bei den Einkaufslisten)
+-- Ab 0.89 (Manager-Angleichung A2, Peon_Manager_Angleichung.md 3.2): t = { buy, up } Zeit je Wert. "buy" ist Kaufen bis
+-- (lim oder pct), "up" der Zielpreis. Der Abgleich mit dem Manager laeuft je Wert, beide Grenzen gehen mit.
 -- Preisalarm: Liegt das guenstigste Angebot auf oder unter der Grenze, meldet Broker das einmal im Chat und mit
 -- Ton (wie das Radar) und erst wieder, nachdem der Preis darueber lag. Geprueft nach jedem Komplettscan, nach
 -- dem Stand vom Manager (Anmelden) und nach jeder Live-Abfrage.
@@ -16,6 +18,10 @@ local Wt = {}
 ns.Watch = Wt
 
 Wt.PCTS = { 10, 20, 30 }   -- Vorschlaege im Menue: % unter dem Vergleichspreis
+
+-- Werte mit eigener Zeit (ab 0.89, Regeln in Shop.lua): Kaufen bis und Zielpreis. hit und upHit sind Merker des Alarms
+Wt.SPEC = { { f = "buy", keys = { "lim", "pct" }, reset = "hit" }, { f = "up", keys = { "up" }, reset = "upHit" } }
+Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, upHit = true }
 
 local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
 local function Money(v) return ns.Tooltip.Money(v) end
@@ -79,7 +85,7 @@ function Wt.SetLimit(key, kind, value)
     w.lim, w.pct, w.hit = nil, nil, nil
     if kind == "pct" and Num(value) then w.pct = value
     elseif kind == "abs" and Num(value) and value > 0 then w.lim = math.floor(value) end
-    w.u = NextU(w.u)
+    ns.Shop.Stamp(w, Wt.SPEC, "buy", time and time() or 0)   -- ab 0.89 je Wert
     Wt.Check({ key })
     return true
 end
@@ -91,7 +97,7 @@ function Wt.SetUp(key, value)
     if not w then return false end
     w.up, w.upHit = nil, nil
     if Num(value) and value > 0 then w.up = math.floor(value) end
-    w.u = NextU(w.u)
+    ns.Shop.Stamp(w, Wt.SPEC, "up", time and time() or 0)   -- ab 0.89 je Wert
     Wt.Check({ key })
     return true
 end
@@ -209,36 +215,52 @@ function Wt.Init()
 end
 
 -- Beobachtung aus dem Peon Manager einmischen (ab 0.49, ueber Peon_Bridge 0.9.0, Data.lua "watch").
--- data = { items = { [Schluessel] = u }, gone = { [Schluessel] = u } }. Je Gegenstand gewinnt die neuere Aenderung.
--- Preisgrenzen bleiben im Spiel (der Manager kennt keine). Rueckgabe: true bei Aenderung
+-- data = { items = { [Schluessel] = Eintrag }, gone = { [Schluessel] = u } }. Ab 0.89 ist ein Eintrag
+-- { u, lim, pct, up, t, name, q, icon } und der Abgleich laeuft je Wert (Wt.Merge). Ein Manager vor 0.30 schickt nur u
+-- (Zahl), dann zaehlt nur, ob beobachtet wird. Rueckgabe: true bei Aenderung
 function mod:MergeWatch(data)
     if type(data) ~= "table" then return false end
-    local st, gone = Wt.Store(), Wt.Gone()
+    local st = Wt.Store()
+    local changed = Wt.Merge(st, Wt.Gone(), data)
+    for key, w in pairs(st) do
+        if w.name == nil and ns.Data and ns.Data.Lookup then w.name = ns.Data.ItemName(key, ns.Data.Lookup(key)) end
+    end
+    if changed then Wt.Check() end
+    return changed
+end
+
+-- Reiner Abgleich ohne Spiel (gleiche Regeln wie manager/src/core/watching.js, Test umbau2.test.js, watch_compare.lua)
+function Wt.Merge(st, gone, data)
+    local S = ns.Shop
     local changed = false
     local function Key(k)
         if type(k) == "string" and k:match("^%d+$") then return tonumber(k) end
         return k
     end
-    for k, u in pairs(type(data.items) == "table" and data.items or {}) do
-        local key, uu = Key(k), tonumber(u) or 0
+    for k, raw in pairs(type(data.items) == "table" and data.items or {}) do
+        local key = Key(k)
+        local bare = type(raw) ~= "table"
+        local inc = bare and { u = tonumber(raw) or 0 } or raw
+        local uu = tonumber(inc.u) or 0
         local w = st[key]
-        local localU = w and (w.u or 0) or (gone[key] or 0)
-        if not w and (uu > localU or gone[key] == nil) then
-            local e = ns.Data.Lookup(key)
-            st[key] = { u = uu, name = ns.Data.ItemName(key, e) }
-            gone[key] = nil
-            changed = true
-        elseif w and uu > (w.u or 0) then
-            w.u = uu
+        local localU = w and (tonumber(w.u) or 0) or (tonumber(gone[key]) or 0)
+        if not w then
+            if uu > localU or gone[key] == nil then
+                st[key] = bare and { u = uu } or S.NewFrom(inc, Wt.SPEC)
+                gone[key] = nil
+                changed = true
+            end
+        elseif bare then
+            if uu > (tonumber(w.u) or 0) then w.u = uu; changed = true end
+        elseif S.MergeFields(w, inc, Wt.SPEC, Wt.SKIP) then
             changed = true
         end
     end
     for k, u in pairs(type(data.gone) == "table" and data.gone or {}) do
         local key, uu = Key(k), tonumber(u) or 0
         local w = st[key]
-        if w and uu > (w.u or 0) then st[key] = nil; gone[key] = uu; changed = true
-        elseif not w and uu > (gone[key] or 0) then gone[key] = uu; changed = true end
+        if w and uu > (tonumber(w.u) or 0) then st[key] = nil; gone[key] = uu; changed = true
+        elseif not w and uu > (tonumber(gone[key]) or 0) then gone[key] = uu; changed = true end
     end
-    if changed then Wt.Check() end
     return changed
 end
