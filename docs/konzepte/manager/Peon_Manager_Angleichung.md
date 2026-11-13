@@ -191,6 +191,8 @@ A1 und A2 ändern das Format und gehen zusammen als Vorabversion in den Kanal Te
 
 ## 10. Teil 2 und Teil 3 (noch auszuarbeiten)
 
+Ausgearbeitet als eigenes Konzept `Peon_Manager_Chancen.md` (Entwurf vom 13.11.2026). Die Punkte unten sind der Ausgangspunkt dafür.
+
 - **Chancen im Manager:** Aufkauf und Händler mit Regeln, die zu Broker passen oder einstellbar sind. Broker hat seit 0.65 neue Bedingungen (nur Massenware, nur im üblichen Bereich, Ziel höchstens 20 % darüber, neue Standardwerte), der Manager rechnet noch nach 0.65.
 - **Marktübersicht:** Fallend, Steigend, Lohnend und die größten Preisänderungen als eigene Seite statt als Reiter unter Chancen. Ob Wiederverkauf bleibt, wird dort entschieden.
 - **Daten für Broker:** zum Beispiel Kandidaten für das Radar aus den stündlichen Ständen (Broker-Konzept Neuaufbau 6.7).

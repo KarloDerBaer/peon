@@ -28,6 +28,8 @@
 | Manager | [Peon_Client_Design.md](konzepte/manager/Peon_Client_Design.md) | Programm Peon Client und Modul Peon_Client (jetzt Peon Manager mit Modul Peon Broker Client und Peon_Bridge) |
 | Manager | [Peon_GitHub_Design.md](konzepte/manager/Peon_GitHub_Design.md) | GitHub-Repo, Peon Manager, Peon_Bridge, Umsetzungsplan |
 | Manager | [Peon_Blizzard_API.md](konzepte/manager/Peon_Blizzard_API.md) | Blizzard-API für Forever: Aufbau, Häuser, offene Fragen, Beobachter |
+| Manager | [Peon_Manager_Angleichung.md](konzepte/manager/Peon_Manager_Angleichung.md) | Angleichung nach dem Neuaufbau: Einkaufslisten und Beobachten (Teil 1) |
+| Manager | [Peon_Manager_Chancen.md](konzepte/manager/Peon_Manager_Chancen.md) | Chancen und Prognosen, Übergabe an Broker (Angleichung Teil 2 und 3, Entwurf) |
 | Tooltip | [Peon_Tooltip_Konzept.md](konzepte/tooltip/Peon_Tooltip_Konzept.md) | Teile im Gegenstands-Tooltip |
 | Mover | [Peon_Mover_Konzept.md](konzepte/mover/Peon_Mover_Konzept.md) | Fenster verschieben |
 | Bags | [Peon_Bags_Konzept.md](konzepte/bags/Peon_Bags_Konzept.md) | Taschen, Bank, Gildenbank |
