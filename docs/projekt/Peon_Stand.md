@@ -53,7 +53,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 
 ## Peon_Broker – 0.92.0 (neu, Auktionshaus-Helfer)
 
-- **Warnung je Gegenstand (ab 0.92.0):** Lautsprecher-Spalte in der Liste Beobachten statt „Üblich“, Klick schaltet `mute` im Eintrag. Nicht veröffentlicht, im Spiel noch nicht geprüft.
+- **Warnung je Gegenstand (ab 0.92.0):** Je eine Lautsprecher-Spalte hinter Kaufen bis und Zielpreis in der Liste Beobachten statt „Üblich“, Klick schaltet `muteDown` bzw. `muteUp` im Eintrag. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 
 - **Wünsche vom 13.11.2026 (ab 0.91.0, Fehlerberichte 17 bis 24):** Kaufen im Fokus mit einem Klick (Bestätigung automatisch, außer bei Preiswarnung). Fenster Einstellungen unter Beobachten mit Ton und Chat je Richtung (`watchSoundDown`, `watchSoundUp`, `watchChatDown`, `watchChatUp`), Ton je Gegenstand im Rechtsklick-Menü (`sDown`, `sUp`). Wiedereinstellen merken nur mit Haken je Gegenstand (`PeonBrokerDB.relist`, Vorgabe `relistDefault` aus). Neue Datei `Rating.lua`: „Chance einschätzen“ im Gegenstandsmenü, gespeichert in `PeonBrokerDB.ratings` (Auswertung im Manager offen). Diagramm im Fokus mit Kaufen bis in Blau. Namensfeld der Einkaufsliste wird beim Tippen nicht mehr überschrieben. Bereich Beobachten für Rückmeldungen. Im Spiel noch nicht geprüft.
 

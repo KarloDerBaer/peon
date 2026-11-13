@@ -4,13 +4,13 @@ Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeig
 
 ## 0.92.0
 
-Kurz: In der Liste Beobachten schaltest du die Warnung je Gegenstand mit einem Klick auf das Lautsprecher-Symbol an und aus.
+Kurz: In der Liste Beobachten steht hinter Kaufen bis und hinter Zielpreis je ein Lautsprecher-Symbol. Ein Klick schaltet die Warnung für diese Grenze je Gegenstand an und aus.
 
 - 0.92.0 (13.11.2026): Symbol für die Warnung je Gegenstand (Anmerkung KarloDerBaer zur Vorabversion).
-  - **Neue Spalte** in der Liste Beobachten statt „Üblich“: Lautsprecher (Blizzards Atlas `voicechat-icon-speaker`, aus: `voicechat-icon-speaker-mute`). Klick auf das Symbol schaltet die Warnung (Chat und Ton) für diesen Gegenstand an oder aus, die Zeile wird dabei nicht ausgewählt. Die Tabelle meldet nur die Zeile, darum prüft `P.OverBell` die Maus über dem Spaltenkopf. Hinweis beim Darüberfahren.
-  - Gespeichert im Eintrag als `mute` (`Wt.Muted`, `Wt.ToggleMute`), bleibt im Spiel, geht nicht an den Manager. Der Haken „Warnung“ unten schaltet weiter alle Gegenstände ab.
+  - **Zwei neue Spalten** in der Liste Beobachten statt „Üblich“, je ein Lautsprecher hinter Kaufen bis und hinter Zielpreis (Blizzards Atlas `voicechat-icon-speaker`, aus: `voicechat-icon-speaker-mute`). Klick auf ein Symbol schaltet die Warnung (Chat und Ton) für diese Grenze des Gegenstands an oder aus, die Zeile wird dabei nicht ausgewählt. Die Tabelle meldet nur die Zeile, darum prüft `P.OverBell` die Maus über den Spaltenköpfen. Hinweis beim Darüberfahren.
+  - Gespeichert im Eintrag als `muteDown` und `muteUp` (`Wt.Muted(key, dir)`, `Wt.ToggleMute(key, dir)`), bleibt im Spiel, geht nicht an den Manager. Der Haken „Warnung“ unten schaltet weiter alle Gegenstände ab.
   - Tests: Umschalten, keine Meldung im ausgeschalteten Zustand, Klick auf die Spalte.
-  - **Im Spiel prüfen:** Symbole in der Liste sichtbar (kein grünes Kästchen), Klick schaltet um, Klick daneben wählt aus, Doppelklick öffnet weiter den Fokus. Ausgeschalteter Gegenstand erreicht Kaufen bis: keine Meldung.
+  - **Im Spiel prüfen:** Symbole in der Liste sichtbar (kein grünes Kästchen), Klick auf jedes der beiden Symbole schaltet nur seine Grenze um, Klick daneben wählt aus, Doppelklick öffnet weiter den Fokus. Ausgeschalteter Gegenstand erreicht Kaufen bis: keine Meldung.
 
 ## 0.91.0
 

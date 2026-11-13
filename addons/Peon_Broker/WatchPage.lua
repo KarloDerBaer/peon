@@ -92,20 +92,28 @@ end
 -- ab 0.92: Symbol der Warnung je Gegenstand (Blizzards Lautsprecher aus dem Sprachchat, Zweig forever)
 P.BELL_ON = "|A:voicechat-icon-speaker:16:16|a"
 P.BELL_OFF = "|A:voicechat-icon-speaker-mute:16:16|a"
-P.BELL_W = 44
-P.BELL_COL = 5   -- Platz der Spalte in der Tabelle
+P.BELL_W = 36
+P.BELL_COL = { Down = 4, Up = 6 }   -- Platz der Spalten in der Tabelle (hinter Kaufen bis und Zielpreis)
 
--- Steht die Maus ueber der Spalte mit dem Symbol? (Die Tabelle meldet nur die Zeile, darum ueber den Spaltenkopf)
+function P.BellColumn(dir)
+    local f = "mute" .. dir
+    return { key = f, title = P.BELL_ON, width = P.BELL_W, align = "CENTER",
+             format = function(v) return v and P.BELL_OFF or P.BELL_ON end,
+             sort = function(r) return r[f] and 1 or 0 end }
+end
+
+-- Ueber welcher Symbolspalte steht die Maus? "Down", "Up" oder nil. Die Tabelle meldet nur die Zeile, darum ueber
+-- die Spaltenkoepfe.
 function P.OverBell()
-    local h = P.list and P.list.heads and P.list.heads[P.BELL_COL]
-    if not (h and h.GetLeft and GetCursorPosition) then return false end
-    local left, right = h:GetLeft(), h:GetRight()
-    if not (left and right) then return false end
-    local x = GetCursorPosition()
-    local scale = h.GetEffectiveScale and h:GetEffectiveScale() or 1
-    if not (x and scale and scale > 0) then return false end
-    x = x / scale
-    return x >= left and x <= right
+    if not GetCursorPosition then return nil end
+    for dir, i in pairs(P.BELL_COL) do
+        local h = P.list and P.list.heads and P.list.heads[i]
+        local left, right = h and h.GetLeft and h:GetLeft(), h and h.GetRight and h:GetRight()
+        local scale = h and h.GetEffectiveScale and h:GetEffectiveScale() or 1
+        local x = GetCursorPosition()
+        if left and right and x and scale > 0 and x / scale >= left and x / scale <= right then return dir end
+    end
+    return nil
 end
 
 -- Zeilen der Liste
@@ -128,7 +136,8 @@ function P.Rows()
             bandLow = type(band) == "table" and Num(band.low) and band.low or nil,
             bandHigh = type(band) == "table" and Num(band.high) and band.high or nil,
             age = P.Age(key),
-            mute = w.mute == true,
+            muteDown = w.muteDown == true,
+            muteUp = w.muteUp == true,
         }
     end
     return rows
@@ -164,11 +173,10 @@ function P.Build(c)
               color = function(r) return UI.QualityColor(r.quality or 1) end },
             { key = "price", title = L.WATCH_COL_PRICE, width = 100, align = "RIGHT", format = function(v) return Num(v) and Money(v) or (GREY .. "-|r") end },
             { key = "limit", title = L.FOCUS_R_LIMIT, width = 100, align = "RIGHT", format = function(v) return Num(v) and Money(v) or (GREY .. "-|r") end },
+            -- ab 0.92 statt "Ueblich": Symbol der Warnung hinter jeder Grenze, Klick schaltet an und aus
+            P.BellColumn("Down"),
             { key = "target", title = L.FOCUS_R_TARGET, width = 100, align = "RIGHT", format = function(v) return Num(v) and Money(v) or (GREY .. "-|r") end },
-            -- ab 0.92 statt "Ueblich": Symbol Warnung je Gegenstand, Klick schaltet an und aus
-            { key = "mute", title = P.BELL_ON, width = P.BELL_W, align = "CENTER",
-              format = function(v) return v and P.BELL_OFF or P.BELL_ON end,
-              sort = function(r) return r.mute and 1 or 0 end },
+            P.BellColumn("Up"),
             { key = "age", title = L.WATCH_COL_AGE, width = 70, align = "RIGHT", format = function(v) return P.AgeText(v) end,
               sort = function(r) return r.age or 1e9 end },
             { key = "advice", title = L.WATCH_COL_ADVICE, width = 96, align = "RIGHT",
@@ -186,11 +194,12 @@ function P.Build(c)
         end,
         -- ab 0.83 (KarloDerBaer): Klick waehlt (fuer die Knoepfe unten), Doppelklick oeffnet den Fokus, Rechtsklick das Menue
         onClick = function(r, button)
-            -- ab 0.92: Klick auf das Symbol schaltet die Warnung des Gegenstands, sonst nichts
-            if button == "LeftButton" and P.OverBell() then
+            -- ab 0.92: Klick auf ein Symbol schaltet die Warnung dieser Grenze, sonst nichts
+            local bell = button == "LeftButton" and P.OverBell() or nil
+            if bell then
                 P.clickKey = nil
-                ns.Watch.ToggleMute(r.key)
-                r.mute = ns.Watch.Muted(r.key)
+                ns.Watch.ToggleMute(r.key, bell)
+                r["mute" .. bell] = ns.Watch.Muted(r.key, bell)
                 if P.list and P.list.list then P.list.list:Refresh() end
                 return
             end
@@ -207,10 +216,11 @@ function P.Build(c)
         end,
         onEnter = function(row, r)
             if not r then return end
-            if P.OverBell() and GameTooltip then
+            local bell = P.OverBell()
+            if bell and GameTooltip then
                 GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-                GameTooltip:SetText(r.mute and L.WATCH_BELL_OFF or L.WATCH_BELL_ON, 1, 0.82, 0)
-                GameTooltip:AddLine(L.WATCH_BELL_TIP, 1, 1, 1, true)
+                GameTooltip:SetText(r["mute" .. bell] and L.WATCH_BELL_OFF or L.WATCH_BELL_ON, 1, 0.82, 0)
+                GameTooltip:AddLine(L["WATCH_BELL_TIP_" .. bell:upper()], 1, 1, 1, true)
                 GameTooltip:Show()
                 return
             end
