@@ -362,6 +362,10 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('favorites', () => (svc.broker ? svc.broker.favorites() : []));
     ipcMain.handle('vendors', (_e, market) => (svc.broker ? svc.broker.vendorView(String(market)) : { rows: [], vendors: 0, offers: 0 }));
     ipcMain.handle('setFavorite', (_e, key, on) => svc.broker.setFavorite(String(key), !!on));
+    // Konten (ab 0.29.0): Einkaufslisten und Beobachtung je WoW-Konto
+    ipcMain.handle('accounts', () => (svc.broker ? svc.broker.accounts() : { list: [], waiting: [], selected: null }));
+    ipcMain.handle('accountSelect', async (_e, id) => { const r = await svc.broker.selectAccount(String(id)); send('changed', { what: 'konto' }); return r; });
+    ipcMain.handle('accountName', async (_e, id, name) => { const r = await svc.broker.nameAccount(String(id), String(name || '')); send('changed', { what: 'konto' }); return r; });
     const shopChanged = async (r) => { const v = await r; send('changed', { what: 'einkaufsliste' }); return v; };
     ipcMain.handle('shopView', (_e, market) => (svc.broker ? svc.broker.shopView(String(market)) : { lists: [] }));
     ipcMain.handle('shopBuyable', (_e, market) => (svc.broker ? svc.broker.shopBuyable(String(market)) : []));

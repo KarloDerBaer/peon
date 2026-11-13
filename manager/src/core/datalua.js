@@ -4,7 +4,8 @@
 // ack = abgeholte Momentaufnahmen (die Bridge loescht sie beim naechsten Start aus der Warteschlange),
 // markets = Preisbereiche und Absatz fuer Broker (Kanal broker),
 // errorsClearBefore, feedbackClearBefore = das Spiel loescht bis zu diesem Zeitpunkt, was der Manager schon hat (reports.js),
-// aliases = andere interne Namen eines Markts, shop = Einkaufslisten (shopping.js),
+// aliases = andere interne Namen eines Markts,
+// accts = Einkaufslisten und Beobachtung je WoW-Konto: { [Kennung]: { shop, watch } } (ab Manager 0.29.0, vorher shop und watch oben fuer alle Konten),
 // tipWant = Gegenstaende, deren genaue Werte der Manager noch nicht kennt: Schluessel -> Link (broker-client.js tipWants).
 // Geschrieben wird in eine neue Datei, die dann die alte ersetzt, damit das Spiel nie eine halbe Datei laedt.
 
@@ -19,7 +20,7 @@ function addonDir(wowDir) {
   return path.join(wowDir, 'Interface', 'AddOns', ADDON);
 }
 
-function writeData(wowDir, { ack = [], markets = {}, channels = { broker: true }, version = '0.0.0', now = Math.floor(Date.now() / 1000), errorsClearBefore = 0, feedbackClearBefore = 0, aliases = null, shop = null, tipWant = null, watch = null } = {}) {
+function writeData(wowDir, { ack = [], markets = {}, channels = { broker: true }, version = '0.0.0', now = Math.floor(Date.now() / 1000), errorsClearBefore = 0, feedbackClearBefore = 0, aliases = null, accts = null, tipWant = null } = {}) {
   const dir = addonDir(wowDir);
   if (!fs.existsSync(path.join(dir, ADDON + '.toc'))) {
     throw new Error(`${ADDON} nicht gefunden: ${dir}`);
@@ -32,8 +33,7 @@ function writeData(wowDir, { ack = [], markets = {}, channels = { broker: true }
   if (errorsClearBefore) data.errorsClearBefore = errorsClearBefore;
   if (feedbackClearBefore) data.feedbackClearBefore = feedbackClearBefore;
   if (aliases && Object.keys(aliases).length) data.aliases = aliases;
-  if (shop) data.shop = shop;
-  if (watch) data.watch = watch;   // Beobachtung (ab 0.24)
+  if (accts) data.accts = accts;   // ab 0.29.0 je Konto (Peon_Manager_Angleichung.md 3.1)
   if (tipWant && Object.keys(tipWant).length) data.tipWant = tipWant;
   const text = '-- Peon_Bridge - Data.lua\n'
     + '-- Geschrieben vom Peon Manager. Nicht von Hand aendern, nie mit ausliefern.\n'

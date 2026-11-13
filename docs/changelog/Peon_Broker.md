@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.85.0
+
+Kurz: Broker merkt sich eine Kennung für dein WoW-Konto. Damit hält der Peon Manager Einkaufslisten und Beobachtung je Konto auseinander.
+
+- 0.85.0 (13.11.2026): Angleichung des Managers, Bauabschnitt A1 (Konzept `docs/konzepte/manager/Peon_Manager_Angleichung.md` 3.1).
+  - Neue Schnittstelle `mod:AcctId()`: zufällige Kennung des Kontos, angelegt beim ersten Laden und danach nie geändert (`PeonBrokerDB.acct`). Das Spiel kennt den Namen des Kontoordners nicht, der Manager ordnet über die Kennung zu.
+  - Tests: Kennung bleibt gleich (`test_bridge.lua`).
+  - **Im Spiel prüfen:** nichts zu sehen. Nach `/reload` steht `acct` in `Peon_Broker.lua`, und das Konto erscheint im Manager unter Datenlage, Konten.
+
 ## 0.84.0
 
 Kurz: Auf der Seite Gegenstand steht unter „Mein Bestand“ jetzt auch, was du zuletzt bezahlt und zuletzt bekommen hast (mit Peon_Ledger).

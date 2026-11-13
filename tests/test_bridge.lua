@@ -623,6 +623,32 @@ do
   for _, l in ipairs(PeonBrokerDB.lists or {}) do if l.id == "m7_7" then found = l end end
   check(found and found.name == "Vom Manager", "0.6.0: Broker hat die Liste aus dem Manager")
   check(PeonBrokerDB.watch and PeonBrokerDB.watch[2770] and PeonBrokerDB.watch[2770].u == clock + 5, "0.9.0: Broker hat die Beobachtung aus dem Manager")
+
+  -- Ab 0.10.0 (Broker 0.85.0): je Konto unter accts, nur der eigene Teil kommt an
+  local brk = ns.Broker()
+  local own = brk:AcctId()
+  check(type(own) == "string" and own ~= "" and PeonBrokerDB.acct == own, "0.10.0: Broker hat eine Kennung des Kontos")
+  check(brk:AcctId() == own, "0.10.0: die Kennung bleibt gleich")
+  PeonBridgeData = { fmt = 2, t = clock, channels = { broker = true }, markets = {},
+    shop = { lists = { { id = "m8_8", name = "Oben (alt)", pct = 10, u = clock + 6, items = {} } } },
+    accts = {
+      [own] = { shop = { lists = { { id = "m9_9", name = "Eigenes Konto", pct = 10, u = clock + 6, items = {} } } },
+                watch = { items = { ["2771"] = clock + 6 }, gone = {} } },
+      ["kfremd_1"] = { shop = { lists = { { id = "m10_10", name = "Fremdes Konto", pct = 10, u = clock + 6, items = {} } } },
+                       watch = { items = { ["2772"] = clock + 6 }, gone = {} } },
+    } }
+  ns.hooked = nil
+  check(ns.Hook() == true, "0.10.0: Anmelden")
+  local names = {}
+  for _, l in ipairs(PeonBrokerDB.lists or {}) do names[l.id] = true end
+  check(names["m9_9"], "0.10.0: Liste des eigenen Kontos kommt an")
+  check(not names["m10_10"], "0.10.0: Liste eines anderen Kontos nicht")
+  check(not names["m8_8"], "0.10.0: mit accts gilt der alte Teil oben nicht")
+  check(PeonBrokerDB.watch[2771] ~= nil and PeonBrokerDB.watch[2772] == nil, "0.10.0: Beobachtung nur des eigenen Kontos")
+  PeonBridgeData = { fmt = 2, t = clock, channels = { broker = true }, markets = {}, accts = {} }
+  ns.hooked = nil
+  check(ns.Hook() == true, "0.10.0: Konto noch unbekannt, Anmelden geht trotzdem")
+  check(ns.Export.AcctPart(PeonBridgeData, brk) == nil, "0.10.0: ohne eigenen Teil kein Abgleich")
   PeonBridgeData = data
 end
 

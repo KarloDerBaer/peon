@@ -158,6 +158,18 @@ function mod:ShowItem(id)
     return ns.Go.Item({ id = id })
 end
 
+-- Ab 0.85 (Manager-Angleichung A1, Peon_Manager_Angleichung.md 3.1): Kennung dieses WoW-Kontos fuer den Peon Manager.
+-- Das Spiel kennt den Namen des Kontoordners nicht, der Manager ordnet ueber die Kennung Einkaufslisten und
+-- Beobachtung dem richtigen Konto zu. Einmal angelegt, nie geaendert (PeonBrokerDB.acct).
+function mod:AcctId()
+    local acc = mod.acc
+    if type(acc) ~= "table" then return nil end
+    if type(acc.acct) ~= "string" or acc.acct == "" then
+        acc.acct = ("k%.0f_%d"):format(time(), math.random(1, 1000000))
+    end
+    return acc.acct
+end
+
 -- Ab 0.27 (fuer den Ledger-Reiter "Gegenstand", Konzept Peon_Ledger_Gegenstand.md): Verlauf eines Gegenstands im
 -- aktuellen Markt, aelteste zuerst. Je Eintrag { day, week (nur Wochenwerte), min, median, qty, scans,
 -- sales (Absatz je Tag, nil unter 1 Std. Beobachtung), low, high (ueblicher Bereich an diesem Tag) }.
@@ -534,6 +546,7 @@ mod:On("INIT", function()
         mod.acc.migrated = nil
         mod:Print(L.MSG_MIGRATED)
     end
+    mod:AcctId()   -- ab 0.85: Kennung des Kontos fuer den Manager, gleich beim ersten Laden
     if ns.CreateOptions then mod:Call("Options", ns.CreateOptions) end
     if ns.Probe then mod:Call("Probe", ns.Probe.Init) end
     mod:Call("Scan", ns.Scan.Init)

@@ -2,6 +2,23 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.29.0
+
+Kurz: Einkaufslisten und Beobachtung gelten jetzt je WoW-Konto, wie im Spiel. Unter Datenlage siehst du deine Konten, gibst ihnen einen Namen und wählst, welches Konto der Manager zeigt.
+
+- 0.29.0 (13.11.2026): Angleichung des Managers, Bauabschnitt A1 (Konzept `docs/konzepte/manager/Peon_Manager_Angleichung.md` 3.1 und 6). Braucht Broker 0.85 und Bridge 0.10.
+  - **Konten:** Broker legt je WoW-Konto eine Kennung an. Der Manager merkt sich je Kontoordner die Kennung (`meta` `acctFolders`) und je Kennung einen eigenen Namen (`accts`). Einkaufslisten stehen je Konto in `meta` `shop:<Kennung>`, die Beobachtung in `watch:<Kennung>` (bisher Tabelle `favorites`).
+  - **Abgleich je Konto:** Was aus einem Kontoordner kommt, mischt nur in dieses Konto. `Data.lua` schreibt `accts = { [Kennung] = { shop, watch } }` statt `shop` und `watch` oben. Ein Ordner mit Broker ohne Kennung gleicht nichts mehr ab, sobald es ein Konto mit Kennung gibt. Steht dieselbe Kennung in zwei Ordnern (kopierter Ordner), gilt nur der zuletzt gespeicherte, die Datenlage zeigt einen Hinweis.
+  - **Gewähltes Konto:** Stern, Einkaufslisten im Gegenstandsfenster und die Seiten zeigen das gewählte Konto (`meta` `acctSel`), ohne Wahl das zuletzt gespielte. Meldungen der Einkaufsliste und die Bestellung genauer Werte gelten für alle Konten.
+  - **Datenlage, neuer Abschnitt Konten:** Auswahl, eigener Name, Ordner, Charaktere aus `Peon_Ledger.lua`, Zahl der Listen und Beobachtungen, zuletzt gespielt. Dazu Ordner, die noch keine Kennung haben.
+  - **Umstellung:** Der bisherige gemischte Stand geht ganz an das erste Konto mit Kennung, also an das Konto, in dem nach dem Update zuerst gespielt wird (`meta` `acctMigrated`, Eintrag im Protokoll). Weitere Konten beginnen mit dem, was ihr Spiel liefert. Der alte Stand bleibt unverändert in der Datenbank. Bis zum ersten Konto mit Kennung arbeitet der Manager wie bisher.
+  - **Behoben nebenbei:** Eine Eingabe in der Einkaufsliste schrieb `Data.lua` ohne die Beobachtung, ein Stern schrieb `Data.lua` gar nicht neu. Jetzt schreiben beide sofort alles (`writeBridge`).
+  - Tests: neue Datei `test/konten.test.js` (6 Tests: vor dem ersten Konto, Umstellung, Auswahl, Abgleich je Konto, dieselbe Kennung in zwei Ordnern, Datenlage), `umbau2.test.js` auf `accts` umgestellt. Alle 185 Tests grün, Oberfläche gebaut.
+  - **Im echten Programm prüfen:**
+    1. Nach dem ersten `/reload` mit Broker 0.85 erscheint das Konto unter Datenlage, Konten. Die bisherigen Einkaufslisten und die Beobachtung sind dort.
+    2. Nach einem weiteren `/reload` stehen Listen und Beobachtung wie gewohnt im Spiel.
+    3. Name vergeben, bei mehreren Konten die Auswahl wechseln: Der Stern zeigt die Beobachtung des gewählten Kontos.
+
 ## 0.28.0
 
 Kurz: Einkaufen, Beobachtung, Radar und Händler werden überarbeitet und sind derzeit nur im Spiel verfügbar.

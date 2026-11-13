@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 12.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.0 / Broker 0.84.0 / Bridge 0.9.2 (bis 0.3.0 Peon_Client) / Peon Manager 0.28.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.7 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 13.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.0 / Broker 0.85.0 / Bridge 0.10.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.29.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.7 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.20.0, API 20
@@ -49,7 +49,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.84.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.85.0 (neu, Auktionshaus-Helfer)
+
+- **Kennung des Kontos (ab 0.85.0, Manager-Angleichung A1):** `mod:AcctId()`, gespeichert in `PeonBrokerDB.acct`, angelegt beim ersten Laden. Der Manager hält darüber Einkaufslisten und Beobachtung je WoW-Konto auseinander. Nicht veröffentlicht.
 
 - **Beobachten laufend (ab 0.83.0):** Am Auktionator fragt Broker alle beobachteten Gegenstände reihum ab, solange der Reiter offen ist (`R.NextWatch`, `R.watchAt`). Spalte Stand, Zeile leuchtet bei neuem Rat kurz auf, rechts oben „Aktualisiert laufend“ mit wanderndem Punkt, Haken „Warnung“ (`watchAlarm`). Laufende Antworten füllen die Zeilen nur neu. Klick wählt, Doppelklick öffnet den Fokus, Knopf „Verkaufen“ (sicherer Knopf auf den Taschenplatz). Im Fokus Linksklick auf eine Preisstufe „Kaufen bis“, Rechtsklick Zielpreis. Neue Standardwerte für Radar und Fokus nach KarloDerBaers Einstellungen.
 
@@ -70,7 +72,10 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.83.0, 0.82.0, 0.81.1, 0.81.0, 0.80.0, 0.79.0, 0.78.0, 0.77.0, 0.76.0, 0.75.1, 0.75.0, 0.74.0, 0.73.0, 0.72.0, 0.71.0, 0.70.0, 0.69.0, 0.68.0, 0.67.0, 0.66.0, 0.65.0, 0.64.1, 0.64.0, 0.63.0, 0.62.0, 0.61.0, 0.60.1, 0.60.0, 0.59.1, 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.28.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.29.0
+
+- **Angleichung nach dem Neuaufbau von Broker und Ledger:** Konzept `docs\konzepte\manager\Peon_Manager_Angleichung.md`, Teil 1 (Einkaufslisten und Beobachten) freigegeben am 13.11.2026. Bauabschnitte A1 bis A5, danach Teil 2 (Chancen, Marktübersicht) und Teil 3 (Daten für Broker).
+- **Konten (ab 0.29.0, A1):** Einkaufslisten und Beobachtung je WoW-Konto (`meta` `shop:<Kennung>`, `watch:<Kennung>`, `accts`, `acctFolders`, `acctSel`, `acctMigrated`), `Data.lua` mit `accts`, Abschnitt Konten unter Datenlage. Der frühere gemischte Stand ging an das erste Konto mit Kennung. Nicht veröffentlicht, im echten Programm noch nicht geprüft (Prüfliste im Changelog bei 0.29.0). Braucht Broker 0.85 und Bridge 0.10, alle drei zusammen veröffentlichen.
 
 - **Seiten in Überarbeitung (ab 0.28.0):** Einkaufen, Beobachtung, Radar und Händler heißen „(WIP)“ und zeigen nur „Überarbeitung notwendig! Derzeit nur im Spiel verfügbar.“ (`wip` in `ALL`, `App.vue`). Abgleich der Beobachtung und Meldungen laufen weiter.
 
@@ -103,7 +108,9 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Tests: `npm test` im Ordner `manager\` (Rechenkern, dazu der Vergleich mit Brokers Sales.lua über `tools\lua5.1.exe`).
 - Verlauf der Versionen: `docs/changelog/Peon_Manager.md`
 
-## Peon_Bridge – 0.9.2 (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager)
+## Peon_Bridge – 0.10.0 (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager)
+
+- **Je Konto (ab 0.10.0, Manager-Angleichung A1):** Einkaufslisten und Beobachtung aus `Data.lua` unter `accts[Kennung]`, Broker bekommt nur den Teil seines Kontos (`E.AcctPart`). Ohne `accts` (Manager vor 0.29) gilt `shop` und `watch` oben wie bisher. Nicht veröffentlicht.
 
 - Design: `Peon_GitHub_Design.md` Abschnitt 4 (Bridge, Kanäle, Format von Data.lua), vorher `Peon_Client_Design.md` Bauabschnitt C1.
 - Dateien: Data.lua (Platzhalter, vom Manager überschrieben, **nie mit ausgeliefert, nicht im Repo**), Locales.lua, Bridge.lua (Transport, Kanäle), Channel_Broker.lua (Kanal broker: Momentaufnahmen, Werte für Broker), Options.lua; Symbol `INV_Misc_Gear_01`. `## OptionalDeps: Peon_Broker`.

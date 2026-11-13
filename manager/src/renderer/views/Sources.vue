@@ -12,7 +12,17 @@ const busy = ref('');
 const error = ref('');
 const result = ref(null);
 
-async function load() { view.value = await api.blizzardHouses(); }
+// Konten (ab 0.29.0): Einkaufslisten und Beobachtung je WoW-Konto
+const accts = ref({ list: [], waiting: [], selected: null });
+async function load() {
+  const [v, a] = await Promise.all([api.blizzardHouses(), api.accounts()]);
+  view.value = v;
+  accts.value = a;
+}
+const showAccts = computed(() => accts.value.list.length > 0 || accts.value.waiting.length > 0);
+const charText = (a) => (a.chars.length ? (a.chars.length > 5 ? `${a.chars.slice(0, 5).join(', ')} und ${a.chars.length - 5} weitere` : a.chars.join(', ')) : 'keine Charaktere bekannt');
+async function selectAcct(id) { await api.accountSelect(id); }
+async function nameAcct(a, name) { if ((name || '').trim() !== (a.name || '')) await api.accountName(a.id, name); }
 onMounted(load);
 watch(() => props.stamp, load);
 
@@ -113,6 +123,27 @@ const logText = computed(() => {
         <tbody><tr v-for="m in data.markets" :key="m.key"><td>{{ m.label }}</td><td class="muted small">{{ m.key }}</td><td class="muted small">{{ m.lastScan ? ago(m.lastScan.t, now) : 'noch keiner' }}</td></tr></tbody>
       </table>
       <p class="small muted">Forever hat keine Realms: Je Region gibt es ein Auktionshaus je Regelsatz und Fraktion, dazu die neutralen Häuser. Den internen Namen meldet das Spiel, für dich ist er ohne Bedeutung.</p>
+    </section>
+
+    <section class="block" v-if="showAccts">
+      <h2>Konten</h2>
+      <p class="small muted lead">Einkaufslisten und Beobachtung gelten je WoW-Konto, wie im Spiel. Stern, Einkaufslisten und die Seiten dazu zeigen das gewählte Konto.</p>
+      <table class="tbl accts" v-if="accts.list.length">
+        <thead><tr><th>Gewählt</th><th>Name</th><th>Ordner</th><th>Charaktere</th><th>Listen</th><th>Beobachtet</th><th>Zuletzt gespielt</th></tr></thead>
+        <tbody>
+          <tr v-for="a in accts.list" :key="a.id" :class="{ on: a.selected }">
+            <td><input type="radio" name="acct" :checked="a.selected" :aria-label="`Konto ${a.name || a.folder || a.id} wählen`" @change="selectAcct(a.id)" /></td>
+            <td><input class="name" type="text" maxlength="40" :value="a.name || ''" :placeholder="a.folder || 'Name'" aria-label="Eigener Name des Kontos" @change="nameAcct(a, $event.target.value)" /></td>
+            <td class="muted small">{{ a.folder || 'Ordner nicht mehr da' }}<div v-if="a.dup" class="warn">Dieselbe Kennung auch in {{ a.folders.slice(1).join(', ') }}. Abgeglichen wird nur der zuletzt gespeicherte Ordner.</div></td>
+            <td class="muted small">{{ charText(a) }}</td>
+            <td>{{ num(a.lists) }}</td>
+            <td>{{ num(a.watch) }}</td>
+            <td class="muted small"><span v-if="a.mt" :title="when(a.mt)">{{ ago(a.mt, now) }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-if="accts.waiting.length" class="small muted">Noch ohne Kennung: {{ accts.waiting.join(', ') }}. Das Konto erscheint hier, sobald du dort mit Broker ab 0.85 spielst und neu lädst oder dich ausloggst.</p>
+      <p v-if="accts.migrated" class="small muted">Die Einkaufslisten und die Beobachtung von vor der Umstellung hat das erste Konto übernommen ({{ when(accts.migrated.t) }}).</p>
     </section>
 
     <section class="block">
@@ -216,6 +247,9 @@ const logText = computed(() => {
 .tbl th { text-align: left; font-weight: 500; color: var(--muted); padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); }
 .tbl td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
 .tbl .c { text-align: center; }
+.accts input[type="radio"] { accent-color: var(--accent); width: 16px; height: 16px; margin: 2px 0 0; }
+.accts input.name { width: 14ch; }
+.accts tr.on td:nth-child(2) input { font-weight: 600; }
 .houses input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; margin: 2px 0 0; }
 .houses tr.on td:nth-child(2) { font-weight: 600; }
 .note { display: grid; gap: 4px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius-s); }

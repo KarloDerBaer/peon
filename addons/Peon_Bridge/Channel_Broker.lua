@@ -482,6 +482,19 @@ function ns.MarketKeyOf()
     return realm .. " / " .. faction
 end
 
+-- Ab 0.10.0 (Manager-Angleichung A1, Peon_Manager_Angleichung.md 3.1): Einkaufslisten und Beobachtung stehen in
+-- Data.lua je Konto unter accts[Kennung]. Rueckgabe { shop, watch } dieses Kontos oder nil.
+-- Ein Manager vor der Angleichung schreibt shop und watch oben hin (alle Konten gemischt), das gilt dann weiter.
+function E.AcctPart(d, b)
+    if type(d) ~= "table" then return nil end
+    if type(d.accts) == "table" then
+        local id = b and type(b.AcctId) == "function" and b:AcctId() or nil
+        local part = id and d.accts[id]
+        return type(part) == "table" and part or nil
+    end
+    return d
+end
+
 -- Als Zuhoerer bei Broker anmelden (nur mit Freischaltung, sonst bleibt Broker ohne Zusatzarbeit)
 function ns.Hook()
     if ns.hooked then return true end
@@ -490,8 +503,8 @@ function ns.Hook()
     b:AddSnapshotListener(E.OnSnapshot)
     ns.hooked = true
     E.TipRun()
-    -- Einkaufslisten aus dem Manager an Broker geben (ab 0.6.0)
-    local d = ns.ManagerData()
+    -- Einkaufslisten aus dem Manager an Broker geben (ab 0.6.0). Ab 0.10.0 nur den Teil dieses Kontos (E.AcctPart)
+    local d = E.AcctPart(ns.ManagerData(), b)
     if d and type(d.shop) == "table" and type(b.MergeShop) == "function" then
         local ok, err = pcall(b.MergeShop, b, d.shop)
         if not ok then mod:ReportError("Einkaufslisten", err) end

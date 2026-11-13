@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.10.0
+
+Kurz: Einkaufslisten und Beobachtung aus dem Peon Manager kommen nur noch bei dem WoW-Konto an, zu dem sie gehören.
+
+- 0.10.0 (13.11.2026): Angleichung des Managers, Bauabschnitt A1 (Konzept `docs/konzepte/manager/Peon_Manager_Angleichung.md` 3.1). Braucht Broker 0.85 und Manager 0.29.
+  - `Data.lua` enthält Einkaufslisten und Beobachtung je Konto unter `accts[Kennung]`. Beim Anmelden gibt die Bridge Broker nur den Teil mit Brokers Kennung (`E.AcctPart`). Ein Manager vor 0.29 schreibt `shop` und `watch` oben hin, das gilt dann weiter wie bisher.
+  - Solange der Manager das Konto noch nicht kennt (erstes Laden mit Broker 0.85), kommt nichts an. Änderungen im Spiel bleiben erhalten und gehen beim nächsten `/reload` an den Manager.
+  - Tests: eigener Teil kommt an, fremder und alter Teil nicht, unbekanntes Konto (`test_bridge.lua`).
+
 ## 0.9.2
 
 Kurz: Der Knopf „An Manager“ nach einem Scan entfällt. Übergeben geht weiter in Broker unter Mehr, Datenlage.

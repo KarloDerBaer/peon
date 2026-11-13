@@ -164,14 +164,14 @@ test('Haendler (Manager 0.25): aus dem Spiel, neuerer Besuch gewinnt, Ansicht mi
   svc.close();
 });
 
-test('Beobachtung steht in Data.lua', () => {
-  const { svc, b, ad } = setup();
+test('Beobachtung steht in Data.lua, je Konto (ab 0.29.0)', () => {
+  const { svc, b, ad, sv } = setup();
+  fs.writeFileSync(path.join(sv, 'Peon_Broker.lua'), `PeonBrokerDB = ${toLua({ markets: {}, acct: 'kA_1' })}`);
+  b.importGame();
   b.setFavorite('2770', true);
-  const datalua = require('../src/core/datalua');
-  const w = b.watchForGame();
-  datalua.writeData(path.dirname(path.dirname(path.dirname(ad))), { watch: w });
   const g = parseLua(fs.readFileSync(path.join(ad, 'Data.lua')));
-  assert.equal(g.PeonBridgeData.watch.items['2770'], NOW);
+  assert.equal(g.PeonBridgeData.accts.kA_1.watch.items['2770'], NOW, 'gleich nach dem Stern');
+  assert.equal(g.PeonBridgeData.watch, undefined, 'nicht mehr oben fuer alle Konten');
   svc.close();
 });
 
@@ -260,6 +260,8 @@ test('Einkaufsliste im Manager: Hoechstpreis, Treffer, Meldung einmal, Weg ins S
   const { svc, db, b, sv, ad, clock } = setup();
   for (let d = 5; d >= 1; d--) stand(db, `t${d}`, NOW - d * 86400, { 100: { min: 1000 }, 200: { min: 2000 } });
   stand(db, 'jetzt', NOW - 60, { 100: { min: 1000 }, 200: { min: 2000 } });
+  fs.writeFileSync(path.join(sv, 'Peon_Broker.lua'), `PeonBrokerDB = ${toLua({ markets: {}, acct: 'kA_1' })}`);
+  b.importGame();
   const id = b.newShopList('Erze');
   assert.equal(b.shopLists('100')[0].on, false);
   b.addShopItem(id, '100');
@@ -286,8 +288,9 @@ test('Einkaufsliste im Manager: Hoechstpreis, Treffer, Meldung einmal, Weg ins S
 
   // Weg ins Spiel: gleich in Data.lua, ohne dass neu gerechnet werden muss
   const data = () => parseLua(fs.readFileSync(path.join(ad, 'Data.lua'))).PeonBridgeData;
-  assert.equal(data().shop.lists[0].id, id);
-  assert.equal(data().shop.lists[0].items[100].max, 1200);
+  const shopOf = () => data().accts.kA_1.shop;
+  assert.equal(shopOf().lists[0].id, id);
+  assert.equal(shopOf().lists[0].items[100].max, 1200);
   assert.equal(data().channels.broker, true);
 
   // Stand fuer die Kopfleiste
@@ -299,7 +302,7 @@ test('Einkaufsliste im Manager: Hoechstpreis, Treffer, Meldung einmal, Weg ins S
   // Weg zurueck: Im Spiel geaendert und eine neue Liste, das Einlesen mischt es ein und schreibt es wieder
   clock.t += 100;
   fs.writeFileSync(path.join(sv, 'Peon_Broker.lua'), `PeonBrokerDB = ${toLua({
-    markets: {},
+    markets: {}, acct: 'kA_1',
     lists: [{ id, name: 'Erze', pct: 20, u: clock.t, items: { 100: { wish: 9, u: clock.t, name: 'Name 100' } } }, { id: 'g9_9', name: 'Vom Spiel', pct: 10, u: clock.t, items: {} }],
     listsGone: { items: { [`${id}|200`]: clock.t } },
   })}`);
@@ -308,13 +311,13 @@ test('Einkaufsliste im Manager: Hoechstpreis, Treffer, Meldung einmal, Weg ins S
   assert.deepEqual(view.lists.map((l) => l.name), ['Erze', 'Vom Spiel']);
   assert.equal(view.lists[0].pct, 20);
   assert.deepEqual(view.lists[0].items.map((x) => [x.key, x.wish]), [['100', 9]]);
-  assert.equal(data().shop.lists.length, 2);
-  assert.equal(data().shop.gone.items[`${id}|200`], clock.t);
+  assert.equal(shopOf().lists.length, 2);
+  assert.equal(shopOf().gone.items[`${id}|200`], clock.t);
   assert.equal(b.sync().inputs, 0, 'Was vom Spiel kam, wartet nicht');
 
   // Liste loeschen
   b.deleteShopList('g9_9');
-  assert.equal(data().shop.lists.length, 1);
+  assert.equal(shopOf().lists.length, 1);
   assert.ok(b.sync().inputs > 0);
   svc.close();
 });

@@ -2,6 +2,21 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 13.11.2026: Angleichung des Managers, Teil 1 (Konzept `Peon_Manager_Angleichung.md`, freigegeben)
+
+- **Teil 1 freigegeben**, Bau ab A1 (KarloDerBaer).
+- **Umstellung vereinfacht** (Claude, beim Bau von A1): Der frühere gemischte Stand geht ganz an das erste Konto mit Kennung statt aufgeteilt mit einer Liste „nicht zugeordnet“. Der alte Abgleich hat alle Konten gemischt, die Einträge stehen also ohnehin schon in jedem gespielten Konto. So geht nichts verloren und das Konto zeigt, was der Manager vorher zeigte.
+- **Kennung in zwei Ordnern** (Claude): Abgeglichen wird nur der zuletzt gespeicherte Ordner, die Datenlage zeigt einen Hinweis.
+
+- **Der Manager übernimmt, was das Spiel nicht kann** (KarloDerBaer, Vorschlag Claude): stündliche Daten, Meldungen über Windows, Vorarbeit für Broker. Das Radar wird nicht nachgebaut, weil es im Spiel mit Live-Daten arbeitet.
+- **Reihenfolge** (KarloDerBaer): erst Einkaufslisten und Beobachten, dann Chancen im Manager, dann Daten für Broker.
+- **Abgleich je Wert statt je Eintrag** (KarloDerBaer): Änderungen an verschiedenen Werten gehen nicht mehr still verloren.
+- **Protokoll des Abgleichs nur im Manager** (KarloDerBaer).
+- **Gelöschtes 30 Tage wiederherstellbar, Löschmarken ein Jahr** (KarloDerBaer): Ein lange nicht gespielter Kontoordner bringt sonst alte Einträge zurück.
+- **Kein Abgleich über WoW-Konten hinweg** (KarloDerBaer): Die Listen sind in den Addons accountweit. Broker bekommt dafür eine Kennung des Kontos, weil das Spiel den Namen des Kontoordners nicht kennt (Claude).
+- **Meldungen über Windows für Beobachten, einstellbar je Gegenstand und je Grenze** (KarloDerBaer). Bei neuen Einträgen sind beide Glocken aus (KarloDerBaer).
+- **Kein Kopieren von Einträgen zwischen Konten**, auch nicht auf Knopfdruck (KarloDerBaer).
+
 ## 12.11.2026: Begriffe, Diagramm, Info (Ledger 0.14.4 und 0.14.5)
 
 - **Begriffe** (KarloDerBaer): Vermögen = Gold + Marktwert. „Marktwert“ ist der heutige Wert, „Lagerkosten“ (statt Lagerwert) das, was die Waren gekostet haben. Alle Begriffe stehen im Reiter Info.

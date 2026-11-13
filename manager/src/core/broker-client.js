@@ -78,6 +78,7 @@ class BrokerClient {
     }
     if (files.length === 0) sum.error = 'Keine Peon_Bridge.lua gefunden';
     sum.broker = this.importBroker();
+    this.noteAccounts(sum.broker);   // ab 0.29.0: Kennung je Kontoordner, beim ersten Konto die Umstellung
     if (sum.broker.some((b) => b.shop)) this.shopFromGame(sum.broker);
     if (sum.broker.some((b) => b.watch)) this.watchFromGame(sum.broker);
     if (sum.broker.some((b) => b.vendors)) this.vendorsFromGame(sum.broker);
@@ -86,15 +87,14 @@ class BrokerClient {
     const known = ids.filter((id) => this.db.prepare('SELECT 1 FROM snapshots WHERE id = ?').get(id));
     const prev = this.meta('ack') || { ids: [] };
     const same = prev.ids.length === known.length && prev.ids.every((x, k) => x === known[k]);
-    const shop = this.shopForGame();
-    const watch = this.watchForGame();
+    const accts = this.acctsForGame();
     const aliases = this.aliases();
     const tipWant = this.tipWants();
-    const hash = crypto.createHash('md5').update(JSON.stringify([markets.values, shop, aliases, tipWant, watch])).digest('hex');
+    const hash = crypto.createHash('md5').update(JSON.stringify([markets.values, accts, aliases, tipWant])).digest('hex');
     const marks = this.host.reports.marks();
     if (!same || !prev.t || prev.hash !== hash || !dataMatches(wow, this.host.channels(), marks)) {
       try {
-        const w = writeData(wow, { ack: known, markets: markets.lua, channels: this.host.channels(), version: this.version, now: this.now(), aliases, shop, tipWant, watch, ...marks });
+        const w = writeData(wow, { ack: known, markets: markets.lua, channels: this.host.channels(), version: this.version, now: this.now(), aliases, accts, tipWant, ...marks });
         sum.ack = { t: this.now(), count: known.length, file: w.file, items: markets.count, bytes: w.bytes };
         this.meta('ack', { ids: known, t: this.now(), file: w.file, hash, items: markets.count, sales: markets.salesCount, bytes: w.bytes, day: markets.day });
       } catch (e) {
@@ -210,7 +210,7 @@ class BrokerClient {
       try {
         const r = broker.importFile(this.db, f.file);
         seen[f.file] = mt;
-        out.push({ file: f.file, markets: r.markets, shop: r.shop, watch: r.watch, vendors: r.vendors });
+        out.push({ file: f.file, folder: f.account, mt: Math.floor(mt / 1000), acct: r.acct, markets: r.markets, shop: r.shop, watch: r.watch, vendors: r.vendors });
         const n = r.markets.reduce((a, m) => a + m.items, 0);
         log(this.db, 'broker', true, `Broker-Verlauf: ${n} Gegenstände in ${r.markets.length} ${r.markets.length === 1 ? 'Markt' : 'Märkten'}`);
       } catch (e) {
@@ -446,65 +446,243 @@ class BrokerClient {
     return out;
   }
 
-  // ---------- Beobachtung (bis 0.23 Favoriten; intern weiter "favorites") ----------
-  favorites() { return this.db.prepare('SELECT item_key AS key FROM favorites ORDER BY added').all().map((r) => r.key); }
+  // ---------- Konten (ab 0.29.0, Peon_Manager_Angleichung.md 3.1) ----------
+  // Einkaufslisten und Beobachtung gelten je WoW-Konto, wie in den Addons. Broker legt dafuer eine Kennung an
+  // (PeonBrokerDB.acct), weil das Spiel den Namen des Kontoordners nicht kennt.
+  //   meta accts        = { [Kennung]: { name, since } }   eigener Name im Manager, seit wann bekannt
+  //   meta acctFolders  = { [Ordner]: { id, mt } }          zuletzt gelesene Kennung je Kontoordner (id null: Broker ohne Kennung)
+  //   meta acctSel      = gewaehltes Konto fuer Stern, Einkaufslisten und die Seiten
+  //   meta acctMigrated = { t, acct }                       Umstellung: der fruehere gemischte Stand ging an dieses Konto
+  // Solange noch kein Konto eine Kennung hat, gilt der fruehere gemischte Stand (Konto null, meta shop und watch).
+  acctReg() { return this.meta('accts') || {}; }
+  acctFolders() { return this.meta('acctFolders') || {}; }
 
-  watchGone() { return this.meta('watchGone') || {}; }
-
-  setFavorite(key, on) {
-    const k = String(key);
-    const gone = this.watchGone();
-    if (on) {
-      this.db.prepare('INSERT OR IGNORE INTO favorites(item_key, added) VALUES (?, ?)').run(k, this.now());
-      if (gone[k] !== undefined) { delete gone[k]; this.meta('watchGone', gone); }
-    } else {
-      const had = this.db.prepare('SELECT added FROM favorites WHERE item_key = ?').get(k);
-      this.db.prepare('DELETE FROM favorites WHERE item_key = ?').run(k);
-      if (had) { gone[k] = Math.max(this.now(), (had.added || 0) + 1); this.meta('watchGone', gone); }
-    }
-    return this.favorites();
+  // Kontoordner, die es noch gibt und die zu dieser Kennung gehoeren, neuester zuerst
+  acctFoldersOf(id, present = null) {
+    const have = present || new Set(broker.findFiles(this.settings.wowDir).map((f) => f.account));
+    return Object.entries(this.acctFolders()).filter(([f, x]) => x && x.id === id && have.has(f)).sort((a, b) => (b[1].mt || 0) - (a[1].mt || 0));
   }
 
-  // Beobachtung aus dem Spiel einmischen (ab 0.24): je Gegenstand gewinnt die neuere Aenderung, Loeschmarken halten.
-  // Rueckgabe: true bei Aenderung
-  watchFromGame(results) {
-    const gone = this.watchGone();
+  acctSel() {
+    const reg = this.acctReg();
+    const ids = Object.keys(reg);
+    if (!ids.length) return null;
+    const sel = this.meta('acctSel');
+    if (sel && reg[sel]) return sel;
+    // sonst das Konto, in dem zuletzt gespielt wurde
+    let best = ids[0], bestMt = -1;
+    for (const x of Object.values(this.acctFolders())) {
+      if (x && x.id && reg[x.id] && (x.mt || 0) > bestMt) { best = x.id; bestMt = x.mt || 0; }
+    }
+    return best;
+  }
+
+  // Ergebnisse aus importBroker: Kennungen merken, neue Konten anlegen, beim ersten Konto den frueheren Stand uebergeben
+  noteAccounts(results) {
+    const folders = this.acctFolders();
+    const reg = this.acctReg();
+    const fresh = [];
+    for (const r of [...results].sort((a, b) => (b.mt || 0) - (a.mt || 0))) {
+      if (!r.folder || r.error) continue;
+      folders[r.folder] = { id: r.acct || null, mt: r.mt || 0 };
+      if (r.acct && !reg[r.acct]) { reg[r.acct] = { name: null, since: this.now() }; fresh.push(r.acct); }
+    }
+    this.meta('acctFolders', folders);
+    this.meta('accts', reg);
+    if (fresh.length && !this.meta('acctMigrated')) this.migrateLegacy(fresh[0]);
+    return fresh;
+  }
+
+  // Umstellung (Konzept Abschnitt 6): Der bisherige gemischte Stand geht an das erste Konto mit Kennung, also an das
+  // Konto, in dem nach dem Update zuerst gespielt wurde. Andere Konten beginnen mit dem, was ihr Spiel liefert.
+  // Der fruehere Stand bleibt unveraendert in der Datenbank (meta shop und watch, Tabelle favorites).
+  migrateLegacy(id) {
+    const shop = this.shopDoc(null);
+    const watch = this.watchDoc(null);
+    this.meta(`shop:${id}`, shop);
+    this.meta(`watch:${id}`, watch);
+    this.meta('acctMigrated', { t: this.now(), acct: id });
+    log(this.db, 'konten', true, `Erstes Konto mit Kennung: ${shop.lists.length} Einkaufslisten und ${Object.keys(watch.items).length} beobachtete Gegenstände übernommen`);
+  }
+
+  // Zu welchem Konto gehoert ein Ergebnis aus importBroker? undefined = nicht abgleichen
+  acctOfResult(r) {
+    const reg = this.acctReg();
+    if (!r.acct) return Object.keys(reg).length ? undefined : null;   // Broker ohne Kennung: nur vor dem ersten Konto
+    if (!reg[r.acct]) return undefined;
+    const fs_ = this.acctFoldersOf(r.acct);
+    if (fs_.length > 1 && r.folder && fs_[0][0] !== r.folder) return undefined;   // dieselbe Kennung in zwei Ordnern: nur der neuere
+    return r.acct;
+  }
+
+  // Charaktere eines Kontoordners zum Erkennen (aus Peon_Ledger.lua), gelesen nur bei neuer Datei
+  acctChars(folder) {
+    if (!folder) return [];
+    const f = path.join(this.settings.wowDir, 'WTF', 'Account', folder, 'SavedVariables', 'Peon_Ledger.lua');
+    let mt = 0;
+    try { mt = fs.statSync(f).mtimeMs; } catch { return []; }
+    this.charCache = this.charCache || new Map();
+    const c = this.charCache.get(f);
+    if (c && c.mt === mt) return c.names;
+    const names = [];
+    try {
+      const realms = (parseLua(fs.readFileSync(f)).PeonLedgerDB || {}).realms || {};
+      for (const r of Object.values(realms)) for (const n of Object.keys((r && r.chars) || {})) names.push(n);
+    } catch { /* Datei kaputt: dann ohne Namen */ }
+    names.sort((a, b) => a.localeCompare(b, 'de'));
+    this.charCache.set(f, { mt, names });
+    return names;
+  }
+
+  // Fuer die Seite Datenlage: alle Konten mit Ordner, Charakteren und Zahlen, dazu Ordner mit Broker ohne Kennung
+  accounts() {
+    const present = new Set(broker.findFiles(this.settings.wowDir).map((f) => f.account));
+    const sel = this.acctSel();
+    const list = Object.entries(this.acctReg()).map(([id, a]) => {
+      const fs_ = this.acctFoldersOf(id, present);
+      const folder = fs_.length ? fs_[0][0] : null;
+      return { id, name: a.name || null, folder, folders: fs_.map((x) => x[0]), dup: fs_.length > 1, mt: fs_.length ? fs_[0][1].mt : null,
+        chars: this.acctChars(folder), selected: id === sel, lists: this.shopDoc(id).lists.length, watch: Object.keys(this.watchDoc(id).items).length };
+    }).sort((a, b) => (b.mt || 0) - (a.mt || 0));
+    const waiting = Object.entries(this.acctFolders()).filter(([f, x]) => x && !x.id && present.has(f)).map(([f]) => f).sort();
+    return { list, waiting, selected: sel, migrated: this.meta('acctMigrated') };
+  }
+
+  selectAccount(id) {
+    if (!this.acctReg()[id]) return false;
+    this.meta('acctSel', id);
+    return true;
+  }
+
+  nameAccount(id, name) {
+    const reg = this.acctReg();
+    if (!reg[id]) return false;
+    const n = String(name || '').trim().slice(0, 40);
+    reg[id] = { ...reg[id], name: n || null };
+    this.meta('accts', reg);
+    return true;
+  }
+
+  // Konten, fuer die etwas abgeglichen wird (vor dem ersten Konto nur der fruehere Stand)
+  acctIds() {
+    const ids = Object.keys(this.acctReg());
+    return ids.length ? ids : [null];
+  }
+
+  // Fuer Data.lua: { [Kennung]: { shop, watch } } oder null, solange kein Konto eine Kennung hat
+  acctsForGame() {
+    const ids = Object.keys(this.acctReg());
+    if (!ids.length) return null;
+    const out = {};
+    for (const id of ids) {
+      const shop = this.shopForGame(id);
+      const watch = this.watchForGame(id);
+      if (shop || watch) out[id] = { ...(shop ? { shop } : {}), ...(watch ? { watch } : {}) };
+    }
+    return out;
+  }
+
+  // Data.lua sofort neu schreiben (nach Eingaben im Manager). Die Werte fuer Broker rechnet das nicht neu.
+  writeBridge(area) {
+    const ack = this.meta('ack');
+    const lua = this.lastLua || this.buildMarkets().lua;
+    try {
+      const marks = this.host.reports.marks();
+      const w = writeData(this.settings.wowDir, { ack: ack ? ack.ids : [], markets: lua, channels: this.host.channels(), version: this.version, now: this.now(), aliases: this.aliases(), accts: this.acctsForGame(), tipWant: this.lastWant, ...marks });
+      // Der Vergleich beim naechsten Einlesen schreibt sonst noch einmal, das schadet nicht
+      if (ack) this.meta('ack', { ...ack, t: this.now(), bytes: w.bytes, hash: null });
+      return true;
+    } catch (e) {
+      log(this.db, area || 'konten', false, `Data.lua: ${e.message}`);
+      return false;
+    }
+  }
+
+  // ---------- Beobachtung (bis 0.23 Favoriten) ----------
+  // Je Konto in meta watch:<Kennung> = { items: { Schluessel: u }, gone: { Schluessel: u } }.
+  // Konto null: der fruehere gemischte Stand (meta watch, bis 0.28.0 Tabelle favorites und meta watchGone).
+  watchDoc(acct = this.acctSel()) {
+    const d = this.meta(acct ? `watch:${acct}` : 'watch');
+    if (d) return { items: { ...(d.items || {}) }, gone: { ...(d.gone || {}) } };
+    if (acct) return { items: {}, gone: {} };
+    const items = {};
+    for (const r of this.db.prepare('SELECT item_key, added FROM favorites').all()) items[r.item_key] = r.added || 0;
+    return { items, gone: { ...(this.meta('watchGone') || {}) } };
+  }
+
+  saveWatch(acct, d) { this.meta(acct ? `watch:${acct}` : 'watch', d); }
+
+  favorites(acct = this.acctSel()) {
+    return Object.entries(this.watchDoc(acct).items).sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1)).map(([k]) => k);
+  }
+
+  watchGone(acct = this.acctSel()) { return this.watchDoc(acct).gone; }
+
+  setFavorite(key, on) {
+    const acct = this.acctSel();
+    const d = this.watchDoc(acct);
+    const k = String(key);
     let changed = false;
-    const fav = (k) => this.db.prepare('SELECT added FROM favorites WHERE item_key = ?').get(k);
-    for (const r of results) {
-      const w = r.watch;
-      if (!w) continue;
-      for (const [k, u] of Object.entries(w.items || {})) {
-        const f = fav(k);
-        const local = f ? f.added : (gone[k] || 0);
-        if (u > local || (!f && !gone[k])) {
-          this.db.prepare('INSERT INTO favorites(item_key, added) VALUES (?, ?) ON CONFLICT(item_key) DO UPDATE SET added = excluded.added').run(k, u || this.now());
-          if (gone[k] !== undefined) delete gone[k];
-          changed = true;
-        }
-      }
-      for (const [k, u] of Object.entries(w.gone || {})) {
-        const f = fav(k);
-        if (f && u > f.added) { this.db.prepare('DELETE FROM favorites WHERE item_key = ?').run(k); gone[k] = u; changed = true; }
-        else if (!f && u > (gone[k] || 0)) { gone[k] = u; changed = true; }
+    if (on && d.items[k] === undefined) {
+      d.items[k] = this.now();
+      delete d.gone[k];
+      changed = true;
+    } else if (!on && d.items[k] !== undefined) {
+      d.gone[k] = Math.max(this.now(), (d.items[k] || 0) + 1);
+      delete d.items[k];
+      changed = true;
+    }
+    if (changed) { this.saveWatch(acct, d); this.writeBridge('beobachtung'); }
+    return this.favorites(acct);
+  }
+
+  // Beobachtung eines Kontos einmischen: je Gegenstand gewinnt die neuere Aenderung, Loeschmarken halten. true bei Aenderung
+  static mergeWatch(d, w, now) {
+    let changed = false;
+    for (const [k, u] of Object.entries(w.items || {})) {
+      const have = d.items[k];
+      const local = have !== undefined ? have : (d.gone[k] || 0);
+      if (u > local || (have === undefined && !d.gone[k])) {
+        d.items[k] = u || now;
+        if (d.gone[k] !== undefined) delete d.gone[k];
+        changed = true;
       }
     }
-    // Loeschmarken nach 60 Tagen vergessen (wie bei den Einkaufslisten)
-    const old = this.now() - 60 * 86400;
-    for (const [k, u] of Object.entries(gone)) if (u < old) { delete gone[k]; changed = true; }
-    if (changed) this.meta('watchGone', gone);
+    for (const [k, u] of Object.entries(w.gone || {})) {
+      const have = d.items[k];
+      if (have !== undefined && u > have) { delete d.items[k]; d.gone[k] = u; changed = true; }
+      else if (have === undefined && u > (d.gone[k] || 0)) { d.gone[k] = u; changed = true; }
+    }
     return changed;
   }
 
-  // Beobachtung fuer Data.lua: { items: { Schluessel: u }, gone: { Schluessel: u } } oder null
-  watchForGame() {
-    const items = {};
-    for (const r of this.db.prepare('SELECT item_key, added FROM favorites').all()) items[r.item_key] = r.added || 0;
-    const gone = this.watchGone();
-    if (!Object.keys(items).length && !Object.keys(gone).length) return null;
-    return { items, gone };
+  // Beobachtung aus dem Spiel einmischen (ab 0.24, ab 0.29.0 je Konto). Rueckgabe: true bei Aenderung
+  watchFromGame(results) {
+    const docs = new Map();
+    for (const r of results) {
+      if (!r.watch) continue;
+      const acct = this.acctOfResult(r);
+      if (acct === undefined) continue;
+      if (!docs.has(acct)) docs.set(acct, { d: this.watchDoc(acct), changed: false });
+      const x = docs.get(acct);
+      if (BrokerClient.mergeWatch(x.d, r.watch, this.now())) x.changed = true;
+    }
+    // Loeschmarken nach 60 Tagen vergessen (wie bei den Einkaufslisten)
+    const old = this.now() - 60 * 86400;
+    let any = false;
+    for (const [acct, x] of docs) {
+      for (const [k, u] of Object.entries(x.d.gone)) if (u < old) { delete x.d.gone[k]; x.changed = true; }
+      if (x.changed) { this.saveWatch(acct, x.d); any = true; }
+    }
+    return any;
   }
 
+  // Beobachtung fuer Data.lua: { items: { Schluessel: u }, gone: { Schluessel: u } } oder null
+  watchForGame(acct = this.acctSel()) {
+    const d = this.watchDoc(acct);
+    if (!Object.keys(d.items).length && !Object.keys(d.gone).length) return null;
+    return d;
+  }
   // ---------- Haendler (ab 0.25, Umbau Broker U11) ----------
   // Aus Peon_Broker.lua: je NPC gewinnt der neuere Besuch (t). Gespeichert in meta "vendors".
   vendorsFromGame(results) {
@@ -547,46 +725,40 @@ class BrokerClient {
   }
 
   // ---------- Einkaufslisten ----------
-  shopDoc() { return shopping.clean(this.meta('shop') || shopping.empty()); }
+  // Je Konto in meta shop:<Kennung>, Konto null: der fruehere gemischte Stand (meta shop)
+  shopDoc(acct = this.acctSel()) { return shopping.clean(this.meta(acct ? `shop:${acct}` : 'shop') || shopping.empty()); }
+  saveShop(acct, d) { this.meta(acct ? `shop:${acct}` : 'shop', d); }
 
-  shopForGame() {
-    const d = this.shopDoc();
+  shopForGame(acct = this.acctSel()) {
+    const d = this.shopDoc(acct);
     if (!d.lists.length && !Object.keys(d.gone.lists).length && !Object.keys(d.gone.items).length) return null;
     return shopping.forGame(d);
   }
 
-  // Was das Spiel in Peon_Broker.lua geschrieben hat einmischen
+  // Was das Spiel in Peon_Broker.lua geschrieben hat einmischen, je Konto
   shopFromGame(results) {
-    const d = this.shopDoc();
-    let changed = shopping.purge(d, this.now());
-    for (const r of results) if (r.shop && shopping.merge(d, r.shop)) changed = true;
-    if (changed) this.meta('shop', d);
-    return changed;
-  }
-
-  // Eingabe im Manager: speichern und gleich fuer das Spiel bereitlegen. Die Werte fuer Broker rechnet das nicht neu.
-  shopEdit(fn) {
-    const d = this.shopDoc();
-    const r = fn(d, this.now());
-    this.meta('shop', d);
-    this.writeBridgeShop();
-    return r;
-  }
-
-  writeBridgeShop() {
-    const ack = this.meta('ack');
-    const lua = this.lastLua || this.buildMarkets().lua;
-    try {
-      const shop = this.shopForGame();
-      const marks = this.host.reports.marks();
-      const w = writeData(this.settings.wowDir, { ack: ack ? ack.ids : [], markets: lua, channels: this.host.channels(), version: this.version, now: this.now(), aliases: this.aliases(), shop, tipWant: this.lastWant, ...marks });
-      // Der Vergleich beim naechsten Einlesen schreibt sonst noch einmal, das schadet nicht
-      if (ack) this.meta('ack', { ...ack, t: this.now(), bytes: w.bytes, hash: null });
-      return true;
-    } catch (e) {
-      log(this.db, 'einkaufsliste', false, `Data.lua: ${e.message}`);
-      return false;
+    const docs = new Map();
+    for (const r of results) {
+      if (!r.shop) continue;
+      const acct = this.acctOfResult(r);
+      if (acct === undefined) continue;
+      if (!docs.has(acct)) { const d = this.shopDoc(acct); docs.set(acct, { d, changed: shopping.purge(d, this.now()) }); }
+      const x = docs.get(acct);
+      if (shopping.merge(x.d, r.shop)) x.changed = true;
     }
+    let any = false;
+    for (const [acct, x] of docs) if (x.changed) { this.saveShop(acct, x.d); any = true; }
+    return any;
+  }
+
+  // Eingabe im Manager (gewaehltes Konto): speichern und gleich fuer das Spiel bereitlegen
+  shopEdit(fn) {
+    const acct = this.acctSel();
+    const d = this.shopDoc(acct);
+    const r = fn(d, this.now());
+    this.saveShop(acct, d);
+    this.writeBridge('einkaufsliste');
+    return r;
   }
 
   newShopList(name) { return this.shopEdit((d, now) => shopping.newList(d, name, now).id); }
@@ -600,7 +772,6 @@ class BrokerClient {
 
   removeShopItem(id, key) { return this.shopEdit((d, now) => shopping.removeItem(d, String(id), String(key), now)); }
   setShopItem(id, key, patch) { return this.shopEdit((d, now) => !!shopping.setItem(d, String(id), String(key), patch, now)); }
-
   // In welchen Listen steht ein Gegenstand? Fuer den Knopf im Gegenstandsfenster
   shopLists(key) {
     return this.shopDoc().lists.map((l) => ({ id: l.id, name: l.name, on: !!(key != null && l.items[String(key)]) }));
@@ -696,14 +867,15 @@ class BrokerClient {
   }
 
   // Nach neuen Daten: Was liegt gerade unter dem Hoechstpreis? Gemeldet wird einmal und wieder, nachdem der Preis darueber lag.
+  // Ab 0.29.0 ueber die Listen aller Konten
   shopCheck() {
-    const d = this.shopDoc();
-    if (!d.lists.length) return [];
+    const lists = this.acctIds().flatMap((a) => this.shopDoc(a).lists);
+    if (!lists.length) return [];
     const was = this.meta('shopHits') || {};
     const next = {}, out = [];
     for (const m of this.db.prepare('SELECT id, key FROM markets').all()) {
       const byKey = new Map(this.listOf(m.id, m.key).items.map((x) => [x.key, x]));
-      for (const l of d.lists) {
+      for (const l of lists) {
         for (const [k, it] of Object.entries(l.items)) {
           const cur = byKey.get(k);
           if (!cur || !cur.inLast || cur.min == null) continue;
@@ -738,7 +910,7 @@ class BrokerClient {
   sync() {
     const since = this.meta('gameLoadAt') || 0;
     const ack = this.meta('ack');
-    const inputs = shopping.pending(this.shopDoc(), since);
+    const inputs = this.acctIds().reduce((n, a) => n + shopping.pending(this.shopDoc(a), since), 0);
     return { inputs, running: !!(this.gameState && this.gameState.running), values: !!(ack && ack.t > since) };
   }
 
@@ -751,7 +923,7 @@ class BrokerClient {
       if (r.lines !== '[]' || this.now() - r.t < TIP_RETRY) known.add(r.key);
     }
     const quality = new Map(this.db.prepare('SELECT key, quality FROM items').all().map((x) => [x.key, x.quality]));
-    const first = new Set([...this.favorites(), ...this.shopDoc().lists.flatMap((l) => Object.keys(l.items))]);
+    const first = new Set(this.acctIds().flatMap((a) => [...this.favorites(a), ...this.shopDoc(a).lists.flatMap((l) => Object.keys(l.items))]));
     const found = new Map();
     for (const m of this.db.prepare('SELECT id FROM markets').all()) {
       const last = this.db.prepare("SELECT rows FROM snapshots WHERE market_id = ? AND source = 'scan' AND rows IS NOT NULL ORDER BY t DESC LIMIT 1").get(m.id);

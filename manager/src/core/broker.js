@@ -63,7 +63,8 @@ function keyInfo(key) {
 function importFile(db, file) {
   const g = parseLua(fs.readFileSync(file));
   const acc = g.PeonBrokerDB;
-  const res = { file, markets: [], shop: acc && (acc.lists || acc.listsGone) ? { lists: acc.lists, gone: acc.listsGone } : null };
+  // Kennung des WoW-Kontos (ab Broker 0.85, Manager 0.29.0), fehlt bei aelterem Broker
+  const res = { file, acct: acc && typeof acc.acct === 'string' && acc.acct ? acc.acct : null, markets: [], shop: acc && (acc.lists || acc.listsGone) ? { lists: acc.lists, gone: acc.listsGone } : null };
   // Beobachtung (ab Broker 0.49, Manager 0.24): { items: { Schluessel: u }, gone: { Schluessel: u } }
   if (acc && (acc.watch || acc.watchGone)) {
     const items = {};
