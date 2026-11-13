@@ -31,7 +31,7 @@ const PEON_MODULE = /^Peon(_\w+)?$/;
 const NOT_NAMES = /^(peon|interface|addons|savedvariables|blizzard)$/i;
 
 const MANAGER_MODULE = 'Peon_Manager';
-const MANAGER_AREAS = ['Übersicht', 'Markt', 'Einkaufen', 'Radar', 'Datenlage', 'Module', 'Rückmeldungen', 'Einstellungen'];   // ab 0.26.0 wie im Spiel
+const MANAGER_AREAS = ['Übersicht', 'Markt', 'Einkaufen', 'Beobachten', 'Chancen', 'Marktübersicht', 'Erfolgskontrolle', 'Datenlage', 'Module', 'Rückmeldungen', 'Einstellungen'];   // ab 0.26.0 wie im Spiel
 const OTHER_AREA = 'Sonstiges';
 const KINDS = [{ key: 'bug', label: 'Fehler' }, { key: 'improve', label: 'Verbesserung' }, { key: 'idea', label: 'Neue Idee' }, { key: 'other', label: 'Sonstiges' }];
 const PRIOS = [{ key: 'low', label: 'Niedrig' }, { key: 'mid', label: 'Mittel' }, { key: 'high', label: 'Hoch' }];

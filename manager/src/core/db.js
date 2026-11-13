@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
 const { sameMarket } = require('./markets');
 
-const SCHEMA = 9;   // 9: Chancen und Prognosen (sale_px, sale_life, auc_first, item_level, chance_log, chance_rate, forecast_log); 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
+const SCHEMA = 10;   // 10: Herkunft des Haendlerpreises (items.vendor_src); 9: Chancen und Prognosen (sale_px, sale_life, auc_first, item_level, chance_log, chance_rate, forecast_log); 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -145,6 +145,19 @@ function openDb(dir) {
   const cols = new Set(db.prepare('PRAGMA table_info(items)').all().map((c) => c.name));
   if (!cols.has('vendor')) db.exec('ALTER TABLE items ADD COLUMN vendor INTEGER');
   if (!cols.has('commodity')) db.exec('ALTER TABLE items ADD COLUMN commodity INTEGER');
+  // Schema 10 (Manager 0.35.1): Herkunft des Haendlerpreises, 'game' (aus dem Spiel, stimmt) oder 'api' (Blizzard-API, fuer
+  // Forever oft Classic-Daten). Bisherige Werte gelten als aus dem Spiel, wenn der Gegenstand in einem eigenen Scan vorkam
+  // (Kennzahlen eigener Scans oder Verlauf aus Broker): Nur dann kann die Bridge den Preis geschickt haben, und der Wert aus
+  // dem Spiel ersetzte immer den aus der API. Jede Tabelle wird dabei nur einmal gelesen.
+  if (!cols.has('vendor_src')) {
+    db.exec(`ALTER TABLE items ADD COLUMN vendor_src TEXT;
+      UPDATE items SET vendor_src = 'api' WHERE vendor IS NOT NULL;
+      CREATE TEMP TABLE own_keys AS
+        SELECT DISTINCT item_key AS k FROM item_snap WHERE snapshot_id IN (SELECT id FROM snapshots WHERE art <> 'api')
+        UNION SELECT DISTINCT item_key FROM hist WHERE source = 'broker';
+      UPDATE items SET vendor_src = 'game' WHERE vendor IS NOT NULL AND key IN (SELECT k FROM own_keys);
+      DROP TABLE own_keys;`);
+  }
   // Schema 4: AHledger ist entfernt (05.11.2026)
   db.exec('DROP TABLE IF EXISTS ext_ahledger; DROP TABLE IF EXISTS ext_fetch;');
   // Schema 7: Die Merkliste ist entfernt, die Einkaufsliste ersetzt sie (06.11.2026)

@@ -2,6 +2,11 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 14.11.2026: Händlerpreis und Rückmeldungen zu Chancen (Manager 0.35.1)
+
+- **Händler-Chancen nur mit dem Händlerpreis aus dem Spiel** (KarloDerBaer, Vorschlag Claude): Die Blizzard-API nennt für Forever oft den Preis aus den Classic-Daten. Ein solcher Preis steht in der Prüfliste als nicht bestätigt.
+- **Rückmeldungen zu Chancen gehen über den Reiter Rückmeldungen mit** (KarloDerBaer): Claude sieht die Datenbank des Managers nicht. Über die Berichte lassen sie sich für spätere Verbesserungen auswerten.
+
 ## 13.11.2026: Chancen und Prognosen im Manager (Konzept `Peon_Manager_Chancen.md`, freigegeben)
 
 - **Konzept freigegeben**, Bau aller Abschnitte in einem Zug (KarloDerBaer).

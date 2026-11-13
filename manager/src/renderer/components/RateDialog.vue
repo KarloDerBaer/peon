@@ -13,7 +13,7 @@ async function save() {
   try {
     const c = props.chance;
     await window.peon.rateChance({ market: props.market, key: c.key, name: c.name, kind: c.kind, up: up.value, reason: reason.value, note: note.value, say: c.say,
-      data: { gain: c.gain, buy: c.buy, target: c.target, days: c.days, risk: c.risk, checks: (c.checks || []).map((k) => ({ id: k.id, value: k.value, limit: k.limit, ok: k.ok })) } });
+      data: { gain: c.gain, buy: c.buy, target: c.target, days: c.days, risk: c.risk, checks: (c.checks || []).map((k) => ({ id: k.id, value: k.value, limit: k.limit, ok: k.ok, text: k.text })) } });
     emit('saved');
     emit('close');
   } finally { busy.value = false; }

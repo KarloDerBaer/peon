@@ -123,8 +123,9 @@ function rate(db, now, { market = null, key, name = null, kind = null, up = null
 function deleteRate(db, id) { return db.prepare("DELETE FROM chance_rate WHERE id = ? AND origin = 'manager'").run(Number(id)).changes > 0; }
 
 // Einschaetzungen aus Broker (PeonBrokerDB.ratings, ab Broker 0.91, Art und Satz ab 0.93) einlesen. Einmal je Eintrag.
+// added: Liste, in die neue Eintraege kommen (ab 0.35.1, fuer den Reiter Rueckmeldungen)
 const RATE_MAP = { bad: 0, mid: null, good: 1 };
-function importBroker(db, ratings) {
+function importBroker(db, ratings, added = null) {
   if (!Array.isArray(ratings)) ratings = Object.values(ratings || {});
   const ins = db.prepare(`INSERT OR IGNORE INTO chance_rate(t, origin, market, item_key, item_name, kind, up, reason, note, say, data, ext)
       VALUES (?, 'broker', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
@@ -137,8 +138,34 @@ function importBroker(db, ratings) {
     const res = ins.run(Number(r.t), r.market || null, String(r.key), r.name || null, kind, r.rate in RATE_MAP ? RATE_MAP[r.rate] : null,
       r.rate === 'mid' ? 'mittel' : null, String(r.note || '').slice(0, NOTE_MAX), typeof r.say === 'string' ? r.say : null, JSON.stringify({ data: r.data || null, radar }), ext);
     n += res.changes;
+    if (res.changes && added) added.push({ origin: 'broker', market: r.market || null, key: String(r.key), name: r.name || null, kind,
+      up: r.rate in RATE_MAP ? RATE_MAP[r.rate] : null, reason: r.rate === 'mid' ? 'mittel' : null, note: String(r.note || '').slice(0, NOTE_MAX),
+      say: typeof r.say === 'string' ? r.say : null, data: { data: r.data || null, radar } });
   }
   return n;
+}
+
+// Text fuer den Reiter Rueckmeldungen (ab 0.35.1): Rueckmeldungen zu Chancen gehen so mit „Senden“ als Bericht hinaus.
+// Nur Gegenstand, Art, Bewertung und die Werte des Moments, der Markt nur als Fraktion.
+const KIND_TEXT = { s: 'Spekulation schnell', l: 'Spekulation langfristig', b: 'Aufkauf', v: 'Händler' };
+function feedbackText(f) {
+  const fac = (m) => (m ? (/Alliance|Allianz/i.test(m) ? 'Allianz' : /Horde/i.test(m) ? 'Horde' : 'Neutral') : '');
+  const lines = [`Rückmeldung zu einer Chance (${f.origin === 'broker' ? 'aus Broker' : 'aus dem Manager'}): ${f.name || 'Gegenstand'} (${f.key})`];
+  lines.push(`Art: ${KIND_TEXT[f.kind] || f.kind || 'unbekannt'}${f.market ? `, Markt: ${fac(f.market)}` : ''}`);
+  const judge = [f.up === true || f.up === 1 ? 'Daumen hoch' : f.up === false || f.up === 0 ? 'Daumen runter' : null, f.reason].filter(Boolean).join(', ');
+  if (judge) lines.push(`Bewertung: ${judge}`);
+  if (f.note && String(f.note).trim()) lines.push(`Bemerkung: ${String(f.note).trim()}`);
+  if (f.say) lines.push(`Satz: ${f.say}`);
+  const d = f.data || {};
+  const vals = [['Kaufen bis', d.buy], ['Zielpreis', d.target], ['Gewinn', d.gain]].filter(([, v]) => v != null).map(([k, v]) => `${k} ${spec.gold(v)}`);
+  if (d.days != null) vals.push(`Verkaufsdauer ${spec.daysText(d.days)}`);
+  if (d.risk) vals.push(`Risiko ${d.risk}`);
+  if (vals.length) lines.push(`Werte: ${vals.join(', ')}`);
+  for (const k of Array.isArray(d.checks) ? d.checks : []) {
+    lines.push(`- ${k.ok ? 'ok' : 'nicht erfüllt'}: ${k.text || k.id}${k.value != null && !k.text ? ` (Wert ${k.value}, Grenze ${k.limit})` : ''}`);
+  }
+  if (d.radar && typeof d.radar === 'object') lines.push(`Radar: ${Object.entries(d.radar).slice(0, 12).map(([k, v]) => `${k}=${v}`).join(', ')}`);
+  return lines.join('\n');
 }
 
 function ratings(db, limit = 500) {
@@ -163,4 +190,4 @@ function cleanOverride(o) {
   return x;
 }
 
-module.exports = { REASONS, NOTE_MAX, log, check, rates, probe, rate, deleteRate, importBroker, ratings, exportText, cleanOverride, bestPrice, KEEP };
+module.exports = { REASONS, NOTE_MAX, log, check, rates, probe, rate, deleteRate, importBroker, ratings, exportText, feedbackText, cleanOverride, bestPrice, KEEP };

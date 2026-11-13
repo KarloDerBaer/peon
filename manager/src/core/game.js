@@ -65,9 +65,19 @@ function importEntry(db, e, account) {
   }
 
   // Namen, Qualitaet, ab Peon_Client 0.3.0 Haendlerpreis und Warenart: "Name|Qualitaet|Haendlerpreis|Massenware"
-  const up = db.prepare(`INSERT INTO items(key, item_id, variant, name, quality, vendor, commodity, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  // ab Manager 0.35.1: Haendlerpreis aus dem Spiel mit Herkunft 'game', er ersetzt einen Wert aus der Blizzard-API.
+  // Staende der API tragen die Namen aus der Datenbank weiter (blizzard-import.js), ihr Preis bleibt 'api' und ersetzt nichts.
+  const api = e.art === 'api';
+  const up = db.prepare(api
+    ? `INSERT INTO items(key, item_id, variant, name, quality, vendor, vendor_src, commodity, updated) VALUES (?, ?, ?, ?, ?, ?, CASE WHEN ?6 IS NULL THEN NULL ELSE 'api' END, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET name = COALESCE(excluded.name, items.name),
+        quality = COALESCE(excluded.quality, items.quality),
+        vendor_src = CASE WHEN items.vendor IS NULL AND excluded.vendor IS NOT NULL THEN 'api' ELSE items.vendor_src END, vendor = COALESCE(items.vendor, excluded.vendor),
+        commodity = COALESCE(excluded.commodity, items.commodity), updated = excluded.updated`
+    : `INSERT INTO items(key, item_id, variant, name, quality, vendor, vendor_src, commodity, updated) VALUES (?, ?, ?, ?, ?, ?, CASE WHEN ?6 IS NULL THEN NULL ELSE 'game' END, ?, ?)
       ON CONFLICT(key) DO UPDATE SET name = COALESCE(excluded.name, items.name),
         quality = COALESCE(excluded.quality, items.quality), vendor = COALESCE(excluded.vendor, items.vendor),
+        vendor_src = CASE WHEN excluded.vendor IS NOT NULL THEN 'game' ELSE items.vendor_src END,
         commodity = COALESCE(excluded.commodity, items.commodity), updated = excluded.updated`);
   const names = e.names && typeof e.names === 'object' ? e.names : {};
   const seen = new Set();
@@ -86,7 +96,9 @@ function importEntry(db, e, account) {
   // Varianten bekommen den Haendlerpreis des Gegenstands
   for (const [id, v] of Object.entries(names)) {
     const info = parseName(v);
-    if (info.vendor != null) db.prepare('UPDATE items SET vendor = ? WHERE item_id = ? AND vendor IS NULL').run(info.vendor, Number(id));
+    if (info.vendor == null) continue;
+    if (api) db.prepare("UPDATE items SET vendor = ?, vendor_src = 'api' WHERE item_id = ? AND vendor IS NULL").run(info.vendor, Number(id));
+    else db.prepare("UPDATE items SET vendor = ?, vendor_src = 'game' WHERE item_id = ? AND (vendor IS NULL OR vendor_src IS NOT 'game')").run(info.vendor, Number(id));
   }
   // Genaue Werte aus dem Spiel (Tooltip des Gegenstands, auch mit Zusatz), die Blizzard-API nennt sie nicht
   if (e.tips && typeof e.tips === 'object') {

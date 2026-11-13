@@ -182,3 +182,41 @@ test('Einschaetzungen aus Broker: einmal je Eintrag, Art aus dem Radar', () => {
   assert.ok(text.includes('Leinenstoff') && !/Account|WTF/.test(text), 'Datei ohne Konto- und Charakternamen');
   db.close();
 });
+
+test('0.35.1: Haendlerpreis nur aus dem Spiel, Wert aus der API nicht bestaetigt', () => {
+  const game = require('../src/core/game');
+  const { tx } = require('../src/core/db');
+  const db = openDb(tmp());
+  const M = 'Classic Beta PvE / Alliance';
+  const entry = (art, t, names) => ({ id: `${art}-${t}`, kind: 'scan', art, market: M, realm: 'Classic Beta PvE', faction: 'Alliance', t, total: 1, offers: 1, lines: 1, partial: false, names, rows: '4306;;;5;300;;;4;;1' });
+  tx(db, () => game.importEntry(db, entry('api', NOW - 7200, { 4306: 'Seidenstoff|1|9000|' }), null));
+  assert.deepEqual({ ...db.prepare("SELECT vendor, vendor_src FROM items WHERE key = '4306'").get() }, { vendor: 9000, vendor_src: 'api' }, 'aus der API: nicht bestaetigt');
+  tx(db, () => game.importEntry(db, entry('scan', NOW - 3600, { 4306: 'Seidenstoff|1|500|' }), null));
+  assert.deepEqual({ ...db.prepare("SELECT vendor, vendor_src FROM items WHERE key = '4306'").get() }, { vendor: 500, vendor_src: 'game' }, 'aus dem Spiel ersetzt den Wert der API');
+  tx(db, () => game.importEntry(db, entry('api', NOW, { 4306: 'Seidenstoff|1|9000|' }), null));
+  assert.deepEqual({ ...db.prepare("SELECT vendor, vendor_src FROM items WHERE key = '4306'").get() }, { vendor: 500, vendor_src: 'game' }, 'die API ersetzt den Wert aus dem Spiel nicht');
+  db.close();
+  // Haendler-Chance nur mit bestaetigtem Preis
+  const c = ctx({ offers: new Map([['2589', [{ p: 5, q: 20 }]]]), vendor: () => null, vendorApi: () => 9000 });
+  const v = spec.evalVendor(c, '2589');
+  assert.ok(!v.ok && v.say.includes('Händlerpreis nicht bestätigt') && v.say.includes('90s'), v.say);
+});
+
+test('0.35.1: Rueckmeldungen zu Chancen gehen einmal in den Reiter Rueckmeldungen, auch aeltere', () => {
+  const text = book.feedbackText({ origin: 'manager', market: 'X / Alliance', key: '4306', name: 'Seidenstoff', kind: 'v', up: 0, reason: 'Zielpreis zu hoch', note: 'Händlerwert falsch',
+    data: { buy: 8999, target: 9000, gain: 100000, checks: [{ id: 'vendor', ok: true, text: 'Händler zahlt 90g' }] } });
+  assert.ok(text.includes('Seidenstoff (4306)') && text.includes('Art: Händler, Markt: Allianz') && text.includes('Daumen runter, Zielpreis zu hoch') && text.includes('Händler zahlt 90g'), text);
+  assert.ok(!text.includes('Alliance'), 'Markt nur als Fraktion');
+  // Weitergabe ueber einen Merker: jede Rueckmeldung einmal, auch die von vor 0.35.1
+  const { install } = require('../src/core/chance-client');
+  const db = openDb(tmp());
+  const bc = { db, now: () => NOW, store: {}, meta(k, v) { if (v === undefined) return this.store[k] ?? null; this.store[k] = v; return v; } };
+  install(bc);
+  book.rate(db, NOW - 3600, { key: '4306', name: 'Seidenstoff', kind: 'v', up: false, note: 'alt' });
+  assert.equal(bc.takeNewRatings().length, 1, 'aeltere Rueckmeldung geht mit');
+  assert.equal(bc.takeNewRatings().length, 0, 'nur einmal');
+  book.importBroker(db, [{ key: 2589, t: NOW, rate: 'bad', note: 'aus dem Spiel' }]);
+  const n = bc.takeNewRatings();
+  assert.ok(n.length === 1 && n[0].origin === 'broker' && n[0].note === 'aus dem Spiel', 'Einschaetzung aus Broker geht mit');
+  db.close();
+});

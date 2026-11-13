@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.35.1
+
+Kurz: Händler-Chancen rechnen nur noch mit dem Händlerpreis aus dem Spiel. Ein Preis, den nur die Blizzard-API nennt, steht in der Prüfliste als nicht bestätigt.
+Kurz: Rückmeldungen zu Chancen stehen zusätzlich unter Rückmeldungen und gehen mit „Senden“ mit, auch die schon geschriebenen.
+
+- 0.35.1 (14.11.2026): Rückmeldung KarloDerBaer zur Vorabversion `v2026.11.13.5-test`: eine Händler-Chance mit komplett falschem Händlerpreis.
+  - **Ursache:** Für Gegenstände, die der Manager nur aus den Ständen der Blizzard-API kennt, kam der Händlerpreis aus den Gegenstandsdaten der API (`sell_price`), oft aus den Classic-Daten, wenn Forever den Gegenstand nicht kennt. Die Händler-Chance hat damit gerechnet, als wäre es der Preis aus dem Spiel.
+  - **Herkunft je Preis:** neue Spalte `items.vendor_src` (Schema 10), `game` aus dem Spiel, `api` aus der Blizzard-API. Ein Preis aus dem Spiel ersetzt einen aus der API, nie umgekehrt. Stände der API tragen ihre Namen mit dem Preis aus der Datenbank weiter und gelten dabei als `api` (`game.js`). Bisherige Werte gelten einmalig als aus dem Spiel, wenn der Gegenstand in einem eigenen Scan oder im Verlauf aus Broker vorkam.
+  - **Händler-Chance** nur mit Preis aus dem Spiel (`chanceCtx.vendor`). Sonst steht in der Prüfliste „Händlerpreis nicht bestätigt: nur die Blizzard-API nennt …“ (`vendorApi`). Für die Einstellgebühr der Spekulation zählt auch der Wert aus der API.
+  - **Rückmeldungen mitschicken:** Jede Rückmeldung zu einer Chance, aus dem Manager oder als Einschätzung aus Broker, steht einmal zusätzlich im Reiter Rückmeldungen (Bereich Chancen, Art Verbesserung) mit Gegenstand, Art, Bewertung, Bemerkung, Satz, Werten und Prüfliste, der Markt nur als Fraktion (`chancebook.feedbackText`). Ein Merker (`meta` `ratingsForwarded`, `takeNewRatings`) sorgt dafür, dass jede nur einmal kommt, auch die von vor 0.35.1. Neue Bereiche des Managers: Beobachten, Chancen, Marktübersicht, Erfolgskontrolle (statt Radar).
+  - Tests: Herkunft des Preises bei Scan und API, Händler-Chance nur bestätigt, Text der Rückmeldung, Weitergabe einmal und auch für ältere (`test/chancen.test.js`). Alle 217 Tests grün.
+  - **Im echten Programm prüfen:** Die falsche Händler-Chance ist weg oder steht in der Prüfliste als nicht bestätigt. Unter Rückmeldungen steht deine Rückmeldung zur Chance, „Senden“ schickt sie.
+
 ## 0.35.0
 
 Kurz: Neue Seite Chancen statt Radar: eine Liste aller Kaufvorschläge mit einem Satz, warum, und einer Prüfliste zum Aufklappen.

@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 13.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.1 / Broker 0.93.0 / Bridge 0.11.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.35.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.8 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 13.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.1 / Broker 0.93.0 / Bridge 0.11.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.35.1 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.8 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.20.1, API 20
@@ -84,7 +84,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.83.0, 0.82.0, 0.81.1, 0.81.0, 0.80.0, 0.79.0, 0.78.0, 0.77.0, 0.76.0, 0.75.1, 0.75.0, 0.74.0, 0.73.0, 0.72.0, 0.71.0, 0.70.0, 0.69.0, 0.68.0, 0.67.0, 0.66.0, 0.65.0, 0.64.1, 0.64.0, 0.63.0, 0.62.0, 0.61.0, 0.60.1, 0.60.0, 0.59.1, 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.35.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.35.1
+
+- **Händlerpreis mit Herkunft, Rückmeldungen mitschicken (0.35.1):** `items.vendor_src` (`game` oder `api`, Schema 10), Händler-Chancen nur mit Preis aus dem Spiel. Rückmeldungen zu Chancen stehen zusätzlich im Reiter Rückmeldungen und gehen mit „Senden“ als Bericht hinaus (`takeNewRatings`, `meta` `ratingsForwarded`). Nicht veröffentlicht.
 
 - **Chancen und Prognosen (0.35.0, Konzept `docs\konzepte\manager\Peon_Manager_Chancen.md`, freigegeben 13.11.2026, alle Bauabschnitte K1 bis K9):** Neue Dateien `proof.js` (belegte Verkäufe D1, D2, F56, F58), `spec.js` (Arten, Prüfliste, Satz), `forecast.js` (Prognosen F60 bis F67), `chancebook.js` (Vorschläge D5, Nachprüfung, Rückmeldungen, Probe, Übersteuerung), `chance-client.js` (Anbindung, Data.lua, Stufen D3). Seiten Chancen (statt Radar WIP), Marktübersicht, Erfolgskontrolle und Steckbrief, „Warum (nicht)?“ auf der Gegenstandsseite, Übersteuerungen unter Einstellungen. Tabellen `sale_px`, `sale_life`, `auc_first`, `item_level`, `chance_log`, `chance_rate`, `forecast_log`, `meta` `chanceRules`, `chanceOverrides`, `chancePinned`, `brokerRules`, `feste`, `events`. Schema 9. Wiederverkauf und F55 entfallen. Vorabversion `v2026.11.13.5-test` (13.11.2026, nur Kanal Test, mit Broker 0.93.0 und Bridge 0.11.0), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. **Offen:** Prüfungen P1 (Haltbarkeit nach einer Woche Daten), P2 (Kalender im Spiel), P3 (Profil-API) und P4 (`/who`) sind noch nicht gemacht. Die Rechenfunktionen des alten Wiederverkaufs sind mit Zustimmung von KarloDerBaer entfernt.
 

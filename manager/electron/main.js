@@ -18,6 +18,8 @@ const blizzard = require('../src/core/blizzard');
 const { BlizzardWatch } = require('../src/core/blizzard-watch');
 const { findWowDirs, REPO_URL } = require('../src/core/addons');
 const modules = require('../src/core/modules');
+const chancebook = require('../src/core/chancebook');
+const { MANAGER_MODULE } = require('../src/core/reports');
 
 process.removeAllListeners('warning');   // Hinweis "SQLite is experimental" nicht anzeigen
 
@@ -130,6 +132,17 @@ if (!app.requestSingleInstanceLock()) {
 
   // ---------- Einlesen ----------
   // Ab 0.23.0 im Arbeitsprozess: das Fenster bleibt bedienbar, waehrend gerechnet wird
+  // ab 0.35.1: Rueckmeldungen zu Chancen (Manager und Broker) stehen zusaetzlich im Reiter Rueckmeldungen und gehen mit
+  // „Senden“ als Bericht hinaus, damit sie sich auswerten lassen
+  async function forwardRatings() {
+    if (!svc.broker) return;
+    try {
+      const list = await svc.broker.takeNewRatings();
+      for (const f of list) svc.reports.addFeedback({ module: MANAGER_MODULE, kind: 'improve', prio: 'mid', area: 'Chancen', text: chancebook.feedbackText(f) });
+      if (list.length) send('changed', { what: 'rueckmeldungen' });
+    } catch (e) { console.error(e); }
+  }
+
   async function runImport(why) {
     if (!svc.broker) { svc.syncBridge(); return { inactive: true }; }
     if (busy) { pending = pending || setTimeout(() => { pending = null; runImport(why); }, 1000); return null; }
@@ -143,6 +156,7 @@ if (!app.requestSingleInstanceLock()) {
       if (r.imported > 0 && tray) tray.setToolTip(`Peon Manager: ${r.imported} neue Momentaufnahmen`);
       notifyShop().catch(() => {});
       notifyWatch().catch(() => {});
+      await forwardRatings();   // ab 0.35.1: Rueckmeldungen zu Chancen, auch Einschaetzungen aus Broker
       send('changed', { what: 'spiel', why, imported: r.imported });
       return r;
     } catch (e) {
@@ -391,7 +405,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('chanceProbe', (_e, market, kind, next) => (svc.broker ? svc.broker.chanceProbe(String(market), String(kind), next || {}) : null));
     ipcMain.handle('overrides', () => (svc.broker ? svc.broker.overrides() : []));
     ipcMain.handle('setOverride', (_e, key, o) => chanceChanged(svc.broker.setOverride(String(key), o || {})));
-    ipcMain.handle('rateChance', (_e, f) => chanceChanged(svc.broker.rateChance(f || {})));
+    ipcMain.handle('rateChance', async (_e, f) => { const r = await chanceChanged(svc.broker.rateChance(f || {})); await forwardRatings(); return r; });
     ipcMain.handle('chanceRatings', () => (svc.broker ? svc.broker.chanceRatings() : { list: [], reasons: [] }));
     ipcMain.handle('deleteChanceRating', (_e, id) => chanceChanged(svc.broker.deleteChanceRating(Number(id))));
     ipcMain.handle('pinChance', async (_e, market, key, on) => { const r = await svc.broker.pinChance(String(key), !!on); await svc.broker.writeBridge('chancen'); return r; });

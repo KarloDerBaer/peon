@@ -107,7 +107,7 @@ function evalFast(c, key) {
   const st = c.stats.get(key);
   const b = c.bands.get(key);
   const sh = c.shifts && c.shifts.get(key);
-  const hp = c.vendor(key);
+  const hp = c.vendor(key) || (c.vendorApi ? c.vendorApi(key) : null);   // nur fuer die Einstellgebuehr
   const n = pr ? pr.n : 0;
   const proven = pr && n >= R.nProof ? pr.median : null;
   const ref = ov.target != null ? ov.target : proven;
@@ -163,6 +163,7 @@ function evalFast(c, key) {
 function evalVendor(c, key) {
   const R = c.rules.v;
   const hp = c.vendor(key);
+  const apiHp = !hp && c.vendorApi ? c.vendorApi(key) : null;
   const offers = c.offers.get(key) || [];
   const buy = hp ? offers.filter((o) => o.p < hp) : [];
   const qty = buy.reduce((a, o) => a + o.q, 0);
@@ -172,7 +173,7 @@ function evalVendor(c, key) {
   const hold = c.hold(key, pr && pr.n >= c.rules.s.nProof ? pr.median : null);
   const checks = [
     check('vendor', 'Unter dem Händlerpreis', offers.length && hp ? offers[0].p : null, hp, qty > 0,
-      !hp ? 'Händlerpreis unbekannt' : offers.length ? `Günstigstes Angebot ${gold(offers[0].p)}, Händler zahlt ${gold(hp)}` : 'Gerade nicht im Angebot',
+      apiHp ? `Händlerpreis nicht bestätigt: nur die Blizzard-API nennt ${gold(apiHp)}, das Spiel hat ihn noch nicht geliefert` : !hp ? 'Händlerpreis unbekannt' : offers.length ? `Günstigstes Angebot ${gold(offers[0].p)}, Händler zahlt ${gold(hp)}` : 'Gerade nicht im Angebot',
       { weight: 3, say: qty > 0 ? `${qty.toLocaleString('de-DE')} Stück unter dem Händlerpreis von ${gold(hp)}.` : null }),
     check('gain', 'Mindestgewinn', gain, R.minGain, gain != null && gain >= R.minGain, gain == null ? 'Kein Gewinn zu rechnen' : `Gewinn beim Händler ${gold(gain)} (mindestens ${gold(R.minGain)})`, { weight: 1, say: gain > 0 ? `Bringt beim Händler ${gold(gain)}.` : null }),
   ];

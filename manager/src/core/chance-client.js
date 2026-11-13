@@ -88,7 +88,7 @@ const methods = {
     const pr = proof.soldPrices(db, mid, today);
     const refs = new Map([...pr].map(([k, x]) => [k, x.median]));
     const dur = proof.durabilityAll(db, mid, refs, today);
-    const items = new Map(db.prepare('SELECT key, name, quality, item_id, vendor, commodity, variant FROM items').all().map((x) => [x.key, x]));
+    const items = new Map(db.prepare('SELECT key, name, quality, item_id, vendor, vendor_src, commodity, variant FROM items').all().map((x) => [x.key, x]));
     const over = this.overridesDoc();
     const rules = this.chanceRules();
     const levels = new Map(db.prepare('SELECT item_id, req, equip FROM item_level WHERE req IS NOT NULL').all().map((x) => [x.item_id, x]));
@@ -98,7 +98,10 @@ const methods = {
       mid, now, today, t: last ? last.t : null, age: last ? Math.max(0, now - last.t) : Infinity, rows, offers, stats, bands: bd.items, shifts: bd.shifts,
       proof: pr, dur, rules, broker: this.brokerRules(), forecasts: fc.list, index: fc.index, signalRates: fc.rates,
       over: (k) => over[k] || {},
-      vendor: (k) => { const i = items.get(k) || items.get(String(k).split(':')[0]); return i && i.vendor > 0 ? i.vendor : null; },
+      // ab 0.35.1: Haendlerpreis nur aus dem Spiel. Ein Wert aus der Blizzard-API (fuer Forever oft Classic-Daten) ist
+      // nicht bestaetigt, er zaehlt nur fuer die Einstellgebuehr und steht in der Pruefliste
+      vendor: (k) => { const i = items.get(k) || items.get(String(k).split(':')[0]); return i && i.vendor > 0 && i.vendor_src === 'game' ? i.vendor : null; },
+      vendorApi: (k) => { const i = items.get(k) || items.get(String(k).split(':')[0]); return i && i.vendor > 0 && i.vendor_src !== 'game' ? i.vendor : null; },
       isCommodity: (k) => { const i = items.get(k); return !!(i && !i.variant && i.commodity === 1); },
       info: (k) => items.get(k) || { name: null, quality: null, item_id: Number(String(k).split(':')[0]) },
       hold: (k) => dur.get(k) || null,
@@ -297,6 +300,14 @@ const methods = {
     return id;
   },
   chanceRatings() { return { list: book.ratings(this.db), reasons: book.REASONS }; },
+  // ab 0.35.1: Rueckmeldungen, die noch nicht im Reiter Rueckmeldungen stehen (auch die vor 0.35.1), einmal je Eintrag
+  takeNewRatings() {
+    const mark = this.meta('ratingsForwarded') || 0;
+    const rows = this.db.prepare('SELECT * FROM chance_rate WHERE id > ? ORDER BY id').all(mark);
+    if (rows.length) this.meta('ratingsForwarded', rows[rows.length - 1].id);
+    return rows.map((r) => ({ origin: r.origin, market: r.market, key: r.item_key, name: r.item_name, kind: r.kind, up: r.up, reason: r.reason,
+      note: r.note, say: r.say, data: r.data ? JSON.parse(r.data) : null }));
+  },
   deleteChanceRating(id) { return book.deleteRate(this.db, id); },
   exportChanceRatings(file) {
     const rates = {};
@@ -347,11 +358,12 @@ const methods = {
     this.chanceCache = null;
     return out;
   },
+  // Rueckgabe: neue Einschaetzungen (ab 0.35.1 gehen sie auch in den Reiter Rueckmeldungen)
   ratingsFromGame(results) {
-    let n = 0;
-    for (const r of results) if (r.ratings) n += book.importBroker(this.db, r.ratings);
-    if (n) log(this.db, 'chancen', true, `${n} Einschätzungen aus Broker`);
-    return n;
+    const added = [];
+    for (const r of results) if (r.ratings) book.importBroker(this.db, r.ratings, added);
+    if (added.length) log(this.db, 'chancen', true, `${added.length} Einschätzungen aus Broker`);
+    return added;
   },
   rulesFromGame(results) {
     const r = results.filter((x) => x.rules).sort((a, b) => (b.mt || 0) - (a.mt || 0))[0];
