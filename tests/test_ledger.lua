@@ -1664,7 +1664,10 @@ do
   realm.moves = keepMv
   local d7 = ns.Trend.Series("d7", T0)
   check(d7.last and d7.last < d7.n and d7.trade[d7.last] and math.abs(d7.trade[d7.last] - 150) < 0.01, "Handelsgewinn im Zeitraum aufsummiert (Zeitraum noch nicht voll)")
-  realm.trend = { { t = T0 - 10 * 86400, g = 1 }, { t = T0 - 10 * 86400 + 60, g = 2 }, { t = T0 - 2 * 86400, g = 3 }, { t = T0 - 2 * 86400 + 120, g = 4 }, { t = T0 - 60, g = 5 } }
+  -- Paare am Anfang ihres Tages bzw. ihrer Stunde, sonst trennt eine Tages- oder Stundengrenze sie je nach Uhrzeit des Laufs
+  local tDay = math.floor((T0 - 10 * 86400) / 86400) * 86400 + 100
+  local tHour = math.floor((T0 - 2 * 86400) / 3600) * 3600 + 100
+  realm.trend = { { t = tDay, g = 1 }, { t = tDay + 60, g = 2 }, { t = tHour, g = 3 }, { t = tHour + 120, g = 4 }, { t = T0 - 60, g = 5 } }
   check(ns.Trend.Thin(T0) == 2 and realm.trend[1].g == 2 and realm.trend[2].g == 4, "Ausduennen: alt ein Stand je Tag bzw. je Stunde")
   ns.Window.Select("overview")
   check(ns.Overview.chart and ns.Overview.series and #ns.Overview.rangeButtons == 5, "Diagramm in der Uebersicht mit fuenf Zeitraeumen")
