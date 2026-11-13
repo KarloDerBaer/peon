@@ -1,135 +1,26 @@
 'use strict';
-// Peon Manager - Chancen (Rechenmodell Kapitel 9.3, F50 bis F53).
-// Beim Einlesen wird je Komplettscan festgehalten, welche Angebote sich zum Wiederverkauf (unter der Untergrenze)
-// oder beim Haendler lohnen (opp_snap). Die Reiter fassen das ueber den gewaehlten Zeitraum zusammen.
+// Peon Manager - Marktwerte fuer Chancen und Marktuebersicht (Rechenmodell Kapitel 9.3): Fallend und Steigend (F52),
+// Lohnend (F53), Aufkauf. Ab Manager 0.35.0 rechnet spec.js die Chancen. Der Wiederverkauf (F50 bis F50c) und seine
+// Trefferquote (F55) sind entfernt (KarloDerBaer 13.11.2026), die Tabellen opp_snap und opp_scan werden nicht mehr gefuellt.
 
 const zlib = require('node:zlib');
-const { parseRows, itemKey, unitPrice, summarize } = require('./stats');
-const { dayOf } = require('./broker');
-const { tx } = require('./db');
+const { parseRows, itemKey, unitPrice } = require('./stats');
 
 const CUT = 0.05;          // Auktionshaus-Gebuehr beim Verkauf (F11)
-const MARGIN = 0.20;       // Wiederverkauf: Gewinn mindestens 20 % des Einkaufs (wie Broker dealMargin)
 const MOVE = 0.15;         // Fallend/Steigend: mindestens 15 % vom Langzeitwert
 const DUMP = 0.30;         // Dumping: Min unter 70 % vom Langzeitwert (wie Broker dumpPct)
-const SLOTS = 8;           // 3-Stunden-Abschnitte
 const PROOF = 0.8;         // in 14 Tagen mindestens einmal zu 80 % des Zielpreises verkauft, sonst zweifelhaft (Scherzpreise)
-// Ab Manager 0.22.0 (KarloDerBaer 08.11.2026, Beispiele Robuster Stein und Umhang des Huegelwaechters):
-const DEPTH = 1;           // F50b: unter dem Verkaufsziel hoechstens so viel Ware wie in DEPTH Tagen verkauft wird
-const UNSURE = 0.4;        // F50c: Schwankung ueber 40 %: Bereich zu breit, kein Wiederverkauf
+// Ab Manager 0.22.0 (KarloDerBaer 08.11.2026), gilt weiter fuer die Anzeige des ueblichen Bereichs (F50c):
+const UNSURE = 0.4;        // F50c: Schwankung ueber 40 %: Bereich zu breit
 
 function low(b) { return Math.max(0, b.lang * (1 - b.schw)); }
 function high(b) { return b.lang * (1 + b.schw); }
-
-// Haendlerpreise aller bekannten Gegenstaende: Map key -> Kupfer
-function vendorMap(db) {
-  const out = new Map();
-  for (const r of db.prepare('SELECT key, vendor FROM items WHERE vendor > 0').iterate()) out.set(r.key, r.vendor);
-  return out;
-}
-
-// F50, F51 fuer einen Scan. bands = Map key -> Langzeit-Teil (longterm), vendors = Map key -> Haendlerpreis
-// shifts = Map key -> neues Preisniveau (F54): faellt der Preis gerade, kein Wiederverkauf
-// Ab Manager 0.21.0 (F50a): Wiederverkauf hoechstens zum Median der Angebote dieses Scans. Liegen alle Angebote
-// gleich tief, ist das guenstigste kein Schnaeppchen (wie Broker: Verkauf hoechstens zum naechsten Angebot).
-// Ab Manager 0.22.0: F50b Menge unter dem Ziel (sales = Map key -> Absatz, nur ab Stufe 2 geprueft): Liegt unter dem
-// Verkaufsziel mehr Ware, als in einem Tag verkauft wird, muesste man den Markt leer kaufen. Das ist der Marktpreis,
-// keine Chance. F50c: Bei Schwankung ueber 40 % ist der Bereich zu breit fuer ein Verkaufsziel.
-function scanOpp(rows, bands, vendors, shifts = null, sales = null) {
-  const res = new Map();   // "key|kind" -> { key, kind, qty, profit, cost, ref }
-  const sum = bands.size ? summarize(rows) : new Map();
-  // Verkaufsziel je Gegenstand (F50a) und Menge darunter (F50b)
-  const target = new Map();
-  for (const [key, s] of sum) {
-    const b = bands.get(key);
-    const sh = shifts && shifts.get(key);
-    if (!b || b.schw > UNSURE || (sh && sh.dir === 'down')) continue;
-    target.set(key, { sell: s && s.median > 0 ? Math.min(low(b), s.median) : low(b), below: 0 });
-  }
-  for (const r of rows) {
-    const x = target.get(itemKey(r));
-    const p = unitPrice(r);
-    if (x && p != null && r.qty > 0 && p < x.sell) x.below += r.qty * r.n;
-  }
-  for (const [key, x] of target) {
-    const s = sales && sales.get(key);
-    if (s && s.level >= 2 && s.perDay != null && x.below > DEPTH * s.perDay) target.delete(key);
-  }
-  const add = (key, kind, q, g, p, ref) => {
-    const k = key + '|' + kind;
-    const x = res.get(k) || { key, kind, qty: 0, profit: 0, cost: 0, ref };
-    x.qty += q; x.profit += q * g; x.cost += q * p;
-    res.set(k, x);
-  };
-  for (const r of rows) {
-    const p = unitPrice(r);
-    if (p == null || !(r.qty > 0)) continue;
-    const key = itemKey(r);
-    const q = r.qty * r.n;
-    const t = target.get(key);
-    if (t) {
-      const sell = t.sell;
-      const g = sell * (1 - CUT) - p;
-      if (sell > 0 && g >= MARGIN * p && g > 0) add(key, 'r', q, g, p, sell);
-    }
-    const hp = vendors.get(key) ?? vendors.get(String(r.item));
-    if (hp && p < hp) add(key, 'v', q, hp - p, p, hp);
-  }
-  return [...res.values()];
-}
 
 function rowsOf(db, id) {
   const r = db.prepare('SELECT rows FROM snapshots WHERE id = ?').get(id);
   if (!r || !r.rows) return null;
   return parseRows(zlib.inflateSync(Buffer.from(r.rows)).toString('utf8'));
 }
-
-// Neue Scans auswerten; bei neuen Haendlerpreisen die Haendler-Treffer der letzten 14 Tage neu rechnen
-function updateMarket(db, marketId, bands, now, shifts = null, sales = null) {
-  const vendors = vendorMap(db);
-  // Stand der Haendlerpreise (Anzahl und Summe): aendert sich einer, werden die Haendler-Treffer neu gerechnet
-  let sum = 0;
-  for (const v of vendors.values()) sum = (sum + v) % 1e9;
-  const vn = vendors.size * 1e9 + sum;
-  const res = { scans: 0, vendor: 0 };
-  tx(db, () => {
-    const ins = db.prepare('INSERT OR REPLACE INTO opp_snap(snapshot_id, market_id, item_key, t, kind, qty, profit, cost, ref) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    const mark = db.prepare('INSERT OR REPLACE INTO opp_scan(snapshot_id, market_id, t, vendor_n) VALUES (?, ?, ?, ?)');
-    const from = now - 14 * 86400;
-    const todo = db.prepare(`SELECT s.id, s.t, o.vendor_n FROM snapshots s LEFT JOIN opp_scan o ON o.snapshot_id = s.id
-        WHERE s.market_id = ? AND s.source = 'scan' AND s.rows IS NOT NULL AND s.t >= ? AND (o.snapshot_id IS NULL OR o.vendor_n <> ?)`).all(marketId, from, vn);
-    for (const s of todo) {
-      const rows = rowsOf(db, s.id);
-      if (!rows) continue;
-      const fresh = s.vendor_n == null;
-      let list = scanOpp(rows, fresh ? bands : new Map(), vendors, shifts, sales);
-      if (!fresh) { db.prepare("DELETE FROM opp_snap WHERE snapshot_id = ? AND kind = 'v'").run(s.id); res.vendor++; }
-      else res.scans++;
-      for (const x of list) ins.run(s.id, marketId, x.key, s.t, x.kind, x.qty, x.profit, x.cost, x.ref);
-      mark.run(s.id, marketId, s.t, vn);
-    }
-  });
-  return res;
-}
-
-// Stand der Regeln fuer Wiederverkauf. Gespeicherte Treffer (opp_snap) werden nur einmal je Scan gerechnet.
-// Aendern sich die Regeln, gelten die alten Treffer nicht mehr (Manager 0.21.1: sonst zeigte „Beste Chancen jetzt“
-// noch Treffer nach den Regeln vor 0.21.0, zum Beispiel Robuster Stein). Dann alle Wiederverkaufs-Treffer loeschen
-// und den letzten Scan jedes Markts neu auswerten lassen. Die Trefferquote beginnt damit neu, nur mit den neuen Regeln.
-const RULES = 3;   // 3: Manager 0.22.0 (F50b, F50c)
-function resetRules(db, current) {
-  if (current === RULES) return false;
-  tx(db, () => {
-    db.prepare("DELETE FROM opp_snap WHERE kind = 'r'").run();
-    for (const r of db.prepare('SELECT o.snapshot_id FROM opp_scan o WHERE o.t = (SELECT MAX(t) FROM opp_scan x WHERE x.market_id = o.market_id)').all()) {
-      db.prepare('DELETE FROM opp_snap WHERE snapshot_id = ?').run(r.snapshot_id);
-      db.prepare('DELETE FROM opp_scan WHERE snapshot_id = ?').run(r.snapshot_id);
-    }
-  });
-  return true;
-}
-
-function slotOf(t) { return Math.floor(new Date(t * 1000).getHours() / 3); }
 
 // Aufkauf (Manager 0.26.0, Neuaufbau Abschnitt 6.1, gleiche Regel wie Broker Buyout.lua ab 0.65): Massenware bis zu
 // einer Preisstufe aufkaufen und zum Preis der naechsten Stufe wieder einstellen. Eine Stelle zaehlt, wenn der Gewinn
@@ -224,41 +115,6 @@ function itemInfo(db) {
   return (key) => get.get(key) || { name: null, quality: null, item_id: Number(String(key).split(':')[0]), variant: null, vendor: null };
 }
 
-// Treffer eines Typs (r/v). Ab Manager 0.22.0 (KarloDerBaer 08.11.2026) nur, was der letzte Scan ergeben hat, mit
-// den Preisen aus diesem Scan. Der Zeitraum zeigt nur noch, wie oft der Gegenstand dabei war und wann meistens.
-function summarizeOpp(db, marketId, kind, days, now, sales, lastId) {
-  const from = now - days * 86400;
-  const scans = db.prepare('SELECT COUNT(*) AS n FROM opp_scan WHERE market_id = ? AND t >= ?').get(marketId, from).n;
-  if (!scans || !lastId) return { scans, list: [] };
-  const by = new Map();
-  for (const r of db.prepare('SELECT item_key, qty, profit, cost, ref FROM opp_snap WHERE snapshot_id = ? AND kind = ?').iterate(lastId, kind)) {
-    if (r.qty > 0) by.set(r.item_key, { key: r.item_key, qty: r.qty, profit: r.profit, cost: r.cost, ref: r.ref, hits: 0, slots: new Array(SLOTS).fill(0) });
-  }
-  for (const r of db.prepare('SELECT item_key, t FROM opp_snap WHERE market_id = ? AND kind = ? AND t >= ?').iterate(marketId, kind, from)) {
-    const x = by.get(r.item_key);
-    if (!x) continue;
-    x.hits++;
-    x.slots[slotOf(r.t)]++;
-  }
-  const info = itemInfo(db);
-  const list = [];
-  for (const x of by.values()) {
-    const s = sales.get(x.key) || null;
-    const per = x.profit / x.qty;
-    const best = x.slots.indexOf(Math.max(...x.slots));
-    // Wiederverkauf nur, wenn zu diesem Preis auch verkauft wird (hoechster Verkauf in 14 Tagen mindestens 80 % des Ziels)
-    const doubt = kind === 'r' && s && s.sold > 0 && (s.maxSold ?? 0) < PROOF * x.ref;
-    const value = kind === 'v' ? x.qty * per : (s && s.perDay != null && !doubt ? Math.min(s.perDay, x.qty) * per : null);
-    const i = info(x.key);
-    list.push({ key: x.key, name: i.name, quality: i.quality, item: i.item_id, share: Math.min(1, x.hits / scans), hits: x.hits, qty: x.qty,
-      perPiece: per, buy: x.cost / x.qty, sell: x.ref, perDay: value, rough: x.qty * per,
-      sales: s ? { perDay: s.perDay, level: s.level, rate: s.rate, avgPrice: s.avgPrice, maxSold: s.maxSold } : null, doubt: !!doubt, slot: x.slots[best] ? best : null,
-      now: { qty: x.qty, profit: x.profit, price: x.cost / x.qty } });
-  }
-  list.sort((a, b) => (b.perDay ?? -1) - (a.perDay ?? -1) || b.rough - a.rough);
-  return { scans, list };
-}
-
 // F52 Fallend und Steigend; dayValues = Map key -> Map tag -> { value }
 function moves(db, marketId, bands, dayValues, last, today) {
   if (!last) return { up: [], down: [] };
@@ -286,35 +142,6 @@ function moves(db, marketId, bands, dayValues, last, today) {
   return { up, down };
 }
 
-// F55 Treffer der Wiederverkaufs-Vorschlaege (ab Manager 0.21.0, KarloDerBaer 08.11.2026): Jeder Gegenstand zaehlt
-// hoechstens einmal je Tag (erster Treffer des Tages). Danach HOLD Tage lang geschaut, wie hoch das guenstigste Angebot
-// der Median der Angebote gestiegen ist (das guenstigste Angebot waere ja gekauft): bis zum Verkaufsziel (hit),
-// immerhin ueber Kaufpreis plus Gebuehr (even) oder nicht (miss).
-// Gezaehlt werden nur Vorschlaege, deren HOLD Tage vorbei sind, aus den letzten days Tagen davor.
-const HOLD = 3;
-function hitRate(db, marketId, now, days = 14) {
-  const to = now - HOLD * 86400, from = to - days * 86400;
-  const first = new Map();   // "key|tag" -> erster Treffer
-  for (const r of db.prepare("SELECT item_key, t, qty, cost, ref FROM opp_snap WHERE market_id = ? AND kind = 'r' AND t > ? AND t <= ? ORDER BY t").iterate(marketId, from, to)) {
-    const k = r.item_key + '|' + dayOf(r.t);
-    if (!first.has(k) && r.qty > 0) first.set(k, { key: r.item_key, t: r.t, buy: r.cost / r.qty, ref: r.ref });
-  }
-  const snap = db.prepare("SELECT MAX(median) AS m FROM item_snap WHERE market_id = ? AND item_key = ? AND source = 'scan' AND t > ? AND t <= ?");
-  const hour = db.prepare("SELECT MAX(median) AS m FROM item_hour WHERE market_id = ? AND item_key = ? AND source = 'scan' AND t > ? AND t <= ?");
-  const res = { days, hold: HOLD, n: 0, hit: 0, even: 0, miss: 0 };
-  for (const x of first.values()) {
-    const a = snap.get(marketId, x.key, x.t, x.t + HOLD * 86400).m;
-    const b = hour.get(marketId, x.key, x.t, x.t + HOLD * 86400).m;
-    const best = Math.max(a ?? -1, b ?? -1);
-    if (best < 0) continue;   // danach kein Stand mit Angeboten: nicht bewertbar
-    res.n++;
-    if (x.ref > 0 && best >= x.ref) res.hit++;
-    else if (best * (1 - CUT) >= x.buy) res.even++;
-    else res.miss++;
-  }
-  return res;
-}
-
 // F53 Lohnend
 function worth(db, bands, sales) {
   const info = itemInfo(db);
@@ -332,5 +159,4 @@ function worth(db, bands, sales) {
   return out;
 }
 
-module.exports = { scanOpp, updateMarket, summarizeOpp, moves, worth, hitRate, resetRules, rowsOf, low, high, buyout, buyoutFor,
-  CUT, MARGIN, SLOTS, HOLD, RULES, DEPTH, UNSURE, BUYOUT_MIN, BUYOUT_HOURS };
+module.exports = { moves, worth, rowsOf, low, high, buyout, buyoutFor, CUT, UNSURE, BUYOUT_MIN, BUYOUT_HOURS };
