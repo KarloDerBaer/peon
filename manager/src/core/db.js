@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
 const { sameMarket } = require('./markets');
 
-const SCHEMA = 7;   // 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
+const SCHEMA = 8;   // 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -79,6 +79,13 @@ CREATE TABLE IF NOT EXISTS market_alias (
   alias TEXT PRIMARY KEY, market_id INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, kind TEXT NOT NULL, ok INTEGER NOT NULL, text TEXT);
+CREATE TABLE IF NOT EXISTS sync_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, acct TEXT, area TEXT NOT NULL, origin TEXT NOT NULL, kind TEXT NOT NULL,
+  list_id TEXT, list_name TEXT, item_key TEXT, item_name TEXT, field TEXT, old TEXT, new TEXT, extra TEXT);
+CREATE INDEX IF NOT EXISTS sync_log_t ON sync_log(acct, t);
+CREATE TABLE IF NOT EXISTS sync_trash (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, acct TEXT, area TEXT NOT NULL, what TEXT NOT NULL, origin TEXT NOT NULL,
+  list_id TEXT, list_name TEXT, item_key TEXT, item_name TEXT, data TEXT NOT NULL, restored INTEGER);
 `;
 
 const MANAGER_DDL = `

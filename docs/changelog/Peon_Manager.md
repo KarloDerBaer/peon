@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.31.0
+
+Kurz: Unter Einkaufen und Beobachtung siehst du jetzt, was der Abgleich mit dem Spiel getan hat, und kannst Gelöschtes 30 Tage lang wiederherstellen.
+
+- 0.31.0 (13.11.2026): Angleichung des Managers, Bauabschnitt A3 (Konzept `docs/konzepte/manager/Peon_Manager_Angleichung.md` 3.3 bis 3.6). Nur der Manager.
+  - **Protokoll** (Tabelle `sync_log`, 90 Tage): Jede Änderung an Einkaufslisten und Beobachtung mit Zeit, Konto, Herkunft (aus dem Spiel, im Manager, beide geändert), Liste, Gegenstand, Wert, alt und neu. Erkannt über den Vergleich vor und nach dem Abgleich (neue Datei `synclog.js`: `diffShop`, `diffWatch`).
+  - **Beide geändert:** Hat der Manager einen Wert geändert, den das Spiel noch nicht bestätigt hat, und bringt das Spiel denselben Wert anders, steht das als ein Eintrag „beide geändert“ mit beiden Werten im Protokoll und welcher gilt (`checkPending`). Hat das Spiel gewonnen, entfällt die normale Zeile für diesen Wert.
+  - **Zustand je Zeile:** Eingaben im Manager werden je Konto gemerkt (`meta` `pend:<Kennung>`), bis `Peon_Broker.lua` sie bestätigt, höchstens 60 Tage. Bis zum nächsten Laden im Spiel gelten sie als wartend: `shopView` gibt je Liste und Eintrag `wait`, der Zähler in der Kopfleiste zählt sie (statt `shopping.pending`).
+  - **Gelöscht** (Tabelle `sync_trash`, 30 Tage): Was im Spiel oder im Manager gelöscht wird, lässt sich wiederherstellen (`restoreTrash`). Wiederherstellen legt den Eintrag mit neuer Zeit wieder an, er geht so auch ins Spiel. Ein Gegenstand einer gelöschten Liste braucht zuerst die Liste.
+  - **Anzeige:** neuer Baustein `components/SyncPanel.vue` mit „Gelöscht“ und „Protokoll“ (Filter nach Herkunft), vorerst unter den WIP-Hinweisen der Seiten Einkaufen und Beobachtung. A4 und A5 übernehmen ihn in die neuen Seiten und zeigen den Zustand je Zeile.
+  - Datenbank Schema 8. `prune` räumt Protokoll und Gelöschtes mit auf.
+  - Tests: neue Datei `test/nachvollziehen.test.js` (6 Tests: Eingabe und Bestätigung, Änderung aus dem Spiel, beide geändert in beide Richtungen, Wiederherstellen von Gegenstand und Liste, Beobachtung mit Grenzen, Aufbewahrung). Alle 197 Tests grün, Oberfläche gebaut.
+  - **Im echten Programm prüfen:** Unter Einkaufen (WIP) und Beobachtung (WIP) „Gelöscht“ und „Protokoll“ aufklappen. Im Spiel einen Eintrag löschen, `/reload`: Er steht unter Gelöscht und lässt sich wiederherstellen, nach dem nächsten `/reload` ist er im Spiel.
+
 ## 0.30.0
 
 Kurz: Änderst du an einer Einkaufsliste im Spiel und im Manager verschiedene Werte, bleiben jetzt beide erhalten.

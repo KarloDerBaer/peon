@@ -5,7 +5,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { openDb, log, dbSize, pruneLogs } = require('./db');
+const { openDb, log, dbSize, pruneLogs, tx } = require('./db');
 const game = require('./game');
 const { writeData, dataMatches, addonDir } = require('./datalua');
 const broker = require('./broker');
@@ -13,6 +13,7 @@ const history = require('./history');
 const retention = require('./retention');
 const shopping = require('./shopping');
 const watching = require('./watching');
+const synclog = require('./synclog');
 const zlib = require('node:zlib');
 const { parseLua } = require('./lua');
 const { parseRows, itemKey, unitPrice } = require('./stats');
@@ -259,6 +260,9 @@ class BrokerClient {
     res.pairs = sales.prune(this.db, this.now());
     this.snaps.reset();   // Zeilen sind verdichtet oder geloescht: beim naechsten Mal ganz neu lesen
     pruneLogs(this.db, 30, this.now() * 1000);
+    // ab 0.31.0: Protokoll des Abgleichs 90 Tage, Geloeschtes 30 Tage
+    this.db.prepare('DELETE FROM sync_log WHERE t < ?').run(this.now() - synclog.LOG_DAYS * 86400);
+    this.db.prepare('DELETE FROM sync_trash WHERE t < ?').run(this.now() - synclog.TRASH_DAYS * 86400);
     this.db.prepare('DELETE FROM opp_snap WHERE t < ?').run(this.now() - 30 * 86400);
     this.db.prepare('DELETE FROM opp_scan WHERE t < ?').run(this.now() - 30 * 86400);
     if (res.snaps || res.hours) log(this.db, 'aufbewahrung', true, `${res.snaps} Kennzahlen zu Stundenwerten, ${res.hours} Stundenwerte zu Tageswerten verdichtet`);
@@ -619,12 +623,17 @@ class BrokerClient {
 
   watchGone(acct = this.acctSel()) { return this.watchDoc(acct).gone; }
 
-  // Eingabe im Manager (gewaehltes Konto): speichern und gleich fuer das Spiel bereitlegen
-  watchEdit(fn) {
-    const acct = this.acctSel();
+  // Eingabe im Manager (gewaehltes Konto): speichern, ins Protokoll, als wartend merken und gleich fuer das Spiel bereitlegen.
+  // as = andere Art im Protokoll (etwa "wiederhergestellt")
+  watchEdit(fn, acct = this.acctSel(), as = null) {
     const d = this.watchDoc(acct);
+    const before = synclog.clone(d);
     const changed = fn(d, this.now());
-    if (changed) { this.saveWatch(acct, d); this.writeBridge('beobachtung'); }
+    if (changed) {
+      this.saveWatch(acct, d);
+      this.noteManager(acct, synclog.diffWatch(before, d), as);
+      this.writeBridge('beobachtung');
+    }
     return changed;
   }
 
@@ -646,12 +655,17 @@ class BrokerClient {
       if (!r.watch) continue;
       const acct = this.acctOfResult(r);
       if (acct === undefined) continue;
-      if (!docs.has(acct)) { const d = this.watchDoc(acct); docs.set(acct, { d, changed: watching.purge(d, this.now()) }); }
+      if (!docs.has(acct)) { const d = this.watchDoc(acct); docs.set(acct, { d, before: synclog.clone(d), changed: watching.purge(d, this.now()), pend: this.pendOf(acct), conflicts: [] }); }
       const x = docs.get(acct);
+      x.conflicts.push(...synclog.checkPending(x.pend, 'watch', r.watch, this.now()));   // ab 0.31.0
       if (watching.merge(x.d, r.watch)) x.changed = true;
     }
     let any = false;
-    for (const [acct, x] of docs) if (x.changed) { this.saveWatch(acct, x.d); any = true; }
+    for (const [acct, x] of docs) {
+      if (x.changed) { this.saveWatch(acct, x.d); any = true; }
+      this.savePend(acct, x.pend);
+      this.record(acct, 'spiel', synclog.diffWatch(x.before, x.d), x.conflicts);
+    }
     return any;
   }
 
@@ -717,21 +731,28 @@ class BrokerClient {
       if (!r.shop) continue;
       const acct = this.acctOfResult(r);
       if (acct === undefined) continue;
-      if (!docs.has(acct)) { const d = this.shopDoc(acct); docs.set(acct, { d, changed: shopping.purge(d, this.now()) }); }
+      if (!docs.has(acct)) { const d = this.shopDoc(acct); docs.set(acct, { d, before: synclog.clone(d), changed: shopping.purge(d, this.now()), pend: this.pendOf(acct), conflicts: [] }); }
       const x = docs.get(acct);
+      x.conflicts.push(...synclog.checkPending(x.pend, 'shop', r.shop, this.now()));   // ab 0.31.0
       if (shopping.merge(x.d, r.shop)) x.changed = true;
     }
     let any = false;
-    for (const [acct, x] of docs) if (x.changed) { this.saveShop(acct, x.d); any = true; }
+    for (const [acct, x] of docs) {
+      if (x.changed) { this.saveShop(acct, x.d); any = true; }
+      this.savePend(acct, x.pend);
+      this.record(acct, 'spiel', synclog.diffShop(x.before, x.d), x.conflicts);
+    }
     return any;
   }
 
-  // Eingabe im Manager (gewaehltes Konto): speichern und gleich fuer das Spiel bereitlegen
-  shopEdit(fn) {
-    const acct = this.acctSel();
+  // Eingabe im Manager (gewaehltes Konto): speichern, ins Protokoll, als wartend merken und gleich fuer das Spiel bereitlegen.
+  // as = andere Art im Protokoll (etwa "wiederhergestellt")
+  shopEdit(fn, acct = this.acctSel(), as = null) {
     const d = this.shopDoc(acct);
+    const before = synclog.clone(d);
     const r = fn(d, this.now());
     this.saveShop(acct, d);
+    this.noteManager(acct, synclog.diffShop(before, d), as);
     this.writeBridge('einkaufsliste');
     return r;
   }
@@ -823,8 +844,10 @@ class BrokerClient {
     const keys = new Set(d.lists.flatMap((l) => Object.keys(l.items)));
     const levels = mid == null ? new Map() : this.levelsOf(mid, keys);
     const stock = this.ledgerStock();
-    return { hasLedger: !!stock, lists: d.lists.map((l) => ({ id: l.id, name: l.name, pct: l.pct,
-      items: Object.entries(l.items).map(([k, it]) => this.shopRow(k, it, l, byKey.get(k), levels, stock))
+    const wait = this.waiting();   // ab 0.31.0: Zustand je Zeile
+    const waits = (prefix) => wait.some((k) => k.startsWith(prefix));
+    return { hasLedger: !!stock, running: !!(this.gameState && this.gameState.running), lists: d.lists.map((l) => ({ id: l.id, name: l.name, pct: l.pct, wait: waits(`l|${l.id}|`),
+      items: Object.entries(l.items).map(([k, it]) => ({ ...this.shopRow(k, it, l, byKey.get(k), levels, stock), wait: waits(`i|${l.id}|${k}|`) }))
         .sort((a, b) => Number(b.hits > 0) - Number(a.hits > 0) || String(a.name || a.key).localeCompare(String(b.name || b.key), 'de')) })) };
   }
 
@@ -866,6 +889,142 @@ class BrokerClient {
     return out;
   }
 
+  // ---------- Abgleich nachvollziehen (ab 0.31.0, Angleichung A3, Konzept 3.3 bis 3.6) ----------
+  // Wartende Eingaben je Konto in meta pend:<Kennung> (synclog.pendFrom), Protokoll in sync_log, Geloeschtes in sync_trash.
+  pendOf(acct) { return this.meta(acct ? `pend:${acct}` : 'pend') || {}; }
+  savePend(acct, p) { this.meta(acct ? `pend:${acct}` : 'pend', p); }
+
+  // Schluessel (pkey) der Eingaben eines Kontos, die das Spiel seit dem letzten Laden noch nicht hat
+  waiting(acct = this.acctSel()) {
+    const since = this.meta('gameLoadAt') || 0;
+    return Object.entries(this.pendOf(acct)).filter(([, p]) => p.t > since).map(([k]) => k);
+  }
+
+  // Eingabe im Manager: als wartend merken und ins Protokoll
+  noteManager(acct, changes, as = null) {
+    if (!changes.length) return;
+    const pend = this.pendOf(acct);
+    Object.assign(pend, synclog.pendFrom(changes));
+    this.savePend(acct, pend);
+    this.record(acct, 'manager', as ? changes.map((c) => (c.kind === 'neu' ? { ...c, kind: as } : c)) : changes);
+  }
+
+  // Aenderungen ins Protokoll, Geloeschtes in den Papierkorb. origin "spiel" oder "manager".
+  // conflicts aus synclog.checkPending: Hat das Spiel gewonnen, ersetzt der Eintrag "beide geaendert" die normale Aenderung.
+  record(acct, origin, changes, conflicts = []) {
+    if (!changes.length && !conflicts.length) return;
+    const now = this.now();
+    const won = new Set(conflicts.filter((c) => c.wins === 'spiel').map((c) => c.pkey));
+    const json = (v) => (v === undefined ? null : JSON.stringify(v));
+    const nameOf = (key, name) => name || (key != null ? (this.db.prepare('SELECT name FROM items WHERE key = ?').get(String(key)) || {}).name || null : null);
+    const ins = this.db.prepare(`INSERT INTO sync_log(t, acct, area, origin, kind, list_id, list_name, item_key, item_name, field, old, new, extra)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const trash = this.db.prepare(`INSERT INTO sync_trash(t, acct, area, what, origin, list_id, list_name, item_key, item_name, data)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    tx(this.db, () => {
+      for (const c of changes) {
+        if (won.has(c.pkey)) continue;
+        const name = nameOf(c.key, c.name);
+        ins.run(now, acct, c.area, origin, c.kind, c.listId ?? null, c.listName ?? null, c.key ?? null, name, c.field, json(c.old ?? null), json(c.new ?? null), c.n != null ? JSON.stringify({ n: c.n }) : null);
+        if (c.kind === 'gelöscht' && c.data) {
+          const what = c.area === 'watch' ? 'watch' : c.key != null ? 'item' : 'list';
+          trash.run(now, acct, c.area, what, origin, c.listId ?? null, c.listName ?? null, c.key ?? null, name, JSON.stringify(c.data));
+        }
+      }
+      for (const c of conflicts) {
+        const at = this.pkeyInfo(acct, c.pkey);
+        ins.run(now, acct, at.area, 'beide', 'beide', at.listId, at.listName, at.key, nameOf(at.key, at.name), at.field, json(c.mv), json(c.gv), JSON.stringify({ wins: c.wins }));
+      }
+    });
+  }
+
+  // Liste, Gegenstand und Wert zu einem Schluessel (fuer das Protokoll)
+  pkeyInfo(acct, pkey) {
+    const parts = pkey.split('|');
+    const field = parts[parts.length - 1];
+    if (parts[0] === 'w') {
+      const key = parts.slice(1, -1).join('|');
+      const w = this.watchDoc(acct).items[key];
+      return { area: 'watch', listId: null, listName: null, key, name: (w && w.name) || null, field };
+    }
+    const listId = parts[1];
+    const l = this.shopDoc(acct).lists.find((x) => x.id === listId);
+    const key = parts[0] === 'i' ? parts.slice(2, -1).join('|') : null;
+    const it = l && key != null ? l.items[key] : null;
+    return { area: 'shop', listId, listName: l ? l.name : null, key, name: (it && it.name) || null, field };
+  }
+
+  // Protokoll eines Kontos, neueste zuerst. area "shop" oder "watch", origin "spiel", "manager", "beide" oder leer
+  syncLog({ area = null, origin = null, acct, limit = 300 } = {}) {
+    const a = acct === undefined ? this.acctSel() : acct;
+    const rows = this.db.prepare(`SELECT * FROM sync_log WHERE acct IS ? AND (? IS NULL OR area = ?) AND (? IS NULL OR origin = ?) ORDER BY t DESC, id DESC LIMIT ?`)
+      .all(a, area, area, origin, origin, Math.max(1, Math.min(1000, Number(limit) || 300)));
+    const parse = (v) => (v == null ? null : JSON.parse(v));
+    return rows.map((r) => ({ id: r.id, t: r.t, area: r.area, origin: r.origin, kind: r.kind, listId: r.list_id, listName: r.list_name, key: r.item_key, name: r.item_name,
+      field: r.field, old: parse(r.old), new: parse(r.new), extra: parse(r.extra) }));
+  }
+
+  // Geloeschtes eines Kontos, das sich noch wiederherstellen laesst, neueste zuerst
+  syncTrash({ area = null, acct } = {}) {
+    const a = acct === undefined ? this.acctSel() : acct;
+    const rows = this.db.prepare(`SELECT id, t, area, what, origin, list_id, list_name, item_key, item_name, data FROM sync_trash
+        WHERE acct IS ? AND restored IS NULL AND t >= ? AND (? IS NULL OR area = ?) ORDER BY t DESC, id DESC`)
+      .all(a, this.now() - synclog.TRASH_DAYS * 86400, area, area);
+    return rows.map((r) => {
+      const d = JSON.parse(r.data);
+      return { id: r.id, t: r.t, area: r.area, what: r.what, origin: r.origin, listId: r.list_id, listName: r.list_name, key: r.item_key, name: r.item_name,
+        n: r.what === 'list' ? Object.keys(d.items || {}).length : null };
+    });
+  }
+
+  // Geloeschtes wiederherstellen: neues Anlegen mit neuer Zeit, geht so auch ins Spiel. Rueckgabe { ok, error }
+  restoreTrash(id) {
+    const r = this.db.prepare('SELECT * FROM sync_trash WHERE id = ? AND restored IS NULL').get(Number(id));
+    if (!r) return { ok: false, error: 'Der Eintrag ist nicht mehr da.' };
+    const acct = r.acct || null;
+    if (acct && !this.acctReg()[acct]) return { ok: false, error: 'Das Konto gibt es nicht mehr.' };
+    const data = JSON.parse(r.data);
+    let error = null;
+    // Kopie ohne Zeiten und Merker, alle Werte mit der neuen Zeit u
+    const fresh = (e, spec, u) => {
+      const c = {};
+      for (const [k, v] of Object.entries(e)) if (!['u', 't', 'm', 'hit', 'upHit', 'items'].includes(k)) c[k] = v;
+      c.u = u; c.t = {}; c.m = 1;
+      for (const x of spec) c.t[x.f] = u;
+      return c;
+    };
+    if (r.area === 'watch') {
+      this.watchEdit((d, now) => {
+        if (d.items[r.item_key]) { error = 'Der Gegenstand wird schon wieder beobachtet.'; return false; }
+        d.items[r.item_key] = fresh(data, watching.SPEC, shopping.nextU(now, d.gone[r.item_key]));
+        delete d.gone[r.item_key];
+        return true;
+      }, acct, 'wiederhergestellt');
+    } else {
+      this.shopEdit((d, now) => {
+        if (r.what === 'list') {
+          if (d.lists.some((l) => l.id === r.list_id)) { error = 'Diese Liste gibt es schon wieder.'; return false; }
+          const u = shopping.nextU(now, d.gone.lists[r.list_id]);
+          const items = {};
+          for (const [k, it] of Object.entries(data.items || {})) { items[k] = fresh(it, shopping.ITEM_SPEC, u); delete d.gone.items[`${r.list_id}|${k}`]; }
+          d.lists.push({ ...fresh(data, shopping.LIST_SPEC, u), id: r.list_id, items });
+          delete d.gone.lists[r.list_id];
+          return true;
+        }
+        const l = d.lists.find((x) => x.id === r.list_id);
+        if (!l) { error = 'Die Liste gibt es nicht mehr. Stelle zuerst die Liste wieder her.'; return false; }
+        if (l.items[r.item_key]) { error = 'Der Gegenstand steht schon wieder auf der Liste.'; return false; }
+        const gk = `${r.list_id}|${r.item_key}`;
+        l.items[r.item_key] = fresh(data, shopping.ITEM_SPEC, shopping.nextU(now, d.gone.items[gk]));
+        delete d.gone.items[gk];
+        return true;
+      }, acct, 'wiederhergestellt');
+    }
+    if (error) return { ok: false, error };
+    this.db.prepare('UPDATE sync_trash SET restored = ? WHERE id = ?').run(this.now(), r.id);
+    return { ok: true };
+  }
+
   // ---------- Stand des Austauschs mit dem Spiel ----------
   // Der Hauptteil meldet regelmaessig, ob WoW laeuft. Ein Speichern von Peon_Bridge.lua bei laufendem WoW heisst Neuladen oder neuer Charakter,
   // danach hat das Spiel Data.lua gelesen. Ebenso beim Start von WoW.
@@ -885,7 +1044,8 @@ class BrokerClient {
   sync() {
     const since = this.meta('gameLoadAt') || 0;
     const ack = this.meta('ack');
-    const inputs = this.acctIds().reduce((n, a) => n + shopping.pending(this.shopDoc(a), since), 0);
+    // ab 0.31.0: Eingaben, die das Spiel seit dem letzten Laden noch nicht hat (Zustand je Zeile)
+    const inputs = this.acctIds().reduce((n, a) => n + Object.values(this.pendOf(a)).filter((p) => p.t > since).length, 0);
     return { inputs, running: !!(this.gameState && this.gameState.running), values: !!(ack && ack.t > since) };
   }
 

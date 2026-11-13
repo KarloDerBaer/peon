@@ -11,6 +11,7 @@ import Reports from './views/Reports.vue';
 import Shopping from './views/Shopping.vue';
 import Vendors from './views/Vendors.vue';
 import UpdateDialog from './components/UpdateDialog.vue';
+import SyncPanel from './components/SyncPanel.vue';
 import Star from './components/Star.vue';
 import { ago, qualityColor } from './util.js';
 import { loadFavorites } from './store.js';
@@ -243,6 +244,8 @@ onMounted(() => {
           <section v-else-if="wipPage" class="wip">
             <h1>{{ wipPage.label }}</h1>
             <p class="wip-note">Überarbeitung notwendig! Derzeit nur im Spiel verfügbar.</p>
+            <!-- ab 0.31.0 (A3): was der Abgleich mit dem Spiel getan hat, bis die Seiten neu sind (A4, A5) -->
+            <SyncPanel v-if="wipPage.key === 'shopping' || wipPage.key === 'favorites'" :area="wipPage.key === 'shopping' ? 'shop' : 'watch'" :stamp="stamp" :now="now" />
           </section>
           <Items v-else-if="view === 'items'" key="items" :market="current" :now="now" :stamp="stampOf('items')" :settings="settings" @open="openItem" @save="saveQuiet" />
           <Items v-else-if="view === 'favorites'" key="favorites" favorites :market="current" :now="now" :stamp="stampOf('favorites')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />

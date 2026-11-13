@@ -366,6 +366,10 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('accounts', () => (svc.broker ? svc.broker.accounts() : { list: [], waiting: [], selected: null }));
     ipcMain.handle('accountSelect', async (_e, id) => { const r = await svc.broker.selectAccount(String(id)); send('changed', { what: 'konto' }); return r; });
     ipcMain.handle('accountName', async (_e, id, name) => { const r = await svc.broker.nameAccount(String(id), String(name || '')); send('changed', { what: 'konto' }); return r; });
+    // Abgleich nachvollziehen (ab 0.31.0): Protokoll, Geloeschtes, Wiederherstellen
+    ipcMain.handle('syncLog', (_e, area, origin) => (svc.broker ? svc.broker.syncLog({ area: area || null, origin: origin || null }) : []));
+    ipcMain.handle('syncTrash', (_e, area) => (svc.broker ? svc.broker.syncTrash({ area: area || null }) : []));
+    ipcMain.handle('syncRestore', async (_e, id) => { const r = await svc.broker.restoreTrash(Number(id)); if (r && r.ok) send('changed', { what: 'wiederhergestellt' }); return r; });
     const shopChanged = async (r) => { const v = await r; send('changed', { what: 'einkaufsliste' }); return v; };
     ipcMain.handle('shopView', (_e, market) => (svc.broker ? svc.broker.shopView(String(market)) : { lists: [] }));
     ipcMain.handle('shopBuyable', (_e, market) => (svc.broker ? svc.broker.shopBuyable(String(market)) : []));

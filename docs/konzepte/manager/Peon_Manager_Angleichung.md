@@ -1,6 +1,6 @@
 # Peon Manager: Konzept Angleichung nach dem Neuaufbau von Broker und Ledger
 
-Stand: 13.11.2026, **Teil 1 von KarloDerBaer freigegeben** (Abschnitt 9). A1 gebaut (Broker 0.85.0, Bridge 0.10.0, Manager 0.29.0), A2 gebaut (Broker 0.89.0, Manager 0.30.0), nicht veröffentlicht. Ausgangsversionen Manager 0.28.0, Broker 0.84.0, Bridge 0.9.2, Ledger 0.14.7.
+Stand: 13.11.2026, **Teil 1 von KarloDerBaer freigegeben** (Abschnitt 9). A1 gebaut (Broker 0.85.0, Bridge 0.10.0, Manager 0.29.0), A2 gebaut (Broker 0.89.0, Manager 0.30.0), A3 gebaut (Manager 0.31.0), nicht veröffentlicht. Ausgangsversionen Manager 0.28.0, Broker 0.84.0, Bridge 0.9.2, Ledger 0.14.7.
 
 Das Konzept hat drei Teile, die nacheinander ausgearbeitet und gebaut werden (KarloDerBaer, 13.11.2026):
 
@@ -183,7 +183,8 @@ A1 und A2 ändern das Format und gehen zusammen als Vorabversion in den Kanal Te
 
 ### Offen
 
-- Im echten Programm zu prüfen: Umstellung beim ersten `/reload` mit Broker 0.85 (A1), Grenzen der Beobachtung hin und zurück (A2).
+- Im echten Programm zu prüfen: Umstellung beim ersten `/reload` mit Broker 0.85 (A1), Grenzen der Beobachtung hin und zurück (A2), Protokoll und Wiederherstellen (A3).
+- Beim Bau von A3 festgelegt (Claude): „Wartet auf /reload“ gilt bis zum nächsten Laden im Spiel nach der Eingabe. Das Spiel schreibt seine Datei beim Laden, bevor es `Data.lua` liest, die Bestätigung in `Peon_Broker.lua` kommt also erst ein Speichern später. Der Manager behält die Eingabe trotzdem bis zu dieser Bestätigung (höchstens 60 Tage), um „beide geändert“ zu erkennen.
 - Beim Bau von A2 festgelegt (Claude): Kommt ein Eintrag ohne Zeit für einen Wert, gilt für diesen Wert die Zeit des ganzen Eintrags (`u`). So verhalten sich Daten von vor A2 wie bisher. Bevor sich `u` ändert, werden fehlende Zeiten aus dem alten `u` eingetragen, damit ein alter Wert nicht plötzlich als neu gilt.
 
 ## 10. Teil 2 und Teil 3 (noch auszuarbeiten)
