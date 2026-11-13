@@ -89,6 +89,25 @@ function P.Flash(rows)
     end
 end
 
+-- ab 0.92: Symbol der Warnung je Gegenstand (Blizzards Lautsprecher aus dem Sprachchat, Zweig forever)
+P.BELL_ON = "|A:voicechat-icon-speaker:16:16|a"
+P.BELL_OFF = "|A:voicechat-icon-speaker-mute:16:16|a"
+P.BELL_W = 44
+P.BELL_COL = 5   -- Platz der Spalte in der Tabelle
+
+-- Steht die Maus ueber der Spalte mit dem Symbol? (Die Tabelle meldet nur die Zeile, darum ueber den Spaltenkopf)
+function P.OverBell()
+    local h = P.list and P.list.heads and P.list.heads[P.BELL_COL]
+    if not (h and h.GetLeft and GetCursorPosition) then return false end
+    local left, right = h:GetLeft(), h:GetRight()
+    if not (left and right) then return false end
+    local x = GetCursorPosition()
+    local scale = h.GetEffectiveScale and h:GetEffectiveScale() or 1
+    if not (x and scale and scale > 0) then return false end
+    x = x / scale
+    return x >= left and x <= right
+end
+
 -- Zeilen der Liste
 function P.Rows()
     local Wt, D = ns.Watch, ns.Data
@@ -109,6 +128,7 @@ function P.Rows()
             bandLow = type(band) == "table" and Num(band.low) and band.low or nil,
             bandHigh = type(band) == "table" and Num(band.high) and band.high or nil,
             age = P.Age(key),
+            mute = w.mute == true,
         }
     end
     return rows
@@ -145,11 +165,10 @@ function P.Build(c)
             { key = "price", title = L.WATCH_COL_PRICE, width = 100, align = "RIGHT", format = function(v) return Num(v) and Money(v) or (GREY .. "-|r") end },
             { key = "limit", title = L.FOCUS_R_LIMIT, width = 100, align = "RIGHT", format = function(v) return Num(v) and Money(v) or (GREY .. "-|r") end },
             { key = "target", title = L.FOCUS_R_TARGET, width = 100, align = "RIGHT", format = function(v) return Num(v) and Money(v) or (GREY .. "-|r") end },
-            { key = "bandLow", title = L.FOCUS_R_BAND, width = 140, align = "RIGHT",
-              format = function(_, r)
-                  if not (r.bandLow and r.bandHigh) then return GREY .. "-|r" end
-                  return L.FOCUS_BAND:format(Money(math.floor(r.bandLow + 0.5)), Money(math.floor(r.bandHigh + 0.5)))
-              end },
+            -- ab 0.92 statt "Ueblich": Symbol Warnung je Gegenstand, Klick schaltet an und aus
+            { key = "mute", title = P.BELL_ON, width = P.BELL_W, align = "CENTER",
+              format = function(v) return v and P.BELL_OFF or P.BELL_ON end,
+              sort = function(r) return r.mute and 1 or 0 end },
             { key = "age", title = L.WATCH_COL_AGE, width = 70, align = "RIGHT", format = function(v) return P.AgeText(v) end,
               sort = function(r) return r.age or 1e9 end },
             { key = "advice", title = L.WATCH_COL_ADVICE, width = 96, align = "RIGHT",
@@ -167,6 +186,14 @@ function P.Build(c)
         end,
         -- ab 0.83 (KarloDerBaer): Klick waehlt (fuer die Knoepfe unten), Doppelklick oeffnet den Fokus, Rechtsklick das Menue
         onClick = function(r, button)
+            -- ab 0.92: Klick auf das Symbol schaltet die Warnung des Gegenstands, sonst nichts
+            if button == "LeftButton" and P.OverBell() then
+                P.clickKey = nil
+                ns.Watch.ToggleMute(r.key)
+                r.mute = ns.Watch.Muted(r.key)
+                if P.list and P.list.list then P.list.list:Refresh() end
+                return
+            end
             P.selected = r
             P.UpdateButtons()
             if button == "RightButton" then P.clickKey = nil; ns.Go.Menu(r, P.panel); return end
@@ -178,7 +205,17 @@ function P.Build(c)
             end
             P.clickKey, P.clickT = r.key, now
         end,
-        onEnter = function(row, r) if r then W.ShowItemTooltip(row, r.key) end end,
+        onEnter = function(row, r)
+            if not r then return end
+            if P.OverBell() and GameTooltip then
+                GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+                GameTooltip:SetText(r.mute and L.WATCH_BELL_OFF or L.WATCH_BELL_ON, 1, 0.82, 0)
+                GameTooltip:AddLine(L.WATCH_BELL_TIP, 1, 1, 1, true)
+                GameTooltip:Show()
+                return
+            end
+            W.ShowItemTooltip(row, r.key)
+        end,
     })
     function P.list:GetItems() return self.items end
     P.removeButton = UI.Button(c, L.WATCH_REMOVE, 130, function()

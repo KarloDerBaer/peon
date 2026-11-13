@@ -2989,6 +2989,12 @@ end)()
   check(played == "tell" and #out == n0, "0.91: eigener Ton je Gegenstand, ohne Chat")
   Wt.SetSound(2770, "Down", nil)
   mod.db.watchSoundDown, mod.db.watchChatDown = "raid", true
+  -- ab 0.92: Warnung je Gegenstand aus (Symbol in der Liste)
+  check(Wt.ToggleMute(2770) == true and Wt.Muted(2770), "0.92: Warnung des Gegenstands aus")
+  s0, n0 = sounds, #out
+  Wt.SetLimit(2770, "abs", e.m - 1); Wt.SetLimit(2770, "abs", e.m)
+  check(PeonBrokerDB.watch[2770].hit and sounds == s0 and #out == n0, "0.92: ausgeschaltet: weder Ton noch Chat")
+  check(Wt.ToggleMute(2770) == false and not Wt.Muted(2770) and PeonBrokerDB.watch[2770].mute == nil, "0.92: wieder an")
   check(Wt.Sound(2770, "Down") == "raid", "0.91: zurueck auf wie eingestellt")
   -- Menue: Ton je Gegenstand, Fenster Einstellungen Beobachten
   local S = ns.Settings
@@ -3892,6 +3898,17 @@ end)()
   local row
   for _, r in ipairs(WP.list:GetItems()) do if r.key == 7995 then row = r end end
   check(row and row.price == 150 and row.limit == 100 and row.target == 200 and row.advice == nil, "0.82: Zeile mit Preis, Kaufen bis, Zielpreis")
+  -- ab 0.92: Spalte mit Symbol statt Ueblich, Klick darauf schaltet die Warnung und waehlt nicht aus
+  local bellCol = WP.list.o.columns[WP.BELL_COL]
+  check(bellCol.key == "mute" and bellCol.format(false) == WP.BELL_ON and bellCol.format(true) == WP.BELL_OFF and row.mute == false,
+    "0.92: Symbolspalte, Warnung an")
+  local keepOver = WP.OverBell
+  WP.OverBell = function() return true end
+  WP.list.o.onClick(row, "LeftButton")
+  check(row.mute and Wt.Muted(7995) and WP.selected ~= row, "0.92: Klick aufs Symbol schaltet aus, waehlt nicht aus")
+  WP.list.o.onClick(row, "LeftButton")
+  check(not row.mute and not Wt.Muted(7995), "0.92: nochmal: wieder an")
+  WP.OverBell = keepOver
   -- ab 0.83: einfacher Klick waehlt nur aus, Doppelklick oeffnet den Fokus
   local keyBefore = F.key
   WP.list.o.onClick(row, "LeftButton")

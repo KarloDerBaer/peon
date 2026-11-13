@@ -21,7 +21,7 @@ Wt.PCTS = { 10, 20, 30 }   -- Vorschlaege im Menue: % unter dem Vergleichspreis
 
 -- Werte mit eigener Zeit (ab 0.89, Regeln in Shop.lua): Kaufen bis und Zielpreis. hit und upHit sind Merker des Alarms
 Wt.SPEC = { { f = "buy", keys = { "lim", "pct" }, reset = "hit" }, { f = "up", keys = { "up" }, reset = "upHit" } }
-Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, upHit = true, sDown = true, sUp = true }
+Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, upHit = true, sDown = true, sUp = true, mute = true }
 -- ab 0.91 (Fehlerberichte 20 und 21): Warnton je Richtung, einstellbar fuer alle (watchSoundDown, watchSoundUp, dazu
 -- Chatnachricht watchChatDown, watchChatUp) und je Gegenstand (sDown, sUp: Ton oder "off", nil = wie eingestellt).
 -- Die Werte je Gegenstand bleiben im Spiel, der Manager kennt sie nicht.
@@ -140,9 +140,23 @@ function Wt.SetSound(key, dir, v)
     w["s" .. dir] = v
 end
 
+-- ab 0.92: Warnung je Gegenstand aus (Symbol in der Liste Beobachten). mute = true: weder Chat noch Ton
+function Wt.Muted(key)
+    local w = Wt.Store()[key]
+    return w ~= nil and w.mute == true
+end
+
+function Wt.ToggleMute(key)
+    local w = Wt.Store()[key]
+    if not w then return nil end
+    w.mute = (not w.mute) or nil
+    return w.mute == true
+end
+
 -- Meldung eines Alarms: Chat und Ton je nach Einstellung
 function Wt.Alert(key, dir, text)
     if mod.db.watchAlarm == false then return end   -- ab 0.83: Haken unter Beobachten schaltet alles ab
+    if Wt.Muted(key) then return end
     if mod.db["watchChat" .. dir] ~= false then mod:Print(text) end
     local snd = Wt.Sound(key, dir)
     if snd ~= "off" and ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert, snd) end

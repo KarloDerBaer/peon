@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 13.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.1 / Broker 0.91.0 / Bridge 0.10.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.34.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.8 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 13.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.1 / Broker 0.92.0 / Bridge 0.10.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.34.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.8 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.20.1, API 20
@@ -51,7 +51,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.91.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.92.0 (neu, Auktionshaus-Helfer)
+
+- **Warnung je Gegenstand (ab 0.92.0):** Lautsprecher-Spalte in der Liste Beobachten statt „Üblich“, Klick schaltet `mute` im Eintrag. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 
 - **Wünsche vom 13.11.2026 (ab 0.91.0, Fehlerberichte 17 bis 24):** Kaufen im Fokus mit einem Klick (Bestätigung automatisch, außer bei Preiswarnung). Fenster Einstellungen unter Beobachten mit Ton und Chat je Richtung (`watchSoundDown`, `watchSoundUp`, `watchChatDown`, `watchChatUp`), Ton je Gegenstand im Rechtsklick-Menü (`sDown`, `sUp`). Wiedereinstellen merken nur mit Haken je Gegenstand (`PeonBrokerDB.relist`, Vorgabe `relistDefault` aus). Neue Datei `Rating.lua`: „Chance einschätzen“ im Gegenstandsmenü, gespeichert in `PeonBrokerDB.ratings` (Auswertung im Manager offen). Diagramm im Fokus mit Kaufen bis in Blau. Namensfeld der Einkaufsliste wird beim Tippen nicht mehr überschrieben. Bereich Beobachten für Rückmeldungen. Im Spiel noch nicht geprüft.
 
