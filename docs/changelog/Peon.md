@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.20.1
+
+Kurz: Das Peon-Gegenstandsmenü (Strg+Rechtsklick) geht jetzt auch im Auktionshaus auf dem Gegenstand der Kaufansicht auf und wird nicht mehr vom Favoriten-Menü ersetzt.
+Kurz: Ein Fehler bei Hinweisen über Knöpfen ist behoben.
+
+- 0.20.1 (13.11.2026): Zwei Fehler aus den Fehlerberichten.
+  - **Gegenstandsmenü nach dem Loslassen** (`ItemMenu.lua`): Beim Drücken merkt sich der Kern nur den Gegenstand, das Menü öffnet einen Bildaufbau nach dem Loslassen (`GLOBAL_MOUSE_UP`). Blizzards Knöpfe öffnen ihr eigenes Menü beim Klick, so ersetzte das Favoriten-Menü des Auktionshauses Peons Menü sofort wieder.
+  - **Hinweis mit einem Text** (`UIKit.lua`): `UI.SetTooltip` und `UI.IconButton` nehmen jetzt auch einen einzelnen Text statt einer Liste. Vorher meldete BugGrabber „bad argument #1 to 'ipairs'“.
+  - Tests: Gegenstandsmenü mit Drücken und Loslassen in `test_broker.lua`, Version im Prüfbefehl.
+  - **Im Spiel prüfen:** Im Auktionshaus einen Gegenstand öffnen, Strg+Rechtsklick auf sein Bild oben: Peons Menü bleibt offen. Strg+Rechtsklick in den Taschen geht wie bisher.
+
 ## 0.20.0
 
 Kurz: Module können wichtige Hinweise einmalig in einem Fenster zeigen, zum Beispiel nach einem Update. `/peon neu` zeigt sie wieder.

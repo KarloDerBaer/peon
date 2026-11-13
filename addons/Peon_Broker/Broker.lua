@@ -58,6 +58,11 @@ local mod = Peon:NewModule(ADDON_NAME, {
         focusSure    = 60,      -- Fokus (ab 0.70): Urteil ohne "vorlaeufig" ab so vielen Sekunden (bis 0.82 120)
         focusMore    = 10,      -- Fokus (ab 0.70): "Kaufen" erst, wenn der Abfluss so viel % ueber dem Zufluss liegt (bis 0.82 20)
         focusGrow    = 10,      -- Fokus (ab 0.70): Menge unter Ziel waechst/schrumpft ab so viel %
+        relistDefault = false,  -- ab 0.91: Gekauftes zum Wiedereinstellen merken (je Gegenstand in relist, sonst dieser Wert)
+        watchSoundDown = "raid", -- ab 0.91: Warnton der Beobachtung bei Kaufen bis (off = kein Ton)
+        watchSoundUp = "raid",  -- ab 0.91: Warnton der Beobachtung beim Zielpreis
+        watchChatDown = true,   -- ab 0.91: Chatnachricht bei Kaufen bis
+        watchChatUp  = true,    -- ab 0.91: Chatnachricht beim Zielpreis
         focusPriceTol = 1,      -- Fokus (ab 0.70): Warnung, wenn der Gesamtpreis so viel % ueber dem erwarteten liegt
         radarVendorOn = true,   -- Radar (ab 0.71): Art Haendler zeigen
         radarBuyoutOn = true,   -- Radar (ab 0.71): Art Aufkauf zeigen
@@ -110,6 +115,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  craftListWhich = { all = true, profit = true, top3 = true, top5 = true, top10 = true },
                  craftListMode = { money = true, pct = true },
                  radarSoundKey = { raid = true, ready = true, alarm = true, tell = true },
+                 watchSoundDown = { off = true, raid = true, ready = true, alarm = true, tell = true },   -- ab 0.91
+                 watchSoundUp = { off = true, raid = true, ready = true, alarm = true, tell = true },
                  tooltipNeutral = { always = true, shift = true, off = true },
                  windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true,
                               market = true, watch = true, sources = true, vendors = true,
@@ -583,4 +590,4 @@ end
 
 -- Bereiche für Rückmeldungen in Peon_Feedback (Kern ab API 9; mit älterem Kern wird nichts gemeldet)
 -- ab 0.53 (Umbau U12): Bereiche nach dem neuen Aufbau
-if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Markt", "Verkaufen (Rat)", "Auktionen", "Einkaufen", "Radar", "Fokus", "Gegenstand", "Händler", "Neutral", "Datenlage", "Berufe", "Scan", "Tooltip", "Gegenstandsmenü", "Optionen" }) end
+if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Markt", "Verkaufen (Rat)", "Auktionen", "Einkaufen", "Radar", "Fokus", "Beobachten", "Gegenstand", "Händler", "Neutral", "Datenlage", "Berufe", "Scan", "Tooltip", "Gegenstandsmenü", "Optionen" }) end

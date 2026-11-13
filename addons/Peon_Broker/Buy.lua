@@ -818,9 +818,15 @@ function B.UpdateView()
     if not B.view then return end
     local cur = B.CurrentList()
     -- Listen-Einstellungen
+    -- ab 0.91: nicht ueberschreiben, waehrend man tippt. Jede Antwort des Auktionators fuellte die Felder neu, der
+    -- getippte Name ging verloren und beim Verlassen wurde der alte gespeichert (Fehlerbericht 18).
     B.filling = true
-    B.nameBox:SetText(cur and cur.name or "")
-    B.pctBox:SetText(cur and tostring(cur.pct or 0) or "")
+    local function Fill(box, text)
+        if box.HasFocus and box:HasFocus() then return end
+        box:SetText(text)
+    end
+    Fill(B.nameBox, cur and cur.name or "")
+    Fill(B.pctBox, cur and tostring(cur.pct or 0) or "")
     B.filling = false
     if cur and not cur.watch then B.deleteButton:Enable() else B.deleteButton:Disable() end
     if B.nameBox.SetEnabled then B.nameBox:SetEnabled(not (cur and cur.watch)) end
@@ -944,7 +950,9 @@ function B.Build(c)
     UI.FormRow(left, L.BUY_F_NAME, B.nameBox, B.FORM_X, -40)
     B.nameBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
-        if cur and not B.filling and (self:GetText() or "") ~= "" and cur.name ~= self:GetText() then cur.name = self:GetText(); B.Touch(cur, "name"); B.Refresh() end
+        local text = (self:GetText() or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if cur and not B.filling and text ~= "" and cur.name ~= text then cur.name = text; B.Touch(cur, "name") end
+        B.Refresh()
     end)
     B.pctBox = UI.Input(left, 60, { numeric = true })
     local pr = UI.FormRow(left, L.BUY_F_PCT, B.pctBox, B.FORM_X, -76, L.BUY_F_PCT_SUB)

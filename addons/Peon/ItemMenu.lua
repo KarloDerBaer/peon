@@ -116,10 +116,32 @@ function Peon.OpenItemMenu(item, owner)
     return true
 end
 
+-- ab 0.20.1: Beim Druecken nur merken, geoeffnet wird nach dem Loslassen (einen Bildaufbau spaeter). Blizzards
+-- Knoepfe oeffnen ihr eigenes Menue beim Klick (Loslassen), z. B. der Gegenstand in der Kaufansicht des
+-- Auktionshauses das Favoriten-Menue. Das ersetzte vorher sofort Peons Menue (Fehlerbericht 15).
 function M.OnMouseDown(button)
+    M.pending = nil
     if not M.Matches(button) then return end
     local item = M.TooltipItem()
-    if item then Peon.OpenItemMenu(item) end
+    if item then M.pending = { item = item, button = button } end
+end
+
+function M.OnMouseUp(button)
+    local p = M.pending
+    M.pending = nil
+    if not p or p.button ~= button then return end
+    local function Open()
+        M.last = nil   -- erneut oeffnen, auch wenn derselbe Klick schon ueber HandleModifiedItemClick kam
+        Peon.OpenItemMenu(p.item)
+    end
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, function()
+            local ok, err = pcall(Open)
+            if not ok and Peon.ReportCoreError then Peon.ReportCoreError("ItemMenu", err) end
+        end)
+    else
+        Open()
+    end
 end
 
 function M.OnModifiedClick(link)
@@ -141,8 +163,9 @@ function M.Init()
     if Peon.db and Peon.db.itemMenuClick == nil then Peon.db.itemMenuClick = M.DEFAULT end
     local f = CreateFrame("Frame")
     pcall(f.RegisterEvent, f, "GLOBAL_MOUSE_DOWN")
-    f:SetScript("OnEvent", function(_, _, button)
-        local ok, err = pcall(M.OnMouseDown, button)
+    pcall(f.RegisterEvent, f, "GLOBAL_MOUSE_UP")
+    f:SetScript("OnEvent", function(_, event, button)
+        local ok, err = pcall(event == "GLOBAL_MOUSE_UP" and M.OnMouseUp or M.OnMouseDown, button)
         if not ok and Peon.ReportCoreError then Peon.ReportCoreError("ItemMenu", err) end
     end)
     M.frame = f

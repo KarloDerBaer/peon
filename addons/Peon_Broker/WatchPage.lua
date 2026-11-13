@@ -189,6 +189,12 @@ function P.Build(c)
     P.alarmCheck = UI.Check(c, L.WATCH_ALARM_CHECK, mod.db.watchAlarm ~= false, function(on) mod.db.watchAlarm = on end,
         { L.WATCH_ALARM_CHECK, L.WATCH_ALARM_TIP })
     P.alarmCheck:SetPoint("BOTTOMLEFT", 0, 0)
+    -- ab 0.91 (Fehlerbericht 20): Einstellungen der Warnung (Ton und Chat je Richtung). Ton je Gegenstand: Rechtsklick
+    P.settingsButton = UI.Button(c, L.SETTINGS_BUTTON, 110, function()
+        if ns.Settings then mod:Call("Einstellungen", ns.Settings.Toggle, "watch") end
+    end)
+    P.settingsButton:SetPoint("BOTTOMLEFT", 150, 4)
+    UI.SetTooltip(P.settingsButton, { L.SET_WATCH_TITLE, L.SET_WATCH_BUTTON_TIP })
     P.marketButton = ns.Go.MarketButton(c, 150, function() return P.selected and { key = P.selected.key, name = P.selected.name } or nil end)
     P.marketButton:SetPoint("RIGHT", P.removeButton, "LEFT", -6, 0)
     -- ab 0.83: Verkaufen. Sicherer Knopf wie "Ins Verkaufsfenster legen" (Lots.lua): Makro "/click <Taschenplatz> RightButton",

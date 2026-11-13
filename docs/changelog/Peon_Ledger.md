@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.14.8
+
+Kurz: „Auktionshaus-Post“ und „Alles einsammeln“ holen jetzt alle Briefe, auch viele gleiche Kaufbriefe hintereinander.
+Kurz: Das Briefsymbol an der Minikarte verschwindet beim Schließen des Briefkastens, wenn keine ungelesene Post mehr da ist.
+
+- 0.14.8 (13.11.2026): Zwei Fehler im Postfenster.
+  - **Einsammeln hörte zu früh auf** (`Mail.lua`): Jeder Brief durfte drei Versuche haben, gezählt wurde aber je Kennung aus Absender, Betreff, Gold und Anzahl. Gleiche Briefe (z. B. 13 Käufe desselben Gegenstands) teilten sich so die drei Versuche, nach wenigen Briefen meldete Ledger „Post eingesammelt“. Jetzt zählen nur Fehlversuche: Hat sich das Postfach seit dem letzten Nehmen nicht verändert (`MA.Signature`: Zahl der Briefe, Gold, Anhänge, freie Plätze), gilt der Versuch als gescheitert. Nach `MA.MAX_TRIES` (jetzt 5) Fehlversuchen wird der Brief übersprungen.
+  - **Briefsymbol an der Minikarte** (`MA.HideMailIcon`): Blizzard zeigt es nach `HasNewMail()`, das der Server erst etwa eine Minute später frisch meldet. Liegt beim Schließen kein ungelesener Brief mehr im Postfach, blendet Ledger das Symbol gleich aus. Neue Post zeigt Blizzard wie gewohnt wieder an.
+  - Tests: 13 gleiche Kaufbriefe, ein klemmender Brief, Briefsymbol in `test_ledger.lua`.
+  - **Im Spiel prüfen:** Mehrere gleiche Käufe im Auktionshaus, dann am Briefkasten „Auktionshaus-Post“: alle Briefe kommen, eine Meldung „Post eingesammelt (n)“. Nach dem Schließen ist das Briefsymbol weg.
+
 ## 0.14.7
 
 Kurz: Der Hinweis nach dem Update und der Reiter Info erklären jetzt, dass das Buch einmal neu beginnt (Reset), und was der Startbestand ist.

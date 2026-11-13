@@ -434,6 +434,12 @@ function F.Build(c)
     F.header:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     F.verdict = UI.Text(left, "big", "")
     F.verdict:SetPoint("TOPLEFT", 16, -88)
+    -- ab 0.91 (Fehlerbericht 22): Gekauftes zum Wiedereinstellen merken, je Gegenstand gespeichert
+    F.relistCheck = UI.Check(left, L.FOCUS_RELIST, false, function(on)
+        if F.key ~= nil and ns.Lots then ns.Lots.SetWanted(F.key, on) end
+    end, { L.FOCUS_RELIST, L.FOCUS_RELIST_TIP })
+    if F.relistCheck.SetScale then F.relistCheck:SetScale(0.85) end
+    F.relistCheck:SetPoint("TOPLEFT", (UI.LEFT_W - 150) / 0.85, -82 / 0.85)
     F.why = UI.Text(left, "text", "", UI.LEFT_W - 32)
     F.why:SetPoint("TOPLEFT", 16, -110)
     -- ab 0.77: Art mit "Auto", Ziel (Linksklick), Kaufen bis (Rechtsklick)
@@ -585,7 +591,8 @@ function F.BuildMeasure(c, above)
         -- ab 0.75: nichts zeichnet ueber den Rand des Diagramms hinaus
         if F.chart and F.chart.plot and F.chart.plot.SetClipsChildren then F.chart.plot:SetClipsChildren(true) end
     end
-    F.chartLegend = UI.Text(mp, "small", ("|cff6699cc%s|r  |cffffd133%s|r  |cff60e060%s|r"):format(L.MEASURE_UNDER, L.MEASURE_MIN, L.FOCUS_R_TARGET))
+    -- ab 0.91: Menge grau, Kaufen bis blau (Wunsch KarloDerBaer, 13.11.2026)
+    F.chartLegend = UI.Text(mp, "small", ("|cff999999%s|r  |cffffd133%s|r  |cff4d8cff%s|r  |cff60e060%s|r"):format(L.MEASURE_UNDER, L.MEASURE_MIN, L.FOCUS_R_LIMIT, L.FOCUS_R_TARGET))
     F.chartLegend:SetPoint("BOTTOMRIGHT", mp, "BOTTOMRIGHT", -10, 114)
 end
 
@@ -599,8 +606,8 @@ F.Dec = Dec
 F.chartN = nil
 F.CHART_SLOTS = 60   -- ab 0.75: so viele Plaetze hat das Diagramm mindestens (von links gefuellt)
 
--- Messwerte in die Zeilen; v = laufende Messung
-function F.UpdateMeasure(v)
+-- Messwerte in die Zeilen; v = laufende Messung, limit = geltendes "Kaufen bis" (ab 0.91 als blaue Linie)
+function F.UpdateMeasure(v, limit)
     if not F.mRows then return end
     local every = ns.Radar.FocusEvery()
     if v then
@@ -630,13 +637,14 @@ function F.UpdateMeasure(v)
     F.chartLegend:SetShown(show)
     if not show then F.chartN = nil; return end
     local cur = ns.Measure.cur
-    local stamp = tostring(n) .. ":" .. tostring(v.target) .. ":" .. tostring(cur and cur.samples[n] and cur.samples[n].t)
+    local stamp = tostring(n) .. ":" .. tostring(v.target) .. ":" .. tostring(limit) .. ":" .. tostring(cur and cur.samples[n] and cur.samples[n].t)
     if F.chartN == stamp then return end
     local series = {
-        { key = "under", kind = "bar", axis = "right", values = under, color = { 0.4, 0.6, 0.8, 0.45 } },
+        { key = "under", kind = "bar", axis = "right", values = under, color = { 0.6, 0.6, 0.6, 0.4 } },
         { key = "min", kind = "line", values = mins, color = { 1, 0.82, 0.2, 1 }, width = 2, connect = true },
     }
     if Num(v.target) then series[#series + 1] = { key = "target", kind = "hline", value = v.target, color = { 0.38, 0.88, 0.38, 0.9 } } end
+    if Num(limit) and limit > 0 then series[#series + 1] = { key = "limit", kind = "hline", value = limit, color = { 0.3, 0.55, 1, 0.95 } } end
     -- ab 0.75: mindestens F.CHART_SLOTS Plaetze, von links gefuellt. Mit nur zwei Abfragen war jeder Balken so breit
     -- wie das halbe Diagramm und ragte ueber den Rand.
     ns.Radar.Perf("diagramm", function() F.chart:SetData(math.max(n, F.CHART_SLOTS or 60), series); F.chart:Draw() end)
@@ -689,6 +697,7 @@ function F.Update()
     On(F.autoButton, has and live and (F.ManualTarget(key) ~= nil or F.ManualLimit(key) ~= nil))
     if not has then
         F.header:Set(nil, "", 1)
+        if F.relistCheck then F.relistCheck:Hide() end
         F.verdict:SetText("")
         F.why:SetText(GREY .. L.FOCUS_EMPTY .. "|r")
         for _, r in ipairs(F.rows) do r.label:SetText(""); r.value:SetText("") end
@@ -708,6 +717,7 @@ function F.Update()
     local name = (d and d.name) or D.ItemName(key, e) or L.ITEM_UNKNOWN:format(id or 0)
     local quality = (d and d.quality) or (type(e) == "table" and e.ql) or nil
     F.header:Set(ns.Buy.Icon(id), name, quality)
+    if F.relistCheck and ns.Lots then F.relistCheck:SetChecked(ns.Lots.Wanted(key)); F.relistCheck:Show() end
     local text, color, why = F.Verdict(d)
     F.verdict:SetText(color .. text .. "|r")
     F.why:SetText(why or "")
@@ -726,7 +736,7 @@ function F.Update()
     if not live then F.stand:SetText(GREY .. L.TAB_AH_ONLY .. "|r")
     elseif t then F.stand:SetText(L.FOCUS_LIVE:format(ns.Scan.Age(t)))
     else F.stand:SetText(GREY .. L.FOCUS_LIVE_WAIT .. "|r") end
-    F.UpdateMeasure(F.LiveValues())
+    F.UpdateMeasure(F.LiveValues(), limit)
     local label, enabled, info = BuyState(d)
     F.buyButton:SetText(label)
     On(F.buyButton, enabled)

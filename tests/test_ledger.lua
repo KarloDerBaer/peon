@@ -1495,6 +1495,50 @@ GetInboxItem = function(i, a) if a == 1 and i == 1 then return "Ware", 5005, 1, 
 GetInboxInvoiceInfo = function() end
 list = timers; timers = {}; for _, f in ipairs(list) do f() end
 check(#taken == 2 and not MA.run and said("Post eingesammelt (2)"), "Nachnahme und Systembrief bleiben, fertig")
+-- ab 0.14.8: 13 gleiche Kaufbriefe (gleicher Absender, Betreff, Anhang). Vorher teilten sie sich drei Versuche
+-- und das Einsammeln hoerte nach wenigen Briefen auf.
+do
+  local keepInbox, keepItem, keepInv, keepTake = inbox, GetInboxItem, GetInboxInvoiceInfo, TakeInboxItem
+  inbox = {}
+  for n = 1, 13 do inbox[n] = { nil, nil, "Auktionshaus der Allianz", "Auktion gewonnen: Flitzdistel", 0, 0, 29, 1 } end
+  GetInboxItem = function(i, a) if a == 1 and inbox[i] then return "Flitzdistel", 2452, 1, 1, 1 end end
+  GetInboxInvoiceInfo = function(i) if inbox[i] then return "buyer", "Flitzdistel", "Bob", 0, 50, 0, 0 end end
+  local got = 0
+  TakeInboxItem = function(i) got = got + 1; table.remove(inbox, i) end
+  timers = {}
+  MA.Collect("ah")
+  for _ = 1, 40 do
+    if not MA.run then break end
+    local l = timers; timers = {}; for _, f in ipairs(l) do f() end
+  end
+  check(got == 13 and #inbox == 0 and not MA.run and said("Post eingesammelt (13)"), "0.14.8: 13 gleiche Kaufbriefe alle eingesammelt (" .. got .. ")")
+  -- ein Brief, der nicht genommen werden kann, wird nach MA.MAX_TRIES Fehlversuchen uebersprungen
+  inbox = { { nil, nil, "Auktionshaus der Allianz", "Auktion gewonnen: Flitzdistel", 0, 0, 29, 1 } }
+  got = 0
+  TakeInboxItem = function() got = got + 1 end
+  timers = {}
+  MA.Collect("ah")
+  for _ = 1, 40 do
+    if not MA.run then break end
+    local l = timers; timers = {}; for _, f in ipairs(l) do f() end
+  end
+  check(not MA.run and got == MA.MAX_TRIES, "0.14.8: klemmender Brief: nach " .. MA.MAX_TRIES .. " Versuchen uebersprungen (" .. got .. ")")
+  inbox, GetInboxItem, GetInboxInvoiceInfo, TakeInboxItem = keepInbox, keepItem, keepInv, keepTake
+end
+-- ab 0.14.8: Briefsymbol an der Minikarte verschwindet beim Schliessen, wenn nichts Ungelesenes mehr da ist
+do
+  local keepInbox = inbox
+  local shown, layouts = true, 0
+  MiniMapMailFrame = { IsShown = function() return shown end, Hide = function() shown = false end,
+                       GetParent = function() return { Layout = function() layouts = layouts + 1 end } end }
+  inbox = { { nil, nil, "Kesha", "Hallo", 0, 0, 20, nil, false } }
+  MA.HideMailIcon()
+  check(shown, "0.14.8: ungelesener Brief: Briefsymbol bleibt")
+  inbox[1][9] = true
+  MA.HideMailIcon()
+  check(not shown and layouts == 1, "0.14.8: alles gelesen: Briefsymbol weg")
+  MiniMapMailFrame, inbox = nil, keepInbox
+end
 -- Klick auf Nachnahme fragt vorher
 MA.Take({ index = 1, cod = 500, letter = {} })
 check(Peon.UI.dialog and Peon.UI.dialog.onYes, "Nachnahme: Rueckfrage")

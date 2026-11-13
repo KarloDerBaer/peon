@@ -106,8 +106,12 @@ end
 
 local function Tooltip(owner, lines)
     if not (GameTooltip and lines) then return end
+    if type(lines) == "function" then lines = lines() end
+    -- ab 0.20.1: ein einzelner Text geht auch (IconButton bekam oft nur einen Text, Fehlerbericht BugGrabber)
+    if type(lines) == "string" then lines = { lines } end
+    if type(lines) ~= "table" then return end
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-    for i, l in ipairs(type(lines) == "function" and lines() or lines) do
+    for i, l in ipairs(lines) do
         if i == 1 then GameTooltip:SetText(l, 1, 0.82, 0) else GameTooltip:AddLine(l, 1, 1, 1, true) end
     end
     GameTooltip:Show()

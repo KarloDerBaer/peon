@@ -9,6 +9,8 @@
 --   { "check", Schluessel, Text, Tooltip, off = fn }   Haken (off = gesperrt, z. B. "kommt spaeter")
 --   { "slider", Schluessel, Text, min, max, Schritt, Anzeige = fn, off = fn }
 --   { "money", Schluessel, Text, Faktor, off = fn }    Geld eingeben, gespeichert in Einheiten von Faktor Kupfer
+--   { "choice", Schluessel, Text, Liste, test = fn }   Auswahlliste (ab 0.91), Liste = { { Wert, Text } } oder Funktion,
+--                                                      test(wert) spielt die Auswahl ab (z. B. Ton)
 -- Aenderungen gelten erst mit OK (S.tmp), dann schreibt das Fenster in mod.db und ruft S.changed[art].
 
 local ADDON_NAME, ns = ...
@@ -53,6 +55,7 @@ S.SPECS.focus = {
     { "note", "SET_FOCUS_RATE_NOTE" },
     { "head", "SET_FOCUS_BUY" },
     { "slider", "focusPriceTol", "SET_FOCUS_TOL", 0, 10, 1, function(v) return L.SET_PCT_FMT:format(v) end },
+    { "check", "relistDefault", "SET_FOCUS_RELIST", "SET_FOCUS_RELIST_TIP" },   -- ab 0.91
     { "col" },
     { "head", "SET_FOCUS_VERDICT" },
     { "slider", "focusWindow", "SET_FOCUS_WINDOW", 2, 30, 1, function(v) return L.SET_MIN_FMT:format(v) end },
@@ -95,6 +98,25 @@ S.changed.radar = function()
     if R.Shown() then R.Open(); R.Wake() end
 end
 
+-- Beobachten (ab 0.91, Fehlerbericht 20): Warnton und Chatnachricht je Richtung
+local function Sounds()
+    local out = {}
+    for _, v in ipairs(ns.Watch and ns.Watch.SOUND_CHOICES or { "off" }) do out[#out + 1] = { v, ns.Watch.SoundName(v) } end
+    return out
+end
+local function TestSound(v) if v ~= "off" and ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert, v) end end
+S.SPECS.watch = {
+    title = "SET_WATCH_TITLE",
+    { "head", "SET_WATCH_DOWN" },
+    { "choice", "watchSoundDown", "SET_WATCH_SOUND", Sounds, test = TestSound },
+    { "check", "watchChatDown", "SET_WATCH_CHAT" },
+    { "col" },
+    { "head", "SET_WATCH_UP" },
+    { "choice", "watchSoundUp", "SET_WATCH_SOUND", Sounds, test = TestSound },
+    { "check", "watchChatUp", "SET_WATCH_CHAT" },
+    { "note", "SET_WATCH_NOTE" },
+}
+
 S.changed.focus = function() if ns.Focus then ns.Focus.chartN = nil; ns.Focus.Update() end end
 
 local function Disabled(row)
@@ -103,7 +125,7 @@ local function Disabled(row)
 end
 
 -- Zeilenhoehen
-S.STEP = { head = 26, note = 34, check = 30, slider = 30, money = 34 }
+S.STEP = { head = 26, note = 34, check = 30, slider = 30, money = 34, choice = 34 }
 
 -- Fenster einer Art bauen
 function S.Build(kind)
@@ -171,6 +193,17 @@ function S.Build(kind)
             m:SetAmount((tonumber(S.Get(kind, key)) or 0) * factor)
             f.controls[#f.controls + 1] = { row = row, frame = m, kind = "money", label = label, factor = factor }
             y = y - S.STEP.money
+        elseif typ == "choice" then
+            local key = row[2]
+            local label = Label(row[3], row)
+            local dd = UI.Dropdown(f, 150, row[4], function() return S.Get(kind, key) end, function(v)
+                S.Set(kind, key, v)
+                if row.test then row.test(v) end
+                if f.Update then f:Update() end
+            end)
+            dd:SetPoint("RIGHT", f, "TOPLEFT", x + S.COL_W, y - 12)
+            f.controls[#f.controls + 1] = { row = row, frame = dd, kind = "choice", label = label }
+            y = y - S.STEP.choice
         end
     end
     -- unten: OK und Abbrechen
@@ -198,6 +231,9 @@ function S.Load(kind)
             c.value:SetText(c.fmt and c.fmt(v) or tostring(v))
         elseif c.kind == "money" then
             c.frame:SetAmount((tonumber(v) or 0) * c.factor)
+        elseif c.kind == "choice" then
+            S.tmp[kind] = nil
+            if c.frame.GenerateMenu then pcall(c.frame.GenerateMenu, c.frame) end   -- gewaehlten Eintrag neu zeigen
         end
     end
     S.tmp[kind] = nil   -- SetValue meldet sich als Aenderung, das gilt nicht

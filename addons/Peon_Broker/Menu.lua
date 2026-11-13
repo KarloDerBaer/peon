@@ -58,6 +58,8 @@ function M.Build(root, item)
         local key = item.link and ns.Data.KeyFromLink(item.link) or item.id
         ns.Watch.AddMenu(root, item, key)
     end
+    -- ab 0.91 (Fehlerbericht 17): Chance einschaetzen (Rating.lua)
+    if ns.Rating then root:CreateButton(L.MENU_RATE, function() mod:Call("Einschaetzung", ns.Rating.Open, item) end) end
 end
 
 function M.Init()

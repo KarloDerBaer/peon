@@ -20,7 +20,7 @@ local MA = {}
 ns.Mail = MA
 
 MA.DELAY = 0.15        -- wie OPEN_ALL_MAIL_MIN_DELAY in Blizzards MailFrame.lua
-MA.MAX_TRIES = 3       -- so oft wird ein Brief versucht, danach uebersprungen
+MA.MAX_TRIES = 5       -- so oft darf ein Brief scheitern (Postfach unveraendert), danach uebersprungen
 MA.SOON_DAYS = 3       -- "laeuft bald ab"
 MA.SLOTS = 12          -- Anhaenge beim Senden (ATTACHMENTS_MAX_SEND)
 MA.RECENT_MAX = 10
@@ -246,6 +246,24 @@ function MA.NextLetter(run)
     return nil
 end
 
+-- Zustand des Postfachs als Text (Zahl der Briefe, Gold und Anhaenge aller Briefe): aendert er sich, hat das letzte
+-- Nehmen geklappt (ab 0.14.8)
+function MA.Signature()
+    local numFn, header = G("GetInboxNumItems"), G("GetInboxHeaderInfo")
+    if type(numFn) ~= "function" or type(header) ~= "function" then return "" end
+    local ok, n = pcall(numFn)
+    if not ok or not Num(n) then return "" end
+    local money, items = 0, 0
+    for i = 1, n do
+        local okh, _, _, _, _, m, _, _, c = pcall(header, i)
+        if okh then
+            if Num(m) then money = money + m end
+            if Num(c) then items = items + c end
+        end
+    end
+    return n .. ":" .. money .. ":" .. items .. ":" .. MA.FreeSlots()
+end
+
 function MA.Collect(mode)
     if MA.run then MA.Stop(); return end
     if not ns.Inventory.open.mail then return end
@@ -267,13 +285,24 @@ function MA.Step()
     if not ns.Inventory.open.mail then MA.Stop(); return end
     if Peon.InCombat and Peon.InCombat() then MA.Stop(L.MAIL_STOP_COMBAT); return end
     if Pending() then After(MA.DELAY, MA.Step); return end
+    -- ab 0.14.8: nur Fehlversuche zaehlen. Hat sich das Postfach seit dem letzten Nehmen nicht veraendert, gilt
+    -- der letzte Versuch als gescheitert. Vorher zaehlte jeder Versuch je Kennung (Absender, Betreff, Geld,
+    -- Anzahl), und gleiche Briefe (z. B. 13 Kaeufe desselben Gegenstands) teilten sich die drei Versuche.
+    local sig = MA.Signature()
+    if run.lastKey then
+        if sig == run.lastSig then
+            run.tries[run.lastKey] = (run.tries[run.lastKey] or 0) + 1
+        else
+            run.tries[run.lastKey] = nil
+        end
+    end
     local i, h = MA.NextLetter(run)
     if not i then
         local full = MA.FreeSlots() == 0
         MA.Stop(full and L.MAIL_STOP_FULL or L.MAIL_STOP_DONE)
         return
     end
-    run.tries[h.key] = (run.tries[h.key] or 0) + 1
+    run.lastKey, run.lastSig = h.key, sig
     if h.money then
         TakeInboxMoney(i)
     else
@@ -780,6 +809,41 @@ function MA.OnMailClosed()
     MA.blizzVisit = false
     local fn = G("SetSendMailShowing")
     if type(fn) == "function" then pcall(fn, false) end
+    pcall(MA.HideMailIcon)
+end
+
+-- ab 0.14.8: Briefsymbol an der Minikarte. Blizzard zeigt es nach HasNewMail(), das der Server erst eine Weile
+-- spaeter frisch meldet (UPDATE_PENDING_MAIL, Blizzard_Minimap/Mainline/Minimap.lua, Zweig forever). Liegt beim
+-- Schliessen kein ungelesener Brief mehr im Postfach, blendet Ledger das Symbol gleich aus. Kommt neue Post, zeigt
+-- Blizzard es mit dem naechsten UPDATE_PENDING_MAIL wieder.
+function MA.MailIcon()
+    local mc = G("MinimapCluster")
+    local ind = type(mc) == "table" and rawget(mc, "IndicatorFrame") or nil
+    local f = type(ind) == "table" and rawget(ind, "MailFrame") or nil
+    if type(f) ~= "table" then f = G("MiniMapMailFrame") end
+    return type(f) == "table" and f.Hide and f or nil
+end
+
+function MA.UnreadLetters()
+    local numFn, header = G("GetInboxNumItems"), G("GetInboxHeaderInfo")
+    if type(numFn) ~= "function" or type(header) ~= "function" then return nil end
+    local ok, n = pcall(numFn)
+    if not ok or not Num(n) then return nil end
+    local unread = 0
+    for i = 1, n do
+        local okh, _, _, _, _, _, _, _, _, wasRead = pcall(header, i)
+        if okh and not wasRead then unread = unread + 1 end
+    end
+    return unread
+end
+
+function MA.HideMailIcon()
+    local f = MA.MailIcon()
+    if not (f and f:IsShown()) then return end
+    if MA.UnreadLetters() ~= 0 then return end
+    f:Hide()
+    local p = f.GetParent and f:GetParent()
+    if type(p) == "table" and type(p.Layout) == "function" then pcall(p.Layout, p) end
 end
 
 -- Eigenes Fenster zu (ESC, Schliessen): Briefkasten schliessen, ausser es geht zu Blizzards Postfach

@@ -2,6 +2,26 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.91.0
+
+Kurz: Im Fokus kaufst du mit einem Klick. Nur wenn der Preis höher ist als erwartet, fragt Broker mit einem zweiten Klick nach.
+Kurz: Beobachten hat ein Fenster Einstellungen: Warnton und Chatnachricht für Kaufen bis und Zielpreis, den Ton auch je Gegenstand (Rechtsklick in der Liste).
+Kurz: Gekauftes wird nur noch zum Wiedereinstellen gemerkt, wenn du das willst. Der Haken „Wieder einstellen“ im Fokus gilt je Gegenstand.
+Kurz: Neu im Gegenstandsmenü: „Chance einschätzen“ mit schlecht, mittel oder gut und einer Bemerkung.
+Kurz: Im Diagramm des Fokus steht Kaufen bis als blaue Linie, die Menge ist grau.
+
+- 0.91.0 (13.11.2026): Wünsche und Fehler aus den Fehlerberichten (KarloDerBaer, 13.11.2026).
+  - **Kaufen mit einem Klick** (`Radar.lua`, `R.OnPriceUpdated`): Nur der Start eines Kaufs von Massenware braucht einen echten Klick (`StartCommoditiesPurchase` hat Einschränkungen), die Bestätigung nicht (nachgelesen in `AuctionHouseDocumentation.lua`, Zweig forever). Kommt der Preis vom Spiel und liegt der Gesamtpreis in der Toleranz (`focusPriceTol`), bestätigt Broker selbst. Sonst bleibt es bei „Bestätigen“ mit Warnung. Gilt für den Kaufknopf im Fokus und die Taste.
+  - **Einstellungen Beobachten** (`Settings.lua`, `Watch.lua`): Neuer Knopf „Einstellungen“ unten auf der Seite Beobachten. Je Richtung (Kaufen bis erreicht, Zielpreis erreicht) ein Ton (`watchSoundDown`, `watchSoundUp`, auch „Kein Ton“) und ein Haken für die Chatnachricht (`watchChatDown`, `watchChatUp`). Das Einstellungsfenster kennt dafür die neue Zeile `choice` (Auswahlliste, spielt den Ton beim Wählen ab). Der Haken „Warnung“ schaltet weiter alles ab. Der Ton hängt nicht mehr am Ton des Radars.
+  - **Ton je Gegenstand:** Rechtsklick auf einen Gegenstand unter Beobachten, Untermenüs „Ton bei Kaufen bis“ und „Ton beim Zielpreis“ mit „Wie eingestellt“, „Kein Ton“ und den Tönen. Gespeichert im Eintrag (`sDown`, `sUp`), geht nicht an den Manager.
+  - **Wiedereinstellen merken** (`Lots.lua`, `LT.Wanted`): Ein Kauf wird nur noch ein Posten, wenn es für den Gegenstand eingeschaltet ist. Haken „Wieder einstellen“ im Fokus rechts neben dem Urteil, gespeichert je Gegenstand in `PeonBrokerDB.relist`. Die Vorgabe für alle Gegenstände steht in den Einstellungen des Fokus (`relistDefault`, Standard aus). Gilt für alle Käufe (auch Aufkäufe aus dem Radar), abgebrochene Auktionen werden weiter immer gemerkt.
+  - **Chance einschätzen** (neue Datei `Rating.lua`): Eintrag im Gegenstandsmenü (Strg+Rechtsklick, Rechtsklick in Brokers Listen und im Radar). Ein kleines Fenster mit Auswahl schlecht, mittel, gut und einer Bemerkung. Gespeichert in `PeonBrokerDB.ratings` (höchstens 500) mit Zeit, Markt, Preisdaten des Gegenstands, den Werten des Radar-Vorschlags (falls er gerade vorgeschlagen wird oder eben weggefallen ist) und ob er im Fokus stand. Die Auswertung im Peon Manager kommt später.
+  - **Diagramm im Fokus** (`Focus.lua`): Kaufen bis als blaue waagrechte Linie, die Balken der Menge unter Ziel grau. Legende angepasst.
+  - **Listen umbenennen** (`Buy.lua`): Das Feld Name unter Einkaufen wurde bei jeder Antwort des Auktionators neu gefüllt, der getippte Name ging verloren. Jetzt bleiben Name und Rabatt stehen, solange man darin tippt. Enter übernimmt den Namen.
+  - **Bereich Beobachten** für Rückmeldungen (Peon_Feedback und Manager).
+  - Tests: Ein-Klick-Kauf und Preiswarnung, Posten nur mit Haken, Töne je Richtung und Gegenstand, Fenster Einstellungen Beobachten, Einschätzung, Bereiche.
+  - **Im Spiel prüfen:** Im Fokus einmal Kaufen: Der Kauf läuft ohne zweiten Klick durch. Beobachten, Einstellungen: Töne wählen (spielen beim Wählen), OK. Rechtsklick auf einen Gegenstand unter Beobachten, Ton ändern. Fokus: Haken „Wieder einstellen“ an einem Gegenstand, kaufen, Posten erscheint. Ohne Haken kein Posten. Strg+Rechtsklick, „Chance einschätzen“, speichern. Diagramm: blaue Linie bei Kaufen bis. Einkaufen: Namen einer Liste ändern, während der Auktionator antwortet.
+
 ## 0.90.0
 
 Kurz: Beobachtungen, die ein älterer Peon Manager ohne Kaufen bis und Zielpreis schickt, überschreiben deine Grenzen im Spiel nicht.

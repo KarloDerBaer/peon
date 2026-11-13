@@ -1294,10 +1294,8 @@ end
     F.buyButton.scripts.OnClick(F.buyButton)
     check(started and started[1] == 7801 and started[2] == 15 and Rd.job and Rd.job.stage == "quote" and F.buyButton.disabled, "N6: erster Klick holt den Preis")
     fire("COMMODITY_PRICE_UPDATED", 3, 45)
-    check(Rd.job.stage == "confirm" and F.buyButton.text == "Bestätigen" and not F.buyButton.disabled and plain(F.buyInfo.text):find("15 für 45c", 1, true),
-        "N6: Preis da: Bestaetigen mit Menge und Preis")
-    F.buyButton.scripts.OnClick(F.buyButton)
-    check(confirmed and confirmed[2] == 15 and Rd.job.stage == "wait", "N6: zweiter Klick bestaetigt")
+    -- ab 0.91 (Fehlerbericht 24): im Fokus bestaetigt Broker selbst, sobald der Preis passt (ein Klick)
+    check(confirmed and confirmed[2] == 15 and Rd.job.stage == "wait", "0.91: Preis passt: ohne zweiten Klick bestaetigt")
     fire("COMMODITY_PURCHASE_SUCCEEDED")
     check(Rd.job == nil and Rd.entries[7801] == nil and Rd.gone[7801] and plain(F.verdict.text) == "VORBEI" and F.buyButton.disabled,
         "N6: gekauft: Chance vorbei, Fokus zeigt es")
@@ -1312,7 +1310,12 @@ end
     started = nil
     PeonBroker_RadarBuy()
     check(started and started[1] == 7803, "N6: Taste kaufen: Chance im Fokus")
+    -- ab 0.91: Gesamtpreis hoeher als erwartet: kein Kauf ohne zweiten Klick
+    confirmed = nil
+    fire("COMMODITY_PRICE_UPDATED", Rd.job.limit, (Rd.job.expect or 0) * 2 + 100)
+    check(Rd.job and Rd.job.stage == "confirm" and Rd.job.warn and confirmed == nil, "0.91: Preiswarnung: wartet auf den zweiten Klick")
     Rd.job = nil
+    Rd.buyUntil = nil
     -- ein Gegenstand ohne Chance im Fokus (ohne fruehere Live-Antwort aus anderen Tests)
     ns.Buy.live[2770] = nil
     ns.Go.Focus({ key = 2770, name = "Kupfererz" })
@@ -1591,7 +1594,16 @@ end)()
     local L = ns.L
     mod.char.lots, mod.char.lotSeq = nil, nil
     check(LT.Count() == 0 and LT.StatusPart() == nil, "H3: anfangs keine Posten")
-    -- Aufkauf aus dem Radar wird ein Posten
+    -- ab 0.91 (Fehlerbericht 22): Standard aus, dann wird nichts gemerkt
+    mod.acc.relist = nil
+    check(mod.db.relistDefault == false and not LT.Wanted(7961), "0.91: Wiedereinstellen merken ist anfangs aus")
+    Rd.entries[7961] = { key = 7961, kind = "buyout", ref = 1500, qty = 80, name = "Postenstein", rows = {} }
+    Rd.job = { key = 7961, id = 7961, qty = 80, limit = 1100, name = "Postenstein", stage = "wait", kind = "buyout", total = 83000, target = 1500, done = 0 }
+    Rd.FinishJob(true)
+    check(LT.Count() == 0, "0.91: Kauf ohne Haken wird kein Posten")
+    -- je Gegenstand eingeschaltet: Aufkauf aus dem Radar wird ein Posten
+    LT.SetWanted(7961, true)
+    check(LT.Wanted(7961) and not LT.Wanted(7962), "0.91: Haken gilt nur fuer diesen Gegenstand")
     Rd.entries[7961] = { key = 7961, kind = "buyout", ref = 1500, qty = 80, name = "Postenstein", rows = {} }
     Rd.job = { key = 7961, id = 7961, qty = 80, limit = 1100, name = "Postenstein", stage = "wait", kind = "buyout", total = 83000, target = 1500, done = 0 }
     Rd.FinishJob(true)
@@ -2959,6 +2971,35 @@ end)()
   check(sounds == 2, "U8: danach wieder ein Alarm")
   Wt.SetLimit(2770, "pct", 20)
   check(Wt.Limit(2770) == D.MaxBuyPrice(e, 20) and Wt.LimitText(2770):find("20", 1, true), "U8: Grenze in Prozent unter dem Vergleichspreis")
+  -- ab 0.91 (Fehlerberichte 20 und 21): Ton und Chat je Richtung, Ton je Gegenstand
+  local played
+  ns.Radar.PlayAlert = function(k) sounds = sounds + 1; played = k end
+  check(Wt.Sound(2770, "Down") == "raid" and Wt.Sound(2770, "Up") == "raid", "0.91: Ton wie eingestellt (Vorgabe Schlachtzugswarnung)")
+  mod.db.watchSoundDown = "alarm"
+  Wt.SetLimit(2770, "abs", e.m - 1); Wt.SetLimit(2770, "abs", e.m)
+  check(played == "alarm" and said("Preisalarm: Kupfererz"), "0.91: eingestellter Ton fuer Kaufen bis")
+  Wt.SetSound(2770, "Down", "off")
+  local s0, n0 = sounds, #out
+  mod.db.watchChatDown = false
+  Wt.SetLimit(2770, "abs", e.m - 1); Wt.SetLimit(2770, "abs", e.m)
+  check(PeonBrokerDB.watch[2770].hit and sounds == s0 and #out == n0, "0.91: Ton je Gegenstand aus, Chat aus: still")
+  Wt.SetSound(2770, "Down", "tell")
+  n0 = #out
+  Wt.SetLimit(2770, "abs", e.m - 1); Wt.SetLimit(2770, "abs", e.m)
+  check(played == "tell" and #out == n0, "0.91: eigener Ton je Gegenstand, ohne Chat")
+  Wt.SetSound(2770, "Down", nil)
+  mod.db.watchSoundDown, mod.db.watchChatDown = "raid", true
+  check(Wt.Sound(2770, "Down") == "raid", "0.91: zurueck auf wie eingestellt")
+  -- Menue: Ton je Gegenstand, Fenster Einstellungen Beobachten
+  local S = ns.Settings
+  S.Toggle("watch")
+  local sf = S.frames.watch
+  local choices = 0
+  for _, c in ipairs(sf and sf.controls or {}) do if c.kind == "choice" then choices = choices + 1 end end
+  check(sf and sf:IsShown() and #sf.controls == 4 and choices == 2, "0.91: Fenster Einstellungen Beobachten mit zwei Tonwahlen und zwei Haken")
+  S.Set("watch", "watchSoundUp", "ready"); S.Apply("watch")
+  check(mod.db.watchSoundUp == "ready" and not sf:IsShown(), "0.91: OK uebernimmt den Ton")
+  mod.db.watchSoundUp = "raid"
   ns.Radar.PlayAlert = oldPlay
   -- ab 0.82: Beobachtung im eigenen Reiter (WatchPage.lua), nicht mehr als Liste in Einkaufen
   mod.char.listSel = "watch"
@@ -3318,18 +3359,29 @@ end)()
   IsShiftKeyDown = function() return sh end
   local link = "|cffffffff|Hitem:2770::::::::20:1488:::::::::|h[Kupfererz]|h|r"
   local M = Peon._itemMenu or nil
+  -- ab Peon 0.20.1: Druecken merkt, Loslassen oeffnet einen Bildaufbau spaeter (Fehlerbericht 15)
+  local function Click(button)
+    local n = #timers
+    fire("GLOBAL_MOUSE_DOWN", button)
+    fire("GLOBAL_MOUSE_UP", button)
+    for i = n + 1, #timers do timers[i]() end
+  end
   -- Klick ohne Strg: nichts
   local oldTip = GameTooltip.GetItem
   GameTooltip.IsShown = function() return true end
   GameTooltip.GetItem = function() return "Kupfererz", link end
   GameTooltip.GetOwner = function() return nil end
-  fire("GLOBAL_MOUSE_DOWN", "RightButton")
+  Click("RightButton")
   check(opened == nil, "U4: Rechtsklick ohne Strg oeffnet kein Menue")
   ctrl = true
-  fire("GLOBAL_MOUSE_DOWN", "LeftButton")
+  Click("LeftButton")
   check(opened == nil, "U4: Strg+Linksklick oeffnet kein Menue")
   fire("GLOBAL_MOUSE_DOWN", "RightButton")
-  check(opened and opened.title == "Kupfererz", "U4: Strg+Rechtsklick auf einen Gegenstand oeffnet das Menue")
+  check(opened == nil, "Peon 0.20.1: beim Druecken noch kein Menue")
+  local n0 = #timers
+  fire("GLOBAL_MOUSE_UP", "RightButton")
+  for i = n0 + 1, #timers do timers[i]() end
+  check(opened and opened.title == "Kupfererz", "U4: Strg+Rechtsklick auf einen Gegenstand oeffnet das Menue (nach dem Loslassen)")
   local goMarket, info, focus, shop = opened.items[1], opened.items[2], opened.items[3], opened.items[4]
   check(goMarket.text == "Im Markt zeigen" and info.text == "Gegenstand (Broker)" and focus.text == "In den Fokus" and shop.text == ns.L.MENU_SHOP,
     "N6: Eintraege Im Markt zeigen, Gegenstand, In den Fokus und Auf Einkaufsliste")
@@ -3349,17 +3401,17 @@ end)()
   opened = nil
   GameTooltip.GetOwner = function() return { action = 1 } end
   clock = clock + 1; now = now + 1
-  fire("GLOBAL_MOUSE_DOWN", "RightButton")
+  Click("RightButton")
   check(opened == nil, "U4: auf Aktionsleisten kein Menue")
   -- Einstellung aus
   GameTooltip.GetOwner = function() return nil end
   PeonDB.itemMenuClick = "off"
   now = now + 1
-  fire("GLOBAL_MOUSE_DOWN", "RightButton")
+  Click("RightButton")
   check(opened == nil, "U4: Einstellung aus")
   PeonDB.itemMenuClick = "ALT-RightButton"; ctrl, alt = false, true
   now = now + 1
-  fire("GLOBAL_MOUSE_DOWN", "RightButton")
+  Click("RightButton")
   check(opened ~= nil, "U4: Klick einstellbar (Alt+Rechtsklick)")
   PeonDB.itemMenuClick = "CTRL-RightButton"
   -- Tastenbelegung
@@ -3549,7 +3601,7 @@ end)()
   local S, M = ns.Settings, ns.Measure
   S.Toggle("focus")
   local f = S.frames.focus
-  check(f and f:IsShown() and #f.controls == 7, "0.70: Fenster Einstellungen des Fokus mit 7 Reglern")
+  check(f and f:IsShown() and #f.controls == 8, "0.70: Fenster Einstellungen des Fokus mit 7 Reglern (ab 0.91 dazu Haken Wiedereinstellen)")
   local rate
   for _, c in ipairs(f.controls) do if c.row[2] == "focusRate" then rate = c end end
   check(rate and plain(rate.value.text) == "12 (alle 5 Sek.)", "0.70: Abfragen pro Minute mit Abstand: " .. tostring(rate and plain(rate.value.text)))
@@ -4095,6 +4147,26 @@ end)()
   C_Item.GetItemCount = keepCount
   mk.items[7801], mk.items[7803] = nil, nil
   P.cache = nil
+end)()
+
+-- ===== 0.91: Chance einschaetzen (Fehlerbericht 17) =====
+;(function()
+  local Ra, Rd = ns.Rating, ns.Radar
+  PeonBrokerDB.ratings = nil
+  Rd.entries[2770] = { key = 2770, kind = "buyout", qty = 12, gain = 345, ref = 99, name = "Kupfererz", rows = { { price = 1 } } }
+  check(Ra.Open({ id = 2770, name = "Kupfererz" }) and Ra.win and Ra.win:IsShown(), "0.91: Fenster Einschaetzen geht auf")
+  check(Ra.win.save.disabled, "0.91: Speichern erst mit Auswahl")
+  Ra.win.rate = "bad"; Ra.UpdateSave()
+  Ra.win.note:SetText("  zu wenig Absatz  ")
+  Ra.Save()
+  local r = PeonBrokerDB.ratings and PeonBrokerDB.ratings[1]
+  check(r and r.key == 2770 and r.rate == "bad" and r.note == "zu wenig Absatz" and r.radar and r.radar.kind == "buyout"
+    and r.radar.gain == 345 and r.radar.rows == nil and r.data and r.data.m and r.market, "0.91: gespeichert mit Daten und Vorschlag des Radars")
+  check(not Ra.win:IsShown() and said("Einschätzung gespeichert: Kupfererz, Schlecht"), "0.91: Meldung im Chat, Fenster zu")
+  Rd.entries[2770] = nil
+  local r2 = Ra.Add(2770, "Kupfererz", "good", "")
+  check(r2.radar == nil and r2.note == nil and Ra.Last(2770) == r2, "0.91: ohne Vorschlag, leere Bemerkung")
+  PeonBrokerDB.ratings = nil
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

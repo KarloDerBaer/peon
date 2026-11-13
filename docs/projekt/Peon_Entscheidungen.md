@@ -2,6 +2,14 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 13.11.2026: Wünsche aus den Fehlerberichten (Broker 0.91, Ledger 0.14.8, Peon 0.20.1)
+
+- **Kaufen im Fokus mit einem Klick, außer bei Preiswarnung** (KarloDerBaer, Vorschlag Claude): Das Spiel verlangt den echten Klick nur für den Start des Kaufs, die Bestätigung darf Broker selbst senden. Ist der Gesamtpreis höher als erwartet, bleibt der zweite Klick als Schutz.
+- **Wiedereinstellen merken gilt für alle Käufe, Standard aus** (KarloDerBaer): Auch Aufkäufe aus dem Radar werden nur noch Posten, wenn der Gegenstand dafür eingeschaltet ist. Die Vorgabe lässt sich in den Einstellungen des Fokus ändern.
+- **Einschätzung einer Chance erst nur im Spiel** (KarloDerBaer): Gespeichert in den Broker-Daten mit allen Werten des Moments, die Auswertung im Peon Manager kommt später.
+- **Ton je Gegenstand über das Rechtsklick-Menü** (Claude): In der Liste Beobachten ist kein Platz für weitere Spalten. Die Werte bleiben im Spiel, der Manager kennt sie nicht.
+- **Gegenstandsmenü öffnet nach dem Loslassen** (Claude): Blizzards Menüs öffnen beim Klick und ersetzten Peons Menü, das schon beim Drücken aufging.
+
 ## 13.11.2026: Paketvergleich bei Kisten (Broker 0.87 und 0.88)
 
 - **Kosten je Paket im Tooltip, das günstigste markiert** (KarloDerBaer): Für die Kiste muss man ein Paket abgeben, gesucht ist also das günstigste, nicht das wertvollste. Was in den Taschen liegt, kostet nichts.

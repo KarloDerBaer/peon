@@ -56,6 +56,21 @@ function LT.Add(key, qty, cost, target, src)
     return lot
 end
 
+-- ab 0.91 (Fehlerbericht 22): Gekauftes zum Wiedereinstellen merken? Einstellung je Gegenstand (acc.relist[key]),
+-- sonst die allgemeine Einstellung relistDefault (Standard aus). Gilt fuer alle Kaeufe, abgebrochene Auktionen
+-- werden weiter immer gemerkt.
+function LT.Wanted(key)
+    local t = type(mod.acc) == "table" and mod.acc.relist or nil
+    if type(t) == "table" and key ~= nil and t[key] ~= nil then return t[key] == true end
+    return mod.db.relistDefault == true
+end
+
+function LT.SetWanted(key, on)
+    if key == nil or type(mod.acc) ~= "table" then return end
+    if type(mod.acc.relist) ~= "table" then mod.acc.relist = {} end
+    mod.acc.relist[key] = on and true or false
+end
+
 function LT.Remove(id)
     local list = LT.List()
     for i, lot in ipairs(list) do

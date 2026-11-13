@@ -21,7 +21,11 @@ Wt.PCTS = { 10, 20, 30 }   -- Vorschlaege im Menue: % unter dem Vergleichspreis
 
 -- Werte mit eigener Zeit (ab 0.89, Regeln in Shop.lua): Kaufen bis und Zielpreis. hit und upHit sind Merker des Alarms
 Wt.SPEC = { { f = "buy", keys = { "lim", "pct" }, reset = "hit" }, { f = "up", keys = { "up" }, reset = "upHit" } }
-Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, upHit = true }
+Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, upHit = true, sDown = true, sUp = true }
+-- ab 0.91 (Fehlerberichte 20 und 21): Warnton je Richtung, einstellbar fuer alle (watchSoundDown, watchSoundUp, dazu
+-- Chatnachricht watchChatDown, watchChatUp) und je Gegenstand (sDown, sUp: Ton oder "off", nil = wie eingestellt).
+-- Die Werte je Gegenstand bleiben im Spiel, der Manager kennt sie nicht.
+Wt.SOUND_CHOICES = { "off", "raid", "ready", "alarm", "tell" }
 
 local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
 local function Money(v) return ns.Tooltip.Money(v) end
@@ -120,6 +124,30 @@ function Wt.LimitText(key)
     return nil
 end
 
+-- Warnton fuer einen Gegenstand und eine Richtung ("Down" = Kaufen bis, "Up" = Zielpreis): Schluessel oder "off"
+function Wt.Sound(key, dir)
+    local w = Wt.Store()[key]
+    local own = w and w["s" .. dir] or nil
+    if own ~= nil then return own end
+    local v = mod.db["watchSound" .. dir]
+    if v == nil then return "raid" end
+    return v
+end
+
+function Wt.SetSound(key, dir, v)
+    local w = Wt.Store()[key]
+    if not w then return end
+    w["s" .. dir] = v
+end
+
+-- Meldung eines Alarms: Chat und Ton je nach Einstellung
+function Wt.Alert(key, dir, text)
+    if mod.db.watchAlarm == false then return end   -- ab 0.83: Haken unter Beobachten schaltet alles ab
+    if mod.db["watchChat" .. dir] ~= false then mod:Print(text) end
+    local snd = Wt.Sound(key, dir)
+    if snd ~= "off" and ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert, snd) end
+end
+
 -- Preisalarm pruefen (keys = Liste von Schluesseln oder nil = alle). Rueckgabe: Zahl neuer Alarme
 function Wt.Check(keys)
     local st = Wt.Store()
@@ -135,10 +163,7 @@ function Wt.Check(keys)
             if hit and not w.hit then
                 w.hit = true
                 n = n + 1
-                if mod.db.watchAlarm ~= false then   -- ab 0.83: Haken unter Beobachten
-                    mod:Print(L.WATCH_ALARM:format(w.name or ns.Data.ItemName(key, e) or tostring(key), Money(e.m), Money(limit)))
-                    if mod.db.radarSound and ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert) end
-                end
+                Wt.Alert(key, "Down", L.WATCH_ALARM:format(w.name or ns.Data.ItemName(key, e) or tostring(key), Money(e.m), Money(limit)))
             elseif not hit and w.hit and (type(e) ~= "table" or e.gone or (limit and Num(e.m) and e.m > limit)) then
                 w.hit = nil
             end
@@ -148,10 +173,7 @@ function Wt.Check(keys)
             if upHit and not w.upHit then
                 w.upHit = true
                 n = n + 1
-                if mod.db.watchAlarm ~= false then
-                    mod:Print(L.WATCH_ALARM_UP:format(w.name or ns.Data.ItemName(key, e) or tostring(key), Money(e.m), Money(up)))
-                    if mod.db.radarSound and ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert) end
-                end
+                Wt.Alert(key, "Up", L.WATCH_ALARM_UP:format(w.name or ns.Data.ItemName(key, e) or tostring(key), Money(e.m), Money(up)))
             elseif not upHit and w.upHit and (type(e) ~= "table" or e.gone or (up and Num(e.m) and e.m < up) or not up) then
                 w.upHit = nil
             end
@@ -200,6 +222,27 @@ function Wt.AddMenu(root, item, key)
         end
     end
     upSub:CreateButton(L.MENU_WATCH_NONE, function() mod:Call("Beobachtung", Wt.SetUp, key, nil) end)
+    -- ab 0.91: Warnton je Gegenstand (Rechtsklick in der Liste Beobachten oeffnet dieses Menue)
+    for _, dir in ipairs({ "Down", "Up" }) do
+        local sSub = root:CreateButton(L["MENU_WATCH_SOUND_" .. dir:upper()])
+        local function Own() local w = Wt.Store()[key]; return w and w["s" .. dir] or nil end
+        if sSub.CreateRadio then
+            sSub:CreateRadio(L.WATCH_SOUND_DEFAULT, function() return Own() == nil end,
+                function() mod:Call("Beobachtung", Wt.SetSound, key, dir, nil) end)
+            for _, v in ipairs(Wt.SOUND_CHOICES) do
+                sSub:CreateRadio(Wt.SoundName(v), function() return Own() == v end, function()
+                    mod:Call("Beobachtung", Wt.SetSound, key, dir, v)
+                    if v ~= "off" and ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert, v) end
+                end)
+            end
+        end
+    end
+end
+
+-- Name eines Tons fuer Menues und Einstellungen
+function Wt.SoundName(v)
+    if v == "off" then return L.WATCH_SOUND_OFF end
+    return L["SOUND_" .. tostring(v):upper()] or tostring(v)
 end
 
 function Wt.Init()

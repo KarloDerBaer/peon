@@ -1,9 +1,11 @@
 # Peon: Stand je Modul
 
-Stand: 13.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.0 / Broker 0.90.0 / Bridge 0.10.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.34.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.7 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 13.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.1 / Broker 0.91.0 / Bridge 0.10.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.34.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.8 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
-## Peon (Kern) – 0.20.0, API 20
+## Peon (Kern) – 0.20.1, API 20
+
+- **Gegenstandsmenü nach dem Loslassen (ab 0.20.1, Fehlerbericht 15):** Strg+Rechtsklick merkt beim Drücken den Gegenstand und öffnet das Menü einen Bildaufbau nach dem Loslassen, damit Blizzards eigene Menüs (Favoriten im Auktionshaus) es nicht ersetzen. `UI.SetTooltip` nimmt auch einen einzelnen Text (Fehlerbericht 14). Im Spiel noch nicht geprüft.
 
 - Dateien: Locales.lua, Core.lua, Feedback.lua (ab 0.9, direkt nach Core.lua), ItemMenu.lua und Bindings.xml (ab 0.16), Module.lua, Options.lua, Widgets.lua, List.lua, Launcher.lua (ab 0.14), Minimap.lua, Chart.lua (ab 0.10), UIKit.lua, UIDemo.lua und UIProbe.lua (ab 0.18), Notice.lua (ab 0.20), Slash.lua
 - SavedVariables: `PeonDB`: `errors` (Fehlerspeicher ab 0.12.0: `addon`, `where`, `msg`, `version`, `build`, `first`, `last`, `n`, höchstens 100), `feedbackAreas` (Bereiche je Modul für den Manager, ab 0.13.0), `panelHid` (von Peon_Panel ausgeblendete Minimap-Buttons, ab 0.14.0), `itemMenuClick` (Klick für das Gegenstandsmenü, ab 0.16.0), `uiProbe` (Ergebnis von `/peon ui pruefen`: `build`, `toc`, `at`, `peon`, `atlas`, `fonts`, `templates`, `frames[Pfad] = { at, lines }`, `mouse` mit höchstens 10 Einträgen, ab 0.18.0), `uiDemoTab` (zuletzt gewählte Seite im Beispielfenster, ab 0.18.0), `noticesSeen[id] = Zeit` (gesehene einmalige Hinweise, ab 0.20.0)
@@ -49,7 +51,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.90.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.91.0 (neu, Auktionshaus-Helfer)
+
+- **Wünsche vom 13.11.2026 (ab 0.91.0, Fehlerberichte 17 bis 24):** Kaufen im Fokus mit einem Klick (Bestätigung automatisch, außer bei Preiswarnung). Fenster Einstellungen unter Beobachten mit Ton und Chat je Richtung (`watchSoundDown`, `watchSoundUp`, `watchChatDown`, `watchChatUp`), Ton je Gegenstand im Rechtsklick-Menü (`sDown`, `sUp`). Wiedereinstellen merken nur mit Haken je Gegenstand (`PeonBrokerDB.relist`, Vorgabe `relistDefault` aus). Neue Datei `Rating.lua`: „Chance einschätzen“ im Gegenstandsmenü, gespeichert in `PeonBrokerDB.ratings` (Auswertung im Manager offen). Diagramm im Fokus mit Kaufen bis in Blau. Namensfeld der Einkaufsliste wird beim Tippen nicht mehr überschrieben. Bereich Beobachten für Rückmeldungen. Im Spiel noch nicht geprüft.
 
 - **Paketvergleich im Tooltip (ab 0.87.0, Fehler behoben bis 0.87.3):** Neue Datei `Pack.lua`. Bei Gegenständen mit einer Liste von Paketen zur Auswahl (Zeilen `- 16 Kupferrohre`, ab zwei Paketen) zeigt Broker die Kosten je Paket. Teile werden über den Namen gefunden (Namen aus allen Märkten, fehlende Namen im Heimatmarkt fragt Broker beim Spiel nach, Wörter ohne Endung verglichen, `P.Norm`), Preis je Stück wie im Berufsfenster (`Craft.BuyPrice`), was in den Taschen liegt, kostet nichts. Das günstigste Paket steht oben, grün mit Haken. Schalter `tooltipPacks` unter Preise im Tooltip. Ab 0.88.0 steht im Peon-Gegenstandsmenü (Strg+Rechtsklick) oben „Auf „Handelsauftrag“: …“, das setzt das günstigste fehlende Paket auf die Einkaufsliste Handelsauftrag (wird bei Bedarf angelegt, `P.ToList`). Nicht veröffentlicht.
 
@@ -132,7 +136,9 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Verlauf der Versionen: `docs/changelog/Peon_Bridge.md`
 - Im Spiel prüfen (nach dem Start): Optionsseite zeigt „Kanal broker freigeschaltet“ und „Peon Manager: Werte vom … (Version 0.6.0)“.
 
-## Peon_Ledger – 0.14.7 (Bestand, Buch und Postfenster)
+## Peon_Ledger – 0.14.8 (Bestand, Buch und Postfenster)
+
+- **Einsammeln und Briefsymbol (ab 0.14.8):** Einsammeln zählt nur Fehlversuche (Postfach unverändert, `MA.Signature`), gleiche Briefe teilen sich keine Versuche mehr. Briefsymbol an der Minikarte verschwindet beim Schließen, wenn nichts Ungelesenes mehr da ist (Fehlerbericht 16). Im Spiel noch nicht geprüft.
 
 - **Neuaufbau gebaut (0.14.0, 12.11.2026):** Konzept `Peon_Ledger_Neuaufbau.md`, alle Bauabschnitte E1 bis E7 (E6 in Broker 0.84.0). Kontrollrechnung, Erfassung an der Quelle (Buch beginnt einmal neu), zuletzt gezahlt/verkauft, Fenster mit `Peon.UI` und vier Reitern (Übersicht, Bestand, Buch, Verlauf), Postfenster Peon Post mit Eingang und Senden. Reiter Gegenstände, Gegenstand und Umsatz sowie Alt+Klick entfallen, Gegenstände zeigt Broker. **Veröffentlicht in `v2026.11.12.2`.** Erster Test im Spiel am 12.11.2026 (Entwicklung), Rückmeldungen in 0.14.1 umgesetzt, Rest der Prüfliste im Changelog 0.14.0 offen. Alte Daten von vor dem Neustart des Buchs gesichert in `<Archiv>\Ledger_vor_0.14`.
 - Dateien ab 0.14: Locales.lua, Ledger.lua, Inventory.lua, Moves.lua, Cost.lua, Check.lua, Last.lua, Tooltip.lua, Window.lua, Overview.lua, Stock.lua, History.lua, Book.lua, Mail.lua, Pick.lua (nur noch Tastenbelegung), Probe.lua, Options.lua, Bindings.xml. Catalog.lua und Item.lua entfallen.

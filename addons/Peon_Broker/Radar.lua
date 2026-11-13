@@ -975,6 +975,14 @@ function R.OnPriceUpdated(unitPrice, totalPrice)
     -- ab 0.66: Gesamtpreis hoeher als erwartet -> Warnung vor dem zweiten Klick (Konzept 6.1)
     job.warn = (Num(totalPrice) and Num(job.expect) and job.expect > 0 and totalPrice > job.expect * (1 + R.PriceTol())) or nil
     job.stage = "confirm"
+    -- ab 0.91: Kauf aus dem Fokus mit einem Klick (Fehlerbericht 24). Nur der Start des Kaufs braucht einen echten
+    -- Klick (StartCommoditiesPurchase HasRestrictions), die Bestaetigung nicht (AuctionHouseDocumentation.lua, Zweig
+    -- forever). Ist der Gesamtpreis hoeher als erwartet, bleibt es beim zweiten Klick mit Warnung.
+    if job.mode == "best" and not job.warn then
+        job.stage = "wait"
+        local ok = pcall(AHApi().ConfirmCommoditiesPurchase, job.id, job.qty)
+        if not ok then R.job = nil; mod:Print(L.BUY_FAILED) end
+    end
     R.UpdateView()
 end
 
@@ -989,7 +997,8 @@ function R.FinishJob(ok)
         mod:Print(L.BUY_DONE:format(n, job.name, cost and Money(cost) or "?"))
         -- ab 0.67 (H3): ein Aufkauf wird ein Posten zum Einstellen (kommt per Post)
         -- ab 0.70 auch ein Kauf mit eigenem Ziel im Fokus
-        if (job.kind == "buyout" or job.kind == "own") and ns.Lots then ns.Lots.Add(job.key, n, cost, job.target, "radar") end
+        -- ab 0.91 nur, wenn fuer den Gegenstand eingeschaltet (Lots.Wanted, Standard aus)
+        if (job.kind == "buyout" or job.kind == "own") and ns.Lots and ns.Lots.Wanted(job.key) then ns.Lots.Add(job.key, n, cost, job.target, "radar") end
     end
     -- Rest pruefen lassen: Treffer bleibt, bis die naechste Abfrage zeigt, was noch da ist
     local d = R.entries[job.key]
