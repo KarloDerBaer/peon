@@ -855,10 +855,16 @@ class BrokerClient {
   }
 
   // Bestand aller Charaktere (Taschen und Bank) aus Peon_Ledger.lua, gelesen nur bei neuer Datei. Map itemID -> Stueck, null ohne Ledger
-  ledgerStock() {
+  // Ab 0.33.0 (A5) je Konto wie im Spiel: nur der Kontoordner des Kontos. Vor dem ersten Konto mit Kennung alle Ordner.
+  ledgerStock(acct = this.acctSel()) {
     const base = path.join(this.settings.wowDir, 'WTF', 'Account');
     let accounts = [];
-    try { accounts = fs.readdirSync(base); } catch { return null; }
+    if (acct) {
+      const f = this.acctFoldersOf(acct);
+      accounts = f.length ? [f[0][0]] : [];
+    } else {
+      try { accounts = fs.readdirSync(base); } catch { return null; }
+    }
     const files = [];
     for (const a of accounts) {
       const f = path.join(base, a, 'SavedVariables', 'Peon_Ledger.lua');
@@ -913,7 +919,8 @@ class BrokerClient {
     const item = cur ? cur.item : Number(String(key).split(':')[0]);
     return { key, item, name: (cur && cur.name) || it.name || null, quality: cur ? cur.quality : it.q ?? null, wish: it.wish ?? null, max: it.max ?? null, limit, rule,
       cheapest: cur && cur.inLast ? cur.min : null, median: cur && cur.inLast ? cur.median : null, qty: cur && cur.inLast ? cur.qty : 0, hits,
-      stock: stock ? (stock.get(item) || 0) : null };
+      stock: stock ? (stock.get(item) || 0) : null,
+      need: it.wish != null && stock ? Math.max(0, it.wish - (stock.get(item) || 0)) : it.wish ?? null };   // ab 0.33.0: Fehlt wie im Spiel
   }
 
   // Ansicht Einkaufsliste fuer einen Markt

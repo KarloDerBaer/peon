@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.33.0
+
+Kurz: Die Seite Einkaufen ist neu: Listen je WoW-Konto, Menge, Fehlt, Preis, Höchstpreis und Treffer, alles direkt in der Liste änderbar.
+Kurz: Der Vorrat zählt jetzt wie im Spiel nur Taschen und Bank der Charaktere dieses Kontos.
+
+- 0.33.0 (13.11.2026): Angleichung des Managers, Bauabschnitt A5 (Konzept `docs/konzepte/manager/Peon_Manager_Angleichung.md` 4.2). Nur der Manager. Damit ist Teil 1 des Konzepts gebaut.
+  - **Seite Einkaufen** (`views/Shopping.vue` neu, ohne „(WIP)“): links die Listen des gewählten Kontos mit Anlegen, Name, Rabatt und Löschen, ein Punkt an Listen mit Änderungen, die noch nicht im Spiel sind. Rechts Gegenstand, Menge, Fehlt (Vorrat im Tooltip), Preis, Höchstpreis in einer Spalte (eigener Wert fett, sonst steht der Wert der Liste grau im Feld), Treffer, Entfernen. „wartet auf /reload“ an Zeilen. Auswahl des Kontos bei mehreren Konten. Darunter „Gelöscht“ und „Protokoll“ (A3), die unter dem WIP-Hinweis entfallen.
+  - **Vorrat je Konto** (`ledgerStock(acct)`): nur `Peon_Ledger.lua` aus dem Kontoordner des gewählten Kontos, Taschen und Bank wie im Spiel. Vor dem ersten Konto mit Kennung wie bisher alle Ordner. Neu je Zeile `need` (Fehlt wie im Spiel: Menge minus Vorrat).
+  - Tests: neue Datei `test/einkaufen.test.js` (3 Tests: Vorrat und Fehlt je Konto ohne Post, ohne Ledger, Zustand von Liste und Zeile). Alle 204 Tests grün, Oberfläche gebaut.
+  - **Im echten Programm prüfen:** Seite Einkaufen mit echten Listen, Vorrat und Fehlt im Vergleich zum Spiel, eigenen Höchstpreis setzen und wieder leeren.
+
 ## 0.32.0
 
 Kurz: Die Seite Beobachten ist neu: Preis, Kaufen bis, Zielpreis und Rat wie im Spiel. Die Grenzen änderst du direkt in der Liste.

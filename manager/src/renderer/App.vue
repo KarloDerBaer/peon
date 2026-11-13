@@ -12,7 +12,6 @@ import Shopping from './views/Shopping.vue';
 import Vendors from './views/Vendors.vue';
 import Watch from './views/Watch.vue';
 import UpdateDialog from './components/UpdateDialog.vue';
-import SyncPanel from './components/SyncPanel.vue';
 import Star from './components/Star.vue';
 import { ago, qualityColor } from './util.js';
 import { loadFavorites } from './store.js';
@@ -41,7 +40,7 @@ const ALL = [
   { key: 'overview', label: 'Übersicht' },
   { key: 'items', label: 'Markt' },
   // ab 0.28.0 (KarloDerBaer): Einkaufen, Beobachtung, Radar und Händler muessen ueberarbeitet werden, nur ein Hinweis
-  { key: 'shopping', label: 'Einkaufen (WIP)', wip: true },
+  { key: 'shopping', label: 'Einkaufen' },   // ab 0.33.0 neu (A5)
   { key: 'favorites', label: 'Beobachten' },   // ab 0.32.0 neu (A4), Name wie im Spiel
   { key: 'chances', label: 'Radar (WIP)', wip: true },
   { key: 'vendors', label: 'Händler (WIP)', wip: true },
@@ -248,12 +247,10 @@ onMounted(() => {
           <section v-else-if="wipPage" class="wip">
             <h1>{{ wipPage.label }}</h1>
             <p class="wip-note">Überarbeitung notwendig! Derzeit nur im Spiel verfügbar.</p>
-            <!-- ab 0.31.0 (A3): was der Abgleich mit dem Spiel getan hat, bis die Seiten neu sind (A4, A5) -->
-            <SyncPanel v-if="wipPage.key === 'shopping' || wipPage.key === 'favorites'" :area="wipPage.key === 'shopping' ? 'shop' : 'watch'" :stamp="stamp" :now="now" />
           </section>
           <Items v-else-if="view === 'items'" key="items" :market="current" :now="now" :stamp="stampOf('items')" :settings="settings" @open="openItem" @save="saveQuiet" />
           <Watch v-else-if="view === 'favorites'" :market="current" :now="now" :stamp="stampOf('favorites')" :settings="settings" :focus="watchFocus" @open="openItem" @save="saveQuiet" @go="go($event)" />
-          <Shopping v-else-if="view === 'shopping'" :market="current" :stamp="stampOf('shopping')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />
+          <Shopping v-else-if="view === 'shopping'" :market="current" :now="now" :stamp="stampOf('shopping')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />
           <Vendors v-else-if="view === 'vendors'" :market="current" :now="now" :stamp="stampOf('vendors')" @open="openItem" />
           <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @loaded="itemLoaded" @go="go($event)" @open="openItem" />
           <Chances v-else-if="view === 'chances'" :market="current" :now="now" :stamp="stampOf('chances')" :settings="settings" @open="openItem" @save="saveQuiet" />
