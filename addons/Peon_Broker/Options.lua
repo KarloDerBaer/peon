@@ -37,6 +37,7 @@ function ns.CreateOptions()
     -- Preise im Tooltip
     page:Add(left, page:Header(L.HDR_TOOLTIP), 6)
     page:Add(left, page:Check("tooltipShow", L.OPT_TT_SHOW))
+    page:Add(left, page:Check("tooltipPacks", L.OPT_TT_PACKS))   -- ab 0.87
     -- ab 0.46 (Umbau U5): Bausteine frei einstellbar, ersetzt die Schalter 7 Tage, Haendler, Hinweise und Neutral
     local ttLayout = ns.TooltipOptions.Build(page, left)
 

@@ -3971,6 +3971,63 @@ end)()
   ns.Scan.ahOpen, T.current = keepOpen, keepCur
 end)()
 
+-- ===== 0.87: Paketvergleich im Tooltip =====
+;(function()
+  local P = ns.Pack
+  local n1, s1 = P.ParseLine("- 16 Kupferrohre")
+  check(n1 == 16 and s1 == "Kupferrohre", "0.87: Zeile '- 16 Kupferrohre' gelesen")
+  local n2, s2 = P.ParseLine("|cffffffff- 4 Kupfermodulatoren |r")
+  check(n2 == 4 and s2 == "Kupfermodulatoren", "0.87: Farbcodes und Leerzeichen am Ende stoeren nicht")
+  check(P.ParseLine("Benötigt Stufe 10") == nil and P.ParseLine("- Kupferrohre") == nil and P.ParseLine("-16") == nil, "0.87: andere Zeilen zaehlen nicht")
+  check(P.Parse({ "Benutzen: ...", "- 16 Kupferrohre" }) == nil, "0.87: ein Paket allein ist keine Auswahl")
+  local mk = D.Market(nil, true)
+  mk.items[7801] = { m = 300, md = 300, q = 50, n = 5, t = clock, nm = "Kupferrohr", ql = 1 }
+  mk.items[7802] = { m = 500, md = 500, q = 50, n = 5, t = clock, nm = "Kupfermodulator", ql = 1 }
+  mk.items[7803] = { m = 40, md = 40, q = 50, n = 5, t = clock, nm = "Handvoll Kupferbolzen", ql = 1 }
+  P.cache = nil
+  check(P.Find("Kupferrohre") == 7801 and P.Find("Kupfermodulatoren") == 7802 and P.Find("Handvoll Kupferbolzen") == 7803, "0.87: Name gefunden, auch in der Mehrzahl")
+  check(P.Find("Mithrilrohre") == nil, "0.87: unbekannter Name ergibt nichts")
+  local keepCount = C_Item.GetItemCount
+  local BAGS = { [7801] = 10 }
+  C_Item.GetItemCount = function(id) return BAGS[id] or 0 end
+  local KISTE = { "Abgefangene Kiste", "Benutzen: Füllt die Kiste mit einem beliebigen Paket von der folgenden Liste:",
+    "- 16 Handvoll Kupferbolzen", "- 16 Kupferrohre", "- 4 Kupfermodulatoren" }
+  local list = P.Calc(P.Parse(KISTE))
+  check(list[1].id == 7803 and list[1].cost == 640 and list[1].best, "0.87: Bolzen 16 x 40c = 6s 40c, am guenstigsten, steht oben")
+  check(list[2].id == 7801 and list[2].have == 10 and list[2].need == 6 and list[2].cost == 1800, "0.87: Rohre: 10 in den Taschen, 6 x 3s fehlen")
+  check(list[3].cost == 2000 and not list[3].best, "0.87: Modulatoren 4 x 5s")
+  BAGS[7801] = 20
+  list = P.Calc(P.Parse(KISTE))
+  check(list[1].id == 7801 and list[1].cost == 0 and list[1].best, "0.87: genug Rohre in den Taschen: kostenlos und markiert")
+  check(plain(P.RightText(list[1])):find("vorhanden", 1, true), "0.87: Text 'vorhanden'")
+  mk.items[7802] = nil; P.cache = nil
+  list = P.Calc(P.Parse(KISTE))
+  check(list[3].name == "Kupfermodulatoren" and list[3].cost == nil and plain(P.RightText(list[3])):find("kein Preis", 1, true), "0.87: ohne Preis am Ende, 'kein Preis'")
+  -- ganzer Tooltip ueber die Tooltip-Daten
+  local data = { lines = {} }
+  for i, t in ipairs(KISTE) do data.lines[i] = { leftText = t } end
+  tt.lines, tt.link = {}, "|cff1eff00|Hitem:7800::::::::20:1488:::::::::|h[Abgefangene Kiste]|h|r"
+  ttCallback(GameTooltip, data)
+  local txt = {}
+  for i, l in ipairs(tt.lines) do txt[i] = plain(l) end
+  local head, rohr
+  for _, l in ipairs(txt) do
+    if l:find("Pakete (Kosten)", 1, true) then head = true end
+    if l:find("16× Kupferrohre", 1, true) and l:find("←", 1, true) then rohr = true end
+  end
+  check(head and rohr, "0.87: Tooltip zeigt Pakete, Rohre markiert")
+  mod.db.tooltipPacks = false
+  tt.lines = {}
+  ttCallback(GameTooltip, data)
+  local any = false
+  for _, l in ipairs(tt.lines) do if plain(l):find("Pakete", 1, true) then any = true end end
+  check(not any, "0.87: Schalter aus: kein Paketvergleich")
+  mod.db.tooltipPacks = true
+  C_Item.GetItemCount = keepCount
+  mk.items[7801], mk.items[7803] = nil, nil
+  P.cache = nil
+end)()
+
 -- Keine unerwarteten Fehlermeldungen
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("hat einen Fehler gemeldet", 1, true) then n = n + 1 end end  -- erwartete Meldung aus dem Verkaufen-Test
 check(n == 0, "keine Fehlermeldungen")

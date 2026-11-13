@@ -18,6 +18,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         minimapShow  = true,
         minimapAngle = 225,
         tooltipShow  = true,    -- Preiszeilen im Tooltip
+        tooltipPacks = true,    -- ab 0.87: Kosten je Paket bei Kisten mit Paketliste
         tooltipAvg   = true,    -- Zeile "7 Tage"
         tooltipVendor = true,   -- Zeile "Haendler"
         tooltipHint  = true,    -- Hinweise

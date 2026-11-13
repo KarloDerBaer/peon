@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.87.0
+
+Kurz: Bei Kisten, für die du eines von mehreren Paketen abgeben musst, zeigt der Tooltip jetzt, was jedes Paket kostet. Was du schon in den Taschen hast, zählt als kostenlos. Das günstigste Paket steht oben und ist grün markiert.
+
+- 0.87.0 (13.11.2026): Paketvergleich im Tooltip (Wunsch von KarloDerBaer).
+  - Neue Datei `Pack.lua`: liest Zeilen wie `- 16 Kupferrohre` aus dem Tooltip (ab zwei Paketen), sucht die Teile über den Namen in den Scan-Daten des Heimatmarkts (auch Mehrzahl wie „Kupferrohre“ zu „Kupferrohr“), sonst über das Spiel. Preis je Stück wie im Berufsfenster (günstigster Kaufpreis bei Händler oder AH). Liegt ein Teil in den Taschen, zählt nur der fehlende Rest.
+  - Block „Broker · Pakete (Kosten)“ unter den Preiszeilen, günstigstes zuerst und grün mit Pfeil, Pakete ohne Preis am Ende.
+  - Neuer Schalter unter Preise im Tooltip: „Pakete vergleichen“ (`tooltipPacks`, an).
+  - Tests: Zeilen lesen, Namen in der Mehrzahl, Rechnung mit Taschenbestand, Tooltip und Schalter in `test_broker.lua`.
+  - **Im Spiel prüfen:** Mit der Maus auf eine Abgefangene Kiste: Unter den Preiszeilen stehen die drei Pakete mit Kosten, das günstigste oben. Teile in die Taschen legen: Das Paket zeigt „vorhanden“ oder nur noch den fehlenden Rest.
+
 ## 0.85.0
 
 Kurz: Broker merkt sich eine Kennung für dein WoW-Konto. Damit hält der Peon Manager Einkaufslisten und Beobachtung je Konto auseinander.

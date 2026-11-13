@@ -605,7 +605,10 @@ function T.OnItem(tooltip, data)
     if not tooltip.GetItem then return end
     local _, link = tooltip:GetItem()
     if link == nil or Peon.IsSecret(link) then return end
+    -- ab 0.87: Paketliste lesen, bevor eigene Zeilen dazukommen
+    local packs = ns.Pack and ns.Pack.FromTooltip(tooltip, data)
     local shown = T.AddLines(tooltip, link, T.StackCount(data))
+    if packs and ns.Pack.Render(tooltip, packs) then shown = true end
     local ex = T.extra
     if ex and tooltip == GameTooltip and tooltip.GetOwner and tooltip:GetOwner() == ex.owner then
         tooltip:AddLine(" ")
