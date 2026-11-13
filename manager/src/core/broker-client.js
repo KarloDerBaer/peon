@@ -25,6 +25,8 @@ const { BlizzardImport } = require('./blizzard-import');
 const { ItemInfo } = require('./item-info');
 const { SnapIndex } = require('./snapindex');
 const crypto = require('node:crypto');
+const proof = require('./proof');
+const chanceClient = require('./chance-client');
 
 const TIP_WANT_MAX = 1000;        // so viele genaue Werte je Laden im Spiel bestellen, der Rest kommt danach
 const TIP_RETRY = 7 * 86400;      // Kennt das Spiel etwas nicht, so lange nicht erneut fragen
@@ -90,6 +92,8 @@ class BrokerClient {
     if (sum.broker.some((b) => b.shop)) this.shopFromGame(sum.broker);
     if (sum.broker.some((b) => b.watch)) this.watchFromGame(sum.broker);
     if (sum.broker.some((b) => b.vendors)) this.vendorsFromGame(sum.broker);
+    // ab 0.35.0 (Chancen): Feste, Einschaetzungen und Regeln des Aufkaufs aus Broker
+    try { this.festsFromGame(sum.broker); this.ratingsFromGame(sum.broker); this.rulesFromGame(sum.broker); } catch (e) { log(this.db, 'chancen', false, `Aus Broker: ${e.message}`); }
     const markets = this.buildMarkets();
     // Bestaetigen nur, was sicher in der Datenbank ist
     const known = ids.filter((id) => this.db.prepare('SELECT 1 FROM snapshots WHERE id = ?').get(id));
@@ -118,18 +122,9 @@ class BrokerClient {
     return sum;
   }
 
-  // Werte fuer Broker je Markt: Langzeit-Teil (Kapitel 8) und Absatz (Kapitel 9). Dabei Absatz-Vergleiche und
-  // Chancen der neuen Scans rechnen. values ohne Zeitstempel (fuer den Vergleich)
-  // Neue Regeln fuer Chancen (chances.RULES): alte Wiederverkaufs-Treffer verwerfen
-  checkRules() {
-    if (chances.resetRules(this.db, this.meta('oppRules'))) {
-      this.meta('oppRules', chances.RULES);
-      log(this.db, 'chancen', true, 'Neue Regeln: Wiederverkauf neu gerechnet, die Trefferquote beginnt neu');
-    }
-  }
-
+  // Werte fuer Broker je Markt: Langzeit-Teil (Kapitel 8), Absatz (Kapitel 9) und ab 0.35.0 die Kandidatenliste der
+  // Chancen (Peon_Manager_Chancen.md 9.1). Dabei Absatz-Vergleiche rechnen. values ohne Zeitstempel (fuer den Vergleich)
   buildMarkets() {
-    this.checkRules();
     const lua = {}, values = {};
     let count = 0, salesCount = 0;
     const now = this.now();
@@ -138,7 +133,8 @@ class BrokerClient {
       try { sales.updateMarket(this.db, m.id, now); } catch (e) { log(this.db, 'absatz', false, `${m.key}: ${e.message}`); }
       const lt = this.bands(m.id);
       const st = this.statsOf(m.id);
-      try { chances.updateMarket(this.db, m.id, lt.items, now, lt.shifts, st); } catch (e) { log(this.db, 'chancen', false, `${m.key}: ${e.message}`); }
+      let ch = null;
+      try { this.chanceRun(m.id); ch = this.chancesForBroker(m.id); } catch (e) { log(this.db, 'chancen', false, `${m.key}: ${e.message}`); }
       this.listOf(m.id, m.key);   // Liste fuer die Ansichten gleich mitrechnen, dann oeffnet sie sofort
       const cur = this.currentOf(m.id);
       if (!lt.items.size && !st.size && !cur) continue;
@@ -148,6 +144,7 @@ class BrokerClient {
       lua[m.key] = { t: now, day: lt.day, items, sales: sl };
       values[m.key] = { day: lt.day, items, sales: sl };
       if (cur) { lua[m.key].cur = cur; values[m.key].cur = cur; }
+      if (ch) { lua[m.key].chances = ch; values[m.key].chances = ch.list; }
       count += lt.items.size;
       salesCount += st.size;
     }
@@ -176,28 +173,6 @@ class BrokerClient {
     return m ? m.id : null;
   }
 
-  // Ansicht Chancen (Rechenmodell 9.3)
-  chances(marketKey, days) {
-    const mid = this.marketId(marketKey);
-    if (mid == null) return null;
-    const now = this.now();
-    const d = Math.max(1, Math.min(14, Number(days) || this.settings.chances.days || 7));
-    const lt = this.bands(mid);
-    // noch nicht ausgewertete Scans (etwa nach neuen Regeln) gleich auswerten, damit „jetzt“ stimmt
-    this.checkRules();
-    const st = sales.marketStats(this.db, mid, now);
-    try { chances.updateMarket(this.db, mid, lt.items, now, lt.shifts, st); } catch (e) { log(this.db, 'chancen', false, `${marketKey}: ${e.message}`); }
-    const last = this.db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(mid);
-    const resale = chances.summarizeOpp(this.db, mid, 'r', d, now, st, last && last.id);
-    const vendor = chances.summarizeOpp(this.db, mid, 'v', d, now, st, last && last.id);
-    const mv = chances.moves(this.db, mid, lt.items, lt.days, last, lt.day);
-    const vendorKnown = this.db.prepare('SELECT COUNT(*) AS n FROM items WHERE vendor IS NOT NULL').get().n;
-    return { market: marketKey, days: d, now, lastScan: last ? last.t : null, bands: lt.items.size, salesItems: st.size,
-      sure: [...st.values()].filter((s) => s.level >= 2).length, vendorKnown,
-      resale, vendor, up: mv.up, down: mv.down, worth: chances.worth(this.db, lt.items, st), hits: chances.hitRate(this.db, mid, now),
-      buyout: chances.buyoutFor(this.db, last, now, lt.items, lt.shifts, st) };
-  }
-
   // Werte fuer einen Gegenstand (Anzeige im Manager)
   itemLongTerm(marketKey, key) {
     const m = this.db.prepare('SELECT id FROM markets WHERE key = ?').get(marketKey);
@@ -218,7 +193,7 @@ class BrokerClient {
       try {
         const r = broker.importFile(this.db, f.file);
         seen[f.file] = mt;
-        out.push({ file: f.file, folder: f.account, mt: Math.floor(mt / 1000), acct: r.acct, markets: r.markets, shop: r.shop, watch: r.watch, vendors: r.vendors });
+        out.push({ file: f.file, folder: f.account, mt: Math.floor(mt / 1000), acct: r.acct, markets: r.markets, shop: r.shop, watch: r.watch, vendors: r.vendors, ratings: r.ratings, feste: r.feste, rules: r.rules });
         const n = r.markets.reduce((a, m) => a + m.items, 0);
         log(this.db, 'broker', true, `Broker-Verlauf: ${n} Gegenstände in ${r.markets.length} ${r.markets.length === 1 ? 'Markt' : 'Märkten'}`);
       } catch (e) {
@@ -269,8 +244,7 @@ class BrokerClient {
     // ab 0.31.0: Protokoll des Abgleichs 90 Tage, Geloeschtes 30 Tage
     this.db.prepare('DELETE FROM sync_log WHERE t < ?').run(this.now() - synclog.LOG_DAYS * 86400);
     this.db.prepare('DELETE FROM sync_trash WHERE t < ?').run(this.now() - synclog.TRASH_DAYS * 86400);
-    this.db.prepare('DELETE FROM opp_snap WHERE t < ?').run(this.now() - 30 * 86400);
-    this.db.prepare('DELETE FROM opp_scan WHERE t < ?').run(this.now() - 30 * 86400);
+    proof.prune(this.db, this.now(), broker.dayOf(this.now()));   // ab 0.35.0: belegte Verkaeufe 30 Tage
     if (res.snaps || res.hours) log(this.db, 'aufbewahrung', true, `${res.snaps} Kennzahlen zu Stundenwerten, ${res.hours} Stundenwerte zu Tageswerten verdichtet`);
     this.meta('pruneAt', this.now());
   }
@@ -1279,5 +1253,7 @@ class BrokerClient {
 
   close() { this.closed = true; try { this.db.close(); } catch { /* schon zu */ } }
 }
+
+chanceClient.install(BrokerClient.prototype);   // ab 0.35.0: Chancen und Prognosen (chance-client.js)
 
 module.exports = { BrokerClient };

@@ -6,6 +6,9 @@ import Settings from './views/Settings.vue';
 import Items from './views/Items.vue';
 import Item from './views/Item.vue';
 import Chances from './views/Chances.vue';
+import Market from './views/Market.vue';
+import Success from './views/Success.vue';
+import Brief from './views/Brief.vue';
 import Modules from './views/Modules.vue';
 import Reports from './views/Reports.vue';
 import Shopping from './views/Shopping.vue';
@@ -42,7 +45,10 @@ const ALL = [
   // ab 0.28.0 (KarloDerBaer): Einkaufen, Beobachtung, Radar und Händler muessen ueberarbeitet werden, nur ein Hinweis
   { key: 'shopping', label: 'Einkaufen' },   // ab 0.33.0 neu (A5)
   { key: 'favorites', label: 'Beobachten' },   // ab 0.32.0 neu (A4), Name wie im Spiel
-  { key: 'chances', label: 'Radar (WIP)', wip: true },
+  // ab 0.35.0 (Peon_Manager_Chancen.md): Chancen ersetzen Radar (WIP), dazu Marktuebersicht und Erfolgskontrolle
+  { key: 'chances', label: 'Chancen' },
+  { key: 'market', label: 'Marktübersicht' },
+  { key: 'success', label: 'Erfolgskontrolle' },
   { key: 'vendors', label: 'Händler (WIP)', wip: true },
   { key: 'sources', label: 'Datenlage' },
   { key: 'modules', label: 'Updates', always: true },
@@ -73,7 +79,7 @@ function pickMarket(key) {
 }
 
 // ---------- Navigation: Verlauf wie im Browser ----------
-const ORIGINS = new Set(['overview', 'items', 'favorites', 'shopping', 'chances']);
+const ORIGINS = new Set(['overview', 'items', 'favorites', 'shopping', 'chances', 'market', 'success']);
 const entries = ref([{ view: 'overview' }]);
 const pos = ref(0);
 const canBack = computed(() => pos.value > 0);
@@ -88,13 +94,13 @@ function stampOf(v) { if (view.value === v) seenStamp[v] = stamp.value; return s
 function show(e) {
   if (pageEl.value) scrolls[view.value] = pageEl.value.scrollTop;
   view.value = e.view;
-  itemKey.value = e.view === 'item' ? e.itemKey : null;
+  itemKey.value = e.view === 'item' || e.view === 'brief' ? e.itemKey : null;
   if (e.view === 'item') {
     origin.value = e.origin;
     subs[e.origin] = { key: e.itemKey, name: subs[e.origin] && subs[e.origin].key === e.itemKey ? subs[e.origin].name : null, quality: subs[e.origin] && subs[e.origin].key === e.itemKey ? subs[e.origin].quality : null };
   }
   if (e.market) market.value = e.market;
-  nextTick(() => { if (pageEl.value) pageEl.value.scrollTop = e.view === 'item' ? 0 : scrolls[e.view] || 0; });
+  nextTick(() => { if (pageEl.value) pageEl.value.scrollTop = e.view === 'item' || e.view === 'brief' ? 0 : scrolls[e.view] || 0; });
 }
 function push(e) {
   const entry = { market: market.value, ...e };
@@ -111,6 +117,8 @@ function openItem(key) {
   const from = view.value === 'item' ? origin.value : ORIGINS.has(view.value) ? view.value : 'items';
   push({ view: 'item', itemKey: key, origin: from });
 }
+// Steckbrief (ab 0.35.0): eigene Seite mit Gegenstand, Zurueck fuehrt dorthin, woher man kam
+function openBrief(key) { push({ view: 'brief', itemKey: key }); }
 function openSub(o) { push({ view: 'item', itemKey: subs[o].key, origin: o }); }
 function closeSub(o) {
   const open = view.value === 'item' && origin.value === o;
@@ -242,7 +250,7 @@ onMounted(() => {
       </header>
 
       <div class="page" ref="pageEl" v-if="data && settings">
-        <KeepAlive :include="['Overview', 'Items', 'Chances', 'Shopping', 'Watch']">
+        <KeepAlive :include="['Overview', 'Items', 'Chances', 'Shopping', 'Watch', 'Market']">
           <Overview v-if="view === 'overview'" :data="data" :market="current" :now="now" :theme="settings.theme" :stamp="stampOf('overview')" :settings="settings" @go="go($event)" @open="openItem" @save="saveSettings" />
           <section v-else-if="wipPage" class="wip">
             <h1>{{ wipPage.label }}</h1>
@@ -252,8 +260,11 @@ onMounted(() => {
           <Watch v-else-if="view === 'favorites'" :market="current" :now="now" :stamp="stampOf('favorites')" :settings="settings" :focus="watchFocus" @open="openItem" @save="saveQuiet" @go="go($event)" />
           <Shopping v-else-if="view === 'shopping'" :market="current" :now="now" :stamp="stampOf('shopping')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />
           <Vendors v-else-if="view === 'vendors'" :market="current" :now="now" :stamp="stampOf('vendors')" @open="openItem" />
-          <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @loaded="itemLoaded" @go="go($event)" @open="openItem" />
-          <Chances v-else-if="view === 'chances'" :market="current" :now="now" :stamp="stampOf('chances')" :settings="settings" @open="openItem" @save="saveQuiet" />
+          <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @loaded="itemLoaded" @go="go($event)" @open="openItem" @brief="openBrief" />
+          <Chances v-else-if="view === 'chances'" :market="current" :now="now" :stamp="stampOf('chances')" :settings="settings" @open="openItem" @brief="openBrief" @save="saveQuiet" />
+          <Market v-else-if="view === 'market'" :market="current" :now="now" :stamp="stampOf('market')" @open="openItem" @brief="openBrief" />
+          <Success v-else-if="view === 'success'" :market="current" :now="now" :stamp="stampOf('success')" @open="openItem" @brief="openBrief" />
+          <Brief v-else-if="view === 'brief'" :market="current" :item-key="itemKey" :now="now" :stamp="stamp" :theme="settings.theme" @open="openItem" />
           <Sources v-else-if="view === 'sources'" :data="data" :market="current" :now="now" :stamp="stamp" @go="go($event)" />
           <Modules v-else-if="view === 'modules'" :data="data" :settings="settings" :now="now" :stamp="stamp" @changed="load" @save="saveSettings" @pick-folder="pickWow" @go="go($event)" @updates="load().then(() => { showUpdates = true; })" />
           <Reports v-else-if="view === 'reports'" :now="now" :stamp="stamp" @go="go($event)" @changed="load" />

@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
 const { sameMarket } = require('./markets');
 
-const SCHEMA = 8;   // 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
+const SCHEMA = 9;   // 9: Chancen und Prognosen (sale_px, sale_life, auc_first, item_level, chance_log, chance_rate, forecast_log); 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -77,6 +77,29 @@ CREATE TABLE IF NOT EXISTS list_cache (
   market_id INTEGER PRIMARY KEY, sig TEXT NOT NULL, data BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS market_alias (
   alias TEXT PRIMARY KEY, market_id INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS auc_first (
+  market_id INTEGER NOT NULL, id INTEGER NOT NULL, t INTEGER NOT NULL, PRIMARY KEY (market_id, id));
+CREATE INDEX IF NOT EXISTS auc_first_t ON auc_first(t);
+CREATE TABLE IF NOT EXISTS sale_px (
+  market_id INTEGER NOT NULL, item_key TEXT NOT NULL, day INTEGER NOT NULL, b INTEGER NOT NULL, qty REAL NOT NULL,
+  PRIMARY KEY (market_id, item_key, day, b));
+CREATE TABLE IF NOT EXISTS sale_life (
+  market_id INTEGER NOT NULL, item_key TEXT NOT NULL, day INTEGER NOT NULL, b INTEGER NOT NULL, h INTEGER NOT NULL, qty REAL NOT NULL,
+  PRIMARY KEY (market_id, item_key, day, b, h));
+CREATE TABLE IF NOT EXISTS item_level (
+  item_id INTEGER PRIMARY KEY, req INTEGER, ilvl INTEGER, equip INTEGER, t INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS chance_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, market_id INTEGER NOT NULL, item_key TEXT NOT NULL, kind TEXT NOT NULL, day INTEGER NOT NULL,
+  t INTEGER NOT NULL, shown INTEGER NOT NULL, buy REAL, target REAL, gain REAL, until INTEGER, data TEXT NOT NULL,
+  outcome TEXT, checked INTEGER, UNIQUE (market_id, item_key, kind, day));
+CREATE INDEX IF NOT EXISTS chance_log_t ON chance_log(market_id, t);
+CREATE TABLE IF NOT EXISTS chance_rate (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, origin TEXT NOT NULL, market TEXT, item_key TEXT NOT NULL, item_name TEXT,
+  kind TEXT, up INTEGER, reason TEXT, note TEXT, say TEXT, data TEXT, log_id INTEGER, ext TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS forecast_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, market_id INTEGER NOT NULL, item_key TEXT NOT NULL, day INTEGER NOT NULL, t INTEGER NOT NULL,
+  dir INTEGER NOT NULL, days INTEGER NOT NULL, sure TEXT NOT NULL, signals TEXT NOT NULL, price REAL, expect REAL,
+  outcome TEXT, checked INTEGER, UNIQUE (market_id, item_key, day));
 CREATE TABLE IF NOT EXISTS log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, kind TEXT NOT NULL, ok INTEGER NOT NULL, text TEXT);
 CREATE TABLE IF NOT EXISTS sync_log (

@@ -82,6 +82,17 @@ function importFile(db, file) {
   }
   // Haendler (ab Broker 0.52, Manager 0.25): je NPC Name, Zone, Ort, Zeit und Angebote
   if (acc && acc.vendors && typeof acc.vendors === 'object') res.vendors = acc.vendors;
+  // Ab Manager 0.35.0 (Peon_Manager_Chancen.md): Einschaetzungen (ab Broker 0.91), Feste aus dem Kalender des Spiels
+  // (ab Broker 0.93, D4) und die Regeln des Aufkaufs, damit Manager und Broker gleich rechnen (4.4)
+  if (acc && acc.ratings && typeof acc.ratings === 'object') res.ratings = acc.ratings;
+  if (acc && acc.feste && typeof acc.feste === 'object') res.feste = acc.feste;
+  if (acc) {
+    const n = (k) => (typeof acc[k] === 'number' && Number.isFinite(acc[k]) ? acc[k] : undefined);
+    const rules = { hours: n('buyoutHours'), minGain: n('dealMinMarket') != null ? n('dealMinMarket') * 100 : undefined, minQty: n('buyoutMinQty'),
+      minLevels: n('buyoutMinLevels'), minSales: n('buyoutMinSales'), targetPct: n('buyoutTargetPct') != null ? n('buyoutTargetPct') / 100 : undefined };
+    for (const k of Object.keys(rules)) if (rules[k] === undefined) delete rules[k];
+    if (Object.keys(rules).length) res.rules = rules;
+  }
   if (!acc || typeof acc.markets !== 'object') return res;
   const cleared = new Set();   // zwei Namen desselben Markts: den ersten nicht wieder loeschen
   const now = Math.floor(Date.now() / 1000);

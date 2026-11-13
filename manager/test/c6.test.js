@@ -105,48 +105,45 @@ test('Live-Abfragen mit Nummern nur ausserhalb von Scan-Paaren', () => {
   svc.close();
 });
 
-test('Chancen: Wiederverkauf, Haendler, Fallend, Lohnend', () => {
-  const { svc, push } = world();
+test('Chancen (ab 0.35.0): Haendler, Marktuebersicht, Kandidaten fuer Broker in Data.lua', () => {
+  const { svc, push, ad } = world();
   const t0 = at(DAY, 10);
-  // ab Manager 0.21.0 (F50a): die meisten Angebote zu 1000, sonst waere das guenstigste kein Schnaeppchen
+  // Wiederverkauf ist abgeloest (KarloDerBaer 13.11.2026), Fallend und Lohnend stehen in der Marktuebersicht
   push({ kind: 'scan', t: t0, names: NAMES, rows: [
     '2589;;;20;10000;;;4;;3', '2589;;;20;12000;;;4;;1', '2589;;;20;20000;;;4;;5', '4306;;;5;1500;;;4;;1'].join('\n') });
   push({ kind: 'scan', t: t0 + 3 * 3600, rows: [
     '2589;;;20;10000;;;4;;1', '2589;;;20;12000;;;4;;1', '2589;;;20;20000;;;4;;5', '4306;;;5;1500;;;4;;1'].join('\n') });
   svc.broker.importGame();
-  const c = svc.broker.chances(M, 7);
-  assert.equal(c.resale.scans, 2);
-  assert.ok(c.buyout && Array.isArray(c.buyout.list) && c.buyout.t === t0 + 3 * 3600, 'ab 0.26.0: Aufkauf aus dem letzten Stand');
-  const r = c.resale.list.find((x) => x.key === '2589');
-  // Untergrenze: LANG 1000 (Broker-Tage und heute 1000), SCHW 5 % -> Verkauf zur Untergrenze, Einkauf 500 und 600
-  assert.ok(r && r.hits === 2 && r.share === 1, 'in beiden Scans Treffer');
-  assert.ok(r.buy >= 500 && r.buy <= 600 && r.perPiece > 100);
-  // bisher nur zu 500 verkauft: zweifelhaft, kein Gewinn je Tag
-  assert.ok(r.sales && r.doubt && r.perDay === null, 'nie nahe der Untergrenze verkauft: zweifelhaft');
-  assert.ok(r.now && r.now.qty === 40, 'im letzten Scan noch 40 Stueck');
-  const v = c.vendor.list.find((x) => x.key === '4306');
-  assert.ok(v && v.perPiece === 200 && v.qty === 5 && v.perDay === 1000, 'Seidenstoff 300 statt Haendler 500');
-  // ab 0.21.0 (F37a): Seidenstoff 900 auf 300 wird nicht mehr weggekuerzt und zaehlt als fallend
-  assert.ok(c.up.length === 0 && c.down.length === 1 && c.down[0].key === '4306');
-  assert.equal(c.worth.find((x) => x.key === '2589'), undefined, 'Lohnend: nur zu 500 verkauft, weit unter dem Bereich');
-  // frueher am Tag zu 1000 verkauft (kein guenstigeres Angebot stand): jetzt glaubwuerdig
-  push({ kind: 'scan', t: t0 - 2 * 3600, rows: ['2589;;;20;20000;;;4;;2'].join('\n') });
-  push({ kind: 'scan', t: t0 - 3600, rows: ['2589;;;20;20000;;;4;;1'].join('\n') });
-  svc.broker.importGame();
-  const r2 = svc.broker.chances(M, 7).resale.list.find((x) => x.key === '2589');
-  assert.ok(!r2.doubt && r2.perDay > 0 && r2.perDay <= r2.rough, 'Gewinn je Tag begrenzt durch Absatz');
-  const w = svc.broker.chances(M, 7).worth.find((x) => x.key === '2589');
-  assert.ok(w && w.turnover > 0 && w.spanDay > 0, 'Lohnend nach Verkauf zu 1000');
-  // neuer Haendlerpreis: Haendler-Treffer werden neu gerechnet
-  push({ kind: 'scan', t: t0 + 4 * 3600, names: { 2589: 'Leinenstoff|1|800|1' }, rows: ['2589;;;20;10000;;;4;;1'].join('\n') });
-  svc.broker.importGame();
-  const c2 = svc.broker.chances(M, 7);
-  const v2 = c2.vendor.list.find((x) => x.key === '2589');
-  assert.ok(v2 && v2.hits === 3, 'alle drei Scans mit dem neuen Haendlerpreis');
-  // im letzten Scan nur noch Angebote zu 500: Fallend mit Dumping
-  const d = c2.down.find((x) => x.key === '2589');
-  assert.ok(d && d.change < -0.15 && d.dump && d.spark.length === 14);
-  assert.ok(c2.hits && c2.hits.n === 0, 'Trefferquote: noch nichts aelter als 3 Tage');
+  const c = svc.broker.chanceView(M);
+  assert.ok(c && c.t === t0 + 3 * 3600, 'Stand des letzten Scans');
+  assert.equal(c.list.filter((x) => x.kind === 's').length, 0, 'ohne belegte Verkaeufe keine Spekulation');
+  const v = c.list.find((x) => x.key === '4306' && x.kind === 'v');
+  assert.ok(v && v.qty === 5 && v.gain === 1000 && v.buy === 499 && v.target === 500, 'Seidenstoff 300 statt Haendler 500');
+  assert.ok(v.say.includes('unter dem Händlerpreis') && v.checks.every((k) => k.ok), 'Satz und Pruefliste');
+  const why = svc.broker.chanceItem(M, '2589');
+  const s = why.checks.find((x) => x.kind === 's');
+  assert.ok(s && !s.ok && s.say.startsWith('Kein Vorschlag, weil:') && s.say.includes('belegter Verkaufspreis'), 'Warum nicht: noch kein belegter Verkaufspreis');
+  const mk = svc.broker.marketOverview(M);
+  assert.ok(mk.down.length === 1 && mk.down[0].key === '4306', 'Fallend in der Marktuebersicht');
+  assert.equal(mk.worth.find((x) => x.key === '2589'), undefined, 'Lohnend: nur zu 500 verkauft, weit unter dem Bereich');
+  // Data.lua: Kandidatenliste fuer Broker (9.1)
+  const d = parseLua(fs.readFileSync(path.join(ad, 'Data.lua'))).PeonBridgeData;
+  const ch = d.markets[M].chances;
+  assert.ok(ch && ch.list && /^v:499:500:\d+:1000:[012]:5$/.test(ch.list['4306'] || ch.list[4306]), 'Haendler als Kandidat mit Menge');
+  assert.ok((ch.say['4306'] || ch.say[4306]).includes('Händlerpreis'), 'Satz fuer den Fokus');
+  // Uebersteuerung: nie vorschlagen
+  svc.broker.setOverride('4306', { never: true });
+  const c2 = svc.broker.chanceView(M);
+  assert.equal(c2.list.find((x) => x.key === '4306'), undefined, 'nie vorschlagen');
+  assert.ok(svc.broker.chanceItem(M, '4306').checks.find((x) => x.kind === 'v').checks.some((k) => k.id === 'never' && k.user), 'in der Pruefliste: von dir geaendert');
+  svc.broker.setOverride('4306', {});
+  assert.ok(svc.broker.chanceView(M).list.find((x) => x.key === '4306'), 'zurueckgenommen');
+  // D5: Vorschlaege mit allen Werten gespeichert, Rueckmeldung zugeordnet
+  const db = svc.broker.db;
+  assert.ok(db.prepare("SELECT COUNT(*) AS n FROM chance_log WHERE kind = 'v' AND shown = 1").get().n >= 1);
+  const id = svc.broker.rateChance({ market: M, key: '4306', name: 'Seidenstoff', kind: 'v', up: true, reason: 'gekauft', note: 'x'.repeat(300) });
+  const r = svc.broker.chanceRatings().list.find((x) => x.id === id);
+  assert.ok(r && r.log_id && r.note.length === 250 && r.reason === 'gekauft', 'Rueckmeldung mit Vorschlag, Text gekuerzt');
   svc.close();
 });
 

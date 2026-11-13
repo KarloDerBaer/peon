@@ -170,8 +170,15 @@ function buyout(rows, opts = {}) {
     const sh = shifts && shifts.get(key);
     if (sh && sh.dir === 'down') continue;
     const lv = [...m.entries()].sort((a, b) => a[0] - b[0]).map(([price, qty]) => ({ price, qty }));
+    // ab Manager 0.35.0 wie Broker 0.71 bis 0.79 (nur mit opts.targetPct): nur Massenware, nur im ueblichen Bereich
+    const bb = opts.targetPct != null && bands ? bands.get(key) : null;
+    if (opts.targetPct != null) {
+      const total = lv.reduce((a, x) => a + x.qty, 0);
+      if (!bb || total < (opts.minQty || 0) || lv.length < Math.min(opts.minLevels || 0, 12) || s.perDay < (opts.minSales || 0)) continue;
+    }
     let qty = 0, cost = 0, best = null;
     for (let i = 0; i < lv.length - 1; i++) {
+      if (bb && (lv[i].price > high(bb) || lv[i + 1].price > high(bb) * (1 + opts.targetPct))) break;
       qty += lv[i].qty; cost += lv[i].qty * lv[i].price;
       const target = lv[i + 1].price;
       const gain = Math.floor(qty * target * (1 - CUT) - cost);

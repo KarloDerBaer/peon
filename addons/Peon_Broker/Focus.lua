@@ -316,7 +316,12 @@ function F.Verdict(d)
         return text, F.V_COLOR[code] or GREY, why
     end
     if d.own then return L.FOCUS_V_OWN, YELLOW, L.FOCUS_W_OWN end
-    return L.FOCUS_V_BUY, GREEN, L["FOCUS_W_" .. tostring(d.kind):upper()] or ""
+    -- ab 0.93 (Peon_Manager_Chancen.md 9.2): bei einer Chance vom Manager dessen Satz und das Alter seines Stands
+    local mgr = ns.Spec and ns.Spec.FocusText(d.key or F.key)
+    if d.kind == "spec" then return L.FOCUS_V_BUY, GREEN, mgr or L.FOCUS_W_SPEC end
+    local w = L["FOCUS_W_" .. tostring(d.kind):upper()] or ""
+    if mgr then w = w .. " " .. GREY .. mgr .. "|r" end
+    return L.FOCUS_V_BUY, GREEN, w
 end
 
 -- Verkaufsdauer: aus dem Absatz der letzten Stunden (H1), ab H2 aus der Messung, sobald sie genug zeigt
@@ -346,6 +351,10 @@ function F.Rows(d)
         if not d then return rows end
     end
     rows[#rows + 1] = { L.FOCUS_R_BAND, F.BandText(d) }
+    if d.kind == "spec" and d.risk then
+        rows[#rows + 1] = { L.RADAR_COL_RISK, (R.RISK_COLOR[d.risk] or "") .. (L["RADAR_RISK_" .. d.risk:upper()] or d.risk) .. "|r" }
+        if d.ref then rows[#rows + 1] = { L.FOCUS_R_TARGET, Money(d.ref) } end
+    end
     if d.kind == "buyout" or d.own then
         rows[#rows + 1] = { L.FOCUS_R_SELLS, F.SellsText(d) }
         if d.risk then

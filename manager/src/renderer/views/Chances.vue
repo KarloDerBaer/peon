@@ -1,271 +1,220 @@
 <script setup>
+// Seite Chancen (ab Manager 0.35.0, Peon_Manager_Chancen.md Abschnitt 8): eine Liste aller Arten mit Satz, Pruefliste
+// zum Aufklappen, Rueckmeldung, Beobachten und Uebergabe an Broker. Ersetzt die Seite Radar (WIP).
+// Fallend, Steigend und Lohnend stehen in der Marktuebersicht, Wiederverkauf ist in Spekulation schnell aufgegangen.
 import { ref, computed, watch, onMounted } from 'vue';
 import Gold from '../components/Gold.vue';
-import Sales from '../components/Sales.vue';
-import Spark from '../components/Spark.vue';
-import { num, pct, fold, qualityColor, itemName, when, pl, slotText } from '../util.js';
+import ChecksList from '../components/ChecksList.vue';
+import RateDialog from '../components/RateDialog.vue';
+import WhyNot from '../components/WhyNot.vue';
+import ChanceRules from '../components/ChanceRules.vue';
+import { num, fold, qualityColor, itemName, ago, when } from '../util.js';
 
 const props = defineProps({ market: Object, now: Number, stamp: Number, settings: Object });
-const emit = defineEmits(['open', 'save']);
+const emit = defineEmits(['open', 'save', 'brief']);
 const api = window.peon;
 
-// ab 0.26.0 (Neuaufbau H5): Seite heisst Radar wie im Spiel, Aufkauf und Haendler zuerst
 const TABS = [
-  { key: 'buyout', label: 'Aufkauf' },
-  { key: 'vendor', label: 'Händler' },
-  { key: 'resale', label: 'Wiederverkauf' },
-  { key: 'down', label: 'Fallend' },
-  { key: 'up', label: 'Steigend' },
-  { key: 'worth', label: 'Lohnend' },
+  { key: 'list', label: 'Vorschläge' },
+  { key: 'live', label: 'Nur live erreichbar' },
+  { key: 'ratings', label: 'Rückmeldungen' },
+  { key: 'rules', label: 'Einstellen' },
 ];
-const tab = ref('buyout');
+const tab = ref('list');
 const d = ref(null);
 const loading = ref(false);
-const days = ref(props.settings.chances?.days || 7);
-const minSilver = ref(Math.round((props.settings.chances?.minProfit ?? 1000) / 100));
+const kind = ref('all');
+const minGold = ref(Math.round((props.settings.chances?.minProfit ?? 0) / 10000));
 const quality = ref(String(props.settings.chances?.quality ?? 0));
 const search = ref('');
-const sortKey = ref(null);
-const sortDesc = ref(true);
-const limit = ref(50);
+const open = ref(null);
+const rating = ref(null);
+const ratings = ref({ list: [], reasons: [] });
+const items = ref(null);
+const why = ref(null);
+const limit = ref(60);
 
 async function load() {
   if (!props.market) return;
   loading.value = true;
-  try { d.value = await api.chances(props.market.key, days.value); } finally { loading.value = false; }
+  try {
+    d.value = await api.chanceView(props.market.key);
+    if (tab.value === 'ratings') ratings.value = await api.chanceRatings();
+  } finally { loading.value = false; }
 }
 onMounted(load);
-watch(() => [props.market && props.market.key, props.stamp, days.value], load);
-watch([days, minSilver, quality], () => {
-  emit('save', { chances: { days: Number(days.value), minProfit: Math.max(0, Number(minSilver.value) || 0) * 100, quality: Number(quality.value) } });
-});
-watch(tab, () => { sortKey.value = null; sortDesc.value = true; limit.value = 50; });
-watch([search, quality, minSilver, days], () => { limit.value = 50; });
+watch(() => [props.market && props.market.key, props.stamp], load);
+watch(tab, (t) => { if (t === 'ratings') api.chanceRatings().then((r) => { ratings.value = r; }); });
+watch([minGold, quality], () => emit('save', { chances: { ...(props.settings.chances || {}), minProfit: Math.max(0, Number(minGold.value) || 0) * 10000, quality: Number(quality.value) } }));
+watch([search, kind, minGold, quality, tab], () => { limit.value = 60; why.value = null; });
 
 const RISK = { low: 'gering', mid: 'mittel', high: 'hoch' };
-const COLS = {
-  buyout: [
-    { key: 'name', label: 'Gegenstand', w: 3 },
-    { key: 'gain', label: 'Gewinn', num: true, gold: true, tip: 'Menge mal Ziel nach 5 % Gebühr, minus Einsatz' },
-    { key: 'limit', label: 'Kaufen bis', num: true, gold: true, tip: 'Alles bis zu dieser Preisstufe kaufen' },
-    { key: 'qty', label: 'Menge', num: true },
-    { key: 'cost', label: 'Einsatz', num: true, gold: true },
-    { key: 'target', label: 'Ziel', num: true, gold: true, tip: 'Preis der nächsten Stufe, zu dem wieder eingestellt wird' },
-    { key: 'hours', label: 'Verkauft in', num: true, tip: 'Menge geteilt durch den Absatz je Stunde' },
-    { key: 'risk', label: 'Risiko', num: true },
-  ],
-  resale: [
-    { key: 'name', label: 'Gegenstand', w: 3 },
-    { key: 'buy', label: 'Einkauf Ø', num: true, gold: true, tip: 'Mittlerer Preis der lohnenden Angebote im letzten Scan' },
-    { key: 'sell', label: 'Verkauf zu', num: true, gold: true, tip: 'Untergrenze des üblichen Bereichs, höchstens der Median der Angebote' },
-    { key: 'perPiece', label: 'Gewinn/Stück', num: true, gold: true, tip: 'Gewinn je Stück nach 5 % Gebühr' },
-    { key: 'qty', label: 'Stück', num: true, tip: 'Lohnende Stück im letzten Scan' },
-    { key: 'sales', label: 'Absatz/Tag', num: true },
-    { key: 'perDay', label: 'Gewinn/Tag', num: true, gold: true, tip: 'Stück, höchstens Absatz je Tag, mal Gewinn je Stück' },
-    { key: 'share', label: 'In Scans', num: true, tip: 'Anteil der Scans im Zeitraum, in denen der Gegenstand eine Chance war' },
-    { key: 'slot', label: 'Meist', num: true, tip: 'Tageszeit, zu der er im Zeitraum am häufigsten eine Chance war' },
-  ],
-  vendor: [
-    { key: 'name', label: 'Gegenstand', w: 3 },
-    { key: 'buy', label: 'Einkauf Ø', num: true, gold: true, tip: 'Mittlerer Preis der lohnenden Angebote im letzten Scan' },
-    { key: 'sell', label: 'Händler', num: true, gold: true },
-    { key: 'perPiece', label: 'Gewinn/Stück', num: true, gold: true, tip: 'Gewinn je Stück' },
-    { key: 'qty', label: 'Stück', num: true, tip: 'Lohnende Stück im letzten Scan' },
-    { key: 'perDay', label: 'Gewinn', num: true, gold: true, tip: 'Stück mal Gewinn je Stück' },
-    { key: 'share', label: 'In Scans', num: true, tip: 'Anteil der Scans im Zeitraum, in denen der Gegenstand eine Chance war' },
-    { key: 'slot', label: 'Meist', num: true, tip: 'Tageszeit, zu der er im Zeitraum am häufigsten eine Chance war' },
-  ],
-  move: [
-    { key: 'name', label: 'Gegenstand', w: 3 },
-    { key: 'now', label: 'Median jetzt', num: true, gold: true },
-    { key: 'lang', label: 'Langzeitwert', num: true, gold: true },
-    { key: 'change', label: 'Änderung', num: true },
-    { key: 'low', label: 'Bereich', num: true, w: 2 },
-    { key: 'spark', label: '14 Tage', num: true, nosort: true },
-    { key: 'min', label: 'Min jetzt', num: true, gold: true, w: 1.4 },
-    { key: 'qty', label: 'Menge', num: true },
-  ],
-  worth: [
-    { key: 'name', label: 'Gegenstand', w: 3 },
-    { key: 'sales', label: 'Absatz/Tag', num: true },
-    { key: 'rate', label: 'Verkauft', num: true, tip: 'Anteil der beendeten Angebote, die gekauft wurden' },
-    { key: 'lang', label: 'Langzeitwert', num: true, gold: true },
-    { key: 'low', label: 'Bereich', num: true, w: 2 },
-    { key: 'turnover', label: 'Umsatz/Tag', num: true, gold: true, tip: 'Absatz je Tag mal Langzeitwert' },
-    { key: 'spanDay', label: 'Spanne/Tag', num: true, gold: true, tip: 'Absatz je Tag mal (Obergrenze nach Gebühr minus Untergrenze)' },
-  ],
-};
-const cols = computed(() => COLS[tab.value === 'up' || tab.value === 'down' ? 'move' : tab.value]);
-const widthSum = computed(() => cols.value.reduce((a, c) => a + (c.w || 1), 0));
+const SURE = { low: 'niedrig', mid: 'mittel', high: 'hoch' };
+const KIND_SHORT = { s: 'Spekulation', l: 'Langfristig', b: 'Aufkauf', v: 'Händler' };
 
-const raw = computed(() => {
-  if (!d.value) return [];
-  if (tab.value === 'buyout') return d.value.buyout ? d.value.buyout.list : [];
-  if (tab.value === 'resale') return d.value.resale.list;
-  if (tab.value === 'vendor') return d.value.vendor.list;
-  return d.value[tab.value] || [];
-});
-
-function sortVal(x, k) {
-  if (k === 'name') return fold(itemName(x));
-  if (k === 'sales') return x.sales ? x.sales.perDay : x.perDay ?? null;
-  if (k === 'perDay' && tab.value === 'worth') return x.perDay;
-  if (k === 'risk') return { low: 1, mid: 2, high: 3 }[x.risk] ?? 9;
-  return x[k];
-}
-
+const source = computed(() => (!d.value ? [] : tab.value === 'live' ? d.value.live : d.value.list));
 const rows = computed(() => {
   const q = fold(search.value.trim());
-  const minP = Math.max(0, Number(minSilver.value) || 0) * 100;
-  let r = raw.value;
-  if (q) r = r.filter((x) => fold(itemName(x)).includes(q) || String(x.item) === q);
-  if (Number(quality.value) > 0) r = r.filter((x) => (x.quality ?? -1) >= Number(quality.value));
-  if (tab.value === 'resale' || tab.value === 'vendor') r = r.filter((x) => (x.perDay ?? x.rough) >= minP);
-  if (tab.value === 'worth') r = r.filter((x) => x.spanDay >= minP);
-  if (tab.value === 'buyout') r = r.filter((x) => x.gain >= minP);
-  if (sortKey.value) {
-    const k = sortKey.value, dir = sortDesc.value ? -1 : 1;
-    r = [...r].sort((a, b) => {
-      const va = sortVal(a, k), vb = sortVal(b, k);
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-      return va < vb ? -dir : va > vb ? dir : 0;
-    });
-  }
-  return r;
+  const minP = Math.max(0, Number(minGold.value) || 0) * 10000;
+  return source.value.filter((x) => (kind.value === 'all' || x.kind === kind.value)
+    && (!q || fold(itemName(x)).includes(q) || String(x.item) === q)
+    && (Number(quality.value) <= 0 || (x.quality ?? -1) >= Number(quality.value))
+    && (x.gain ?? 0) >= minP);
 });
 const shown = computed(() => rows.value.slice(0, limit.value));
-const total = computed(() => raw.value.length);
-
-function sortBy(c) {
-  if (c.nosort) return;
-  if (sortKey.value === c.key) sortDesc.value = !sortDesc.value;
-  else { sortKey.value = c.key; sortDesc.value = c.key !== 'name'; }
-}
-
-function hoursText(h) {
-  if (h == null) return '–';
-  if (h < 1) return `etwa ${Math.max(1, Math.round(h * 60))} Min.`;
-  return `etwa ${(Math.round(h * 10) / 10).toString().replace('.', ',')} Std.`;
-}
-
-const intro = computed(() => ({
-  buyout: 'Wie das Radar im Spiel: Massenware bis zu einer Preisstufe aufkaufen und zum Preis der nächsten Stufe wieder einstellen. Bei gleichem Preis verkauft das Spiel die zuletzt eingestellte Ware zuerst. Es zählt, wenn der Gewinn mindestens 50 Silber beträgt, sich die Menge beim jetzigen Absatz in höchstens 2 Std. wieder verkauft und der Preis nicht gerade fällt. Dein Gold kennt der Manager nicht, das prüft erst Broker im Spiel. Die Ampel zeigt das Risiko, der Tooltip die Gründe.',
-  resale: 'Chancen im letzten Scan: Angebote, die so tief unter dem üblichen Bereich liegen, dass sich Kaufen und zur Untergrenze wieder Einstellen lohnt (mindestens 20 % Gewinn nach Gebühr). Verkauft wird höchstens zum Median der Angebote. Keine Chance ist es, wenn alle Angebote gleich tief liegen, der Preis seit 12 Std. gefallen ist, unter dem Ziel mehr Ware liegt, als an einem Tag verkauft wird, oder der Preis zu stark schwankt. Der Gewinn je Tag ist durch den Absatz begrenzt. „Zweifelhaft“: in 14 Tagen wurde nie nahe der Untergrenze verkauft. Der Zeitraum zählt nur, wie oft der Gegenstand schon eine Chance war.',
-  vendor: 'Chancen im letzten Scan: Angebote unter dem Händlerpreis, kaufen und beim Händler verkaufen. Keine Gebühr, kein Risiko. Der Zeitraum zählt nur, wie oft der Gegenstand schon eine Chance war.',
-  down: 'Median im letzten Scan mindestens 15 % unter dem Langzeitwert und unter dem üblichen Bereich. Rotes ▼ bei Min jetzt: Dumping, das günstigste Angebot liegt mehr als 30 % unter dem Langzeitwert.',
-  up: 'Median im letzten Scan mindestens 15 % über dem Langzeitwert und über dem üblichen Bereich.',
-  worth: 'Gegenstände mit sicherem Absatz (mindestens 1 Std. beobachtet), sortiert nach dem, was zwischen Unter- und Obergrenze am Tag zu holen ist.',
-}[tab.value]));
-
-const emptyText = computed(() => {
-  if (!d.value) return '';
-  const t = tab.value;
-  if ((t === 'resale' || t === 'up' || t === 'down') && !d.value.bands) return 'Dafür braucht es den üblichen Bereich, also Daten an mindestens 3 Tagen.';
-  if (t === 'vendor' && !d.value.vendorKnown) return 'Händlerpreise kommen über Peon_Bridge aus dem Spiel, mit dem nächsten Komplettscan.';
-  if (t === 'buyout' && !d.value.sure) return 'Dafür braucht es Absatz, also Komplettscans oder Stände höchstens 24 Std. auseinander.';
-  if (t === 'worth' && !d.value.sure) return 'Dafür braucht es Absatz, also Komplettscans höchstens 24 Std. auseinander, zusammen mindestens 1 Std. beobachtet.';
-  if (total.value && !rows.value.length) return 'Nichts über dem Mindestgewinn. Setz ihn tiefer.';
-  return 'Im letzten Scan nichts.';
+const counts = computed(() => {
+  const c = { all: 0, s: 0, l: 0, b: 0, v: 0 };
+  for (const x of source.value) { c.all++; c[x.kind]++; }
+  return c;
 });
 
-function counts(k) {
-  if (!d.value) return '';
-  const n = k === 'buyout' ? (d.value.buyout ? d.value.buyout.list.length : 0) : k === 'resale' ? d.value.resale.list.length : k === 'vendor' ? d.value.vendor.list.length : (d.value[k] || []).length;
-  return n ? num(n) : '';
+// Warum nicht? Gegenstaende, die zur Suche passen, aber nicht in der Liste stehen
+const misses = computed(() => {
+  const q = fold(search.value.trim());
+  if (q.length < 3 || !items.value) return [];
+  const inList = new Set(rows.value.map((x) => x.key));
+  return items.value.filter((x) => !inList.has(x.key) && (fold(itemName(x)).includes(q) || String(x.item) === q)).slice(0, 8);
+});
+watch(search, async (s) => {
+  if (s.trim().length >= 3 && !items.value && props.market) items.value = (await api.items(props.market.key)).items || [];
+});
+
+function daysText(x) {
+  if (x.kind === 'v') return 'sofort';
+  if (x.days == null) return '–';
+  if (x.days < 1) return `${Math.max(1, Math.round(x.days * 24))} Std.`;
+  return `${(Math.round(x.days * 10) / 10).toLocaleString('de-DE')} Tage`;
 }
+function holdText(h) {
+  if (!h) return '–';
+  if (h.hours < 1) return 'unter 1 Std.';
+  return `${Math.round(h.hours)} Std.`;
+}
+async function watchIt(x) { await api.setFavorite(x.key, !x.watched); x.watched = !x.watched; }
+async function pin(x) { await api.pinChance(props.market.key, x.key, !x.pinned); x.pinned = !x.pinned; }
+async function deleteRating(id) { await api.deleteChanceRating(id); ratings.value = await api.chanceRatings(); }
+async function exportRatings() { await api.exportChanceRatings(); }
+const ratingLabel = (r) => [r.up === 1 ? '👍' : r.up === 0 ? '👎' : null, r.reason].filter(Boolean).join(' ');
 </script>
 
 <template>
   <div class="ch" v-if="market">
     <div class="head">
-      <h1>Radar</h1>
-      <span class="small muted" v-if="d">{{ pl(d.resale.scans, 'Scan', 'Scans') }} in {{ pl(d.days, 'Tag', 'Tagen') }}, üblicher Bereich für {{ num(d.bands) }}, Absatz für {{ num(d.salesItems) }} Gegenstände<template v-if="d.lastScan">, letzter Scan {{ when(d.lastScan) }}</template></span>
+      <h1>Chancen</h1>
+      <span class="small muted" v-if="d">
+        <template v-if="d.t">Stand {{ when(d.t) }} ({{ ago(d.t, now) }})</template><template v-else>Noch kein vollständiger Stand</template>,
+        belegte Verkaufspreise für {{ num(d.proven) }}, Haltbarkeit für {{ num(d.holdKnown) }}, Prognosen für {{ num(d.forecasts) }} Gegenstände
+      </span>
     </div>
+    <p class="small muted intro">Der Manager rechnet mit den Ständen der Blizzard-API, höchstens einmal je Stunde. Er liefert Kandidaten, gekauft wird nach der Prüfung im Spiel.
+      Belegte Verkaufspreise sammelt er erst ab Version 0.35.0<template v-if="d && d.start"> (hier seit {{ when(d.start) }})</template>, bis dahin gibt es kaum Spekulation.</p>
 
     <div class="tabs" role="tablist">
       <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key">
-        {{ t.label }}<span class="cnt" v-if="counts(t.key)">{{ counts(t.key) }}</span>
+        {{ t.label }}<span class="cnt" v-if="d && t.key === 'list' && d.list.length">{{ num(d.list.length) }}</span><span class="cnt" v-if="d && t.key === 'live' && d.live.length">{{ num(d.live.length) }}</span>
       </button>
     </div>
 
-    <div class="filters">
-      <input type="text" v-model="search" placeholder="Name oder Nummer suchen" aria-label="Suchen" spellcheck="false" />
-      <label v-if="tab === 'resale' || tab === 'vendor'">Zeitraum
-        <select v-model.number="days" aria-label="Zeitraum">
-          <option :value="1">1 Tag</option><option :value="3">3 Tage</option><option :value="7">7 Tage</option><option :value="14">14 Tage</option>
+    <template v-if="tab === 'list' || tab === 'live'">
+      <p class="small muted" v-if="tab === 'live'">Unter dem Händlerpreis, aber solche Angebote sind meist nach weniger als einer Stunde weg. Sie gehen als Kandidaten an das Radar in Broker.</p>
+      <div class="filters">
+        <input type="text" v-model="search" placeholder="Name oder Nummer suchen" aria-label="Suchen" spellcheck="false" />
+        <select v-model="kind" aria-label="Art">
+          <option value="all">Alle Arten ({{ counts.all }})</option>
+          <option value="s">Spekulation schnell ({{ counts.s }})</option>
+          <option value="l">Spekulation langfristig ({{ counts.l }})</option>
+          <option value="b">Aufkauf ({{ counts.b }})</option>
+          <option value="v">Händler ({{ counts.v }})</option>
         </select>
-      </label>
-      <label v-if="tab !== 'up' && tab !== 'down'">Gewinn ab <input class="short" type="number" min="0" step="1" v-model.number="minSilver" aria-label="Mindestgewinn in Silber" /> {{ tab === 'buyout' ? 'Silber' : 'Silber/Tag' }}</label>
-      <select v-model="quality" aria-label="Qualität">
-        <option value="0">Alle Qualitäten</option>
-        <option value="1">Ab Gewöhnlich</option>
-        <option value="2">Ab Selten</option>
-        <option value="3">Ab Rar</option>
-        <option value="4">Ab Episch</option>
-      </select>
-      <span class="small faint" v-if="loading">rechnet</span>
-    </div>
-    <p class="small muted intro">{{ intro }}</p>
-    <p class="small hits" v-if="tab === 'resale' && d && d.hits">
-      <template v-if="d.hits.n">Trefferquote der Vorschläge von vor {{ d.hits.hold }} bis {{ d.hits.hold + d.hits.days }} Tagen: Bei {{ num(d.hits.hit) }} von {{ num(d.hits.n) }} ({{ Math.round(d.hits.hit / d.hits.n * 100) }} %) stieg der Median der Angebote danach innerhalb von {{ d.hits.hold }} Tagen bis zum Verkaufsziel, bei {{ num(d.hits.even) }} immerhin über Kaufpreis plus Gebühr, bei {{ num(d.hits.miss) }} nicht. Jeder Gegenstand zählt einmal am Tag.</template>
-      <span v-else class="muted">Trefferquote: Noch keine Vorschläge, die älter als {{ d.hits.hold }} Tage sind. Jeder Gegenstand zählt einmal am Tag.</span>
-    </p>
+        <label>Gewinn ab <input class="short" type="number" min="0" step="1" v-model.number="minGold" aria-label="Mindestgewinn in Gold" /> Gold</label>
+        <select v-model="quality" aria-label="Qualität">
+          <option value="0">Alle Qualitäten</option><option value="1">Ab Gewöhnlich</option><option value="2">Ab Selten</option><option value="3">Ab Rar</option><option value="4">Ab Episch</option>
+        </select>
+        <span class="small faint" v-if="loading">rechnet</span>
+      </div>
 
-    <table class="tbl" v-if="rows.length">
-      <colgroup><col v-for="c in cols" :key="c.key" :style="{ width: ((c.w || 1) / widthSum * 100) + '%' }" /></colgroup>
-      <thead>
-        <tr>
-          <th v-for="c in cols" :key="c.key" :class="{ num: c.num, on: sortKey === c.key, nosort: c.nosort }" :title="c.tip || ''" @click="sortBy(c)">
-            {{ c.label }}<span v-if="sortKey === c.key" class="dir">{{ sortDesc ? '▾' : '▴' }}</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="r in shown" :key="r.key" class="click" tabindex="0" @click="emit('open', r.key)" @keydown.enter="emit('open', r.key)">
-          <td class="name" :style="{ color: qualityColor(r.quality) }" :title="itemName(r)">{{ itemName(r) }}</td>
-          <template v-if="tab === 'buyout'">
-            <td class="num strong"><Gold :copper="r.gain" compact /></td>
-            <td class="num"><Gold :copper="r.limit" compact /></td>
-            <td class="num">{{ num(r.qty) }}</td>
-            <td class="num muted"><Gold :copper="r.cost" compact /></td>
-            <td class="num"><Gold :copper="r.target" compact /></td>
-            <td class="num muted small">{{ hoursText(r.hours) }}</td>
-            <td class="num risk" :class="r.risk" :title="r.why && r.why.length ? r.why.join(' ') : 'Keine Bedenken'">{{ RISK[r.risk] }}</td>
+      <table class="tbl" v-if="rows.length">
+        <thead>
+          <tr>
+            <th>Gegenstand</th><th>Art</th>
+            <th class="num" title="Erwarteter Gewinn nach 5 % Gebühr und Einstellgebühren">Gewinn</th>
+            <th class="num" title="Wie lange es dauert, bis alles verkauft ist: Stück vor dir plus deine Menge, geteilt durch den Absatz je Tag">Verkaufsdauer</th>
+            <th class="num" title="Wie lange solche Angebote meist stehen, bevor sie jemand kauft. Unter 1 Std. ist nur live im Spiel erreichbar">Haltbarkeit</th>
+            <th class="num" title="Ampel aus Verkaufsdauer, Zahl der Belege, Schwankung, Haltbarkeit und Alter des Stands">Risiko</th>
+            <th class="num" title="Prognose: Richtung, Zeitraum, Sicherheit">Aussicht</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template v-for="x in shown" :key="x.kind + x.key">
+            <tr class="click" tabindex="0" @click="open = open === x.kind + x.key ? null : x.kind + x.key" @keydown.enter="open = open === x.kind + x.key ? null : x.kind + x.key">
+              <td class="name"><span :style="{ color: qualityColor(x.quality) }">{{ itemName(x) }}</span><span v-if="x.pinned" class="tag" title="Geht sicher an Broker">Broker</span><span v-if="x.rated" class="tag">{{ ratingLabel(x.rated) || 'bewertet' }}</span></td>
+              <td class="muted">{{ KIND_SHORT[x.kind] }}</td>
+              <td class="num strong"><Gold :copper="x.gain" compact /></td>
+              <td class="num">{{ daysText(x) }}</td>
+              <td class="num" :class="{ warn: x.hold && x.hold.hours < 1 }">{{ holdText(x.hold) }}</td>
+              <td class="num risk" :class="x.risk" :title="x.why && x.why.length ? x.why.join(' ') : 'Keine Bedenken'">{{ RISK[x.risk] }}</td>
+              <td class="num small"><template v-if="x.outlook"><span :class="x.outlook.dir > 0 ? 'up' : 'down'">{{ x.outlook.dir > 0 ? '▲' : '▼' }}</span> {{ x.outlook.days }} T., {{ SURE[x.outlook.sure] }}</template><span v-else class="faint">–</span></td>
+            </tr>
+            <tr class="say"><td colspan="7">{{ x.say }}</td></tr>
+            <tr v-if="open === x.kind + x.key" class="det">
+              <td colspan="7">
+                <div class="det-grid">
+                  <div class="money small">
+                    <span>Kaufen bis <Gold :copper="x.buy" /></span>
+                    <span v-if="x.target">Zielpreis <Gold :copper="x.target" /></span>
+                    <span v-if="x.qty">Menge {{ num(x.qty) }}</span>
+                    <span v-if="x.cost">Einsatz <Gold :copper="x.cost" /></span>
+                    <span v-if="x.ref">Belegter Verkaufspreis <Gold :copper="x.ref" /></span>
+                  </div>
+                  <ChecksList :checks="x.checks" :signals="x.outlook && x.outlook.signals ? x.outlook.signals : null" />
+                  <div class="btns">
+                    <button @click="emit('brief', x.key)">Steckbrief</button>
+                    <button @click="rating = x">Rückmeldung</button>
+                    <button @click="watchIt(x)">{{ x.watched ? 'Nicht mehr beobachten' : 'Beobachten' }}</button>
+                    <button @click="pin(x)" :title="'Geht beim nächsten Laden im Spiel sicher an das Radar in Broker, auch wenn er nicht unter den besten 200 ist'">{{ x.pinned ? 'Nicht mehr an Broker' : 'An Broker' }}</button>
+                    <button class="link" @click="emit('open', x.key)">Gegenstand</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
           </template>
-          <template v-else-if="tab === 'resale' || tab === 'vendor'">
-            <td class="num"><Gold :copper="r.buy" compact /></td>
-            <td class="num"><Gold :copper="r.sell" compact /></td>
-            <td class="num"><Gold :copper="r.perPiece" compact /></td>
-            <td class="num">{{ num(r.qty) }}</td>
-            <td class="num" v-if="tab === 'resale'"><Sales :s="r.sales" /></td>
-            <td class="num strong"><Gold v-if="r.perDay != null" :copper="r.perDay" compact /><span v-else-if="r.doubt" class="faint" title="In 14 Tagen nie nahe der Untergrenze verkauft">zweifelhaft</span><span v-else class="faint" title="Absatz noch unbekannt">?</span></td>
-            <td class="num muted">{{ Math.round(r.share * 100) }} %</td>
-            <td class="num muted small">{{ slotText(r.slot) }}</td>
-          </template>
-          <template v-else-if="tab === 'up' || tab === 'down'">
-            <td class="num"><Gold :copper="r.now" compact /></td>
-            <td class="num muted"><Gold :copper="r.lang" compact /></td>
-            <td class="num pct" :class="tab">{{ pct(r.change) }}</td>
-            <td class="num muted small"><Gold :copper="r.low" compact /> – <Gold :copper="r.high" compact /></td>
-            <td class="num spark"><Spark :values="r.spark" :low="r.low" :high="r.high" /></td>
-            <td class="num"><Gold :copper="r.min" compact /><span v-if="r.dump && tab === 'down'" class="dump" title="Dumping: günstigstes Angebot mehr als 30 % unter dem Langzeitwert">▼</span></td>
-            <td class="num">{{ num(r.qty) }}</td>
-          </template>
-          <template v-else>
-            <td class="num"><Sales :s="r" /></td>
-            <td class="num muted">{{ r.rate == null ? '–' : Math.round(r.rate * 100) + ' %' }}</td>
-            <td class="num"><Gold :copper="r.lang" compact /></td>
-            <td class="num muted small"><Gold :copper="r.low" compact /> – <Gold :copper="r.high" compact /></td>
-            <td class="num"><Gold :copper="r.turnover" compact /></td>
-            <td class="num strong"><Gold :copper="r.spanDay" compact /></td>
-          </template>
-        </tr>
-      </tbody>
-    </table>
-    <p v-else-if="d" class="muted empty">{{ emptyText }}</p>
-    <p v-if="rows.length > shown.length" class="more small muted">{{ num(shown.length) }} von {{ num(rows.length) }} <button class="link" @click="limit += 50">50 weitere zeigen</button></p>
+        </tbody>
+      </table>
+      <p v-else-if="d" class="muted empty">{{ source.length ? 'Nichts passt zu den Filtern.' : tab === 'live' ? 'Gerade nichts.' : 'Gerade keine Chancen. Fehlen belegte Verkäufe, kommen sie mit den nächsten Ständen der Blizzard-API.' }}</p>
+      <p v-if="rows.length > shown.length" class="more small muted">{{ num(shown.length) }} von {{ num(rows.length) }} <button class="link" @click="limit += 60">60 weitere zeigen</button></p>
+
+      <div v-if="misses.length" class="whybox">
+        <h3>Warum nicht?</h3>
+        <div class="row"><button v-for="m in misses" :key="m.key" class="chip" :class="{ on: why === m.key }" :style="{ color: qualityColor(m.quality) }" @click="why = why === m.key ? null : m.key">{{ itemName(m) }}</button></div>
+        <WhyNot v-if="why" :market="market.key" :item-key="why" :stamp="stamp" @brief="emit('brief', $event)" />
+      </div>
+    </template>
+
+    <template v-else-if="tab === 'ratings'">
+      <div class="row">
+        <p class="small muted grow">Rückmeldungen aus dem Manager und Einschätzungen aus Broker. Die Datei für die Auswertung enthält keine Konto- oder Charakternamen. Claude schlägt daraus geänderte Startwerte oder neue Bedingungen vor, du entscheidest.</p>
+        <button @click="exportRatings">Datei für die Auswertung</button>
+      </div>
+      <table class="tbl" v-if="ratings.list.length">
+        <thead><tr><th>Wann</th><th>Gegenstand</th><th>Art</th><th>Woher</th><th>Bewertung</th><th>Bemerkung</th><th></th></tr></thead>
+        <tbody>
+          <tr v-for="r in ratings.list" :key="r.id">
+            <td class="small muted">{{ when(r.t) }}</td>
+            <td><button class="link" @click="emit('open', r.item_key)">{{ r.item_name || r.item_key }}</button><div class="small faint" v-if="r.say">{{ r.say }}</div></td>
+            <td class="small">{{ KIND_SHORT[r.kind] || '–' }}</td>
+            <td class="small">{{ r.origin === 'broker' ? 'Broker' : 'Manager' }}</td>
+            <td>{{ ratingLabel(r) || '–' }}</td>
+            <td class="small">{{ r.note }}</td>
+            <td class="num"><button v-if="r.origin === 'manager'" class="link small" @click="deleteRating(r.id)">löschen</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="muted empty">Noch keine Rückmeldungen.</p>
+    </template>
+
+    <ChanceRules v-else :market="market.key" :stamp="stamp" @open="emit('open', $event)" />
+
+    <RateDialog v-if="rating" :chance="rating" :market="market.key" :reasons="ratings.reasons" @close="rating = null" @saved="load" />
   </div>
   <p v-else class="muted">Noch kein Markt eingelesen.</p>
 </template>
@@ -273,38 +222,40 @@ function counts(k) {
 <style scoped>
 .ch { display: grid; gap: 14px; max-width: 1180px; align-content: start; }
 .head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.intro { max-width: 100ch; margin: -6px 0 0; }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
 .tabs button { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 14px; color: var(--muted); font-weight: 500; margin-bottom: -1px; }
 .tabs button:hover { color: var(--text); }
 .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
 .cnt { margin-left: 8px; font-size: 12px; color: var(--faint); font-weight: 400; }
-.filters { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.filters, .row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 .filters input[type="text"] { width: 260px; }
 .filters label { display: flex; gap: 8px; align-items: center; color: var(--muted); }
 .short { width: 70px; }
-.intro { max-width: 90ch; }
-.hits { max-width: 90ch; margin-top: -4px; }
-.tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.tbl th { text-align: left; font-weight: 500; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); cursor: pointer; line-height: 1.25; vertical-align: bottom; }
-.tbl th.nosort { cursor: default; }
-.tbl th.on, .tbl th:hover:not(.nosort) { color: var(--text); }
-.tbl th:first-child { padding-left: 0; }
-.tbl td { padding: 7px 8px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tbl td.name { padding-left: 0; }
+.grow { flex: 1; margin: 0; }
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl th { text-align: left; font-weight: 500; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.tbl td { padding: 6px 8px; }
+.tbl tr.click td { padding-bottom: 0; }
+.tbl tr.say td { padding-top: 0; color: var(--muted); font-size: 13px; border-bottom: 1px solid var(--line-soft); }
+.tbl th:first-child, .tbl td:first-child { padding-left: 0; }
 .num { text-align: right !important; }
-.dir { margin-left: 4px; }
 .click { cursor: pointer; }
-.click:hover td, .click:focus-visible td { background: var(--raised); }
+.click:hover td, .click:hover + .say td { background: var(--raised); }
 .strong { font-weight: 600; }
-.pct { font-weight: 600; }
-.pct.up { color: var(--up); }
-.pct.down { color: var(--down); }
-.spark :deep(svg) { margin-left: auto; }
-.dump { margin-left: 6px; font-size: 11px; color: var(--bad); }
+.tag { margin-left: 8px; font-size: 11px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
 .risk { font-weight: 600; }
-.risk.low { color: var(--up); }
-.risk.mid { color: var(--warn, #d9a400); }
-.risk.high { color: var(--bad); }
+.risk.low, .up { color: var(--up); }
+.risk.mid, .warn { color: var(--warn); }
+.risk.high, .down { color: var(--bad); }
+.det td { background: var(--raised); border-bottom: 1px solid var(--line-soft); padding: 12px 12px 14px !important; }
+.det-grid { display: grid; gap: 12px; }
+.money { display: flex; gap: 18px; flex-wrap: wrap; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .empty { padding: 18px 0; }
 .more { display: flex; gap: 12px; align-items: baseline; }
+.whybox { display: grid; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.whybox h3 { margin: 0; }
+.chip { padding: 4px 10px; font-size: 13px; }
+.chip.on { border-color: var(--accent); background: var(--accent-soft); }
 </style>

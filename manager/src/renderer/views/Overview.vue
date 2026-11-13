@@ -40,12 +40,15 @@ const chartTitle = computed(() => {
 });
 
 // Chancen und Absatz kommen aus derselben Rechnung wie der Reiter Chancen
+// ab 0.35.0: aus der Seite Chancen (alle Arten) und der Marktuebersicht (Lohnend)
 const ch = ref(null);
+const mk = ref(null);
 const buyable = ref([]);   // Einkaufsliste: gerade unter dem Hoechstpreis
 async function load() {
-  if (!props.market) { ch.value = null; buyable.value = []; return; }
-  const [c, b] = await Promise.all([api.chances(props.market.key, 7), api.shopBuyable(props.market.key)]);
+  if (!props.market) { ch.value = null; mk.value = null; buyable.value = []; return; }
+  const [c, m, b] = await Promise.all([api.chanceView(props.market.key), api.marketOverview(props.market.key), api.shopBuyable(props.market.key)]);
   ch.value = c;
+  mk.value = m;
   buyable.value = b;
 }
 onMounted(load);
@@ -55,17 +58,15 @@ watch(() => [props.market && props.market.key, props.stamp], load);
 const openChances = computed(() => {
   if (!ch.value) return [];
   const best = new Map();
-  for (const [kind, list] of [['Wiederverkauf', ch.value.resale.list], ['Händler', ch.value.vendor.list]]) {
-    for (const x of list) {
-      if (!x.now || typeof x.now !== 'object' || x.doubt || !(x.now.profit > 0)) continue;
-      const old = best.get(x.key);
-      if (!old || x.now.profit > old.profit) best.set(x.key, { key: x.key, name: x.name, quality: x.quality, profit: x.now.profit, qty: x.now.qty, kind });
-    }
+  for (const x of ch.value.list) {
+    if (!(x.gain > 0)) continue;
+    const old = best.get(x.key);
+    if (!old || x.gain > old.profit) best.set(x.key, { key: x.key, name: x.name, quality: x.quality, profit: x.gain, qty: x.qty, kind: x.kindLabel });
   }
   return [...best.values()].sort((a, b) => b.profit - a.profit);
 });
 const chanceSum = computed(() => openChances.value.reduce((s, x) => s + x.profit, 0));
-const sold = computed(() => (ch.value ? [...ch.value.worth].sort((a, b) => b.perDay - a.perDay).slice(0, 5) : []));
+const sold = computed(() => (mk.value ? [...mk.value.worth].sort((a, b) => b.perDay - a.perDay).slice(0, 5) : []));
 </script>
 
 <template>
@@ -126,7 +127,7 @@ const sold = computed(() => (ch.value ? [...ch.value.worth].sort((a, b) => b.per
     <section class="cols">
       <div class="block">
         <h2>Beste Chancen jetzt</h2>
-        <p v-if="!openChances.length" class="muted small">Gerade steht nichts im Auktionshaus, das sich sicher lohnt. Chancen brauchen übliche Preise, die gibt es ab 3 Tagen mit Daten.</p>
+        <p v-if="!openChances.length" class="muted small">Gerade steht nichts im Auktionshaus, das sich sicher lohnt. Chancen brauchen belegte Verkäufe aus den Ständen der Blizzard-API.</p>
         <table v-else class="tbl">
           <tbody>
             <tr v-for="r in openChances.slice(0, 5)" :key="r.key" class="click" tabindex="0" @click="emit('open', r.key)" @keydown.enter="emit('open', r.key)">

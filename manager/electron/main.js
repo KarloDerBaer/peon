@@ -289,6 +289,8 @@ if (!app.requestSingleInstanceLock()) {
     const client = blizzardClient();
     if (!client) return null;
     const r = await svc.broker.api.tick(client, { force });
+    // ab 0.35.0 (Chancen, D3): in Minuten ohne Abruf die benoetigte Stufe der Gegenstaende nachholen
+    if (!r.checked && !r.busy) svc.broker.fetchLevels(client).catch(() => {});
     if (r.imported) runImport('Blizzard-API');
     else if (r.checked) send('changed', { what: 'blizzard' });
     return r;
@@ -376,7 +378,30 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('items', (_e, market) => (svc.broker ? svc.broker.itemList(String(market)) : null));
     ipcMain.handle('item', (_e, market, key, range) => (svc.broker ? svc.broker.itemDetail(String(market), String(key), String(range || '30d')) : null));
     ipcMain.handle('itemInfo', (_e, key) => (svc.broker ? svc.broker.itemTip(String(key), blizzardClient()) : null));
-    ipcMain.handle('chances', (_e, market, days) => (svc.broker ? svc.broker.chances(String(market), Number(days) || null) : null));
+    // Chancen und Prognosen (ab 0.35.0, Peon_Manager_Chancen.md)
+    const chanceChanged = async (r) => { const v = await r; send('changed', { what: 'chancen' }); return v; };
+    ipcMain.handle('chanceView', (_e, market) => (svc.broker ? svc.broker.chanceView(String(market)) : null));
+    ipcMain.handle('chanceItem', (_e, market, key) => (svc.broker ? svc.broker.chanceItem(String(market), String(key)) : null));
+    ipcMain.handle('brief', (_e, market, key, days) => (svc.broker ? svc.broker.brief(String(market), String(key), Number(days) || 14) : null));
+    ipcMain.handle('marketOverview', (_e, market) => (svc.broker ? svc.broker.marketOverview(String(market)) : null));
+    ipcMain.handle('successView', (_e, market) => (svc.broker ? svc.broker.successView(String(market)) : null));
+    ipcMain.handle('chanceRules', () => (svc.broker ? svc.broker.chanceRules() : null));
+    ipcMain.handle('setChanceRules', (_e, patch) => chanceChanged(svc.broker.setChanceRules(patch || {})));
+    ipcMain.handle('resetChanceRules', (_e, kind) => chanceChanged(svc.broker.resetChanceRules(String(kind || ''))));
+    ipcMain.handle('chanceProbe', (_e, market, kind, next) => (svc.broker ? svc.broker.chanceProbe(String(market), String(kind), next || {}) : null));
+    ipcMain.handle('overrides', () => (svc.broker ? svc.broker.overrides() : []));
+    ipcMain.handle('setOverride', (_e, key, o) => chanceChanged(svc.broker.setOverride(String(key), o || {})));
+    ipcMain.handle('rateChance', (_e, f) => chanceChanged(svc.broker.rateChance(f || {})));
+    ipcMain.handle('chanceRatings', () => (svc.broker ? svc.broker.chanceRatings() : { list: [], reasons: [] }));
+    ipcMain.handle('deleteChanceRating', (_e, id) => chanceChanged(svc.broker.deleteChanceRating(Number(id))));
+    ipcMain.handle('pinChance', async (_e, market, key, on) => { const r = await svc.broker.pinChance(String(key), !!on); await svc.broker.writeBridge('chancen'); return r; });
+    ipcMain.handle('fests', () => (svc.broker ? svc.broker.fests() : []));
+    ipcMain.handle('setEvents', (_e, list) => chanceChanged(svc.broker.setEvents(list || [])));
+    ipcMain.handle('exportChanceRatings', async () => {
+      const r = await dialog.showSaveDialog(win, { title: 'Rückmeldungen für die Auswertung speichern', defaultPath: 'Peon_Rueckmeldungen_Chancen.json', filters: [{ name: 'JSON', extensions: ['json'] }] });
+      if (r.canceled || !r.filePath) return null;
+      return svc.broker.exportChanceRatings(r.filePath);
+    });
     ipcMain.handle('favorites', () => (svc.broker ? svc.broker.favorites() : []));
     ipcMain.handle('vendors', (_e, market) => (svc.broker ? svc.broker.vendorView(String(market)) : { rows: [], vendors: 0, offers: 0 }));
     ipcMain.handle('setFavorite', (_e, key, on) => svc.broker.setFavorite(String(key), !!on));

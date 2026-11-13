@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.11.0
+
+Kurz: Kaufkandidaten aus dem Peon Manager kommen jetzt beim Radar in Broker an.
+
+- 0.11.0 (13.11.2026): Chancen und Prognosen, Bauabschnitt K6 (Konzept `docs/konzepte/manager/Peon_Manager_Chancen.md` 9.1). Braucht Manager 0.35 und Broker 0.93.
+  - Neue Schnittstelle `mod:Chances(market)`: Zeit, Liste und Sätze der Kandidaten des Managers aus `Data.lua` (`markets[Markt].chances`), nur mit freigeschaltetem Kanal broker. Jeder Eintrag hat sein eigenes „gültig bis“, das Broker prüft.
+  - Tests: ohne Liste, mit Liste und Satz, ohne Freischaltung (`test_bridge.lua`).
+
 ## 0.10.0
 
 Kurz: Einkaufslisten und Beobachtung aus dem Peon Manager kommen nur noch bei dem WoW-Konto an, zu dem sie gehören.

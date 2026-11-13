@@ -80,7 +80,7 @@ S.SPECS.radar = {
     { "slider", "buyoutMinQty", "SET_RADAR_MIN_QTY", 0, 5000, 50, function(v) return L.SET_QTY_FMT:format(v) end, off = BuyoutOff },
     { "slider", "buyoutMinLevels", "SET_RADAR_MIN_LEVELS", 2, 12, 1, function(v) return tostring(v) end, off = BuyoutOff },
     { "slider", "buyoutMinSales", "SET_RADAR_MIN_SALES", 0, 2000, 10, function(v) return L.SET_QTY_FMT:format(v) end, off = BuyoutOff },
-    { "check", "radarSpecOn", "SET_RADAR_SPEC", "SET_RADAR_SPEC_TIP", off = function() return true end },
+    { "check", "radarSpecOn", "SET_RADAR_SPEC", "SET_RADAR_SPEC_TIP" },
     { "col" },
     { "head", "SET_RADAR_GENERAL" },
     { "money", "radarReserve", "SET_RADAR_RESERVE", 10000 },

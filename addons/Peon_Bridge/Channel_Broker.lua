@@ -447,6 +447,18 @@ function mod:Current(market)
     return tonumber(c.t), c.src == "api" and "api" or "scan", c.items
 end
 
+-- Kandidaten des Managers fuer Brokers Radar (ab 0.11.0, Peon_Manager_Chancen.md 9.1): t, list, say oder nil.
+-- list[Schluessel] = "Art:KaufenBis:Zielpreis:GueltigBis:Gewinn:Risiko:Menge", say[Schluessel] = Satz.
+-- Ohne Pruefung auf freshDays: Jeder Eintrag hat sein eigenes GueltigBis, das Broker prueft.
+function mod:Chances(market)
+    if not ns.ChannelOn("broker") then return nil end
+    local d = ns.ManagerData()
+    local m = d and type(d.markets) == "table" and type(market) == "string" and d.markets[ns.MarketOf(d, market)]
+    local c = type(m) == "table" and m.chances
+    if type(c) ~= "table" or type(c.list) ~= "table" then return nil end
+    return tonumber(c.t), c.list, type(c.say) == "table" and c.say or {}
+end
+
 -- Wie viele Gegenstaende hat der Manager fuer einen Markt (Anzeige)
 function ns.MarketCount(market)
     local d = ns.ManagerData()

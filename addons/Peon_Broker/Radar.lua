@@ -35,6 +35,7 @@ R.PRICE_TOL = 0.01   -- ab 0.66: Gesamtpreis des Spiels mehr als 1 % ueber dem e
 R.KIND_ON = setmetatable({}, { __index = function(_, k)
     if k == "vendor" then return mod.db.radarVendorOn ~= false end
     if k == "buyout" then return mod.db.radarBuyoutOn ~= false end
+    if k == "spec" then return mod.db.radarSpecOn ~= false end   -- ab 0.93: Kandidaten vom Peon Manager (Spec.lua)
     return nil
 end })
 R.GONE_TIME = 30     -- Sekunden: so lange bleibt ein weggefallener Treffer grau mit Grund in der Liste (ab 0.20)
@@ -86,6 +87,9 @@ function R.Evaluate(key, rows, live, commodity)
     local deal = R.KIND_ON.vendor and D.Deal(e, rows, hp, R.VendorOnly(), D.Day(), key) or nil
     local bo = R.KIND_ON.buyout and ns.Buyout and ns.Buyout.Find(e, rows, key, R.Budget(), commodity) or nil
     if bo and (not deal or bo.gain > deal.gain) then deal = bo end
+    -- ab 0.93: Spekulation vom Peon Manager (Spec.lua), live geprueft wie jede andere Art
+    local sp = R.KIND_ON.spec and ns.Spec and ns.Spec.Find(e, rows, key) or nil
+    if sp and (not deal or sp.gain > deal.gain) then deal = sp end
     if not deal then return nil end
     deal.key = key
     deal.name = (type(e) == "table" and e.nm) or D.ItemName(key, e)
@@ -157,6 +161,26 @@ function R.LoadFromScan()
                     local d = R.Evaluate(key, D.ParseLevels(e.lv), false, nil)
                     if d and R.KIND_ON[d.kind] then d.checked = nil; d.seenT = seen; R.entries[key] = d end
                 end
+            end
+        end
+    end
+    -- ab 0.93: Spekulation vom Peon Manager. Ohne eigene Preisstufen mit den Werten des Managers, bis Erneuern live prueft
+    if R.KIND_ON.spec and ns.Spec then
+        for key, x in pairs(ns.Spec.All()) do
+            if not R.entries[key] and (x.mk == "s" or x.mk == "l") and ns.Buy.KnownKey(key) then
+                local e = market.items[key]
+                local d = type(e) == "table" and type(e.lv) == "string" and not e.gone and R.Evaluate(key, D.ParseLevels(e.lv), false, nil) or nil
+                if not d or d.kind ~= "spec" then
+                    d = ns.Spec.FromManager(key, x)
+                    d.key = key
+                    d.name = (type(e) == "table" and e.nm) or D.ItemName(key, e)
+                    d.quality = type(e) == "table" and e.ql or nil
+                    if not d.name then d.name, d.noName = tostring(key), true; R.RequestName(D.ItemID(key)) end
+                    d.icon = ns.Buy.Icon(D.ItemID(key))
+                    d.commodity = false
+                end
+                d.checked = nil; d.seenT = x.t
+                R.entries[key] = d
             end
         end
     end
@@ -260,6 +284,13 @@ end
 
 -- Gewinn mit meinem Gold berechnen und merken; cant = lohnt sich mit meinem Gold nicht (unter dem Mindestgewinn)
 function R.Annotate(d, budget)
+    if d.kind == "spec" and d.mgrOnly then
+        -- ab 0.93: Werte des Managers, bis Erneuern live prueft
+        d.best = { gain = d.gain, qty = d.qty, cost = d.cost }
+        d.cant = budget ~= nil and d.cost > budget
+        d.showGain = d.gain
+        return d
+    end
     if d.kind == "buyout" then
         -- Aufkauf (ab 0.65): ganze Stelle oder nichts, mit neuem Gold neu gerechnet
         local ok = d.gone or ns.Buyout.Refit(d, budget)
@@ -295,6 +326,12 @@ function R.Risk(d)
         return level
     end
     d.riskWhy = nil
+    if d.kind == "spec" then
+        -- ab 0.93: Risiko des Managers, ein alter, nie live gepruefter Stand ist mindestens mittel
+        local r = d.mgrRisk or "mid"
+        if (not seen or seen > R.RISK_OLD) and r == "low" then r = "mid" end
+        return r
+    end
     if not seen or seen > R.RISK_OLD then return "mid" end
     return "low"
 end
@@ -387,6 +424,16 @@ function R.SearchKeys(mode)
         table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
         return keys
     end
+    -- ab 0.93: "Vom Manager": zuerst alle Kandidaten des Managers (alle Arten), danach die Massenware wie bisher
+    if mode == "mgr" then
+        local seen = {}
+        for _, key in ipairs(ns.Spec and ns.Spec.Keys() or {}) do keys[#keys + 1] = key; seen[key] = true end
+        local rest = {}
+        for _, key in ipairs(R.SearchKeys("mass")) do if not seen[key] then rest[#rest + 1] = key end end
+        for i = #rest, 2, -1 do local j = math.random(i); rest[i], rest[j] = rest[j], rest[i] end
+        for _, key in ipairs(rest) do keys[#keys + 1] = key end
+        return keys
+    end
     local market = D.Market()
     if not market then return keys end
     for key, e in pairs(market.items) do
@@ -414,7 +461,7 @@ function R.NextSearch(peek)
     end
     for _ = 1, 50 do
         if sc.index >= #sc.keys then
-            sc.keys = mode == "watch" and R.SearchKeys(mode) or Shuffle(R.SearchKeys(mode))
+            sc.keys = (mode == "watch" or mode == "mgr") and R.SearchKeys(mode) or Shuffle(R.SearchKeys(mode))
             sc.index, sc.rounds = 0, sc.rounds + 1
             if #sc.keys == 0 then return nil end
         end
@@ -1111,7 +1158,7 @@ end
 -- Stand in der oberen Zeile
 -- Auswahl des Radar-Scans (ab 0.71)
 function R.MODES()
-    return { { "watch", L.RADAR_MODE_WATCH }, { "mass", L.RADAR_MODE_MASS }, { "all", L.RADAR_MODE_ALL } }
+    return { { "mgr", L.RADAR_MODE_MGR }, { "watch", L.RADAR_MODE_WATCH }, { "mass", L.RADAR_MODE_MASS }, { "all", L.RADAR_MODE_ALL } }
 end
 
 function R.ModeText()

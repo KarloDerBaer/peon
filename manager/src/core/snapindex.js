@@ -44,21 +44,45 @@ class SnapIndex {
     if (r.source !== 'scan' || r.median == null) return;
     const day = dayOf(r.t);
     if (day <= s.today - KEEP_DAYS) return;
+    this.noteQty(s, r.item_key, day, r.t, r.qty);
     let m = s.snapDays.get(r.item_key);
     if (!m) { m = new Map(); s.snapDays.set(r.item_key, m); }
     const x = m.get(day);
     if (x) { x.sum += r.median; x.n++; } else m.set(day, { sum: r.median, n: 1 });
   }
 
+  // ab Manager 0.35.0 (Reichweite F60): Menge im Angebot je Tag aus dem letzten Stand des Tages
+  noteQty(s, key, day, t, qty) {
+    if (qty == null) return;
+    let m = s.qtyDays.get(key);
+    if (!m) { m = new Map(); s.qtyDays.set(key, m); }
+    const x = m.get(day);
+    if (!x || t >= x.t) m.set(day, { t, qty });
+  }
+
+  // Map key -> Map tag -> Menge im Angebot (letzter Stand des Tages)
+  dayQty(mid, now, span) {
+    const s = this.of(mid, now);
+    const from = s.today - span;
+    const out = new Map();
+    for (const [k, m] of s.qtyDays) {
+      const d = new Map();
+      for (const [day, x] of m) if (day > from && day <= s.today) d.set(day, x.qty);
+      if (d.size) out.set(k, d);
+    }
+    return out;
+  }
+
   build(mid, today, c) {
     this.builds++;
-    const s = { today, rowid: 0, snapRows: c.snap, hourRows: c.hour, seen: new Map(), counts: new Map(), snapDays: new Map(), hourDays: new Map() };
+    const s = { today, rowid: 0, snapRows: c.snap, hourRows: c.hour, seen: new Map(), counts: new Map(), snapDays: new Map(), hourDays: new Map(), qtyDays: new Map() };
     s.rowid = Number(this.db.prepare('SELECT COALESCE(MAX(rowid), 0) AS r FROM snapshots WHERE market_id = ?').get(mid).r);
     for (const r of this.db.prepare('SELECT item_key, t, source, min, median, qty, auctions FROM item_snap WHERE market_id = ?').iterate(mid)) this.addRow(s, r);
     // Stundenwerte (aus dem Verdichten): fuer den Bereich gewichtet (n), fuer die Liste je Stunde einmal, wie in den Abfragen
-    for (const r of this.db.prepare("SELECT item_key, t, median, n FROM item_hour WHERE market_id = ? AND source = 'scan' AND t >= ?").iterate(mid, (today - KEEP_DAYS) * 86400)) {
+    for (const r of this.db.prepare("SELECT item_key, t, median, n, qty FROM item_hour WHERE market_id = ? AND source = 'scan' AND t >= ?").iterate(mid, (today - KEEP_DAYS) * 86400)) {
       if (r.median == null) continue;
       const day = dayOf(r.t);
+      this.noteQty(s, r.item_key, day, r.t, r.qty);
       let m = s.hourDays.get(r.item_key);
       if (!m) { m = new Map(); s.hourDays.set(r.item_key, m); }
       const x = m.get(day) || { wsum: 0, w: 0, sum: 0, n: 0 };

@@ -2,6 +2,7 @@
 import { ref, watch, onMounted, computed } from 'vue';
 import { bytes, when } from '../util.js';
 import BlizzardCheck from '../components/BlizzardCheck.vue';
+import ChanceRules from '../components/ChanceRules.vue';
 
 const props = defineProps({ data: Object, settings: Object, stamp: Number, broker: Boolean, now: Number });
 const emit = defineEmits(['save', 'go']);
@@ -187,6 +188,13 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
         </div>
       </div>
       <p class="small muted" v-if="data.pruning" role="status">Der Manager räumt gerade im Hintergrund auf.</p>
+    </section>
+
+    <!-- ab 0.35.0 (Peon_Manager_Chancen.md 7.2): alle Uebersteuerungen je Gegenstand, Regler stehen unter Chancen, Einstellen -->
+    <section class="group" v-if="broker">
+      <h2>Chancen <span class="small muted">(Peon Broker Client)</span></h2>
+      <p class="small muted">Regler, Probe, Prognosen und eigene Ereignisse stehen unter <button class="link" @click="emit('go', 'chances')">Chancen</button>, Reiter Einstellen.</p>
+      <ChanceRules only-overrides :stamp="stamp" />
     </section>
   </div>
 </template>

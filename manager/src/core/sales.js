@@ -9,6 +9,7 @@ const zlib = require('node:zlib');
 const { parseRows, itemKey, unitPrice } = require('./stats');
 const { dayOf } = require('./broker');
 const { tx } = require('./db');
+const proof = require('./proof');
 
 const MIN_GAP = 60;              // Sekunden (wie Broker S.MIN_GAP)
 const MAX_GAP = 24 * 3600;       // Sekunden (wie Broker S.MAX_GAP)
@@ -56,7 +57,8 @@ function endState(o, tA, tB, scan) {
 function compare(A, B, tA, tB, { commodity = false, withIds = false, cap = 0, cancelPct = CANCEL } = {}) {
   let sold = 0, expired = 0, cancelled = 0, value = 0;
   const soldAt = [];   // Preise der Verkaeufe (fuer den hoechsten glaubwuerdigen Verkaufspreis)
-  const hi = (p) => { soldAt.push(p); };
+  const soldList = [];   // ab Manager 0.35.0 jeder Verkauf mit Preis, Stueck und Angebotsnummer (proof.js, D1 und D2)
+  const hi = (p, q, id) => { soldAt.push(p); soldList.push({ p, q, id: id || 0 }); };
   const inCap = (o) => cap === 0 || o.p < cap;
   const used = new Array(B.length).fill(false);
   let gone = [];
@@ -71,7 +73,7 @@ function compare(A, B, tA, tB, { commodity = false, withIds = false, cap = 0, ca
       if (i !== undefined) {
         used[i] = true;
         const b = B[i];
-        if (b.q < a.q) { sold += a.q - b.q; value += (a.q - b.q) * a.p; hi(a.p); }
+        if (b.q < a.q) { sold += a.q - b.q; value += (a.q - b.q) * a.p; hi(a.p, a.q - b.q, a.id); }
         if (b.q > 0) setAnchor(a.p);
       } else gone.push(a);
     }
@@ -90,7 +92,7 @@ function compare(A, B, tA, tB, { commodity = false, withIds = false, cap = 0, ca
         for (let i = 0; i < B.length; i++) if (!used[i] && B[i].p === a.p && B[i].q < a.q) { hit = i; break; }
         if (hit >= 0) {
           used[hit] = true;
-          sold += a.q - B[hit].q; value += (a.q - B[hit].q) * a.p; hi(a.p);
+          sold += a.q - B[hit].q; value += (a.q - B[hit].q) * a.p; hi(a.p, a.q - B[hit].q, 0);
           setAnchor(a.p);
         } else still.push(a);
       }
@@ -110,11 +112,11 @@ function compare(A, B, tA, tB, { commodity = false, withIds = false, cap = 0, ca
           if (newB[j].q === a.q && newB[j].p < a.p) { repost = true; listed -= newB[j].q; newB.splice(j, 1); break; }
         }
         if (repost || (anchor !== null && a.p > anchor)) cancelled += a.q;
-        else { sold += a.q; value += a.q * a.p; hi(a.p); }
+        else { sold += a.q; value += a.q * a.p; hi(a.p, a.q, a.id); }
       } else {
         const c = a.q * cancelPct;
         cancelled += c;
-        sold += a.q - c; value += (a.q - c) * a.p; hi(a.p);
+        sold += a.q - c; value += (a.q - c) * a.p; hi(a.p, a.q - c, a.id);
       }
     }
   }
@@ -122,7 +124,7 @@ function compare(A, B, tA, tB, { commodity = false, withIds = false, cap = 0, ca
   // (zwei Angebote zum gleichen Preis). Fuer den hoechsten Verkaufspreis zaehlen nur Verkaeufe bis zu diesem Angebot.
   let maxSold = null;
   for (const p of soldAt) if ((!commodity || anchor === null || p <= anchor) && (maxSold === null || p > maxSold)) maxSold = p;
-  return { sold, expired, cancelled, listed, value, maxSold };
+  return { sold, expired, cancelled, listed, value, maxSold, soldList };
 }
 
 // Warenart je Gegenstand: Map key -> true/false (Rechenmodell 9.1 WARE)
@@ -157,6 +159,10 @@ function addPair(db, marketId, a, b, src, itemKeyOnly) {
   if (!ra || !rb) return false;
   if (src === 'scan') { learnCommodity(db, ra); learnCommodity(db, rb); }
   const withIds = src !== 'scan';
+  // ab Manager 0.35.0: Staende der Blizzard-API liefern belegte Verkaeufe und Standzeiten (proof.js)
+  const keep = src === 'api';
+  let start = null;
+  if (keep) { proof.noteSeen(db, marketId, ra, a.t); start = proof.startOf(db, marketId); proof.noteSeen(db, marketId, rb, b.t); }
   const A = offersByItem(ra, a.t), B = offersByItem(rb, b.t);
   const keys = itemKeyOnly ? [itemKeyOnly] : [...new Set([...A.keys(), ...B.keys()])];
   const comm = commodityOf(db, keys);
@@ -178,6 +184,7 @@ function addPair(db, marketId, a, b, src, itemKeyOnly) {
     const commodity = src === 'live' && a.commodity != null ? !!a.commodity : (comm.get(k) || false);
     const r = compare(la, lb, a.t, b.t, { commodity, withIds, cap });
     ins.run(pid, marketId, k, day, b.t, secs, r.sold, r.expired, r.cancelled, r.listed, r.value, r.maxSold);
+    if (keep) proof.record(db, marketId, k, day, r.soldList, a.t, b.t, start);
   }
   return true;
 }

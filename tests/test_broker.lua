@@ -3686,7 +3686,7 @@ end)()
     if c.row[2] == "radarVendorOn" then vendor = c end
     if c.row[2] == "radarSpecOn" then spec = c end
   end
-  check(f:IsShown() and vendor and spec and spec.frame.disabled, "0.71: Radar-Einstellungen mit Haendler, Aufkauf, Spekulation (grau)")
+  check(f:IsShown() and vendor and spec and not spec.frame.disabled, "0.71: Radar-Einstellungen mit Haendler, Aufkauf, ab 0.93 Spekulation (an)")
   vendor.frame:SetChecked(false)
   vendor.frame.scripts.OnClick(vendor.frame)
   check(S.Get("radar", "radarVendorOn") == false and mod.db.radarVendorOn ~= false, "0.74: Haken aendert erst den Entwurf")
@@ -4190,6 +4190,44 @@ end)()
   local r2 = Ra.Add(2770, "Kupfererz", "good", "")
   check(r2.radar == nil and r2.note == nil and Ra.Last(2770) == r2, "0.91: ohne Vorschlag, leere Bemerkung")
   PeonBrokerDB.ratings = nil
+end)()
+
+-- ===== 0.93: Kandidaten vom Peon Manager (Spec.lua, Peon_Manager_Chancen.md 9.2) =====
+;(function()
+  local Sp, R, D = ns.Spec, ns.Radar, ns.Data
+  local x = Sp.Parse("s:500:900:" .. (time() + 3600) .. ":1200:2:3")
+  check(x and x.mk == "s" and x.limit == 500 and x.target == 900 and x.gain == 1200 and x.risk == "high" and x.qty == 3, "0.93: Eintrag des Managers gelesen")
+  check(Sp.Parse("x:1:2:3:4:0") == nil and Sp.Parse("s:1:2:3:4:0").qty == nil, "0.93: falsche Art abgelehnt, Menge darf fehlen")
+  local fake = { Chances = function(self, market)
+    return 1000, { ["2770"] = "s:500:900:" .. (time() + 3600) .. ":1200:1", ["2771"] = "s:500:900:" .. (time() - 10) .. ":1200:1", ["2772"] = "b:10:12:" .. (time() + 3600) .. ":5000:0" },
+      { ["2770"] = "Liegt 40 % unter dem, wofuer er zuletzt verkauft wurde." }
+  end }
+  local orig = Peon.GetModule
+  Peon.GetModule = function(self, k) if k == "bridge" then return fake end return orig(self, k) end
+  Sp.cache = nil
+  local all = Sp.All()
+  check(all[2770] and all[2770].say and all[2771] == nil and all[2772], "0.93: abgelaufene Eintraege ignoriert")
+  check(R.KIND_ON.spec == true, "0.93: Art Spekulation an")
+  local rows = { { price = 400, qty = 1 }, { price = 480, qty = 1 }, { price = 800, qty = 2 } }
+  local d = Sp.Find(nil, rows, 2770)
+  check(d and d.kind == "spec" and d.qty == 2 and d.limit == 480 and d.ref == 900 and d.gain == math.floor(math.floor(900 * (1 - D.Cut())) * 2 - 880), "0.93: Spekulation aus den Preisstufen")
+  check(Sp.Find(nil, { { price = 600, qty = 1 } }, 2770) == nil, "0.93: nichts bis Kaufen bis: weg")
+  check(Sp.Find(nil, rows, 2772) == nil, "0.93: Aufkauf prueft Broker selbst")
+  local keys = R.SearchKeys("mgr")
+  local modes = {}
+  for _, m in ipairs(R.MODES()) do modes[m[1]] = true end
+  check(modes.mgr and type(keys) == "table", "0.93: Radar-Scan Vom Manager")
+  local txt = Sp.FocusText(2770)
+  check(txt and txt:find("Liegt 40 %%") and txt:find("Vom Manager"), "0.93: Satz und Stand im Fokus")
+  local snapRadar = R.entries[2770]
+  R.entries[2770] = { kind = "spec", mk = "s", gain = 1, qty = 1 }
+  local r = ns.Rating.Add(2770, "Kupfererz", "good", "")
+  check(r.kind == "s" and r.say and r.say:find("Liegt"), "0.93: Einschaetzung mit Art und Satz")
+  R.entries[2770] = snapRadar
+  PeonBrokerDB.ratings = nil
+  Peon.GetModule = orig
+  Sp.cache = nil
+  check(ns.Calendar and ns.Calendar.Time({ year = 2026, month = 11, monthDay = 20, hour = 10, minute = 0 }) == time({ year = 2026, month = 11, day = 20, hour = 10, min = 0, sec = 0 }), "0.93: Zeit aus dem Kalender")
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

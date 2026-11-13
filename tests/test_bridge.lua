@@ -670,6 +670,15 @@ do
   local t, src, items = mod:Current(nsb.MarketKey())
   check(t == T and src == "api" and items[90001] == "80:95:30:6", "0.7.0: Stand des Managers mit Zeit und Herkunft")
   check(mod:Current("Anderer / Horde") == nil, "0.7.0: fremder Markt leer")
+  -- 0.11.0 (Peon_Manager_Chancen.md 9.1): Kandidatenliste fuer Brokers Radar
+  check(mod:Chances(nsb.MarketKey()) == nil, "0.11.0: ohne Liste keine Kandidaten")
+  PeonBridgeData.markets[nsb.MarketKey()].chances = { t = T, list = { [90001] = "s:80:120:" .. (T + 3600) .. ":40:1:1" }, say = { [90001] = "Satz" } }
+  local ct, cl, cs = mod:Chances(nsb.MarketKey())
+  check(ct == T and cl[90001] and cs[90001] == "Satz", "0.11.0: Kandidaten mit Zeit und Satz")
+  PeonBridgeData.channels.broker = false
+  check(mod:Chances(nsb.MarketKey()) == nil, "0.11.0: ohne Freischaltung keine Kandidaten")
+  PeonBridgeData.channels.broker = true
+  PeonBridgeData.markets[nsb.MarketKey()].chances = nil
   check(D.ApplyManager() == 3, "0.36: drei Gegenstaende neu (einer hat eine neuere Live-Abfrage)")
   local e1 = mk.items[90001]
   check(e1.m == 80 and e1.md == 95 and e1.q == 30 and e1.n == 6 and e1.lt == T, "0.36: aktueller Stand vom Manager")

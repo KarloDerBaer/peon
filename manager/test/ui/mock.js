@@ -44,8 +44,8 @@ svc.broker.importGame();
     item[key] = {};
     for (const r of ['1d', '7d', '30d', '90d', 'all']) item[key][r] = svc.broker.itemDetail(M, key, r);
   }
-  const chances = {};
-  for (const d of [1, 3, 7, 14]) chances[d] = svc.broker.chances(M, d);
+  // ab 0.35.0: Seite Chancen und Marktuebersicht
+  const chances = { view: svc.broker.chanceView(M), market: svc.broker.marketOverview(M), success: svc.broker.successView(M), rules: svc.broker.chanceRules() };
   const retention = {};
   for (const d of [7, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365, 0]) retention[d] = svc.broker.retention(d);
   process.stdout.write(JSON.stringify({ overview: ov, settings: st, now, items, item, retention, chances }));

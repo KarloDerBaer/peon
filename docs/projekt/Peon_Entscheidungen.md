@@ -2,6 +2,21 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 13.11.2026: Chancen und Prognosen im Manager (Konzept `Peon_Manager_Chancen.md`, freigegeben)
+
+- **Konzept freigegeben**, Bau aller Abschnitte in einem Zug (KarloDerBaer).
+- **Startwerte wie im Konzept** (KarloDerBaer): Über die Regler mit Probe lassen sie sich später anpassen.
+- **Wiederverkauf sofort abgelöst** (KarloDerBaer): Spekulation schnell rechnet dasselbe mit belegten Verkaufspreisen. Bis genug Verkäufe gesammelt sind, gibt es dafür kaum Vorschläge. Die Trefferquote F55 geht in der Erfolgskontrolle auf.
+- **Fallend, Steigend und Lohnend in die Marktübersicht, Radar (WIP) wird zu Chancen** (KarloDerBaer, Vorschlag Claude): Chancen zeigt nur Kaufvorschläge, die Marktübersicht alles Beschreibende.
+- **Feste liest Peon_Broker** (KarloDerBaer): Broker kann sie so auch selbst nutzen, die Bridge reicht sie an den Manager weiter. Für den Dunkelmond-Jahrmarkt schaltet Broker `calendarShowDarkmoon` kurz ein und zurück wie Questie (KarloDerBaer, Vorschlag Claude).
+- **Probe mit Rückmeldungen** (KarloDerBaer, Vorschlag Claude): Die Probe beim Verschieben eines Reglers nennt auch, wie viele der betroffenen Vorschläge bewertet wurden.
+- **Übergabe an Broker (K6) vor den Prognosen (K7)** (KarloDerBaer, Vorschlag Claude): K1 bis K6 ergeben die erste nutzbare Fassung.
+- **Beim Bau (Claude):** Der Manager liest Feste und Einschätzungen direkt aus `Peon_Broker.lua`, wie schon Händler, Einkaufslisten und Beobachtung. Die Bridge gibt nur die Kandidaten an Broker. Ein eigener Rückweg über die Bridge hätte nichts gebracht.
+- **Beim Bau (Claude):** Die Kandidatenliste bekommt als siebtes Feld die Menge, damit Broker Einsatz und Gewinn zeigen kann, bevor er live prüft. Das Format ist damit nur erweitert.
+- **Beim Bau (Claude):** Neben jedem Vorschlag speichert der Manager auch Beinahe-Vorschläge (halber Abstand erreicht). Nur so kann die Probe sagen, was mit lockereren Reglern dazukäme.
+- **Beim Bau (Claude):** Neue Signale (unter 20 Nachprüfungen) ergeben höchstens eine Prognose mit niedriger Sicherheit. Spekulation langfristig braucht mittlere Sicherheit und erscheint deshalb erst, wenn sich Signale bewährt haben.
+- **Beim Bau (Claude):** Die benötigte Stufe holt der Manager in Minuten ohne Abruf der Auktionshäuser, etwa 100 Gegenstände je Minute. Der Stufenbereich-Index ist so nach einigen Stunden vollständig.
+
 ## 13.11.2026: Wünsche aus den Fehlerberichten (Broker 0.91, Ledger 0.14.8, Peon 0.20.1)
 
 - **Kaufen im Fokus mit einem Klick, außer bei Preiswarnung** (KarloDerBaer, Vorschlag Claude): Das Spiel verlangt den echten Klick nur für den Start des Kaufs, die Bestätigung darf Broker selbst senden. Ist der Gesamtpreis höher als erwartet, bleibt der zweite Klick als Schutz.

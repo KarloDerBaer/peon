@@ -1,6 +1,6 @@
 # Peon Manager: Konzept Chancen und Prognosen
 
-Stand: 13.11.2026, **Entwurf, noch nicht freigegeben.** Ausgearbeitet von Claude aus den Vorgaben von KarloDerBaer vom 13.11.2026. Das Konzept ist Teil 2 (Chancen im Manager) und Teil 3 (Daten für Broker) der Angleichung (`Peon_Manager_Angleichung.md`, Abschnitt 10). Ausgangsversionen Manager 0.33.0, Broker 0.92.0, Bridge 0.10.0.
+Stand: 13.11.2026, **freigegeben von KarloDerBaer am 13.11.2026** (Abstimmung in Abschnitt 13). Ausgearbeitet von Claude aus den Vorgaben von KarloDerBaer vom 13.11.2026. Das Konzept ist Teil 2 (Chancen im Manager) und Teil 3 (Daten für Broker) der Angleichung (`Peon_Manager_Angleichung.md`, Abschnitt 10). Ausgangsversionen Manager 0.33.0, Broker 0.92.0, Bridge 0.10.0.
 
 ## 1. Ausgangslage
 
@@ -110,7 +110,7 @@ Wie F51. Neu wird jede Zeile mit der Haltbarkeit (F58) bewertet. Ist sie unter e
 
 ### 4.6 Bestehende Arten
 
-Wiederverkauf (F50) wird von der schnellen Spekulation abgelöst, weil sie dasselbe mit belegten Preisen rechnet. Fallend, Steigend und Lohnend ziehen in die Marktübersicht (Abschnitt 8). **Nichts davon fällt ohne Zustimmung weg** (Abschnitt 11).
+Wiederverkauf (F50) wird von der schnellen Spekulation **sofort** abgelöst, weil sie dasselbe mit belegten Preisen rechnet (KarloDerBaer, 13.11.2026). Anfangs gibt es deshalb kaum Spekulation, bis genug Verkäufe belegt sind. Fallend, Steigend und Lohnend ziehen in die Marktübersicht (Abschnitt 8).
 
 ## 5. Prognosen
 
@@ -143,8 +143,8 @@ Mittel der Preise und des Absatzes je Wochentag und je 3-Stunden-Abschnitt über
 
 Questie zeigt den Dunkelmond-Jahrmarkt, indem es den Kalender des Spiels liest (`C_Calendar.GetNumDayEvents`, `C_Calendar.GetHolidayInfo`). Für den Jahrmarkt muss dabei die Einstellung `calendarShowDarkmoon` an sein. Questie schaltet sie kurz ein und danach zurück. Ohne Kalender rechnet Questie mit einer Regel nach dem Datum.
 
-- Ein Peon-Modul (Vorschlag: Peon_Bridge, weil sie ohnehin an den Manager liefert) liest beim Anmelden die Feste der nächsten 6 Wochen mit Name, Beginn und Ende und gibt sie an den Manager.
-- Ob wir die Einstellung wie Questie kurz umschalten oder die Datumsregel nutzen, klärt Prüfung P2.
+- **Peon_Broker** liest beim Anmelden die Feste der nächsten 6 Wochen mit Name, Beginn und Ende (KarloDerBaer, 13.11.2026). Die Bridge reicht sie an den Manager weiter.
+- Für den Jahrmarkt schaltet Broker `calendarShowDarkmoon` wie Questie kurz ein und danach auf den alten Wert zurück. Prüfung P2 vergleicht beides.
 - Dazu kann KarloDerBaer eigene Ereignisse von Hand eintragen, zum Beispiel eine neue Inhaltsphase.
 
 | Nr. | Ergebnis | Formel |
@@ -245,13 +245,13 @@ Die Bridge liefert Einschätzungen (`ratings`) und Feste (D4) an den Manager. K�
 | Nr. | Was | Wie | Entscheidet |
 |---|---|---|---|
 | P1 | Haltbarkeit | D2 eine Woche lang mitschreiben, ohne Anzeige. Ergebnis: Anteil der Chancen, die länger als 1 Std. stehen. | Wie viel Spekulation im Manager sinnvoll ist und wie viel nur als Kandidat an den Radar geht |
-| P2 | Kalender im Spiel | Prüfbefehl in der Bridge: Feste der nächsten 6 Wochen ausgeben, einmal mit und einmal ohne `calendarShowDarkmoon`. | Ob der Kalender in Forever vollständig ist und ob wir die Einstellung kurz umschalten |
+| P2 | Kalender im Spiel | Prüfbefehl in Broker: Feste der nächsten 6 Wochen ausgeben, einmal mit und einmal ohne `calendarShowDarkmoon`. | Ob der Kalender in Forever vollständig ist und ob wir die Einstellung kurz umschalten |
 | P3 | Profil-API | Prüfabruf unter `profile-forever-eu` mit einem echten Charakter von KarloDerBaer, Ergebnis nur lokal, Name nie im Repo. | Ob es Profildaten gibt |
 | P4 | `/who` | Prüfbefehl: eine Abfrage je Stufenbereich, prüfen ob das Spiel einen Klick je Abfrage verlangt und wie viele Treffer kommen. | Ob eine Zählung ohne Störung beim Spielen möglich ist |
 
-## 11. Was wegfällt oder sich ändert (Vorschlag, nichts ohne Zustimmung)
+## 11. Was wegfällt oder sich ändert (Zustimmung KarloDerBaer 13.11.2026)
 
-- Reiter Wiederverkauf geht in Spekulation schnell auf.
+- Reiter Wiederverkauf geht sofort in Spekulation schnell auf.
 - Reiter Fallend, Steigend und Lohnend ziehen in die Marktübersicht.
 - Trefferquote F55 geht in der Erfolgskontrolle auf.
 - Seite Radar (WIP) wird zu Chancen.
@@ -267,10 +267,10 @@ Die Bridge liefert Einschätzungen (`ratings`) und Feste (D4) an den Manager. K�
 | K5 | Korrigieren: Rückmeldung, Übersteuerung je Gegenstand, Regler mit Probe, Einlesen der Einschätzungen aus Broker | Manager |
 | K6 | Übergabe an Broker: Kandidatenliste, Art Spekulation im Radar, Auswahl „Vom Manager“ | Manager, Bridge, Broker |
 | K7 | D3 und Prognosen Reichweite und Stufenbereich, Marktübersicht | Manager |
-| K8 | Feste aus dem Spiel (D4, F65), Wochenrhythmus, Spekulation langfristig | Bridge, Manager, Broker |
+| K8 | Feste aus dem Spiel (D4, F65, gelesen in Broker), Wochenrhythmus, Spekulation langfristig | Broker, Bridge, Manager |
 | K9 | Erfolgskontrolle mit Ledger | Manager |
 
-K1 zuerst, weil die übrigen Abschnitte die neuen Daten brauchen. K3 bis K6 ergeben die erste nutzbare Fassung.
+K1 zuerst, weil die übrigen Abschnitte die neuen Daten brauchen. K3 bis K6 ergeben die erste nutzbare Fassung. K6 kommt vor K7 (KarloDerBaer, 13.11.2026). Gebaut wird alles in einem Zug, die Prüfungen P1 bis P4 laufen danach mit den eingebauten Befehlen.
 
 ## 13. Abstimmung mit KarloDerBaer
 
@@ -284,11 +284,14 @@ K1 zuerst, weil die übrigen Abschnitte die neuen Daten brauchen. K3 bis K6 erge
 6. Vorschläge müssen sich korrigieren lassen, über Rückmeldung zur Auswertung und über direkte Regler. Alles übersichtlich und leicht verständlich.
 7. Empfehlung von Claude, von KarloDerBaer gutgeheißen: Spekulation über belegte Verkäufe und Haltbarkeit als Kern, eine Liste für alle Arten mit Steckbrief, Übergabe als Kandidatenliste, Prognosen zuerst über Reichweite und Stufenbereich.
 
+8. **Freigabe** des Konzepts.
+9. **Startwerte** wie in Abschnitt 4 und 5.
+10. **Wiederverkauf sofort abgelöst**, ohne Übergang. Trefferquote F55 geht in der Erfolgskontrolle auf.
+11. **Fallend, Steigend und Lohnend** ziehen in die Marktübersicht, die Seite Radar (WIP) wird durch Chancen ersetzt.
+12. **Feste liest Peon_Broker**, für den Jahrmarkt mit kurzem Umschalten von `calendarShowDarkmoon` wie Questie. Die Bridge reicht sie weiter.
+13. **Die Probe bezieht die Rückmeldungen ein** („davon hattest du 3 als Scherzpreis markiert“).
+14. **K6 vor K7.**
+
 ### Offen
 
-- Freigabe des Konzepts.
-- Startwerte in Abschnitt 4 und 5.
-- Einverstanden mit dem Wegfall und den Umzügen in Abschnitt 11?
-- Gehört das Lesen der Feste in die Bridge oder in Broker?
-- Soll die Probe (7.3) auch die Rückmeldungen einbeziehen, zum Beispiel „davon hattest du 3 als Scherzpreis markiert“?
-- Reihenfolge der Bauabschnitte, besonders ob die Übergabe an Broker (K6) vor den Prognosen (K7) kommen soll.
+- Ergebnisse der Prüfungen P1 bis P4.

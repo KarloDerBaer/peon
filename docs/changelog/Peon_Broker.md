@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.93.0
+
+Kurz: Das Radar hat die neue Art Spekulation mit Kaufkandidaten aus dem Peon Manager. Erneuern prüft sie live wie jede andere Zeile.
+Kurz: Der Radar-Scan kann zuerst alle Kandidaten vom Manager abfragen (Auswahl „Vom Manager“).
+Kurz: Broker liest beim Anmelden die Feste der nächsten Wochen aus dem Kalender und gibt sie an den Manager.
+
+- 0.93.0 (13.11.2026): Chancen und Prognosen, Bauabschnitte K6 und K8 (Konzept `docs/konzepte/manager/Peon_Manager_Chancen.md` 5.4 und 9.2). Braucht Bridge 0.11 und Manager 0.35.
+  - **Neue Datei `Spec.lua`:** liest die Kandidaten des Managers über `bridge:Chances` (`Sp.All`, abgelaufene fallen weg). Spekulation schnell und langfristig werden im Radar zur Art **Spekulation** (`radarSpecOn`, Vorgabe an, in den Einstellungen des Radars nicht mehr grau). Aus den Preisstufen gilt: kaufen bis Kaufen bis, verkaufen zum Zielpreis (`Sp.Find`). Ohne eigene Preisstufen stehen die Werte des Managers in der Liste, bis Erneuern live prüft. Was live nicht mehr stimmt, wird „weg“ wie bisher.
+  - **Radar-Scan „Vom Manager“** (`radarScanMode = "mgr"`): zuerst alle Kandidaten des Managers nach Gewinn (auch Aufkauf und Händler), danach die Massenware.
+  - **Fokus:** Bei einer Chance vom Manager stehen dessen Satz und „Vom Manager, Stand vor X Std.“ unter dem Urteil, bei Spekulation dazu Risiko und Zielpreis.
+  - **Einschätzungen** speichern Art (`kind`: s, l, b, v) und Satz (`say`) mit, damit der Manager sie zuordnen kann.
+  - **Neue Datei `Calendar.lua`:** liest beim Anmelden die Feste der nächsten 6 Wochen (`C_Calendar.GetDayEvent`, nur Feste) und speichert sie in `PeonBrokerDB.feste`. Für den Dunkelmond-Jahrmarkt wird `calendarShowDarkmoon` kurz eingeschaltet und zurückgestellt. Prüfung P2: `/broker pruefen kalender` liest mit und ohne Jahrmarkt und nennt beides im Chat (`PeonBrokerDB.calProbe`).
+  - Tests: Eintrag lesen, abgelaufene ignoriert, Spekulation aus Preisstufen, Aufkauf prüft Broker selbst, Auswahl Vom Manager, Satz im Fokus, Einschätzung mit Art und Satz, Zeit aus dem Kalender (`test_broker.lua`).
+  - **Im Spiel prüfen:** Radar zeigt Spekulation mit Werten des Managers, Erneuern prüft sie live. Auswahl „Vom Manager“ im Radar-Scan. Fokus mit Satz und Alter. `/broker pruefen kalender`: kommen Feste, kommt der Jahrmarkt nur mit der Einstellung? Steht die Einstellung danach wieder wie vorher?
+
 ## 0.92.0
 
 Kurz: In der Liste Beobachten steht hinter Kaufen bis und hinter Zielpreis je ein Lautsprecher-Symbol. Ein Klick schaltet die Warnung für diese Grenze je Gegenstand an und aus.

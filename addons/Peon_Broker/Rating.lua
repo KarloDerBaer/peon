@@ -7,7 +7,8 @@
 --
 -- Speicher (accountweit): PeonBrokerDB.ratings = { { key, name, t, market, rate ("bad", "mid", "good"), note,
 --   data = { m, md, q, n, t } (Preisdaten des Markts), radar = { kind, qty, cost, gain, ref, limit, ... } oder nil,
---   radarGone = Grund oder nil (Vorschlag eben weggefallen), focus = true (stand im Fokus) } }, hoechstens Ra.MAX.
+--   radarGone = Grund oder nil (Vorschlag eben weggefallen), focus = true (stand im Fokus),
+--   ab 0.93 kind (s, l, b, v) und say (Satz des Managers) } }, hoechstens Ra.MAX.
 -- Die Auswertung im Peon Manager kommt spaeter (KarloDerBaer, 13.11.2026).
 
 local ADDON_NAME, ns = ...
@@ -79,6 +80,16 @@ function Ra.Add(key, name, rate, note)
     local entry = { key = key, name = name, t = time and time() or 0, market = ns.MarketKey and ns.MarketKey() or nil,
                     rate = rate, note = note, data = snap.data, radar = snap.radar, radarGone = snap.radarGone,
                     focus = snap.focus }
+    -- ab 0.93 (Peon_Manager_Chancen.md 9.2): Art und Satz mitspeichern, damit der Manager die Einschaetzung zuordnen kann
+    local r = snap.radar
+    if type(r) == "table" then
+        entry.kind = r.kind == "spec" and (r.mk or "s") or r.kind == "buyout" and "b" or r.kind == "vendor" and "v" or nil
+    end
+    local m = ns.Spec and ns.Spec.Get(key)
+    if m then
+        entry.kind = entry.kind or m.mk
+        entry.say = m.say
+    end
     list[#list + 1] = entry
     while #list > Ra.MAX do table.remove(list, 1) end
     return entry

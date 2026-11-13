@@ -7,10 +7,11 @@ import Sales from '../components/Sales.vue';
 import ItemTip from '../components/ItemTip.vue';
 import Star from '../components/Star.vue';
 import ShopButton from '../components/ShopButton.vue';
+import WhyNot from '../components/WhyNot.vue';
 import { ago, when, num, perDay, qualityColor, itemName, pl, verdict } from '../util.js';
 
 const props = defineProps({ market: Object, itemKey: String, now: Number, theme: String, stamp: Number });
-const emit = defineEmits(['loaded', 'go']);
+const emit = defineEmits(['loaded', 'go', 'brief']);
 const api = window.peon;
 const range = ref('30d');
 const tab = ref('offers');
@@ -85,7 +86,7 @@ const levelsTop = computed(() => (d.value && d.value.levels ? d.value.levels.lis
     <div class="title">
       <h1 :style="{ color: qualityColor(d.quality) }">{{ itemName(d) }}</h1>
       <Star :item-key="itemKey" :size="24" />
-      <div class="actions"><ShopButton :item-key="itemKey" :stamp="stamp" @go="emit('go', $event)" /></div>
+      <div class="actions"><button @click="emit('brief', itemKey)" title="Diagramm mit echten Verkäufen, Rechenweg, Haltbarkeit, Prognose">Steckbrief</button><ShopButton :item-key="itemKey" :stamp="stamp" @go="emit('go', $event)" /></div>
     </div>
 
     <div class="main">
@@ -112,6 +113,11 @@ const levelsTop = computed(() => (d.value && d.value.levels ? d.value.levels.lis
           <span v-for="o in d.others" :key="o.market" class="other">{{ o.label }} ab <Gold :copper="o.min" compact /> <span class="muted">({{ pl(o.qty, 'Stück', 'Stück') }})</span></span>
         </p>
 
+        <!-- ab 0.35.0 (Peon_Manager_Chancen.md 6.2): warum (nicht) vorgeschlagen, mit Uebersteuerung je Gegenstand -->
+        <details class="block why" v-if="market">
+          <summary>Chancen: Warum (nicht)?</summary>
+          <WhyNot :market="market.key" :item-key="itemKey" :stamp="stamp" @brief="emit('brief', $event)" />
+        </details>
         <section class="block">
           <div class="block-head">
             <h2>Verlauf</h2>
@@ -224,4 +230,6 @@ dd { margin: 0; font-size: 16px; font-weight: 500; }
 .tbl td { padding: 5px 8px; border-bottom: 1px solid var(--line-soft); }
 .num { text-align: right; }
 @media (max-width: 1100px) { .cols { grid-template-columns: 1fr; } .main { grid-template-columns: minmax(0, 1fr); } }
+.why summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
+.actions { display: flex; gap: 8px; }
 </style>

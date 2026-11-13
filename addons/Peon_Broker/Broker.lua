@@ -66,6 +66,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         focusPriceTol = 1,      -- Fokus (ab 0.70): Warnung, wenn der Gesamtpreis so viel % ueber dem erwarteten liegt
         radarVendorOn = true,   -- Radar (ab 0.71): Art Haendler zeigen
         radarBuyoutOn = true,   -- Radar (ab 0.71): Art Aufkauf zeigen
+        radarSpecOn = true,     -- Radar (ab 0.93): Art Spekulation zeigen (Kandidaten vom Peon Manager, Spec.lua)
         buyoutMinQty = 500,     -- Aufkauf (ab 0.71): Massenware erst ab so vielen Stueck im Angebot (bis 0.82 200)
         buyoutMinLevels = 4,    -- Aufkauf (ab 0.71): und so vielen Preisstufen (bis 0.82 5)
         buyoutMinSales = 270,   -- (bis 0.82 50)
@@ -111,7 +112,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
     choices  = { undercutMode = { copper = true, percent = true }, undercutMassMode = { copper = true, percent = true },
                  duration = { [2] = true, [8] = true, [24] = true },
                  radarKind = { both = true, vendor = true, market = true },
-                 radarScanMode = { watch = true, mass = true, all = true },
+                 radarScanMode = { watch = true, mass = true, all = true, mgr = true },
                  craftListWhich = { all = true, profit = true, top3 = true, top5 = true, top10 = true },
                  craftListMode = { money = true, pct = true },
                  radarSoundKey = { raid = true, ready = true, alarm = true, tell = true },
@@ -141,6 +142,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
             elseif r == "ah" then ns.AHTabs.Probe()
             elseif r == "zeit" or r == "time" then ns.Radar.PerfReport()   -- ab 0.69
             elseif r == "fehler" or r == "errors" then ns.Radar.ErrorReport()   -- ab 0.74
+            elseif r == "kalender" or r == "calendar" then ns.Calendar.Probe()   -- ab 0.93, Pruefung P2
             else ns.Probe.Run() end
         elseif cmd == "pur" or cmd == "blizzard" then
             -- ab 0.41: "Blizzard pur" an oder aus (laedt neu, darum mit Rueckfrage)
