@@ -242,7 +242,7 @@ onMounted(() => {
       </header>
 
       <div class="page" ref="pageEl" v-if="data && settings">
-        <KeepAlive :include="['Overview', 'Items', 'Chances', 'Shopping']">
+        <KeepAlive :include="['Overview', 'Items', 'Chances', 'Shopping', 'Watch']">
           <Overview v-if="view === 'overview'" :data="data" :market="current" :now="now" :theme="settings.theme" :stamp="stampOf('overview')" :settings="settings" @go="go($event)" @open="openItem" @save="saveSettings" />
           <section v-else-if="wipPage" class="wip">
             <h1>{{ wipPage.label }}</h1>

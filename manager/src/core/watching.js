@@ -4,6 +4,8 @@
 //   { items: { [Schluessel]: { u, lim, pct, up, t: { buy, up }, name, q, icon } }, gone: { [Schluessel]: u } }
 // lim = Kaufen bis in Kupfer oder pct = Kaufen bis in % unter dem Vergleichspreis (zusammen der Wert "buy"),
 // up = Zielpreis in Kupfer. Abgleich je Wert mit den Regeln aus shopping.js. Ein Eintrag als Zahl (bis 0.29.0) ist nur u.
+// Ab 0.34.0: Ein Eintrag als Zahl kannte keine Grenzen. Seine Werte bekommen die Zeit 0 (BARE_T), damit die Grenzen aus
+// dem Spiel immer gewinnen. Vorher galt u, bei gleicher Zeit wie im Spiel kamen die Grenzen nie im Manager an.
 // Die Regeln muessen gleich bleiben wie Wt.Merge in Watch.lua (Test: umbau2.test.js mit test/lua/watch_compare.lua).
 // m = Eingabe im Manager, die das Spiel noch nicht hat.
 
@@ -15,10 +17,11 @@ const SKIP = new Set(['u', 't', 'm', 'lim', 'pct', 'up', 'hit', 'upHit']);
 
 const num = (v) => Number(v) || 0;
 const empty = () => ({ items: {}, gone: {} });
+const BARE_T = () => ({ buy: 0, up: 0 });   // Werte unbekannt: jede Grenze aus dem Spiel ist neuer
 
-// Eintrag lesbar machen: Zahl = nur u, sonst Kopie (t ebenfalls kopiert)
+// Eintrag lesbar machen: Zahl = nur u (Werte unbekannt), sonst Kopie (t ebenfalls kopiert)
 function entry(v) {
-  if (v === null || typeof v !== 'object') return { u: num(v) };
+  if (v === null || typeof v !== 'object') return { u: num(v), t: BARE_T() };
   const c = { ...v, u: num(v.u) };
   if (v.t && typeof v.t === 'object') c.t = { ...v.t };
   return c;
@@ -46,7 +49,7 @@ function merge(doc, data) {
     const localU = w ? num(w.u) : num(doc.gone[key]);
     if (!w) {
       if (uu > localU || doc.gone[key] === undefined) {
-        doc.items[key] = bare ? { u: uu } : newFrom(inc, SPEC);
+        doc.items[key] = bare ? { u: uu, t: BARE_T() } : newFrom(inc, SPEC);
         delete doc.gone[key];
         changed = true;
       }
@@ -107,12 +110,18 @@ function remove(doc, key, now) {
 }
 
 // Kaufen bis: kind 'abs' (value Kupfer), 'pct' (value % unter dem Vergleichspreis) oder null = keine Grenze
+// Ab 0.34.0: Ein unveraenderter Wert ist keine Aenderung (vorher bekam er trotzdem eine neue Zeit und konnte im Spiel
+// eine Grenze loeschen, die der Manager nicht kannte)
 function setBuy(doc, key, kind, value, now) {
   const w = doc.items[String(key)];
   if (!w) return false;
+  let lim = null, pct = null;
+  if (kind === 'pct' && value !== null && value !== '' && Number.isFinite(Number(value))) pct = Number(value);
+  else if (kind === 'abs' && Number(value) > 0) lim = Math.floor(Number(value));
+  if ((w.lim ?? null) === lim && (w.pct ?? null) === pct) return false;
   delete w.lim; delete w.pct;
-  if (kind === 'pct' && Number.isFinite(Number(value))) w.pct = Number(value);
-  else if (kind === 'abs' && Number(value) > 0) w.lim = Math.floor(Number(value));
+  if (lim !== null) w.lim = lim;
+  if (pct !== null) w.pct = pct;
   stamp(w, SPEC, 'buy', now);
   w.m = 1;
   return true;
@@ -122,11 +131,13 @@ function setBuy(doc, key, kind, value, now) {
 function setUp(doc, key, value, now) {
   const w = doc.items[String(key)];
   if (!w) return false;
+  const up = Number(value) > 0 ? Math.floor(Number(value)) : null;
+  if ((w.up ?? null) === up) return false;   // ab 0.34.0: unveraendert ist keine Aenderung
   delete w.up;
-  if (Number(value) > 0) w.up = Math.floor(Number(value));
+  if (up !== null) w.up = up;
   stamp(w, SPEC, 'up', now);
   w.m = 1;
   return true;
 }
 
-module.exports = { empty, clean, merge, purge, forGame, add, remove, setBuy, setUp, SPEC, GONE_DAYS };
+module.exports = { empty, clean, merge, purge, forGame, add, remove, setBuy, setUp, SPEC, GONE_DAYS, BARE_T };

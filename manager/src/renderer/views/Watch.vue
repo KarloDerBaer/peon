@@ -5,6 +5,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import Gold from '../components/Gold.vue';
 import SyncPanel from '../components/SyncPanel.vue';
+import MoneyInput from '../components/MoneyInput.vue';
 import { ago, when, fold, qualityColor, itemName } from '../util.js';
 import { loadFavorites } from '../store.js';
 
@@ -41,14 +42,13 @@ watch(() => props.focus, async (f) => {
 const acctLabel = (a) => a.name || a.folder || a.id;
 async function selectAcct(id) { await api.accountSelect(id); await load(); }
 
-// Eingaben: Gold als Zahl (Komma oder Punkt), Prozent als ganze Zahl
-const toCopper = (v) => { const g = parseFloat(String(v).replace(',', '.')); return g > 0 ? Math.round(g * 10000) : null; };
+// Eingaben: Betraege in Kupfer aus MoneyInput (ab 0.34.0 Gold, Silber, Kupfer wie im Spiel), Prozent als ganze Zahl
 const inGold = (c) => (c == null ? '' : String(Math.round(c) / 10000).replace('.', ','));
 
-async function setBuy(r, kind, text) {
-  if (String(text).trim() === '') await api.watchSetBuy(r.key, null, null);
-  else if (kind === 'pct') { const p = Math.round(parseFloat(String(text).replace(',', '.'))); await api.watchSetBuy(r.key, Number.isFinite(p) ? 'pct' : null, Number.isFinite(p) ? Math.max(0, Math.min(90, p)) : null); }
-  else { const c = toCopper(text); await api.watchSetBuy(r.key, c ? 'abs' : null, c); }
+async function setBuyAbs(r, copper) { await api.watchSetBuy(r.key, copper ? 'abs' : null, copper); await load(); }
+async function setBuyPct(r, text) {
+  const p = Math.round(parseFloat(String(text).replace(',', '.')));
+  await api.watchSetBuy(r.key, Number.isFinite(p) ? 'pct' : null, Number.isFinite(p) ? Math.max(0, Math.min(90, p)) : null);
   await load();
 }
 async function setKind(r, kind) {
@@ -61,7 +61,7 @@ async function setKind(r, kind) {
   }
   await load();
 }
-async function setUp(r, text) { await api.watchSetUp(r.key, toCopper(text)); await load(); }
+async function setUp(r, copper) { await api.watchSetUp(r.key, copper); await load(); }
 async function bell(r, which) { await api.watchSetBell(r.key, which, !r.bells[which]); await load(); }
 async function remove(r) { await api.setFavorite(r.key, false); await loadFavorites(); await load(); }
 
@@ -133,24 +133,26 @@ const bandTip = (b) => (b ? `Üblich ${Math.round(b.low / 100) / 100} bis ${Math
           <td class="num" :title="view.lastScan ? `Stand ${when(view.lastScan)}, ${ago(view.lastScan, now)}` : 'Noch kein Stand'"><Gold :copper="r.price" compact /></td>
           <td class="num">
             <span class="buy-in">
-              <input type="text" :inputmode="r.buy && r.buy.pct != null ? 'numeric' : 'decimal'" :value="r.buy ? (r.buy.pct != null ? r.buy.pct : inGold(r.buy.lim)) : ''" placeholder="–"
-                :title="r.buy && r.buy.pct != null ? (r.buyLimit != null ? `Das sind gerade ${inGold(r.buyLimit)} Gold` : 'Noch kein üblicher Preis') : 'In Gold'"
-                :aria-label="`Kaufen bis für ${r.name || r.key}`" @change="setBuy(r, r.buy && r.buy.pct != null ? 'pct' : 'abs', $event.target.value)" />
+              <span v-if="r.buy && r.buy.pct != null" class="pct-in">
+                <input type="text" inputmode="numeric" :value="r.buy.pct" :title="r.buyLimit != null ? `Das sind gerade ${inGold(r.buyLimit)} Gold` : 'Noch kein üblicher Preis'"
+                  :aria-label="`Kaufen bis für ${r.name || r.key} in Prozent`" @change="setBuyPct(r, $event.target.value)" />%
+              </span>
+              <MoneyInput v-else :value="r.buy ? r.buy.lim : null" :label="`Kaufen bis für ${r.name || r.key}`" @change="setBuyAbs(r, $event)" />
               <select :value="r.buy && r.buy.pct != null ? 'pct' : 'abs'" :aria-label="`Einheit für Kaufen bis bei ${r.name || r.key}`" @change="setKind(r, $event.target.value)">
                 <option value="abs">Gold</option>
                 <option value="pct">% unter üblich</option>
               </select>
             </span>
           </td>
-          <td class="num"><input class="up" type="text" inputmode="decimal" :value="inGold(r.up)" placeholder="–" title="In Gold" :aria-label="`Zielpreis für ${r.name || r.key} in Gold`" @change="setUp(r, $event.target.value)" /></td>
+          <td class="num"><MoneyInput :value="r.up" :label="`Zielpreis für ${r.name || r.key}`" @change="setUp(r, $event)" /></td>
           <td class="num muted" :title="bandTip(r.band)">
             <template v-if="r.band"><Gold :copper="r.band.low" compact /> – <Gold :copper="r.band.high" compact /></template>
             <span v-else class="faint">–</span>
           </td>
           <td class="advice">{{ ADVICE[r.advice] || '' }}</td>
           <td class="c bells">
-            <button class="bell" :class="{ on: r.bells.buy }" :disabled="r.buy == null" :aria-pressed="r.bells.buy" :title="r.bells.buy ? 'Meldung bei Kaufen bis ist an' : 'Meldung bei Kaufen bis einschalten'" @click="bell(r, 'buy')">🔔<small>▼</small></button>
-            <button class="bell" :class="{ on: r.bells.up }" :disabled="r.up == null" :aria-pressed="r.bells.up" :title="r.bells.up ? 'Meldung beim Zielpreis ist an' : 'Meldung beim Zielpreis einschalten'" @click="bell(r, 'up')">🔔<small>▲</small></button>
+            <button class="bell" :class="{ on: r.bells.buy }" :disabled="r.buy == null" :aria-pressed="r.bells.buy" :title="r.buy == null ? 'Erst Kaufen bis eintragen' : r.bells.buy ? 'Meldung bei Kaufen bis ist an' : 'Meldung bei Kaufen bis einschalten'" @click="bell(r, 'buy')">🔔<small>▼</small></button>
+            <button class="bell" :class="{ on: r.bells.up }" :disabled="r.up == null" :aria-pressed="r.bells.up" :title="r.up == null ? 'Erst einen Zielpreis eintragen' : r.bells.up ? 'Meldung beim Zielpreis ist an' : 'Meldung beim Zielpreis einschalten'" @click="bell(r, 'up')">🔔<small>▲</small></button>
           </td>
           <td class="num"><button class="small" @click="remove(r)">Entfernen</button></td>
         </tr>
@@ -183,8 +185,10 @@ const bandTip = (b) => (b ? `Üblich ${Math.round(b.low / 100) / 100} bis ${Math
 .click:hover, .click:focus-visible { text-decoration: underline; }
 .wait { display: inline-block; margin-left: 8px; padding: 1px 6px; border: 1px solid var(--warn); border-radius: var(--radius-s); color: var(--warn); }
 .buy-in { display: inline-flex; gap: 6px; align-items: center; }
-.buy-in input { width: 72px !important; text-align: right; }
-.up { width: 80px !important; text-align: right; }
+.pct-in { display: inline-flex; align-items: center; gap: 4px; }
+.pct-in input { width: 5ch !important; text-align: right; }
+.bell { cursor: pointer; }
+.bell:disabled { cursor: not-allowed; }
 .advice { font-weight: 600; white-space: nowrap; }
 tr.buy .advice { color: var(--up); }
 tr.sell .advice { color: var(--accent); }

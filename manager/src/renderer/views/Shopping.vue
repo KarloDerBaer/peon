@@ -6,6 +6,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import Gold from '../components/Gold.vue';
 import Star from '../components/Star.vue';
 import SyncPanel from '../components/SyncPanel.vue';
+import MoneyInput from '../components/MoneyInput.vue';
 import { num, fold, qualityColor, itemName } from '../util.js';
 
 const props = defineProps({ market: Object, stamp: Number, settings: Object, now: Number });
@@ -48,9 +49,8 @@ async function removeList() {
 async function setName(v) { if (v.trim()) { await api.shopUpdateList(selected.value, { name: v }); await load(); } }
 async function setPct(v) { await api.shopUpdateList(selected.value, { pct: parseFloat(String(v).replace(',', '.')) || 0 }); await load(); }
 async function setWish(r, v) { await api.shopSet(selected.value, r.key, { wish: parseInt(v, 10) || 0 }); await load(); }
-async function setMax(r, v) {
-  const gold = parseFloat(String(v).replace(',', '.'));
-  await api.shopSet(selected.value, r.key, { max: gold > 0 ? Math.round(gold * 10000) : 0 });
+async function setMax(r, copper) {   // ab 0.34.0 aus MoneyInput (Gold, Silber, Kupfer), leer = Wert der Liste
+  await api.shopSet(selected.value, r.key, { max: copper || 0 });
   await load();
 }
 async function remove(r) { await api.shopRemove(selected.value, r.key); await load(); }
@@ -128,7 +128,7 @@ const limitTip = (r) => (r.max != null ? `Eigener Höchstpreis. Die Liste ergäb
               <th class="num">Menge</th>
               <th class="num" title="Menge minus Vorrat (Taschen und Bank aller Charaktere dieses Kontos, aus Peon_Ledger)">Fehlt</th>
               <th class="num" title="Günstigstes Angebot im letzten Stand des gewählten Markts">Preis</th>
-              <th class="num" title="Eigener Wert, sonst der Wert der Liste. Leeren nimmt wieder den Wert der Liste.">Höchstpreis (Gold)</th>
+              <th class="num" title="Eigener Wert, sonst der Wert der Liste. Leeren nimmt wieder den Wert der Liste.">Höchstpreis</th>
               <th class="num" title="Stück im letzten Stand bis zum Höchstpreis">Treffer</th>
               <th></th>
             </tr>
@@ -143,7 +143,7 @@ const limitTip = (r) => (r.max != null ? `Eigener Höchstpreis. Die Liste ergäb
               <td class="num"><input class="wish" type="text" inputmode="numeric" :value="r.wish ?? ''" placeholder="–" :aria-label="`Menge für ${itemName(r)}`" @change="setWish(r, $event.target.value)" /></td>
               <td class="num" :class="{ muted: r.need === 0 }" :title="needTip(r)">{{ r.need == null ? '–' : r.need === 0 ? 'genug' : num(r.need) }}</td>
               <td class="num"><Gold :copper="r.cheapest" compact /></td>
-              <td class="num"><input class="max" :class="{ own: r.max != null }" type="text" inputmode="decimal" :value="inGold(r.max)" :placeholder="r.rule != null ? inGold(r.rule) : '–'" :title="limitTip(r)" :aria-label="`Höchstpreis für ${itemName(r)} in Gold`" @change="setMax(r, $event.target.value)" /></td>
+              <td class="num" :class="{ own: r.max != null }"><MoneyInput :value="r.max" :placeholder="r.rule" :title="limitTip(r)" :label="`Höchstpreis für ${itemName(r)}`" @change="setMax(r, $event)" /></td>
               <td class="num" :class="{ win: r.hits > 0 }">{{ r.hits > 0 ? num(r.hits) : '–' }}</td>
               <td class="num"><button class="small" @click="remove(r)">Entfernen</button></td>
             </tr>
@@ -192,9 +192,7 @@ const limitTip = (r) => (r.max != null ? `Eigener Höchstpreis. Die Liste ergäb
 .click:hover, .click:focus-visible { text-decoration: underline; }
 .wait { display: inline-block; margin-left: 8px; padding: 1px 6px; border: 1px solid var(--warn); border-radius: var(--radius-s); color: var(--warn); }
 .wish { width: 64px !important; text-align: right; }
-.max { width: 96px !important; text-align: right; }
-.max:not(.own)::placeholder { color: var(--muted); }
-.max.own { font-weight: 600; }
+.own :deep(input) { font-weight: 600; }
 .hit td { background: var(--accent-soft); }
 .win { color: var(--up); font-weight: 600; }
 </style>

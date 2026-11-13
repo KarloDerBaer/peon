@@ -79,8 +79,14 @@ class BrokerClient {
       }
     }
     if (files.length === 0) sum.error = 'Keine Peon_Bridge.lua gefunden';
+    // Ab 0.34.0: Speichert das Spiel seine Bridge-Datei, hat es danach Data.lua geladen (bei /reload sofort, nach dem
+    // Ausloggen beim naechsten Anmelden). Zweites Zeichen neben der Pruefung des Prozesses (noteGame), damit "wartet auf
+    // /reload" auch dann verschwindet, wenn diese ein Laden nicht mitbekommt.
+    const saved = sum.files.reduce((m, f) => Math.max(m, f.mtime || 0), 0);
+    if (saved > (this.meta('gameLoadAt') || 0)) this.meta('gameLoadAt', saved);
     sum.broker = this.importBroker();
-    this.noteAccounts(sum.broker);   // ab 0.29.0: Kennung je Kontoordner, beim ersten Konto die Umstellung
+    this.noteAccounts(sum.broker);
+    this.repairWatchTimes();   // ab 0.34.0, einmalig   // ab 0.29.0: Kennung je Kontoordner, beim ersten Konto die Umstellung
     if (sum.broker.some((b) => b.shop)) this.shopFromGame(sum.broker);
     if (sum.broker.some((b) => b.watch)) this.watchFromGame(sum.broker);
     if (sum.broker.some((b) => b.vendors)) this.vendorsFromGame(sum.broker);
@@ -588,9 +594,20 @@ class BrokerClient {
   }
 
   // Data.lua sofort neu schreiben (nach Eingaben im Manager). Die Werte fuer Broker rechnet das nicht neu.
+  // Ab 0.34.0 ohne Neuberechnung: Fehlen die Werte aus dem letzten Einlesen (Manager gerade gestartet), bleiben die Maerkte
+  // aus der vorhandenen Data.lua. Vorher rechnete die erste Eingabe nach dem Start alle Maerkte neu (Sekunden).
+  marketsForBridge() {
+    if (this.lastLua) return this.lastLua;
+    try {
+      const d = parseLua(fs.readFileSync(path.join(addonDir(this.settings.wowDir), 'Data.lua'))).PeonBridgeData;
+      if (d && d.markets && typeof d.markets === 'object') return d.markets;
+    } catch { /* keine oder kaputte Datei: dann ohne Werte, das naechste Einlesen schreibt sie neu */ }
+    return {};
+  }
+
   writeBridge(area) {
     const ack = this.meta('ack');
-    const lua = this.lastLua || this.buildMarkets().lua;
+    const lua = this.marketsForBridge();
     try {
       const marks = this.host.reports.marks();
       const w = writeData(this.settings.wowDir, { ack: ack ? ack.ids : [], markets: lua, channels: this.host.channels(), version: this.version, now: this.now(), aliases: this.aliases(), accts: this.acctsForGame(), tipWant: this.lastWant, ...marks });
@@ -601,6 +618,35 @@ class BrokerClient {
       log(this.db, area || 'konten', false, `Data.lua: ${e.message}`);
       return false;
     }
+  }
+
+  // Einmalige Reparatur (ab 0.34.0): Eintraege aus der Zeit ohne Grenzen (bis 0.29.0 nur "beobachtet") haben ihre Zeiten
+  // je Wert aus u bekommen. Bei gleicher Zeit wie im Spiel kamen die Grenzen aus dem Spiel nie an, und ein leerer Wert
+  // konnte im Spiel eine Grenze loeschen. Leere Werte ohne Eingabe im Manager (kein Eintrag im Protokoll) bekommen die
+  // Zeit 0, dann gewinnt beim naechsten Einlesen die Grenze aus dem Spiel. Wartende leere Werte entfallen.
+  repairWatchTimes() {
+    if (this.meta('fixWatchT')) return 0;
+    let n = 0;
+    const logged = this.db.prepare("SELECT 1 FROM sync_log WHERE acct IS ? AND area = 'watch' AND origin = 'manager' AND item_key = ? AND field = ? LIMIT 1");
+    for (const acct of this.acctIds()) {
+      const d = this.watchDoc(acct);
+      const pend = this.pendOf(acct);
+      let changed = false;
+      for (const [k, w] of Object.entries(d.items)) {
+        for (const f of ['buy', 'up']) {
+          const empty = f === 'buy' ? w.lim == null && w.pct == null : w.up == null;
+          if (!empty || !w.t || !(w.t[f] > 0) || logged.get(acct, k, f)) continue;
+          w.t[f] = 0;
+          delete pend[`w|${k}|${f}`];
+          changed = true;
+          n++;
+        }
+      }
+      if (changed) { this.saveWatch(acct, d); this.savePend(acct, pend); }
+    }
+    this.meta('fixWatchT', { t: this.now(), n });
+    if (n) log(this.db, 'beobachtung', true, `Reparatur: ${n} leere Grenzen übernehmen beim nächsten Einlesen die Werte aus dem Spiel`);
+    return n;
   }
 
   // ---------- Beobachtung (bis 0.23 Favoriten) ----------
@@ -676,6 +722,7 @@ class BrokerClient {
 
   // Ansicht Beobachten fuer einen Markt (gewaehltes Konto). Rat zuerst, dann nach Name
   watchView(marketKey) {
+    this.repairWatchTimes();
     const acct = this.acctSel();
     const d = this.watchDoc(acct);
     const mid = this.marketId(marketKey);

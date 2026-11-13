@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.34.0
+
+Kurz: Beträge gibst du jetzt wie im Spiel in Gold, Silber und Kupfer ein.
+Kurz: Kaufen bis und Zielpreis aus dem Spiel stehen jetzt auch bei Beobachtungen, die du schon länger hast, und die Glocken lassen sich einschalten.
+Kurz: Der Hinweis „wartet auf /reload“ verschwindet nach dem Neuladen zuverlässig, und Beobachten öffnet schneller.
+
+- 0.34.0 (13.11.2026): Fehler aus dem ersten Test der Vorabversion `v2026.11.13-test` (Rückmeldung KarloDerBaer zu Beobachten).
+  - **Grenzen kamen nicht an:** Beobachtungen aus der Zeit vor 0.30.0 kannten nur „beobachtet“. Ihre Zeiten je Wert kamen aus `u`, das gleich war wie im Spiel, darum gewannen die Grenzen aus dem Spiel nie. Ein Eintrag als Zahl bekommt jetzt die Zeit 0 für beide Werte (`watching.BARE_T`, gleich in Broker 0.90). Schon gespeicherte leere Werte ohne Eingabe im Manager repariert `repairWatchTimes` einmalig (`meta` `fixWatchT`), wartende leere Werte entfallen. Ohne Werte waren die Glocken gesperrt, das löst sich damit mit.
+  - **Leere Änderung ohne Eingabe:** `setBuy` und `setUp` vermerken einen unveränderten Wert nicht mehr als Änderung. Vorher bekam etwa ein Wechsel der Einheit ohne Wert eine neue Zeit, und Broker hätte beim nächsten Laden eine Grenze gelöscht, die der Manager nicht kannte.
+  - **„wartet auf /reload“ blieb stehen:** Das Laden im Spiel erkannte nur die Prüfung des Prozesses. Jetzt gilt zusätzlich: Speichert das Spiel seine Bridge-Datei, hat es danach `Data.lua` geladen (`importGame` setzt `gameLoadAt`).
+  - **Langsam:** Die erste Eingabe nach dem Start (Stern, Grenze, Liste) rechnete alle Märkte neu, mit vielen Ständen der Blizzard-API mehrere Sekunden voller Arbeit. `writeBridge` nimmt jetzt die Werte aus dem letzten Einlesen oder aus der vorhandenen `Data.lua` (`marketsForBridge`). Beobachten bleibt beim Wechsel der Seite im Speicher (`KeepAlive`).
+  - **Beträge in Gold, Silber, Kupfer:** neuer Baustein `components/MoneyInput.vue` mit drei Feldern und Münzen in den Farben des Spiels, für Kaufen bis und Zielpreis unter Beobachten und den Höchstpreis unter Einkaufen. Der Wert der Liste steht grau in den Feldern. Die Glocken nennen im Tooltip, warum sie gesperrt sind.
+  - Tests: neue Datei `test/reparatur.test.js` (6 Tests mit dem Stand aus dem Test: alte Beobachtung, Reparatur, bewusst geleerte Werte, unveränderter Wert, keine Neuberechnung, Laden über die Bridge-Datei). Alle 210 Tests grün, Oberfläche gebaut.
+  - **Im echten Programm prüfen:** Unter Beobachten stehen nach dem ersten Einlesen Kaufen bis und Zielpreis aus dem Spiel. Bei Blassblatt prüfen, ob Kaufen bis im Spiel noch 3s ist (siehe Stand). Eingabe in Gold, Silber, Kupfer, Glocken, „wartet auf /reload“ nach dem Neuladen, Wechsel der Seiten.
+
 ## 0.33.0
 
 Kurz: Die Seite Einkaufen ist neu: Listen je WoW-Konto, Menge, Fehlt, Preis, Höchstpreis und Treffer, alles direkt in der Liste änderbar.

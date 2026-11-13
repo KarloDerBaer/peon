@@ -246,7 +246,8 @@ function Wt.Merge(st, gone, data)
         local localU = w and (tonumber(w.u) or 0) or (tonumber(gone[key]) or 0)
         if not w then
             if uu > localU or gone[key] == nil then
-                st[key] = bare and { u = uu } or S.NewFrom(inc, Wt.SPEC)
+                -- ab 0.90: als Zahl ohne Grenzen, Werte unbekannt (Zeit 0), jede Grenze ist neuer (wie watching.js)
+                st[key] = bare and { u = uu, t = { buy = 0, up = 0 } } or S.NewFrom(inc, Wt.SPEC)
                 gone[key] = nil
                 changed = true
             end

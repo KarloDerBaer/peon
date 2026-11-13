@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.90.0
+
+Kurz: Beobachtungen, die ein älterer Peon Manager ohne Kaufen bis und Zielpreis schickt, überschreiben deine Grenzen im Spiel nicht.
+
+- 0.90.0 (13.11.2026): Gleiche Regel wie Manager 0.34.0. Kommt eine Beobachtung aus dem Manager nur als Zahl (Manager vor 0.30), bekommt ein neuer Eintrag für Kaufen bis und Zielpreis die Zeit 0 (`Wt.Merge`). So gilt jede Grenze, die später kommt.
+  - Tests: Vergleich mit dem Manager (`watch_compare.lua`, 3000 Fälle) mit der neuen Regel.
+
 ## 0.89.0
 
 Kurz: Änderst du an einer Einkaufsliste im Spiel und im Peon Manager verschiedene Werte, bleiben jetzt beide erhalten.

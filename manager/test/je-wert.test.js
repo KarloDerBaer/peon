@@ -73,7 +73,7 @@ test('Loeschmarken halten ein Jahr', () => {
 
 test('Beobachtung: Kaufen bis und Zielpreis je Wert, Zahl von frueher gilt nur als Anwesenheit', () => {
   const d = watching.clean({ items: { 2770: 100 }, gone: {} });
-  assert.deepEqual(d.items['2770'], { u: 100 });
+  assert.deepEqual(d.items['2770'], { u: 100, t: { buy: 0, up: 0 } }, 'ab 0.34.0: Werte unbekannt, Zeit 0');
   watching.setBuy(d, '2770', 'abs', 1500, 200);
   // Spiel setzt den Zielpreis, kennt das neue Kaufen bis noch nicht
   assert.equal(watching.merge(d, { items: { 2770: { u: 210, pct: 20, up: 4000, t: { buy: 150, up: 210 } } } }), true);
