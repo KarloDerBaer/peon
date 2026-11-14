@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.38.0
+
+Kurz: Wird ein Peon-Addon durch ein anderes ersetzt, installiert der Manager das neue mit und entfernt das alte von selbst, sobald das neue seine Einstellungen übernommen hat. Zuerst betrifft das Peon ComboPoints, das im Klassenbuddy aufgeht.
+
+- 0.38.0 (14.11.2026, Wunsch KarloDerBaer): **Ersetzte Addons** (`addons.js`).
+  - Neue Angabe im Manifest `replacedBy = { by, db, key }` je Addon, aus `scripts/release.json`. `checkManifest` prüft sie (Peon-Addon aus demselben Manifest, Namen in Lua). Erste Nutzung: Peon_ComboPoints wird durch Peon_ClassBuddy ersetzt (`PeonClassBuddyDB.cpImported`).
+  - **Liste:** Ist das alte Addon installiert und das neue nicht, gilt das neue als Update (`status update`, `replaces`). Es steht damit unter „Alle aktualisieren“ und im Update-Fenster mit „ersetzt …“. Das alte zeigt in der Ansicht Module einen Hinweis.
+  - **Entfernen** (`autoReplace`, bei jeder Suche nach Updates): erst, wenn das neue installiert ist, in den Einstellungen eines Kontos `<db>.<key> = true` steht (`replaceReady`, liest `WTF\Account\<Konto>\SavedVariables\<neu>.lua`) und WoW nicht läuft. Der Ordner wandert in die Sicherung, die Einstellungen in WTF bleiben. Junctions (Entwicklung) bleiben immer. Eintrag im Protokoll.
+  - Tests: `addons.test.js` (Update mit Hinweis, Warten auf die Übernahme, laufendes WoW, Sicherung, Junction, ungültige Angaben), `build_release.test.js` (Angabe im echten Manifest).
+  - **Im echten Programm prüfen:** Mit Peon ComboPoints installiert nach Updates suchen: Klassenbuddy steht als Update da. Installieren, einmal einloggen, WoW schließen, nach Updates suchen: Peon ComboPoints ist weg, im Protokoll steht „ersetzt durch Peon_ClassBuddy“.
+
 ## 0.37.0
 
 Kurz: Spekulation schnell schlägt nichts mehr vor, dessen Preis fällt, und braucht 7 Tage Preisverlauf. Solange der Markt jung ist, gibt es darum kaum Vorschläge.

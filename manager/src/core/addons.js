@@ -9,6 +9,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { readZip } = require('./zip');
 const { log } = require('./db');
+const { parseLua } = require('./lua');
 
 const REPO_URL = 'https://github.com/KarloDerBaer/peon';
 const API_URL = 'https://api.github.com/repos/KarloDerBaer/peon';
@@ -16,6 +17,8 @@ const NAME_RE = /^Peon(_[A-Za-z0-9]+)?$/;              // nur Peon-Addons
 const FILE_RE = /^Peon(_[A-Za-z0-9]+)?-\d+\.\d+\.\d+\.zip$/;
 const TAG_RE = /^v\d{4}\.\d{2}\.\d{2}(\.\d+)?(-test)?$/;
 const VERSION_RE = /^\d+\.\d+\.\d+$/;
+const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;           // Name einer Lua-Variablen (replacedBy)
+const MAX_SV = 16 * 1024 * 1024;                        // groessere SavedVariables werden fuer replacedBy nicht gelesen
 const MAX_ZIP = 64 * 1024 * 1024;
 const MAX_MANIFEST = 2 * 1024 * 1024;
 const MAX_NEWS_TEXT = 300;                             // Zeichen je Zeile "Was ist neu"
@@ -63,6 +66,13 @@ function checkManifest(m) {
     if (!Array.isArray(a.deps) || a.deps.some((d) => !NAME_RE.test(String(d)))) throw new Error(`Manifest: Abhängigkeiten von ${a.name} ungültig`);
   }
   for (const a of m.addons) for (const d of a.deps) if (!seen.has(d)) throw new Error(`Manifest: ${a.name} braucht ${d}, das fehlt`);
+  // ab 0.38.0: Addon wird ersetzt (replacedBy = { by, db, key })
+  for (const a of m.addons) {
+    if (a.replacedBy == null) continue;
+    const r = a.replacedBy;
+    if (typeof r !== 'object' || !NAME_RE.test(String(r.by)) || r.by === a.name || !seen.has(r.by)) throw new Error(`Manifest: Ersatz für ${a.name} ungültig`);
+    if (!IDENT_RE.test(String(r.db)) || !IDENT_RE.test(String(r.key))) throw new Error(`Manifest: Ersatz für ${a.name} ungültig`);
+  }
   return m;
 }
 
@@ -241,6 +251,15 @@ class AddonManager {
         else if (i.present) status = i.version && cmpVersion(i.version, a.version) >= 0 ? (i.version === a.version ? 'current' : 'newer') : 'update';
         out.push({ name: a.name, title: a.title, desc: a.desc, available: a.version, installed: i.version, present: i.present, dev: i.dev, status,
           news: newsSince(a.news, status === 'update' ? i.version : null), release: releaseFor(a.release, a.news, status === 'update' ? i.version : null), deps: a.deps, size: a.size, managerOnly: !!a.managerOnly, removable: this.removeBlock(a.name) === null });
+      }
+      // ab 0.38.0: Wird ein installiertes Addon ersetzt, gilt das neue als Update. Das alte bekommt einen Hinweis.
+      for (const a of m.addons) {
+        if (!a.replacedBy) continue;
+        const old = out.find((x) => x.name === a.name);
+        const neu = out.find((x) => x.name === a.replacedBy.by);
+        if (!old || !neu) continue;
+        old.replacedBy = neu.title;
+        if (old.present && !old.dev && neu.status === 'missing') { neu.status = 'update'; neu.replaces = old.title; }
       }
     } else {
       // ohne Manifest: nur zeigen, was da ist (Name mit Peon, eigene TOC)
@@ -451,10 +470,52 @@ class AddonManager {
     }
     const out = [];
     for (const a of this.list()) {
-      if (a.status === 'update') out.push({ kind: 'update', name: a.name, title: a.title, version: a.available, installed: a.installed, desc: a.desc, news: a.news, release: a.release });
+      if (a.status === 'update') out.push({ kind: 'update', name: a.name, title: a.title, version: a.available, installed: a.installed, desc: a.desc, news: a.news, release: a.release, replaces: a.replaces || null });
       else if (a.status === 'missing' && !a.managerOnly && !seen.includes(a.name)) out.push({ kind: 'new', name: a.name, title: a.title, version: a.available, installed: null, desc: a.desc, news: a.news, release: a.release });
     }
     return out;
+  }
+
+  // ab 0.38.0: Hat das neue Addon die Einstellungen des alten uebernommen? Steht in WTF\Account\<Konto>\SavedVariables\<neu>.lua
+  // als <db>.<key> = true. Ein Konto reicht. Fehlt oder stoert etwas, gilt es als nicht erledigt.
+  replaceReady(r) {
+    const base = path.join(this.host.settings.wowDir, 'WTF', 'Account');
+    let accounts = [];
+    try { accounts = fs.readdirSync(base, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch { return false; }
+    for (const acc of accounts) {
+      const file = path.join(base, acc, 'SavedVariables', `${r.by}.lua`);
+      try {
+        if (fs.statSync(file).size > MAX_SV) continue;
+        const g = parseLua(fs.readFileSync(file));
+        if (g && g[r.db] && g[r.db][r.key] === true) return true;
+      } catch { /* fehlt oder nicht lesbar */ }
+    }
+    return false;
+  }
+
+  // ab 0.38.0: Ersetzte Addons entfernen, sobald das neue da ist und die Einstellungen uebernommen hat.
+  // Nie bei laufendem WoW, nie bei Entwicklung (Junction). Der Ordner wandert in die Sicherung, WTF bleibt.
+  // Rueckgabe: Liste der entfernten { name, by }
+  autoReplace(wowRunning = false) {
+    const m = this.manifest;
+    const done = [];
+    if (!m || this.busy || wowRunning) return done;
+    for (const a of m.addons) {
+      const r = a.replacedBy;
+      if (!r) continue;
+      const old = this.installed(a.name);
+      const neu = this.installed(r.by);
+      if (!old.present || old.dev || !neu.present) continue;
+      if (!this.replaceReady(r)) continue;
+      try {
+        moveDir(path.join(this.addonsDir, a.name), this.backupPath(a.name, old.version));
+        log(this.host.db, 'addons', true, `${a.name} ${old.version || ''} entfernt, ersetzt durch ${r.by}`);
+        done.push({ name: a.name, by: r.by });
+      } catch (e) {
+        log(this.host.db, 'addons', false, `${a.name} entfernen (ersetzt durch ${r.by}): ${e.message}`);
+      }
+    }
+    return done;
   }
 
   // Das Fenster hat alles gezeigt: Neue Addons sind ab jetzt bekannt

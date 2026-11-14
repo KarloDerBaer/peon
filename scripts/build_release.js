@@ -33,6 +33,15 @@ const REPO = path.join(__dirname, '..');
 
 const MAX_NEWS = 20;   // so viele Versionen mit kurzem Text stehen im Manifest
 
+// Angabe replacedBy aus release.json pruefen: { by: "Peon_Neu", db: "PeonNeuDB", key: "uebernommen" }
+const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+function replacement(name, r, addons) {
+  if (!r || typeof r !== 'object' || !/^Peon_[A-Za-z0-9]+$/.test(String(r.by))) throw new Error(`${name}: replacedBy braucht by (Name eines Peon-Addons)`);
+  if (!addons[r.by] || r.by === name) throw new Error(`${name}: replacedBy ${r.by} steht nicht in scripts/release.json`);
+  if (!IDENT_RE.test(String(r.db)) || !IDENT_RE.test(String(r.key))) throw new Error(`${name}: replacedBy braucht db und key (Namen in Lua)`);
+  return { by: r.by, db: r.db, key: r.key };
+}
+
 // ---------------------------------------------------------------------------
 // TOC und Changelog lesen
 // ---------------------------------------------------------------------------
@@ -261,6 +270,9 @@ function build(opts = {}) {
     table.push(t);
     const ra = releaseForManifest(t, !!prev);
     if (ra) manifest.addons[manifest.addons.length - 1].release = ra;
+    // ab Manager 0.38.0: Addon wird durch ein anderes ersetzt. Der Manager installiert das neue und entfernt das alte,
+    // sobald in den Einstellungen des neuen ready.db.ready.key wahr ist (Uebernahme der Einstellungen erledigt).
+    if (cfg.replacedBy) manifest.addons[manifest.addons.length - 1].replacedBy = replacement(name, cfg.replacedBy, config.addons);
   }
 
   fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');

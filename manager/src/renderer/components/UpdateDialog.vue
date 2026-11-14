@@ -125,7 +125,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
         <article v-for="a in updates" :key="a.name">
           <div class="head">
-            <div><h3>{{ a.title }}</h3><span class="small muted">{{ a.installed }} auf {{ a.version }}</span></div>
+            <div><h3>{{ a.title }}</h3><span class="small muted">{{ a.installed ? `${a.installed} auf ${a.version}` : `Version ${a.version}` }}{{ a.replaces ? `, ersetzt ${a.replaces}` : '' }}</span></div>
             <button :disabled="!!busy" @click="one(a)">{{ busy === a.name ? 'Moment' : 'Aktualisieren' }}</button>
           </div>
           <ReleaseText :release="a.release" :news="a.news" />

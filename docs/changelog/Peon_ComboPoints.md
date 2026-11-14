@@ -4,9 +4,9 @@ Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeig
 
 ## 3.6.0
 
-Kurz: Die Combo-Punkte zeigt jetzt der Klassenbuddy. Ist er installiert, bleibt Peon ComboPoints still und sagt einmal Bescheid.
+Kurz: Die Combo-Punkte zeigt jetzt der Klassenbuddy. Ist er installiert, bleibt Peon ComboPoints still, sagt einmal Bescheid und wird danach vom Peon Manager entfernt.
 
-- 3.6.0 (14.11.2026): letzte Version. Ist Peon_ClassBuddy geladen, meldet sich Peon_ComboPoints beim Einloggen ab und zeigt einmal je Konto einen Hinweis (`movedHint`). Die Einstellungen bleiben, damit der Klassenbuddy sie übernehmen kann. Ohne Klassenbuddy alles wie bisher. Test: `test_cp.lua`.
+- 3.6.0 (14.11.2026): letzte Version. Ist Peon_ClassBuddy geladen, meldet sich Peon_ComboPoints beim Einloggen ab und zeigt einmal je Konto einen Hinweis (`movedHint`). Die Einstellungen bleiben, damit der Klassenbuddy sie übernehmen kann. Ohne Klassenbuddy alles wie bisher. Der Peon Manager ab 0.38.0 entfernt Peon_ComboPoints von selbst, sobald der Klassenbuddy die Einstellungen übernommen hat (Manifest-Angabe `replacedBy`). Test: `test_cp.lua`.
 
 ## 3.5.1
 

@@ -199,6 +199,8 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
         </div>
         <p v-if="a.desc">{{ a.desc }}</p>
         <p class="small muted" v-if="a.managerOnly">Gehört fest zum Peon Manager und wird mit ihm aktualisiert.</p>
+        <p class="small warn" v-if="a.replacedBy && a.present && !a.dev">Wird durch {{ a.replacedBy }} ersetzt. Der Manager entfernt es von selbst, sobald {{ a.replacedBy }} die Einstellungen übernommen hat (einmal ins Spiel einloggen).</p>
+        <p class="small muted" v-if="a.replaces">Ersetzt {{ a.replaces }} und übernimmt dessen Einstellungen.</p>
         <button class="link small" v-if="a.release || (a.news && a.news.length)" @click="open = open === a.name ? '' : a.name">{{ open === a.name ? 'Was ist neu ausblenden' : 'Was ist neu' }}</button>
         <div class="notes small" v-if="open === a.name">
           <ReleaseText :release="a.release" :news="a.news" />

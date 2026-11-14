@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.95.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.37.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / ClassBuddy 0.1.0 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.3.0.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.95.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.38.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / ClassBuddy 0.1.0 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.3.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.22.0, API 22
@@ -38,7 +38,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Technik: geheime Werte über StatusBars (`SetMinMaxValues(i-1, i)`), Träger über den Nameplate-Rahmen; eigener Ereignisrahmen wegen `RegisterUnitEvent`.
 - Optionsseite: Kern-Bausteine, mit Vorschau.
 - Verlauf der Versionen: `docs/changelog/Peon_ComboPoints.md`
-- **Letzte Version 3.6.0:** Ist Peon_ClassBuddy geladen, meldet sie sich beim Einloggen ab und zeigt einmal je Konto einen Hinweis (`movedHint`). Die Einstellungen bleiben für die Übernahme. Aus Repo und Manager entfernen, wenn der Wechsel bei allen durch ist (Entscheidung KarloDerBaer). Nicht veröffentlicht.
+- **Letzte Version 3.6.0:** Ist Peon_ClassBuddy geladen, meldet sie sich beim Einloggen ab und zeigt einmal je Konto einen Hinweis (`movedHint`). Die Einstellungen bleiben für die Übernahme. Der Peon Manager ab 0.38.0 entfernt es von selbst, sobald der Klassenbuddy die Einstellungen übernommen hat. Aus dem Repo nehmen, wenn der Wechsel bei allen durch ist (Entscheidung KarloDerBaer). Nicht veröffentlicht.
 
 ## Peon_ClassBuddy – 0.2.0 („Klassenbuddy“, Helfer je Klasse)
 
@@ -49,7 +49,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - **Hexenmeister (ab 0.2.0):** überzählige Seelensplitter vernichten, je Zauber von der Aktionsleiste einer (Nachlauf auf `UseAction`), dazu Knopf für Makro, Tastenbelegung und Eintrag „Seelensplitter“ für Peon Panel. Gesperrte Plätze, belegter Mauszeiger und Zielsuche werden übergangen, Fehlversuche ins Debug-Log.
 - Optionen: Reiter Schurke und Hexenmeister, offen ist der Reiter der eigenen Klasse.
 - Prüfung und Testfenster aus 0.1.0 (Vorabversion `v2026.11.14.4-test`) sind entfernt, Ergebnis im Konzept Abschnitt 4.3.
-- Konzept: `docskonzepteclassbuddyPeon_ClassBuddy_Konzept.md`, Verlauf: `docs/changelog/Peon_ClassBuddy.md`
+- Konzept: `docs\konzepte\classbuddy\Peon_ClassBuddy_Konzept.md`, Verlauf: `docs/changelog/Peon_ClassBuddy.md`
 - Im Spiel prüfen: Hexenmeister mit voller Seelentasche Zauber wirken (auch im Kampf), Makro, Tastenbelegung, Panel. Schurke: Combo-Punkte wie bisher, Einstellungen übernommen. Nicht veröffentlicht.
 
 ## Peon_Fishing – 1.6.0 (früher FishingPlus)
@@ -105,8 +105,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.83.0, 0.82.0, 0.81.1, 0.81.0, 0.80.0, 0.79.0, 0.78.0, 0.77.0, 0.76.0, 0.75.1, 0.75.0, 0.74.0, 0.73.0, 0.72.0, 0.71.0, 0.70.0, 0.69.0, 0.68.0, 0.67.0, 0.66.0, 0.65.0, 0.64.1, 0.64.0, 0.63.0, 0.62.0, 0.61.0, 0.60.1, 0.60.0, 0.59.1, 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.37.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.38.0
 
+- **Ersetzte Addons (0.38.0):** Manifest-Angabe `replacedBy = { by, db, key }` (aus `scripts/release.json`). Ist das alte installiert, gilt das neue als Update. Bei jeder Suche nach Updates entfernt `autoReplace` das alte, sobald das neue da ist, in einem Konto `<db>.<key> = true` steht und WoW nicht läuft (Sicherung, WTF bleibt, Junction nie). Erste Nutzung: Peon_ComboPoints durch Peon_ClassBuddy (`cpImported`). Nicht veröffentlicht.
 - **Chancen nach Prüfung mit echten Daten (0.37.0):** Umstellungen bei Einzelgegenständen sind keine Verkäufe (`sales.compare` `singles`), Schema 12 mit Neurechnung im Hintergrund (`redoApiSteps`, `meta` `apiRedoMax`). Preis fällt ab 2 Tagen (`trendOf`), feste Prüfungen Schwankung höchstens 40 % und 7 Tage Verlauf, Kaufen bis passt zum Zielpreis (10 % Abstand nach Gebühr), Gold aus Ledger (`ledgerGold`, Regler `share` 25 %), möglicher Verlust je Chance. Gilt auch für Aufkauf. Vorabversion `v2026.11.14.3-test` (14.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im echten Programm noch nicht geprüft.
 - **Schneller Start, Datenordner verlegen, Chancen nach den Rückmeldungen (0.36.0):** Grundteil ohne Arbeitsprozess sofort (`overviewBase`, `brokerLoading`), Marktseiten zeigen „Marktdaten werden geladen“, Einlesen und Blizzard-API erst nach der ersten Übersicht, Aufräumen nach 5 Min. Datenordner verlegen unter Einstellungen, Daten (`datadir.js`, `umzug.json`, `datenordner.json` neben dem Standardordner, alter Ordner bleibt). Schema 11: Händlerpreise einmal unbestätigt (`meta` `vendorRecheck`), Bridge 0.12 schickt sie neu. Daumen runter blendet Chancen aus (`latestRatings`, auch für Broker, außer angeheftet). Spekulation schnell: Zielpreis höchstens oberer Rand des üblichen Bereichs, kein Vorschlag bei fallendem Preis über 14 Tage (`spec.trendOf`). Bemerkung bis 1000 Zeichen. Erfolgskontrolle: „Behalte ich“ (`meta` `ownUse`). Vorabversion `v2026.11.14.2-test` (14.11.2026, nur Kanal Test, mit Bridge 0.12.0, Broker 0.95.1, Ledger 0.14.9 und Profession 0.2.2), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im echten Programm noch nicht geprüft. Gold und Einsatz sind mit 0.37.0 umgesetzt.
 - **Händlerpreis mit Herkunft, Rückmeldungen mitschicken (0.35.1):** `items.vendor_src` (`game` oder `api`, Schema 10), Händler-Chancen nur mit Preis aus dem Spiel. Rückmeldungen zu Chancen stehen zusätzlich im Reiter Rückmeldungen und gehen mit „Senden“ als Bericht hinaus (`takeNewRatings`, `meta` `ratingsForwarded`). Vorabversion `v2026.11.14-test` (14.11.2026, nur Kanal Test, mit Broker 0.93.0 und Bridge 0.11.0), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen.
@@ -282,7 +283,7 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
 
 - Helfer je Klasse in einem Modul, ersetzt Peon_ComboPoints (Einstellungen werden übernommen).
 - Schurke: Combo-Punkte unverändert. Hexenmeister: überzählige Seelensplitter vernichten, Regel einstellbar (Standard: Seelentasche voll), ausgelöst zusammen mit einem Zauber.
-- Prüfung erledigt (Konzept 4.3). Gebaut in ClassBuddy 0.2.0 (Combo-Punkte umgezogen, Seelensplitter mit Zaubern, Makro, Tastenbelegung, Panel), Peon_ComboPoints 3.6.0 als letzte Version. Offen: im Spiel prüfen, Peon_ComboPoints später aus Repo und Manager nehmen.
+- Prüfung erledigt (Konzept 4.3). Gebaut in ClassBuddy 0.2.0 (Combo-Punkte umgezogen, Seelensplitter mit Zaubern, Makro, Tastenbelegung, Panel), Peon_ComboPoints 3.6.0 als letzte Version. Manager 0.38.0 entfernt Peon_ComboPoints von selbst nach der Übernahme. Offen: im Spiel prüfen, Peon_ComboPoints später aus dem Repo nehmen.
 
 ### Einheitliches UI-Design für alle Peon-Fenster (beauftragt 11.11.2026)
 

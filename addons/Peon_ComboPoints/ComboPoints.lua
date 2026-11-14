@@ -407,8 +407,8 @@ local function OnEvent(self, event, arg1, arg2)
             if mod.db and not mod.db.movedHint then
                 mod.db.movedHint = true
                 mod:Print((GetLocale() == "deDE")
-                    and "Die Combo-Punkte zeigt jetzt der Klassenbuddy, deine Einstellungen sind übernommen. Peon ComboPoints kannst du im Peon Manager entfernen."
-                    or  "Combo points are now shown by Class Buddy, your settings were taken over. You can remove Peon ComboPoints in the Peon Manager.")
+                    and "Die Combo-Punkte zeigt jetzt der Klassenbuddy, deine Einstellungen sind übernommen. Der Peon Manager (ab 0.38.0) entfernt Peon ComboPoints von selbst, wenn WoW geschlossen ist."
+                    or  "Combo points are now shown by Class Buddy, your settings were taken over. The Peon Manager (0.38.0 or later) removes Peon ComboPoints by itself while WoW is closed.")
             end
             return
         end

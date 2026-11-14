@@ -267,6 +267,8 @@ if (!app.requestSingleInstanceLock()) {
   async function checkAddons() {
     lastAddonCheck = Date.now();
     const r = await svc.addons.check();
+    // ab 0.38.0: ersetzte Addons entfernen (z. B. Peon_ComboPoints, sobald der Klassenbuddy die Einstellungen hat)
+    try { svc.addons.autoReplace(await wowRunning()); } catch { /* steht im Protokoll */ }
     updater.check();
     const first = !addonsChecked;
     addonsChecked = true;
