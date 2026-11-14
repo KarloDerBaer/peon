@@ -41,8 +41,9 @@ function ns.CreateOptions()
     -- ab 0.46 (Umbau U5): Bausteine frei einstellbar, ersetzt die Schalter 7 Tage, Haendler, Hinweise und Neutral
     local ttLayout = ns.TooltipOptions.Build(page, left)
 
-    -- Berufsfenster (ab 0.39): gleiche Punkte wie im Zahnrad-Menue am Block
-    ns.Craft.AddOptions(page, left)
+    -- Berufsfenster: ab 0.95 in Peon_Profession
+    page:Add(left, page:Header(L.HDR_CRAFT), 6)
+    page:Add(left, page:Text(function() return L.CRAFT_MOVED end), 16)
 
     -- Trend
     page:Add(left, page:Header(L.HDR_TREND), 6)

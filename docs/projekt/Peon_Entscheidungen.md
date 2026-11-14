@@ -2,6 +2,14 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 14.11.2026: Peon_Profession 0.2.0 nach dem ersten Test, Umzug des Berufsfensters (Broker 0.95)
+
+- **Brokers Teil im Berufsfenster zieht jetzt um (S6)** (KarloDerBaer, zusammen mit den Wünschen nach dem ersten Test). Bei Broker bleiben Preise, Vorrat und Einkaufslisten, Peon_Profession fragt sie über die Schnittstelle ab. Die alten Einstellungen werden einmal übernommen (Claude).
+- **Markierungen in der Rezeptliste: grüner Pfeil links für das Rezept des Guides, Goldmünze vor dem Gewinn für das beste Rezept** (KarloDerBaer, aus vier Vorschlägen von Claude). Der Pfeil steht im Einzug links neben der Zeile, weil zwischen Zeilenrand und Blizzards Pfeilen kaum Platz ist (Claude, beim Bau). Ob er dort sichtbar ist, zeigt der Test im Spiel.
+- **Knopf in der Titelleiste des Berufsfensters** öffnet Peon Berufe (KarloDerBaer). Die Leiste über dem Fenster bleibt, beide sind abschaltbar (Claude).
+- **Alle Berufe zeigbar, Zielstufe frei wählbar, ganze Route bis 300, Material bis zum Ziel** (KarloDerBaer). Umsetzung als Haken unter der Liste, Feld „Ziel“ im Kopf und Reiter Guide, Route, Material (Claude). Ohne Eingabe gilt der Höchstwert, ist er erreicht der nächste Rang, bei nicht gelernten Berufen 75 (Claude).
+- **Box neben dem Berufsfenster bleibt als Rückfall** (Claude): Sie wurde mit übernommen statt entfernt, weil nichts ohne Zustimmung wegfallen soll.
+
 ## 14.11.2026: Neues Modul Peon_Profession (Konzept `Peon_Profession_Konzept.md`, freigegeben)
 
 - **Eigenes Berufe-Modul statt Profession Leveling Guide** (KarloDerBaer): einfach, im Peon-Stil, mit Preisen und Einkaufsliste von Broker. Ohne Gilde, Streamer-Modus, Spieler-Netz und andere Zusatzfunktionen.

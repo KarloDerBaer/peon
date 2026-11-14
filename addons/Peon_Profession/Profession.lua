@@ -5,29 +5,73 @@
 -- Schnittstelle fuer andere Module (nur lesend):
 --   mod:Professions()      -> { { key, name, icon, skill, max } } Berufe des eingeloggten Charakters
 --   mod:Step(key, skill)   -> Schritt der Route fuer diese Stufe (Tabelle aus Routes.lua) oder nil
+--   mod:CraftTooltip(id)   -> Text Material und Gewinn fuer ein erlerntes Rezept (ab 0.2.0, fuer Brokers Tooltip)
 
 local ADDON_NAME, ns = ...
 local L = ns.L
+
+-- Symbol (ab 0.2.2): Hammer und Spitzhacke wie Blizzards Reiter Uebersicht am Berufsfenster in Forever (Datei-Nummer)
+ns.ICON = 8197101
+
+-- Einstellungen des Berufsfensters, die bis Broker 0.94 dort lagen (Uebernahme in migrate)
+ns.CRAFT_KEYS = { "craftList", "craftListWhich", "craftListMode", "craftListBest", "craftListLoss", "craftListUnknown",
+    "craftBlock", "craftSummary", "craftColSrc", "craftColCost", "craftColSell", "craftHint" }
 
 local mod = Peon:NewModule(ADDON_NAME, {
     key      = "profession",
     title    = "Profession",
     db       = "PeonProfessionDB",
     charDB   = "PeonProfessionCharDB",
-    charKeys = { sel = true, known = true, skills = true },
+    charKeys = { sel = true, known = true, skills = true, target = true },
     defaults = {
         minimapShow  = true,
         minimapAngle = 215,
         windowPos    = {},
+        windowTab    = "guide",  -- ab 0.2.0: guide, route, mats
+        showAll      = false,    -- ab 0.2.0: auch nicht gelernte Berufe in der Liste
         craftBar     = true,
+        titleButton  = true,     -- ab 0.2.0: Knopf in der Titelleiste des Berufsfensters
         colors       = {},   -- [recipeID] = { [0..3] = { von, bis } }  gemessene Farben (Measure.lua)
         ups          = {},   -- [recipeID] = { von, bis }               Stufen, bei denen dieses Rezept Punkte gab
         sel          = 0,    -- je Charakter: zuletzt gewaehlter Beruf (Skill-Linie)
         known        = {},   -- je Charakter: [Beruf] = { [recipeID] = { out, n, m = { id, q, ... }, c } }
         skills       = {},   -- je Charakter: [Beruf] = letzte bekannte Stufe (Messung der Punkte)
+        target       = {},   -- je Charakter (ab 0.2.0): [Beruf] = Zielstufe
+        -- Berufsfenster (ab 0.2.0, vorher Peon_Broker ab 0.39): Gewinn in der Rezeptliste, Block unter den Reagenzien
+        craftGuideMark = true,   -- Rezept des Guides mit gruenem Pfeil
+        craftList    = true,     -- Gewinn rechts in der Rezeptliste
+        craftListWhich = "all",  -- welche Rezepte: all, profit, top3, top5, top10
+        craftListMode = "money", -- Betrag oder Prozent vom Material (pct)
+        craftListBest = true,    -- bestes Rezept mit Goldmuenze
+        craftListLoss = true,    -- Verluste zeigen (nur bei "all")
+        craftListUnknown = true, -- Rezepte ohne Preis mit "?" (nur bei "all")
+        craftBlock   = true,     -- Block unter den Reagenzien
+        craftSummary = true,     -- Ergebniszeile Kosten, Ertrag, Gewinn
+        craftColSrc  = true,     -- Spalte Quelle (Vorrat, Haendler, AH)
+        craftColCost = true,     -- Spalte Kosten (Ledger oder Kaufpreis)
+        craftColSell = true,     -- Spalte Erloes (Vorrat im AH verkauft, nach Gebuehr)
+        craftHint    = true,     -- Hinweis: verkaufen oder herstellen
+        craftTwinks  = false,    -- Vorrat der Twinks mitzaehlen (vorher Brokers keepAllChars)
+        craftMigrated = false,   -- Einstellungen einmal von Broker uebernommen
     },
     ranges   = { minimapAngle = { 0, 359, 1 } },
-    keepOnReset = { windowPos = true, colors = true, ups = true, sel = true, known = true, skills = true },
+    choices  = { windowTab = { guide = true, route = true, mats = true },
+                 craftListWhich = { all = true, profit = true, top3 = true, top5 = true, top10 = true },
+                 craftListMode = { money = true, pct = true } },
+    -- Einstellungen des Berufsfensters einmal aus Peon_Broker uebernehmen (bis Broker 0.94 dort)
+    migrate  = function(m, acc)
+        if acc.craftMigrated == true then return end
+        local b = rawget(_G, "PeonBrokerDB")
+        if type(b) == "table" then
+            for _, k in ipairs(ns.CRAFT_KEYS) do
+                if acc[k] == nil and b[k] ~= nil then acc[k] = b[k] end
+            end
+            if acc.craftTwinks == nil and type(b.keepAllChars) == "boolean" then acc.craftTwinks = b.keepAllChars end
+        end
+        acc.craftMigrated = true
+    end,
+    keepOnReset = { windowPos = true, colors = true, ups = true, sel = true, known = true, skills = true, target = true,
+                    craftMigrated = true },
     slash    = { "/prof" },
     onSlash  = function(m, cmd, rest)
         cmd = (cmd or ""):lower()
@@ -35,6 +79,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
             m:OpenOptions()
         elseif cmd == "messungen" or cmd == "measure" then
             ns.Measure.Report()
+        elseif cmd == "pruefen" or cmd == "check" then
+            ns.Craft.Probe()
         else
             ns.Window.Toggle()
         end
@@ -111,6 +157,8 @@ end
 
 function mod:Professions() return ns.ReadProfessions() end
 function mod:Step(key, skill) return ns.Guide and ns.Guide.StepAt(key, skill) end
+-- Ab 0.2.0 (fuer den Tooltip von Peon_Broker): "Material 1g 20s · Gewinn +35s" fuer ein erlerntes Rezept, sonst nil
+function mod:CraftTooltip(itemID) return ns.Craft and ns.Craft.TooltipText(itemID) end
 
 -- Geld: "1g 20s 5c" (mit Muenzbildern, wenn das Spiel sie kennt)
 function ns.Money(c)
@@ -180,9 +228,10 @@ end)
 mod:On("LOGIN", function()
     if ns.Measure then mod:Call("Messung", ns.Measure.Init) end
     if ns.CraftBar then mod:Call("Berufsfenster", ns.CraftBar.Init) end
+    if ns.Craft then mod:Call("Berufsfenster Kosten", ns.Craft.Init) end
     if mod.NewMinimapButton then
         mod:Call("Minimap", mod.NewMinimapButton, mod, {
-            icon = "Interface\\Icons\\INV_Misc_Note_01",
+            icon = ns.ICON,
             name = "PeonProfessionMinimapButton",
             hint = L.MM_HINT,
             onClick = function(m, button)
@@ -199,7 +248,13 @@ mod:On("LOGIN", function()
     end
 end)
 
--- Text fuer Peon_Panel: gewaehlter Beruf, sonst der erste, der noch nicht fertig ist
+-- Leiste von Peon_Panel neu zeichnen (gewaehlter Beruf oder Stufe geaendert)
+function ns.RefreshLauncher()
+    if mod.launcher and mod.launcher.Refresh then mod:Call("Starter", mod.launcher.Refresh, mod.launcher) end
+end
+
+-- Text fuer Peon_Panel: der verfolgte Beruf (zuletzt im Fenster gewaehlt, ab 0.2.2 auch der dort gezeigte),
+-- sonst der erste, der noch nicht fertig ist
 function ns.LauncherText()
     local list = ns.ReadProfessions()
     local pick

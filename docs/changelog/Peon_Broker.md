@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.95.0
+
+Kurz: Kosten und Gewinn im Berufsfenster zeigt jetzt das Modul Peon Berufe. Deine Einstellungen dazu werden dorthin übernommen.
+
+- 0.95.0 (14.11.2026): Umzug des Berufsfensters nach Peon_Profession 0.2.0 (Konzept `Peon_Profession_Konzept.md` Abschnitt 8, Bauabschnitt S6, Zustimmung KarloDerBaer 14.11.2026).
+  - **Entfernt aus Broker:** Block unter den Reagenzien, Gewinn in der Rezeptliste mit goldenem Strich, Zahnrad-Menü, Box neben dem Fenster, Knopf „Auf Einkaufsliste“ im Berufsfenster, Abschnitt Berufe auf der Optionsseite und die Einstellungen `craftList…`, `craftBlock`, `craftSummary`, `craftCol…`, `craftHint`. Alles steht jetzt in Peon_Profession. Die Werte bleiben in `PeonBrokerDB`, Peon_Profession übernimmt sie einmal.
+  - **`Craft.lua` bleibt klein:** Kaufpreis, AH-Preis, Vorrat und Ledger für Paketvergleich, Händlerpreise und Tooltip. Die Zeile Herstellkosten im Tooltip (mit Umschalt) kommt jetzt von Peon_Profession (`profession:CraftTooltip`).
+  - **Schnittstelle erweitert:** `mod:BuyPrice` liefert zusätzlich AH-Preis, Händlerpreis, Herkunft und Händler. Neu `mod:AhPrice(id)`. `mod:AddToList(name, mats, keepMax)`: mit `keepMax` wird die Wunschmenge nicht kleiner und `v` markiert Händlerware, wie bisher beim Knopf im Berufsfenster.
+  - `/broker pruefen beruf` nennt den Umzug, geprüft wird mit `/prof pruefen`.
+  - Tests: Preise mit Händlerpreisen (gesehen, Ledger, geschätzt), Tooltip-Zeile über Peon_Profession, `AddToList` mit `keepMax`. Die Tests des Berufsfensters stehen jetzt in `test_profession.lua`.
+
 ## 0.94.0
 
 Kurz: Broker gibt Preise und die Einkaufsliste an das neue Modul Peon Berufe weiter.

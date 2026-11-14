@@ -35,20 +35,68 @@ function M.OpenProfession()
             if ok and v then return nil end
         end
     end
-    local info
+    -- Ab 0.2.1: jede Quelle einzeln versuchen (eine leere Angabe des Kind-Berufs verdeckte sonst den Grundberuf),
+    -- als Rueckfall der Titel des Berufsfensters ("Kochkunst"). Stufe notfalls aus GetProfessions.
+    local key, info, any
     for _, f in ipairs({ "GetChildProfessionInfo", "GetBaseProfessionInfo" }) do
-        if not info and ts[f] then
+        if not key and ts[f] then
             local ok, i = pcall(ts[f])
-            if ok and type(i) == "table" and (i.professionName or i.parentProfessionName or i.professionID) then info = i end
+            if ok and type(i) == "table" then
+                if not any and Num(i.skillLevel) then any = i end
+                key = (ns.PROFS[i.professionID] and i.professionID) or (ns.PROFS[i.parentProfessionID] and i.parentProfessionID)
+                    or ns.KeyForName(i.professionName) or ns.KeyForName(i.parentProfessionName)
+                if key then info = i end
+            end
         end
     end
-    if not info then return nil end
-    local key = (ns.PROFS[info.professionID] and info.professionID) or (ns.PROFS[info.parentProfessionID] and info.parentProfessionID)
-        or ns.KeyForName(info.professionName) or ns.KeyForName(info.parentProfessionName)
+    if not key then key = ns.KeyForName(M.WindowTitle()) end
     if not key then return nil end
+    info = info or any or {}
     local skill = Num(info.skillLevel) and info.skillLevel or nil
     local max = Num(info.maxSkillLevel) and info.maxSkillLevel or nil
+    if not skill or not max then
+        ns.ReadProfessions()
+        local cur = ns.current and ns.current[key]
+        if cur then skill, max = skill or cur.skill, max or cur.max end
+    end
     return key, skill, max
+end
+
+-- Titel des Berufsfensters (Name des Berufs), nil ohne Fenster
+function M.WindowTitle()
+    local f = rawget(_G, "ProfessionsFrame")
+    local tc = type(f) == "table" and rawget(f, "TitleContainer")
+    local t = type(tc) == "table" and rawget(tc, "TitleText")
+    if type(t) == "table" and t.GetText then
+        local ok, s = pcall(t.GetText, t)
+        if ok and type(s) == "string" and not Peon.IsSecret(s) then return s end
+    end
+    return nil
+end
+
+-- Fuer /prof pruefen: was das Spiel zum offenen Beruf sagt
+function M.ProbeLines()
+    local out = {}
+    local ts = TS()
+    for _, f in ipairs({ "GetChildProfessionInfo", "GetBaseProfessionInfo" }) do
+        local s = f .. ": fehlt"
+        if ts and ts[f] then
+            local ok, i = pcall(ts[f])
+            if ok and type(i) == "table" then
+                s = ("%s: id=%s name=%s parent=%s/%s Stufe=%s/%s"):format(f, tostring(i.professionID), tostring(i.professionName),
+                    tostring(i.parentProfessionID), tostring(i.parentProfessionName), tostring(i.skillLevel), tostring(i.maxSkillLevel))
+            else
+                s = f .. ": nichts"
+            end
+        end
+        out[#out + 1] = s
+    end
+    out[#out + 1] = "Titel: " .. tostring(M.WindowTitle())
+    local key, skill, max = M.OpenProfession()
+    local n = 0
+    for _ in pairs(key and mod.db.known[key] or {}) do n = n + 1 end
+    out[#out + 1] = ("Erkannt: Beruf %s, Stufe %s/%s, gemerkte Rezepte %d"):format(tostring(key), tostring(skill), tostring(max), n)
+    return out
 end
 
 -- Ein Rezept lesen: { out, n, m = { id, q, ... }, c, name } (nur Pflicht-Grundmaterial)
@@ -92,7 +140,8 @@ function M.ReadAll()
     for _, id in ipairs(ids) do
         if Num(id) then
             local oki, info = pcall(ts.GetRecipeInfo, id)
-            if oki and type(info) == "table" and info.learned and not info.isDummyRecipe and not info.isRecraft then
+            -- ab 0.2.1 wie Broker: erlernt, solange das Spiel nicht ausdruecklich "nicht erlernt" meldet
+            if oki and type(info) == "table" and info.learned ~= false and not info.isDummyRecipe and not info.isRecraft then
                 local rec = M.ReadRecipe(id, info)
                 list[id] = rec
                 n = n + 1
@@ -133,6 +182,8 @@ function M.OnSkills()
     end
     if ns.Window and ns.Window.IsOpen() then ns.Window.Refresh() end
     if ns.CraftBar then ns.CraftBar.Update() end
+    if ns.Craft then ns.Craft.dirty = true end   -- Pfeil des Guides wandert mit der Stufe
+    if ns.RefreshLauncher then ns.RefreshLauncher() end   -- Stufe in der Leiste von Peon_Panel
 end
 
 function M.OnShow()

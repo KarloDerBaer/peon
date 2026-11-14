@@ -169,7 +169,8 @@ end
 
 -- Ab 0.94 (fuer Peon_Profession, mod:AddToList): Material auf eine Liste mit festem Namen. mats = { { id, n } }.
 -- Die Wunschmenge wird auf n gesetzt (nicht addiert), damit ein erneutes Uebernehmen den Stand ersetzt.
-function B.AddToNamed(name, mats)
+-- Ab 0.95 keepMax (Material aus dem Berufsfenster): Wunschmenge wird nicht kleiner, v markiert Haendlerware.
+function B.AddToNamed(name, mats, keepMax)
     local lists = B.Lists()
     local list
     for _, l in ipairs(lists) do if l.name == name then list = l end end
@@ -189,6 +190,10 @@ function B.AddToNamed(name, mats)
             end
             e.name = e.name or ns.GetItemInfo(id)
             e.icon = e.icon or B.Icon(id)
+            if keepMax then
+                n = math.max(tonumber(e.wish) or 0, n)
+                e.v = m.v and true or nil
+            end
             if e.wish ~= n then e.wish = n; B.Touch(e, "wish") end
             list.items[id] = e
             added = added + 1

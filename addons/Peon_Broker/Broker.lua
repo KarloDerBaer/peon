@@ -83,19 +83,6 @@ local mod = Peon:NewModule(ADDON_NAME, {
         salesMidMin  = 60,      -- Sicherheit: ab so vielen beobachteten Minuten gelbes statt rotes Zeichen
         salesSureMin = 180,     -- ab so vielen beobachteten Minuten gruenes Zeichen
         salesCancelPct = 10,    -- Einzelgegenstaende: so viel % der vorzeitig verschwundenen Angebote gelten als abgebrochen
-        -- Berufsfenster (ab 0.39, KarloDerBaer 08.11.2026): Gewinn in der Rezeptliste, Block unter den Reagenzien
-        craftList    = true,    -- Gewinn rechts in der Rezeptliste
-        craftListWhich = "all", -- welche Rezepte: all, profit, top3, top5, top10
-        craftListMode = "money",-- Betrag oder Prozent vom Material (pct)
-        craftListBest = true,   -- bestes Rezept mit goldenem Strich
-        craftListLoss = true,   -- Verluste zeigen (nur bei "all")
-        craftListUnknown = true,-- Rezepte ohne Preis mit "?" (nur bei "all")
-        craftBlock   = true,    -- Block unter den Reagenzien
-        craftSummary = true,    -- Ergebniszeile Kosten, Ertrag, Gewinn
-        craftColSrc  = true,    -- Spalte Quelle (Vorrat, Haendler, AH)
-        craftColCost = true,    -- Spalte Kosten (Ledger oder Kaufpreis)
-        craftColSell = true,    -- Spalte Erloes (Vorrat im AH verkauft, nach Gebuehr)
-        craftHint    = true,    -- Hinweis: verkaufen oder herstellen
     },
     ranges   = { minimapAngle = { 0, 359, 1 }, dataDays = { 14, 90, 1 }, trendNeutral = { 1, 20, 1 },
                  trendStrong = { 10, 100, 5 }, undercutValue = { 0, 100, 1 }, undercutMassValue = { 0, 100, 1 },
@@ -113,8 +100,6 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  duration = { [2] = true, [8] = true, [24] = true },
                  radarKind = { both = true, vendor = true, market = true },
                  radarScanMode = { watch = true, mass = true, all = true, mgr = true },
-                 craftListWhich = { all = true, profit = true, top3 = true, top5 = true, top10 = true },
-                 craftListMode = { money = true, pct = true },
                  radarSoundKey = { raid = true, ready = true, alarm = true, tell = true },
                  watchSoundDown = { off = true, raid = true, ready = true, alarm = true, tell = true },   -- ab 0.91
                  watchSoundUp = { off = true, raid = true, ready = true, alarm = true, tell = true },
@@ -193,18 +178,24 @@ function mod:MarketInfo(id) return ns.MarketInfo(id) end
 function mod:IsCommodity(key) return ns.Data and ns.Data.IsCommodity(key) or false end
 function mod:VendorPrice(id) return ns.VendorPrice(id) end
 -- Ab 0.94 (fuer Peon_Profession): Kaufpreis je Stueck wie im Berufsfenster (Haendler oder AH, das Guenstigere).
--- Rueckgabe: Preis (nil = unbekannt), Quelle ("vendor", "ah", "none")
+-- Rueckgabe: Preis (nil = unbekannt), Quelle ("vendor", "ah", "none"). Ab 0.95 dahinter wie im Berufsfenster:
+-- AH-Preis, Haendlerpreis, Herkunft des Haendlerpreises ("seen", "ledger", "est"), Haendler
 function mod:BuyPrice(id)
     if type(id) ~= "number" or not (ns.Craft and ns.Craft.BuyPrice) then return nil, "none" end
-    local p, src = ns.Craft.BuyPrice(id)
-    return p, src
+    return ns.Craft.BuyPrice(id)
+end
+-- Ab 0.95 (fuer Peon_Profession): guenstigstes Angebot je Stueck im Heimatmarkt, nil = unbekannt
+function mod:AhPrice(id)
+    if type(id) ~= "number" or not (ns.Craft and ns.Craft.UnitCost) then return nil end
+    return ns.Craft.UnitCost(id)
 end
 -- Ab 0.94 (fuer Peon_Profession): Material auf die Einkaufsliste mit diesem Namen (wird bei Bedarf angelegt).
--- mats = { { id = itemID, n = Stueck } }. Die Wunschmenge wird auf n gesetzt, "Fehlt" rechnet die Liste selbst.
--- Rueckgabe: Zahl der Eintraege, Liste
-function mod:AddToList(name, mats)
+-- mats = { { id = itemID, n = Stueck, v = Haendlerware } }. Die Wunschmenge wird auf n gesetzt, "Fehlt" rechnet die
+-- Liste selbst. Ab 0.95: keepMax = true laesst die Wunschmenge nicht kleiner werden und setzt die Markierung
+-- Haendlerware (wie bisher "Auf Einkaufsliste" im Berufsfenster). Rueckgabe: Zahl der Eintraege, Liste
+function mod:AddToList(name, mats, keepMax)
     if type(name) ~= "string" or name == "" or type(mats) ~= "table" or not (ns.Buy and ns.Buy.AddToNamed) then return 0 end
-    return ns.Buy.AddToNamed(name, mats)
+    return ns.Buy.AddToNamed(name, mats, keepMax)
 end
 -- Ab 0.29 (Ledger-Reiter "Gegenstaende"): alle Gegenstaende des aktuellen Markts mit Nummer (Varianten mit
 -- Zusatz ausgenommen). { [itemID] = { min, median, qty, t, gone, name, quality } }
@@ -589,7 +580,7 @@ mod:On("INIT", function()
     mod:Call("Radar", ns.Radar.Init)
     if ns.Lots then mod:Call("Posten", ns.Lots.Init) end   -- ab 0.67 (H3)
     mod:Call("Sprung", ns.Go.InitMarket)   -- ab 0.73: sicherer Knopf Im Markt zeigen
-    mod:Call("Berufe", ns.Craft.Init)
+    -- ab 0.95: Berufsfenster in Peon_Profession (Craft.lua dort)
     mod.char.vendorFlip = nil   -- Haendler-Knopf entfaellt (0.24, Feedback #8)
     -- ab 0.55 (Umbau U12, mit Zustimmung von KarloDerBaer): Behalten entfaellt, die Liste je Charakter wird geloescht,
     -- ebenso das Gedaechtnis des frueheren Reiters Verkaufen (Laufzeit und Menge je Gegenstand)

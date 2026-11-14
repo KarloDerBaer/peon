@@ -1772,25 +1772,11 @@ end)()
     local r71
     for _, r in ipairs(rows) do if r.key == 7971 then r71 = r end end
     check(r71 and r71.advice == "vendor" and r71.vendorP == 40, "H4: Material vom Haendler steht mit Rat HAENDLER in der Liste")
-    -- Knopf im Berufsfenster: Menue mit Anzahl
-    local opened
-    MenuUtil = { CreateContextMenu = function(owner, gen)
-        local node = { items = {} }
-        function node:CreateTitle() end
-        function node:CreateButton(t, fn) self.items[#self.items + 1] = { t = t, fn = fn } end
-        gen(owner, node); opened = node
-    end }
-    local keepBlock = C.block
-    C.block = C.block or {}
-    local keepCalc = C.block.calc
-    C.block.calc = { mats = { { id = 7975, q = 3, have = 1, ah = 100 } } }
-    C.ListMenu(CreateFrame("Button"))
-    check(opened and #opened.items == 4 and opened.items[2].t == "für 5 Herstellungen", "H4: Menue im Berufsfenster: 1, 5, 10, 20 Herstellungen")
-    opened.items[2].fn()
-    check(list.items[7975] and list.items[7975].wish == 15, "H4: Klick setzt das Material fuer 5 Herstellungen auf die Liste")
-    C.block.calc = keepCalc
-    C.block = keepBlock
-    MenuUtil = nil
+    -- ab 0.95: das Menue im Berufsfenster ist in Peon_Profession, es nutzt mod:AddToList mit keepMax
+    local n2, list2 = mod:AddToList("Material", { { id = 7975, n = 15, v = true } }, true)
+    check(n2 == 1 and list2 == list and list.items[7975].wish == 15 and list.items[7975].v == true, "0.95: AddToList mit keepMax auf die Liste Material, Haendlerware")
+    mod:AddToList("Material", { { id = 7975, n = 3, v = false } }, true)
+    check(list.items[7975].wish == 15 and list.items[7975].v == nil, "0.95: keepMax: Ziel wird nicht kleiner")
     for i, l in ipairs(Buy.Lists()) do if l == list then table.remove(Buy.Lists(), i) break end end
     -- 6.6 Beobachtung mit Grenze nach oben
     market.items[7976] = { m = 500, md = 520, q = 10, n = 2, t = clock, nm = "Seltenes Ding", ql = 3 }
@@ -2034,255 +2020,21 @@ end)()
   e.as, e.ss, e.ab, e.ar, e.acov = nil, nil, nil, nil, nil
 end)()
 
--- ===== Berufe: Herstellkosten und Gewinn (ab 0.24) =====
+-- ===== ab 0.95: Berufsfenster in Peon_Profession, bei Broker bleiben Preise und Vorrat (mod:BuyPrice, mod:AhPrice) =====
 ;(function()
   local Cr = ns.Craft
-  market.items[3001] = { m = 10, md = 12, q = 100, n = 5, t = clock, nm = "Stoff", ql = 1 }
+  check(Cr.UpdateBlock == nil and Cr.DecorateRow == nil and mod.db.craftList == nil and mod.db.craftBlock == nil,
+      "0.95: Anzeige und Einstellungen des Berufsfensters nicht mehr in Broker")
   market.items[3002] = { m = 30, md = 30, q = 10, n = 2, t = clock, nm = "Faden", ql = 1 }
-  market.items[3100] = { m = 500, md = 520, q = 10, n = 4, t = clock, nm = "Hemd", ql = 2 }
-  market.items[3200] = { m = 20, md = 20, q = 10, n = 4, t = clock, nm = "Lappen", ql = 1 }
-  VENDOR[3100], VENDOR[3200] = 50, 1
-  local SCH = {
-    [11] = { outputItemID = 3100, quantityMin = 1, quantityMax = 1, name = "Hemd",
-             reagentSlotSchematics = { { reagents = { { itemID = 3001 } }, quantityRequired = 4, reagentType = 1, required = true },
-                                       { reagents = { { itemID = 3002 } }, quantityRequired = 1, reagentType = 1, required = true },
-                                       { reagents = { { itemID = 9999 } }, quantityRequired = 1, reagentType = 0, required = false } } },
-    [12] = { outputItemID = 3200, quantityMin = 2, quantityMax = 2, name = "Lappen",
-             reagentSlotSchematics = { { reagents = { { itemID = 3001 } }, quantityRequired = 5, reagentType = 1, required = true } } },
-    [13] = { outputItemID = 3300, quantityMin = 1, name = "Unbekannt", reagentSlotSchematics = { { reagents = { { itemID = 3001 } }, quantityRequired = 1 } } },
-  }
-  C_TradeSkillUI = { GetAllRecipeIDs = function() return { 11, 12, 13 } end,
-    GetRecipeInfo = function(id) return { recipeID = id, learned = id ~= 13 } end,
-    GetRecipeSchematic = function(id) return SCH[id] end }
-  ProfessionsFrame = CreateFrame("Frame", "ProfessionsFrame")
-  fire("TRADE_SKILL_SHOW")
-  timers[#timers]()
-  local rec = PeonBrokerCharDB.recipes
-  check(rec and rec[3100] and rec[3100].m[3001] == 4 and rec[3100].m[3002] == 1 and rec[3100].m[9999] == nil and rec[3300] == nil,
-      "Rezepte gelesen: Pflicht-Material, ohne wahlweise Zusaetze, nur erlernte")
-  local c = Cr.Calc(rec[3100], 3100)
-  check(c.cost == 70 and c.missing == 0 and c.value and c.profit == c.value - 70, "Hemd: Material 4×10c + 30c = 70c, Gewinn = Wert - Material (" .. tostring(c.value) .. ")")
-  local c2 = Cr.Calc(rec[3200], 3200)
-  check(c2.cost == 50 and c2.n == 2, "Lappen: 2 je Herstellen, Material 50c")
-  check(Cr.box and Cr.box.shown and plain(Cr.box.text.text):find("Beste Rezepte", 1, true) and plain(Cr.box.text.text):find("Gegenstand3100", 1, true), "Box am Berufsfenster mit den besten Rezepten")
-  Cr.OnSelect(11)
-  check(plain(Cr.box.text.text):find("4× Gegenstand3001", 1, true) and plain(Cr.box.text.text):find("Lohnt sich", 1, true), "gewaehltes Rezept: Material einzeln, lohnt sich")
-  check(plain(Cr.TooltipText(3100)):find("Material 70c", 1, true) and plain(Cr.TooltipText(3100)):find("Gewinn +", 1, true), "Tooltip-Text: Material und Gewinn")
-  market.items[3002] = nil
-  check(plain(Cr.TooltipText(3100)):find("(1 ohne Preis)", 1, true) and plain(Cr.TooltipText(3100)):find("unbekannt", 1, true), "Material ohne Preis: Gewinn unbekannt")
-  -- ab 0.25.2: Box rueckt hinter die Symbolleiste rechts am Berufsfenster
-  local function Fake(l, r, t, b, kids, sc)
-    return { GetLeft = function() return l end, GetRight = function() return r end, GetTop = function() return t end,
-      GetBottom = function() return b end, GetEffectiveScale = function() return sc or 1 end, IsVisible = function() return true end,
-      GetChildren = function() return unpack(kids or {}) end }
-  end
-  local tab = Fake(1025, 1100, 700, 640)
-  local wide = Fake(1020, 1500, 700, 600)           -- zu breit: zaehlt nicht
-  local far = Fake(1300, 1350, 700, 600)            -- nicht an der Kante: zaehlt nicht
-  check(Cr.SideOffset(Fake(20, 1025, 900, 100, { tab, wide, far })) == 75 + Cr.SIDE_GAP, "Box hinter der Symbolleiste (" .. tostring(Cr.SideOffset(Fake(20, 1025, 900, 100, { tab, wide, far }))) .. ")")
-  check(Cr.SideOffset(Fake(20, 1025, 900, 100, { Fake(0, 10, 50, 0, { tab }) })) == 75 + Cr.SIDE_GAP, "Symbolleiste auch eine Ebene tiefer")
-  check(Cr.SideOffset(Fake(20, 1025, 900, 100, { wide, far })) == Cr.SIDE_GAP, "ohne Leiste: direkt am Fenster")
-  check(Cr.SideOffset({}) == Cr.SIDE_GAP, "Fenster ohne Lage: Standardabstand")
-  -- 0.28.1: GetChildren nie ueber pcall (Absturz "L->top < L->ci->top" bei vielen Kindern von UIParent)
-  local src = io.open("Peon_Broker/Craft.lua"):read("*a")
-  check(not src:find("pcall%([^)]*GetChildren"), "0.28.1: GetChildren ohne pcall")
-  local many = {}
-  for i = 1, 400 do many[i] = Fake(0, 10, 50, 0, {}) end
-  local savedUI = UIParent
-  UIParent = Fake(0, 1920, 1080, 0, many)
-  check(Cr.SideOffset(Fake(20, 1025, 900, 100, { wide })) == Cr.SIDE_GAP, "0.28.1: UIParent mit 400 Kindern")
-  UIParent = savedUI
-  fire("TRADE_SKILL_CLOSE")
-  check(not Cr.box.shown, "Beruf zu: Box weg")
-  C_TradeSkillUI, ProfessionsFrame = nil, nil
-  market.items[3001], market.items[3100], market.items[3200] = nil, nil, nil
-  PeonBrokerCharDB.recipes = nil
-end)()
-
--- ===== ab 0.39: Berufsfenster - Block unter den Reagenzien, Gewinn in der Rezeptliste, Einstellungen =====
-;(function()
-  local Cr = ns.Craft
-  local db = mod.db
-  check(db.craftList == true and db.craftListWhich == "all" and db.craftBlock == true and db.craftSummary == true
-      and db.craftColSrc == true and db.craftColCost == true and db.craftColSell == true and db.craftHint == true,
-      "0.39: Vorgaben fuer das Berufsfenster")
-  market.items[3001] = { m = 10, md = 12, q = 100, n = 5, t = clock, nm = "Stoff", ql = 1 }
-  market.items[3002] = { m = 30, md = 30, q = 10, n = 2, t = clock, nm = "Faden", ql = 1 }
-  market.items[3100] = { m = 500, md = 520, q = 10, n = 4, t = clock, nm = "Hemd", ql = 2 }
-  market.items[3200] = { m = 20, md = 20, q = 10, n = 4, t = clock, nm = "Lappen", ql = 1 }
-  local SCH = {
-    [11] = { outputItemID = 3100, quantityMin = 1, quantityMax = 1, name = "Hemd",
-             reagentSlotSchematics = { { reagents = { { itemID = 3002 } }, quantityRequired = 1, reagentType = 1, required = true },
-                                       { reagents = { { itemID = 3001 } }, quantityRequired = 4, reagentType = 1, required = true } } },
-    [12] = { outputItemID = 3200, quantityMin = 2, quantityMax = 2, name = "Lappen",
-             reagentSlotSchematics = { { reagents = { { itemID = 3001 } }, quantityRequired = 5, reagentType = 1, required = true } } },
-  }
-  C_TradeSkillUI = { GetAllRecipeIDs = function() return { 11, 12 } end,
-    GetRecipeInfo = function(id) return { recipeID = id, learned = true } end,
-    GetRecipeSchematic = function(id) return SCH[id] end }
-  -- Vorrat: Taschen 2, Bank 1 (Stoff); andere Charaktere 10; eigene Kosten und Haendlerkaeufe aus Ledger
-  local savedCount = C_Item.GetItemCount
-  local MINE = { [3001] = { 2, 1 } }
-  C_Item.GetItemCount = function(id, bank)
-    local s = MINE[id] or { 0, 0 }
-    return bank and (s[1] + s[2]) or s[1]
-  end
-  local COST, OTH, VB = { [3001] = 5 }, { [3001] = 10 }, {}
-  local ledger = { StockOthers = function(_, id) return OTH[id] or 0 end, Cost = function(_, id) return COST[id] end,
-    VendorBuy = function(_, id) return VB[id] end,
-    Stock = function(_, id) return 15, { total = 15, warband = 3,
-      chars = { { name = "Mirel", places = { bags = 2 } }, { name = "Borin Stein", places = { bank = 7, auctions = 4 } } } } end }
+  check(mod:AhPrice(3002) == 30 and mod:AhPrice(4242) == nil, "0.95: AhPrice = guenstigstes Angebot")
+  local p, src, ah, vp = mod:BuyPrice(3002)
+  check(p == 30 and src == "ah" and ah == 30 and vp == nil, "0.95: BuyPrice mit AH-Preis")
+  -- Haendlerpreise: 1. beim Besuch gesehen, 2. letzter Kauf laut Ledger, 3. geschaetzt
+  local VB = {}
+  local ledger = { VendorBuy = function(_, id) return VB[id] end, StockOthers = function() return 0 end }
   local savedGM = Peon.GetModule
   Peon.GetModule = function(self, k) if k == "ledger" then return ledger end return savedGM(self, k) end
-  db.keepAllChars = true
   mod.acc.merchant = nil
-  local savedIV = ns.ItemValue
-  local IV = savedIV
-  -- Fenster: Rezeptformular mit Reagenzien und Rezeptliste
-  local function Vis(f) f.IsVisible = function(s) return s.shown end return f end
-  local form = Vis(CreateFrame("Frame"))
-  form.Reagents = Vis(CreateFrame("Frame"))
-  local selected = 11
-  form.GetRecipeInfo = function() return { recipeID = selected } end
-  local function RowFor(id)
-    local r = CreateFrame("Button")
-    r.GetElementData = function() return { GetData = function() return id and { recipeInfo = { recipeID = id } } or { categoryInfo = {} } end } end
-    return r
-  end
-  local rows = { RowFor(nil), RowFor(11), RowFor(12) }
-  local sb = { ForEachFrame = function(_, fn) for _, r in ipairs(rows) do fn(r) end end }
-  ProfessionsFrame = Vis(CreateFrame("Frame", "ProfessionsFrame"))
-  ProfessionsFrame.CraftingPage = { SchematicForm = form, RecipeList = { ScrollBox = sb } }
-  fire("TRADE_SKILL_SHOW")
-  timers[#timers]()
-  Cr.Tick()
-  -- Rechnung Hemd: Faden fehlt -> im AH kaufen (30c), 4 Stoff aus dem Vorrat zu Kosten laut Ledger (5c)
-  local c = Cr.calc[3100]
-  local erl4 = IV(3001, 4)
-  check(c and c.cost == 50 and #c.lines == 2 and c.lines[1].src == "ah" and c.lines[1].cost == 30
-      and c.lines[2].src == "stock" and c.lines[2].n == 4 and c.lines[2].cost == 20 and c.lines[2].erl == erl4,
-      "Hemd: Faden im AH 30c, 4 Stoff aus dem Vorrat 20c, Reihenfolge wie im Rezept (" .. tostring(c and c.cost) .. ")")
-  check(c.value == IV(3100, 1) and c.profit == c.value - 50 and c.craftNet == c.value - 30 and c.erl == erl4 and not c.sellBetter,
-      "Hemd: Gewinn = Ertrag - Kosten, Herstellen bringt Ertrag - Kaufen, mehr als der Verkauf des Stoffs")
-  check(c.mats[2].have == 13 and c.craftable == 0, "Vorrat mit Twinks 13")
-  local c2 = Cr.calc[3200]
-  local erl5 = IV(3001, 5)
-  check(c2 and c2.cost == 25 and c2.value == IV(3200, 2) and erl5 > c2.value and c2.sellBetter and c2.profit > 0,
-      "Lappen: Gewinn auf Kosten, aber 5 Stoff zu verkaufen bringt mehr als 2 Lappen")
-  db.keepAllChars = false
-  Cr.Tick()
-  local c1 = Cr.calc[3100]
-  check(c1.cost == 30 + 3 * 5 + 10 and #c1.lines == 3 and c1.lines[2].n == 3 and c1.lines[2].src == "stock"
-      and c1.lines[3].n == 1 and c1.lines[3].src == "ah" and c1.lines[3].cost == 10,
-      "ohne Twinks: 3 Stoff aus dem Vorrat, 1 Stoff kaufen, eigene Zeile (" .. tostring(c1.cost) .. ")")
-  db.keepAllChars = true
-  Cr.Tick()
-  -- Rezeptliste
-  check(not Cr.deco[rows[1]], "Kategorie-Zeile bleibt leer")
-  local d11, d12 = Cr.deco[rows[2]], Cr.deco[rows[3]]
-  check(d11 and d11.fs.shown and plain(d11.fs.text):find("^%+") and d11.fs.text:find("60e060", 1, true), "Liste: Gewinn gruen")
-  check(d12 and d12.fs.shown and plain(d12.fs.text):find("^%+") and d12.fs.text:find("ff9933", 1, true), "Liste: orange, wenn Verkaufen mehr bringt")
-  check(Cr.best == 3100 and d11.bar.shown and not d12.bar.shown, "goldener Strich am besten Rezept, bei dem Herstellen lohnt")
-  Cr.Set("craftListMode", "pct")
-  local p = math.floor(Cr.calc[3100].profit / 50 * 100 + 0.5)
-  check(plain(d11.fs.text) == "+" .. p .. " %", "Liste in Prozent vom Material (" .. plain(d11.fs.text) .. ")")
-  Cr.Set("craftListMode", "money")
-  Cr.Set("craftListWhich", "top1")
-  check(Cr.ListText(Cr.calc[3100]) ~= nil and Cr.ListText(Cr.calc[3200]) == nil, "nur die besten N")
-  Cr.Set("craftListWhich", "all")
-  Cr.Set("craftListBest", false)
-  check(not d11.bar.shown, "Strich abschaltbar")
-  Cr.Set("craftListBest", true)
-  check(Cr.ListText({ cost = 10, profit = -5, missing = 0 }) and plain(Cr.ListText({ cost = 10, profit = -5, missing = 0 })) == "-5c", "Verlust rot")
-  db.craftListLoss = false
-  check(Cr.ListText({ cost = 10, profit = -5, missing = 0 }) == nil, "Verluste abschaltbar")
-  db.craftListLoss = true
-  check(plain(Cr.ListText({ cost = 10, missing = 1 })) == "?", "ohne Preis: ?")
-  db.craftListUnknown = false
-  check(Cr.ListText({ cost = 10, missing = 1 }) == nil, "ohne Preis abschaltbar")
-  db.craftListUnknown = true
-  db.craftListWhich = "profit"
-  check(Cr.ListText({ cost = 10, profit = -5, missing = 0 }) == nil and Cr.ListText({ cost = 10, missing = 1 }) == nil, "nur mit Gewinn")
-  db.craftListWhich = "all"
-  Cr.Set("craftList", false)
-  check(not d11.fs.shown and not d11.bar.shown, "Liste ganz abschaltbar")
-  Cr.Set("craftList", true)
-  -- Block unter den Reagenzien: Ergebniszeile, Tabelle, Hinweis
-  local b = Cr.block
-  check(b and b.shown and b.points[1][2] == form.Reagents and not (Cr.box and Cr.box.shown), "Block unter den Reagenzien statt der Box daneben")
-  check(plain(b.boxes[1].label.text) == "Kosten" and plain(b.boxes[1].value.text) == "50c" and plain(b.boxes[2].label.text) == "Ertrag"
-      and plain(b.boxes[3].label.text) == "Gewinn" and plain(b.boxes[3].value.text):find("^%+"), "Ergebniszeile Kosten, Ertrag, Gewinn")
-  check(b.boxes[1].points[1][5] > b.head.points[1][5], "Ergebniszeile ueber der Tabelle")
-  check(plain(b.head.name.text) == "Material" and plain(b.head.src.text) == "Quelle" and plain(b.head.cost.text) == "Kosten"
-      and plain(b.head.sell.text) == "Erlös", "Spalten Material, Quelle, Kosten, Erloes")
-  check(plain(b.rows[1].name.text) == "Gegenstand3002" and plain(b.rows[1].src.text) == "AH" and plain(b.rows[1].cost.text) == "30c"
-      and plain(b.rows[1].sell.text) == "-", "Zeile Faden: im AH kaufen, kein Erloes")
-  check(plain(b.rows[2].name.text) == "4× Gegenstand3001" and plain(b.rows[2].src.text) == "Vorrat" and plain(b.rows[2].cost.text) == "20c"
-      and plain(b.rows[2].sell.text) == plain(ns.Tooltip.Money(erl4)), "Zeile Stoff: Vorrat, Kosten laut Ledger, Erloes im AH")
-  check(plain(b.total.name.text) == "Gesamt" and plain(b.total.cost.text) == "50c" and plain(b.total.sell.text) == plain(ns.Tooltip.Money(erl4)), "Zeile Gesamt")
-  check(plain(b.hint.text) == "Herstellen bringt mehr: " .. plain(ns.Tooltip.Money(c.craftNet)) .. " statt " .. plain(ns.Tooltip.Money(erl4)) .. " beim Verkauf des Materials",
-      "Hinweis: Herstellen lohnt, beide Betraege (" .. plain(b.hint.text) .. ")")
-  check(b.ck.shown and b.ck.checked == true, "Haken Twinks mitzaehlen (mit Ledger)")
-  local lines = Cr.StockLines(b.rows[2].line.mat)
-  check(plain(lines[1]) == "Dieser Charakter: Taschen 2, Bank 1" and plain(lines[2]) == "Borin: Bank 7" and plain(lines[3]) == "Accountbank: 3" and #lines == 3,
-      "Vorrat: wo liegt was (" .. plain(table.concat(lines, " | ")) .. ")")
-  b.ck.checked = false
-  b.ck.scripts.OnClick(b.ck)
-  check(db.keepAllChars == false and plain(b.rows[2].name.text) == "3× Gegenstand3001" and plain(b.rows[3].src.text) == "AH", "Haken aus: nur dieser Charakter")
-  lines = Cr.StockLines(b.rows[2].line.mat)
-  check(#lines == 2 and plain(lines[2]) == "Twinks und Accountbank: 10 (nicht mitgezählt)", "Vorrat ohne Twinks: Summe grau")
-  Cr.Set("keepAllChars", true)
-  check(not b.rows[3].shown, "ueberzaehlige Zeile versteckt")
-  -- Tooltips
-  local tl = Cr.LineTipLines(b.rows[2].line)
-  check(plain(tl[1]) == "#4× Gegenstand3001" and plain(tl[2][2]) == "Vorrat" and plain(tl[6][1]) == "Deine Kosten je Stück (Ledger)" and plain(tl[6][2]) == "5c"
-      and plain(tl[7][2]) == "10c" and plain(tl[8][1]) == "Erlös für 4 nach Gebühr", "Tooltip Vorrat: wo, Kosten, AH, Erloes (" .. tostring(#tl) .. ")")
-  tl = Cr.LineTipLines(b.rows[1].line)
-  check(plain(tl[3][2]) == "30c" and plain(tl[4][2]) == "unbekannt" and plain(tl[5][2]) == "0", "Tooltip Kaufen: AH, Haendler, Vorrat")
-  b.rows[2].hoverSrc.scripts.OnEnter(b.rows[2].hoverSrc)
-  check(plain(tt.lines[1]) == "4× Gegenstand3001" and b.rows[2].hoverCost.shown and b.rows[2].hoverSell.shown, "Maus ueber Quelle, Kosten, Erloes")
-  tl = Cr.BoxLines(b.calc, 1)
-  check(plain(tl[1]) == "#So ergeben sich die Kosten" and plain(tl[2][2]) == "20c" and plain(tl[3][2]) == "30c", "Tooltip Kosten: Vorrat und Kaufen")
-  tl = Cr.BoxLines(b.calc, 2)
-  check(plain(tl[1]) == "#Ertrag des Ergebnisses" and plain(tl[2][2]) == "1", "Tooltip Ertrag")
-  tl = Cr.BoxLines(b.calc, 3)
-  check(plain(tl[2][1]) == "Ertrag" and plain(tl[3][1]) == "minus Kosten" and plain(tl[3][2]) == "50c" and plain(tl[6][1]) == "Herstellen bringt (Ertrag minus Kaufen)"
-      and plain(tl[7][2]) == plain(ns.Tooltip.Money(erl4)) and plain(tl[8][1]) == "Alles gekauft", "Tooltip Gewinn: Rechnung und Vergleich")
-  b.boxes[3].scripts.OnEnter(b.boxes[3])
-  check(plain(tt.lines[1]) == "Gewinn je Herstellen" and #tt.lines == 8, "Maus ueber dem Gewinn-Kasten")
-  -- Einstellungen
-  Cr.Set("craftColCost", false)
-  check(not b.rows[2].cost.shown and b.rows[2].sell.shown and not b.head.cost.shown and not b.rows[2].hoverCost.shown, "Spalte Kosten abschaltbar")
-  Cr.Set("craftColCost", true)
-  Cr.Set("craftSummary", false)
-  check(not b.boxes[1].shown and b.head.points[1][5] == -28, "Ergebniszeile abschaltbar, Tabelle rueckt hoch")
-  Cr.Set("craftSummary", true)
-  Cr.Set("craftHint", false)
-  check(not b.hint.shown, "Hinweis abschaltbar")
-  Cr.Set("craftHint", true)
-  -- Faden im Vorrat ohne Kosten im Ledger: AH-Preis zaehlt, mit ~
-  MINE[3002] = { 1, 0 }
-  fire("BAG_UPDATE_DELAYED")
-  Cr.Tick()
-  check(plain(b.rows[1].src.text) == "Vorrat" and plain(b.rows[1].cost.text) == "~30c" and Cr.LineTipLines(b.rows[1].line)[8] ~= nil,
-      "ohne Kosten im Ledger: AH-Preis mit ~")
-  check(plain(b.hint.text):match("^Dein Vorrat reicht für 1×\n"), "nichts zu kaufen: Vorrat reicht (" .. plain(b.hint.text) .. ")")
-  MINE[3002] = nil
-  -- Lappen: Verkaufen bringt mehr, Hinweis mit beiden Betraegen
-  selected = 12
-  Cr.OnSelect(12)
-  c2 = b.calc
-  check(plain(b.rows[1].name.text) == "5× Gegenstand3001" and not b.rows[2].shown and plain(b.boxes[2].label.text) == "Ertrag (2 Stück)", "anderes Rezept gewaehlt")
-  check(plain(b.hint.text) == "Dein Vorrat reicht für 2×\nMaterial verkaufen bringt mehr: " .. plain(ns.Tooltip.Money(erl5)) .. " statt " .. plain(ns.Tooltip.Money(c2.value)) .. " beim Herstellen",
-      "Hinweis: lieber verkaufen, beide Betraege (" .. plain(b.hint.text) .. ")")
-  check(b.hint.text:find("ff9933", 1, true), "Hinweis orange")
-  Cr.Set("craftBlock", false)
-  check(not b.shown and not (Cr.box and Cr.box.shown), "Block abschaltbar, dann auch keine Box")
-  Cr.Set("craftBlock", true)
-  check(b.shown, "Block wieder da")
-  selected = 11
-  Cr.OnSelect(11)
-  -- Haendlerpreise: 1. beim Besuch gesehen, 2. letzter Kauf laut Ledger, 3. geschaetzt
   GetMerchantNumItems = function() return 2 end
   GetMerchantItemID = function(i) return ({ 3002, 3100 })[i] end
   GetMerchantItemInfo = function(i)
@@ -2298,117 +2050,41 @@ end)()
   local vend = mod.acc.vendors and mod.acc.vendors[4711]
   check(vend and vend.items[3002].p == 10 and vend.items[3100] and vend.items[3100].p == nil and mod.acc.merchant == nil,
     "N5: Haendlerpreise im gemeinsamen Speicher, Preis je Stueck, ohne Gold kein Preis")
-  Cr.Tick()
-  c = Cr.calc[3100]
-  check(c.lines[1].src == "vendor" and c.lines[1].cost == 10 and c.cost == 30 and plain(b.rows[1].src.text) == "Händler" and plain(b.rows[1].cost.text) == "10c",
-      "Faden beim Haendler guenstiger: Quelle Haendler")
-  tl = Cr.LineTipLines(b.rows[1].line)
-  check(plain(tl[4][2]) == "10c" and plain(tl[6]):find("^Händlerpreis gesehen bei "), "Tooltip: wo der Haendlerpreis herkommt")
+  local vsrc, vwho
+  p, src, ah, vp, vsrc, vwho = mod:BuyPrice(3002)
+  check(p == 10 and src == "vendor" and ah == 30 and vp == 10 and vsrc == "seen", "Faden beim Haendler guenstiger: Quelle Haendler, gesehen")
   vend.items[3002].p = 40
-  Cr.dirty = true
-  Cr.Tick()
-  check(Cr.calc[3100].lines[1].src == "ah" and Cr.calc[3100].lines[1].cost == 30, "AH guenstiger: Quelle AH")
+  p, src = mod:BuyPrice(3002)
+  check(p == 30 and src == "ah", "AH guenstiger: Quelle AH")
   mod.acc.vendors = nil
   mod.acc.merchant = { [3002] = { p = 12, t = clock, w = "Alt" } }
-  Cr.dirty = true
-  Cr.Tick()
-  check(Cr.calc[3100].lines[1].src == "vendor" and Cr.calc[3100].lines[1].cost == 12, "N5: frueherer Speicher wird noch gelesen")
+  p, src = mod:BuyPrice(3002)
+  check(p == 12 and src == "vendor", "N5: frueherer Speicher wird noch gelesen")
   mod.acc.merchant = nil
   VB[3002] = 20
-  Cr.dirty = true
-  Cr.Tick()
-  check(Cr.calc[3100].lines[1].src == "vendor" and Cr.calc[3100].lines[1].cost == 20 and Cr.calc[3100].mats[1].vsrc == "ledger", "Haendlerpreis aus Ledger")
+  p, src, ah, vp, vsrc = mod:BuyPrice(3002)
+  check(p == 20 and src == "vendor" and vsrc == "ledger", "Haendlerpreis aus Ledger")
   VB[3002] = nil
   local savedVP = ns.VendorPrice
   ns.VendorPrice = function(id) if id == 3002 then return 2 end return savedVP(id) end
   check(ns.Merchant.Price(3002) == nil, "nicht in der Liste: keine Schaetzung")
   ns.Merchant.LIST[3002] = true
-  Cr.dirty = true
-  Cr.Tick()
-  check(Cr.calc[3100].lines[1].src == "vendor" and Cr.calc[3100].lines[1].cost == 8 and Cr.calc[3100].lines[1].est and plain(b.rows[1].cost.text) == "~8c",
-      "geschaetzt: 4x Ankaufspreis, mit ~")
+  p, src, ah, vp, vsrc = mod:BuyPrice(3002)
+  check(p == 8 and src == "vendor" and vsrc == "est", "geschaetzt: 4x Ankaufspreis")
   ns.Merchant.LIST[3002] = nil
   ns.VendorPrice = savedVP
   GetMerchantNumItems, GetMerchantItemID, GetMerchantItemInfo = nil, nil, nil
-  mod.acc.merchant = nil
-  -- Zahnrad-Menue (neue Menue-API)
-  local made = {}
-  MenuUtil = { CreateContextMenu = function(owner, gen)
-    local root = {}
-    function root:CreateTitle(t) made[#made + 1] = "T:" .. t end
-    function root:CreateDivider() end
-    function root:CreateCheckbox(t, get, set) made[#made + 1] = { t = t, get = get, set = set } end
-    function root:CreateButton(t, fn) made[#made + 1] = "B:" .. t; return { CreateRadio = function(_, rt, rget, rset) made[#made + 1] = { t = rt, get = rget, set = rset, radio = true } end } end
-    gen(owner, root)
-  end }
-  Cr.ShowMenu(b.gear)
-  local loss, pct, sell
-  for _, it in ipairs(made) do
-    if type(it) == "table" and it.t == "Verluste zeigen" then loss = it end
-    if type(it) == "table" and it.t == "Prozent vom Material" then pct = it end
-    if type(it) == "table" and it.t == "Spalte Erlös (Vorrat im AH verkauft)" then sell = it end
+  -- Zeile Herstellkosten im Tooltip kommt von Peon_Profession
+  Peon.GetModule = function(self, k)
+    if k == "profession" then return { CraftTooltip = function(_, id) return id == 3100 and "Material 70c" or nil end } end
+    return savedGM(self, k)
   end
-  check(made[1] == "T:Rezeptliste" and loss and loss.get() == true and pct and pct.radio and sell, "Menue: Rezeptliste und Tabelle mit Haken und Auswahl")
-  loss.set()
-  check(db.craftListLoss == false and loss.get() == false, "Menue: Haken schaltet um")
-  loss.set()
-  pct.set()
-  check(db.craftListMode == "pct", "Menue: Auswahl setzt den Wert")
-  db.craftListMode = "money"
-  MenuUtil = nil
-  -- Einstellungen geaendert (z. B. auf der Optionsseite): naechster Takt zeichnet neu
-  Cr.Tick()
-  db.craftColSell = false
-  Cr.Tick()
-  check(not b.rows[1].sell.shown, "Aenderung ohne Menue wird beim naechsten Takt erkannt")
-  db.craftColSell = true
-  -- ohne Reagenzien-Bereich: Rueckfall auf die Box
-  form.Reagents = nil
-  Cr.dirty = true
-  Cr.Tick()
-  check(not b.shown and Cr.box and Cr.box.shown, "ohne Reagenzien-Bereich: Box daneben wie bisher")
-  form.Reagents = Vis(CreateFrame("Frame"))
-  Cr.dirty = true
-  Cr.Tick()
-  -- 0.39: Rezeptliste kommt spaeter oder anderer Beruf: unbekanntes Rezept in der Liste wird nachgelesen
-  SCH[13] = { outputItemID = 3002, quantityMin = 1, quantityMax = 1, name = "Faden",
-              reagentSlotSchematics = { { reagents = { { itemID = 3200 } }, quantityRequired = 1, reagentType = 1, required = true } } }
-  C_TradeSkillUI.GetAllRecipeIDs = function() return { 11, 12, 13 } end
-  rows[#rows + 1] = RowFor(13)
-  Cr.Tick()
-  check(Cr.needRead and not Cr.byRecipe[13], "0.39: unbekanntes Rezept bemerkt, liest nicht sofort wieder")
-  now = now + 1
-  Cr.Tick()
-  Cr.Tick()
-  check(Cr.byRecipe[13] == 3002 and Cr.deco[rows[4]] and Cr.deco[rows[4]].fs.shown and not Cr.needRead, "0.39: nachgelesen, Gewinn steht in der neuen Zeile")
-  -- Ereignis mehrmals schnell hintereinander: das letzte wird nicht verschluckt
-  now = now + 1
-  C_TradeSkillUI.GetAllRecipeIDs = function() return { 11, 12 } end
-  fire("TRADE_SKILL_LIST_UPDATE")
-  Cr.Tick()
-  check(Cr.byRecipe[13] == nil, "0.39: Listen-Ereignis wird beim naechsten Takt gelesen")
-  C_TradeSkillUI.GetAllRecipeIDs = function() return { 11, 12, 13 } end
-  fire("TRADE_SKILL_LIST_UPDATE")
-  Cr.Tick()
-  check(Cr.byRecipe[13] == nil and Cr.needRead, "0.39: zweites Ereignis kurz danach wartet")
-  now = now + 1
-  Cr.Tick()
-  check(Cr.byRecipe[13] == 3002, "0.39: und wird danach gelesen")
-  table.remove(rows)
-  SCH[13] = nil
-  C_TradeSkillUI.GetAllRecipeIDs = function() return { 11, 12 } end
-  -- Pruefbefehl
-  form.Reagents.GetObjectType = function() return "Frame" end
-  SlashCmdList.PEON_BROKER("pruefen beruf")
-  check(said("SchematicForm: sichtbar") and said("Anker: Reagents") and said("Rezeptliste: 3 Zeilen, 2 mit Rezept"), "/broker pruefen beruf")
-  fire("TRADE_SKILL_CLOSE")
+  check(Cr.TooltipText(3100) == "Material 70c" and Cr.TooltipText(3002) == nil, "0.95: Herstellkosten im Tooltip von Peon_Profession")
   Peon.GetModule = savedGM
-  ns.ItemValue = savedIV
-  C_Item.GetItemCount = savedCount
-  db.keepAllChars = false
-  C_TradeSkillUI, ProfessionsFrame = nil, nil
-  market.items[3001], market.items[3002], market.items[3100], market.items[3200] = nil, nil, nil, nil
-  PeonBrokerCharDB.recipes = nil
+  check(Cr.TooltipText(3100) == nil, "0.95: ohne Peon_Profession keine Zeile")
+  SlashCmdList.PEON_BROKER("pruefen beruf")
+  check(said("jetzt im Modul Peon Berufe"), "0.95: /broker pruefen beruf nennt den Umzug")
+  market.items[3002] = nil
 end)()
 
 -- ===== ab 0.27: Absatz so lange wie die Preise, Verlauf fuer Ledger =====

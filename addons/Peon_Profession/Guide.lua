@@ -116,6 +116,7 @@ end
 
 -- Naechster Rang beim Lehrer, wenn der Hoechstwert fast erreicht ist. Rueckgabe: Text oder nil
 function G.TrainerHint(key, skill, max)
+    if max == 0 then return L.LEARN_FIRST:format(L.RANKS[0]) end
     if not max or max >= 300 or not L.RANKS[max] then return nil end
     if skill < max - 25 then return nil end
     local p = ns.PROFS[key]
@@ -160,25 +161,72 @@ function G.Active(v)
     return v.mats, v.recipeID or v.spell, v.item
 end
 
--- Plan von der Stufe bis zum Hoechstwert: { { from, to, count, step, item, spell, cost, missingPrice } }
--- Danach eine Zeile fuer den naechsten Rang beim Lehrer.
-function G.Plan(key, skill, max)
+-- Plan von der Stufe bis zum Ziel: { { from, to, count, step, index, item, spell, gather } }. Ab 0.2.0 mit Ziel ueber
+-- den Hoechstwert hinaus: An jeder Ranggrenze (75, 150, 225), die noch gelernt werden muss, steht eine Lehrerzeile
+-- { trainer = true, from, rank }, Schritte ueber die Grenze werden dort geteilt. Nicht gelernt (max 0): zuerst Lehrling.
+-- target = nil: bis zum Hoechstwert (Verhalten bis 0.1.0, danach eine Lehrerzeile).
+function G.Plan(key, skill, max, target)
     local out = {}
     local r = G.Route(key)
     if type(r) ~= "table" then return out end
     skill, max = tonumber(skill) or 0, tonumber(max) or 300
-    for i, s in ipairs(r) do
-        if s.to > skill and s.from < max then
-            local from, to = math.max(s.from, skill), math.min(s.to, max)
-            local e = { from = from, to = to, step = s, index = i, item = s.item, spell = s.spell, gather = s.gather }
-            local n = G.Remaining(s, from)
-            if n and to < s.to then n = math.ceil(n * (to - from) / math.max(1, s.to - from)) end
-            e.count = n
-            out[#out + 1] = e
+    local untilT = math.min(300, tonumber(target) or max)
+    -- Grenzen, an denen ein Rang fehlt
+    local need = {}
+    for _, b in ipairs({ 75, 150, 225 }) do
+        if b >= max and b >= skill and b < untilT then need[#need + 1] = b end
+    end
+    if max <= 0 then out[#out + 1] = { trainer = true, from = 0, to = 0, rank = L.RANKS[0] } end
+    local pending = 1
+    local function Trainer(upTo)
+        while need[pending] and need[pending] <= upTo do
+            local b = need[pending]
+            out[#out + 1] = { trainer = true, from = b, to = b, rank = L.RANKS[b] }
+            pending = pending + 1
         end
     end
-    if max < 300 and L.RANKS[max] then out[#out + 1] = { trainer = true, from = max, to = max, rank = L.RANKS[max] } end
+    for i, s in ipairs(r) do
+        if s.to > skill and s.from < untilT then
+            local from, to = math.max(s.from, skill), math.min(s.to, untilT)
+            -- an fehlenden Raengen teilen
+            local cuts = { from }
+            for _, b in ipairs(need) do if b > from and b < to then cuts[#cuts + 1] = b end end
+            cuts[#cuts + 1] = to
+            for c = 1, #cuts - 1 do
+                local a, z = cuts[c], cuts[c + 1]
+                Trainer(a)
+                local e = { from = a, to = z, step = s, index = i, item = s.item, spell = s.spell, gather = s.gather }
+                if s.n then
+                    local span = math.max(1, s.to - s.from)
+                    e.count = math.max(1, math.ceil(s.n * (z - a) / span - 0.0001))
+                end
+                out[#out + 1] = e
+            end
+        end
+    end
+    Trainer(untilT)
+    if target == nil and max < 300 and L.RANKS[max] and max > 0 then
+        out[#out + 1] = { trainer = true, from = max, to = max, rank = L.RANKS[max] }
+    end
     return out
+end
+
+-- Zielstufe eines Berufs: gespeichert, sonst der Hoechstwert (ist er erreicht: der naechste Rang), nicht gelernt 75
+function G.Target(key, skill, max)
+    local t = type(mod.db.target) == "table" and tonumber(mod.db.target[key])
+    skill, max = tonumber(skill) or 0, tonumber(max) or 0
+    if t and t > skill then return math.min(300, t) end
+    if max <= 0 then return 75 end
+    if max > skill then return max end
+    return math.min(300, max + 75)
+end
+
+function G.SetTarget(key, value)
+    value = math.floor(tonumber(value) or 0)
+    if value < 1 then value = nil else value = math.min(300, value) end
+    if type(mod.db.target) ~= "table" then mod.db.target = {} end
+    mod.db.target[key] = value
+    return value
 end
 
 -- Bedarf an Material fuer eine Reihe von Schritten (Plan-Zeilen) zusammenzaehlen: { [itemID] = Stueck }

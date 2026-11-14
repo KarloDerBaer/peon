@@ -1,6 +1,6 @@
 # Peon_Profession: Konzept (freigegeben)
 
-Stand: 14.11.2026, freigegeben von KarloDerBaer am selben Tag (Entscheidungen in Abschnitt 10, Befehl `/prof` bestätigt). Gebaut in Peon_Profession 0.1.0 (S1 bis S5) und Broker 0.94.0. S6 folgt nach der Prüfung im Spiel.
+Stand: 14.11.2026, freigegeben von KarloDerBaer am selben Tag (Entscheidungen in Abschnitt 10, Befehl `/prof` bestätigt). Gebaut in Peon_Profession 0.1.0 (S1 bis S5) und Broker 0.94.0, danach 0.2.0 mit S6 und den Wünschen nach dem ersten Test (Abschnitt 11) und Broker 0.95.0.
 
 Anlass: KarloDerBaer möchte einen Berufe-Guide wie das installierte Addon „Profession Leveling Guide“ (PLG), aber einfach, im Peon-Stil und angebunden an Broker (Preise, Einkaufsliste). Zusatzfunktionen wie Teilen mit der Gilde oder Streamer-Modus sind ausdrücklich nicht gewünscht.
 
@@ -185,3 +185,15 @@ Nach S2 lässt sich im Spiel schon prüfen, ob die Routen stimmen.
 6. **Routen pflegen:** einmal aus PLG 2.7.2 umwandeln, danach nur noch eigene Messungen.
 7. **Umzug aus Broker:** erst den Guide bauen und prüfen, danach in einem eigenen Abschnitt (S6).
 8. **Befehl `/prof`** und **Freigabe** des Konzepts (KarloDerBaer), Bau von S1 bis S5 in einem Zug.
+
+## 11. Erweiterungen nach dem ersten Test (0.2.0, 14.11.2026)
+
+Wünsche von KarloDerBaer nach dem ersten Blick im Spiel, zusammen mit S6 gebaut.
+
+- **Alle Berufe:** Haken „Alle Berufe“ unter der Liste. Nicht gelernte Berufe stehen grau und planen ab Stufe 1, die erste Zeile sagt „Zuerst Lehrling beim Lehrer lernen“.
+- **Ganze Route:** neuer Reiter „Route“ mit allen Schritten 1 bis 300, Stand je Rezept (Farbe oder „lernen ab …“), der aktuelle Schritt grün hinterlegt. Ein Klick zeigt den Schritt im Reiter „Guide“.
+- **Zielstufe:** Feld „Ziel“ im Kopf, gespeichert je Charakter und Beruf. Ohne Eingabe gilt der Höchstwert, ist er erreicht der nächste Rang, nicht gelernt 75. „Weiter“, Kosten und Einkaufsliste rechnen bis zum Ziel. An jeder fehlenden Ranggrenze steht eine Lehrerzeile, Schritte über die Grenze werden geteilt.
+- **Material bis zum Ziel:** neuer Reiter „Material“ mit allem Material von der Stufe bis zum Ziel, Vorrat, Fehlt, Preis und Kosten. Schritte ohne Material-Angabe werden darunter gezählt.
+- **Knopf in der Titelleiste** des Berufsfensters rechts neben dem Namen des Berufs, öffnet das Fenster.
+- **Markierungen in der Rezeptliste** (Wahl KarloDerBaer aus vier Vorschlägen): grüner Pfeil links neben der Zeile für das Rezept des Guides, Goldmünze direkt vor dem Gewinn für das beste Rezept. Blizzards Pfeile für Punkte bleiben frei.
+- **S6 gebaut:** Abschnitt 8 umgesetzt. Die Box neben dem Fenster bleibt als Rückfall erhalten.

@@ -8,6 +8,7 @@ local L = ns.L
 local mod = ns.mod
 
 local B = {}
+B.TITLE_W, B.TITLE_H = 120, 20
 ns.CraftBar = B
 
 local function Host()
@@ -66,9 +67,47 @@ function B.Select()
     return pcall(ts.OpenRecipe, id)
 end
 
+-- Ab 0.2.0 (Wunsch KarloDerBaer): Knopf in der Titelleiste des Berufsfensters, oeffnet das Fenster.
+-- Ab 0.2.1: roter Knopf mit Text "Peon Profession" rechts in der Leiste, links neben dem Schliessen-Knopf.
+function B.UpdateTitleButton(host)
+    local btn = B.title
+    if not host or not mod.db.titleButton then if btn then btn:Hide() end return end
+    if not btn then
+        local U = Peon.UI
+        btn = (U and U.TryFrame("Button", "PeonProfessionTitleButton", host, "UIPanelButtonTemplate"))
+            or CreateFrame("Button", "PeonProfessionTitleButton", host, "UIPanelButtonTemplate")
+        btn:SetSize(B.TITLE_W, B.TITLE_H)
+        btn:SetText(L.TITLE_BTN_TEXT)
+        btn:SetScript("OnClick", function() ns.Window.Toggle(B.key) end)
+        btn:SetScript("OnEnter", function(self)
+            if not GameTooltip then return end
+            GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+            GameTooltip:AddLine(L.TITLE_BTN, 1, 1, 1)
+            GameTooltip:Show()
+        end)
+        btn:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+        B.title = btn
+    end
+    if btn.GetParent and btn:GetParent() ~= host then btn:SetParent(host) end
+    -- ueber Titel und Rahmen (Ebenen siehe Peon_Ueberblick.md: Titel 510, eigene Knoepfe 520)
+    if btn.SetFrameLevel and host.GetFrameLevel then btn:SetFrameLevel((host:GetFrameLevel() or 0) + 520) end
+    btn:ClearAllPoints()
+    local close = rawget(host, "CloseButton")
+    if type(close) == "table" then
+        btn:SetPoint("RIGHT", close, "LEFT", -2, 0)
+    else
+        btn:SetPoint("TOPRIGHT", host, "TOPRIGHT", -30, -2)
+    end
+    btn:Show()
+end
+
 function B.Update()
-    if not mod.db.craftBar then if B.frame then B.frame:Hide() end return end
     local host = Host()
+    if host then
+        B.key = ns.Measure.OpenProfession() or B.key
+        B.UpdateTitleButton(host)
+    end
+    if not mod.db.craftBar then if B.frame then B.frame:Hide() end return end
     if not host then if B.frame then B.frame:Hide() end return end
     local key, skill = ns.Measure.OpenProfession()
     if not key or not skill or not ns.Guide.Route(key) then if B.frame then B.frame:Hide() end return end
