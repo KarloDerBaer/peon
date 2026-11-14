@@ -1,0 +1,5 @@
+<Bindings>
+    <!-- Hexenmeister: einen ueberzaehligen Seelensplitter vernichten (unsichtbarer Knopf in Warlock_Shards.lua) -->
+    <Binding name="CLICK PeonClassBuddyShard:LeftButton" header="PEON_CLASSBUDDY" category="ADDONS">
+    </Binding>
+</Bindings>

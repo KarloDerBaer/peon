@@ -41,6 +41,7 @@ local DEFAULTS = {
     fillColor   = { 1.00, 0.24, 0.20 },        -- gefuellter Punkt
     socketColor = { 0.00, 0.00, 0.00, 0.70 },  -- leere Fassung
     ringColor   = { 0.85, 0.70, 0.32, 1.00 },  -- goldener Rand
+    movedHint   = false,                       -- ab 3.6.0: Hinweis auf den Klassenbuddy gezeigt
 }
 local SIZE, GAP, Y_OFFSET, RING_PAD = 15, 4, 8, 1
 local FILL, SOCKET, RING = DEFAULTS.fillColor, DEFAULTS.socketColor, DEFAULTS.ringColor
@@ -87,6 +88,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         socketColor = IsColor(4),
         ringColor   = IsColor(4),
     },
+    keepOnReset = { movedHint = true },
 })
 ns.mod = mod
 
@@ -397,6 +399,19 @@ end
 -- ----------------------------------------------------------------- Start ---
 local function OnEvent(self, event, arg1, arg2)
     if event == "PLAYER_LOGIN" then
+        -- Ab 3.6.0: Der Klassenbuddy (Peon_ClassBuddy) zeigt die Combo-Punkte und uebernimmt die Einstellungen.
+        -- Dann bleibt dieses Addon still, sonst gaebe es die Punkte doppelt. Hinweis einmal je Konto.
+        if Peon.IsAddOnLoaded("Peon_ClassBuddy") then
+            ns.replaced = true
+            self:UnregisterAllEvents()
+            if mod.db and not mod.db.movedHint then
+                mod.db.movedHint = true
+                mod:Print((GetLocale() == "deDE")
+                    and "Die Combo-Punkte zeigt jetzt der Klassenbuddy, deine Einstellungen sind übernommen. Peon ComboPoints kannst du im Peon Manager entfernen."
+                    or  "Combo points are now shown by Class Buddy, your settings were taken over. You can remove Peon ComboPoints in the Peon Manager.")
+            end
+            return
+        end
         local _, class = UnitClass("player")
         mod:Dbg("Login, Klasse " .. tostring(class))
         if class ~= "ROGUE" then

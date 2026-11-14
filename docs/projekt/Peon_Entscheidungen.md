@@ -2,6 +2,14 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 14.11.2026: Seelensplitter mit Zaubern, ClassBuddy ersetzt ComboPoints (ClassBuddy 0.2.0, ComboPoints 3.6.0)
+
+- **Vernichten mit jedem Zauber von der Aktionsleiste** (KarloDerBaer nach der Prüfung mit 0.1.0): Ohne Tastendruck sperrt das Spiel, mit Klick, Makro und Aktionstaste geht es, auch im Kampf. Je Zauber höchstens ein Splitter, Fehlversuche still und beim nächsten Zauber neu (Vorschlag Claude). Makro, Tastenbelegung und Panel als Rückfall.
+- **Gesperrte Plätze überspringen** (Claude): Der einzige Fehlversuch im Kampf kam vermutlich von einem Platz, der nach dem Vernichten oder Zurücklegen noch gesperrt war. Ein Zauber mit Zielkreis war es laut Mitspieler nicht.
+- **Einstellungen flach statt je Klasse** (Claude, beim Bau): Die Bausteine der Optionsseite arbeiten mit Schlüsseln der obersten Ebene. Die Combo-Punkte behalten ihre Namen, damit die Übernahme einfach bleibt.
+- **Übernahme beim Einloggen** (Claude, beim Bau): Peon_ComboPoints lädt alphabetisch nach Peon_ClassBuddy, seine Einstellungen sind erst danach da. Peon_ComboPoints 3.6.0 bleibt still, wenn der Klassenbuddy geladen ist, und behält seine Einstellungen.
+- **Testfenster wieder entfernt** (wie bei KarloDerBaers Wunsch angekündigt: verschwindet mit der nächsten Version).
+
 ## 14.11.2026: Neues Modul Peon_ClassBuddy (Konzept abgestimmt)
 
 - **Ein Modul für Klassenhelfer** (Wunsch aus dem Feedback, KarloDerBaer): Name im Code `Peon_ClassBuddy`, angezeigt „Klassenbuddy“. Es ersetzt Peon_ComboPoints, die Einstellungen werden übernommen.

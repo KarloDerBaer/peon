@@ -6,139 +6,109 @@ local L = Peon.NewLocale()
 ns.L = L
 
 -- enUS (Standard)
-L.TITLE = "Class Buddy"
-L.HELP = {
-    "/peon classbuddy check - window for the soul shard check",
-    "/peon classbuddy check start - start the check (destroys at most one shard per test)",
-    "/peon classbuddy check result - show the results",
-    "/peon classbuddy check send - send the results to the Peon Manager (needs Peon_Feedback)",
-    "/peon classbuddy check clear - forget the results",
-    "/peon classbuddy check off - stop the check",
-}
-L.P_START       = "Check started. Each test destroys at most one soul shard. In 1 second the first test runs by itself."
-L.P_STEPS       = {
-    "1. Click the button in the window.",
-    "2. Make a macro with  /click PeonClassBuddyShard  and use it.",
-    "3. Cast any spell from your action bar.",
-    "4. Repeat 1 to 3 in combat.",
-    "Then: /peon classbuddy check send",
-}
-L.P_NO_SHARD    = "no soul shard in the bags"
-L.P_CURSOR_BUSY = "something is already on the cursor"
-L.P_PICKUP_FAIL = "picking up failed"
-L.P_WRONG_ITEM  = "wrong item on the cursor, put back"
-L.P_DONE        = "destroyed"
-L.P_NOT_DONE    = "not destroyed"
-L.P_BLOCKED     = "blocked by the game"
-L.P_ERROR       = "error"
-L.P_RESULT      = "%s (%s): %s"
-L.P_HEAD        = "Results of the soul shard check:"
-L.P_NONE        = "No results yet. Start with /peon classbuddy check"
-L.P_CLEARED     = "Results cleared."
-L.P_OFF         = "Check stopped."
-L.P_INFO_CLASS  = "Class: %s, soul shards in bags: %d, item family of the shard: %s"
-L.P_INFO_BAG    = "Bag %d: %d slots, %d free, bag type %s, shards %d"
-L.P_INFO_API    = "Functions: %s"
-L.P_HOOKS       = "Seen while casting: %s"
-L.P_COMBAT      = "combat"
-L.P_FREE        = "no combat"
-L.P_WAY = {
-    event  = "without key press",
-    click  = "button click",
-    macro  = "macro /click",
-    action = "action key",
-}
-L.P_BUTTON      = "Destroy shard (test)"
-L.P_NOT_WARLOCK = "Note: this character is no warlock. The check still works if it has a soul shard."
-L.P_MACRO_DONE  = "Macro \"PeonSplitter\" is on your cursor. Drop it on an action bar slot and press it."
-L.P_MACRO_FAIL  = "Could not create the macro. Please make one yourself with: %s"
-L.P_MACRO_COMBAT = "Macros cannot be created in combat."
-L.P_SEND_DONE   = "Results handed to Peon Feedback. After /reload or logging out, the Peon Manager shows them under feedback, please send them from there."
-L.P_SEND_FAIL   = "Sending failed: %s"
-L.P_SEND_NO_FEEDBACK = "Peon_Feedback is not active. Please turn it on in the Peon Manager, /reload and send again."
+L.TITLE       = "Class Buddy"
+L.DESC        = "Small helpers for each class. Each part only works for its own class. Changes apply immediately."
+L.TAB_ROGUE   = "Rogue"
+L.TAB_WARLOCK = "Warlock"
+L.SLASH_HINT  = "Chat: /peon classbuddy opens this panel, /peon classbuddy shards shows the soul shards."
 
-L.G_TITLE   = "Class Buddy: soul shard test"
-L.G_TEMP    = "This window is only here for a short test and goes away with the next version."
-L.G_WHY     = "We want to find out whether Class Buddy may destroy surplus soul shards, and when. Each test destroys at most one shard. You need at least 8 soul shards."
-L.G_STEP1   = "1. Start the check. A first test runs by itself after one second."
-L.G_STEP2   = "2. Click this button:"
-L.G_STEP3   = "3. Create the macro, drop it on your action bar and press it:"
-L.G_STEP4   = "4. Cast any spell from your action bar (e.g. Shadow Bolt on a target)."
-L.G_STEP5   = "5. Attack an enemy and repeat 2 to 4 while in combat. The test without key press runs again when combat starts."
-L.G_STEP6   = "6. Send the result. Then /reload or log out and send the feedback in the Peon Manager."
-L.G_BTN_START = "Start check"
-L.G_BTN_MACRO = "Create macro"
-L.G_BTN_SEND  = "Send result"
-L.G_STATE   = "State"
-L.G_OPEN    = "open"
-L.G_SENT    = "Result handed over. Please send it in the Peon Manager."
-L.G_HIDE    = "Do not show again"
+-- Schurke: Combo-Punkte
+L.CP_HDR_LAYOUT   = "Combo points: size and position"
+L.CP_HDR_COLORS   = "Colours"
+L.CP_HDR_PREVIEW  = "Preview (3 of 5 points)"
+L.CP_SIZE         = "Point size"
+L.CP_GAP          = "Gap between points"
+L.CP_Y_OFFSET     = "Height above the health bar"
+L.CP_Y_OFFSET_HINT = "Negative values move the points down onto the health bar."
+L.CP_RING_PAD     = "Border thickness"
+L.CP_SHOW_SOCKETS = "Show empty points on the target"
+L.CP_SOCKETS_HINT = "Off: only filled points are shown, without empty sockets and border."
+L.CP_FILL         = "Filled point"
+L.CP_SOCKET       = "Empty point (with opacity)"
+L.CP_RING         = "Border (with opacity)"
+
+-- Hexenmeister: Seelensplitter
+L.SH_TITLE        = "Soul shards"
+L.SH_HDR          = "Destroy surplus soul shards"
+L.SH_ON           = "Destroy surplus soul shards"
+L.SH_RULE         = "When is a shard too many?"
+L.SH_RULE_BAG     = "Soul bag full"
+L.SH_RULE_MAX     = "More than the maximum"
+L.SH_RULE_HINT    = "Soul bag full: once the soul bag is full, every shard in another bag is destroyed. Without a soul bag the maximum applies."
+L.SH_MAX          = "Maximum number of shards"
+L.SH_MAX_HINT     = "For the rule \"More than the maximum\" and without a soul bag."
+L.SH_ACTION       = "Destroy together with spells"
+L.SH_ACTION_HINT  = "Each spell from your action bar destroys one surplus shard. The game only allows this on a key press."
+L.SH_MSG          = "Message in chat"
+L.SH_HDR_MANUAL   = "By hand"
+L.SH_MANUAL_TEXT  = "The game only lets add-ons destroy items on a key press or click. Besides spells this works with the macro, the key binding \"Destroy soul shard\" and the entry on the Peon Panel bar, also in combat."
+L.SH_BTN_MACRO    = "Create macro"
+L.SH_BTN_MACRO_HINT = "Creates the macro \"PeonSplitter\" with /click PeonClassBuddyShard and puts it on your cursor."
+L.SH_MACRO_DONE   = "Macro \"PeonSplitter\" is on your cursor. Drop it on an action bar slot."
+L.SH_MACRO_FAIL   = "Could not create the macro. Please make one yourself with: %s"
+L.SH_MACRO_COMBAT = "Macros cannot be created in combat."
+L.SH_DONE_BAG     = "Soul shard destroyed (soul bag full)."
+L.SH_DONE_MAX     = "Soul shard destroyed (more than %d)."
+L.SH_NONE         = "No surplus soul shard."
+L.SH_NOT_WARLOCK  = "Only for warlocks."
+L.SH_REPORT       = "Soul shards: %d, surplus: %d, destroyed this session: %d"
+L.SH_TEXT_OVER    = "%d (+%d)"
+L.SH_TIP_COUNT    = "Soul shards in your bags: %d"
+L.SH_TIP_OVER     = "Surplus: %d"
+L.SH_TIP_CLICK    = "Click: destroy one surplus shard"
+
+BINDING_HEADER_PEON_CLASSBUDDY = "Peon Class Buddy"
+_G["BINDING_NAME_CLICK PeonClassBuddyShard:LeftButton"] = "Destroy soul shard"
 
 if GetLocale() == "deDE" then
-    L.TITLE = "Klassenbuddy"
-    L.HELP = {
-        "/peon classbuddy pruefen - Fenster zur Prüfung der Seelensplitter",
-        "/peon classbuddy pruefen start - Prüfung starten (vernichtet je Test höchstens einen Splitter)",
-        "/peon classbuddy pruefen ergebnis - Ergebnisse zeigen",
-        "/peon classbuddy pruefen senden - Ergebnisse an den Peon Manager geben (braucht Peon_Feedback)",
-        "/peon classbuddy pruefen leeren - Ergebnisse vergessen",
-        "/peon classbuddy pruefen aus - Prüfung beenden",
-    }
-    L.P_START       = "Prüfung gestartet. Jeder Test vernichtet höchstens einen Seelensplitter. In 1 Sekunde läuft der erste Test von allein."
-    L.P_STEPS       = {
-        "1. Im Fenster auf den Knopf klicken.",
-        "2. Ein Makro mit  /click PeonClassBuddyShard  anlegen und benutzen.",
-        "3. Einen beliebigen Zauber von der Aktionsleiste wirken.",
-        "4. 1 bis 3 im Kampf wiederholen.",
-        "Danach: /peon classbuddy pruefen senden",
-    }
-    L.P_NO_SHARD    = "kein Seelensplitter in den Taschen"
-    L.P_CURSOR_BUSY = "am Mauszeiger hängt schon etwas"
-    L.P_PICKUP_FAIL = "Aufnehmen hat nicht geklappt"
-    L.P_WRONG_ITEM  = "falscher Gegenstand am Mauszeiger, zurückgelegt"
-    L.P_DONE        = "vernichtet"
-    L.P_NOT_DONE    = "nicht vernichtet"
-    L.P_BLOCKED     = "vom Spiel gesperrt"
-    L.P_ERROR       = "Fehler"
-    L.P_HEAD        = "Ergebnisse der Prüfung Seelensplitter:"
-    L.P_NONE        = "Noch keine Ergebnisse. Starten mit /peon classbuddy pruefen"
-    L.P_CLEARED     = "Ergebnisse gelöscht."
-    L.P_OFF         = "Prüfung beendet."
-    L.P_INFO_CLASS  = "Klasse: %s, Seelensplitter in den Taschen: %d, Gegenstandsfamilie des Splitters: %s"
-    L.P_INFO_BAG    = "Tasche %d: %d Plätze, %d frei, Taschentyp %s, Splitter %d"
-    L.P_INFO_API    = "Funktionen: %s"
-    L.P_HOOKS       = "Beim Zaubern gesehen: %s"
-    L.P_COMBAT      = "Kampf"
-    L.P_FREE        = "kein Kampf"
-    L.P_WAY = {
-        event  = "ohne Tastendruck",
-        click  = "Klick auf Knopf",
-        macro  = "Makro /click",
-        action = "Aktionstaste",
-    }
-    L.P_BUTTON      = "Splitter vernichten (Test)"
-    L.P_NOT_WARLOCK = "Hinweis: Dieser Charakter ist kein Hexenmeister. Die Prüfung geht trotzdem, wenn er einen Seelensplitter hat."
-    L.P_MACRO_DONE  = "Das Makro „PeonSplitter“ hängt am Mauszeiger. Leg es auf einen Platz der Aktionsleiste und drück es."
-    L.P_MACRO_FAIL  = "Das Makro ließ sich nicht anlegen. Bitte selbst eines anlegen mit: %s"
-    L.P_MACRO_COMBAT = "Im Kampf lassen sich keine Makros anlegen."
-    L.P_SEND_DONE   = "Ergebnis an Peon Feedback übergeben. Nach /reload oder dem Ausloggen zeigt es der Peon Manager bei den Rückmeldungen, bitte von dort senden."
-    L.P_SEND_FAIL   = "Senden hat nicht geklappt: %s"
-    L.P_SEND_NO_FEEDBACK = "Peon_Feedback ist nicht aktiv. Bitte im Peon Manager einschalten, /reload und noch einmal senden."
+    L.TITLE       = "Klassenbuddy"
+    L.DESC        = "Kleine Helfer je Klasse. Jeder Teil wirkt nur bei seiner Klasse. Änderungen wirken sofort."
+    L.TAB_ROGUE   = "Schurke"
+    L.TAB_WARLOCK = "Hexenmeister"
+    L.SLASH_HINT  = "Chat: /peon classbuddy öffnet dieses Menü, /peon classbuddy splitter zeigt die Seelensplitter."
 
-    L.G_TITLE   = "Klassenbuddy: Test Seelensplitter"
-    L.G_TEMP    = "Dieses Fenster ist nur vorübergehend für einen Test da und verschwindet mit der nächsten Version wieder."
-    L.G_WHY     = "Wir wollen herausfinden, ob und wann der Klassenbuddy überzählige Seelensplitter vernichten darf. Jeder Test vernichtet höchstens einen Splitter. Du brauchst mindestens 8 Seelensplitter."
-    L.G_STEP1   = "1. Prüfung starten. Ein erster Test läuft nach einer Sekunde von allein."
-    L.G_STEP2   = "2. Auf diesen Knopf klicken:"
-    L.G_STEP3   = "3. Makro anlegen, auf die Aktionsleiste legen und drücken:"
-    L.G_STEP4   = "4. Einen beliebigen Zauber von der Aktionsleiste wirken (z. B. Schattenblitz auf ein Ziel)."
-    L.G_STEP5   = "5. Einen Gegner angreifen und im Kampf 2 bis 4 wiederholen. Der Test ohne Tastendruck läuft bei Kampfbeginn noch einmal."
-    L.G_STEP6   = "6. Ergebnis senden. Danach /reload oder ausloggen und die Rückmeldung im Peon Manager senden."
-    L.G_BTN_START = "Prüfung starten"
-    L.G_BTN_MACRO = "Makro anlegen"
-    L.G_BTN_SEND  = "Ergebnis senden"
-    L.G_STATE   = "Stand"
-    L.G_OPEN    = "offen"
-    L.G_SENT    = "Ergebnis übergeben. Bitte im Peon Manager senden."
-    L.G_HIDE    = "Nicht mehr anzeigen"
+    L.CP_HDR_LAYOUT   = "Combo-Punkte: Größe und Lage"
+    L.CP_HDR_COLORS   = "Farben"
+    L.CP_HDR_PREVIEW  = "Vorschau (3 von 5 Punkten)"
+    L.CP_SIZE         = "Punktgröße"
+    L.CP_GAP          = "Abstand zwischen den Punkten"
+    L.CP_Y_OFFSET     = "Höhe über dem Lebensbalken"
+    L.CP_Y_OFFSET_HINT = "Negative Werte schieben die Punkte nach unten auf den Lebensbalken."
+    L.CP_RING_PAD     = "Randstärke"
+    L.CP_SHOW_SOCKETS = "Leere Punkte am Ziel zeigen"
+    L.CP_SOCKETS_HINT = "Aus: Es erscheinen nur gefüllte Punkte, ohne leere Fassungen und Rand."
+    L.CP_FILL         = "Gefüllter Punkt"
+    L.CP_SOCKET       = "Leerer Punkt (mit Deckkraft)"
+    L.CP_RING         = "Rand (mit Deckkraft)"
+
+    L.SH_TITLE        = "Seelensplitter"
+    L.SH_HDR          = "Überzählige Seelensplitter vernichten"
+    L.SH_ON           = "Überzählige Seelensplitter vernichten"
+    L.SH_RULE         = "Wann ist ein Splitter zu viel?"
+    L.SH_RULE_BAG     = "Seelentasche voll"
+    L.SH_RULE_MAX     = "Mehr als die Höchstzahl"
+    L.SH_RULE_HINT    = "Seelentasche voll: Ist die Seelentasche voll, wird jeder Splitter in einer anderen Tasche vernichtet. Ohne Seelentasche gilt die Höchstzahl."
+    L.SH_MAX          = "Höchstzahl Splitter"
+    L.SH_MAX_HINT     = "Für die Regel „Mehr als die Höchstzahl“ und ohne Seelentasche."
+    L.SH_ACTION       = "Zusammen mit Zaubern vernichten"
+    L.SH_ACTION_HINT  = "Jeder Zauber von der Aktionsleiste vernichtet einen überzähligen Splitter. Das Spiel erlaubt es nur bei einem Tastendruck."
+    L.SH_MSG          = "Meldung im Chat"
+    L.SH_HDR_MANUAL   = "Von Hand"
+    L.SH_MANUAL_TEXT  = "Das Spiel lässt Addons Gegenstände nur bei einem Tastendruck oder Klick vernichten. Außer mit Zaubern geht das mit dem Makro, der Tastenbelegung „Seelensplitter vernichten“ und dem Eintrag auf der Leiste von Peon Panel, auch im Kampf."
+    L.SH_BTN_MACRO    = "Makro anlegen"
+    L.SH_BTN_MACRO_HINT = "Legt das Makro „PeonSplitter“ mit /click PeonClassBuddyShard an und hängt es an den Mauszeiger."
+    L.SH_MACRO_DONE   = "Das Makro „PeonSplitter“ hängt am Mauszeiger. Leg es auf einen Platz der Aktionsleiste."
+    L.SH_MACRO_FAIL   = "Das Makro ließ sich nicht anlegen. Bitte selbst eines anlegen mit: %s"
+    L.SH_MACRO_COMBAT = "Im Kampf lassen sich keine Makros anlegen."
+    L.SH_DONE_BAG     = "Seelensplitter vernichtet (Seelentasche voll)."
+    L.SH_DONE_MAX     = "Seelensplitter vernichtet (mehr als %d)."
+    L.SH_NONE         = "Kein Seelensplitter zu viel."
+    L.SH_NOT_WARLOCK  = "Nur für Hexenmeister."
+    L.SH_REPORT       = "Seelensplitter: %d, zu viel: %d, in dieser Sitzung vernichtet: %d"
+    L.SH_TIP_COUNT    = "Seelensplitter in den Taschen: %d"
+    L.SH_TIP_OVER     = "Zu viel: %d"
+    L.SH_TIP_CLICK    = "Klick: einen überzähligen Splitter vernichten"
+
+    BINDING_HEADER_PEON_CLASSBUDDY = "Peon Klassenbuddy"
+    _G["BINDING_NAME_CLICK PeonClassBuddyShard:LeftButton"] = "Seelensplitter vernichten"
 end

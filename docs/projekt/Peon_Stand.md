@@ -29,7 +29,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Tooltip.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.7.5, 0.7.4, 0.7.3, 0.7.2, 0.7.1, 0.7.0, 0.6.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_ComboPoints – 3.5.1 (früher Combo Point Display)
+## Peon_ComboPoints – 3.6.0 (früher Combo Point Display, ersetzt durch Peon_ClassBuddy)
 
 - Dateien: ComboPoints.lua, Options.lua
 - SavedVariables: `PeonComboPointsDB`
@@ -38,17 +38,19 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Technik: geheime Werte über StatusBars (`SetMinMaxValues(i-1, i)`), Träger über den Nameplate-Rahmen; eigener Ereignisrahmen wegen `RegisterUnitEvent`.
 - Optionsseite: Kern-Bausteine, mit Vorschau.
 - Verlauf der Versionen: `docs/changelog/Peon_ComboPoints.md`
-- Wird durch Peon_ClassBuddy ersetzt (beschlossen 14.11.2026), bis zum Umzug unverändert.
+- **Letzte Version 3.6.0:** Ist Peon_ClassBuddy geladen, meldet sie sich beim Einloggen ab und zeigt einmal je Konto einen Hinweis (`movedHint`). Die Einstellungen bleiben für die Übernahme. Aus Repo und Manager entfernen, wenn der Wechsel bei allen durch ist (Entscheidung KarloDerBaer). Nicht veröffentlicht.
 
-## Peon_ClassBuddy – 0.1.0 (neu, „Klassenbuddy“, Helfer je Klasse)
+## Peon_ClassBuddy – 0.2.0 („Klassenbuddy“, Helfer je Klasse)
 
-- Dateien: Locales.lua, ClassBuddy.lua, Probe.lua, Guide.lua
-- SavedVariables: `PeonClassBuddyDB`: `probe` (Ergebnisse der Prüfung: `results`, `hooks`, `info`, `sent`), `hideGuide` (Fenster nicht mehr zeigen)
-- Befehle: `/peon classbuddy pruefen` (Fenster), `pruefen start`, `pruefen ergebnis`, `pruefen senden`, `pruefen leeren`, `pruefen aus`, `/peon debug classbuddy`
-- **Vorläufiges Fenster für Hexenmeister** (Guide.lua): erscheint beim Einloggen, führt durch die Prüfung, legt das Makro an und schickt das Ergebnis über Peon_Feedback an den Manager (Kern-API 22). Haken „Nicht mehr anzeigen“. Fällt mit der nächsten Version weg.
-- Funktionen bisher: nur der Prüfbefehl. Er testet, ob ein Seelensplitter ohne Tastendruck, per Klick, per Makro `/click PeonClassBuddyShard` und mit einer Aktionstaste vernichtet werden kann, jeweils außerhalb und im Kampf. Je Weg und Zustand höchstens ein Splitter.
-- Konzept: `docs\konzepte\classbuddy\Peon_ClassBuddy_Konzept.md`, Verlauf: `docs/changelog/Peon_ClassBuddy.md`
-- **Prüfung erledigt (14.11.2026, Vorabversion `v2026.11.14.4-test`):** Ein Mitspieler hat sie mit seinem Hexenmeister gemacht (peon-fehler #38 bis #42). Ohne Tastendruck gesperrt, Klick und Makro gehen auch im Kampf, Aktionstaste über `UseAction` außerhalb des Kampfes ja, im Kampf einmal gescheitert. Auswertung im Konzept Abschnitt 4.3.
+- Dateien: Locales.lua, ClassBuddy.lua, Rogue_ComboPoints.lua, Warlock_Shards.lua, Options.lua, Bindings.xml
+- SavedVariables: `PeonClassBuddyDB` (flach): Combo-Punkte mit den Namen aus Peon_ComboPoints (`size`, `gap`, `yOffset`, `ringPad`, `showSockets`, `fillColor`, `socketColor`, `ringColor`), `cpImported` (Übernahme aus `PeonComboPointsDB` erledigt), Seelensplitter `shardOn`, `shardRule` (`bag` oder `max`), `shardMax` (1 bis 60, Standard 20), `shardAction`, `shardMsg`
+- Befehle: `/peon classbuddy` (Optionen), `/peon classbuddy splitter`, `/peon debug classbuddy`. Tastenbelegung „Seelensplitter vernichten“ (`CLICK PeonClassBuddyShard:LeftButton`), Makro `/click PeonClassBuddyShard`
+- **Schurke:** Combo-Punkte wie Peon_ComboPoints 3.5.1 (Code übernommen), Einstellungen beim ersten Einloggen übernommen.
+- **Hexenmeister (ab 0.2.0):** überzählige Seelensplitter vernichten, je Zauber von der Aktionsleiste einer (Nachlauf auf `UseAction`), dazu Knopf für Makro, Tastenbelegung und Eintrag „Seelensplitter“ für Peon Panel. Gesperrte Plätze, belegter Mauszeiger und Zielsuche werden übergangen, Fehlversuche ins Debug-Log.
+- Optionen: Reiter Schurke und Hexenmeister, offen ist der Reiter der eigenen Klasse.
+- Prüfung und Testfenster aus 0.1.0 (Vorabversion `v2026.11.14.4-test`) sind entfernt, Ergebnis im Konzept Abschnitt 4.3.
+- Konzept: `docskonzepteclassbuddyPeon_ClassBuddy_Konzept.md`, Verlauf: `docs/changelog/Peon_ClassBuddy.md`
+- Im Spiel prüfen: Hexenmeister mit voller Seelentasche Zauber wirken (auch im Kampf), Makro, Tastenbelegung, Panel. Schurke: Combo-Punkte wie bisher, Einstellungen übernommen. Nicht veröffentlicht.
 
 ## Peon_Fishing – 1.6.0 (früher FishingPlus)
 
@@ -280,7 +282,7 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
 
 - Helfer je Klasse in einem Modul, ersetzt Peon_ComboPoints (Einstellungen werden übernommen).
 - Schurke: Combo-Punkte unverändert. Hexenmeister: überzählige Seelensplitter vernichten, Regel einstellbar (Standard: Seelentasche voll), ausgelöst zusammen mit einem Zauber.
-- Prüfung erledigt (Konzept 4.3). Nächster Schritt: Weg festlegen mit KarloDerBaer, dann Umzug der Combo-Punkte und Seelensplitter bauen.
+- Prüfung erledigt (Konzept 4.3). Gebaut in ClassBuddy 0.2.0 (Combo-Punkte umgezogen, Seelensplitter mit Zaubern, Makro, Tastenbelegung, Panel), Peon_ComboPoints 3.6.0 als letzte Version. Offen: im Spiel prüfen, Peon_ComboPoints später aus Repo und Manager nehmen.
 
 ### Einheitliches UI-Design für alle Peon-Fenster (beauftragt 11.11.2026)
 

@@ -1,6 +1,6 @@
 # Peon_ClassBuddy: Konzept
 
-Stand: 14.11.2026, Grundsätze mit KarloDerBaer abgestimmt (Abschnitt 8), Auslösen der Vernichtung muss im Spiel geprüft werden (Abschnitt 4.3). Anlass: Wunsch aus dem Feedback (peon-fehler #36, Bereich ComboPoints, Priorität hoch): ein Addon für mehrere Klassen, das die Combo-Punkte des Schurken mitbringt und für den Hexenmeister überzählige Seelensplitter vernichtet. Angezeigt wird es als „Klassenbuddy“.
+Stand: 14.11.2026, abgestimmt mit KarloDerBaer (Abschnitt 8), Prüfung im Spiel erledigt (Abschnitt 4.3), umgesetzt in ClassBuddy 0.2.0 und Peon_ComboPoints 3.6.0. Anlass: Wunsch aus dem Feedback (peon-fehler #36, Bereich ComboPoints, Priorität hoch): ein Addon für mehrere Klassen, das die Combo-Punkte des Schurken mitbringt und für den Hexenmeister überzählige Seelensplitter vernichtet. Angezeigt wird es als „Klassenbuddy“.
 
 ## 1. Idee
 
@@ -18,7 +18,7 @@ Ein Modul **Peon_ClassBuddy**, das für jede Klasse kleine Helfer bündelt. Es s
   - `Rogue_ComboPoints.lua`: der heutige Code von `ComboPoints.lua`, nur an das neue Modul angebunden.
   - `Warlock_Shards.lua`: Seelensplitter.
   - `Options.lua`: ein Reiter je Klasse. Für andere Klassen ausgegraut mit Hinweis „nur für Schurken“ usw.
-- Einstellungen in einer SavedVariable `PeonClassBuddyDB`, je Klasse ein Unterbereich (`rogue`, `warlock`). Sie gelten für alle Charaktere des Kontos (wie bisher bei ComboPoints).
+- Einstellungen in einer SavedVariable `PeonClassBuddyDB`. Umgesetzt flach statt mit Unterbereichen je Klasse: Die Bausteine der Optionsseite arbeiten mit Schlüsseln der obersten Ebene. Die Combo-Punkte behalten ihre Namen aus Peon_ComboPoints, die Seelensplitter beginnen mit `shard`. Die Einstellungen gelten für alle Charaktere des Kontos (wie bisher bei ComboPoints).
 - Feedback-Bereiche: „Schurke: Combo-Punkte“, „Hexenmeister: Seelensplitter“, „Allgemein“.
 - Symbol auf der Panel-Leiste: das Klassensymbol. Der Tooltip zeigt, was aktiv ist, beim Hexer z. B. „Seelensplitter: 24 in der Tasche, 2 zu viel“.
 
@@ -96,11 +96,11 @@ Ergebnis steht danach in `Peon_Ueberblick.md` bei den geschützten Aktionen.
 - Ohne Tastendruck sperrt das Spiel `DeleteCursorItem` (ADDON_ACTION_BLOCKED, Berichte #37 und #40 kamen vom Test selbst). Also nie aus einem Ereignis oder Zeitgeber.
 - Im Kampf ist das Vernichten erlaubt, Klick und Makro gingen dort.
 - Aktionstasten laufen in Forever über `UseAction`. `ActionButtonDown` und `PostClick` kamen nicht. Weg A hängt sich also an `UseAction`.
-- Im Kampf gab es mit der Aktionstaste nur einen Versuch, und da scheiterte schon das Aufnehmen. Die Prüfung versucht je Zustand nur einmal. Der Fehlertext fehlt im Bericht. Vermutung: der Zauber hatte gerade den Mauszeiger (Zielkreis) oder der Gegenstand war gesperrt. Da Klick und Makro im Kampf gehen, ist es kein grundsätzliches Verbot.
+- Im Kampf gab es mit der Aktionstaste nur einen Versuch, und da scheiterte schon das Aufnehmen. Die Prüfung versucht je Zustand nur einmal. Der Fehlertext fehlt im Bericht. Kein Zauber mit Zielkreis (Auskunft des Mitspielers). Wahrscheinlicher: Der Splitter war noch gesperrt (`isLocked`), weil kurz davor ein Splitter per Klick oder Makro vernichtet wurde oder der Test ohne Tastendruck beim Kampfbeginn ihn aufgenommen und zurückgelegt hatte. Die Prüfung sucht Splitter, ohne gesperrte Plätze zu überspringen. Da Klick und Makro im Kampf gehen, ist es kein grundsätzliches Verbot.
 - Taschen: Die Seelentasche liegt bei ihm auf Platz 5 und meldet Taschentyp 4, der Splitter hat Familie 4. Die Erkennung aus 4.1 passt.
 - Zwei Berichte kamen doppelt (#38 und #39, #41 und #42, jeweils gleiche Zeit). Vermutlich zweimal auf „Ergebnis senden“ geklickt. Der Knopf sollte nach dem Senden gesperrt sein.
 
-**Folgerung (Vorschlag, mit KarloDerBaer abzustimmen):** Weg A über `UseAction` als Standard. Scheitert ein Versuch, versucht ClassBuddy es beim nächsten Zauber einfach wieder, ohne Meldung. Zauber, die den Mauszeiger brauchen, werden übersprungen (4.4). Dazu immer der Makro-Knopf `PeonClassBuddyShard` als sicherer Rückfall und eine Tastenbelegung. Eine zweite Prüfung ist nicht nötig. Ob die Aktionstaste im Kampf zuverlässig geht, zeigt der Alltag, Fehlversuche landen im Debug-Log.
+**Folgerung (abgestimmt mit KarloDerBaer, umgesetzt in 0.2.0):** Weg A über `UseAction` als Standard. Gesperrte Plätze (`isLocked`) werden übersprungen. Scheitert ein Versuch, versucht ClassBuddy es beim nächsten Zauber einfach wieder, ohne Meldung, und schreibt den Grund ins Debug-Log. Zauber, die den Mauszeiger brauchen, werden übersprungen (4.4). Dazu immer der Makro-Knopf `PeonClassBuddyShard` als sicherer Rückfall und eine Tastenbelegung. Eine zweite Prüfung ist nicht nötig. Ob die Aktionstaste im Kampf zuverlässig geht, zeigt der Alltag, Fehlversuche landen im Debug-Log.
 
 ### 4.4 Sicherheit
 
@@ -138,3 +138,5 @@ Verhalten und Optionen bleiben genau wie in Peon_ComboPoints 3.5.1. Nur die Eins
 1. Prüfbefehl (4.3), Ergebnis mit KarloDerBaer ansehen. Erledigt am 14.11.2026, Ergebnis in 4.3.
 2. Modul mit Combo-Punkten (Umzug, Übernahme der Einstellungen), letzte Version von Peon_ComboPoints.
 3. Seelensplitter mit dem Weg, den die Prüfung erlaubt.
+
+Schritte 2 und 3 umgesetzt in ClassBuddy 0.2.0 und Peon_ComboPoints 3.6.0 (14.11.2026). Offen: Prüfung im Spiel, später Peon_ComboPoints entfernen.

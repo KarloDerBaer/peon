@@ -12,7 +12,7 @@ SlashCmdList = {}
 local function TocMeta(dir) local m = {} local f = io.open(dir .. "/" .. dir .. ".toc") if f then for l in f:lines() do local k, v = l:match("^##%s*([%w%-]+):%s*(.-)%s*$") if k then m[k] = v end end f:close() end return m end
 local meta = { Peon = TocMeta("Peon"), Peon_ComboPoints = TocMeta("Peon_ComboPoints") }
 C_AddOns = { GetAddOnMetadata = function(a, f) return meta[a] and meta[a][f] end,
-  IsAddOnLoaded = function() return true end, GetNumAddOns = function() return 2 end,
+  IsAddOnLoaded = function(a) return a == "Peon" or a == "Peon_ComboPoints" or (a == "Peon_ClassBuddy" and CB_LOADED == true) end, GetNumAddOns = function() return 2 end,
   GetAddOnInfo = function(i) return ({ "Peon", "Peon_ComboPoints" })[i] end }
 Enum = { PowerType = { ComboPoints = 4 } }
 local allFrames = {}
@@ -121,6 +121,15 @@ cpFrame.scripts.OnEvent(cpFrame, "PLAYER_LOGIN")
 check(cpFrame.unitev.UNIT_POWER_UPDATE and ns.active, "Schurke aktiv")
 slider:SetValue(18)
 check(timers == 1, "Schurke: Nameplates werden neu gezeichnet")
+-- Ab 3.6.0: mit dem Klassenbuddy bleibt Peon_ComboPoints still, Hinweis nur einmal
+CB_LOADED = true
+ns.active = false
+cpFrame.scripts.OnEvent(cpFrame, "PLAYER_LOGIN")
+check(ns.replaced and not ns.active and next(cpFrame.unitev) == nil and PeonComboPointsDB.movedHint == true, "Klassenbuddy da: keine Combo-Punkte, Hinweis gemerkt")
+check(out[#out - 1]:find("Klassenbuddy") or out[#out]:find("Klassenbuddy"), "Hinweis auf den Klassenbuddy")
+local nOut = #out
+cpFrame.scripts.OnEvent(cpFrame, "PLAYER_LOGIN")
+check(#out == nOut, "Hinweis nur einmal")
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end
 check(n == 0, "keine Fehlermeldungen")
 print("ALLE TESTS OK")
