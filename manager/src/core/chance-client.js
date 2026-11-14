@@ -61,9 +61,47 @@ const methods = {
   },
   brokerRules() { return { ...BROKER_RULES, ...(this.meta('brokerRules') || {}) }; },
 
+  // ab 0.37.0: Gold deiner Charaktere aus Peon_Ledger.lua (alle Kontoordner), fuer den Markt der Fraktion. Neutral: alle.
+  // Rueckgabe { gold, chars, t } oder null ohne Ledger. Gelesen wird nur, wenn sich eine Datei geaendert hat.
+  ledgerFiles() {
+    const out = [];
+    for (const f of broker.findFiles(this.settings.wowDir)) {
+      const file = path.join(path.dirname(f.file), 'Peon_Ledger.lua');
+      try { out.push({ file, mtime: Math.floor(fs.statSync(file).mtimeMs) }); } catch { /* kein Ledger */ }
+    }
+    return out;
+  },
+  ledgerGold(mid) {
+    const files = this.ledgerFiles();
+    if (!files.length) return null;
+    const m = this.db.prepare('SELECT key, faction FROM markets WHERE id = ?').get(mid);
+    const fac = m ? (/Alliance|Allianz/i.test(m.key) ? 'Alliance' : /Horde/i.test(m.key) ? 'Horde' : null) : null;
+    const sig = JSON.stringify([files, fac]);
+    this.goldCache = this.goldCache || new Map();
+    const c = this.goldCache.get(mid);
+    if (c && c.sig === sig) return c.value;
+    let gold = 0, chars = 0, t = 0;
+    for (const f of files) {
+      let realms;
+      try { realms = (parseLua(fs.readFileSync(f.file)).PeonLedgerDB || {}).realms || {}; } catch { continue; }
+      for (const r of Object.values(realms)) {
+        for (const ch of Object.values((r && r.chars) || {})) {
+          if (!ch || typeof ch.money !== 'number') continue;
+          if (fac && ch.faction && ch.faction !== fac) continue;
+          gold += ch.money; chars++;
+          if (typeof ch.moneyT === 'number' && ch.moneyT > t) t = ch.moneyT;
+        }
+      }
+    }
+    const value = chars ? { gold, chars, t: t || null } : null;
+    this.goldCache.set(mid, { sig, value });
+    return value;
+  },
+
   // Stand eines Markts fuer die Chancen: letzter vollstaendiger Stand mit Angeboten
   chanceCtx(mid) {
-    const sig = `${this.dataSig(mid)}|${JSON.stringify([this.meta('chanceRules'), this.meta('chanceOverrides'), this.meta('brokerRules'), this.meta('feste')])}`;
+    const money = this.ledgerGold(mid);
+    const sig = `${this.dataSig(mid)}|${JSON.stringify([this.meta('chanceRules'), this.meta('chanceOverrides'), this.meta('brokerRules'), this.meta('feste'), money])}`;
     this.chanceCache = this.chanceCache || new Map();
     const c0 = this.chanceCache.get(mid);
     if (c0 && c0.sig === sig) return c0.ctx;
@@ -97,6 +135,7 @@ const methods = {
     const ctx = {
       mid, now, today, t: last ? last.t : null, age: last ? Math.max(0, now - last.t) : Infinity, rows, offers, stats, bands: bd.items, shifts: bd.shifts, days: bd.days,
       proof: pr, dur, rules, broker: this.brokerRules(), forecasts: fc.list, index: fc.index, signalRates: fc.rates,
+      gold: money ? money.gold : null, goldChars: money ? money.chars : 0,
       over: (k) => over[k] || {},
       // ab 0.35.1: Haendlerpreis nur aus dem Spiel. Ein Wert aus der Blizzard-API (fuer Forever oft Classic-Daten) ist
       // nicht bestaetigt, er zaehlt nur fuer die Einstellgebuehr und steht in der Pruefliste
@@ -191,7 +230,15 @@ const methods = {
     return { market: marketKey, now: ctx.now, t: ctx.t, age: ctx.age, list: list.filter((x) => !down(x)), live: live.filter((x) => !down(x)),
       rejected: [...list, ...live].filter(down), near: res.near.length,
       proven, holdKnown: ctx.dur.size, bands: ctx.bands.size, salesItems: ctx.stats.size, forecasts: ctx.forecasts.size, rules: ctx.rules,
+      gold: ctx.gold, goldChars: ctx.goldChars, histDays: this.marketDays(mid),
       start: proof.startOf(this.db, mid), kinds: spec.KINDS };
+  },
+
+  // ab 0.37.0: Tage mit eigenen Staenden in den letzten 14 Tagen (Hinweis, solange es weniger als 7 sind)
+  marketDays(mid) {
+    const from = this.now() - 14 * 86400;
+    const r = this.db.prepare("SELECT COUNT(DISTINCT CAST(t / 86400 AS INTEGER)) AS n FROM snapshots WHERE market_id = ? AND source = 'scan' AND t >= ?").get(mid, from);
+    return r ? Number(r.n) : 0;
   },
 
   // Pruefliste fuer einen beliebigen Gegenstand (Warum nicht?)

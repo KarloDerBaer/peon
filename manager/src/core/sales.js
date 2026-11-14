@@ -54,7 +54,16 @@ function endState(o, tA, tB, scan) {
 }
 
 // F45: wie Broker S.Compare. Rueckgabe { sold, expired, cancelled, listed, value }
-function compare(A, B, tA, tB, { commodity = false, withIds = false, cap = 0, cancelPct = CANCEL } = {}) {
+// singles (ab Manager 0.37.0, nur Staende der Blizzard-API): Auch bei Einzelgegenstaenden gilt ein verschwundenes Angebot
+// als abgebrochen, wenn im selben Stand ein neues mit gleicher Menge billiger dasteht (umgestellt) oder ein billigeres
+// Angebot stehen blieb (ein Kaeufer haette das billigere genommen). Im Preiskampf wurden Umstellungen sonst zu Verkaeufen.
+// Neues Angebot mit gleicher Menge, billiger: aus der Liste nehmen und true
+function repostOf(newB, a) {
+  for (let j = 0; j < newB.length; j++) if (newB[j].q === a.q && newB[j].p < a.p) { newB.splice(j, 1); return true; }
+  return false;
+}
+
+function compare(A, B, tA, tB, { commodity = false, withIds = false, cap = 0, cancelPct = CANCEL, singles = false } = {}) {
   let sold = 0, expired = 0, cancelled = 0, value = 0;
   const soldAt = [];   // Preise der Verkaeufe (fuer den hoechsten glaubwuerdigen Verkaufspreis)
   const soldList = [];   // ab Manager 0.35.0 jeder Verkauf mit Preis, Stueck und Angebotsnummer (proof.js, D1 und D2)
@@ -113,6 +122,11 @@ function compare(A, B, tA, tB, { commodity = false, withIds = false, cap = 0, ca
         }
         if (repost || (anchor !== null && a.p > anchor)) cancelled += a.q;
         else { sold += a.q; value += a.q * a.p; hi(a.p, a.q, a.id); }
+      } else if (singles && repostOf(newB, a)) {
+        cancelled += a.q;
+        listed -= a.q;
+      } else if (singles && anchor !== null && a.p > anchor) {
+        cancelled += a.q;
       } else {
         const c = a.q * cancelPct;
         cancelled += c;
@@ -182,7 +196,7 @@ function addPair(db, marketId, a, b, src, itemKeyOnly) {
       cap = ca && cb ? Math.min(ca, cb) : (ca || cb);
     }
     const commodity = src === 'live' && a.commodity != null ? !!a.commodity : (comm.get(k) || false);
-    const r = compare(la, lb, a.t, b.t, { commodity, withIds, cap });
+    const r = compare(la, lb, a.t, b.t, { commodity, withIds, cap, singles: keep });
     ins.run(pid, marketId, k, day, b.t, secs, r.sold, r.expired, r.cancelled, r.listed, r.value, r.maxSold);
     if (keep) proof.record(db, marketId, k, day, r.soldList, a.t, b.t, start);
   }
@@ -306,4 +320,4 @@ function prune(db, now) {
   return ids.length;
 }
 
-module.exports = { compare, offersByItem, updateMarket, marketStats, itemDays, encode, prune, DAYS, MID_MIN, SURE_MIN };
+module.exports = { compare, addPair, offersByItem, updateMarket, marketStats, itemDays, encode, prune, DAYS, MID_MIN, SURE_MIN };

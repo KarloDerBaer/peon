@@ -46,6 +46,13 @@ test('Vergleich liefert jeden Verkauf mit Angebotsnummer', () => {
   assert.deepEqual(r.soldList.map((x) => [x.id, x.q, x.p]).sort(), [[7, 1, 100], [8, 3, 120]]);
 });
 
+// 14 Tage gleicher Preis (ab 0.37.0 braucht Spekulation schnell 7 Tage Verlauf)
+function flatDays(value = 100000) {
+  const d = new Map();
+  for (let a = 0; a <= 13; a++) d.set(DAY - a, { value });
+  return d;
+}
+
 // Kontext wie chance-client.chanceCtx, nur was spec braucht
 function ctx(over = {}) {
   const items = new Map([['2589', { name: 'Leinenstoff', quality: 1, item_id: 2589, vendor: 10 }]]);
@@ -54,7 +61,7 @@ function ctx(over = {}) {
     offers: new Map([['2589', [{ p: 50000, q: 1 }, { p: 52000, q: 1 }, { p: 95000, q: 2 }, { p: 120000, q: 1 }]]]),
     stats: new Map([['2589', { perDay: 4, level: 3 }]]),
     bands: new Map([['2589', { lang: 100000, schw: 0.1 }]]), shifts: new Map(),
-    proof: new Map([['2589', { median: 100000, n: 12 }]]), dur: new Map(), rules: spec.rulesOf(null),
+    proof: new Map([['2589', { median: 100000, n: 12 }]]), dur: new Map(), rules: spec.rulesOf(null), days: new Map([['2589', flatDays()]]),
     broker: { hours: 2, minGain: 5000, minQty: 500, minLevels: 4, minSales: 270, targetPct: 0.2 }, forecasts: new Map(),
     over: () => ({}), vendor: (k) => (items.get(k) || {}).vendor || null, isCommodity: () => false,
     info: (k) => items.get(k) || { item_id: Number(k) }, hold: () => ({ hours: 5, n: 3 }),
@@ -243,8 +250,9 @@ test('0.36.0: fallender Preis ueber die letzten Tage verhindert Spekulation schn
   // stabil: weiter ein Vorschlag
   const flat = new Map([...days].map(([d]) => [d, { value: 100000 }]));
   assert.ok(spec.evalFast(ctx({ days: new Map([['2589', flat]]) }), '2589').ok);
-  // zu wenige Tage: kein Urteil
-  assert.ok(spec.evalFast(ctx({ days: new Map([['2589', new Map([[DAY, { value: 50000 }]])]]) }), '2589').ok);
+  // ein Tag: kein Urteil zum Verlauf, aber zu wenig Tage fuer einen Vorschlag
+  const one = spec.evalFast(ctx({ days: new Map([['2589', new Map([[DAY, { value: 50000 }]])]]) }), '2589');
+  assert.ok(one.checks.find((k) => k.id === 'shift').ok && !one.checks.find((k) => k.id === 'hist').ok && !one.ok);
 });
 
 test('0.36.0: Daumen runter blendet die Chance aus, auch fuer Broker, ausser sie ist angeheftet', () => {
@@ -288,4 +296,75 @@ test('0.36.0: Kauf aus der Erfolgskontrolle nehmen', () => {
   assert.deepEqual(Object.keys(bc.store.ownUse), [`2589|${NOW - 100}`], 'alte Eintraege fallen weg');
   bc.setOwnUse('2589', NOW - 100, false);
   assert.deepEqual(bc.store.ownUse, {});
+});
+
+test('0.37.0: Preis faellt schon mit wenigen Tagen (Flammenauge), in Folge, 7 Tage Verlauf noetig', () => {
+  // wie Flammenauge: 439g, 288g, 139g, 70g
+  const fl = new Map([[DAY - 3, { value: 4390000 }], [DAY - 2, { value: 2880000 }], [DAY - 1, { value: 1390000 }], [DAY, { value: 700000 }]]);
+  const x = spec.evalFast(ctx({ days: new Map([['2589', fl]]) }), '2589');
+  const sh = x.checks.find((k) => k.id === 'shift');
+  assert.ok(!x.ok && !sh.ok && sh.text.includes('heute'), sh.text);
+  // langsam, aber jeden Tag ein wenig: 100, 97, 94, 91, 88 (heute gleich wie gestern)
+  const slow = new Map();
+  [100000, 100000, 100000, 97000, 94000, 91000, 88000, 88000].forEach((v, i, all) => slow.set(DAY - (all.length - 1 - i), { value: v }));
+  const y = spec.evalFast(ctx({ days: new Map([['2589', slow]]) }), '2589');
+  assert.ok(!y.checks.find((k) => k.id === 'shift').ok, y.checks.find((k) => k.id === 'shift').text);
+  // 5 Tage gleich: Preis faellt nicht, aber zu wenige Tage
+  const five = new Map();
+  for (let a = 0; a < 5; a++) five.set(DAY - a, { value: 100000 });
+  const z = spec.evalFast(ctx({ days: new Map([['2589', five]]) }), '2589');
+  assert.ok(z.checks.find((k) => k.id === 'shift').ok && !z.checks.find((k) => k.id === 'hist').ok && !z.ok);
+});
+
+test('0.37.0: unsicherer Bereich, Kaufen bis passt zum Zielpreis, Gold begrenzt, moeglicher Verlust', () => {
+  // Schwankung ueber 40 %: kein Vorschlag
+  const u = spec.evalFast(ctx({ bands: new Map([['2589', { lang: 100000, schw: 0.6 }]]) }), '2589');
+  assert.ok(!u.ok && !u.checks.find((k) => k.id === 'band').ok);
+  // naechstes Angebot knapp ueber Kaufen bis (72000): Kaufen bis sinkt, dann ist 69000 das naechste fremde Angebot
+  const offers = new Map([['2589', [{ p: 50000, q: 1 }, { p: 69000, q: 1 }, { p: 72000, q: 1 }]]]);
+  const k = spec.evalFast(ctx({ offers }), '2589');
+  assert.equal(k.target, 68999);
+  assert.equal(k.limit, Math.floor(68999 * 0.95 * 0.9));
+  assert.equal(k.qty, 1, 'das Angebot zu 69000 bringt nach Gebuehr nichts mehr');
+  // Gold: 25 % von 2g = 50s, also nur das erste Stueck zu 5g? Nein: schon eins kostet mehr
+  const poor = spec.evalFast(ctx({ gold: 20000 }), '2589');
+  assert.ok(!poor.ok && !poor.checks.find((x) => x.id === 'budget').ok);
+  const some = spec.evalFast(ctx({ gold: 240000 }), '2589');   // 25 % = 6g: nur das Stueck zu 5g
+  assert.ok(some.qty === 1 && some.cost === 50000 && some.checks.find((x) => x.id === 'budget').text.includes('darum nur 1 Stück'), some.checks.find((x) => x.id === 'budget').text);
+  // moeglicher Verlust: unterer Rand 9g, gekauft fuer 10g 20s im Schnitt, bei hohem unteren Rand kein Verlust
+  const x = spec.evalFast(ctx(), '2589');
+  assert.equal(x.loss, 0);
+  const low = spec.evalFast(ctx({ bands: new Map([['2589', { lang: 60000, schw: 0.3 }]]), proof: new Map([['2589', { median: 100000, n: 12 }]]) }), '2589');
+  assert.ok(low.loss > 0 && low.checks.find((c) => c.id === 'loss').text.includes('verlierst du'), JSON.stringify(low.checks.find((c) => c.id === 'loss')));
+});
+
+test('0.37.0: umgestellte Einzelgegenstaende zaehlen nicht als Verkauf', () => {
+  const sales = require('../src/core/sales');
+  const T = 3600;
+  // zwei Angebote verschwinden, zwei billigere mit gleicher Menge kommen: Umstellung
+  const A = [{ id: 1, q: 1, p: 1090000, lo: 7200, hi: 43200 }, { id: 2, q: 1, p: 990000, lo: 7200, hi: 43200 }, { id: 3, q: 1, p: 1230000, lo: 7200, hi: 43200 }];
+  const B = [{ id: 4, q: 1, p: 690000, lo: 43200, hi: 172800 }, { id: 5, q: 1, p: 690000, lo: 43200, hi: 172800 }, { id: 3, q: 1, p: 1230000, lo: 0, hi: 0 }];
+  const r = sales.compare(A, B, 0, T, { withIds: true, singles: true });
+  assert.equal(r.sold, 0);
+  assert.equal(r.soldList.length, 0);
+  // ohne singles (wie bisher): 90 % Verkauf
+  assert.ok(sales.compare(A, B, 0, T, { withIds: true }).sold > 1.7);
+  // verschwunden ueber einem stehenden billigeren Angebot: abgebrochen, darunter: verkauft
+  const A2 = [{ id: 1, q: 1, p: 500, lo: 7200, hi: 43200 }, { id: 2, q: 1, p: 900, lo: 7200, hi: 43200 }, { id: 3, q: 1, p: 300, lo: 7200, hi: 43200 }];
+  const B2 = [{ id: 1, q: 1, p: 500, lo: 0, hi: 0 }];
+  const r2 = sales.compare(A2, B2, 0, T, { withIds: true, singles: true });
+  assert.ok(Math.abs(r2.sold - 0.9) < 1e-9 && r2.soldList.length === 1 && r2.soldList[0].p === 300, JSON.stringify(r2));
+});
+
+test('0.37.0: Vergleiche der API werden im Hintergrund neu gerechnet (Schema 12)', () => {
+  const dir = tmp();
+  let db = openDb(dir);
+  db.prepare("INSERT INTO sale_px(market_id, item_key, day, b, qty) VALUES (1, '3075', ?, 663, 0.9)").run(DAY);
+  db.prepare("INSERT INTO sales_pair(market_id, a_id, b_id, ta, tb, src) VALUES (1, 'a', 'b', 1, 2, 'api')").run();
+  db.prepare("DELETE FROM meta WHERE key IN ('singlesRecheck', 'apiRedoMax')").run();   // Stand vor 0.37.0
+  db.close();
+  db = openDb(dir);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sale_px').get().n, 0, 'belegte Verkaeufe beginnen neu');
+  assert.ok(JSON.parse(db.prepare("SELECT value FROM meta WHERE key = 'apiRedoMax'").get().value) >= 1, 'Paare bis hier vorgemerkt');
+  db.close();
 });

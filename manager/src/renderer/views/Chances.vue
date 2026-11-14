@@ -109,6 +109,12 @@ const ratingLabel = (r) => [r.up === 1 ? '👍' : r.up === 0 ? '👎' : null, r.
     <p class="small muted intro">Der Manager rechnet mit den Ständen der Blizzard-API, höchstens einmal je Stunde. Er liefert Kandidaten, gekauft wird nach der Prüfung im Spiel.
       Belegte Verkaufspreise sammelt er erst ab Version 0.35.0<template v-if="d && d.start"> (hier seit {{ when(d.start) }})</template>, bis dahin gibt es kaum Spekulation.</p>
 
+    <!-- ab 0.37.0: Markt noch jung, Gold fuer den Einsatz -->
+    <p class="small warn" v-if="d && d.histDays < 7" role="status">Erst {{ d.histDays }} {{ d.histDays === 1 ? 'Tag' : 'Tage' }} Preisverlauf. Spekulation schnell braucht 7 Tage, bis dahin pendelt sich der Markt erst ein und es gibt dafür keine Vorschläge.</p>
+    <p class="small muted" v-if="d">
+      <template v-if="d.gold != null">Dein Gold laut Ledger: <Gold :copper="d.gold" /> auf {{ d.goldChars }} {{ d.goldChars === 1 ? 'Charakter' : 'Charakteren' }}. Je Chance setzt der Manager höchstens {{ Math.round(d.rules.s.share * 100) }} % davon ein (Reiter Einstellen).</template>
+      <template v-else>Dein Gold ist unbekannt, weil Peon Ledger fehlt. Der Einsatz je Chance ist darum nicht begrenzt.</template>
+    </p>
     <div class="tabs" role="tablist">
       <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key">
         {{ t.label }}<span class="cnt" v-if="d && t.key === 'list' && d.list.length">{{ num(d.list.length) }}</span><span class="cnt" v-if="d && t.key === 'live' && d.live.length">{{ num(d.live.length) }}</span>
@@ -165,6 +171,7 @@ const ratingLabel = (r) => [r.up === 1 ? '👍' : r.up === 0 ? '👎' : null, r.
                     <span v-if="x.qty">Menge {{ num(x.qty) }}</span>
                     <span v-if="x.cost">Einsatz <Gold :copper="x.cost" /></span>
                     <span v-if="x.ref">Belegter Verkaufspreis <Gold :copper="x.ref" /></span>
+                    <span v-if="x.loss != null">Möglicher Verlust <Gold :copper="x.loss" /></span>
                   </div>
                   <ChecksList :checks="x.checks" :signals="x.outlook && x.outlook.signals ? x.outlook.signals : null" />
                   <div class="btns">

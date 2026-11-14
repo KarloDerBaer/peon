@@ -2,6 +2,23 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.37.0
+
+Kurz: Spekulation schnell schlägt nichts mehr vor, dessen Preis fällt, und braucht 7 Tage Preisverlauf. Solange der Markt jung ist, gibt es darum kaum Vorschläge.
+Kurz: Abgebrochene und billiger neu eingestellte Angebote zählen nicht mehr als Verkauf. Die bisherigen Werte rechnet der Manager im Hintergrund neu.
+Kurz: Der Einsatz je Chance richtet sich nach deinem Gold laut Ledger (Regler unter Chancen, Einstellen). Jede Chance zeigt den möglichen Verlust, wenn du schnell verkaufen musst.
+
+- 0.37.0 (14.11.2026): Prüfung der Vorabversion `v2026.11.14.2-test` mit den echten Daten von KarloDerBaer (Flammenauge: Preiskampf von 125g auf 35g in 28 Std., trotzdem als Spekulation vorgeschlagen). Wünsche KarloDerBaer: alles beheben, Ideen umsetzen, ein fallender Preis schließt Spekulation aus.
+  - **Umstellungen sind keine Verkäufe:** Bei Einzelgegenständen zählte jedes vor dem Ablauf verschwundene Angebot zu 90 % als Verkauf. In 24 Std. kamen 30 % davon im selben Stand billiger mit gleicher Menge wieder, weitere 16 % lagen über einem billigeren Angebot, das stehen blieb. Für Stände der Blizzard-API gelten beide jetzt als abgebrochen (`sales.compare` mit `singles`). Schema 12: belegte Verkäufe beginnen neu (`sale_px`, `sale_life` geleert), die Vergleiche der API bis dahin rechnet das Aufräumen im Hintergrund neu, je Schritt ein Paar (`redoApiSteps`, `meta` `apiRedoMax`, bei 1,4 GB etwa 1,4 Sek. je Paar).
+  - **Preis fällt:** `spec.trendOf` urteilt ab 2 Tagen. Der Preis fällt, wenn heute 10 % unter dem Median der 3 Tage davor liegt, die letzten 3 Tage 15 % unter den Tagen 7 bis 14 oder er an 3 Tagen ohne Anstieg dazwischen zusammen 10 % gefallen ist. Gilt für Spekulation schnell und Aufkauf.
+  - **Neue feste Prüfungen:** verlässlicher üblicher Preis (Schwankung höchstens 40 %), mindestens 7 Tage Preisverlauf (auch beim Aufkauf). Die Seite Chancen sagt, solange der Markt weniger als 7 Tage hat.
+  - **Kaufen bis passt zum Zielpreis:** Sinkt der Zielpreis unter das nächste fremde Angebot, sinkt Kaufen bis mit, so dass nach 5 % Gebühr 10 % Abstand bleiben. Bei Flammenauge hätte das teuerste Stück sonst Verlust gebracht.
+  - **Gold und Einsatz:** Gold der Charaktere der Fraktion aus `Peon_Ledger.lua` (`ledgerGold`, Neutral alle). Neuer Regler „Höchstens so viel deines Golds je Chance“ (25 %). Spekulation und Händler kaufen nur so viel, der Aufkauf ganz oder gar nicht. Ohne Ledger keine Grenze, die Seite sagt das.
+  - **Möglicher Verlust:** Verkauf zum unteren Rand des üblichen Bereichs oder knapp unter dem nächsten fremden Angebot, je nachdem, was niedriger ist. Neue Prüfung „Möglicher Verlust kleiner als der Gewinn“, der Wert steht bei jeder Chance.
+  - Nachgerechnet mit einer Kopie der echten Daten: statt 74 Vorschlägen (davon 87 von 126 am Tag mit fallendem Preis) bleiben 6 Aufkäufe mit kleinem Einsatz. Flammenauge scheitert an Preis fällt, Schwankung, 7 Tagen und Gold.
+  - Tests: Preis fällt mit wenigen Tagen und in Folge, unsicherer Bereich, Kaufen bis, Gold, Verlust, Umstellungen, Schema 12 (`test/chancen.test.js`). Alle 229 Tests grün, Oberfläche gebaut.
+  - **Im echten Programm prüfen:** Hinweis auf weniger als 7 Tage, Gold laut Ledger, Neurechnung im Hintergrund (Protokoll „Vergleiche der Blizzard-API neu gerechnet“), Regler unter Einstellen.
+
 ## 0.36.0
 
 Kurz: Der Manager ist nach dem Start sofort bedienbar. Einstellungen, Updates und Rückmeldungen gehen gleich, die Marktseiten folgen, sobald die Daten geladen sind.

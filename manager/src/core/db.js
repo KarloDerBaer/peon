@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
 const { sameMarket } = require('./markets');
 
-const SCHEMA = 11;   // 11: Haendlerpreise neu aus dem Spiel (meta vendorRecheck); 10: Herkunft des Haendlerpreises (items.vendor_src); 9: Chancen und Prognosen (sale_px, sale_life, auc_first, item_level, chance_log, chance_rate, forecast_log); 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
+const SCHEMA = 12;   // 12: Umstellungen bei Einzelgegenstaenden, Vergleiche neu (meta singlesRecheck, apiRedoMax); 11: Haendlerpreise neu aus dem Spiel (meta vendorRecheck); 10: Herkunft des Haendlerpreises (items.vendor_src); 9: Chancen und Prognosen (sale_px, sale_life, auc_first, item_level, chance_log, chance_rate, forecast_log); 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -166,6 +166,16 @@ function openDb(dir) {
   if (!v11) {
     db.exec(`UPDATE items SET vendor_src = 'api' WHERE vendor_src = 'game';
       INSERT INTO meta(key, value) VALUES ('vendorRecheck', '1');`);
+  }
+  // Schema 12 (Manager 0.37.0): Bei Einzelgegenstaenden zaehlten umgestellte Angebote als Verkauf (sales.compare, singles).
+  // Belegte Verkaeufe beginnen neu, die Vergleiche der Blizzard-API bis hierher rechnet das Aufraeumen im Hintergrund
+  // neu (broker-client.redoApiSteps, meta apiRedoMax).
+  const v12 = db.prepare("SELECT value FROM meta WHERE key = 'singlesRecheck'").get();
+  if (!v12) {
+    const mx = db.prepare("SELECT MAX(id) AS m FROM sales_pair WHERE src = 'api'").get().m;
+    db.exec('DELETE FROM sale_px; DELETE FROM sale_life;');
+    db.prepare("INSERT INTO meta(key, value) VALUES ('apiRedoMax', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(JSON.stringify(mx == null ? 0 : Number(mx)));
+    db.exec("INSERT INTO meta(key, value) VALUES ('singlesRecheck', '1')");
   }
   // Schema 4: AHledger ist entfernt (05.11.2026)
   db.exec('DROP TABLE IF EXISTS ext_ahledger; DROP TABLE IF EXISTS ext_fetch;');

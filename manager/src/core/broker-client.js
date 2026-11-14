@@ -236,6 +236,7 @@ class BrokerClient {
   }
 
   * pruneSteps(res) {
+    yield* this.redoApiSteps(res);
     const hourDays = this.settings.hourDays > 0 ? Math.max(retention.MIN_HOUR_DAYS, this.settings.hourDays) : 0;
     yield* retention.pruneSteps(this.db, { keepDays: this.settings.keepDays, hourDays, now: this.now() }, res);
     res.pairs = sales.prune(this.db, this.now());
@@ -247,6 +248,34 @@ class BrokerClient {
     proof.prune(this.db, this.now(), broker.dayOf(this.now()));   // ab 0.35.0: belegte Verkaeufe 30 Tage
     if (res.snaps || res.hours) log(this.db, 'aufbewahrung', true, `${res.snaps} Kennzahlen zu Stundenwerten, ${res.hours} Stundenwerte zu Tageswerten verdichtet`);
     this.meta('pruneAt', this.now());
+  }
+
+  // ab 0.37.0 (Schema 12): Vergleiche der Blizzard-API bis zur Umstellung einzeln neu rechnen, neueste zuerst. Jeder Schritt
+  // ist ein Paar (bei grossen Daten etwa 1 bis 2 Sek.), dazwischen bleibt der Manager bedienbar. Paare ohne Angebote
+  // (schon verdichtet) bleiben, wie sie sind.
+  * redoApiSteps(res = {}) {
+    const max = Number(this.meta('apiRedoMax')) || 0;
+    if (!max) return;
+    const list = this.db.prepare(`SELECT p.id, p.market_id, p.a_id, p.b_id, p.ta, p.tb FROM sales_pair p
+        JOIN snapshots a ON a.id = p.a_id JOIN snapshots b ON b.id = p.b_id
+        WHERE p.src = 'api' AND p.id <= ? AND a.rows IS NOT NULL AND b.rows IS NOT NULL ORDER BY p.tb DESC`).all(max);
+    let n = 0;
+    for (const p of list) {
+      tx(this.db, () => {
+        this.db.prepare('DELETE FROM sales_cmp WHERE pair_id = ?').run(p.id);
+        this.db.prepare('DELETE FROM sales_pair WHERE id = ?').run(p.id);
+        sales.addPair(this.db, p.market_id, { id: p.a_id, t: p.ta }, { id: p.b_id, t: p.tb }, 'api');
+      });
+      n++;
+      yield;
+      if (this.closed) return;
+    }
+    this.meta('apiRedoMax', 0);
+    this.statsCache = null;
+    this.chanceCache = null;
+    this.chanceRes = null;
+    res.redone = n;
+    if (n) log(this.db, 'aufbewahrung', true, `${n} Vergleiche der Blizzard-API neu gerechnet (umgestellte Angebote zählen nicht mehr als Verkauf)`);
   }
 
   retention(keepDays, hourDays) {

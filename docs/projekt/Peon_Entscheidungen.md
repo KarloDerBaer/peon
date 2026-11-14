@@ -2,6 +2,14 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 14.11.2026: Chancen nach Prüfung mit echten Daten (Manager 0.37.0)
+
+- **Ein fallender Preis schließt Spekulation aus** (KarloDerBaer). Auch wenn es dadurch erst kaum Vorschläge gibt, der Markt muss sich einpendeln.
+- **7 Tage Preisverlauf vor Spekulation und Aufkauf, Schwankung höchstens 40 %** (Vorschlag Claude, zugestimmt). Die 7 Tage sind fest, weil das Konzept höchstens 5 Regler je Art erlaubt (Claude, beim Bau).
+- **Umgestellte Angebote sind keine Verkäufe** (Claude, aus der Messung): Billiger mit gleicher Menge neu eingestellt oder über einem stehenden billigeren Angebot verschwunden gilt als abgebrochen. Nur für Stände der Blizzard-API, die Scans im Spiel bleiben wie Brokers `Sales.lua`. Die bisherigen Vergleiche werden neu gerechnet, belegte Verkäufe beginnen neu.
+- **Gold aus Ledger statt aus Broker** (Claude, beim Bau): Ledger speichert das Gold je Charakter mit Fraktion schon, Broker muss nichts übergeben. Ohne Ledger keine Grenze.
+- **Einsatz höchstens 25 % des Golds je Chance, als Regler** (Vorschlag Claude). Aufkauf ganz oder gar nicht, weil er nur wirkt, wenn alle Stufen gekauft sind.
+
 ## 14.11.2026: Schneller Start, Datenordner, Rückmeldungen zu Chancen (Manager 0.36.0, Bridge 0.12.0)
 
 - **Datenordner im Manager verlegbar** (KarloDerBaer, lieber auf D:). Der Manager kopiert beim Neustart vor dem Öffnen der Datenbanken, der alte Ordner bleibt als Sicherung liegen und wird nicht gelöscht (Claude). Auf D: kann Claude die Daten auch lesen, unter `%APPDATA%` sieht die Claude-App eine alte Kopie.

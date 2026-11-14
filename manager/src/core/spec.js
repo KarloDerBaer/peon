@@ -9,7 +9,8 @@
 // Satz fuer die Liste und fuer jeden anderen Gegenstand die Antwort auf „Warum nicht?“ (6.2).
 // Wiederverkauf (F50) ist mit Manager 0.35.0 abgeloest (KarloDerBaer 13.11.2026).
 
-const { buyout, low, high } = require('./chances');
+const { buyout, low, high, UNSURE } = require('./chances');
+const MARGIN = 0.10;   // ab 0.37.0: nach der Gebuehr mindestens so viel Abstand zwischen Kaufen bis und Zielpreis
 
 const CUT = 0.05;
 const EG_24 = 12;   // Einstellgebuehr fuer 24 Std. = 12 x die Gebuehr fuer 2 Std. (Broker D.Deposit)
@@ -18,7 +19,7 @@ const NEAR = 0.1;   // innerhalb 10 % der Grenze: knapp (gelb)
 
 // Startwerte (Abschnitt 4, KarloDerBaer 13.11.2026: wie im Konzept). Je Art hoechstens 5 Regler.
 const DEFAULTS = {
-  s: { gap: 0.30, nProof: 5, maxDays: 3, minGain: 10000 },
+  s: { gap: 0.30, nProof: 5, maxDays: 3, minGain: 10000, minDays: 7, share: 0.25 },   // ab 0.37.0: minDays fest, share als Regler
   l: { rise: 0.25, maxDays: 14 },
   v: { minGain: 100 },
   f: { signals: { scarce: true, glut: true, level: true, fest: true, week: true }, minSure: 'low' },
@@ -29,6 +30,7 @@ const SLIDERS = {
     { key: 'nProof', label: 'Mindestens so viele Verkäufe gesehen', unit: 'Stück', min: 1, max: 30, step: 1 },
     { key: 'maxDays', label: 'Höchstens so lange bis zum Verkauf', unit: 'Tage', min: 0.5, max: 14, step: 0.5 },
     { key: 'minGain', label: 'Mindestgewinn', unit: 'gold', min: 0, max: 1000000, step: 1000 },
+    { key: 'share', label: 'Höchstens so viel deines Golds je Chance', unit: '%', min: 0.05, max: 1, step: 0.05 },
   ],
   l: [
     { key: 'rise', label: 'Erwarteter Anstieg nach Gebühr mindestens', unit: '%', min: 0.05, max: 1, step: 0.05 },
@@ -98,23 +100,67 @@ function profit(target, qty, cost, days, hp) {
   return { gain: Math.floor(target * (1 - CUT) * qty - cost - fees), fees, relists };
 }
 
-// ab 0.36.0: Preisverlauf der letzten 14 Tage aus den Tageswerten. Rueckgabe: Aenderung der letzten 3 Tage gegen die
-// Tage 7 bis 14 davor (-0,2 = 20 % gefallen), null ohne genug Tage. Ein Preis, der seit Tagen faellt, ist kein Fall fuer
-// Spekulation schnell, auch wenn er noch kein neues Niveau unter dem Bereich hat (Rueckmeldung zur Vorabversion).
-const FALL = 0.15;
+// ab 0.37.0: Preisverlauf aus den Tageswerten, mit dem, was da ist (ab 2 Tagen). Ein fallender Preis schliesst
+// Spekulation schnell aus (KarloDerBaer 14.11.2026). Der Preis faellt, wenn
+//   heute 10 % oder mehr unter dem Median der 3 Tage davor liegt, oder
+//   die letzten 3 Tage 15 % oder mehr unter den Tagen 7 bis 14 davor liegen, oder
+//   er an 3 Tagen gefallen ist, ohne dazwischen zu steigen, zusammen um 10 % oder mehr.
+// Rueckgabe { change, text } (change: -0,2 = 20 % gefallen), null ohne genug Tage oder wenn er nicht faellt.
+const FALL_DAY = 0.10, FALL_WEEK = 0.15, FALL_RUN = 0.10;
+const med = (xs) => { const v = [...xs].sort((a, b) => a - b); const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
 function trendOf(c, key) {
   const d = c.days && c.days.get(key);
   if (!d || c.today == null) return null;
-  const med = (xs) => { const v = [...xs].sort((a, b) => a - b); const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
-  const recent = [], older = [];
-  for (const [day, x] of d) {
-    if (!(x && x.value > 0)) continue;
-    const age = c.today - day;
-    if (age >= 0 && age <= 2) recent.push(x.value);
-    else if (age >= 7 && age <= 14) older.push(x.value);
+  const by = new Map();
+  for (const [day, x] of d) if (x && x.value > 0 && c.today - day >= 0 && c.today - day <= 14) by.set(c.today - day, x.value);
+  if (by.size < 2) return null;
+  const at = (lo, hi) => [...by].filter(([age]) => age >= lo && age <= hi).map(([, v]) => v);
+  const now = by.has(0) ? by.get(0) : by.get(1);
+  const before = by.has(0) ? at(1, 3) : at(2, 4);
+  if (now != null && before.length) {
+    const ch = now / med(before) - 1;
+    if (ch <= -FALL_DAY) return { change: ch, text: `Der Preis fällt: heute ${pctText(-ch)} unter den Tagen davor` };
   }
-  if (recent.length < 2 || older.length < 3) return null;
-  return med(recent) / med(older) - 1;
+  const recent = at(0, 2), older = at(7, 14);
+  if (recent.length >= 2 && older.length >= 3) {
+    const ch = med(recent) / med(older) - 1;
+    if (ch <= -FALL_WEEK) return { change: ch, text: `Der Preis fällt: die letzten 3 Tage ${pctText(-ch)} unter den Tagen eine Woche davor` };
+  }
+  const ages = [...by.keys()].sort((x, y) => y - x);   // aelteste zuerst
+  let run = 0, from = null;
+  for (let i = 1; i < ages.length; i++) {
+    const v = by.get(ages[i]), w = by.get(ages[i - 1]);
+    if (v < w) { if (!run) from = w; run++; } else if (v > w) { run = 0; from = null; }   // gleich bleiben unterbricht nicht
+  }
+  if (run >= 3 && from) {
+    const ch = by.get(ages[ages.length - 1]) / from - 1;
+    if (ch <= -FALL_RUN) return { change: ch, text: `Der Preis fällt seit ${run} Tagen, zusammen ${pctText(-ch)}` };
+  }
+  return null;
+}
+
+// Tage mit Preisverlauf in den letzten 14 Tagen (ab 0.37.0)
+function daysOf(c, key) {
+  const d = c.days && c.days.get(key);
+  if (!d || c.today == null) return 0;
+  let n = 0;
+  for (const [day, x] of d) if (x && x.value > 0 && c.today - day >= 0 && c.today - day <= 14) n++;
+  return n;
+}
+
+// ab 0.37.0: Angebote bis zum Budget kaufen, guenstigste zuerst, Massenware auch teilweise. Rueckgabe { buy, qty, cost }
+function takeBudget(list, budget) {
+  const buy = [];
+  let qty = 0, cost = 0;
+  for (const o of list) {
+    let q = o.q;
+    if (budget != null && cost + o.q * o.p > budget) q = Math.floor((budget - cost) / o.p);
+    if (q <= 0) break;
+    buy.push(q === o.q ? o : { ...o, q });
+    qty += q; cost += q * o.p;
+    if (q < o.q) break;
+  }
+  return { buy, qty, cost };
 }
 
 // Spekulation schnell (4.2) fuer einen Gegenstand. Liefert immer eine Bewertung mit Pruefliste, ok = Vorschlag.
@@ -134,17 +180,34 @@ function evalFast(c, key) {
   const top = b ? Math.floor(high(b)) : null;
   const capped = ov.target == null && proven != null && top != null && top > 0 && proven > top;
   const ref = ov.target != null ? ov.target : capped ? top : proven;
-  const limit = ov.limit != null ? ov.limit : ref != null ? Math.floor(ref * (1 - R.gap)) : null;
-  const buy = limit != null ? offers.filter((o) => o.p <= limit) : [];
-  const qty = buy.reduce((a, o) => a + o.q, 0);
-  const cost = buy.reduce((a, o) => a + o.q * o.p, 0);
-  const next = limit != null ? offers.find((o) => o.p > limit) : null;
-  const target = ref != null ? Math.max(1, Math.min(ref, next ? next.p - 1 : ref)) : null;
+  // ab 0.37.0: Zielpreis und Kaufen bis passen zueinander. Der Zielpreis liegt knapp unter dem naechsten fremden Angebot,
+  // Kaufen bis hoechstens so, dass nach 5 % Gebuehr noch MARGIN Abstand bleibt. Sinkt dadurch die Grenze, kann das naechste
+  // Angebot ein anderes sein, darum bis es sich nicht mehr aendert. Dazu hoechstens so viel Einsatz wie dein Budget.
+  let limit = ov.limit != null ? ov.limit : ref != null ? Math.floor(ref * (1 - R.gap)) : null;
+  let target = null, next = null;
+  for (let i = 0; i < 6 && limit != null && ref != null; i++) {
+    next = offers.find((o) => o.p > limit) || null;
+    target = Math.max(1, Math.min(ref, next ? next.p - 1 : ref));
+    const fit = Math.floor(target * (1 - CUT) * (1 - MARGIN));
+    if (ov.limit != null || fit >= limit) break;
+    limit = fit;
+  }
+  if (target == null && ref != null) target = ref;
+  const budget = c.gold != null ? Math.floor(c.gold * R.share) : null;
+  const under = limit != null ? offers.filter((o) => o.p <= limit) : [];
+  const { buy, qty, cost } = takeBudget(under, budget);
   const ahead = target != null ? offers.filter((o) => o.p > (limit ?? 0) && o.p <= target).reduce((a, o) => a + o.q, 0) : 0;
   const pd = st && st.perDay > 0 ? st.perDay : null;
   const days = pd && qty > 0 ? (ahead + qty) / pd : pd && target != null ? (ahead + 1) / pd : null;
   const pf = profit(target, qty, cost, days, hp);
   const gain = pf ? pf.gain : null;
+  // ab 0.37.0: Moeglicher Verlust, wenn du schnell verkaufen musst: zum unteren Rand des ueblichen Bereichs oder knapp unter
+  // dem naechsten fremden Angebot, je nachdem, was niedriger ist (dort geht es ziemlich sicher weg)
+  const sure = [b ? Math.floor(low(b)) : null, next ? next.p - 1 : null].filter((x) => x != null && x > 0);
+  const surePrice = sure.length ? Math.min(...sure) : null;
+  const loss = surePrice != null && qty > 0 ? Math.max(0, Math.floor(cost - surePrice * (1 - CUT) * qty)) : null;
+  const histDays = daysOf(c, key);
+  const unsure = !b || b.schw > UNSURE;
   const cheapest = offers.length ? offers[0].p : null;
   // Gewinn, wenn man nur das guenstigste Angebot kauft (fuer die Probe mit lockereren Reglern, 7.3)
   const t2 = ref != null ? Math.min(ref, offers[1] ? offers[1].p - 1 : ref) : null;
@@ -168,10 +231,19 @@ function evalFast(c, key) {
       { weight: 1, say: pd ? `Verkauft sich etwa ${dec(pd)} Mal am Tag.` : null }),
     check('gain', 'Mindestgewinn', gain, R.minGain, gain != null && gain >= R.minGain,
       gain == null ? 'Kein Gewinn zu rechnen' : `Erwarteter Gewinn ${gold(gain)} (mindestens ${gold(R.minGain)})`, { weight: 1, say: gain > 0 ? `Bringt etwa ${gold(gain)}.` : null }),
-    check('shift', 'Kein neues Preisniveau nach unten', null, null, !(sh && sh.dir === 'down') && !(trend != null && trend <= -FALL),
+    check('shift', 'Preis fällt nicht', null, null, !(sh && sh.dir === 'down') && !trend,
       sh && sh.dir === 'down' ? 'Der Preis fällt seit über 12 Std. unter den üblichen Bereich'
-        : trend != null && trend <= -FALL ? `Der Preis fällt: die letzten 3 Tage ${pctText(-trend)} unter den Tagen eine Woche davor`
-          : 'Preis stabil oder steigend', { fixed: true }),
+        : trend ? trend.text : 'Preis stabil oder steigend', { fixed: true }),
+    check('band', 'Verlässlicher üblicher Preis', b ? b.schw : null, UNSURE, !unsure,
+      !b ? 'Noch kein üblicher Bereich' : unsure ? `Der Preis schwankt um ${pctText(b.schw)} (höchstens ${pctText(UNSURE)})` : `Schwankung ${pctText(b.schw)}`, { fixed: true }),
+    check('hist', 'Mindestens so viele Tage Preisverlauf', histDays, R.minDays, histDays >= R.minDays,
+      `Preisverlauf an ${histDays} ${histDays === 1 ? 'Tag' : 'Tagen'} (nötig ${R.minDays}, bis dahin pendelt sich der Markt erst ein)`, { fixed: true }),
+    check('budget', 'Einsatz passt zu deinem Gold', cost, budget, budget == null || qty > 0,
+      budget == null ? 'Dein Gold ist unbekannt (Ledger fehlt), der Einsatz ist nicht begrenzt'
+        : qty > 0 ? `Einsatz ${gold(cost)}, erlaubt ${gold(budget)} (${pctText(R.share)} von ${gold(c.gold)})${qty < under.reduce((a, o) => a + o.q, 0) ? `, darum nur ${qty.toLocaleString('de-DE')} Stück` : ''}`
+          : `Schon ein Stück kostet mehr als ${gold(budget)} (${pctText(R.share)} von ${gold(c.gold)})`),
+    check('loss', 'Möglicher Verlust kleiner als der Gewinn', loss, gain, loss == null || (gain != null && loss <= gain),
+      loss == null ? 'Kein sicherer Verkaufspreis bekannt' : `Musst du schnell verkaufen (zu ${gold(surePrice)}), verlierst du bis ${gold(loss)}`),
   ];
   // Risiko als Ampel (4.2)
   const why = [];
@@ -182,7 +254,7 @@ function evalFast(c, key) {
   if (hold && hold.hours < 1) { pts++; why.push('Solche Angebote sind meist nach weniger als 1 Std. weg.'); }
   if (c.age > 7200) { pts++; why.push('Der Stand ist älter als 2 Std.'); }
   return finish(c, key, 's', checks, { buy: limit, limit, target, qty, cost, gain, days, hold, ref, proven, fees: pf ? pf.fees : 0, relists: pf ? pf.relists : 0,
-    perDay: pd, ahead, offers: buy.length, cheapest, gainCheapest, risk: pts >= 3 ? 'high' : pts >= 1 ? 'mid' : 'low', why, until: c.now + 6 * 3600 });
+    loss, surePrice, budget, perDay: pd, ahead, offers: buy.length, cheapest, gainCheapest, risk: pts >= 3 ? 'high' : pts >= 1 ? 'mid' : 'low', why, until: c.now + 6 * 3600 });
 }
 
 // Haendler (4.5, F51): Angebote unter dem Haendlerpreis
@@ -191,9 +263,9 @@ function evalVendor(c, key) {
   const hp = c.vendor(key);
   const apiHp = !hp && c.vendorApi ? c.vendorApi(key) : null;
   const offers = c.offers.get(key) || [];
-  const buy = hp ? offers.filter((o) => o.p < hp) : [];
-  const qty = buy.reduce((a, o) => a + o.q, 0);
-  const cost = buy.reduce((a, o) => a + o.q * o.p, 0);
+  // ab 0.37.0: hoechstens so viel Einsatz wie bei Spekulation (Anteil deines Golds)
+  const budget = c.gold != null ? Math.floor(c.gold * c.rules.s.share) : null;
+  const { qty, cost } = takeBudget(hp ? offers.filter((o) => o.p < hp) : [], budget);
   const gain = hp ? Math.floor(qty * hp - cost) : null;
   const pr = c.proof.get(key);
   const hold = c.hold(key, pr && pr.n >= c.rules.s.nProof ? pr.median : null);
@@ -228,6 +300,19 @@ function buyoutList(c) {
       check('hours', 'Schnell wieder verkauft', x.hours, B.hours, x.hours <= B.hours, `Verkauft in etwa ${dec(x.hours)} Std. (höchstens ${B.hours})`, { fixed: true, weight: 1 }),
       check('gain', 'Mindestgewinn', x.gain, B.minGain, x.gain >= B.minGain, `Gewinn ${gold(x.gain)} (mindestens ${gold(B.minGain)})`, { fixed: true, weight: 3, say: `Bis ${gold(x.limit)} aufkaufen bringt ${gold(x.gain)}.` }),
     ];
+    // ab 0.37.0: wie bei Spekulation schnell kein fallender Preis, 7 Tage Verlauf und Einsatz hoechstens dein Anteil am Gold.
+    // Ein Aufkauf wirkt nur ganz (alle Stufen bis Kaufen bis), darum kein Teilkauf: passt der Einsatz nicht, kein Vorschlag.
+    const trend = trendOf(c, x.key);
+    const histDays = daysOf(c, x.key);
+    const budget = c.gold != null ? Math.floor(c.gold * c.rules.s.share) : null;
+    checks.push(
+      check('shift', 'Preis fällt nicht', null, null, !trend, trend ? trend.text : 'Preis stabil oder steigend', { fixed: true }),
+      check('hist', 'Mindestens so viele Tage Preisverlauf', histDays, c.rules.s.minDays, histDays >= c.rules.s.minDays,
+        `Preisverlauf an ${histDays} ${histDays === 1 ? 'Tag' : 'Tagen'} (nötig ${c.rules.s.minDays})`, { fixed: true }),
+      check('budget', 'Einsatz passt zu deinem Gold', x.cost, budget, budget == null || x.cost <= budget,
+        budget == null ? 'Dein Gold ist unbekannt (Ledger fehlt), der Einsatz ist nicht begrenzt'
+          : `Einsatz ${gold(x.cost)}, erlaubt ${gold(budget)} (${pctText(c.rules.s.share)} von ${gold(c.gold)})`),
+    );
     if (!checks.every((k) => k.ok)) continue;
     out.push(finish(c, x.key, 'b', checks, { buy: x.limit, limit: x.limit, target: x.target, qty: x.qty, cost: x.cost, gain: x.gain, days: x.hours / 24, hold: null,
       risk: x.risk, why: x.why, until: c.now + 2 * 3600 }));
