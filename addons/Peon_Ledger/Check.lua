@@ -100,13 +100,71 @@ function K.Book(name)
     local n = 0
     if res.gold ~= 0 then M.Add("diff", nil, nil, res.gold, L.MV_X_DIFF, name); n = n + 1 end
     for id, d in pairs(res.items) do
-        local e = M.Add("diff", id, d, nil, L.MV_X_DIFF, name)
-        if e and d > 0 and ns.Cost then e.v = ns.Cost.MarketValue(id) or 0 end
-        n = n + 1
+        -- ab 0.15: Mehr Ware, die beim Charakter unter "Unterwegs" liegt, ist abgeholte Twink-Post (Kosten wandern mit)
+        local got = d > 0 and K.FromTransit(name, id, d) or 0
+        if got > 0 then
+            M.Add("twink", id, got, nil, nil, name)
+            n = n + 1
+        end
+        if d - got ~= 0 then
+            local e = M.Add("diff", id, d - got, nil, L.MV_X_DIFF, name)
+            if e and d - got > 0 and ns.Cost then e.v = ns.Cost.MarketValue(id) or 0 end
+            n = n + 1
+        end
     end
     mod:Dbg(("Kontrollrechnung %s: %d Abweichungen verbucht"):format(name, n))
     K.last = K.Run(name)
     return n
+end
+
+-- Bis zu n Stueck aus "Unterwegs" des Charakters nehmen (ab 0.15). Rueckgabe: genommene Stueck
+function K.FromTransit(name, id, n, realm)
+    local r = realm or ns.Inventory.RealmData()
+    local c = r.chars and r.chars[name]
+    local p = type(c) == "table" and type(c.places) == "table" and c.places.transit
+    if type(p) ~= "table" or type(p.items) ~= "table" or not Num(p.items[id]) or p.items[id] <= 0 then return 0 end
+    local take = math.min(p.items[id], n)
+    p.items[id] = p.items[id] - take
+    if p.items[id] <= 0 then p.items[id] = nil end
+    return take
+end
+
+-- Einmalige Reparatur (ab 0.15): Abweichungen mit mehr Ware, die zu "Unterwegs" desselben Charakters passen, waren
+-- Twink-Post, die in der Ruhezeit nach dem Einloggen abgeholt wurde. Sie werden zu Twink-Post (mit den Kosten des
+-- Absenders). Passt nur ein Teil, bleibt der Rest eine Abweichung. Alle Realms, gemerkt in fixTransit.
+function K.RepairTransit()
+    local db = mod.acc
+    if type(db) ~= "table" or db.fixTransit then return 0 end
+    local fixed = 0
+    for _, r in pairs(type(db.realms) == "table" and db.realms or {}) do
+        local list = type(r) == "table" and r.moves
+        if type(list) == "table" then
+            local i = 1
+            while i <= #list do
+                local e = list[i]
+                if type(e) == "table" and e.k == "diff" and e.id and Num(e.n) and e.n > 0 and e.c then
+                    local got = K.FromTransit(e.c, e.id, e.n, r)
+                    if got > 0 then
+                        if got < e.n then
+                            local rest = {}
+                            for k2, v in pairs(e) do rest[k2] = v end
+                            rest.n = e.n - got
+                            table.insert(list, i + 1, rest)
+                        end
+                        e.k, e.n, e.x, e.v, e.fixT = "twink", got, nil, nil, true
+                        fixed = fixed + 1
+                    end
+                end
+                i = i + 1
+            end
+        end
+    end
+    db.fixTransit = true
+    if fixed > 0 then
+        ns.Moves.Changed()
+        mod:Print(L.MSG_FIX_TRANSIT:format(fixed))
+    end
+    return fixed
 end
 
 -- Zeilen "Abweichung" der letzten Tage (alle Charaktere des Realms)
@@ -131,6 +189,9 @@ end
 
 function K.OnLogin()
     local CT = rawget(_G, "C_Timer")
-    local function Go() mod:Call("Kontrollrechnung", K.Book) end
+    local function Go()
+        mod:Call("Kontrollrechnung", K.RepairTransit)
+        mod:Call("Kontrollrechnung", K.Book)
+    end
     if CT and CT.After then CT.After(K.DELAY, Go) else Go() end
 end

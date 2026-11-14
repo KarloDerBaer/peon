@@ -785,8 +785,9 @@ add(900, "repair", nil, nil, -300, { c = "Borin Stein" })
 realm.moves[#realm.moves].c = "Borin Stein"
 local r = Bk.Collect("d7")
 check(r.inc == 900 + 300 + 50 + 75 and r.exp == 1000 + 300 and r.fee == 60, "Buch 7 Tage: Einnahmen, Ausgaben, Gebuehren (Umbuchungen zaehlen nicht)")
-check(r.profit == 1325 - 1300 - 60 and r.cut == 65, "Gewinn und Anteil des Auktionshauses")
-check(r.kinds.ahsold.inc == 1200 and r.kinds.vendor.inc == 50 and r.kinds.vendor.exp == 0 and not r.kinds.twink, "nach Art aufgeteilt")
+-- ab 0.15: ohne Posten zaehlen die Stueck als Beute (Verkauf Beute im Spielalltag, kein Anteil im Handel)
+check(r.profit == 1325 - 1300 - 60 and r.cut == 0, "Goldaenderung, kein Anteil im Handelsteil")
+check(r.kinds.ahloot.inc == 1200 and not r.kinds.ahsold and r.kinds.vendor.inc == 50 and r.kinds.vendor.exp == 0 and not r.kinds.twink, "nach Art aufgeteilt (Verkauf Beute)")
 local r30 = Bk.Collect("d30")
 check(r30.kinds.vendor.exp == 100 and r30.items[159].nin == 5, "30 Tage: aelterer Einkauf dabei")
 local rme = Bk.Collect("d7", true)
@@ -805,7 +806,8 @@ realm.weeks = nil
 -- Reiter (ab 0.14: Summen links, Ansichten Nach Art und Nach Gegenstand)
 ns.Window.Select("book")
 local rows = Bk.book.kinds.items
-check(#rows >= 5 and Bk.book.lines.profit.label.text == "Gesamtgewinn" and Bk.book.lines.trade.label.text == "Handelsgewinn", "Reiter Buch: Arten, Handelsgewinn und Gesamtgewinn")
+check(#rows >= 5 and Bk.book.lines.result.label.text == "Gesamtergebnis" and Bk.book.lines.trade.label.text == "AH: Handelsgewinn"
+  and Bk.book.lines.daily.label.text == "Spielalltag", "Reiter Buch: AH: Handelsgewinn, Spielalltag und Gesamtergebnis")
 mod.db.bookPeriod = "d30"; ns.Window.Refresh()
 check(Bk.book.res.kinds.vendor.exp == 100, "Zeitraum 30 Tage")
 mod.db.bookPeriod = "d7"; mod.db.bookChar = "Mirel Dorna"; ns.Window.Refresh()
@@ -1356,7 +1358,7 @@ local sale = last()
 check(sale.k == "ahsold" and sale.m == 950 and sale.n == -5 and sale.q == 5 and not me.places.auctions.items[2841], "Verkauf aus der Rechnung: Ware weg, Ort Auktionen kleiner (B2)")
 check(Mv.ClaimSale(2841, 5) == 0 and Mv.ClaimSale(2841, 1) == 1, "Auktionsliste meldet den Verkauf spaeter: nicht doppelt")
 local z = ns.Cost.Result(sale)
-check(z and z.sale and z.profit, "Kosten: Verkauf mit Ware und Erloes in einer Zeile")
+check(z and z.lootShare == 1 and z.loot > 0 and not z.sale, "Kosten: Verkauf mit Ware und Erloes in einer Zeile (ohne Posten ab 0.15 Beute)")
 inbox = {}; fire("MAIL_INBOX_UPDATE"); settle()
 -- Briefentwurf: angehaengt, abgeschickt an Twink
 realm.chars["Borin Stein"] = realm.chars["Borin Stein"] or { places = {}, start = { places = {} } }
@@ -1452,7 +1454,9 @@ local rows = MA.table.items
 local by = {}
 for _, r in ipairs(rows) do by[r.kind] = r end
 check(#rows == 4 and by.sale and by.buy and by.player and by.system, "vier Briefe: Verkauf, Kauf, Spieler, System")
-check(by.sale.content == "Bronzebarren ×2" and by.sale.profit and by.buy.content:find("Wollstoff ×20", 1, true), "Inhalt aus Rechnung bzw. Anhang, Gewinn beim Verkauf")
+-- ab 0.15: ohne Kosten im Lager ist der Verkauf Beute (kein Gewinn, Art "Beute")
+check(by.sale.content == "Bronzebarren ×2" and not by.sale.profit and by.sale.special and by.sale.label == "Beute"
+  and by.buy.content:find("Wollstoff ×20", 1, true), "Inhalt aus Rechnung bzw. Anhang, Verkauf ohne Kosten ist Beute")
 check(by.player.cod == 500 and MA.DaysText(0.5):find("Std", 1, true) and MA.DaysText(2.5):find("2", 1, true), "Nachnahme und Ablauf")
 check(ns.Plural(1, "MAIL_L_LETTERS") == "1 Brief" and ns.Plural(3, "MAIL_L_LETTERS") == "3 Briefe", "0.14.1: Einzahl und Mehrzahl")
 check(MA.sum.sale == 1 and MA.sum.soon == 2 and MA.sum.cod == 1 and MA.sum.ah == 2, "Summen links")
@@ -1483,7 +1487,7 @@ MA.listPanel.shown = true
 MA.table.o.onClick(by.sale, "LeftButton")
 check(MA.reading == by.sale and not MA.listPanel:IsShown() and MA.reader:IsShown(), "0.14.9: Klick auf Verkauf oeffnet den Brief, Liste ausgeblendet")
 check(MA.reader.factL.text:find("Verkaufspreis", 1, true) and MA.reader.factL.text:find("Anteil Auktionshaus", 1, true)
-  and MA.reader.factL.text:find("Gewinn", 1, true) and MA.reader.factL.text:find("Käufer", 1, true), "0.14.9: Zahlen im Brief: " .. tostring(MA.reader.factL.text))
+  and MA.reader.factL.text:find("Verkauf Beute", 1, true) and MA.reader.factL.text:find("Käufer", 1, true), "0.14.9: Zahlen im Brief (ab 0.15 ohne Kosten Verkauf Beute): " .. tostring(MA.reader.factL.text))
 check(MA.reader.take:IsShown() and MA.reader.body.text == "", "0.14.9: Knopf Nehmen, kein Hinweis ohne Text")
 MA.CloseReader()
 check(MA.listPanel:IsShown() and not MA.reader:IsShown(), "0.14.9: Zurueck zeigt die Liste wieder")
@@ -1630,7 +1634,7 @@ do
   local a, b, bk = run("lifo")
   check(a.sale and math.abs(a.profit - 500) < 0.01 and not a.special, "neueste zuerst: gekaufte Ware geht zuerst, Gewinn 5s")
   check(b.special and not b.sale and math.abs(b.special - 2800) < 0.01, "danach Startbestand: Sondereinnahme, kein Handelsgewinn")
-  check(math.abs(bk.trade - 500) < 0.01 and math.abs(bk.special - 2800) < 0.01 and bk.kinds.special.inc == 2800 and bk.kinds.ahsold.inc == 2000, "Buch: Handelsgewinn nur aus gekaufter Ware")
+  check(math.abs(bk.trade - 500) < 0.01 and bk.kinds.ahloot.inc == 2800 and bk.kinds.ahsold.inc == 2000 and not bk.kinds.special, "Buch: Handelsgewinn nur aus gekaufter Ware, Startbestand als Verkauf Beute")
   a, b, bk = run("fifo")
   check(a.special and not a.sale and math.abs(a.special - 2000) < 0.01, "aelteste zuerst: erst der Startbestand (Sondereinnahme)")
   check(b.sale and math.abs(b.special - 2800 * 5 / 7) < 0.01 and math.abs(b.profit - (2800 * 2 / 7 - 600)) < 0.01, "gemischter Verkauf: anteilig Sondereinnahme und Handelsgewinn")
@@ -1772,7 +1776,8 @@ ns.Moves.MarkSpecial(sp3, "Kupferbarren")
 ns.Cost.Invalidate()
 local bk = ns.Book.Collect("all", false)
 check(sp.sp and sp2.sp and not sp3.sp and not pre.auctions[2840] and not pre.sold["Bronzebarren"], "Sondereinnahme fuer gemerkte Auktion und Brief, danach wieder normal")
-check(bk.special == 1400 and bk.kinds.special.inc == 1400 and bk.nsales == 1 and ns.Moves.Label(sp) == "Sondereinnahme", "Buch: Sondereinnahme eigene Art, kein Handelsgewinn (der Startbestand von 4 ist danach verbraucht)")
+-- ab 0.15: alles ohne Kosten ist Verkauf Beute (auch der dritte Verkauf, der Startbestand von 4 ist verbraucht)
+check(bk.kinds.ahloot.inc == 1700 and not bk.kinds.special and bk.nsales == 0 and math.abs(bk.trade) < 0.01 and ns.Moves.Label(sp) == "Verkauf Beute", "Buch: Auktion von vor dem Neustart ist Verkauf Beute, kein Handelsgewinn")
 check(ns.Cost.Result(sp).special == 900 and not ns.Cost.Result(sp).sale, "Kosten: Sondereinnahme ist kein Verkauf")
 meC.places.auctions = keepA
 meC.places.mail.list = nil
@@ -1783,6 +1788,151 @@ check(ns.MigrateBook() == false and #realm.moves == 1, "nur einmal")
 realm.moves = keep
 ns.Moves.Changed()
 check(mod.AddNotice and mod:AddNotice({ id = "neuaufbau-2026-11", title = "x" }) == false, "Hinweis zum Neuaufbau angemeldet (gleiche id ein zweites Mal abgelehnt)")
+end)()
+
+
+-- ===== 0.15: Buch mit klarem Handelsgewinn (Konzept Peon_Ledger_Buch_AH.md) =====
+do
+  local keepS, keepM, keepB, keepV = me.start, realm.moves, realm.lotBase, ns.Value
+  me.start = { t = 0, places = {} }
+  realm.lotBase = nil
+  ns.Value = function(id) if id == 2840 then return 500 end end
+  local t0 = os.time() - 3600
+  local C = "Mirel Dorna"
+  realm.moves = {
+    { t = t0 + 1, c = C, k = "ahbuy", id = 2840, n = 2, m = -1000 },                     -- 2 Kupferbarren gekauft (5s)
+    { t = t0 + 2, c = C, k = "loot", id = 2840, n = 2 },                                -- 2 erbeutet
+    { t = t0 + 3, c = C, k = "craft", id = 2840, n = -4 },                              -- Material
+    { t = t0 + 4, c = C, k = "craft", id = 2841, n = 1 },                               -- Ergebnis: halb Beute
+    { t = t0 + 5, c = C, k = "posted", id = 2841, n = -1 },
+    { t = t0 + 5, c = C, k = "ahfee", id = 2841, m = -100 },
+    { t = t0 + 6, c = C, k = "ahreturn", id = 2841, n = 1 },
+    { t = t0 + 7, c = C, k = "posted", id = 2841, n = -1 },
+    { t = t0 + 7, c = C, k = "ahfee", id = 2841, m = -50 },
+    { t = t0 + 8, c = C, k = "ahsold", id = 2841, n = -1, m = 3900, q = 1, gross = 4000, cut = 200 },   -- 1s Einzahlung zurueck
+    { t = t0 + 9, c = C, k = "ahfee", m = -30, x = ns.L.MV_X_CANCEL },                     -- Abbruch ohne Gegenstand
+    { t = t0 + 10, c = C, k = "ahbuy", id = 4306, n = 3, m = -300 },
+    { t = t0 + 11, c = C, k = "vendor", id = 4306, n = -3, m = 60 },                    -- gekaufte Ware an Haendler
+  }
+  ns.Cost.Invalidate()
+  local mats = ns.Cost.Info(2841, C)
+  check(true, "Vorbereitung")
+  local sale = ns.Cost.Result(realm.moves[10])
+  check(sale.sale and math.abs(sale.lootShare - 0.5) < 0.001 and sale.dep == 100 and sale.fee == 150,
+    "0.15: Hergestelltes halb aus Beute (Marktwert 2 x 5s gegen 10s Kosten), Einzahlung zurueck 1s, Gebuehren 1s 50c")
+  check(math.abs(sale.profit - 875) < 0.01 and math.abs(sale.loot - 1875) < 0.01, "0.15: Handelsteil 8s 75c, Beuteteil 18s 75c")
+  local fl = ns.Cost.Result(realm.moves[13])
+  check(fl.vendor and fl.lootShare == 0 and math.abs(ns.Cost.TradeProfit(fl) + 240) < 0.01, "0.15: gekaufte Ware an Haendler zaehlt zum Handelsgewinn (-2s 40c)")
+  local bk = ns.Book.Collect("all", false)
+  check(math.abs(bk.trade - 605) < 0.01, "0.15: AH: Handelsgewinn 875 - 30 Abbruch - 240 Haendler = 605")
+  check(bk.kinds.ahsold.inc == 2000 and bk.kinds.ahcut.exp == 100 and bk.kinds.ahfee.exp == 150 and bk.kinds.ahfee.inc == 100
+    and bk.kinds.ahcancel.exp == 30 and bk.kinds.ahvendor.inc == 60 and not bk.kinds.vendor, "0.15: Zeilen im Auktionshaus (brutto, Anteil, Einzahlung zurueck, Abbruch, Ware an Haendler)")
+  check(math.abs(bk.kinds.ahloot.inc - bk.kinds.ahloot.exp - 1875) < 0.01 and math.abs(bk.daily - 1875) < 0.01, "0.15: AH: Verkauf Beute im Spielalltag mit seinen Gebuehren")
+  local b = bk.bridge
+  check(math.abs(bk.ahflow - (bk.trade + b.stock + b.open + b.loot + b.foreign + b.used)) < 0.01 and math.abs(b.loot + 25) < 0.01
+    and math.abs(b.open) < 0.01 and math.abs(b.stock) < 0.01, "0.15: davon-Zeilen erklaeren den Geldfluss genau")
+  check(math.abs(bk.result - (bk.trade + bk.daily)) < 0.01 and bk.profit == 2480 and math.abs(bk.result - 2480) < 0.01,
+    "0.15: Gesamtergebnis = Handelsgewinn + Spielalltag, hier gleich der Goldaenderung (nichts im Lager)")
+  local rows = ns.Book.BookRows(bk)
+  local labels = {}
+  for _, r in ipairs(rows) do labels[#labels + 1] = r.label or "" end
+  local txt = table.concat(labels, "|")
+  check(txt:find("^AH: Käufe|AH: Einstellgebühren|AH: Abbruchkosten|AH: Verkäufe|AH: Anteil|AH: Ware an Händler||AH: Handelsgewinn", 1) ~= nil,
+    "0.15: Reihenfolge im Auktionshaus: " .. txt)
+  local loot, gold
+  for _, r in ipairs(rows) do if r.k == "ahloot" then loot = r end if r.k == "gold" then gold = r end end
+  check(loot and loot.line and gold and gold.style == "sub" and txt:find("|Spielalltag|AH: Handelsgewinn|Spielalltag|Gesamtergebnis|Goldänderung$") ~= nil,
+    "0.15: Trennstrich vor dem Spielalltag, Summen am Ende")
+  ns.Window.Select("book")
+  local kinds = ns.Book.book.kinds
+  check(Peon.API >= 21 and kinds.o.rowLine and kinds.list.rows[1] and kinds.list.rows[1].line and kinds.o.columns[1].nosort and ns.Book.book.lines.trade.label.text == "AH: Handelsgewinn", "0.15: Tabelle ohne Sortierung, mit Trennstrich")
+  ns.Book.TradeTooltip(ns.Book.book.tradeHover)
+  local tt = table.concat(GameTooltip.lines, "\n")
+  check(tt:find("Wareneinsatz", 1, true) and tt:find("Einzahlung zurück", 1, true) and tt:find("Ware an Händler", 1, true), "0.15: Tooltip des Handelsgewinns")
+  -- Gebuehren anteilig je Stueck, mehrere Kaeufe aus einem Schwung Post
+  realm.moves = {
+    { t = t0 + 1, c = C, k = "ahbuy", id = 7777, m = -210, q = 21 },
+    { t = t0 + 2, c = C, k = "ahbuy", id = 7777, m = -850, q = 85 },
+    { t = t0 + 3, c = C, k = "ahbuy", id = 7777, n = 106, m = 0 },
+    { t = t0 + 4, c = C, k = "posted", id = 7777, n = -10 },
+    { t = t0 + 4, c = C, k = "ahfee", id = 7777, m = -100 },
+    { t = t0 + 5, c = C, k = "ahsold", id = 7777, n = -2, m = 380, q = 2 },
+  }
+  ns.Cost.Invalidate()
+  local s2 = ns.Cost.Result(realm.moves[6])
+  check(math.abs(ns.Cost.Info(7777, C).avg - 10) < 0.01, "0.15: zwei Kaeufe (21 + 85) aus einem Schwung Post: 10c je Stueck")
+  check(math.abs(s2.fee - 20) < 0.01 and math.abs(s2.cost - 20) < 0.01, "0.15: Gebuehr anteilig: 2 von 10 eingestellten Stueck tragen 20c")
+  me.start, realm.moves, realm.lotBase, ns.Value = keepS, keepM, keepB, keepV
+  ns.Cost.Invalidate()
+end
+
+;(function()
+-- ----- 0.15: Post in der Ruhezeit nach dem Einloggen, Kontrollrechnung mit Unterwegs, Reparatur, Fortschritt -----
+local Mv, I, K, MA = ns.Moves, ns.Inventory, ns.Check, ns.Mail
+local clock = 500000
+GetTime = function() return clock end
+local function settle() clock = clock + 2; local list = timers; timers = {}; for _, f in ipairs(list) do f() end end
+local function bags() fire("BAG_UPDATE", 0); fire("BAG_UPDATE_DELAYED") end
+timers = {}
+Mv.pending, Mv.open, Mv.closed, Mv.ctx, Mv.draft, Mv.takes = nil, {}, {}, {}, {}, {}
+local keepM = realm.moves
+realm.moves = {}
+Mv.Changed()
+realm.chars["Borin Stein"] = realm.chars["Borin Stein"] or { places = {}, start = { places = {} } }
+me.places.transit = { t = 1, items = { [2592] = 5 } }
+Mv.paused = true; bags(); fire("PLAYER_MONEY"); settle(); Mv.paused = nil
+I.quietUntil = clock + 20
+inbox = { { nil, nil, "Borin Stein", "Ware", 0, 0, 29, 1 } }
+GetInboxItem = function(i, a) if i == 1 and a == 1 then return "Wollstoff", 2592, 1, 5, 1 end end
+GetInboxInvoiceInfo = function() end
+fire("MAIL_SHOW"); fire("MAIL_INBOX_UPDATE"); settle()
+TakeInboxItem(1, 1)
+inbox = {}
+GetInboxItem = function() end
+BAGS[0][16] = { itemID = 2592, stackCount = 5 }
+BAGS[0][13] = { itemID = 4306, stackCount = 2 }   -- kommt beim Einloggen nach
+fire("MAIL_INBOX_UPDATE"); bags(); settle()
+local tw, other
+for _, e in ipairs(realm.moves) do
+  if e.k == "twink" and e.id == 2592 then tw = e end
+  if e.id == 4306 then other = e end
+end
+check(tw and tw.n == 5 and tw.x == "Borin Stein" and not other and not me.places.transit.items[2592],
+  "0.15: Twink-Post in der Ruhezeit nach dem Einloggen verbucht, nachgeladene Taschen bleiben still")
+fire("MAIL_CLOSED"); settle()
+I.quietUntil = nil
+-- Kontrollrechnung: mehr Ware, die unter Unterwegs liegt, ist abgeholte Twink-Post
+me.places.transit.items[3576] = 4
+Mv.paused = true; BAGS[0][14] = { itemID = 3576, stackCount = 4 }; bags(); settle(); Mv.paused = nil
+local n0 = #realm.moves
+K.Book()
+local got, diff
+for i = n0 + 1, #realm.moves do
+  local e = realm.moves[i]
+  if e.id == 3576 and e.k == "twink" then got = e end
+  if e.id == 3576 and e.k == "diff" then diff = e end
+end
+check(got and got.n == 4 and not diff and not me.places.transit.items[3576], "0.15: Kontrollrechnung verbucht abgeholte Post aus Unterwegs als Twink-Post")
+-- einmalige Reparatur alter Abweichungen
+realm.moves = { { t = time() - 60, c = "Mirel Dorna", k = "diff", id = 2589, n = 7, x = ns.L.MV_X_DIFF, v = 12 } }
+me.places.transit.items[2589] = 5
+mod.acc.fixTransit = nil
+check(K.RepairTransit() == 1 and realm.moves[1].k == "twink" and realm.moves[1].n == 5 and realm.moves[2].k == "diff" and realm.moves[2].n == 2
+  and not me.places.transit.items[2589] and said("Repariert: 1"), "0.15: Reparatur: Abweichung wird Twink-Post, Rest bleibt Abweichung")
+check(K.RepairTransit() == 0 and mod.acc.fixTransit, "0.15: Reparatur nur einmal")
+-- Fortschritt beim Einsammeln
+inbox = { { nil, nil, "Bob Baum", "Gold", 100, 0, 29, nil }, { nil, nil, "Bob Baum", "Gold", 200, 0, 29, nil } }
+fire("MAIL_SHOW"); fire("MAIL_INBOX_UPDATE"); settle()
+MA.Collect("all")
+check(MA.progress and MA.progress.text.text == "Brief 1 von 2", "0.15: Fortschritt beim Einsammeln: " .. tostring(MA.progress and MA.progress.text.text))
+table.remove(inbox, 1)
+MA.ShowProgress()
+check(MA.progress.text.text == "Brief 2 von 2", "0.15: Fortschritt zaehlt weiter")
+MA.Stop()
+inbox = {}
+fire("MAIL_CLOSED"); settle()
+realm.moves = keepM
+Mv.Changed()
 end)()
 
 

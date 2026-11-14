@@ -139,12 +139,14 @@ function MA.Rows()
             r.label = L.MAIL_K_SPECIAL
         -- Gewinn eines Verkaufs (ungefaehr): Erloes - Kosten der Stuecke laut Ledger (naechstes Stueck)
         elseif kind == "sale" and id and r.money and ns.Cost then
-            -- ab 0.14.3: wie die Kostenrechnung (Reihenfolge, Startbestand = Sondereinnahme)
-            local c1, m1, sn1, sc1 = ns.Cost.Peek(id, n or 1)
-            local res = ns.Cost.SaleResult(r.money, n or 1, c1, m1, sn1, sc1, 0)
+            -- ab 0.15: wie die Kostenrechnung (Reihenfolge, Beuteanteil der Stuecke, Einzahlung zurueck)
+            local c1, m1, loot1, a1 = ns.Cost.Peek(id, n or 1)
+            local dep = inv and type(inv.deposit) == "number" and not Peon.IsSecret(inv.deposit) and inv.deposit or 0
+            local res = ns.Cost.SaleResult(r.money, n or 1, c1, m1, loot1, a1, 0, dep)
             r.cost = res.cost
             if res.sale then r.profit = res.profit else r.special = true; r.label = L.MAIL_K_SPECIAL end
             r.partSpecial = res.sale and res.special or nil
+            r.lootMoney = res.special   -- ab 0.15: Beuteteil (Verkauf Beute)
         end
         rows[#rows + 1] = r
     end
@@ -264,10 +266,49 @@ function MA.Signature()
     return n .. ":" .. money .. ":" .. items .. ":" .. MA.FreeSlots()
 end
 
+-- Briefe, die das Einsammeln noch nehmen wuerde (ab 0.15, fuer die Fortschrittsanzeige)
+function MA.Remaining(run)
+    local numFn, header = G("GetInboxNumItems"), G("GetInboxHeaderInfo")
+    if type(numFn) ~= "function" or type(header) ~= "function" then return 0 end
+    local ok, n = pcall(numFn)
+    if not ok or not Num(n) then return 0 end
+    local invoiceFn = G("GetInboxInvoiceInfo")
+    local left = 0
+    for i = 1, n do
+        local okh, _, _, sender, _, money, cod, _, count = pcall(header, i)
+        if okh then
+            local isAH = ns.Inventory.IsAHSender(sender)
+            if not isAH and type(invoiceFn) == "function" then
+                local oki, kind = pcall(invoiceFn, i)
+                isAH = oki and type(kind) == "string" and not Peon.IsSecret(kind)
+            end
+            local wanted = (run.mode == "all" or isAH) and not (Num(cod) and cod > 0)
+            if wanted and ((Num(money) and money > 0) or (Num(count) and count > 0)) then left = left + 1 end
+        end
+    end
+    return left
+end
+
+-- Balken "Brief n von m" (ab 0.15)
+function MA.ShowProgress()
+    local bar = MA.progress
+    if not bar then return end
+    local run = MA.run
+    if not run then bar:Hide(); return end
+    local left = MA.Remaining(run)
+    if left > run.total then run.total = left end   -- neue Post waehrend des Einsammelns
+    local total = math.max(run.total, 1)
+    local cur = math.min(total, total - left + 1)
+    bar:Set((total - left) / total, L.MAIL_PROGRESS:format(cur, total))
+    bar:Show()
+end
+
 function MA.Collect(mode)
     if MA.run then MA.Stop(); return end
     if not ns.Inventory.open.mail then return end
-    MA.run = { mode = mode, tries = {}, done = 0 }
+    MA.run = { mode = mode, tries = {}, done = 0, total = 0 }
+    MA.run.total = MA.Remaining(MA.run)
+    MA.ShowProgress()
     MA.UpdateButtons()
     MA.Step()
 end
@@ -277,6 +318,7 @@ function MA.Stop(reason)
     MA.run = nil
     if run and reason then mod:Print(reason:format(run.done)) end
     MA.UpdateButtons()
+    MA.ShowProgress()
 end
 
 function MA.Step()
@@ -312,6 +354,7 @@ function MA.Step()
     end
     run.done = run.done + 1
     MA.UpdateButtons()
+    MA.ShowProgress()
     After(MA.DELAY, MA.Step)
 end
 
@@ -375,6 +418,10 @@ function MA.BuildInbox()
     MA.filter:SetPoint("TOPLEFT", 14, y - 8)
     MA.btnAH = U.Button(left, "", lw - 28, function() MA.Collect("ah") end, "gold")
     MA.btnAH:SetPoint("BOTTOMLEFT", 14, 44)
+    -- ab 0.15: Fortschritt beim Einsammeln ueber den Knoepfen
+    MA.progress = U.Progress(left, lw - 40)
+    MA.progress:SetPoint("BOTTOM", left, "BOTTOM", 0, 98)
+    MA.progress:Hide()
     MA.btnAll = U.Button(left, "", lw - 28, function() MA.Collect("all") end)
     MA.btnAll:SetPoint("BOTTOMLEFT", 14, 14)
     U.SetTooltip(MA.btnAll, { L.MAIL_ALL, L.MAIL_ALL_TIP })
@@ -440,6 +487,8 @@ function MA.Facts(r)
         Add(L.MAIL_TT_COST, ns.Money(math.floor((r.cost or 0) + 0.5)))
         if r.partSpecial then Add(L.MV_SPECIAL, ns.Money(math.floor(r.partSpecial + 0.5))) end
         Add(L.MAIL_TT_PROFIT, W.Signed(r.profit))
+    elseif r.lootMoney then
+        Add(L.MV_SPECIAL, ns.Money(math.floor(r.lootMoney + 0.5)))   -- ab 0.15: reiner Verkauf Beute
     end
     return out
 end

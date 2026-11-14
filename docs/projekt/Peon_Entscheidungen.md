@@ -2,6 +2,16 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 14.11.2026: Buch mit klarem Handelsgewinn (Ledger 0.15.0, Peon 0.21.0)
+
+- **Handelsgewinn nur aus dem Handel** (KarloDerBaer): Zeilen AH: Käufe, Einstellgebühren, Abbruchkosten, Verkäufe, Anteil, darunter AH: Handelsgewinn. Der Rest ist Spielalltag, am Ende AH: Handelsgewinn, Spielalltag, Gesamtergebnis. Spielerhandel als eigene Zeile.
+- **Zurückgezahlte Einzahlung als Einnahme bei den Einstellgebühren, Abbruchkosten als eigene Zeile** (KarloDerBaer).
+- **„davon“-Zeilen unter dem Handelsgewinn** (Vorschlag Claude, zugestimmt): Die AH-Zeilen sind Geldfluss, der Handelsgewinn rechnet nur verkaufte Stücke. „davon ins Lager“ ist der Rest, so geht die Rechnung immer auf.
+- **Beute und Startbestand zählen nicht zum Handelsgewinn** (Vorschlag Claude, zugestimmt), Name „AH: Verkauf Beute“ (KarloDerBaer). Hergestelltes wird nach Marktwert des erbeuteten Materials gegen Kosten des gekauften aufgeteilt (KarloDerBaer). Gekaufte Ware beim Händler zählt zum Handelsgewinn, Ware an Spieler zum Spielerhandel.
+- **Gebühren teilen sich nach dem Beuteanteil** (Claude, beim Prüfen mit echten Daten): Sonst drückten die Einzahlungen für verkaufte Beute den Handelsgewinn. Offene Gebühren verteilen sich auf die Stücke im Auktionshaus statt alle auf den ersten Verkauf.
+- **Trennstrich über den Kern** (Claude, beim Bau): `UI.Table` mit `o.rowLine`, Kern-API 21, weil der Kern nur erweitert wird.
+- **Post in der Ruhezeit, Kontrollrechnung mit „Unterwegs“, einmalige Reparatur, Fortschritt beim Einsammeln** (KarloDerBaer nach dem Fehler mit Twink-Post). Ein langsameres Einsammeln hätte nicht geholfen, die Ursache war die Ruhezeit von 20 Sekunden nach dem Einloggen.
+
 ## 14.11.2026: Chancen nach Prüfung mit echten Daten (Manager 0.37.0)
 
 - **Ein fallender Preis schließt Spekulation aus** (KarloDerBaer). Auch wenn es dadurch erst kaum Vorschläge gibt, der Markt muss sich einpendeln.

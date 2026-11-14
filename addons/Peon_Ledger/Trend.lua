@@ -86,9 +86,9 @@ function TR.TradeEvents()
     local out = {}
     if ns.Cost then
         for _, e in ipairs(ns.Moves.List()) do
-            local r = ns.Cost.Result(e)
-            if r and r.sale then out[#out + 1] = { t = e.t or 0, p = r.profit or 0 }
-            elseif r and r.general then out[#out + 1] = { t = e.t or 0, p = -r.general } end
+            -- ab 0.15: nur der Handelsteil (Cost.TradeProfit), Beute zaehlt nicht
+            local p = ns.Cost.TradeProfit(ns.Cost.Result(e))
+            if p ~= 0 then out[#out + 1] = { t = e.t or 0, p = p } end
         end
     end
     TR.tradeCache, TR.tradeDirty = out, false

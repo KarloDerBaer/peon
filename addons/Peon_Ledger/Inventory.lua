@@ -129,6 +129,13 @@ end
 I.LOGIN_QUIET = 20
 function I.IsQuiet()
     if I.quiet then return true end
+    if not I.InLoginQuiet() then return false end
+    -- ab 0.15: Post, die gerade genommen wird, ist eine echte Bewegung (Moves.OnPlace nimmt dann nur ihre Gegenstaende)
+    return not (ns.Moves and ns.Moves.TakingMail and ns.Moves.TakingMail())
+end
+
+-- In den ersten I.LOGIN_QUIET Sekunden nach dem Einloggen? (ab 0.15)
+function I.InLoginQuiet()
     local now = GetTime and GetTime() or 0
     return I.quietUntil ~= nil and now < I.quietUntil
 end

@@ -1,10 +1,11 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.1 / Broker 0.95.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.37.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.9 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0 / Profession 0.2.2.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.21.0 / Broker 0.95.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.37.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0 / Profession 0.2.2.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
-## Peon (Kern) – 0.20.1, API 20
+## Peon (Kern) – 0.21.0, API 21
 
+- **Trennstrich in Tabellen (ab 0.21.0):** `UI.Table` mit `o.rowLine(item)` zeigt einen dünnen Strich über der Zeile (für das Buch von Ledger 0.15.0). Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Gegenstandsmenü nach dem Loslassen (ab 0.20.1, Fehlerbericht 15):** Strg+Rechtsklick merkt beim Drücken den Gegenstand und öffnet das Menü einen Bildaufbau nach dem Loslassen, damit Blizzards eigene Menüs (Favoriten im Auktionshaus) es nicht ersetzen. `UI.SetTooltip` nimmt auch einen einzelnen Text (Fehlerbericht 14). Im Spiel noch nicht geprüft.
 
 - Dateien: Locales.lua, Core.lua, Feedback.lua (ab 0.9, direkt nach Core.lua), ItemMenu.lua und Bindings.xml (ab 0.16), Module.lua, Options.lua, Widgets.lua, List.lua, Launcher.lua (ab 0.14), Minimap.lua, Chart.lua (ab 0.10), UIKit.lua, UIDemo.lua und UIProbe.lua (ab 0.18), Notice.lua (ab 0.20), Slash.lua
@@ -155,8 +156,10 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Verlauf der Versionen: `docs/changelog/Peon_Bridge.md`
 - Im Spiel prüfen (nach dem Start): Optionsseite zeigt „Kanal broker freigeschaltet“ und „Peon Manager: Werte vom … (Version 0.6.0)“.
 
-## Peon_Ledger – 0.14.9 (Bestand, Buch und Postfenster)
+## Peon_Ledger – 0.15.0 (Bestand, Buch und Postfenster)
 
+- **Buch mit klarem Handelsgewinn (ab 0.15.0, 14.11.2026):** Konzept `docs\konzepte\ledger\Peon_Ledger_Buch_AH.md`, abgestimmt mit KarloDerBaer. Beuteanteil je Posten (`b`, `a`), Verkäufe teilen sich in Handelsteil und Beuteteil, Sondereinnahme entfällt. Buch „Nach Art“ mit Auktionshaus, AH: Handelsgewinn und davon-Zeilen, Spielalltag, Summen. Gebühren je Stück, mehrere Käufe aus einem Schwung Post zusammengezählt. Post in der Ruhezeit nach dem Einloggen wird verbucht, Kontrollrechnung nimmt Ware aus „Unterwegs“ als Twink-Post, einmalige Reparatur (`fixTransit`). Fortschritt beim Einsammeln. Braucht für den Trennstrich Peon 0.21.0 (Kern-API 21), sonst nur ohne Strich. Daten vor dem Update gesichert in `<Archiv>\Ledger_vor_0.15`. Nicht veröffentlicht, im Spiel noch nicht geprüft.
+- **Noch offen aus der Prüfung der echten Daten (14.11.2026):** Bei Flitzdistel stehen viele Abweichungen der Kontrollrechnung (eingestellt, zurück, Auktionsliste) und Käufe, deren Ware nur über Abweichungen ankam. Ursache noch nicht untersucht. 1g 16s Gold ohne Zuordnung (Abweichung) am 14.11.
 - **Auktionshaus-Post öffnen (ab 0.14.9):** Klick auf AH-Post öffnet den Brief mit allen Zahlen (`MA.Facts`), Knopf „Nehmen“. Beim Lesen ist die Liste ausgeblendet (lag vorher darunter sichtbar). Im Spiel noch nicht geprüft.
 - **Empfänger mit Vor- und Nachname (ab 0.14.9):** Die Auswahlliste der Twinks im Postfenster trägt den vollen Namen ein statt nur den Vornamen. Im Spiel noch nicht geprüft.
 - **Einsammeln und Briefsymbol (ab 0.14.8):** Einsammeln zählt nur Fehlversuche (Postfach unverändert, `MA.Signature`), gleiche Briefe teilen sich keine Versuche mehr. Briefsymbol an der Minikarte verschwindet beim Schließen, wenn nichts Ungelesenes mehr da ist (Fehlerbericht 16). Im Spiel noch nicht geprüft.

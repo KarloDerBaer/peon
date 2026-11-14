@@ -1,11 +1,14 @@
 -- Peon_Ledger - Book.lua
 -- Buch: Auswertung der Bewegungen (Moves.lua) je Zeitraum und Charakter.
 -- Ab 0.14 (Neuaufbau E4, Konzept Peon_Ledger_Neuaufbau.md Abschnitt 6.3) ein Reiter mit Peon.UI:
---   oben Zeitraum und Charakter, links die Summen (zuerst Handelsgewinn und Gesamtgewinn), rechts zwei Ansichten:
+--   oben Zeitraum und Charakter, links die Summen, rechts zwei Ansichten:
 --   "Nach Art" (Einnahmen und Ausgaben je Art) und "Nach Gegenstand" (ersetzt den Reiter Umsatz).
--- Gewinn = Einnahmen - Ausgaben - Gebuehren (nur Gold, Umbuchungen zaehlen nicht). Handelsgewinn (Zuordnen, Cost.lua)
--- = Erloes - Wareneinsatz - Gebuehren der verkauften Stuecke. Beute, Quests und Verbrauch nur unter "Nach Art".
--- Verkaufsquote = verkauft / (verkauft + zurueck) in Stueck, letzte 30 Tage, ab 3 Stueck.
+-- Ab 0.15 (Konzept Peon_Ledger_Buch_AH.md): "Nach Art" in drei Teilen. Oben das Auktionshaus mit Geld, das wirklich
+-- floss (Kaeufe, Einstellgebuehren bezahlt und zurueck, Abbruchkosten, Verkaeufe brutto, Anteil, Ware an Haendler),
+-- darunter der Handelsgewinn (Handelsteil der Verkaeufe, Cost.TradeProfit) mit grauen davon-Zeilen, die den
+-- Unterschied zum Geldfluss erklaeren (ins Lager ist der Rest, so geht die Rechnung immer auf). In der Mitte der
+-- Spielalltag (uebrige Arten, dazu "AH: Verkauf Beute"), unten die Summen. Verkaufsquote = verkauft /
+-- (verkauft + zurueck) in Stueck, letzte 30 Tage, ab 3 Stueck.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -20,7 +23,14 @@ local GREY = W.GREY
 B.PERIODS = { { key = "today", label = "BK_TODAY" }, { key = "d7", label = "BK_D7" }, { key = "d30", label = "BK_D30" }, { key = "all", label = "BK_ALL" } }
 B.RATE_DAYS = 30
 B.RATE_MIN = 3
-B.ORDER = { "ahsold", "special", "ahbuy", "ahfee", "vendor", "buyback", "repair", "loot", "quest", "craft", "trade", "mail", "taxi", "trainer", "other" }
+-- Arten im Auktionshaus-Teil (Geldfluss) und im Spielalltag, jeweils in dieser Reihenfolge
+B.AH = { "ahbuy", "ahfee", "ahcancel", "ahsold", "ahcut", "ahvendor" }
+B.DAILY = { "vendor", "ahloot", "buyback", "repair", "loot", "quest", "craft", "trade", "mail", "taxi", "trainer", "other" }
+B.ORDER = {}
+for _, k in ipairs(B.AH) do B.ORDER[#B.ORDER + 1] = k end
+for _, k in ipairs(B.DAILY) do B.ORDER[#B.ORDER + 1] = k end
+-- graue davon-Zeilen unter dem Handelsgewinn
+B.BRIDGE = { "stock", "open", "loot", "foreign", "used" }
 
 function B.From(period, now)
     now = now or time()
@@ -33,14 +43,20 @@ function B.From(period, now)
 end
 
 local function Side(e) return ns.Moves.Side(e) end
+local function IsAH(k) for _, x in ipairs(B.AH) do if x == k then return true end end return false end
 
--- Auswertung: { kinds = { [Art] = { inc, exp } }, inc, exp, fee, cut, items = { [id] = {...} }, sales, cogs, tfee, trade, use }
+-- Auswertung: { kinds = { [Art] = { inc, exp } }, inc, exp, fee, cut, items = { [id] = {...} },
+--   trade (Handelsgewinn), sales (Handelsteil der Verkaeufe brutto), cut (Anteil davon), cogs (Wareneinsatz),
+--   tfee (Gebuehren im Handelsgewinn), tdep (Einzahlung zurueck), vend (Ware an Haendler), use (Verbrauch),
+--   nsales, ahflow (Saldo Auktionshaus), daily (Spielalltag), result (Gesamtergebnis), profit (Goldaenderung),
+--   bridge = { stock, open, foreign, used } }
 function B.Collect(period, onlyMe, now, char)
     local from = B.From(period, now)
     local me = char or ns.CharName()
     if char then onlyMe = true end
     local res = { kinds = {}, inc = 0, exp = 0, fee = 0, cut = 0, items = {},
-                  sales = 0, cogs = 0, tfee = 0, trade = 0, use = 0, nsales = 0 }
+                  sales = 0, cogs = 0, tfee = 0, tdep = 0, vend = 0, trade = 0, use = 0, nsales = 0 }
+    local feesUsed, foreign, usedA, lootFees = 0, 0, 0, 0
     local function Item(id)
         local it = res.items[id]
         if not it then it = { id = id, nin = 0, nout = 0, sold = 0, back = 0, inc = 0, exp = 0, gross = 0, grossQ = 0,
@@ -48,58 +64,82 @@ function B.Collect(period, onlyMe, now, char)
         return it
     end
     local function Money(k, m)
-        if not m or m == 0 then return end
+        if not m or math.abs(m) < 0.0001 then return end
         local kk = res.kinds[k]
         if not kk then kk = { inc = 0, exp = 0 }; res.kinds[k] = kk end
-        if k == "ahfee" then
-            res.fee = res.fee - m
-            kk.exp = kk.exp - m
-        elseif m > 0 then
+        if m > 0 then
             res.inc = res.inc + m; kk.inc = kk.inc + m
         else
-            res.exp = res.exp - m; kk.exp = kk.exp - m
+            if k == "ahfee" or k == "ahcancel" then res.fee = res.fee - m else res.exp = res.exp - m end
+            kk.exp = kk.exp - m
         end
     end
-    local function Zuordnen(e)
-        local r = ns.Cost and ns.Cost.Result(e)
+    -- nur Anzeige (ab 0.15): Einzahlung und Gebuehren des Beuteteils stehen bei "AH: Verkauf Beute", das Gold
+    -- dazu ist schon bei den Einstellgebuehren gezaehlt (Goldaenderung bleibt unberuehrt)
+    local function Adj(k, inc, exp)
+        local kk = res.kinds[k]
+        if not kk then kk = { inc = 0, exp = 0 }; res.kinds[k] = kk end
+        kk.inc, kk.exp = kk.inc + (inc or 0), kk.exp + (exp or 0)
+    end
+    local function Zuordnen(e, r)
         if not r then return end
-        if r.sale then
-            local m = math.max(0, e.m or 0)
-            res.sales, res.cogs, res.tfee = res.sales + m, res.cogs + (r.cost or 0), res.tfee + (r.fee or 0)
-            res.trade = res.trade + (r.profit or 0)
-            res.nsales = res.nsales + 1
-            if e.id then
+        local p = ns.Cost.TradeProfit(r)
+        res.trade = res.trade + p
+        if r.lootShare then
+            if r.sale then res.nsales = res.nsales + 1 end
+            res.cogs = res.cogs + (r.cost or 0)
+            local lam = r.lootShare
+            res.tfee, res.tdep = res.tfee + (r.fee or 0) * (1 - lam), res.tdep + (r.dep or 0) * (1 - lam)
+            feesUsed = feesUsed + (r.fee or 0)
+            if lam > 0 and ((r.fee or 0) > 0 or (r.dep or 0) > 0) then
+                lootFees = lootFees + ((r.dep or 0) - (r.fee or 0)) * lam
+                Adj("ahloot", (r.dep or 0) * lam, (r.fee or 0) * lam)
+            end
+            foreign = foreign + (r.cost or 0) - (r.acost or 0)
+            if e.id and (r.sale or p ~= 0) then
                 local it = Item(e.id)
-                it.profit = (it.profit or 0) + (r.profit or 0)
+                it.profit = (it.profit or 0) + p
                 it.cogs = it.cogs + (r.cost or 0)
             end
+            if r.vendor then res.vend = res.vend + math.max(0, e.m or 0) * (1 - r.lootShare) end
         elseif r.general then
             res.tfee = res.tfee + r.general
-            res.trade = res.trade - r.general
+            feesUsed = feesUsed + r.general
+        elseif r.player then
+            usedA = usedA + (r.acost or 0)
         elseif r.use and not r.traded then
             res.use = res.use + r.use
+            usedA = usedA + (r.acost or 0)
             if e.id then Item(e.id).use = Item(e.id).use + r.use end
         end
     end
     local function Use(e)
-        Zuordnen(e)
+        local zr = ns.Cost and ns.Cost.Result(e)
+        Zuordnen(e, zr)
         local side = Side(e)
         if e.k == "ahreturn" and e.id and (e.n or 0) > 0 then Item(e.id).back = Item(e.id).back + e.n end
         if side == "move" then return end
-        -- Sondereinnahme eigene Art (ab 0.14.2 Auktionen von vor dem Neustart, ab 0.14.3 Verkauf aus dem Startbestand)
-        local zr = ns.Cost and ns.Cost.Result(e)
-        local sp = 0
-        if e.m and e.m > 0 then
-            if e.sp then sp = e.m elseif zr and zr.special then sp = math.min(e.m, zr.special) end
-        end
-        if sp > 0 then
-            Money("special", sp)
-            res.special = (res.special or 0) + sp
-            Money(e.k, e.m - sp)
+        local m = e.m
+        if e.k == "ahsold" and m and m > 0 then
+            -- ab 0.15: brutto, Anteil und Einzahlung zurueck einzeln, Beuteteil im Spielalltag
+            local lam = zr and zr.lootShare or 0
+            local dep = ns.Cost and ns.Cost.Deposit(e) or 0
+            local net, cut = m - dep, e.cut or 0
+            Money("ahsold", (net + cut) * (1 - lam))
+            Money("ahcut", -cut * (1 - lam))
+            Money("ahfee", dep)
+            Money("ahloot", net * lam)
+            res.cut = res.cut + cut * (1 - lam)
+            res.sales = res.sales + (net + cut) * (1 - lam)
+        elseif e.k == "vendor" and m and m > 0 and zr and zr.vendor then
+            local lam = zr.lootShare or 1
+            Money("ahvendor", m * (1 - lam))
+            Money("vendor", m * lam)
+        elseif e.k == "ahfee" and m then
+            Money(e.x == L.MV_X_CANCEL and "ahcancel" or "ahfee", m)
         else
-            Money(e.k, e.m)
+            Money(e.k, m)
         end
-        if e.k == "ahsold" and e.cut then res.cut = res.cut + e.cut end
         if e.id then
             local it = Item(e.id)
             if e.n and e.n > 0 then it.nin = it.nin + e.n elseif e.n and e.n < 0 then it.nout = it.nout - e.n end
@@ -137,7 +177,19 @@ function B.Collect(period, onlyMe, now, char)
             end
         end
     end
+    -- Summen: Geldfluss im Auktionshaus, Spielalltag, Gesamtergebnis, Goldaenderung
+    local ahflow, daily = 0, 0
+    for k, kk in pairs(res.kinds) do
+        if IsAH(k) then ahflow = ahflow + kk.inc - kk.exp else daily = daily + kk.inc - kk.exp end
+    end
+    res.ahflow, res.daily = ahflow, daily
+    res.result = res.trade + daily
     res.profit = res.inc - res.exp - res.fee
+    -- davon-Zeilen: Geldfluss im Auktionshaus = Handelsgewinn + stock + open + loot + foreign + used
+    -- (der Spielalltag enthaelt die Einzahlungen und Gebuehren der Beute schon, deshalb dort abziehen)
+    local b = { open = -(res.fee - feesUsed), loot = lootFees, foreign = foreign, used = -usedA }
+    b.stock = ahflow - res.trade - b.open - b.loot - b.foreign - b.used
+    res.bridge = b
     return res
 end
 
@@ -160,21 +212,43 @@ local function Rate(it)
     return it.sold / (it.sold + it.back)
 end
 
+-- Zeilen "Nach Art" (ab 0.15): style = "row" (Einnahmen, Ausgaben, Saldo), "blank", "total" (nur Saldo, gold),
+-- "sub" (grau, eingerueckt, nur Saldo); line = Trennstrich ueber der Zeile
+local function Known(k) for _, o in ipairs(B.ORDER) do if o == k then return true end end return false end
+
 function B.BookRows(res)
     local rows = {}
-    for _, k in ipairs(B.ORDER) do
+    if not next(res.kinds) and math.abs(res.trade or 0) < 0.5 then return rows end   -- leer: Hinweis der Tabelle
+    local function Add(r) r.order = #rows; r.style = r.style or "row"; rows[#rows + 1] = r; return r end
+    local function Nonzero(kk) return kk and (math.abs(kk.inc) >= 0.5 or math.abs(kk.exp) >= 0.5) end
+    for _, k in ipairs(B.AH) do
         local kk = res.kinds[k]
-        if kk and (kk.inc ~= 0 or kk.exp ~= 0) then
-            rows[#rows + 1] = { k = k, label = L["BK_" .. k:upper()] or k, inc = kk.inc, exp = kk.exp, sum = kk.inc - kk.exp, order = #rows }
+        if Nonzero(kk) then Add({ k = k, label = L["BK_" .. k:upper()] or k, inc = kk.inc, exp = kk.exp, sum = kk.inc - kk.exp }) end
+    end
+    Add({ style = "blank" })
+    Add({ k = "htrade", style = "total", label = L.BK_R_TRADE, sum = res.trade })
+    for _, k in ipairs(B.BRIDGE) do
+        local v = res.bridge and res.bridge[k]
+        if v and math.abs(v) >= 0.5 then Add({ k = "bridge_" .. k, style = "sub", label = L["BK_B_" .. k:upper()], sum = v }) end
+    end
+    local first = true
+    local other = { inc = 0, exp = 0 }
+    for k2, x in pairs(res.kinds) do
+        if k2 == "other" or not Known(k2) then other.inc, other.exp = other.inc + x.inc, other.exp + x.exp end
+    end
+    for _, k in ipairs(B.DAILY) do
+        local kk = (k == "other") and other or res.kinds[k]   -- unbekannte Arten zaehlen zu Sonstiges
+        if Nonzero(kk) then
+            Add({ k = k, label = L["BK_" .. k:upper()] or L.BK_OTHER, inc = kk.inc, exp = kk.exp, sum = kk.inc - kk.exp, line = first or nil })
+            first = false
         end
     end
-    for k, kk in pairs(res.kinds) do
-        local known = false
-        for _, o in ipairs(B.ORDER) do if o == k then known = true end end
-        if not known and (kk.inc ~= 0 or kk.exp ~= 0) then
-            rows[#rows + 1] = { k = k, label = L.BK_OTHER, inc = kk.inc, exp = kk.exp, sum = kk.inc - kk.exp, order = #rows }
-        end
-    end
+    Add({ style = "blank", line = first or nil })
+    Add({ k = "daily", style = "total", label = L.BK_R_DAILY, sum = res.daily })
+    Add({ k = "sum_trade", tip = "htrade", style = "total", label = L.BK_R_TRADE, sum = res.trade, line = true })
+    Add({ k = "sum_daily", tip = "daily", style = "total", label = L.BK_R_DAILY, sum = res.daily })
+    Add({ k = "result", style = "total", label = L.BK_R_RESULT, sum = res.result })
+    Add({ k = "gold", style = "sub", label = L.BK_R_GOLD, sum = res.profit })
     return rows
 end
 
@@ -221,15 +295,12 @@ function B.Refresh()
     local char = B.Char()
     local res = B.Collect(mod.db.bookPeriod, char ~= nil, nil, char)
     page.res = res
+    -- ab 0.15: Handelsgewinn, Spielalltag, Gesamtergebnis, Goldaenderung (Einzelheiten im Tooltip)
     local s = page.lines
-    s.trade:Set(L.BK_L_TRADE, W.Signed(res.trade))
-    s.profit:Set(L.BK_L_PROFIT, W.Signed(res.profit))
-    s.inc:Set(L.BK_L_INC, ns.Money(res.inc))
-    s.exp:Set(L.BK_L_EXP, ns.Money(res.exp))
-    s.fee:Set(L.BK_L_FEE, ns.Money(res.fee))
-    s.sales:Set(L.BK_L_SALES, ns.Money(res.sales))
-    s.cogs:Set(L.BK_L_COGS, ns.Money(math.floor(res.cogs + 0.5)))
-    s.cut:Set(L.BK_L_CUT, ns.Money(res.cut))
+    s.trade:Set(L.BK_R_TRADE, W.Signed(res.trade))
+    s.daily:Set(L.BK_R_DAILY, W.Signed(res.daily))
+    s.result:Set(L.BK_R_RESULT, W.Signed(res.result))
+    s.gold:Set(GREY .. L.BK_R_GOLD .. "|r", W.Signed(res.profit))
     s.use:Set(GREY .. L.BK_L_USE .. "|r", GREY .. ns.Money(math.floor(res.use + 0.5)) .. "|r")
     page.kinds:SetData(B.BookRows(res))
     page.items:SetData(B.ItemRows(res, page.search, char))
@@ -237,6 +308,38 @@ function B.Refresh()
     page.kindsPanel:SetShown(view == "kinds")
     page.itemsPanel:SetShown(view == "items")
     if page.searchBox then page.searchBox:SetShown(view == "items") end
+end
+
+-- Tooltip des Handelsgewinns (ab 0.15): woraus er sich zusammensetzt
+local function M(v) return ns.Money(math.floor(math.abs(v or 0) + 0.5)) end
+function B.TradeTooltip(owner)
+    local res = B.book.res
+    if not GameTooltip or not res then return end
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    GameTooltip:AddDoubleLine(L.BK_R_TRADE, W.Signed(res.trade), 1, 0.82, 0, 1, 1, 1)
+    local function Line(label, v, sign)
+        if math.abs(v or 0) < 0.5 then return end
+        GameTooltip:AddDoubleLine(label, sign .. M(v), 0.9, 0.9, 0.9, 1, 1, 1)
+    end
+    Line(L.BK_TT_SALES, res.sales, "+")
+    Line(L.BK_TT_CUT, res.cut, "-")
+    Line(L.BK_TT_DEP, res.tdep, "+")
+    Line(L.BK_TT_FEE, res.tfee, "-")
+    Line(L.BK_TT_VEND, res.vend, "+")
+    Line(L.BK_TT_COGS, res.cogs, "-")
+    GameTooltip:AddLine(L.BK_TT_HINT, 0.6, 0.6, 0.6, true)
+    GameTooltip:Show()
+end
+
+-- Tooltip einer Zeile "Nach Art" (ab 0.15): Erklaerung der Summen und davon-Zeilen
+function B.KindTooltip(row, r)
+    local key = r.tip or r.k
+    local text = key and L["BK_TT_" .. key:upper()]
+    if not GameTooltip or not text then return end
+    GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(r.label or "", 1, 0.82, 0)
+    GameTooltip:AddLine(text, 0.9, 0.9, 0.9, true)
+    GameTooltip:Show()
 end
 
 function B.Status()
@@ -281,7 +384,7 @@ function B.Build(c)
     head:SetPoint("TOPLEFT", 14, -12)
     head:SetText(L.BK_HEAD)
     page.lines = {}
-    local keys = { "trade", "profit", "-", "inc", "exp", "fee", "-", "sales", "cogs", "cut", "-", "use" }
+    local keys = { "trade", "daily", "result", "-", "gold", "-", "use" }
     local y = -38
     for _, k in ipairs(keys) do
         if k == "-" then
@@ -291,7 +394,16 @@ function B.Build(c)
             y = y - 22
         end
     end
-    U.Font(page.lines.trade.value, "big"); U.Font(page.lines.profit.value, "big")
+    U.Font(page.lines.trade.value, "big"); U.Font(page.lines.result.value, "big")
+    -- Tooltip ueber der Zeile Handelsgewinn
+    local hover = CreateFrame("Frame", nil, left)
+    hover:SetPoint("TOPLEFT", 8, -34)
+    hover:SetPoint("TOPRIGHT", -8, -34)
+    hover:SetHeight(22)
+    if hover.EnableMouse then hover:EnableMouse(true) end
+    hover:SetScript("OnEnter", function(self) B.TradeTooltip(self) end)
+    hover:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    page.tradeHover = hover
     local hint = U.Text(left, "sub", L.BK_HINT, lw - 28)
     hint:SetPoint("BOTTOMLEFT", 14, 12)
     -- rechts zwei Ansichten
@@ -308,14 +420,28 @@ function B.Build(c)
         mod:Call("Buch", W.Refresh)
     end)
     if page.view[1] then page.view[1]:SetPoint("BOTTOMLEFT", page.kindsPanel, "TOPLEFT", 10, -2) end
+    -- ab 0.15 feste Reihenfolge (keine Sortierung), Summen gold, davon-Zeilen grau, Trennstrich ab Kern-API 21
+    local function Cash(v, r, color)
+        if r.style ~= "row" then return "" end
+        if math.abs(v or 0) < 0.5 then return GREY .. "–|r" end
+        return color .. ns.Money(math.floor(v + 0.5)) .. "|r"
+    end
     page.kinds = U.Table(page.kindsPanel, {
         columns = {
-            { key = "label", title = L.COL_KIND, sort = function(r) return r.order end },
-            { key = "inc", title = L.BK_INC, width = 120, align = "RIGHT", format = function(v) return v ~= 0 and (W.GREEN .. ns.Money(v) .. "|r") or (GREY .. "–|r") end },
-            { key = "exp", title = L.BK_EXP, width = 120, align = "RIGHT", format = function(v) return v ~= 0 and (W.RED .. ns.Money(v) .. "|r") or (GREY .. "–|r") end },
-            { key = "sum", title = L.BK_SUM, width = 120, align = "RIGHT", format = function(v) return W.Signed(v) end },
+            { key = "label", title = L.COL_KIND, nosort = true, format = function(v, r)
+                if r.style == "total" then return W.YELLOW .. (v or "") .. "|r" end
+                if r.style == "sub" then return GREY .. "   " .. (v or "") .. "|r" end
+                return v or "" end },
+            { key = "inc", title = L.BK_INC, width = 120, align = "RIGHT", nosort = true, format = function(v, r) return Cash(v, r, W.GREEN) end },
+            { key = "exp", title = L.BK_EXP, width = 120, align = "RIGHT", nosort = true, format = function(v, r) return Cash(v, r, W.RED) end },
+            { key = "sum", title = L.BK_SUM, width = 120, align = "RIGHT", nosort = true, format = function(v, r)
+                if r.style == "blank" then return "" end
+                if r.style == "sub" then return GREY .. ((v or 0) >= 0.5 and "+" or ((v or 0) <= -0.5 and "-" or "")) .. M(v) .. "|r" end
+                return W.Signed(v) end },
         },
-        sortKey = "label", empty = L.BK_EMPTY,
+        sortKey = "order", empty = L.BK_EMPTY,
+        rowLine = function(r) return r.line end,
+        onEnter = function(row, r) B.KindTooltip(row, r) end,
     })
     page.items = U.Table(page.itemsPanel, {
         icon = true,

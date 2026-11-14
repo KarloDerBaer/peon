@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.21.0
+
+Kurz: Listen können Trennstriche zwischen Zeilen zeigen (zum Beispiel im Buch von Ledger).
+
+- 0.21.0 (14.11.2026): **Trennstrich in Tabellen, Kern-API 21** (`UIKit.lua`). `UI.Table` nimmt `o.rowLine(item)`: Gibt die Funktion `true` zurück, steht über der Zeile ein dünner goldener Strich. Ältere Module ohne die Option sehen keinen Unterschied.
+  - Tests: Kern-API 21 und Strich in der Tabelle in `test_ledger.lua`, Release-Test auf API 21.
+  - **Im Spiel prüfen:** Ledger, Reiter Buch, „Nach Art“: Strich vor dem Spielalltag und vor den Summen.
+
 ## 0.20.1
 
 Kurz: Das Peon-Gegenstandsmenü (Strg+Rechtsklick) geht jetzt auch im Auktionshaus auf dem Gegenstand der Kaufansicht auf und wird nicht mehr vom Favoriten-Menü ersetzt.

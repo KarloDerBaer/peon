@@ -2,6 +2,26 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.15.0
+
+Kurz: Das Buch zeigt den Handelsgewinn im Auktionshaus jetzt sauber getrennt: Käufe, Einstellgebühren mit zurückgezahlter Einzahlung, Abbruchkosten, Verkäufe, Anteil des Auktionshauses und Ware an Händler stehen einzeln da.
+Kurz: Verkaufte Beute zählt nicht mehr zum Handelsgewinn, sondern als „AH: Verkauf Beute“ zum Spielalltag. Hergestelltes aus gekauftem und erbeutetem Material wird anteilig aufgeteilt.
+Kurz: Post, die du gleich nach dem Einloggen abholst, wird jetzt richtig verbucht. Beim Einsammeln zeigt ein Balken „Brief n von m“.
+
+- 0.15.0 (14.11.2026): **Buch mit klarem Handelsgewinn** (Konzept `Peon_Ledger_Buch_AH.md`, abgestimmt mit KarloDerBaer).
+  - **Beuteanteil je Posten** (`Cost.lua`): Posten tragen `b` (Beuteanteil) und `a` (Kosten aus dem Auktionshaus). Kosten 0 ist Beute, auch Startbestand und Abweichung. Herstellen rechnet den Anteil aus dem Marktwert des erbeuteten Materials gegen die Kosten des gekauften. Ein Verkauf teilt Erlös, Einzahlung und Gebühren nach dem Anteil (`SaleResult`), der Handelsteil zählt zum Handelsgewinn (`Cost.TradeProfit`), der Beuteteil zum Spielalltag. Die Sondereinnahme entfällt.
+  - **Händlerverkäufe von Beute zählten bisher voll als Handelsgewinn.** Jetzt zählt nur gekaufte Ware (Zeile „AH: Ware an Händler“). Verkauf an Spieler zählt zum Spielerhandel.
+  - **Gebühren je Stück** (`TakeFee`): Offene Einstellgebühren verteilen sich auf die Stücke im Auktionshaus. Vorher trug der erste Verkauf alle Gebühren, bei einem 47er-Stapel mit viermal Einstellen 1g 29s auf 2 verkaufte Stück.
+  - **Mehrere Käufe in einem Schwung Post** (`PopBuy`): Die Beträge werden nach der Menge zusammengezählt. Vorher bekam der ganze Schwung (z. B. 21 + 1 + 85 + 1 Stück) nur den Preis des ersten Kaufs.
+  - **Buch „Nach Art“** (`Book.lua`): oben das Auktionshaus (Käufe, Einstellgebühren bezahlt und zurück, Abbruchkosten, Verkäufe brutto, Anteil, Ware an Händler), darunter „AH: Handelsgewinn“ mit grauen davon-Zeilen (ins Lager, offene Einstellgebühren, Einstellgebühren für Beute, Ware von Händlern und Spielern, selbst verbraucht), die den Unterschied zum Geldfluss genau erklären. Nach einem Trennstrich der Spielalltag mit „AH: Verkauf Beute“, am Ende die Summen und die Goldänderung. Feste Reihenfolge, jede Zeile mit Tooltip. „Handel“ heißt jetzt „Spielerhandel“ (der Text wurde bisher von einem anderen überschrieben).
+  - **Summen links:** AH: Handelsgewinn, Spielalltag, Gesamtergebnis, Goldänderung, Verbrauch. Der Tooltip des Handelsgewinns zeigt Verkäufe, Anteil, Einzahlung zurück, Gebühren, Ware an Händler und Wareneinsatz. Diagramm und Übersicht nutzen denselben Handelsgewinn.
+  - **Postfenster:** Verkauf ohne Kosten heißt „Beute“ und zeigt „Verkauf Beute“ im Brief. Der Gewinn im Brief rechnet die Einzahlung aus der Rechnung mit.
+  - **Post in der Ruhezeit nach dem Einloggen** (`Inventory.IsQuiet`, `Moves.OnPlace`, `Moves.OnMoney`): In den ersten 20 Sekunden verbucht Ledger jetzt Gegenstände und Gold aus gerade genommenen Briefen. Das Nachladen der Taschen bleibt still. Vorher wurden die Anhänge zu Abweichungen ohne Kosten und lagen beim Twink zusätzlich noch unter „Unterwegs“.
+  - **Kontrollrechnung** (`Check.lua`): Mehr Ware, die beim Charakter unter „Unterwegs“ liegt, wird als Twink-Post mit Kosten verbucht. Einmalige Reparatur beim ersten Start (`K.RepairTransit`, gemerkt in `fixTransit`): passende alte Abweichungen werden zu Twink-Post, Meldung im Chat.
+  - **Fortschritt beim Einsammeln** (`MA.Remaining`, `MA.ShowProgress`): Balken über den Knöpfen mit „Brief n von m“.
+  - Tests: Beuteanteil beim Herstellen, Aufteilung eines Verkaufs, Zeilen und Reihenfolge im Buch, Überleitung geht genau auf, Gebühren je Stück, Käufe aus einem Schwung Post, Post in der Ruhezeit, Kontrollrechnung mit Unterwegs, Reparatur, Fortschritt. Bestehende Tests auf Verkauf Beute umgestellt (`test_ledger.lua`).
+  - **Im Spiel prüfen:** Buch „Heute“: Reihenfolge der Zeilen, Trennstriche, Tooltips der Zeilen und des Handelsgewinns. Nach dem ersten Login die Chatmeldung „Repariert: … Abweichungen“ beim Twink, danach steht bei ihm nichts mehr doppelt unter „Unterwegs“. Twink einloggen und sofort Post einsammeln: Verlauf zeigt Twink-Post, keine Abweichung. Einsammeln mit mehreren Briefen: Balken „Brief n von m“.
+
 ## 0.14.9
 
 Kurz: Die Auswahl der Twinks im Postfenster trägt jetzt Vor- und Nachnamen als Empfänger ein.

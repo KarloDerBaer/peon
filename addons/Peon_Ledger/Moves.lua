@@ -220,6 +220,10 @@ end
 -- von Inventory: Ort eines Charakters hat sich geaendert (nur eingeloggter Charakter, nicht beim ersten Erfassen)
 function M.OnPlace(place, old, new, info)
     if M.paused then return end
+    -- ab 0.15: in der Ruhezeit nach dem Einloggen nur Gegenstaende aus gerade genommenen Briefen (der Rest ist das
+    -- Nachladen der Taschen und bleibt still)
+    local only = ns.Inventory.InLoginQuiet and ns.Inventory.InLoginQuiet() and M.TakenItems() or nil
+    if only and place == "auctions" then return end
     if place == "auctions" then return M.OnAuctions(old, new, info) end
     local b = Batch()
     local changed = false
@@ -227,6 +231,7 @@ function M.OnPlace(place, old, new, info)
     for id, n in pairs(new) do
         seen[id] = true
         local d = n - (old[id] or 0)
+        if only and not only[id] then d = 0 end
         if d ~= 0 then
             b.items[id] = b.items[id] or {}
             b.items[id][place] = (b.items[id][place] or 0) + d
@@ -234,7 +239,7 @@ function M.OnPlace(place, old, new, info)
         end
     end
     for id, n in pairs(old) do
-        if not seen[id] and n ~= 0 then
+        if not seen[id] and n ~= 0 and not (only and not only[id]) then
             b.items[id] = b.items[id] or {}
             b.items[id][place] = (b.items[id][place] or 0) - n
             changed = true
@@ -246,6 +251,8 @@ end
 -- Gold geaendert
 function M.OnMoney(delta)
     if M.paused or not Num(delta) or delta == 0 then return end
+    -- ab 0.15: in der Ruhezeit nach dem Einloggen nur Gold aus einem gerade genommenen Brief
+    if ns.Inventory.InLoginQuiet and ns.Inventory.InLoginQuiet() and not M.HasMoneyTake() then return end
     local b = Batch()
     b.money[#b.money + 1] = delta
     Schedule()
@@ -321,6 +328,32 @@ local function PurgeTakes()
     local keep = {}
     for _, e in ipairs(M.takes) do if Now() - e.t <= M.TAKE_KEEP then keep[#keep + 1] = e end end
     M.takes = keep
+end
+
+-- Wird gerade Post genommen? (ab 0.15, fuer die Ruhezeit nach dem Einloggen)
+function M.TakingMail()
+    if not M.IsOpen("mail") then return false end
+    PurgeTakes()
+    return #M.takes > 0
+end
+
+-- Gegenstaende der gerade genommenen Briefe: [itemID] = true (ab 0.15)
+function M.TakenItems()
+    PurgeTakes()
+    local ids = {}
+    for _, e in ipairs(M.takes) do
+        if e.kind == "item" and type(e.letter.items) == "table" then
+            for id in pairs(e.letter.items) do ids[id] = true end
+        end
+    end
+    return ids
+end
+
+-- Gold aus einem gerade genommenen Brief? (ab 0.15)
+function M.HasMoneyTake()
+    PurgeTakes()
+    for _, e in ipairs(M.takes) do if e.kind == "money" then return true end end
+    return false
 end
 
 -- Gibt es einen genommenen Brief mit genau diesem Betrag?

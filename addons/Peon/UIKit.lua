@@ -755,6 +755,7 @@ end
 -- Bildlauf, Hinweis bei leerer Liste, Ladeanzeige.
 -- o.columns = { { key, title, width (nil = waechst), align, format(v, item), sort(item) } }
 -- o.panel = Bereich (UI.Panel mit header = true), o.empty = Text bei leerer Liste
+-- o.rowBg(item) -> r, g, b, a: eigene Hintergrundfarbe (API 19), o.rowLine(item) -> true: Trennstrich oben (API 21)
 ---------------------------------------------------------------------------
 function UI.Table(panel, o)
     local t = { o = o, items = {}, sortKey = o.sortKey, sortDesc = o.sortDesc, selected = nil }
@@ -830,6 +831,13 @@ function UI.Table(panel, o)
             row.tint = row:CreateTexture(nil, "BACKGROUND", nil, 1)
             row.tint:SetAllPoints()
             row.tint:Hide()
+            -- API 21: Trennstrich ueber der Zeile (o.rowLine)
+            row.line = row:CreateTexture(nil, "ARTWORK")
+            row.line:SetPoint("TOPLEFT", 4, 0)
+            row.line:SetPoint("TOPRIGHT", -4, 0)
+            row.line:SetHeight(1)
+            row.line:SetColorTexture(1, 0.82, 0, 0.35)
+            row.line:Hide()
             row.hl = row:CreateTexture(nil, "OVERLAY")
             row.hl:SetAllPoints()
             if not UI.SetAtlas(row.hl, "auctionhouse-ui-row-highlight", false) then row.hl:SetColorTexture(1, 1, 1, 0.08) end
@@ -868,6 +876,8 @@ function UI.Table(panel, o)
             local tr, tg, tb, ta
             if o.rowBg then tr, tg, tb, ta = o.rowBg(item) end
             if tr then row.tint:SetColorTexture(tr, tg, tb, ta or 0.25); row.tint:Show() else row.tint:Hide() end
+            -- API 21: o.rowLine(item) -> true = Trennstrich ueber der Zeile
+            if o.rowLine and o.rowLine(item) then row.line:Show() else row.line:Hide() end
             local x = 0
             for ci, c in ipairs(o.columns) do
                 local fs = row.cells[ci]
