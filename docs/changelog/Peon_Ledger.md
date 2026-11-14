@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.14.9
+
+Kurz: Die Auswahl der Twinks im Postfenster trägt jetzt Vor- und Nachnamen als Empfänger ein.
+Kurz: Ein Klick auf Auktionshaus-Post öffnet den Brief mit allen Zahlen (Preis, Anteil des Auktionshauses, Einzahlung, Gewinn). Mit „Nehmen“ holst du Gold und Ware.
+Kurz: Ein geöffneter Brief verdeckt jetzt die Liste, beide liegen nicht mehr übereinander.
+
+- 0.14.9 (14.11.2026): Empfänger im Postfenster (`Mail.lua`, `MA.Recipients`). Die Auswahlliste neben „An“ trug bei eigenen Charakteren nur den Vornamen ein. Jetzt steht der volle Name („Vorname Nachname“) im Feld. Zuletzt angeschriebene Empfänger mit nur dem Vornamen eines Twinks erscheinen nicht doppelt.
+  - Tests: Liste enthält den Twink mit Vor- und Nachname in `test_ledger.lua`.
+  - **Im Spiel prüfen:** Am Briefkasten Seite Senden, Twink aus der Liste wählen: Feld „An“ zeigt Vor- und Nachname, Brief kommt beim Twink an.
+- 0.14.9 (14.11.2026): Geöffneter Brief und Liste lagen übereinander (`MA.Read`, `MA.CloseReader`). Beim Lesen wird die Liste jetzt ausgeblendet, „Zurück“ zeigt sie wieder.
+- 0.14.9 (14.11.2026): Auktionshaus-Post öffnet per Klick (`MA.OpensOnClick`, `MA.Facts`, `MA.TakeReading`). Verkauf: Käufer, Verkaufspreis (je Stück), Anteil Auktionshaus, Einzahlung zurück, Gold im Brief, Kosten der Ware, Gewinn. Kauf: Verkäufer, bezahlt (je Stück). Überboten und Zurück: Gold bzw. Ware im Brief. Knopf „Nehmen“ im Brief nimmt Gold und Ware und zeigt die Liste wieder. Der Tooltip der Zeile nutzt dieselben Zahlen. Briefe von Spielern und Twinks werden wie bisher per Klick genommen, Rechtsklick liest jeden Brief.
+  - Tests: Klick auf Verkauf öffnet mit Zahlen und blendet die Liste aus, Zurück zeigt sie wieder, Kauf mit Preis je Stück, Nehmen im Brief, Brief eines Spielers wird weiter genommen (`test_ledger.lua`).
+  - **Im Spiel prüfen:** Postfach mit Verkaufs- und Kaufbriefen öffnen. Klick auf einen Verkauf: nur der Brief ist zu sehen, mit allen Zahlen. „Nehmen“ holt das Gold. Klick auf einen Kauf: bezahlter Preis, „Nehmen“ holt die Ware. Käufer und Verkäufer stehen nur da, wenn das Spiel sie nennt.
+
 ## 0.14.8
 
 Kurz: „Auktionshaus-Post“ und „Alles einsammeln“ holen jetzt alle Briefe, auch viele gleiche Kaufbriefe hintereinander.

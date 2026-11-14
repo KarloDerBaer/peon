@@ -153,6 +153,7 @@ local mod = ns.mod
 check(mod.initialized and mod.page, "Modul + Optionsseite")
 check(StaticPopupDialogs == POPUPS and POPUPS.PEON_BROKER_DELETE_MARKET, "StaticPopupDialogs nicht neu zugewiesen (sonst ESC-Problem)")
 check(type(PeonBrokerDB) == "table" and PeonBrokerDB.debug == false, "PeonBrokerDB angelegt")
+check(PeonBrokerDB.radarSound == false and PeonBrokerDB.radarSoundOff == true, "0.95.1: Ton bei neuen Radar-Treffern einmal ausgeschaltet (Bericht 29)")
 check(PeonBrokerDB.dataVersion == 2 and next(PeonBrokerDB.markets) == nil and PeonBrokerDB.tooltipSales == nil and PeonBrokerDB.minimapShow == true, "Umstellung: alte Preisdaten geloescht, Einstellungen bleiben")
 local migMsg = false for _, l in ipairs(out) do if l:find("Neues Rechenmodell", 1, true) then migMsg = true end end
 check(migMsg, "Hinweis im Chat: bitte neu scannen")

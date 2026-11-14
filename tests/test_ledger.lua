@@ -1473,6 +1473,29 @@ check(deleted == 4 and not MA.reading, "Loeschen nach Rueckfrage")
 MA.table.o.onClick(by.sale, "RightButton")
 check(MA.reading == by.sale, "Rechtsklick liest jeden Brief")
 MA.CloseReader()
+-- ab 0.14.9: Auktionshaus-Post oeffnet per Klick mit allen Zahlen, Liste ist dabei ausgeblendet
+for _, fr in ipairs({ MA.listPanel, MA.reader, MA.reader.take }) do
+  fr.Show = function(s) s.shown = true end
+  fr.Hide = function(s) s.shown = false end
+  fr.SetShown = function(s, v) s.shown = v and true or false end
+end
+MA.listPanel.shown = true
+MA.table.o.onClick(by.sale, "LeftButton")
+check(MA.reading == by.sale and not MA.listPanel:IsShown() and MA.reader:IsShown(), "0.14.9: Klick auf Verkauf oeffnet den Brief, Liste ausgeblendet")
+check(MA.reader.factL.text:find("Verkaufspreis", 1, true) and MA.reader.factL.text:find("Anteil Auktionshaus", 1, true)
+  and MA.reader.factL.text:find("Gewinn", 1, true) and MA.reader.factL.text:find("Käufer", 1, true), "0.14.9: Zahlen im Brief: " .. tostring(MA.reader.factL.text))
+check(MA.reader.take:IsShown() and MA.reader.body.text == "", "0.14.9: Knopf Nehmen, kein Hinweis ohne Text")
+MA.CloseReader()
+check(MA.listPanel:IsShown() and not MA.reader:IsShown(), "0.14.9: Zurueck zeigt die Liste wieder")
+MA.table.o.onClick(by.buy, "LeftButton")
+check(MA.reading == by.buy and MA.reader.factL.text:find("Bezahlt", 1, true) and MA.reader.factR.text:find("je Stück", 1, true), "0.14.9: Kauf mit Preis je Stueck")
+local takenR
+local oAuto = AutoLootMailItem
+AutoLootMailItem = function(i) takenR = i end
+MA.TakeReading()
+AutoLootMailItem = oAuto
+check(takenR == by.buy.index and not MA.reading and MA.listPanel:IsShown(), "0.14.9: Nehmen im Brief nimmt ihn und zeigt die Liste")
+check(not MA.OpensOnClick(by.player), "0.14.9: Brief eines Spielers wird per Klick genommen")
 check(MA.statusText:find("10 Taschenplätze frei", 1, true), "Statuszeile: freie Plaetze")
 mod.db.mailFilter = "sale"; MA.Refresh()
 check(#MA.table.items == 1, "Filter Verkaeufe")
@@ -1561,6 +1584,7 @@ check(MA.send.cost.text:find("Porto", 1, true), "Porto angezeigt")
 local items = {}
 for _, it in ipairs(MA.Recipients()) do items[#items + 1] = it[1] end
 check(table.concat(items, ","):find("Borin", 1, true), "Empfaenger: Liste der Twinks")
+check(table.concat(items, ","):find("Borin Stein", 1, true), "Empfaenger: Twink mit Vor- und Nachname")
 MA.Send()
 check(sent and sent[1] == "Borin" and sent[2] == "Leinenstoff (20)" and setM == 0, "Abschicken: Betreff aus dem Anhang")
 fire("MAIL_SEND_SUCCESS")

@@ -399,7 +399,8 @@ function MA.BuildInbox()
         onEnter = function(row, r) MA.RowTooltip(row, r) end,
         onClick = function(r, button)
             -- ab 0.14.1: Brief ohne Gold und Anhang wird gelesen, Rechtsklick liest jeden Brief
-            if button == "RightButton" or MA.TextOnly(r) then MA.Read(r) elseif button == "LeftButton" then MA.Take(r) end
+            -- ab 0.14.9: Auktionshaus-Post oeffnet mit allen Zahlen (Preis, Anteil, Einzahlung, Gewinn), Nehmen im Brief
+            if button == "RightButton" or MA.TextOnly(r) or MA.OpensOnClick(r) then MA.Read(r) elseif button == "LeftButton" then MA.Take(r) end
         end,
     })
     MA.BuildReader(c, panel)
@@ -407,6 +408,41 @@ end
 
 -- Brief ohne Gold und ohne Anhang (nur Text)
 function MA.TextOnly(r) return not r.cod and (r.money or 0) == 0 and (r.letter.count or 0) == 0 end
+
+-- ab 0.14.9: Klick oeffnet den Brief statt ihn zu nehmen (Auktionshaus-Post: Verkauf, Kauf, Ueberboten, Zurueck)
+function MA.OpensOnClick(r) return r.letter.ah and not r.cod end
+
+-- Zahlen zu einem Brief fuer Tooltip und geoeffneten Brief (ab 0.14.9): Liste { Beschriftung, Wert }
+function MA.Facts(r)
+    local out = {}
+    local function Add(a, b) out[#out + 1] = { a, b } end
+    local inv = r.letter.invoice
+    if inv and inv.kind == "seller" then
+        if inv.player then Add(L.MAIL_TT_BUYER, inv.player) end
+        if inv.gross then
+            local q = inv.count or 1
+            local each = q > 1 and ("  " .. GREY .. L.MAIL_TT_EACH:format(ns.Money(math.floor(inv.gross / q + 0.5))) .. "|r") or ""
+            Add(L.MAIL_TT_GROSS, ns.Money(inv.gross) .. each)
+        end
+        if inv.cut then Add(L.MAIL_TT_CUT, "-" .. ns.Money(inv.cut)) end
+        if inv.deposit and inv.deposit > 0 then Add(L.MAIL_TT_DEPOSIT, "+" .. ns.Money(inv.deposit)) end
+    elseif inv and inv.kind == "buyer" then
+        if inv.player then Add(L.MAIL_TT_SELLER, inv.player) end
+        local paid = math.max(inv.bid or 0, inv.buyout or 0)
+        if paid > 0 then
+            local q = (r.n and r.n > 1) and r.n or 1
+            local each = q > 1 and ("  " .. GREY .. L.MAIL_TT_EACH:format(ns.Money(math.floor(paid / q + 0.5))) .. "|r") or ""
+            Add(L.MAIL_TT_PAID, ns.Money(paid) .. each)
+        end
+    end
+    if r.money then Add(L.MAIL_TT_MONEY, ns.Money(r.money)) end
+    if r.profit then
+        Add(L.MAIL_TT_COST, ns.Money(math.floor((r.cost or 0) + 0.5)))
+        if r.partSpecial then Add(L.MV_SPECIAL, ns.Money(math.floor(r.partSpecial + 0.5))) end
+        Add(L.MAIL_TT_PROFIT, W.Signed(r.profit))
+    end
+    return out
+end
 
 -- Lesen (ab 0.14.1): Betreff, Absender, Text. Antworten, Loeschen (leere Briefe) bzw. Zurueckschicken.
 function MA.BuildReader(c, panel)
@@ -420,14 +456,21 @@ function MA.BuildReader(c, panel)
     f.subject:SetPoint("TOPLEFT", 16, -14)
     f.from = U.Text(f, "sub", "", 460)
     f.from:SetPoint("TOPLEFT", f.subject, "BOTTOMLEFT", 0, -4)
+    -- ab 0.14.9: Zahlen des Briefes in zwei Spalten (Beschriftung, Wert)
+    f.factL = U.Text(f, "text", "", 200)
+    f.factL:SetPoint("TOPLEFT", f.from, "BOTTOMLEFT", 0, -14)
+    f.factR = U.Text(f, "text", "", 220)
+    f.factR:SetPoint("TOPLEFT", f.factL, "TOPRIGHT", 10, 0)
     f.body = U.Text(f, "text", "", 460)
-    f.body:SetPoint("TOPLEFT", f.from, "BOTTOMLEFT", 0, -14)
     f.back = U.Button(f, L.MAIL_READ_BACK, 100, function() MA.CloseReader() end)
     f.back:SetPoint("BOTTOMLEFT", 14, 12)
     f.reply = U.Button(f, L.MAIL_READ_REPLY, 110, function() MA.Reply() end)
     f.reply:SetPoint("LEFT", f.back, "RIGHT", 8, 0)
     f.del = U.Button(f, L.MAIL_READ_DELETE, 120, function() MA.DeleteOrReturn() end)
     f.del:SetPoint("BOTTOMRIGHT", -14, 12)
+    -- ab 0.14.9: Gold und Anhang aus dem geoeffneten Brief nehmen
+    f.take = U.Button(f, L.MAIL_READ_TAKE, 120, function() MA.TakeReading() end, "gold")
+    f.take:SetPoint("RIGHT", f.del, "LEFT", -8, 0)
     MA.reader = f
 end
 
@@ -443,7 +486,17 @@ function MA.Read(r)
     MA.reading = r
     f.subject:SetText(r.subject or r.content or "")
     f.from:SetText(r.sender and (L.MAIL_TT_FROM .. ": " .. r.sender) or "")
-    f.body:SetText((body and body ~= "") and body or (GREY .. L.MAIL_READ_EMPTY .. "|r"))
+    local facts = MA.Facts(r)
+    local la, va = {}, {}
+    for _, x in ipairs(facts) do la[#la + 1] = GREY .. x[1] .. "|r"; va[#va + 1] = x[2] end
+    f.factL:SetText(table.concat(la, "\n"))
+    f.factR:SetText(table.concat(va, "\n"))
+    f.body:ClearAllPoints()
+    if #facts > 0 then f.body:SetPoint("TOPLEFT", f.factL, "BOTTOMLEFT", 0, -14) else f.body:SetPoint("TOPLEFT", f.from, "BOTTOMLEFT", 0, -14) end
+    -- Auktionshaus-Post ohne Text: nur die Zahlen, kein Hinweis "ohne Text"
+    local empty = (#facts > 0) and "" or (GREY .. L.MAIL_READ_EMPTY .. "|r")
+    f.body:SetText((body and body ~= "") and body or empty)
+    f.take:SetShown(not MA.TextOnly(r))
     local canDelete = false
     local cd = G("InboxItemCanDelete")
     if type(cd) == "function" then local ok, v = pcall(cd, r.index); canDelete = ok and v and true or false end
@@ -451,12 +504,23 @@ function MA.Read(r)
     f.del:SetText(canDelete and L.MAIL_READ_DELETE or L.MAIL_READ_RETURN)
     if MA.TextOnly(r) then f.del:Enable() else f.del:SetShown(canDelete or (r.kind == "player")) end
     f.reply:SetShown(r.kind == "player" or r.kind == "twink")
+    -- ab 0.14.9: Liste ausblenden, sonst scheint sie durch den Brief
+    if MA.listPanel then MA.listPanel:Hide() end
     f:Show()
 end
 
 function MA.CloseReader()
     MA.reading = nil
     if MA.reader then MA.reader:Hide() end
+    if MA.listPanel then MA.listPanel:Show() end
+end
+
+-- ab 0.14.9: Knopf Nehmen im geoeffneten Brief
+function MA.TakeReading()
+    local r = MA.reading
+    if not r then return end
+    MA.CloseReader()
+    MA.Take(r)
 end
 
 function MA.Reply()
@@ -500,29 +564,17 @@ function MA.RowTooltip(row, r)
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     GameTooltip:AddLine(r.subject or r.content or "", 1, 0.82, 0, true)
     if r.sender then GameTooltip:AddDoubleLine(L.MAIL_TT_FROM, r.sender, 0.8, 0.8, 0.8, 1, 1, 1) end
-    local inv = r.letter.invoice
-    if inv and inv.kind == "seller" then
-        if inv.gross then
-            local q = inv.count or 1
-            local each = q > 1 and ("  " .. GREY .. L.MAIL_TT_EACH:format(ns.Money(math.floor(inv.gross / q + 0.5))) .. "|r") or ""
-            GameTooltip:AddDoubleLine(L.MAIL_TT_GROSS, ns.Money(inv.gross) .. each, 0.8, 0.8, 0.8, 1, 1, 1)
-        end
-        if inv.cut then GameTooltip:AddDoubleLine(L.MAIL_TT_CUT, "-" .. ns.Money(inv.cut), 0.8, 0.8, 0.8, 1, 1, 1) end
-        if inv.deposit and inv.deposit > 0 then GameTooltip:AddDoubleLine(L.MAIL_TT_DEPOSIT, "+" .. ns.Money(inv.deposit), 0.8, 0.8, 0.8, 1, 1, 1) end
-    elseif inv and inv.kind == "buyer" and math.max(inv.bid or 0, inv.buyout or 0) > 0 then
-        GameTooltip:AddDoubleLine(L.MAIL_TT_PAID, ns.Money(math.max(inv.bid or 0, inv.buyout or 0)), 0.8, 0.8, 0.8, 1, 1, 1)
-    end
-    if r.money then GameTooltip:AddDoubleLine(L.MAIL_TT_MONEY, ns.Money(r.money), 0.8, 0.8, 0.8, 1, 1, 1) end
-    if r.profit then
-        GameTooltip:AddDoubleLine(L.MAIL_TT_COST, ns.Money(math.floor((r.cost or 0) + 0.5)), 0.8, 0.8, 0.8, 1, 1, 1)
-        if r.partSpecial then GameTooltip:AddDoubleLine(L.MV_SPECIAL, ns.Money(math.floor(r.partSpecial + 0.5)), 0.8, 0.8, 0.8, 1, 1, 1) end
-        GameTooltip:AddDoubleLine(L.MAIL_TT_PROFIT, W.Signed(r.profit), 1, 0.82, 0, 1, 1, 1)
+    for _, x in ipairs(MA.Facts(r)) do
+        local gold = x[1] == L.MAIL_TT_PROFIT
+        GameTooltip:AddDoubleLine(x[1], x[2], gold and 1 or 0.8, gold and 0.82 or 0.8, gold and 0 or 0.8, 1, 1, 1)
     end
     if r.special then GameTooltip:AddLine(L.MAIL_TT_SPECIAL, 1, 0.82, 0, true) end
     if r.cod then GameTooltip:AddLine(L.MAIL_TT_COD:format(ns.Money(r.cod)), 1, 0.3, 0.3, true) end
     if r.letter.loading then GameTooltip:AddLine(L.MAIL_TT_LOADING, 0.6, 0.6, 0.6, true) end
     if MA.TextOnly(r) then
         GameTooltip:AddLine(L.MAIL_TT_CLICK_READ, 0.6, 0.6, 0.6, true)
+    elseif MA.OpensOnClick(r) then
+        GameTooltip:AddLine(L.MAIL_TT_CLICK_OPEN, 0.6, 0.6, 0.6, true)
     else
         GameTooltip:AddLine(r.cod and L.MAIL_TT_CLICK_COD or L.MAIL_TT_CLICK, 0.6, 0.6, 0.6, true)
         GameTooltip:AddLine(L.MAIL_TT_RIGHT_READ, 0.6, 0.6, 0.6, true)
@@ -591,8 +643,10 @@ function MA.Recipients()
     local me = ns.CharName()
     for _, name in ipairs(ns.Inventory.CharNames()) do
         if name ~= me then
+            -- Vor- und Nachname eintragen (Forever-Charaktere haben beide), Vorname nur fuer die Doppel-Pruefung
             local first = name:match("^(%S+)") or name
-            items[#items + 1] = { first, name .. GREY .. "  " .. L.MAIL_TWINK .. "|r" }
+            items[#items + 1] = { name, name .. GREY .. "  " .. L.MAIL_TWINK .. "|r" }
+            seen[name:lower()] = true
             seen[first:lower()] = true
         end
     end

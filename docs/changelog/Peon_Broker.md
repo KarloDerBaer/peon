@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.95.1
+
+Kurz: Das Radar spielt bei neuen Treffern keinen Warnton mehr. Wer ihn möchte, schaltet ihn in den Einstellungen unter Radar wieder ein.
+
+- 0.95.1 (14.11.2026): Fehlerbericht 29. Ab und zu kam ein Warnton (Schlachtzugswarnung) ohne Chatzeile. Ursache: der Ton bei neuen Radar-Treffern (`radarSound`) war ab Werk an und meldet sich nur mit Ton, ohne Text im Chat. Er ist jetzt ab Werk aus und wird beim ersten Laden einmal ausgeschaltet (`radarSoundOff` merkt sich das, danach bleibt die eigene Wahl). Die Warnungen der Beobachtung (mit Chatzeile) bleiben unverändert.
+  - Tests: Ton nach dem Laden aus, Merker gesetzt (`test_broker.lua`).
+  - **Im Spiel prüfen:** Auktionshaus mit laufendem Radar: neue Treffer pulsieren, aber kein Ton. Einstellung „Ton bei neuen Möglichkeiten“ ist aus und lässt sich wieder einschalten.
+
 ## 0.95.0
 
 Kurz: Kosten und Gewinn im Berufsfenster zeigt jetzt das Modul Peon Berufe. Deine Einstellungen dazu werden dorthin übernommen.

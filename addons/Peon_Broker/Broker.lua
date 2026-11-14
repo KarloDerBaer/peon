@@ -40,7 +40,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         dealScans    = 10,      -- SCANS_MIN: Datenlage Markt
         dealDays     = 7,       -- TAGE
         radarMaxAge  = 60,      -- Radar: Treffer aus der Datenbank bis so viele Minuten alt (0 = unbegrenzt; ab 0.15, ersetzt dealMaxAge)
-        radarSound   = true,    -- Ton bei neuen Radar-Treffern
+        radarSound   = false,   -- Ton bei neuen Radar-Treffern (ab 0.95.1 aus, Fehlerbericht 29: Warnton ohne Chatzeile)
         watchAlarm   = true,    -- ab 0.83: Warnung der Beobachtung (Chat und Ton), Haken unter Beobachten
         radarKind    = "both",  -- Radar: Haendler, AH oder beides (ab 0.17)
         radarShowExpensive = false, -- Radar: auch unbezahlbare Schnaeppchen zeigen (ab 0.17)
@@ -113,6 +113,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
         if acc.focusRate == nil and type(acc.focusEvery) == "number" and acc.focusEvery > 0 and acc.focusEvery ~= 5 then
             acc.focusRate = math.max(2, math.min(90, math.floor(60 / acc.focusEvery + 0.5)))
         end
+        -- ab 0.95.1 (Fehlerbericht 29): Ton bei neuen Radar-Treffern einmal ausschalten, er kam ohne Chatzeile
+        if not acc.radarSoundOff then acc.radarSound = false; acc.radarSoundOff = true end
         if ns.Data then ns.Data.Migrate(acc) end
         if ns.Sales then ns.Sales.Migrate(acc) end
     end,
