@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.5.0
+
+Kurz: Andere Peon-Module können jetzt selbst eine Rückmeldung anlegen, die dann wie gewohnt im Peon Manager erscheint.
+
+- 0.5.0 (14.11.2026): meldet `ns.Add` beim Kern an (`Peon.SetFeedbackHandler`, Kern-API 22). Module legen damit über `Peon.AddFeedback` Einträge an, die wie selbst geschriebene in den Manager wandern. Mit älterem Kern bleibt alles wie bisher. Test: `test_feedback.lua`.
+
 ## 0.4.0
 
 Kurz: Mit Peon_Panel öffnest du das Feedback-Fenster von der Leiste aus und siehst die Zahl deiner Rückmeldungen.

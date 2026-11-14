@@ -1,10 +1,11 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.21.0 / Broker 0.95.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.37.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0 / Profession 0.3.0.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.95.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.37.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / ClassBuddy 0.1.0 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.3.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
-## Peon (Kern) – 0.21.0, API 21
+## Peon (Kern) – 0.22.0, API 22
 
+- **Rückmeldungen aus Modulen (ab 0.22.0):** `Peon.SetFeedbackHandler`, `Peon.CanAddFeedback`, `Peon.AddFeedback` in `Feedback.lua`. Peon_Feedback 0.5.0 meldet sich an, Peon_ClassBuddy schickt so sein Prüfergebnis. Nicht veröffentlicht.
 - **Trennstrich in Tabellen (ab 0.21.0):** `UI.Table` mit `o.rowLine(item)` zeigt einen dünnen Strich über der Zeile (für das Buch von Ledger 0.15.0). Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Gegenstandsmenü nach dem Loslassen (ab 0.20.1, Fehlerbericht 15):** Strg+Rechtsklick merkt beim Drücken den Gegenstand und öffnet das Menü einen Bildaufbau nach dem Loslassen, damit Blizzards eigene Menüs (Favoriten im Auktionshaus) es nicht ersetzen. `UI.SetTooltip` nimmt auch einen einzelnen Text (Fehlerbericht 14). Im Spiel noch nicht geprüft.
 
@@ -37,6 +38,17 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Technik: geheime Werte über StatusBars (`SetMinMaxValues(i-1, i)`), Träger über den Nameplate-Rahmen; eigener Ereignisrahmen wegen `RegisterUnitEvent`.
 - Optionsseite: Kern-Bausteine, mit Vorschau.
 - Verlauf der Versionen: `docs/changelog/Peon_ComboPoints.md`
+- Wird durch Peon_ClassBuddy ersetzt (beschlossen 14.11.2026), bis zum Umzug unverändert.
+
+## Peon_ClassBuddy – 0.1.0 (neu, „Klassenbuddy“, Helfer je Klasse)
+
+- Dateien: Locales.lua, ClassBuddy.lua, Probe.lua, Guide.lua
+- SavedVariables: `PeonClassBuddyDB`: `probe` (Ergebnisse der Prüfung: `results`, `hooks`, `info`, `sent`), `hideGuide` (Fenster nicht mehr zeigen)
+- Befehle: `/peon classbuddy pruefen` (Fenster), `pruefen start`, `pruefen ergebnis`, `pruefen senden`, `pruefen leeren`, `pruefen aus`, `/peon debug classbuddy`
+- **Vorläufiges Fenster für Hexenmeister** (Guide.lua): erscheint beim Einloggen, führt durch die Prüfung, legt das Makro an und schickt das Ergebnis über Peon_Feedback an den Manager (Kern-API 22). Haken „Nicht mehr anzeigen“. Fällt mit der nächsten Version weg.
+- Funktionen bisher: nur der Prüfbefehl. Er testet, ob ein Seelensplitter ohne Tastendruck, per Klick, per Makro `/click PeonClassBuddyShard` und mit einer Aktionstaste vernichtet werden kann, jeweils außerhalb und im Kampf. Je Weg und Zustand höchstens ein Splitter.
+- Konzept: `docs\konzepte\classbuddy\Peon_ClassBuddy_Konzept.md`, Verlauf: `docs/changelog/Peon_ClassBuddy.md`
+- Im Spiel prüfen: Ein Freund von KarloDerBaer geht die Prüfung mit seinem Hexenmeister durch (mindestens 8 Splitter) und sendet das Ergebnis über den Manager. Braucht Peon 0.22.0 und Peon_Feedback 0.5.0. Nicht veröffentlicht.
 
 ## Peon_Fishing – 1.6.0 (früher FishingPlus)
 
@@ -200,8 +212,9 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 
 **5. Später:** Verkaufsquote (Ledger) und Absatzquote (Broker) verbinden; nach erfolgreichen Tests Ledger 1.0.
 
-## Peon_Feedback – 0.4.0 (Zusatz, Feedback im Spiel)
+## Peon_Feedback – 0.5.0 (Zusatz, Feedback im Spiel)
 
+- **Einträge aus anderen Modulen (ab 0.5.0):** meldet `ns.Add` beim Kern an (Kern-API 22), Module legen über `Peon.AddFeedback` Einträge an. Nicht veröffentlicht.
 - Dateien: Locales.lua, Feedback.lua, Window.lua, Options.lua. Symbol `INV_Misc_Note_01`. `## OptionalDeps: Peon_Bridge`
 - SavedVariables: `PeonFeedbackDB` (accountweit): `entries` (id, t, module, kind, area, prio, text, char, market, zone, ver, edited, handed = an den Manager übergeben und ausgeblendet), `nextId`, `last`, `windowPos`, `minimapShow`, `minimapAngle`
 - Befehle: `/feedback` bzw. `/peon feedback` (Fenster), `/feedback optionen`, `/peon debug feedback`
@@ -262,6 +275,12 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 ## Offene Punkte
 
 Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie beschlossen sind.
+
+### Neues Modul Peon_ClassBuddy, „Klassenbuddy“ (beschlossen 14.11.2026, Konzept `docs\konzepte\classbuddy\Peon_ClassBuddy_Konzept.md`)
+
+- Helfer je Klasse in einem Modul, ersetzt Peon_ComboPoints (Einstellungen werden übernommen).
+- Schurke: Combo-Punkte unverändert. Hexenmeister: überzählige Seelensplitter vernichten, Regel einstellbar (Standard: Seelentasche voll), ausgelöst zusammen mit einem Zauber.
+- Nächster Schritt: Prüfbefehl im Spiel, ob und wie Vernichten mit einem Zauber und im Kampf geht (Konzept 4.3).
 
 ### Einheitliches UI-Design für alle Peon-Fenster (beauftragt 11.11.2026)
 

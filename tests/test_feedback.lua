@@ -201,6 +201,13 @@ check(out[#out] == "OPEN options", "/feedback optionen")
 mm.onClick(mod, "LeftButton")
 check(not f.shown, "Minimap-Linksklick schaltet Fenster")
 
+-- Ab 0.5.0: andere Module geben Rueckmeldungen ueber den Kern weiter (Kern-API 22)
+check(Peon.CanAddFeedback(), "Peon_Feedback beim Kern angemeldet")
+local nBefore = #PeonFeedbackDB.entries
+local fe = Peon.AddFeedback({ module = "Peon_ClassBuddy", kind = "other", area = "Prüfung", prio = "high", text = "Ergebnis" })
+check(fe and #PeonFeedbackDB.entries == nBefore + 1 and fe.module == "Peon_ClassBuddy" and fe.area == "Prüfung" and fe.prio == "high", "Peon.AddFeedback legt einen Eintrag an")
+check(Peon.AddFeedback({ module = "Peon", text = "  " }) == nil and #PeonFeedbackDB.entries == nBefore + 1, "leerer Text ueber den Kern abgewiesen")
+
 -- Ohne API 9: nur Sonstiges
 Peon.GetFeedbackAreas = nil
 check(#ns.Areas("Peon_Broker") == 1, "ohne API 9 nur Sonstiges")

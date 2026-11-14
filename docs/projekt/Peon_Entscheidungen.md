@@ -2,6 +2,12 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 14.11.2026: Neues Modul Peon_ClassBuddy (Konzept abgestimmt)
+
+- **Ein Modul für Klassenhelfer** (Wunsch aus dem Feedback, KarloDerBaer): Name im Code `Peon_ClassBuddy`, angezeigt „Klassenbuddy“. Es ersetzt Peon_ComboPoints, die Einstellungen werden übernommen.
+- **Seelensplitter: Regel einstellbar, Standard „Seelentasche voll“** (KarloDerBaer). Alternative ist eine Höchstzahl.
+- **Vernichten zusammen mit einem Zauber** (KarloDerBaer): Automatisch ohne Tastendruck wird es wahrscheinlich nicht gehen, vor allem nicht im Kampf. Bevorzugt hängt sich ClassBuddy an die Aktionstasten und vernichtet je Zauber einen Splitter, Rückfall ist ein Makro mit `/click` (Vorschlag Claude). Vorher klärt ein Prüfbefehl im Spiel, was erlaubt ist.
+
 ## 14.11.2026: Buch mit klarem Handelsgewinn (Ledger 0.15.0, Peon 0.21.0)
 
 - **Handelsgewinn nur aus dem Handel** (KarloDerBaer): Zeilen AH: Käufe, Einstellgebühren, Abbruchkosten, Verkäufe, Anteil, darunter AH: Handelsgewinn. Der Rest ist Spielalltag, am Ende AH: Handelsgewinn, Spielalltag, Gesamtergebnis. Spielerhandel als eigene Zeile.

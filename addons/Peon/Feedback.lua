@@ -41,3 +41,28 @@ end
 Peon.SetFeedbackAreas("Peon", (GetLocale() == "deDE")
     and { "Einstellungsseite", "Bausteine", "Liste", "Diagramm", "Minimap-Button", "Debug-Log", "Chatbefehle" }
     or  { "Options page", "Widgets", "List", "Chart", "Minimap button", "Debug log", "Chat commands" })
+
+-- API 22: Module geben eine Rückmeldung an Peon_Feedback weiter, z. B. das Ergebnis einer Prüfung im Spiel.
+-- Peon_Feedback meldet sich mit Peon.SetFeedbackHandler an. Ohne Peon_Feedback liefert AddFeedback nil.
+--   Peon.CanAddFeedback()                -> true, wenn Peon_Feedback geladen ist
+--   Peon.AddFeedback({ module = ADDON_NAME, kind = "other", area = "Prüfung", prio = "high", text = "..." })
+--                                        -> Eintrag oder nil, Fehlertext
+local feedbackHandler
+
+function Peon.SetFeedbackHandler(fn)
+    if type(fn) ~= "function" then return false end
+    feedbackHandler = fn
+    return true
+end
+
+function Peon.CanAddFeedback()
+    return feedbackHandler ~= nil
+end
+
+function Peon.AddFeedback(e)
+    if type(e) ~= "table" then return nil, "no entry" end
+    if not feedbackHandler then return nil, "no Peon_Feedback" end
+    local ok, entry, err = pcall(feedbackHandler, e)
+    if not ok then return nil, entry end
+    return entry, err
+end

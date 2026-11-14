@@ -144,6 +144,9 @@ function ns.Add(e)
     return entry
 end
 
+-- Ab 0.5.0: andere Module geben Rückmeldungen über den Kern weiter (Peon.AddFeedback, Kern-API 22)
+if Peon.SetFeedbackHandler then Peon.SetFeedbackHandler(ns.Add) end
+
 function ns.Delete(id)
     local db = mod.db
     if not db then return false end

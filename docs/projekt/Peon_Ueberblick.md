@@ -136,6 +136,12 @@ if Peon.SetFeedbackAreas then Peon.SetFeedbackAreas(ADDON_NAME, { "Bereich 1", "
 Peon.GetFeedbackAreas(addonName)   -- Kopie der Liste, leer wenn nichts gemeldet
 ```
   Neue Module sollten ihre Bereiche mitmelden (in `vorlage\Peon_Beispiel` noch nicht enthalten).
+- **Rückmeldung aus einem Modul (API 22, Feedback.lua):** Ein Modul legt selbst einen Eintrag in Peon_Feedback an, der wie ein selbst geschriebener in den Peon Manager wandert (z. B. Ergebnis einer Prüfung bei Mitspielern). Peon_Feedback ab 0.5.0 meldet sich dafür an. Ohne Peon_Feedback liefert `AddFeedback` nil, das Modul sollte dann einen Hinweis zeigen. Text höchstens 2000 Zeichen (Grenze im Manager), keine Namen.
+```lua
+if Peon.CanAddFeedback and Peon.CanAddFeedback() then
+    Peon.AddFeedback({ module = ADDON_NAME, kind = "other", area = "Prüfung", prio = "high", text = "..." })
+end
+```
 - **Einmalige Hinweise (API 20, Notice.lua):** Ein Modul meldet einen wichtigen Hinweis (Umbau, Ankündigung). Rund 5 Sekunden nach dem Einloggen zeigt der Kern alle noch nicht gesehenen Hinweise einmal je Konto in einem Fenster, nie im Kampf. Gemerkt in `PeonDB.noticesSeen`. `/peon neu` zeigt alle wieder. Neue Hinweise kommen mit dem Modul-Update, alte am besten nach ein paar Versionen wieder entfernen.
 ```lua
 if mod.AddNotice then mod:AddNotice({

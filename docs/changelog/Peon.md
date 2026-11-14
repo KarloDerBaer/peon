@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.22.0
+
+Kurz: Module können Rückmeldungen an Peon Feedback weitergeben, zum Beispiel das Ergebnis einer Prüfung im Spiel.
+
+- 0.22.0 (14.11.2026): **Rückmeldungen aus Modulen, Kern-API 22** (`Feedback.lua`). Neu: `Peon.SetFeedbackHandler(fn)` (meldet Peon_Feedback an), `Peon.CanAddFeedback()` und `Peon.AddFeedback({ module, kind, area, prio, text })`. Ohne Peon_Feedback liefert `AddFeedback` nil. Fehler im Handler werden abgefangen. Erste Nutzung: Peon_ClassBuddy schickt das Ergebnis seiner Prüfung so an den Peon Manager.
+  - Tests: `test_feedback.lua` (Eintrag über den Kern), `test_classbuddy.lua` (ohne und mit Peon_Feedback, Fehler im Handler), Release-Test auf API 22.
+
 ## 0.21.0
 
 Kurz: Listen können Trennstriche zwischen Zeilen zeigen (zum Beispiel im Buch von Ledger).
