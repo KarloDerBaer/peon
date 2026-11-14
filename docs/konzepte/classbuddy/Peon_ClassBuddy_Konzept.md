@@ -36,7 +36,8 @@ ClassBuddy ersetzt Peon_ComboPoints ganz. Der Wechsel soll für Nutzer ohne Zutu
 
 | Regel | Bedeutung |
 |---|---|
-| **Seelentasche voll** (Standard) | Ist die Seelentasche voll, ist jeder Splitter in einer anderen Tasche zu viel. Splitter in der Seelentasche werden nie angefasst. Ohne Seelentasche greift die Höchstzahl. |
+| **Seelentasche voll** (Standard bis 0.2.0) | Ist die Seelentasche voll, ist jeder Splitter in einer anderen Tasche zu viel. Splitter in der Seelentasche werden nie angefasst. Ohne Seelentasche greift die Höchstzahl. |
+| **Seelentasche minus 1** (Standard ab 0.3.0, Wunsch KarloDerBaer) | Erlaubt sind so viele Splitter, wie die Seelentasche Plätze hat, weniger einer. So bleibt immer ein Platz frei, und ein neuer Splitter landet nie in einer normalen Tasche, auch nicht kurz. Ohne Seelentasche greift die Höchstzahl. |
 | **Höchstzahl** | Mehr als N Splitter insgesamt (Standard 20), egal wo sie liegen. Zu viel sind zuerst die außerhalb der Seelentasche. |
 
 - Seelensplitter werden an der Gegenstandsnummer erkannt (6265), die Seelentasche am Taschentyp (zweiter Rückgabewert von `C_Container.GetContainerNumFreeSlots`). Beides vorher im Spiel prüfen.

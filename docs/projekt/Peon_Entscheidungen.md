@@ -2,6 +2,11 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 14.11.2026: Regel „Seelentasche minus 1“ als Standard (ClassBuddy 0.3.0)
+
+- **Ein Platz der Seelentasche bleibt frei** (KarloDerBaer): So fällt ein neuer Splitter nie in eine normale Tasche, auch nicht kurz. Neuer Standard. Der alte Standard „Seelentasche voll“ wird einmal umgestellt (Claude), eigene Wahl bleibt danach.
+- **Normales Release ohne eigene Vorabversion für 0.3.0** (KarloDerBaer): 0.2.0 lief in der Vorabversion `v2026.11.14.5-test`, 0.3.0 bringt nur die neue Regel.
+
 ## 14.11.2026: Seelensplitter mit Zaubern, ClassBuddy ersetzt ComboPoints (ClassBuddy 0.2.0, ComboPoints 3.6.0)
 
 - **Vernichten mit jedem Zauber von der Aktionsleiste** (KarloDerBaer nach der Prüfung mit 0.1.0): Ohne Tastendruck sperrt das Spiel, mit Klick, Makro und Aktionstaste geht es, auch im Kampf. Je Zauber höchstens ein Splitter, Fehlversuche still und beim nächsten Zauber neu (Vorschlag Claude). Makro, Tastenbelegung und Panel als Rückfall.

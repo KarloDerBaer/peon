@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.95.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.38.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / ClassBuddy 0.1.0 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.3.0.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.95.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.38.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.3.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.22.0, API 22
@@ -40,10 +40,10 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_ComboPoints.md`
 - **Letzte Version 3.6.0:** Ist Peon_ClassBuddy geladen, meldet sie sich beim Einloggen ab und zeigt einmal je Konto einen Hinweis (`movedHint`). Die Einstellungen bleiben für die Übernahme. Der Peon Manager ab 0.38.0 entfernt es von selbst, sobald der Klassenbuddy die Einstellungen übernommen hat. Aus dem Repo nehmen, wenn der Wechsel bei allen durch ist (Entscheidung KarloDerBaer). Vorabversion `v2026.11.14.5-test` (14.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen.
 
-## Peon_ClassBuddy – 0.2.0 („Klassenbuddy“, Helfer je Klasse)
+## Peon_ClassBuddy – 0.3.0 („Klassenbuddy“, Helfer je Klasse)
 
 - Dateien: Locales.lua, ClassBuddy.lua, Rogue_ComboPoints.lua, Warlock_Shards.lua, Options.lua, Bindings.xml
-- SavedVariables: `PeonClassBuddyDB` (flach): Combo-Punkte mit den Namen aus Peon_ComboPoints (`size`, `gap`, `yOffset`, `ringPad`, `showSockets`, `fillColor`, `socketColor`, `ringColor`), `cpImported` (Übernahme aus `PeonComboPointsDB` erledigt), Seelensplitter `shardOn`, `shardRule` (`bag` oder `max`), `shardMax` (1 bis 60, Standard 20), `shardAction`, `shardMsg`
+- SavedVariables: `PeonClassBuddyDB` (flach): Combo-Punkte mit den Namen aus Peon_ComboPoints (`size`, `gap`, `yOffset`, `ringPad`, `showSockets`, `fillColor`, `socketColor`, `ringColor`), `cpImported` (Übernahme aus `PeonComboPointsDB` erledigt), Seelensplitter `shardOn`, `shardRule` (`free` = Seelentasche minus 1, Standard ab 0.3.0, `bag` oder `max`), `shardRule3` (einmalige Umstellung auf `free`), `shardMax` (1 bis 60, Standard 20), `shardAction`, `shardMsg`
 - Befehle: `/peon classbuddy` (Optionen), `/peon classbuddy splitter`, `/peon debug classbuddy`. Tastenbelegung „Seelensplitter vernichten“ (`CLICK PeonClassBuddyShard:LeftButton`), Makro `/click PeonClassBuddyShard`
 - **Schurke:** Combo-Punkte wie Peon_ComboPoints 3.5.1 (Code übernommen), Einstellungen beim ersten Einloggen übernommen.
 - **Hexenmeister (ab 0.2.0):** überzählige Seelensplitter vernichten, je Zauber von der Aktionsleiste einer (Nachlauf auf `UseAction`), dazu Knopf für Makro, Tastenbelegung und Eintrag „Seelensplitter“ für Peon Panel. Gesperrte Plätze, belegter Mauszeiger und Zielsuche werden übergangen, Fehlversuche ins Debug-Log.

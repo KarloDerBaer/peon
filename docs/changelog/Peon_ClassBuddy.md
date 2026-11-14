@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Konzept: `docs/konzepte/classbuddy/Peon_ClassBuddy_Konzept.md`.
 
+## 0.3.0
+
+Kurz: Neue Regel „Seelentasche minus 1“ für Seelensplitter, jetzt der Standard: Ein Platz der Seelentasche bleibt immer frei, so landet ein neuer Splitter nie in einer normalen Tasche.
+
+- 0.3.0 (14.11.2026, Wunsch KarloDerBaer nach dem Test von 0.2.0): Regel `free` in `shardRule`. Erlaubt sind so viele Splitter, wie die Seelentaschen Plätze haben, weniger einer. Zu viel sind zuerst die außerhalb, dann der hinterste in der Seelentasche. Ohne Seelentasche gilt die Höchstzahl. Meldung „ein Platz der Seelentasche bleibt frei“.
+  - Neuer Standard `free`. Wer noch den alten Standard `bag` hat, bekommt einmal `free` (`shardRule3`). Danach bleibt jede eigene Wahl.
+  - Test: `test_classbuddy.lua` (Regel, Reihenfolge, ohne Seelentasche, Aktionstaste, Umstellung).
+  - **Im Spiel prüfen:** Seelentasche bis auf einen Platz füllen, beim nächsten Splitter und Zauber wird einer vernichtet, kein Splitter in einer normalen Tasche.
+
 ## 0.2.0
 
 Kurz: Der Klassenbuddy vernichtet für Hexenmeister überzählige Seelensplitter, mit jedem Zauber von der Aktionsleiste einen. Dazu gibt es ein Makro, eine Tastenbelegung und einen Eintrag für die Leiste von Peon Panel.

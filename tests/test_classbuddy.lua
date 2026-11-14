@@ -119,7 +119,7 @@ local function count() local n = 0 for _, b in pairs(bags) do for s = 1, 4 do if
 -- ===== Laden (Hexenmeister, alte Werte aus 0.1.0 und von Peon_ComboPoints) =====
 load("Peon", "Peon")
 fire("ADDON_LOADED", "Peon")
-PeonClassBuddyDB = { probe = { results = {} }, hideGuide = true, shardMax = 999 }
+PeonClassBuddyDB = { probe = { results = {} }, hideGuide = true, shardMax = 999, shardRule = "bag" }   -- Stand 0.2.0 mit altem Standard
 local ns = load("Peon_ClassBuddy", "Peon_ClassBuddy")
 fire("ADDON_LOADED", "Peon_ClassBuddy")
 -- Peon_ComboPoints laedt alphabetisch danach: seine Werte sind erst beim Einloggen da
@@ -129,7 +129,7 @@ local S = ns.Shards
 check(mod.initialized and mod.page, "Modul + Optionsseite")
 check(PeonClassBuddyDB.probe == nil and PeonClassBuddyDB.hideGuide == nil, "Reste der Pruefung aus 0.1.0 entfernt")
 check(PeonClassBuddyDB.shardMax == 60, "Hoechstzahl geklemmt")
-check(PeonClassBuddyDB.shardRule == "bag" and PeonClassBuddyDB.shardOn and PeonClassBuddyDB.shardAction, "Standard: Seelentasche voll, mit Zaubern")
+check(PeonClassBuddyDB.shardRule == "free" and PeonClassBuddyDB.shardRule3 and PeonClassBuddyDB.shardOn and PeonClassBuddyDB.shardAction, "0.3.0: alter Standard wird einmal zu Seelentasche minus 1, mit Zaubern")
 check(mod.page:GetTab() == "warlock", "Hexenmeister: Reiter Hexenmeister offen")
 fire("PLAYER_LOGIN")
 check(cats.Peon and cats.Peon.subs[1] == "Klassenbuddy", "Seite unter Peon > Klassenbuddy")
@@ -144,6 +144,7 @@ check(S.IsActive() and hooks.UseAction, "Hexenmeister: Seelensplitter aktiv, Akt
 check(not ns.active, "Hexenmeister: keine Combo-Punkte")
 
 -- ===== Seelensplitter: Regel Seelentasche voll =====
+PeonClassBuddyDB.shardRule = "bag"
 local function setBags(def) bags = def end
 -- Seelentasche (Typ 4) noch nicht voll: nichts zu viel
 setBags({ [0] = { family = 0, slots = { [1] = SHARD, [2] = 2589 } }, [5] = { family = 4, slots = { [1] = SHARD, [2] = SHARD, [3] = SHARD } } })
@@ -163,6 +164,26 @@ PeonClassBuddyDB.shardRule = "max"
 setBags({ [0] = { family = 0, slots = { [1] = SHARD } }, [5] = { family = 4, slots = { SHARD, SHARD, SHARD, SHARD } } })
 list = S.Surplus()
 check(#list == 2 and list[1].bag == 0 and list[2].bag == 5 and list[2].slot == 4, "Hoechstzahl: zuerst ausserhalb der Seelentasche")
+-- Regel Seelentasche minus 1 (Standard ab 0.3.0): ein Platz der Seelentasche bleibt frei
+PeonClassBuddyDB.shardRule = "free"
+setBags({ [0] = { family = 0, slots = { [2] = 2589 } }, [5] = { family = 4, slots = { SHARD, SHARD, SHARD } } })
+list = S.Surplus()
+check(#list == 0, "Seelentasche minus 1: 3 von 4 Plaetzen belegt, nichts zu viel")
+setBags({ [0] = { family = 0, slots = { [2] = 2589 } }, [5] = { family = 4, slots = { SHARD, SHARD, SHARD, SHARD } } })
+local why
+list, total, why = S.Surplus()
+check(#list == 1 and list[1].bag == 5 and list[1].slot == 4 and why == "free", "Seelentasche minus 1: volle Tasche gibt den letzten Splitter ab")
+setBags({ [0] = { family = 0, slots = { [1] = SHARD } }, [5] = { family = 4, slots = { SHARD, SHARD, SHARD, SHARD } } })
+list = S.Surplus()
+check(#list == 2 and list[1].bag == 0 and list[2].bag == 5, "Seelentasche minus 1: zuerst der Splitter ausserhalb")
+setBags({ [0] = { family = 0, slots = { SHARD, SHARD, SHARD, SHARD } }, [1] = { family = 0, slots = { [1] = SHARD } } })
+PeonClassBuddyDB.shardMax = 3
+list = S.Surplus()
+check(#list == 2, "Seelentasche minus 1 ohne Seelentasche: Hoechstzahl")
+setBags({ [0] = { family = 0, slots = { [2] = 2589 } }, [5] = { family = 4, slots = { SHARD, SHARD, SHARD, SHARD } } })
+UseAction(1)
+check(deleted == 1 and bags[5].slots[4] == nil and lastMsg():find("bleibt frei"), "Aktionstaste: Seelentasche minus 1 vernichtet, Meldung")
+deleted = 0
 PeonClassBuddyDB.shardRule = "bag"
 PeonClassBuddyDB.shardMax = 20
 
@@ -228,7 +249,7 @@ S.MakeMacro(); S.MakeMacro()
 check(#macros == 1 and macros[1].body == "/click PeonClassBuddyShard" and macros[1].perChar and pickedMacro == 1, "Makro einmal angelegt und am Mauszeiger")
 -- Bericht
 SlashCmdList.PEON("classbuddy splitter")
-check(lastMsg():find("vernichtet: 5"), "/peon classbuddy splitter")
+check(lastMsg():find("vernichtet: 6"), "/peon classbuddy splitter")
 SlashCmdList.PEON("classbuddy")
 check(lastMsg() == "OPEN Peon/Klassenbuddy", "/peon classbuddy oeffnet Seite")
 -- Starter fuer Peon_Panel
@@ -252,7 +273,7 @@ check(cpFrame.unitev.UNIT_POWER_UPDATE and ns.active, "Schurke: Combo-Punkte akt
 slider:SetValue(18)
 check(#timers == nTimers + 1, "Schurke: Nameplates werden neu gezeichnet")
 mod:ResetDefaults()
-check(PeonClassBuddyDB.size == 15 and PeonClassBuddyDB.cpImported == true and PeonClassBuddyDB.shardRule == "bag", "Standardwerte, Uebernahme bleibt gemerkt")
+check(PeonClassBuddyDB.size == 15 and PeonClassBuddyDB.cpImported == true and PeonClassBuddyDB.shardRule == "free" and PeonClassBuddyDB.shardRule3, "Standardwerte, Uebernahme bleibt gemerkt")
 
 local n = 0 for _, l in ipairs(out) do if l:find("/peon fehler") then n = n + 1 end end
 check(n == 0, "keine Fehlermeldungen")

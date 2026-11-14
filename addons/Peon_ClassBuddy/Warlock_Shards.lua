@@ -51,15 +51,15 @@ local function SlotLocked(bag, slot)
     return locked == true
 end
 
--- Alle Splitter: { bag, slot, soul, locked }, dazu Zahl der Seelentaschen und ob alle voll sind
+-- Alle Splitter: { bag, slot, soul, locked }, dazu Zahl der Seelentaschen, ihre freien und alle Plaetze
 function S.Scan()
-    local shards, soulBags, soulFree = {}, 0, 0
+    local shards, soulBags, soulFree, soulSlots = {}, 0, 0, 0
     for bag = 0, LastBag() do
         local slots = Num(C_Container.GetContainerNumSlots(bag)) or 0
         if slots > 0 then
             local free, family = C_Container.GetContainerNumFreeSlots(bag)
             local soul = IsSoulBag(Num(family))
-            if soul then soulBags = soulBags + 1; soulFree = soulFree + (Num(free) or 0) end
+            if soul then soulBags = soulBags + 1; soulFree = soulFree + (Num(free) or 0); soulSlots = soulSlots + slots end
             for slot = 1, slots do
                 if Num(C_Container.GetContainerItemID(bag, slot)) == SHARD then
                     shards[#shards + 1] = { bag = bag, slot = slot, soul = soul, locked = SlotLocked(bag, slot) }
@@ -67,14 +67,16 @@ function S.Scan()
             end
         end
     end
-    return shards, soulBags, soulFree
+    return shards, soulBags, soulFree, soulSlots
 end
 
 -- Ueberzaehlige Splitter in der Reihenfolge, in der sie vernichtet werden: zuerst ausserhalb der Seelentasche,
--- jeweils von hinten. Rueckgabe: Liste, Gesamtzahl, Grund (bag oder max)
+-- jeweils von hinten. Rueckgabe: Liste, Gesamtzahl, Grund (free, bag oder max)
+-- Regeln: free = ein Platz der Seelentasche bleibt frei (ab 0.3.0, Standard), damit ein neuer Splitter nie in eine
+-- normale Tasche faellt. bag = Seelentasche voll, dann alles ausserhalb. max = Hoechstzahl. Ohne Seelentasche gilt max.
 function S.Surplus()
     local db = mod.db
-    local shards, soulBags, soulFree = S.Scan()
+    local shards, soulBags, soulFree, soulSlots = S.Scan()
     local outside, inside = {}, {}
     for i = #shards, 1, -1 do
         local s = shards[i]
@@ -85,7 +87,11 @@ function S.Surplus()
         why = "bag"
         if soulFree == 0 then list = outside end
     else
-        local over = #shards - db.shardMax
+        local keep = db.shardMax
+        if db.shardRule == "free" and soulBags > 0 then
+            why, keep = "free", math.max(0, soulSlots - 1)
+        end
+        local over = #shards - keep
         for _, s in ipairs(outside) do if #list < over then list[#list + 1] = s end end
         for _, s in ipairs(inside) do if #list < over then list[#list + 1] = s end end
     end
@@ -133,7 +139,7 @@ function S.DestroyOne(source)
     destroyed = destroyed + 1
     mod:Dbg(("Splitter vernichtet (%s, %s, Tasche %d Platz %d)"):format(tostring(source), why, pick.bag, pick.slot))
     if db.shardMsg then
-        mod:Print(why == "bag" and L.SH_DONE_BAG or L.SH_DONE_MAX:format(db.shardMax))
+        mod:Print((why == "free" and L.SH_DONE_FREE) or (why == "bag" and L.SH_DONE_BAG) or L.SH_DONE_MAX:format(db.shardMax))
     end
     if ns.shardLauncher then ns.shardLauncher:Refresh() end
     return true

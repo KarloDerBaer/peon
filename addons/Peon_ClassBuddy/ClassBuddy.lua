@@ -39,7 +39,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
         cpImported  = false,                       -- Einstellungen aus Peon_ComboPoints uebernommen
         -- Hexenmeister
         shardOn     = true,                        -- ueberzaehlige Seelensplitter vernichten
-        shardRule   = "bag",                       -- bag = Seelentasche voll, max = Hoechstzahl
+        shardRule   = "free",                      -- free = Seelentasche minus 1 (ab 0.3.0), bag = Seelentasche voll, max = Hoechstzahl
+        shardRule3  = false,                       -- einmalige Umstellung auf free erledigt (ab 0.3.0)
         shardMax    = 20,                          -- Hoechstzahl (Regel max und ohne Seelentasche)
         shardAction = true,                        -- mit jedem Zauber von der Aktionsleiste einen vernichten
         shardMsg    = true,                        -- Meldung im Chat
@@ -51,16 +52,21 @@ local mod = Peon:NewModule(ADDON_NAME, {
         ringPad  = { 0, 4, 1 },
         shardMax = { 1, 60, 1 },
     },
-    choices  = { shardRule = { bag = true, max = true } },
+    choices  = { shardRule = { free = true, bag = true, max = true } },
     validate = {
         fillColor   = IsColor(3),
         socketColor = IsColor(4),
         ringColor   = IsColor(4),
     },
-    keepOnReset = { cpImported = true },
+    keepOnReset = { cpImported = true, shardRule3 = true },
     migrate  = function(m, acc)
         -- ab 0.2.0: Pruefung und Testfenster aus 0.1.0 sind weg
         acc.probe, acc.hideGuide = nil, nil
+        -- ab 0.3.0: neuer Standard "Seelentasche minus 1". Wer noch den alten Standard "Seelentasche voll" hat, bekommt ihn einmal.
+        if not acc.shardRule3 then
+            if acc.shardRule == "bag" then acc.shardRule = "free" end
+            acc.shardRule3 = true
+        end
     end,
     onSlash  = function(m, cmd, rest)
         if cmd == "splitter" or cmd == "shard" or cmd == "shards" then
