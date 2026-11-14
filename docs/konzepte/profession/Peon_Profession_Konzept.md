@@ -197,3 +197,7 @@ Wünsche von KarloDerBaer nach dem ersten Blick im Spiel, zusammen mit S6 gebaut
 - **Knopf in der Titelleiste** des Berufsfensters rechts neben dem Namen des Berufs, öffnet das Fenster.
 - **Markierungen in der Rezeptliste** (Wahl KarloDerBaer aus vier Vorschlägen): grüner Pfeil links neben der Zeile für das Rezept des Guides, Goldmünze direkt vor dem Gewinn für das beste Rezept. Blizzards Pfeile für Punkte bleiben frei.
 - **S6 gebaut:** Abschnitt 8 umgesetzt. Die Box neben dem Fenster bleibt als Rückfall erhalten.
+
+## 12. Buchhändler für den Rang Experte (0.3.0, 14.11.2026)
+
+Wunsch von KarloDerBaer: Bei Erster Hilfe, Kochkunst und Angeln gibt es Experte als Buch beim Händler. Der Guide nennt Buch, Preis und Händler der eigenen Fraktion mit Gebiet und Koordinaten und markiert ihn auf Klick auf der Karte (Knopf „Auf Karte“ im Jetzt, Klick auf die Buchzeile im Plan). Die Händlerdaten stammen aus PLG 2.7.2 und wurden dort im Spiel auf dem Forever-Client gesammelt. Für die Lehrer der übrigen Berufe bleibt es beim Text ohne Wegpunkt (Abschnitt 10).

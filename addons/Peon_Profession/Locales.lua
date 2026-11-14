@@ -216,3 +216,20 @@ if GetLocale() == "deDE" then
     L.HDR_CRAFT_WIN  = "Berufsfenster"
     L.PROBE_HINT     = "/prof pruefen prüft das Berufsfenster."
 end
+
+-- ab 0.3.0: Buecher fuer den Rang Experte (Books.lua)
+L.BOOK_HINT     = "%s comes as a book: \"%s\" (%s) from %s, from skill %d. Also on the Auction House."
+L.BOOK_ROW      = "At %d: %s as a book (click: map)"
+L.MAP_BTN       = "On map"
+L.MAP_BTN_HINT  = "Marks the vendor on the map."
+L.WAYPOINT_SET  = "Waypoint set: %s"
+L.WAYPOINT_NONE = "This place cannot be marked on the map."
+
+if GetLocale() == "deDE" then
+    L.BOOK_HINT     = "%s gibt es als Buch: „%s“ (%s) bei %s, ab Stufe %d. Auch im Auktionshaus."
+    L.BOOK_ROW      = "Bei %d: %s als Buch (Klick: Karte)"
+    L.MAP_BTN       = "Auf Karte"
+    L.MAP_BTN_HINT  = "Markiert den Händler auf der Karte."
+    L.WAYPOINT_SET  = "Wegpunkt gesetzt: %s"
+    L.WAYPOINT_NONE = "Diese Stelle lässt sich nicht auf der Karte markieren."
+end

@@ -120,7 +120,11 @@ function G.TrainerHint(key, skill, max)
     if not max or max >= 300 or not L.RANKS[max] then return nil end
     if skill < max - 25 then return nil end
     local p = ns.PROFS[key]
-    if p and p.book and max == p.book then return L.TRAINER_BOOK:format(L.RANKS[max]) end
+    if p and p.book and max == p.book then
+        -- ab 0.3.0: Buch mit Haendler und Preis, wenn bekannt
+        local hint = ns.Books and ns.Books.Hint(key, max)
+        return hint or L.TRAINER_BOOK:format(L.RANKS[max])
+    end
     return L.TRAINER:format(L.RANKS[max], L.RANK_LEVEL[max] or 0)
 end
 
@@ -205,7 +209,8 @@ function G.Plan(key, skill, max, target)
         end
     end
     Trainer(untilT)
-    if target == nil and max < 300 and L.RANKS[max] and max > 0 then
+    -- Ziel = Hoechstwert (auch ohne Ziel): danach der naechste Rang (ab 0.3.0 auch mit Ziel, dort steht das Buch)
+    if untilT == max and max < 300 and L.RANKS[max] and max > 0 then
         out[#out + 1] = { trainer = true, from = max, to = max, rank = L.RANKS[max] }
     end
     return out

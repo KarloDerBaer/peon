@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.21.0 / Broker 0.95.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.37.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0 / Profession 0.2.2.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.21.0 / Broker 0.95.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.37.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0 / Profession 0.3.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.21.0, API 21
@@ -240,16 +240,16 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Verlauf der Versionen: `docs/changelog/Peon_Bags.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.3.0, 0.2.2, 0.2.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Profession – 0.2.2 (neu, Berufe)
+## Peon_Profession – 0.3.0 (neu, Berufe)
 
 - Konzept: `docs\konzepte\profession\Peon_Profession_Konzept.md` (freigegeben 14.11.2026). Gebaut: S1 bis S5 (0.1.0), S6 und Wünsche nach dem ersten Test (0.2.0, Abschnitt 11 des Konzepts). Nicht veröffentlicht.
-- Dateien: Locales.lua, LocalesCraft.lua (ab 0.2), Profession.lua, Routes.lua (aus `tools\plg_convert.lua`, danach von Hand gepflegt, MIT-Hinweis von Profession Leveling Guide im Kopf), Guide.lua, Prices.lua, Measure.lua, Craft.lua (ab 0.2, Kosten und Gewinn im Berufsfenster, vorher Broker), Window.lua, CraftBar.lua, Options.lua, Media\guide_arrow.tga (ab 0.2, erzeugt mit `scripts\profession_media.js`); Symbol: Hammer und Spitzhacke, Datei-Nummer 8197101 (ab 0.2.2, vorher `INV_Misc_Note_01`).
+- Dateien: Locales.lua, LocalesCraft.lua (ab 0.2), Profession.lua, Routes.lua (aus `tools\plg_convert.lua`, danach von Hand gepflegt, MIT-Hinweis von Profession Leveling Guide im Kopf), Guide.lua, Prices.lua, Books.lua (ab 0.3, Buchhändler für Experte mit Wegpunkt), Measure.lua, Craft.lua (ab 0.2, Kosten und Gewinn im Berufsfenster, vorher Broker), Window.lua, CraftBar.lua, Options.lua, Media\guide_arrow.tga (ab 0.2, erzeugt mit `scripts\profession_media.js`); Symbol: Hammer und Spitzhacke, Datei-Nummer 8197101 (ab 0.2.2, vorher `INV_Misc_Note_01`).
 - SavedVariables: `PeonProfessionDB` (accountweit): `minimapShow`, `minimapAngle` (215), `windowPos`, `windowTab` (guide/route/mats, ab 0.2), `showAll` (aus, ab 0.2), `craftBar` (an), `titleButton` (an, ab 0.2), Berufsfenster ab 0.2 (vorher Broker, einmal übernommen, Merker `craftMigrated`): `craftGuideMark`, `craftList`, `craftListWhich`, `craftListMode`, `craftListBest`, `craftListLoss`, `craftListUnknown`, `craftBlock`, `craftSummary`, `craftColSrc`, `craftColCost`, `craftColSell`, `craftHint`, `craftTwinks` (aus Brokers `keepAllChars`), `colors[recipeID][0..3] = { von, bis }` (gemessene Farben), `ups[recipeID] = { von, bis }` (Stufen, bei denen das Rezept Punkte gab). `PeonProfessionCharDB` (je Charakter): `sel` (gewählter Beruf, Skill-Linie), `known[Beruf][recipeID] = { out, n, m = { itemID, Menge, … }, c, name }` (aus dem Berufsfenster), `skills[Beruf]` (letzte Stufe), `target[Beruf]` (Zielstufe, ab 0.2). Bei „Standardwerte“ bleiben Position, Messungen und Rezepte.
 - Berufe als Skill-Linie: 171 Alchimie, 164 Schmiedekunst, 333 Verzauberkunst, 202 Ingenieurskunst, 165 Lederverarbeitung, 197 Schneiderei, 185 Kochkunst, 129 Erste Hilfe, 186 Bergbau, 182 Kräuterkunde, 393 Kürschnerei, 356 Angeln.
 - Braucht Peon API 18. Preise und Einkaufsliste über Broker 0.95 (`BuyPrice`, `AhPrice`, `ItemValue`, `AddToList`), Vorrat der Twinks über Ledger (`StockOthers`). Starter für Peon_Panel mit Text „Beruf Stufe/Höchstwert“.
 - Befehle: `/prof` (Fenster), `/prof optionen`, `/prof messungen`, `/prof pruefen` (Berufsfenster, ab 0.2), `/peon profession`, `/peon debug profession`.
 - Verlauf der Versionen: `docs/changelog/Peon_Profession.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.2.2, 0.2.1, 0.2.0, 0.1.0
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.3.0, 0.2.2, 0.2.1, 0.2.0, 0.1.0
 
 ## Projektordner <Repo>
 

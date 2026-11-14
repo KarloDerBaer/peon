@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.3.0
+
+Kurz: Bei Erster Hilfe, Kochkunst und Angeln nennt der Guide das Buch für den Rang Experte mit Preis und Händler. Ein Klick markiert den Händler auf der Karte.
+
+- 0.3.0 (14.11.2026, Wunsch KarloDerBaer): Buchhändler für den Rang Experte.
+  - **Neue Datei `Books.lua`:** Bücher „Erste Hilfe für Experten“ (16084), „Expertenkochbuch“ (16072) und „Expertenangeln“ (16083) mit Preis, nötiger Stufe und fünf Händlern (Deneb Walker, Balai Lok'Wein, Shandrina, Wulan, Old Man Heming) samt Karte und Koordinaten. Daten aus Profession Leveling Guide 2.7.2 (MIT), dort im Spiel auf dem Forever-Client gesammelt. Der Guide zeigt den Händler der eigenen Fraktion, Old Man Heming für beide.
+  - **Hinweis im Jetzt** ab 25 Punkten vor dem Höchstwert 150: Buch, Preis, Händler, Gebiet mit Koordinaten, nötige Stufe. Dazu der Knopf „Auf Karte“.
+  - **Plan:** Die Zeile für den nächsten Rang heißt bei diesen Berufen „Bei 150: Experte als Buch (Klick: Karte)“, ein Klick setzt den Wegpunkt. Die Zeile für den nächsten Rang steht jetzt auch, wenn das Ziel genau der Höchstwert ist.
+  - **Wegpunkt** mit Blizzards Kartenmarkierung (`C_Map.SetUserWaypoint`, verfolgt über `C_SuperTrack`), Meldung im Chat. Lässt sich die Karte nicht markieren, sagt der Chat das.
+  - Tests: Buch je Beruf und Rang, Händler je Fraktion, Hinweis, Wegpunkt, Buchzeile im Plan, Knopf „Auf Karte“.
+  - **Im Spiel prüfen:** Kochkunst 131/150: steht Wulan bzw. Shandrina im Jetzt, und setzt „Auf Karte“ einen Wegpunkt am richtigen Ort mit Pfeil am Kompass?
+
 ## 0.2.2
 
 Kurz: Neues Symbol mit Hammer und Spitzhacke wie Blizzards Berufe.

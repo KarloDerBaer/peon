@@ -454,6 +454,45 @@ end)()
   check(ns.ICON == 8197101 and meta.Peon_Profession.IconTexture == "8197101", "0.2.2: Symbol Hammer und Spitzhacke")
 end)()
 
+-- 0.3.0: Buecher fuer den Rang Experte (Erste Hilfe, Kochkunst, Angeln) mit Haendler und Wegpunkt
+;(function()
+  local K = ns.Books
+  NAMES[16072] = "Expertenkochbuch"
+  check(K.For(185, 150) and K.For(185, 150).item == 16072 and K.For(185, 75) == nil and K.For(171, 150) == nil, "0.3.0: Buch nur fuer Kochkunst beim Hoechstwert 150")
+  check(K.Vendor(K.For(185, 150)).name == "Wulan", "0.3.0: Haendler der eigenen Fraktion (Horde)")
+  check(K.Vendor(K.For(356, 150)).name == "Old Man Heming", "0.3.0: neutraler Haendler fuer beide")
+  local hint = G.TrainerHint(185, 131, 150)
+  check(hint and hint:find("Expertenkochbuch", 1, true) and hint:find("Wulan, Karte 1443 (26.2, 69.8)", 1, true) and hint:find("1g", 1, true),
+      "0.3.0: Hinweis mit Buch, Preis, Haendler und Ort (" .. tostring(hint) .. ")")
+  -- Wegpunkt
+  local set, tracked
+  C_Map.CanSetUserWaypointOnMap = function(map) return map ~= 9999 end
+  C_Map.SetUserWaypoint = function(p) set = p end
+  UiMapPoint = { CreateFromCoordinates = function(map, x, y) return { map = map, x = x, y = y } end }
+  C_SuperTrack = { SetSuperTrackedUserWaypoint = function(v) tracked = v end }
+  check(K.Mark(185, 150) and set.map == 1443 and math.abs(set.x - 0.262) < 1e-9 and math.abs(set.y - 0.698) < 1e-9 and tracked == true,
+      "0.3.0: Wegpunkt auf der Karte gesetzt und verfolgt")
+  check(not K.Waypoint({ name = "X", map = 9999, x = 1, y = 1 }), "0.3.0: nicht markierbare Karte meldet sich")
+  -- im Fenster: Plan mit Buchzeile, Klick setzt den Wegpunkt, Knopf Auf Karte bei 131/150
+  profs[3] = { "Kochkunst", 131, 150, 185 }
+  GetProfessions = function() return 1, 2, 3 end
+  ns.Window.Open(185)
+  set = nil
+  local row
+  for _, it in ipairs(ns.Window.plan.items) do if it.book then row = it end end
+  check(row and row.name:find("als Buch", 1, true), "0.3.0: Buchzeile im Plan")
+  ns.Window.plan.o.onClick(row, "LeftButton")
+  check(set and set.map == 1443, "0.3.0: Klick auf die Buchzeile setzt den Wegpunkt")
+  check(ns.Window.mapBtn.shown and ns.Window.info.text:find("Wulan", 1, true), "0.3.0: Knopf Auf Karte und Hinweis im Jetzt")
+  set = nil
+  ns.Window.mapBtn.scripts.OnClick(ns.Window.mapBtn)
+  check(set and set.map == 1443, "0.3.0: Knopf Auf Karte setzt den Wegpunkt")
+  ns.Window.Open(171)
+  check(not ns.Window.mapBtn.shown, "0.3.0: ohne Buch kein Knopf")
+  profs[3] = nil
+  GetProfessions = function() return 1, 2 end
+end)()
+
 -- Starter-Text und Slash
 ns.Window.Open(186)
 check(ns.LauncherText() == "Bergbau 40/75", "Text fuer Peon_Panel: gewaehlter Beruf")

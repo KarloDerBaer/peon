@@ -30,6 +30,11 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Käufe aus der Erfolgskontrolle nehmen** (KarloDerBaer), je Kauf mit „Behalte ich“.
 - **Noch offen:** Gold, Einsatz und möglicher Verlust bei Chancen (KarloDerBaer). Braucht eine Abstimmung, wie Broker das Gold übergibt und wie die Menge begrenzt wird.
 
+## 14.11.2026: Buchhändler mit Wegpunkt (Peon_Profession 0.3.0)
+
+- **Bücher für Experte mit Händler und Kartenmarkierung** (KarloDerBaer): Erste Hilfe, Kochkunst und Angeln. Das ergänzt „Lehrer nur als Text“ vom selben Tag, für die Lehrer der übrigen Berufe bleibt es dabei (Claude).
+- **Händlerdaten aus PLG übernommen** (Claude): dort im Spiel auf dem Forever-Client gesammelt, mit Nummer, Karte und Koordinaten. Wegpunkt mit Blizzards eigener Kartenmarkierung, ohne TomTom.
+
 ## 14.11.2026: Peon_Profession 0.2.0 nach dem ersten Test, Umzug des Berufsfensters (Broker 0.95)
 
 - **Brokers Teil im Berufsfenster zieht jetzt um (S6)** (KarloDerBaer, zusammen mit den Wünschen nach dem ersten Test). Bei Broker bleiben Preise, Vorrat und Einkaufslisten, Peon_Profession fragt sie über die Schnittstelle ab. Die alten Einstellungen werden einmal übernommen (Claude).

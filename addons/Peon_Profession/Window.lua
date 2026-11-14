@@ -129,8 +129,13 @@ function W.BuildGuide(c)
     W.name:SetPoint("TOPLEFT", W.icon, "TOPRIGHT", 8, 0)
     W.count = U.Text(now, "text", "")
     W.count:SetPoint("TOPRIGHT", -12, -26)
-    W.info = U.Text(now, "small", "", 560)
+    W.info = U.Text(now, "small", "", 470)   -- rechts Platz fuer "Auf Karte"
     W.info:SetPoint("TOPLEFT", W.icon, "TOPRIGHT", 8, -18)
+    -- ab 0.3.0: Buchhaendler fuer den naechsten Rang auf der Karte markieren
+    W.mapBtn = U.Button(now, L.MAP_BTN, 90, function() if W.prof then ns.Books.Mark(W.prof.key, W.prof.max) end end)
+    W.mapBtn:SetPoint("BOTTOMRIGHT", -10, 8)
+    if U.SetTooltip then U.SetTooltip(W.mapBtn, { L.MAP_BTN_HINT }) end
+    W.mapBtn:Hide()
     W.now = now
 
     local mats = U.Panel(c, "list", true)
@@ -155,7 +160,9 @@ function W.BuildGuide(c)
               format = function(v, item) if item.trainer or item.gather then return "" end return MoneyOrDash(v) end },
         },
         onClick = function(item, button)
-            if button == "LeftButton" and item and not item.trainer then W.pick = item.index; W.Refresh() end
+            if button ~= "LeftButton" or not item then return end
+            if item.book then ns.Books.Mark(W.key, item.from); return end   -- ab 0.3.0: Buchhaendler auf der Karte
+            if not item.trainer then W.pick = item.index; W.Refresh() end
         end,
     })
 end
@@ -400,6 +407,7 @@ end
 
 function W.EmptyNow(text)
     if not W.icon then return end
+    W.mapBtn:Hide()
     W.icon:Hide()
     W.name:SetText(text or "")
     W.count:SetText("")
@@ -449,6 +457,9 @@ function W.FillNow(prof, v)
         end
     end
     W.info:SetText(W.InfoText(key, v, prof))
+    -- Knopf "Auf Karte", wenn der Hinweis ein Buch nennt (gleiche Regel wie G.TrainerHint)
+    local book = prof.learned and ns.Books.For(key, prof.max) and prof.skill >= prof.max - 25
+    W.mapBtn:SetShown(book and true or false)
     W.mats:SetData(rows)
 end
 
@@ -457,6 +468,10 @@ local function StepItem(key, e, order)
     local it = { order = order, index = e.index, trainer = e.trainer, gather = e.gather }
     if e.trainer then
         it.name = GOLD .. (e.from > 0 and L.TRAINER_ROW:format(e.from, e.rank) or L.LEARN_FIRST:format(e.rank)) .. "|r"
+        if e.from > 0 and ns.Books.For(key, e.from) then   -- ab 0.3.0: Rang als Buch, Klick setzt den Wegpunkt
+            it.book, it.from = true, e.from
+            it.name = GOLD .. L.BOOK_ROW:format(e.from, e.rank) .. "|r"
+        end
         it.range = ""
         it.icon = ns.PROFS[key].icon
         return it
