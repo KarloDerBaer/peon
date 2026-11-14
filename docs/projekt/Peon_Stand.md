@@ -5,8 +5,8 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 
 ## Peon (Kern) – 0.22.0, API 22
 
-- **Rückmeldungen aus Modulen (ab 0.22.0):** `Peon.SetFeedbackHandler`, `Peon.CanAddFeedback`, `Peon.AddFeedback` in `Feedback.lua`. Peon_Feedback 0.5.0 meldet sich an, Peon_ClassBuddy schickt so sein Prüfergebnis. Nicht veröffentlicht.
-- **Trennstrich in Tabellen (ab 0.21.0):** `UI.Table` mit `o.rowLine(item)` zeigt einen dünnen Strich über der Zeile (für das Buch von Ledger 0.15.0). Nicht veröffentlicht, im Spiel noch nicht geprüft.
+- **Rückmeldungen aus Modulen (ab 0.22.0):** `Peon.SetFeedbackHandler`, `Peon.CanAddFeedback`, `Peon.AddFeedback` in `Feedback.lua`. Peon_Feedback 0.5.0 meldet sich an, Peon_ClassBuddy schickt so sein Prüfergebnis. Vorabversion `v2026.11.14.4-test` (14.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen.
+- **Trennstrich in Tabellen (ab 0.21.0):** `UI.Table` mit `o.rowLine(item)` zeigt einen dünnen Strich über der Zeile (für das Buch von Ledger 0.15.0). Vorabversion `v2026.11.14.4-test` (14.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im Spiel noch nicht geprüft.
 - **Gegenstandsmenü nach dem Loslassen (ab 0.20.1, Fehlerbericht 15):** Strg+Rechtsklick merkt beim Drücken den Gegenstand und öffnet das Menü einen Bildaufbau nach dem Loslassen, damit Blizzards eigene Menüs (Favoriten im Auktionshaus) es nicht ersetzen. `UI.SetTooltip` nimmt auch einen einzelnen Text (Fehlerbericht 14). Im Spiel noch nicht geprüft.
 
 - Dateien: Locales.lua, Core.lua, Feedback.lua (ab 0.9, direkt nach Core.lua), ItemMenu.lua und Bindings.xml (ab 0.16), Module.lua, Options.lua, Widgets.lua, List.lua, Launcher.lua (ab 0.14), Minimap.lua, Chart.lua (ab 0.10), UIKit.lua, UIDemo.lua und UIProbe.lua (ab 0.18), Notice.lua (ab 0.20), Slash.lua
@@ -48,7 +48,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - **Vorläufiges Fenster für Hexenmeister** (Guide.lua): erscheint beim Einloggen, führt durch die Prüfung, legt das Makro an und schickt das Ergebnis über Peon_Feedback an den Manager (Kern-API 22). Haken „Nicht mehr anzeigen“. Fällt mit der nächsten Version weg.
 - Funktionen bisher: nur der Prüfbefehl. Er testet, ob ein Seelensplitter ohne Tastendruck, per Klick, per Makro `/click PeonClassBuddyShard` und mit einer Aktionstaste vernichtet werden kann, jeweils außerhalb und im Kampf. Je Weg und Zustand höchstens ein Splitter.
 - Konzept: `docs\konzepte\classbuddy\Peon_ClassBuddy_Konzept.md`, Verlauf: `docs/changelog/Peon_ClassBuddy.md`
-- Im Spiel prüfen: Ein Freund von KarloDerBaer geht die Prüfung mit seinem Hexenmeister durch (mindestens 8 Splitter) und sendet das Ergebnis über den Manager. Braucht Peon 0.22.0 und Peon_Feedback 0.5.0. Nicht veröffentlicht.
+- Im Spiel prüfen: Ein Freund von KarloDerBaer geht die Prüfung mit seinem Hexenmeister durch (mindestens 8 Splitter) und sendet das Ergebnis über den Manager. Braucht Peon 0.22.0 und Peon_Feedback 0.5.0. Vorabversion `v2026.11.14.4-test` (14.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen.
 
 ## Peon_Fishing – 1.6.0 (früher FishingPlus)
 
@@ -214,7 +214,7 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 
 ## Peon_Feedback – 0.5.0 (Zusatz, Feedback im Spiel)
 
-- **Einträge aus anderen Modulen (ab 0.5.0):** meldet `ns.Add` beim Kern an (Kern-API 22), Module legen über `Peon.AddFeedback` Einträge an. Nicht veröffentlicht.
+- **Einträge aus anderen Modulen (ab 0.5.0):** meldet `ns.Add` beim Kern an (Kern-API 22), Module legen über `Peon.AddFeedback` Einträge an. Vorabversion `v2026.11.14.4-test` (14.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen.
 - Dateien: Locales.lua, Feedback.lua, Window.lua, Options.lua. Symbol `INV_Misc_Note_01`. `## OptionalDeps: Peon_Bridge`
 - SavedVariables: `PeonFeedbackDB` (accountweit): `entries` (id, t, module, kind, area, prio, text, char, market, zone, ver, edited, handed = an den Manager übergeben und ausgeblendet), `nextId`, `last`, `windowPos`, `minimapShow`, `minimapAngle`
 - Befehle: `/feedback` bzw. `/peon feedback` (Fenster), `/feedback optionen`, `/peon debug feedback`
@@ -255,7 +255,7 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 
 ## Peon_Profession – 0.3.0 (neu, Berufe)
 
-- Konzept: `docs\konzepte\profession\Peon_Profession_Konzept.md` (freigegeben 14.11.2026). Gebaut: S1 bis S5 (0.1.0), S6 und Wünsche nach dem ersten Test (0.2.0, Abschnitt 11 des Konzepts). Nicht veröffentlicht.
+- Konzept: `docs\konzepte\profession\Peon_Profession_Konzept.md` (freigegeben 14.11.2026). Gebaut: S1 bis S5 (0.1.0), S6 und Wünsche nach dem ersten Test (0.2.0, Abschnitt 11 des Konzepts). 0.2.2 in der Vorabversion `v2026.11.14.2-test`, 0.3.0 in `v2026.11.14.4-test` (nur Kanal Test).
 - Dateien: Locales.lua, LocalesCraft.lua (ab 0.2), Profession.lua, Routes.lua (aus `tools\plg_convert.lua`, danach von Hand gepflegt, MIT-Hinweis von Profession Leveling Guide im Kopf), Guide.lua, Prices.lua, Books.lua (ab 0.3, Buchhändler für Experte mit Wegpunkt), Measure.lua, Craft.lua (ab 0.2, Kosten und Gewinn im Berufsfenster, vorher Broker), Window.lua, CraftBar.lua, Options.lua, Media\guide_arrow.tga (ab 0.2, erzeugt mit `scripts\profession_media.js`); Symbol: Hammer und Spitzhacke, Datei-Nummer 8197101 (ab 0.2.2, vorher `INV_Misc_Note_01`).
 - SavedVariables: `PeonProfessionDB` (accountweit): `minimapShow`, `minimapAngle` (215), `windowPos`, `windowTab` (guide/route/mats, ab 0.2), `showAll` (aus, ab 0.2), `craftBar` (an), `titleButton` (an, ab 0.2), Berufsfenster ab 0.2 (vorher Broker, einmal übernommen, Merker `craftMigrated`): `craftGuideMark`, `craftList`, `craftListWhich`, `craftListMode`, `craftListBest`, `craftListLoss`, `craftListUnknown`, `craftBlock`, `craftSummary`, `craftColSrc`, `craftColCost`, `craftColSell`, `craftHint`, `craftTwinks` (aus Brokers `keepAllChars`), `colors[recipeID][0..3] = { von, bis }` (gemessene Farben), `ups[recipeID] = { von, bis }` (Stufen, bei denen das Rezept Punkte gab). `PeonProfessionCharDB` (je Charakter): `sel` (gewählter Beruf, Skill-Linie), `known[Beruf][recipeID] = { out, n, m = { itemID, Menge, … }, c, name }` (aus dem Berufsfenster), `skills[Beruf]` (letzte Stufe), `target[Beruf]` (Zielstufe, ab 0.2). Bei „Standardwerte“ bleiben Position, Messungen und Rezepte.
 - Berufe als Skill-Linie: 171 Alchimie, 164 Schmiedekunst, 333 Verzauberkunst, 202 Ingenieurskunst, 165 Lederverarbeitung, 197 Schneiderei, 185 Kochkunst, 129 Erste Hilfe, 186 Bergbau, 182 Kräuterkunde, 393 Kürschnerei, 356 Angeln.
