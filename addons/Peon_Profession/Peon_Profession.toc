@@ -1,0 +1,22 @@
+## Interface: 16001
+## Title: |cff8ccf4dPeon|r Profession
+## Notes: Profession leveling guide with prices and shopping list from Peon Broker.
+## Notes-deDE: Guide zum Leveln der Berufe, mit Preisen und Einkaufsliste von Peon Broker.
+## Author: KarloDerBaer
+## Version: 0.1.0
+## Dependencies: Peon
+## OptionalDeps: Peon_Broker, Peon_Ledger
+## Group: Peon
+## IconTexture: Interface\Icons\INV_Misc_Note_01
+## SavedVariables: PeonProfessionDB
+## SavedVariablesPerCharacter: PeonProfessionCharDB
+
+Locales.lua
+Profession.lua
+Routes.lua
+Guide.lua
+Prices.lua
+Measure.lua
+Window.lua
+CraftBar.lua
+Options.lua

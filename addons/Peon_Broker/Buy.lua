@@ -167,6 +167,37 @@ function B.AddMaterials(mats, n)
     return added, list
 end
 
+-- Ab 0.94 (fuer Peon_Profession, mod:AddToList): Material auf eine Liste mit festem Namen. mats = { { id, n } }.
+-- Die Wunschmenge wird auf n gesetzt (nicht addiert), damit ein erneutes Uebernehmen den Stand ersetzt.
+function B.AddToNamed(name, mats)
+    local lists = B.Lists()
+    local list
+    for _, l in ipairs(lists) do if l.name == name then list = l end end
+    if not list then
+        list = { id = B.NewId(), name = name, pct = 10, u = time(), items = {} }
+        lists[#lists + 1] = list
+    end
+    local added = 0
+    for _, m in ipairs(mats) do
+        local id, n = tonumber(m.id), math.floor(tonumber(m.n) or 0)
+        if id and n > 0 then
+            local e = list.items[id]
+            if not e then
+                local gk = tostring(list.id) .. "|" .. tostring(id)
+                e = { u = Shop().NextU(time(), B.Gone().items[gk]) }
+                B.Gone().items[gk] = nil
+            end
+            e.name = e.name or ns.GetItemInfo(id)
+            e.icon = e.icon or B.Icon(id)
+            if e.wish ~= n then e.wish = n; B.Touch(e, "wish") end
+            list.items[id] = e
+            added = added + 1
+        end
+    end
+    if B.view then B.Refresh() end
+    return added, list
+end
+
 -- Aenderung an einer Liste oder einem Eintrag vermerken (Abgleich mit dem Manager).
 -- Ab 0.89 je Wert: f = "name" oder "pct" (Liste), "wish" oder "max" (Eintrag)
 function B.Touch(obj, f)

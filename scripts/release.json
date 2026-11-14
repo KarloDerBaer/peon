@@ -13,6 +13,7 @@
     "Peon_Ledger":      { "api": 19 },
     "Peon_Mover":       { "api": 7 },
     "Peon_Panel":       { "api": 15 },
+    "Peon_Profession":  { "api": 18 },
     "Peon_Tooltip":     { "api": 6 }
   },
   "managerModules": [

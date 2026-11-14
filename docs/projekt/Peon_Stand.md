@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 13.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.1 / Broker 0.93.0 / Bridge 0.11.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.35.1 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.8 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.20.1 / Broker 0.94.0 / Bridge 0.11.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.35.1 (bis 0.5.0 Programm Peon Client) / Ledger 0.14.8 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.5.1 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.4.0 / Panel 0.4.0 / Profession 0.1.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.20.1, API 20
@@ -51,7 +51,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.93.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.94.0 (neu, Auktionshaus-Helfer)
+
+- **Schnittstelle für Peon_Profession (ab 0.94.0):** `mod:BuyPrice(id)` (Kaufpreis wie im Berufsfenster) und `mod:AddToList(name, mats)` (Einkaufsliste mit festem Namen, `B.AddToNamed`). Nicht veröffentlicht.
 
 - **Kandidaten vom Manager und Feste (ab 0.93.0, Konzept `Peon_Manager_Chancen.md` 5.4 und 9.2):** Neue Dateien `Spec.lua` (Art Spekulation im Radar aus `bridge:Chances`, Einstellung `radarSpecOn`, Radar-Scan `radarScanMode = "mgr"` „Vom Manager“, Satz und Alter im Fokus) und `Calendar.lua` (Feste der nächsten 6 Wochen beim Anmelden in `PeonBrokerDB.feste`, Jahrmarkt mit kurz umgeschaltetem `calendarShowDarkmoon`, Prüfung P2 mit `/broker pruefen kalender`, Ergebnis in `calProbe`). Einschätzungen speichern `kind` und `say`. Braucht Bridge 0.11 und Manager 0.35. Vorabversion `v2026.11.13.5-test`, im Spiel noch nicht geprüft.
 
@@ -225,6 +227,17 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Befehle: `/peon bags` (Taschenfenster ein/aus, geht immer – auch mit Bagnon), `/peon bags optionen`, `/peon bags debug`.
 - Verlauf der Versionen: `docs/changelog/Peon_Bags.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.3.0, 0.2.2, 0.2.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+
+## Peon_Profession – 0.1.0 (neu, Berufe)
+
+- Konzept: `docs\konzepte\profession\Peon_Profession_Konzept.md` (freigegeben 14.11.2026). Gebaut: S1 bis S5. **Offen: S6**, Umzug von Brokers Teil im Berufsfenster, erst nach der Prüfung im Spiel und mit ausdrücklicher Zustimmung von KarloDerBaer.
+- Dateien: Locales.lua, Profession.lua, Routes.lua (aus `tools\plg_convert.lua`, danach von Hand gepflegt, MIT-Hinweis von Profession Leveling Guide im Kopf), Guide.lua, Prices.lua, Measure.lua, Window.lua, CraftBar.lua, Options.lua; Symbol `INV_Misc_Note_01`.
+- SavedVariables: `PeonProfessionDB` (accountweit): `minimapShow`, `minimapAngle` (215), `windowPos`, `craftBar` (an), `colors[recipeID][0..3] = { von, bis }` (gemessene Farben), `ups[recipeID] = { von, bis }` (Stufen, bei denen das Rezept Punkte gab). `PeonProfessionCharDB` (je Charakter): `sel` (gewählter Beruf, Skill-Linie), `known[Beruf][recipeID] = { out, n, m = { itemID, Menge, … }, c, name }` (aus dem Berufsfenster), `skills[Beruf]` (letzte Stufe). Bei „Standardwerte“ bleiben Position, Messungen und Rezepte.
+- Berufe als Skill-Linie: 171 Alchimie, 164 Schmiedekunst, 333 Verzauberkunst, 202 Ingenieurskunst, 165 Lederverarbeitung, 197 Schneiderei, 185 Kochkunst, 129 Erste Hilfe, 186 Bergbau, 182 Kräuterkunde, 393 Kürschnerei, 356 Angeln.
+- Braucht Peon API 18. Preise und Einkaufsliste über Broker 0.94 (`BuyPrice`, `AddToList`), Vorrat der Twinks über Ledger (`StockOthers`). Starter für Peon_Panel mit Text „Beruf Stufe/Höchstwert“.
+- Befehle: `/prof` (Fenster), `/prof optionen`, `/prof messungen`, `/peon profession`, `/peon debug profession`.
+- Verlauf der Versionen: `docs/changelog/Peon_Profession.md`
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.1.0
 
 ## Projektordner <Repo>
 

@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.94.0
+
+Kurz: Broker gibt Preise und die Einkaufsliste an das neue Modul Peon Berufe weiter.
+
+- 0.94.0 (14.11.2026): Schnittstelle für Peon_Profession (Konzept `docs/konzepte/profession/Peon_Profession_Konzept.md` Abschnitt 5).
+  - **`mod:BuyPrice(id)`:** Kaufpreis je Stück wie im Berufsfenster (Händler oder AH, das Günstigere) und Quelle.
+  - **`mod:AddToList(name, mats)`:** Material auf die Einkaufsliste mit diesem Namen (`B.AddToNamed` in `Buy.lua`), wird bei Bedarf angelegt. Die Wunschmenge wird gesetzt, nicht addiert, mit Zeit je Wert für den Manager.
+  - Tests: Preis ohne Daten, Liste anlegen, Menge ersetzen (`test_broker.lua`).
+
 ## 0.93.0
 
 Kurz: Das Radar hat die neue Art Spekulation mit Kaufkandidaten aus dem Peon Manager. Erneuern prüft sie live wie jede andere Zeile.

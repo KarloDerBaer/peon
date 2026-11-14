@@ -192,6 +192,20 @@ function mod:MarketInfo(id) return ns.MarketInfo(id) end
 -- ab 0.32 (fuer Peon_Client): Warenart (true = Massenware) und Haendlerpreis je Stueck
 function mod:IsCommodity(key) return ns.Data and ns.Data.IsCommodity(key) or false end
 function mod:VendorPrice(id) return ns.VendorPrice(id) end
+-- Ab 0.94 (fuer Peon_Profession): Kaufpreis je Stueck wie im Berufsfenster (Haendler oder AH, das Guenstigere).
+-- Rueckgabe: Preis (nil = unbekannt), Quelle ("vendor", "ah", "none")
+function mod:BuyPrice(id)
+    if type(id) ~= "number" or not (ns.Craft and ns.Craft.BuyPrice) then return nil, "none" end
+    local p, src = ns.Craft.BuyPrice(id)
+    return p, src
+end
+-- Ab 0.94 (fuer Peon_Profession): Material auf die Einkaufsliste mit diesem Namen (wird bei Bedarf angelegt).
+-- mats = { { id = itemID, n = Stueck } }. Die Wunschmenge wird auf n gesetzt, "Fehlt" rechnet die Liste selbst.
+-- Rueckgabe: Zahl der Eintraege, Liste
+function mod:AddToList(name, mats)
+    if type(name) ~= "string" or name == "" or type(mats) ~= "table" or not (ns.Buy and ns.Buy.AddToNamed) then return 0 end
+    return ns.Buy.AddToNamed(name, mats)
+end
 -- Ab 0.29 (Ledger-Reiter "Gegenstaende"): alle Gegenstaende des aktuellen Markts mit Nummer (Varianten mit
 -- Zusatz ausgenommen). { [itemID] = { min, median, qty, t, gone, name, quality } }
 function mod:MarketItems() return ns.MarketItems() end

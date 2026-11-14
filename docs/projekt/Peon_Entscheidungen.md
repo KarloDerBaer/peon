@@ -2,6 +2,17 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 14.11.2026: Neues Modul Peon_Profession (Konzept `Peon_Profession_Konzept.md`, freigegeben)
+
+- **Eigenes Berufe-Modul statt Profession Leveling Guide** (KarloDerBaer): einfach, im Peon-Stil, mit Preisen und Einkaufsliste von Broker. Ohne Gilde, Streamer-Modus, Spieler-Netz und andere Zusatzfunktionen.
+- **Name `Peon_Profession`** (KarloDerBaer): Alles rund um Berufe soll dort Platz haben. Brokers Teil im Berufsfenster zieht später um (S6), erst nach der Prüfung des Guides im Spiel. Preise und Einkaufslisten bleiben bei Broker.
+- **Alle Berufe**, auch Sammelberufe und Angeln (KarloDerBaer).
+- **Leiste am Berufsfenster, abschaltbar. Lehrer nur als Text** (KarloDerBaer).
+- **Daten einmal aus PLG 2.7.2 umwandeln, danach nur eigene Messungen** (KarloDerBaer). PLG steht unter MIT-Lizenz, der Hinweis steht in `Routes.lua`. Texte aus Wowhead-Guides und Daten aus QuestieDB (GPL) werden nicht übernommen (Claude). Der Autor wird nicht eigens angeschrieben (KarloDerBaer).
+- **Leiste außerhalb über dem Berufsfenster** (Claude, beim Bau): So verdeckt sie weder Blizzards Inhalt noch Brokers Block.
+- **Lehrer-Hinweis ohne Datenbank** (Claude, beim Bau): Der Rang folgt aus dem Höchstwert (75, 150, 225), die Charakterstufe aus den festen Grenzen 10, 20, 35. Kochkunst, Erste Hilfe und Angeln nennen für Experte ein Buch.
+- **Einkaufsliste je Beruf mit dem ganzen Bedarf** (Claude, beim Bau): Die Liste heißt „Beruf: <Name>“, die Wunschmenge wird bei jedem Klick ersetzt, „Fehlt“ rechnet Broker gegen den Vorrat.
+
 ## 14.11.2026: Händlerpreis und Rückmeldungen zu Chancen (Manager 0.35.1)
 
 - **Händler-Chancen nur mit dem Händlerpreis aus dem Spiel** (KarloDerBaer, Vorschlag Claude): Die Blizzard-API nennt für Forever oft den Preis aus den Classic-Daten. Ein solcher Preis steht in der Prüfliste als nicht bestätigt.

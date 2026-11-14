@@ -4230,6 +4230,22 @@ end)()
   check(ns.Calendar and ns.Calendar.Time({ year = 2026, month = 11, monthDay = 20, hour = 10, minute = 0 }) == time({ year = 2026, month = 11, day = 20, hour = 10, min = 0, sec = 0 }), "0.93: Zeit aus dem Kalender")
 end)()
 
+-- 0.94: Schnittstelle fuer Peon_Profession (Kaufpreis, Einkaufsliste mit festem Namen)
+;(function()
+  local p, src = mod:BuyPrice(123456789)
+  check(p == nil and (src == "none" or src == nil), "0.94: BuyPrice ohne Preis")
+  check(mod:BuyPrice("x") == nil, "0.94: BuyPrice nur mit Nummer")
+  local before = #ns.Buy.Lists()
+  local n, list = mod:AddToList("Beruf: Alchimie", { { id = 2449, n = 20 }, { id = 3371, n = 10 }, { id = 765, n = 0 } })
+  check(n == 2 and list and list.name == "Beruf: Alchimie" and #ns.Buy.Lists() == before + 1, "0.94: Liste angelegt, Menge 0 ausgelassen")
+  check(list.items[2449].wish == 20 and list.items[3371].wish == 10 and list.items[765] == nil, "0.94: Wunschmenge gesetzt")
+  check(type(list.items[2449].t) == "table" and list.items[2449].t.wish, "0.94: Zeit je Wert fuer den Manager")
+  n = mod:AddToList("Beruf: Alchimie", { { id = 2449, n = 8 } })
+  check(n == 1 and #ns.Buy.Lists() == before + 1 and list.items[2449].wish == 8, "0.94: gleiche Liste, Menge ersetzt")
+  check(mod:AddToList("", {}) == 0, "0.94: ohne Namen nichts")
+  ns.Buy.DeleteList(#ns.Buy.Lists())
+end)()
+
 -- Keine unerwarteten Fehlermeldungen
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("hat einen Fehler gemeldet", 1, true) then n = n + 1 end end  -- erwartete Meldung aus dem Verkaufen-Test
 check(n == 0, "keine Fehlermeldungen")
