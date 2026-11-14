@@ -35,6 +35,25 @@ async function pickBackup() {
 }
 
 // Aufbewahrung: Stufen der Schieber (Tage, bei den Angeboten 0 = unbegrenzt). Erst "Übernehmen" speichert.
+// ab 0.36.0: Datenordner verlegen. Der Manager kopiert beim Neustart, der alte Ordner bleibt liegen.
+const dirInfo = ref(null);
+const move = ref(null);
+const moveError = ref('');
+async function loadDir() { try { dirInfo.value = await api.dataDirInfo(); } catch { dirInfo.value = null; } }
+onMounted(loadDir);
+async function pickDataDir() {
+  moveError.value = '';
+  move.value = null;
+  try {
+    const r = await api.dataDirPick();
+    if (!r) return;
+    if (r.error) moveError.value = r.error; else move.value = r;
+  } catch (e) { moveError.value = cleanError(e); }
+}
+async function doMove() {
+  try { await api.dataDirMove(move.value.to); } catch (e) { moveError.value = cleanError(e); move.value = null; }
+}
+
 const KEEP = [7, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365, 0];
 const HOUR = [14, 30, 60, 90, 120, 180, 270, 365];
 const keepOf = (d) => { const i = KEEP.indexOf(d); return i >= 0 ? i : KEEP.indexOf(14); };
@@ -121,7 +140,20 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
       <h2>Daten</h2>
       <div class="row between">
         <span>Datenordner <span class="muted">{{ data.dbDir }}</span></span>
-        <button @click="api.openFolder('db')">Ordner öffnen</button>
+        <div class="row">
+          <button @click="api.openFolder('db')">Ordner öffnen</button>
+          <button v-if="dirInfo && dirInfo.movable" @click="pickDataDir">Ordner ändern</button>
+        </div>
+      </div>
+      <p class="small muted" v-if="dirInfo && !dirInfo.movable">Dieser Datenordner ist von außen festgelegt und lässt sich hier nicht ändern.</p>
+      <p class="small muted" v-if="dirInfo && dirInfo.previous">Der vorherige Datenordner liegt noch als Sicherung unter {{ dirInfo.previous }}. Wenn alles läuft, kannst du ihn löschen.</p>
+      <p class="small warn" v-if="moveError" role="alert">{{ moveError }}</p>
+      <div class="apply" v-if="move">
+        <p class="small warn" role="alert">Die Daten ({{ bytes(move.bytes) }}) nach {{ move.to }} umziehen? Der Manager startet dafür neu und kopiert alles hinüber, das dauert etwas. Der bisherige Ordner bleibt als Sicherung liegen.</p>
+        <div class="row">
+          <button class="primary" @click="doMove">Umziehen und neu starten</button>
+          <button @click="move = null">Abbrechen</button>
+        </div>
       </div>
       <p>{{ broker ? 'Datenbank des Broker Client' : 'Datenbank des Managers' }} {{ bytes(data.dbSize) }}</p>
       <div class="row">

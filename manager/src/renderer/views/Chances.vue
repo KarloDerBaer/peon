@@ -181,6 +181,11 @@ const ratingLabel = (r) => [r.up === 1 ? '👍' : r.up === 0 ? '👎' : null, r.
         </tbody>
       </table>
       <p v-else-if="d" class="muted empty">{{ source.length ? 'Nichts passt zu den Filtern.' : tab === 'live' ? 'Gerade nichts.' : 'Gerade keine Chancen. Fehlen belegte Verkäufe, kommen sie mit den nächsten Ständen der Blizzard-API.' }}</p>
+      <!-- ab 0.36.0: mit Daumen runter bewertete Chancen sind ausgeblendet, auch fuer Broker -->
+      <p v-if="d && d.rejected && d.rejected.length" class="small muted">
+        {{ d.rejected.length === 1 ? '1 Chance ist' : `${num(d.rejected.length)} Chancen sind` }} nach deiner Bewertung mit Daumen runter ausgeblendet und gehen nicht an Broker:
+        {{ d.rejected.map((x) => itemName(x)).join(', ') }}. Löschst du die Bewertung im Reiter Rückmeldungen, kommt die Chance zurück.
+      </p>
       <p v-if="rows.length > shown.length" class="more small muted">{{ num(shown.length) }} von {{ num(rows.length) }} <button class="link" @click="limit += 60">60 weitere zeigen</button></p>
 
       <div v-if="misses.length" class="whybox">

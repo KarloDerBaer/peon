@@ -141,9 +141,9 @@ test('Chancen (ab 0.35.0): Haendler, Marktuebersicht, Kandidaten fuer Broker in 
   // D5: Vorschlaege mit allen Werten gespeichert, Rueckmeldung zugeordnet
   const db = svc.broker.db;
   assert.ok(db.prepare("SELECT COUNT(*) AS n FROM chance_log WHERE kind = 'v' AND shown = 1").get().n >= 1);
-  const id = svc.broker.rateChance({ market: M, key: '4306', name: 'Seidenstoff', kind: 'v', up: true, reason: 'gekauft', note: 'x'.repeat(300) });
+  const id = svc.broker.rateChance({ market: M, key: '4306', name: 'Seidenstoff', kind: 'v', up: true, reason: 'gekauft', note: 'x'.repeat(1200) });
   const r = svc.broker.chanceRatings().list.find((x) => x.id === id);
-  assert.ok(r && r.log_id && r.note.length === 250 && r.reason === 'gekauft', 'Rueckmeldung mit Vorschlag, Text gekuerzt');
+  assert.ok(r && r.log_id && r.note.length === 1000 && r.reason === 'gekauft', 'Rueckmeldung mit Vorschlag, Text gekuerzt');
   svc.close();
 });
 

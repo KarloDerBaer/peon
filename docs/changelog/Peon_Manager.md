@@ -2,6 +2,25 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.36.0
+
+Kurz: Der Manager ist nach dem Start sofort bedienbar. Einstellungen, Updates und Rückmeldungen gehen gleich, die Marktseiten folgen, sobald die Daten geladen sind.
+Kurz: Unter Einstellungen, Daten kannst du den Datenordner verlegen, zum Beispiel auf ein anderes Laufwerk. Der Manager kopiert alles beim Neustart, der alte Ordner bleibt als Sicherung liegen.
+Kurz: Chancen mit Daumen runter verschwinden aus der Liste und gehen nicht mehr an Broker. Spekulation schnell schlägt keinen Zielpreis über dem üblichen Bereich mehr vor und nichts, dessen Preis seit Tagen fällt.
+Kurz: Händlerpreise werden einmal neu aus dem Spiel geholt, falsche Werte aus der Blizzard-API verschwinden damit. In der Erfolgskontrolle kannst du Käufe, die du selbst behältst, herausnehmen.
+
+- 0.36.0 (14.11.2026): Rückmeldungen KarloDerBaer zur Vorabversion `v2026.11.14-test` (lange Ladezeit beim Start, Datenordner auf ein anderes Laufwerk, vier Rückmeldungen zu Chancen, ein Wunsch zur Erfolgskontrolle).
+  - **Schneller Start:** Das Fenster wartete auf die erste Übersicht aus dem Arbeitsprozess. Der arbeitet alles der Reihe nach ab und bekam beim Start zuerst das Einlesen, die Blizzard-API und das Aufräumen. Jetzt kommt zuerst ein Grundteil ohne Arbeitsprozess (`overviewBase`, `brokerLoading`): Seitenleiste, Updates, Rückmeldungen und Einstellungen sind sofort da, die Marktseiten zeigen „Marktdaten werden geladen“. Einlesen und Blizzard-API starten erst nach der ersten vollen Übersicht (höchstens 30 Sek. später), das Aufräumen nach 5 Minuten (`main.js`, `App.vue`).
+  - **Datenordner verlegen:** Neue Datei `datadir.js`. Knopf „Ordner ändern“ unter Einstellungen, Daten. Der Manager prüft das Ziel (leer oder Unterordner „Peon Manager Daten“, nicht im alten Ordner, genug Platz, Schreibprobe), merkt es sich (`umzug.json`), startet neu und kopiert vor dem Öffnen der Datenbanken alles außer `tmp` mit kleinem Hinweisfenster. Erst wenn die Kopie vollständig ist, zeigt `datenordner.json` (neben dem Standardordner) auf den neuen Ordner. Der alte Ordner bleibt liegen, die Einstellungen nennen ihn. Nicht bei `PEON_MANAGER_DB`, in der Entwicklung und mit Runtime und DB nebeneinander.
+  - **Händlerpreis neu aus dem Spiel (Schema 11):** Bis 0.35.0 haben Stände der Blizzard-API mit dem Namen ihren Händlerpreis weitergetragen und den Wert aus dem Spiel überschrieben. Schema 10 hat solche Werte dann als `game` markiert (Eisengranate 5s statt 1s 85c). Einmalig gilt kein Händlerpreis mehr als bestätigt (`meta` `vendorRecheck`), Bridge 0.12 schickt alle Namen samt Preis aus dem Spiel neu.
+  - **Daumen runter blendet aus:** Die letzte Bewertung je Gegenstand der letzten 14 Tage zählt (`latestRatings`). Daumen runter nimmt die Chance aus Vorschlägen, „Nur live erreichbar“ und der Liste für Broker, außer sie ist mit „An Broker“ angeheftet. Unter der Liste steht, welche ausgeblendet sind. Bewertung löschen oder Daumen hoch holt sie zurück.
+  - **Spekulation schnell:** Der belegte Verkaufspreis zählt höchstens bis zum oberen Rand des üblichen Bereichs (Schmiedehammer: belegt etwa 5g bei Angeboten um 1s). Die Prüfliste nennt dann beide Werte. Neue Prüfung im Punkt „Kein neues Preisniveau nach unten“: Liegen die letzten 3 Tage 15 % oder mehr unter den Tagen 7 bis 14, gibt es keinen Vorschlag (`spec.trendOf`, Tageswerte im Kontext).
+  - **Bemerkung länger:** bis 1000 Zeichen statt 250.
+  - **Erfolgskontrolle:** Knopf „Behalte ich“ je Kauf aus Ledger, die markierten Käufe stehen eingeklappt darunter und lassen sich zurückholen (`meta` `ownUse`, je Gegenstand und Zeit, 60 Tage).
+  - **Offen, mit KarloDerBaer abzustimmen:** Gold und Einsatz bei Chancen bewerten (Gold aus Broker, Menge nach Einsatz und möglichem Verlust), siehe Rückmeldung zu Muster: Lebendige Krone.
+  - Tests: Deckel und Preisverlauf, Ausblenden mit Daumen runter und angeheftet, Schema 11, Behalte ich (`test/chancen.test.js`), Umzug des Datenordners (`test/datenordner.test.js`, neu). Länge der Bemerkung in `test/c6.test.js` angepasst. Alle 225 Tests grün, Oberfläche gebaut.
+  - **Im echten Programm prüfen:** Start mit großer Datenbank (Einstellungen gleich bedienbar), Umzug auf D: über Einstellungen, Daten, Eisengranate nach dem nächsten Scan ohne Händler-Chance, Schmiedehammer und Imperiale Plattenrüstung ohne Vorschlag, Daumen runter blendet aus, Behalte ich.
+
 ## 0.35.1
 
 Kurz: Händler-Chancen rechnen nur noch mit dem Händlerpreis aus dem Spiel. Ein Preis, den nur die Blizzard-API nennt, steht in der Prüfliste als nicht bestätigt.

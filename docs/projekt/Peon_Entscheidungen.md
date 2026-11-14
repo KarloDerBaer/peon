@@ -2,6 +2,16 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 14.11.2026: Schneller Start, Datenordner, Rückmeldungen zu Chancen (Manager 0.36.0, Bridge 0.12.0)
+
+- **Datenordner im Manager verlegbar** (KarloDerBaer, lieber auf D:). Der Manager kopiert beim Neustart vor dem Öffnen der Datenbanken, der alte Ordner bleibt als Sicherung liegen und wird nicht gelöscht (Claude). Auf D: kann Claude die Daten auch lesen, unter `%APPDATA%` sieht die Claude-App eine alte Kopie.
+- **Beim Start ist das Fenster sofort bedienbar** (KarloDerBaer: wenigstens Einstellungen öffnen können). Einlesen und Aufräumen warten auf die erste Übersicht (Claude).
+- **Händlerpreise einmal neu aus dem Spiel** (Claude): Bis 0.35.0 haben Stände der Blizzard-API den Wert aus dem Spiel überschrieben, Schema 10 konnte das nicht erkennen.
+- **Daumen runter blendet eine Chance aus, auch für Broker** (KarloDerBaer). Bewertung löschen holt sie zurück, „An Broker“ geht vor (Claude).
+- **Spekulation schnell: Zielpreis höchstens am oberen Rand des üblichen Bereichs, kein Vorschlag bei fallendem Preis** (Claude, aus den Rückmeldungen zu Schmiedehammer und Imperialer Plattenrüstung). Grenze für „fällt“: die letzten 3 Tage 15 % unter den Tagen 7 bis 14.
+- **Käufe aus der Erfolgskontrolle nehmen** (KarloDerBaer), je Kauf mit „Behalte ich“.
+- **Noch offen:** Gold, Einsatz und möglicher Verlust bei Chancen (KarloDerBaer). Braucht eine Abstimmung, wie Broker das Gold übergibt und wie die Menge begrenzt wird.
+
 ## 14.11.2026: Peon_Profession 0.2.0 nach dem ersten Test, Umzug des Berufsfensters (Broker 0.95)
 
 - **Brokers Teil im Berufsfenster zieht jetzt um (S6)** (KarloDerBaer, zusammen mit den Wünschen nach dem ersten Test). Bei Broker bleiben Preise, Vorrat und Einkaufslisten, Peon_Profession fragt sie über die Schnittstelle ab. Die alten Einstellungen werden einmal übernommen (Claude).

@@ -98,6 +98,25 @@ function profit(target, qty, cost, days, hp) {
   return { gain: Math.floor(target * (1 - CUT) * qty - cost - fees), fees, relists };
 }
 
+// ab 0.36.0: Preisverlauf der letzten 14 Tage aus den Tageswerten. Rueckgabe: Aenderung der letzten 3 Tage gegen die
+// Tage 7 bis 14 davor (-0,2 = 20 % gefallen), null ohne genug Tage. Ein Preis, der seit Tagen faellt, ist kein Fall fuer
+// Spekulation schnell, auch wenn er noch kein neues Niveau unter dem Bereich hat (Rueckmeldung zur Vorabversion).
+const FALL = 0.15;
+function trendOf(c, key) {
+  const d = c.days && c.days.get(key);
+  if (!d || c.today == null) return null;
+  const med = (xs) => { const v = [...xs].sort((a, b) => a - b); const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+  const recent = [], older = [];
+  for (const [day, x] of d) {
+    if (!(x && x.value > 0)) continue;
+    const age = c.today - day;
+    if (age >= 0 && age <= 2) recent.push(x.value);
+    else if (age >= 7 && age <= 14) older.push(x.value);
+  }
+  if (recent.length < 2 || older.length < 3) return null;
+  return med(recent) / med(older) - 1;
+}
+
 // Spekulation schnell (4.2) fuer einen Gegenstand. Liefert immer eine Bewertung mit Pruefliste, ok = Vorschlag.
 function evalFast(c, key) {
   const R = c.rules.s;
@@ -110,7 +129,11 @@ function evalFast(c, key) {
   const hp = c.vendor(key) || (c.vendorApi ? c.vendorApi(key) : null);   // nur fuer die Einstellgebuehr
   const n = pr ? pr.n : 0;
   const proven = pr && n >= R.nProof ? pr.median : null;
-  const ref = ov.target != null ? ov.target : proven;
+  // ab 0.36.0: Der belegte Verkaufspreis zaehlt hoechstens bis zum oberen Rand des ueblichen Bereichs. Belegte Verkaeufe
+  // weit darueber sind oft zurueckgezogene Angebote, der Zielpreis lag dann weit ueber dem, was sonst bezahlt wird.
+  const top = b ? Math.floor(high(b)) : null;
+  const capped = ov.target == null && proven != null && top != null && top > 0 && proven > top;
+  const ref = ov.target != null ? ov.target : capped ? top : proven;
   const limit = ov.limit != null ? ov.limit : ref != null ? Math.floor(ref * (1 - R.gap)) : null;
   const buy = limit != null ? offers.filter((o) => o.p <= limit) : [];
   const qty = buy.reduce((a, o) => a + o.q, 0);
@@ -130,13 +153,14 @@ function evalFast(c, key) {
   const total = offers.reduce((a, o) => a + o.q, 0);
   const mass = c.isCommodity(key) && total >= c.broker.minQty;
   const hold = c.hold(key, ref);
+  const trend = trendOf(c, key);
   const checks = [
     check('mass', 'Kein Fall für Aufkauf', total, c.broker.minQty, !mass,
       mass ? `Massenware mit ${total.toLocaleString('de-DE')} Stück im Angebot, das prüft der Aufkauf` : 'Einzelstück oder wenig angeboten', { fixed: true }),
     check('gap', 'So viel günstiger als verkauft', disc, R.gap, disc != null && disc >= R.gap && qty > 0,
       ref == null ? 'Noch kein belegter Verkaufspreis' : cheapest == null ? 'Gerade nicht im Angebot'
-        : `Günstigstes Angebot ${gold(cheapest)}, ${disc >= 0 ? pctText(disc) + ' unter' : pctText(-disc) + ' über'} ${ov.target != null ? 'deinem Zielpreis' : 'dem belegten Verkaufspreis'} ${gold(ref)} (nötig ${pctText(R.gap)})`,
-      { user: ov.target != null || ov.limit != null, weight: 3, say: disc != null && disc > 0 ? `Liegt ${pctText(disc)} unter dem, wofür er zuletzt verkauft wurde.` : null }),
+        : `Günstigstes Angebot ${gold(cheapest)}, ${disc >= 0 ? pctText(disc) + ' unter' : pctText(-disc) + ' über'} ${ov.target != null ? 'deinem Zielpreis' : capped ? 'dem oberen Rand des üblichen Bereichs' : 'dem belegten Verkaufspreis'} ${gold(ref)}${capped ? ` (belegt ${gold(proven)}, gedeckelt)` : ''} (nötig ${pctText(R.gap)})`,
+      { user: ov.target != null || ov.limit != null, weight: 3, say: disc != null && disc > 0 ? (capped ? `Liegt ${pctText(disc)} unter dem üblichen Preis.` : `Liegt ${pctText(disc)} unter dem, wofür er zuletzt verkauft wurde.`) : null }),
     check('proof', 'Mindestens so viele Verkäufe gesehen', n, R.nProof, n >= R.nProof,
       `Belegte Verkäufe in 14 Tagen: ${dec(n)} (nötig ${R.nProof})`, { weight: 2, say: `${dec(n)} Verkäufe in 14 Tagen belegt.` }),
     check('days', 'Höchstens so lange bis zum Verkauf', days, R.maxDays, days != null && days <= R.maxDays,
@@ -144,8 +168,10 @@ function evalFast(c, key) {
       { weight: 1, say: pd ? `Verkauft sich etwa ${dec(pd)} Mal am Tag.` : null }),
     check('gain', 'Mindestgewinn', gain, R.minGain, gain != null && gain >= R.minGain,
       gain == null ? 'Kein Gewinn zu rechnen' : `Erwarteter Gewinn ${gold(gain)} (mindestens ${gold(R.minGain)})`, { weight: 1, say: gain > 0 ? `Bringt etwa ${gold(gain)}.` : null }),
-    check('shift', 'Kein neues Preisniveau nach unten', null, null, !(sh && sh.dir === 'down'),
-      sh && sh.dir === 'down' ? 'Der Preis fällt seit über 12 Std. unter den üblichen Bereich' : 'Preis stabil oder steigend', { fixed: true }),
+    check('shift', 'Kein neues Preisniveau nach unten', null, null, !(sh && sh.dir === 'down') && !(trend != null && trend <= -FALL),
+      sh && sh.dir === 'down' ? 'Der Preis fällt seit über 12 Std. unter den üblichen Bereich'
+        : trend != null && trend <= -FALL ? `Der Preis fällt: die letzten 3 Tage ${pctText(-trend)} unter den Tagen eine Woche davor`
+          : 'Preis stabil oder steigend', { fixed: true }),
   ];
   // Risiko als Ampel (4.2)
   const why = [];

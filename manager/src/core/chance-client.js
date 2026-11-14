@@ -95,7 +95,7 @@ const methods = {
     const fc = forecast.marketForecasts({ db, mid, now, today, bands: bd.items, values: bd.days, qty: this.snaps.dayQty(mid, now, 14), sales: stats,
       levels, fests: this.fests(), switches: rules.f.signals });
     const ctx = {
-      mid, now, today, t: last ? last.t : null, age: last ? Math.max(0, now - last.t) : Infinity, rows, offers, stats, bands: bd.items, shifts: bd.shifts,
+      mid, now, today, t: last ? last.t : null, age: last ? Math.max(0, now - last.t) : Infinity, rows, offers, stats, bands: bd.items, shifts: bd.shifts, days: bd.days,
       proof: pr, dur, rules, broker: this.brokerRules(), forecasts: fc.list, index: fc.index, signalRates: fc.rates,
       over: (k) => over[k] || {},
       // ab 0.35.1: Haendlerpreis nur aus dem Spiel. Ein Wert aus der Blizzard-API (fuer Forever oft Classic-Daten) ist
@@ -131,12 +131,22 @@ const methods = {
     return this.chanceRun(mid);
   },
 
+  // ab 0.36.0: letzte Bewertung je Gegenstand der letzten 14 Tage. Daumen runter blendet die Chance aus, in der Liste
+  // und fuer Broker. Wer die Bewertung unter Rueckmeldungen loescht oder neu mit Daumen hoch bewertet, holt sie zurueck.
+  latestRatings() {
+    const rated = new Map();
+    for (const r of this.db.prepare('SELECT id, item_key, up, reason, t, origin FROM chance_rate WHERE t >= ? ORDER BY t, id').iterate(this.now() - 14 * 86400)) rated.set(r.item_key, r);
+    return rated;
+  },
+
   // Kandidatenliste fuer Broker (9.1): { t, list = { [key] = "Art:KaufenBis:Zielpreis:GueltigBis:Gewinn:Risiko" }, say }
   chancesForBroker(mid) {
     const res = this.chanceResult(mid);
     const pinned = this.meta('chancePinned') || {};
     const now = this.now();
-    const all = [...res.list, ...res.live].filter((x) => x.buy > 0 && (x.until || 0) > now).sort((a, b) => (b.gain || 0) - (a.gain || 0));
+    const rated = this.latestRatings();
+    const down = (k) => { const r = rated.get(k); return !!(r && r.up === 0); };
+    const all = [...res.list, ...res.live].filter((x) => x.buy > 0 && (x.until || 0) > now && (pinned[x.key] || !down(x.key))).sort((a, b) => (b.gain || 0) - (a.gain || 0));
     const list = {}, say = {};
     let n = 0;
     const put = (x) => {
@@ -171,13 +181,15 @@ const methods = {
     if (mid == null) return null;
     const ctx = this.chanceCtx(mid);
     const res = this.chanceResult(mid);
-    const rated = new Map();
-    for (const r of this.db.prepare('SELECT item_key, up, reason, t FROM chance_rate WHERE t >= ? ORDER BY t').iterate(this.now() - 14 * 86400)) rated.set(r.item_key, r);
+    const rated = this.latestRatings();
     const pinned = this.meta('chancePinned') || {};
     const fav = new Set(this.favorites());
     const strip = (x) => ({ ...x, rated: rated.get(x.key) || null, pinned: !!pinned[x.key], watched: fav.has(x.key) });
+    const down = (x) => x.rated && x.rated.up === 0 && !x.pinned;
     const proven = ctx.proof.size;
-    return { market: marketKey, now: ctx.now, t: ctx.t, age: ctx.age, list: res.list.map(strip), live: res.live.map(strip), near: res.near.length,
+    const list = res.list.map(strip), live = res.live.map(strip);
+    return { market: marketKey, now: ctx.now, t: ctx.t, age: ctx.age, list: list.filter((x) => !down(x)), live: live.filter((x) => !down(x)),
+      rejected: [...list, ...live].filter(down), near: res.near.length,
       proven, holdKnown: ctx.dur.size, bands: ctx.bands.size, salesItems: ctx.stats.size, forecasts: ctx.forecasts.size, rules: ctx.rules,
       start: proof.startOf(this.db, mid), kinds: spec.KINDS };
   },
@@ -255,8 +267,21 @@ const methods = {
     const now = this.now();
     const rates = book.rates(this.db, mid, now);
     const sig = forecast.signalRates(this.db, mid, now);
-    const buys = this.ledgerTrades(mid);
+    const own = this.meta('ownUse') || {};
+    const buys = this.ledgerTrades(mid).map((b) => ({ ...b, own: !!own[`${b.key}|${b.t}`] }));
     return { market: marketKey, rates, signals: [...sig].map(([id, r]) => ({ id, label: forecast.SIGNALS[id].label, ...r })), buys };
+  },
+
+  // ab 0.36.0: Kauf aus der Erfolgskontrolle nehmen („Behalte ich selbst“), je Kauf (Gegenstand und Zeit). Eintraege
+  // aelter als 60 Tage fallen weg, die Erfolgskontrolle zeigt ohnehin nur 30 Tage.
+  setOwnUse(key, t, on) {
+    const own = this.meta('ownUse') || {};
+    const k = `${key}|${Math.round(t)}`;
+    if (on) own[k] = this.now(); else delete own[k];
+    const old = this.now() - 60 * 86400;
+    for (const [x, v] of Object.entries(own)) if (Number(x.split('|')[1]) < old) delete own[x];
+    this.meta('ownUse', own);
+    return true;
   },
 
   // Kaeufe im Auktionshaus aus Peon_Ledger.lua (alle Kontoordner), verknuepft mit Vorschlaegen des Managers

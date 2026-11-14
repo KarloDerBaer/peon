@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.12.0
+
+Kurz: Die Bridge schickt alle Händlerpreise einmal neu aus dem Spiel an den Peon Manager, damit dort keine falschen Werte mehr stehen.
+
+- 0.12.0 (14.11.2026): Der Manager hatte bis 0.35.0 Händlerpreise aus dem Spiel mit Werten der Blizzard-API überschrieben. `acc.nameFmt` 3: Alle Namen gehen samt Händlerpreis und Warenart beim nächsten Scan einmal neu hinaus. Gehört zu Manager 0.36.
+  - Tests: einmal neu schicken, danach nicht mehr (`test_bridge.lua`).
+
 ## 0.11.0
 
 Kurz: Kaufkandidaten aus dem Peon Manager kommen jetzt beim Radar in Broker an.

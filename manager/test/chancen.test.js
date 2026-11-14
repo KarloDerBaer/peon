@@ -220,3 +220,72 @@ test('0.35.1: Rueckmeldungen zu Chancen gehen einmal in den Reiter Rueckmeldunge
   assert.ok(n.length === 1 && n[0].origin === 'broker' && n[0].note === 'aus dem Spiel', 'Einschaetzung aus Broker geht mit');
   db.close();
 });
+
+test('0.36.0: Zielpreis hoechstens am oberen Rand des ueblichen Bereichs', () => {
+  // belegt 30g, ueblich 10g +- 10 %: gerechnet wird mit 11g
+  const x = spec.evalFast(ctx({ proof: new Map([['2589', { median: 300000, n: 12 }]]) }), '2589');
+  assert.equal(x.ref, 110000, 'gedeckelt');
+  assert.equal(x.limit, 77000, 'Kaufen bis 30 % unter dem Deckel');
+  assert.ok(x.target <= 110000);
+  const gap = x.checks.find((k) => k.id === 'gap');
+  assert.ok(gap.text.includes('gedeckelt') && gap.text.includes('oberen Rand'), gap.text);
+  // eigener Zielpreis gilt weiter ohne Deckel
+  const z = spec.evalFast(ctx({ proof: new Map([['2589', { median: 300000, n: 12 }]]), over: () => ({ target: 200000 }) }), '2589');
+  assert.equal(z.ref, 200000);
+});
+
+test('0.36.0: fallender Preis ueber die letzten Tage verhindert Spekulation schnell', () => {
+  const days = new Map();
+  for (let a = 0; a <= 14; a++) days.set(DAY - a, { value: a <= 2 ? 80000 : 100000 });
+  const x = spec.evalFast(ctx({ days: new Map([['2589', days]]) }), '2589');
+  const sh = x.checks.find((k) => k.id === 'shift');
+  assert.ok(!x.ok && !sh.ok && sh.text.includes('Der Preis fällt'), sh.text);
+  // stabil: weiter ein Vorschlag
+  const flat = new Map([...days].map(([d]) => [d, { value: 100000 }]));
+  assert.ok(spec.evalFast(ctx({ days: new Map([['2589', flat]]) }), '2589').ok);
+  // zu wenige Tage: kein Urteil
+  assert.ok(spec.evalFast(ctx({ days: new Map([['2589', new Map([[DAY, { value: 50000 }]])]]) }), '2589').ok);
+});
+
+test('0.36.0: Daumen runter blendet die Chance aus, auch fuer Broker, ausser sie ist angeheftet', () => {
+  const { install } = require('../src/core/chance-client');
+  const db = openDb(tmp());
+  const bc = { db, now: () => NOW, store: {}, meta(k, v) { if (v === undefined) return this.store[k] ?? null; this.store[k] = v; return v; } };
+  install(bc);
+  const ch = (key) => ({ key, kind: 's', buy: 100, target: 200, until: NOW + 3600, gain: 1000, risk: 'low', qty: 1, say: 'x' });
+  bc.chanceResult = () => ({ list: [ch('1'), ch('2')], live: [] });
+  bc.chanceCtx = () => ({ t: NOW });
+  book.rate(db, NOW - 60, { key: '1', kind: 's', up: false, reason: 'zu riskant' });
+  book.rate(db, NOW - 60, { key: '2', kind: 's', up: false });
+  book.rate(db, NOW - 30, { key: '2', kind: 's', up: true });
+  assert.deepEqual(Object.keys(bc.chancesForBroker(1).list), ['2'], 'zuletzt Daumen hoch zaehlt');
+  bc.store.chancePinned = { 1: NOW };
+  assert.deepEqual(Object.keys(bc.chancesForBroker(1).list).sort(), ['1', '2'], 'angeheftet geht trotzdem');
+  db.close();
+});
+
+test('0.36.0: Haendlerpreise gelten einmal wieder als unbestaetigt (Schema 11)', () => {
+  const dir = tmp();
+  let db = openDb(dir);
+  db.prepare("INSERT INTO items(key, item_id, name, vendor, vendor_src) VALUES ('4390', 4390, 'Eisengranate', 500, 'game')").run();
+  db.prepare("DELETE FROM meta WHERE key = 'vendorRecheck'").run();   // Stand vor 0.36.0
+  db.close();
+  db = openDb(dir);
+  assert.equal(db.prepare("SELECT vendor_src FROM items WHERE key = '4390'").get().vendor_src, 'api');
+  db.prepare("UPDATE items SET vendor = 185, vendor_src = 'game' WHERE key = '4390'").run();   // neu aus dem Spiel
+  db.close();
+  db = openDb(dir);
+  assert.equal(db.prepare("SELECT vendor_src FROM items WHERE key = '4390'").get().vendor_src, 'game', 'nur einmal');
+  db.close();
+});
+
+test('0.36.0: Kauf aus der Erfolgskontrolle nehmen', () => {
+  const { install } = require('../src/core/chance-client');
+  const bc = { now: () => NOW, store: {}, meta(k, v) { if (v === undefined) return this.store[k] ?? null; this.store[k] = v; return v; } };
+  install(bc);
+  bc.setOwnUse('2589', NOW - 100, true);
+  bc.setOwnUse('2590', NOW - 70 * 86400, true);
+  assert.deepEqual(Object.keys(bc.store.ownUse), [`2589|${NOW - 100}`], 'alte Eintraege fallen weg');
+  bc.setOwnUse('2589', NOW - 100, false);
+  assert.deepEqual(bc.store.ownUse, {});
+});

@@ -62,6 +62,9 @@ const NAV_BOTTOM = ALL.filter((n) => n.always);
 const watchFocus = ref(null);   // ab 0.32.0: Zeile, die Beobachten nach einer Meldung zeigt
 const wipPage = computed(() => ALL.find((n) => n.wip && n.key === view.value) || null);
 const broker = computed(() => !!(data.value && data.value.views.includes('overview')));
+// ab 0.36.0: Seiten, die ohne Marktdaten gehen, solange der Broker Client noch laedt
+const NO_MARKET = new Set(['modules', 'reports', 'settings']);
+const marketWait = computed(() => !!(data.value && data.value.brokerLoading) && !NO_MARKET.has(view.value));
 
 const current = computed(() => {
   const ms = data.value ? data.value.markets : [];
@@ -153,8 +156,22 @@ const syncNote = computed(() => {
   return null;
 });
 
+// ab 0.36.0: Beim ersten Laden kommt der Grundteil sofort (Seitenleiste, Einstellungen, Updates, Rueckmeldungen),
+// die Marktdaten danach. Bis dahin zeigen die Marktseiten einen Hinweis.
+let loadSeq = 0;
 async function load() {
+  const seq = ++loadSeq;
+  if (!data.value) {
+    const [b, s0, u0] = await Promise.all([api.overviewBase(), api.settings(), api.updateInfo()]);
+    if (!data.value) apply(b, s0, u0);
+  }
   const [o, s, u] = await Promise.all([api.overview(), api.settings(), api.updateInfo()]);
+  if (seq !== loadSeq) return;   // ein spaeterer Aufruf ist schon unterwegs
+  apply(o, s, u);
+  if (o.views.includes('favorites')) await loadFavorites();
+  stamp.value++;
+}
+function apply(o, s, u) {
   data.value = o;
   settings.value = s;
   updates.value = u;
@@ -167,8 +184,6 @@ async function load() {
   // Ansicht eines entfernten Moduls: zu den Modulen wechseln. Beim Start ohne Modul gleich dorthin.
   const ok = ALL.some((n) => n.key === view.value && (n.always || o.views.includes(n.key))) || (view.value === 'item' && o.views.includes('items'));
   if (!ok) go(o.views.includes('overview') ? 'overview' : 'modules');
-  if (o.views.includes('favorites')) await loadFavorites();
-  stamp.value++;
   document.documentElement.dataset.theme = s.theme === 'light' ? 'light' : 'dark';
 }
 
@@ -250,7 +265,11 @@ onMounted(() => {
       </header>
 
       <div class="page" ref="pageEl" v-if="data && settings">
-        <KeepAlive :include="['Overview', 'Items', 'Chances', 'Shopping', 'Watch', 'Market']">
+        <section v-if="marketWait" class="wait" role="status">
+          <h1>Marktdaten werden geladen</h1>
+          <p class="muted">Bei einer großen Datenbank dauert das nach dem Start etwas. Einstellungen, Updates und Rückmeldungen kannst du schon öffnen.</p>
+        </section>
+        <KeepAlive v-else :include="['Overview', 'Items', 'Chances', 'Shopping', 'Watch', 'Market']">
           <Overview v-if="view === 'overview'" :data="data" :market="current" :now="now" :theme="settings.theme" :stamp="stampOf('overview')" :settings="settings" @go="go($event)" @open="openItem" @save="saveSettings" />
           <section v-else-if="wipPage" class="wip">
             <h1>{{ wipPage.label }}</h1>
@@ -279,6 +298,9 @@ onMounted(() => {
 
 <style scoped>
 .wip { display: grid; gap: 12px; }
+.wait { display: grid; gap: 8px; max-width: 70ch; }
+.wait h1 { margin: 0; }
+.wait p { margin: 0; }
 .wip h1 { margin: 0; }
 .wip-note { margin: 0; padding: 12px 14px; border: 1px solid var(--warn); border-radius: var(--radius-s); color: var(--warn); font-weight: 500; }
 .shell { display: grid; grid-template-columns: 196px 1fr; grid-template-rows: minmax(0, 1fr); height: 100%; }

@@ -13,6 +13,8 @@ const { Service, updateCheckMs } = require('../src/core/service');
 const { BrokerRemote } = require('../src/core/broker-remote');
 const { createUpdater } = require('./updater');
 const backup = require('../src/core/backup');
+const datadir = require('../src/core/datadir');
+const { log: dbLog } = require('../src/core/db');
 const { money: shopMoney } = require('../src/core/shopping');
 const blizzard = require('../src/core/blizzard');
 const { BlizzardWatch } = require('../src/core/blizzard-watch');
@@ -29,17 +31,41 @@ const HIDDEN = process.argv.includes('--hidden');
 // Addons und Manager: beim Start und dann im eingestellten Abstand (updateCheckMin, Standard 10 Minuten) nach Updates suchen,
 // installiert wird nur per Klick
 // Beobachter der Blizzard-API, nur in der Testfassung: 1 = alle 10 Minuten, sonst Abstand in Millisekunden
+// ab 0.36.0: Startaufgaben warten auf die erste Uebersicht, hoechstens so lange. Aufraeumen erst spaeter.
+const START_WAIT_MS = 30 * 1000;
+const START_PRUNE_MS = 5 * 60 * 1000;
 const WATCH_MS = process.env.PEON_MANAGER_BLIZZARD_WATCH ? (Number(process.env.PEON_MANAGER_BLIZZARD_WATCH) > 1 ? Number(process.env.PEON_MANAGER_BLIZZARD_WATCH) : 10 * 60 * 1000) : 0;
 
 // Ordner mit Runtime und DB nebeneinander: wird von Hand getauscht, kein Selbst-Update
 const SIDE_DB = path.join(path.dirname(process.execPath), '..', 'DB');
 const BESIDE = !DEV && fs.existsSync(SIDE_DB);
 
+// ab 0.36.0: Der Datenordner laesst sich unter Einstellungen verlegen (datadir.js). Nicht bei PEON_MANAGER_DB, in der
+// Entwicklung und im Ordner mit Runtime und DB nebeneinander, dort legt der Ordner selbst fest, wo die Daten liegen.
+const MOVABLE = !process.env.PEON_MANAGER_DB && !DEV && !BESIDE;
+const defaultDataDir = () => path.join(app.getPath('userData'), 'Daten');   // installiert: %APPDATA%\Peon Manager\Daten
+
 function dataDir() {
   if (process.env.PEON_MANAGER_DB) return process.env.PEON_MANAGER_DB;
   if (DEV) return path.join(ROOT, 'data');
   if (BESIDE) return SIDE_DB;                            // <Programmordner>\Runtime\PeonManager.exe -> <Programmordner>\DB
-  return path.join(app.getPath('userData'), 'Daten');    // installiert: %APPDATA%\Peon Manager\Daten
+  return datadir.resolve(app.getPath('userData'), defaultDataDir());
+}
+
+// Vorgemerkten Umzug vor dem Oeffnen der Datenbanken ausfuehren, mit einem kleinen Fenster, solange kopiert wird
+async function moveIfPending() {
+  if (!MOVABLE || !datadir.pending(app.getPath('userData'))) return null;
+  const note = new BrowserWindow({ width: 460, height: 150, resizable: false, minimizable: false, maximizable: false, title: 'Peon Manager',
+    autoHideMenuBar: true, backgroundColor: '#0e110f', webPreferences: { sandbox: true, contextIsolation: true } });
+  note.removeMenu();
+  const html = '<body style="font:14px Segoe UI,sans-serif;background:#0e110f;color:#e6ebe4;padding:22px">'
+    + '<b>Peon Manager zieht die Daten um</b><p style="color:#9aa597">Das dauert bei einer großen Datenbank etwas. Bitte nicht beenden.</p></body>';
+  note.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+  try {
+    return await datadir.applyPending(app.getPath('userData'), defaultDataDir());
+  } finally {
+    note.destroy();
+  }
 }
 
 app.setAppUserModelId('de.peon.manager');   // sonst zeigt Windows keine Meldungen
@@ -48,6 +74,13 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   let win = null, tray = null, svc = null, quitting = false, updater = null, blizzardAccess = null, blizzardWatch = null;
+  let startTasks = null;   // ab 0.36.0: Aufgaben nach der ersten Uebersicht
+  function releaseStart() {
+    if (!startTasks) return;
+    const f = startTasks;
+    startTasks = null;
+    f();
+  }
   const watchers = [];
   let lastSeen = new Map();
   let pending = null;
@@ -359,7 +392,9 @@ if (!app.requestSingleInstanceLock()) {
 
   // ---------- Befehle fuer die Oberflaeche ----------
   function registerIpc() {
-    ipcMain.handle('overview', () => svc.overviewAsync());
+    // ab 0.36.0: Grundteil sofort, die erste volle Uebersicht gibt die Startaufgaben frei
+    ipcMain.handle('overviewBase', () => svc.overviewBase());
+    ipcMain.handle('overview', async () => { try { return await svc.overviewAsync(); } finally { releaseStart(); } });
     ipcMain.handle('blizzardState', () => blizzardState());
     ipcMain.handle('blizzardSave', (_e, c) => { blizzardAccess.save(c); watchBlizzard().catch(() => {}); return blizzardState(); });
     ipcMain.handle('blizzardClear', () => { blizzardAccess.clear(); blizzardWatch = null; return blizzardState(); });
@@ -399,6 +434,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('brief', (_e, market, key, days) => (svc.broker ? svc.broker.brief(String(market), String(key), Number(days) || 14) : null));
     ipcMain.handle('marketOverview', (_e, market) => (svc.broker ? svc.broker.marketOverview(String(market)) : null));
     ipcMain.handle('successView', (_e, market) => (svc.broker ? svc.broker.successView(String(market)) : null));
+    ipcMain.handle('setOwnUse', (_e, key, t, on) => (svc.broker ? svc.broker.setOwnUse(String(key), Number(t), !!on) : false));
     ipcMain.handle('chanceRules', () => (svc.broker ? svc.broker.chanceRules() : null));
     ipcMain.handle('setChanceRules', (_e, patch) => chanceChanged(svc.broker.setChanceRules(patch || {})));
     ipcMain.handle('resetChanceRules', (_e, kind) => chanceChanged(svc.broker.resetChanceRules(String(kind || ''))));
@@ -454,6 +490,25 @@ if (!app.requestSingleInstanceLock()) {
       const r = await dialog.showOpenDialog(win, { title: 'Ordner der Sicherung wählen', properties: ['openDirectory'] });
       if (r.canceled || !r.filePaths[0]) return null;
       return { dir: r.filePaths[0], ...backup.inspect(r.filePaths[0]) };
+    });
+    // ab 0.36.0: Datenordner verlegen
+    ipcMain.handle('dataDirInfo', () => {
+      const p = MOVABLE ? datadir.pointer(app.getPath('userData')) : null;
+      return { dir: svc.dbDir, movable: MOVABLE, previous: p && p.from && fs.existsSync(p.from) ? p.from : null, isDefault: MOVABLE && svc.dbDir === defaultDataDir() };
+    });
+    ipcMain.handle('dataDirPick', async () => {
+      if (!MOVABLE) return null;
+      const r = await dialog.showOpenDialog(win, { title: 'Neuer Ordner für die Daten', properties: ['openDirectory', 'createDirectory'] });
+      if (r.canceled || !r.filePaths[0]) return null;
+      return datadir.check(svc.dbDir, r.filePaths[0]);
+    });
+    ipcMain.handle('dataDirMove', (_e, to) => {
+      if (!MOVABLE) return false;
+      datadir.request(app.getPath('userData'), svc.dbDir, String(to));
+      quitting = true;
+      app.relaunch();
+      app.quit();
+      return true;
     });
     ipcMain.handle('backupRestore', (_e, dir) => {
       backup.request(svc.dbDir, String(dir));
@@ -525,7 +580,8 @@ if (!app.requestSingleInstanceLock()) {
     });
   }
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
+    const moved = await moveIfPending().catch((e) => ({ ok: false, error: e.message }));
     // keine Woerterbuecher fuer die Rechtschreibpruefung aus dem Netz laden
     try { session.defaultSession.setSpellCheckerEnabled(false); session.defaultSession.setSpellCheckerLanguages([]); } catch { /* egal */ }
     // PEON_MANAGER_RELEASES: nachgebautes Release statt GitHub (nur zum Testen)
@@ -533,6 +589,7 @@ if (!app.requestSingleInstanceLock()) {
     // Modul Peon Broker Client im Arbeitsprozess (ab 0.23.0), Fehler dort landen im Protokoll
     const brokerFactory = (host) => new BrokerRemote(host, { onError: (e) => { try { host.logManager('manager', false, `Arbeitsprozess: ${e.message}`); } catch { /* egal */ } } });
     svc = new Service({ dbDir: dataDir(), version: app.getVersion(), releases: rel ? { releaseBase: rel, apiBase: `${rel}/api` } : undefined, brokerFactory });
+    if (moved) dbLog(svc.db, 'manager', moved.ok, moved.ok ? `Datenordner umgezogen nach ${moved.to}, der bisherige Ordner bleibt als Sicherung liegen` : `Datenordner nicht umgezogen: ${moved.error}`);
     updater = createUpdater({ enabled: app.isPackaged && !BESIDE, svc, onChange: () => { send('changed', { what: 'update' }); if (updater && updater.state().status === 'ready') notifyUpdates(); }, beforeInstall: () => { quitting = true; } });
     blizzardAccess = new blizzard.BlizzardAccess({ keyFile: path.join(svc.dbDir, 'blizzard-zugang.dat'), reportFile: path.join(svc.dbDir, 'blizzard-pruefung.json'),
       encrypt: (s) => safeStorage.encryptString(s), decrypt: (b) => safeStorage.decryptString(b), available: () => safeStorage.isEncryptionAvailable() });
@@ -540,8 +597,14 @@ if (!app.requestSingleInstanceLock()) {
     createTray();
     createWindow();
     if (!HIDDEN) win.__userOpened = true;
-    runImport('Start');
-    pruneNow();
+    // ab 0.36.0: Einlesen, Blizzard-API und Aufraeumen erst nach der ersten Uebersicht. Der Arbeitsprozess erledigt alles
+    // der Reihe nach, sonst wartet das Fenster beim Start hinter dem Einlesen. Aufraeumen erst nach 5 Minuten.
+    startTasks = () => {
+      runImport('Start');
+      runBlizzard().catch(() => {});
+      setTimeout(pruneNow, START_PRUNE_MS);
+    };
+    setTimeout(releaseStart, START_WAIT_MS);   // ohne Fenster (Autostart unsichtbar) spaetestens dann
     setInterval(async () => {
       if (!svc.broker) return;
       const t = (await svc.broker.meta('pruneAt').catch(() => 0)) || 0;
@@ -566,7 +629,6 @@ if (!app.requestSingleInstanceLock()) {
       if (Date.now() - lastAddonCheck >= updateCheckMs(svc.settings.updateCheckMin)) checkAddons().catch(() => {});
     }, 60 * 1000);
     // Blizzard-API: einmal je Minute nachsehen, ob ein Haus dran ist. Abgefragt wird nur, wenn ein neuer Stand zu erwarten ist.
-    runBlizzard().catch(() => {});
     setInterval(() => runBlizzard().catch(() => {}), 60 * 1000);
     if (WATCH_MS) {
       watchBlizzard().catch(() => {});

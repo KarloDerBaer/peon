@@ -328,6 +328,13 @@ local t, mk, it = ns.DataInfo()
 check(t == clock + 100 and mk == 1 and it == 2, "Werte des Clients gezaehlt")
 RunScan()
 check(PeonBridgeDB.queue[1].names == nil, "naechster Scan ohne bekannte Namen")
+-- 0.12.0: Stand von 0.11 (nameFmt 2) schickt alle Namen samt Haendlerpreis einmal neu
+PeonBridgeDB.nameFmt = 2
+ns.Prepare()
+check(PeonBridgeDB.nameFmt == 3 and next(PeonBridgeDB.nameIds) == nil, "0.12.0: Namen einmal neu schicken")
+PeonBridgeDB.nameIds[2770] = true
+ns.Prepare()
+check(PeonBridgeDB.nameIds[2770] == true, "0.12.0: nur einmal")
 PeonBridgeData.ack = { ["nicht-da"] = true }
 check(ns.ApplyAck() == 0 and #PeonBridgeDB.queue == 1, "fremde Bestaetigung loescht nichts")
 

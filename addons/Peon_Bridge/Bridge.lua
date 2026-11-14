@@ -80,8 +80,9 @@ function ns.Prepare()
     if type(acc.nameIds) ~= "table" then acc.nameIds = {} end   -- itemIDs, deren Namen der Manager schon hat
     if type(acc.tipIds) ~= "table" then acc.tipIds = {} end     -- Schluessel, deren Werte der Manager schon hat (ab 0.6.0)
     if type(acc.seq) ~= "number" then acc.seq = 0 end
-    -- ab Peon_Client 0.3.0 haengen an jedem Namen Haendlerpreis und Warenart: alle Namen einmal neu schicken
-    if acc.nameFmt ~= 2 then acc.nameIds, acc.nameFmt = {}, 2 end
+    -- ab Peon_Client 0.3.0 haengen an jedem Namen Haendlerpreis und Warenart: alle Namen einmal neu schicken.
+    -- ab 0.12.0 noch einmal: Der Manager hatte Haendlerpreise aus dem Spiel mit Werten der Blizzard-API ueberschrieben.
+    if acc.nameFmt ~= 3 then acc.nameIds, acc.nameFmt = {}, 3 end
     acc.fmt = ns.FMT
 end
 

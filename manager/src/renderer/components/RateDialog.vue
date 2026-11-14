@@ -32,7 +32,7 @@ async function save() {
       <div class="reasons">
         <button v-for="r in REASONS" :key="r" class="chip" :class="{ on: reason === r }" @click="reason = reason === r ? null : r">{{ r }}</button>
       </div>
-      <textarea v-model="note" maxlength="250" rows="3" placeholder="Bemerkung (freiwillig, bis 250 Zeichen)" aria-label="Bemerkung"></textarea>
+      <textarea v-model="note" maxlength="1000" rows="5" placeholder="Bemerkung (freiwillig, bis 1000 Zeichen)" aria-label="Bemerkung"></textarea>
       <div class="row">
         <span class="small faint">{{ note.length }} / 250</span>
         <span class="grow"></span>

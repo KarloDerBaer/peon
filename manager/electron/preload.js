@@ -4,6 +4,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('peon', {
   overview: () => ipcRenderer.invoke('overview'),
+  overviewBase: () => ipcRenderer.invoke('overviewBase'),
+  dataDirInfo: () => ipcRenderer.invoke('dataDirInfo'),
+  dataDirPick: () => ipcRenderer.invoke('dataDirPick'),
+  dataDirMove: (to) => ipcRenderer.invoke('dataDirMove', to),
   blizzardState: () => ipcRenderer.invoke('blizzardState'),
   blizzardSave: (access) => ipcRenderer.invoke('blizzardSave', access),
   blizzardClear: () => ipcRenderer.invoke('blizzardClear'),
@@ -29,6 +33,7 @@ contextBridge.exposeInMainWorld('peon', {
   brief: (market, key, days) => ipcRenderer.invoke('brief', market, key, days),
   marketOverview: (market) => ipcRenderer.invoke('marketOverview', market),
   successView: (market) => ipcRenderer.invoke('successView', market),
+  setOwnUse: (key, t, on) => ipcRenderer.invoke('setOwnUse', key, t, on),
   chanceRules: () => ipcRenderer.invoke('chanceRules'),
   setChanceRules: (patch) => ipcRenderer.invoke('setChanceRules', patch),
   resetChanceRules: (kind) => ipcRenderer.invoke('resetChanceRules', kind),

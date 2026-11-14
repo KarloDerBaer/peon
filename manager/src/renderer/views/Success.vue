@@ -2,7 +2,7 @@
 // Erfolgskontrolle (ab Manager 0.35.0, Peon_Manager_Chancen.md Abschnitt 8): Trefferquote je Art und je Signal ueber
 // 30 Tage mit Verlauf, dazu die eigenen Kaeufe im Auktionshaus aus Ledger mit Einsatz, Erloes und Dauer.
 // Die fruehere Trefferquote des Wiederverkaufs (F55) ist hierin aufgegangen.
-import { ref, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import Gold from '../components/Gold.vue';
 import { num, qualityColor, itemName, when } from '../util.js';
 
@@ -13,6 +13,14 @@ async function load() { if (props.market) d.value = await window.peon.successVie
 onMounted(load);
 watch(() => [props.market && props.market.key, props.stamp], load);
 const KIND = { s: 'Spekulation schnell', l: 'Spekulation langfristig', b: 'Aufkauf', v: 'Händler' };
+// ab 0.36.0: Kauf zum Behalten, zaehlt nicht als Spekulation
+const ownBuys = computed(() => (d.value ? d.value.buys.filter((b) => b.own) : []));
+const tradeBuys = computed(() => (d.value ? d.value.buys.filter((b) => !b.own) : []));
+const showOwn = ref(false);
+async function setOwn(b, on) {
+  await window.peon.setOwnUse(b.key, b.t, on);
+  b.own = on;
+}
 const pctOf = (x) => (x == null ? '–' : `${Math.round(x * 100)} %`);
 // kleine Linie aus den Tagen
 function path(days) {
@@ -54,10 +62,10 @@ function path(days) {
       </section>
       <section class="box">
         <h3>Eigene Käufe im Auktionshaus (aus Ledger)</h3>
-        <table class="tbl" v-if="d.buys.length">
-          <thead><tr><th>Gekauft</th><th>Gegenstand</th><th class="num">Stück</th><th class="num">Einsatz</th><th class="num">Erlös</th><th class="num">Dauer</th><th>Vorschlag</th></tr></thead>
+        <table class="tbl" v-if="tradeBuys.length">
+          <thead><tr><th>Gekauft</th><th>Gegenstand</th><th class="num">Stück</th><th class="num">Einsatz</th><th class="num">Erlös</th><th class="num">Dauer</th><th>Vorschlag</th><th></th></tr></thead>
           <tbody>
-            <tr v-for="b in d.buys" :key="b.t + b.key" class="click" @click="emit('brief', b.key)">
+            <tr v-for="b in tradeBuys" :key="b.t + b.key" class="click" @click="emit('brief', b.key)">
               <td class="small muted">{{ when(b.t) }}</td>
               <td :style="{ color: qualityColor(b.quality) }">{{ itemName({ name: b.name, item: b.key }) }}</td>
               <td class="num">{{ num(b.qty) }}</td>
@@ -65,10 +73,27 @@ function path(days) {
               <td class="num"><Gold v-if="b.income" :copper="b.income" compact /><span v-else class="faint">noch nicht verkauft</span></td>
               <td class="num small">{{ b.hours == null ? '–' : b.hours < 24 ? Math.round(b.hours) + ' Std.' : Math.round(b.hours / 24) + ' Tage' }}</td>
               <td class="small">{{ b.kind ? KIND[b.kind] : '–' }}</td>
+              <td class="num"><button class="small" title="Für dich selbst gekauft, zählt nicht als Spekulation" @click.stop="setOwn(b, true)">Behalte ich</button></td>
             </tr>
           </tbody>
         </table>
-        <p v-else class="small muted">Keine Käufe in den letzten 30 Tagen gefunden.</p>
+        <p v-if="d.buys.length && !tradeBuys.length" class="small muted">Alle Käufe sind als „Behalte ich“ markiert.</p>
+        <p v-if="ownBuys.length" class="small muted">
+          {{ ownBuys.length === 1 ? '1 Kauf behältst' : `${num(ownBuys.length)} Käufe behältst` }} du selbst, {{ ownBuys.length === 1 ? 'er zählt' : 'sie zählen' }} hier nicht mit.
+          <button class="link" @click="showOwn = !showOwn">{{ showOwn ? 'Ausblenden' : 'Zeigen' }}</button>
+        </p>
+        <table class="tbl own" v-if="showOwn && ownBuys.length">
+          <tbody>
+            <tr v-for="b in ownBuys" :key="'o' + b.t + b.key">
+              <td class="small muted">{{ when(b.t) }}</td>
+              <td :style="{ color: qualityColor(b.quality) }">{{ itemName({ name: b.name, item: b.key }) }}</td>
+              <td class="num">{{ num(b.qty) }}</td>
+              <td class="num"><Gold :copper="b.cost" compact /></td>
+              <td class="num"><button class="small" @click="setOwn(b, false)">Doch mitzählen</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-if="!d.buys.length" class="small muted">Keine Käufe in den letzten 30 Tagen gefunden.</p>
       </section>
     </template>
   </div>
@@ -87,5 +112,6 @@ function path(days) {
 .num { text-align: right !important; }
 .strong { font-weight: 600; }
 .click { cursor: pointer; }
+.own td { opacity: 0.75; }
 .click:hover td { background: var(--panel); }
 </style>

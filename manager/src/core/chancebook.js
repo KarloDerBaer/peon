@@ -12,7 +12,7 @@ const spec = require('./spec');
 const proof = require('./proof');
 
 const REASONS = ['Scherzpreis', 'verkauft sich nicht', 'Zielpreis zu hoch', 'zu riskant', 'schon bekannt', 'lief gut', 'gekauft'];
-const NOTE_MAX = 250;
+const NOTE_MAX = 1000;   // ab 0.36.0, vorher 250 (Rueckmeldung: zu kurz)
 const WINDOW = { s: 3, b: 1, v: 1 };   // Tage bis zur Nachpruefung (l: Zeitraum der Prognose)
 const KEEP = 45;                        // Tage, die D5 aufgehoben wird
 

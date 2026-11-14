@@ -276,6 +276,12 @@ class Service {
   // ---------- Daten fuer die Oberflaeche ----------
   overview() { return this.overviewFrom(this.broker && this.broker.overview(), this.broker && this.broker.get('pruning'), this.broker && this.broker.sync()); }
 
+  // ab 0.36.0: Grundteil ohne Arbeitsprozess fuer den Start. Seitenleiste, Einstellungen, Updates und Rueckmeldungen gehen
+  // damit sofort, die Marktseiten warten auf overviewAsync (brokerLoading).
+  overviewBase() {
+    return { ...this.overviewFrom(null), brokerLoading: !!this.broker };
+  }
+
   // Wie overview, fuer das Modul im Arbeitsprozess (ab 0.23.0)
   async overviewAsync() {
     if (!this.broker) return this.overviewFrom(null);
