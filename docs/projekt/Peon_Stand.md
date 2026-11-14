@@ -48,7 +48,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - **Vorläufiges Fenster für Hexenmeister** (Guide.lua): erscheint beim Einloggen, führt durch die Prüfung, legt das Makro an und schickt das Ergebnis über Peon_Feedback an den Manager (Kern-API 22). Haken „Nicht mehr anzeigen“. Fällt mit der nächsten Version weg.
 - Funktionen bisher: nur der Prüfbefehl. Er testet, ob ein Seelensplitter ohne Tastendruck, per Klick, per Makro `/click PeonClassBuddyShard` und mit einer Aktionstaste vernichtet werden kann, jeweils außerhalb und im Kampf. Je Weg und Zustand höchstens ein Splitter.
 - Konzept: `docs\konzepte\classbuddy\Peon_ClassBuddy_Konzept.md`, Verlauf: `docs/changelog/Peon_ClassBuddy.md`
-- Im Spiel prüfen: Ein Freund von KarloDerBaer geht die Prüfung mit seinem Hexenmeister durch (mindestens 8 Splitter) und sendet das Ergebnis über den Manager. Braucht Peon 0.22.0 und Peon_Feedback 0.5.0. Vorabversion `v2026.11.14.4-test` (14.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen.
+- **Prüfung erledigt (14.11.2026, Vorabversion `v2026.11.14.4-test`):** Ein Mitspieler hat sie mit seinem Hexenmeister gemacht (peon-fehler #38 bis #42). Ohne Tastendruck gesperrt, Klick und Makro gehen auch im Kampf, Aktionstaste über `UseAction` außerhalb des Kampfes ja, im Kampf einmal gescheitert. Auswertung im Konzept Abschnitt 4.3.
 
 ## Peon_Fishing – 1.6.0 (früher FishingPlus)
 
@@ -280,7 +280,7 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
 
 - Helfer je Klasse in einem Modul, ersetzt Peon_ComboPoints (Einstellungen werden übernommen).
 - Schurke: Combo-Punkte unverändert. Hexenmeister: überzählige Seelensplitter vernichten, Regel einstellbar (Standard: Seelentasche voll), ausgelöst zusammen mit einem Zauber.
-- Nächster Schritt: Prüfbefehl im Spiel, ob und wie Vernichten mit einem Zauber und im Kampf geht (Konzept 4.3).
+- Prüfung erledigt (Konzept 4.3). Nächster Schritt: Weg festlegen mit KarloDerBaer, dann Umzug der Combo-Punkte und Seelensplitter bauen.
 
 ### Einheitliches UI-Design für alle Peon-Fenster (beauftragt 11.11.2026)
 
