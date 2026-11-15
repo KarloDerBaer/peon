@@ -1647,7 +1647,7 @@ end)()
     A.hooked, LT.hooked = nil, nil
     mod.acc.commodity[7961] = true
     fire("AUCTION_HOUSE_SHOW")
-    check(plain(ah.SellTab.text) == "Verkaufen" and ah.SellTab.badge and ah.SellTab.badge.shown and ah.SellTab.badge.text.text == "1",
+    check(plain(ah.SellTab.text) == "Verkaufen" and ah.SellTab.corner and ah.SellTab.corner.shown and ah.SellTab.corner.text.text == "1",
       "H3/0.82: Blizzards Reiter Verkaufen mit Zahl im roten Kreis")
     sf:UpdatePostState()
     local box = A.boxes[sf]
@@ -2603,11 +2603,19 @@ end)()
   R.CountHits = function() return 3 end
   R.LoadFromScan = function() end
   mod:Fire("SCAN_DONE", "Markt")
+  local wWith = T.tabs.radar.w
+  local cp = T.tabs.radar.corner.points and T.tabs.radar.corner.points[1]
+  check(cp and cp[1] == "CENTER" and cp[2] == T.tabs.radar and cp[3] == "BOTTOMRIGHT", "0.96.2: Zahl auf der Ecke unten rechts")
+  local wt
+  for _, b in ipairs(ns.Window.tabs or {}) do if b.key == "radar" then wt = b end end
+  check(wt and wt.corner and wt.corner.shown and wt.corner.text.text == "3" and not (wt.badge and wt.badge.shown), "0.96.2: im Broker-Fenster ebenso")
   check(T.badges.radar and T.badges.radar.n == 3 and T.badges.radar.blink and T.tabs.radar.text == ns.L.AHTAB_RADAR
-    and T.tabs.radar.badge.shown and T.tabs.radar.badge.text.text == "3", "U7/0.82: Radar mit roter 3 nach dem Scan")
+    and T.tabs.radar.corner.shown and T.tabs.radar.corner.text.text == "3", "U7/0.82: Radar mit roter 3 nach dem Scan")
   check(T.tabs.radar.scripts.OnUpdate ~= nil, "U7: Reiter blinkt")
   T.tabs.radar.scripts.OnClick(T.tabs.radar)
-  check(T.badges.radar == nil and T.tabs.radar.text == ns.L.AHTAB_RADAR and not T.tabs.radar.badge.shown and T.tabs.radar.scripts.OnUpdate == nil, "U7: geoeffnet -> Zahl und Blinken weg")
+  check(T.badges.radar == nil and T.tabs.radar.text == ns.L.AHTAB_RADAR and not T.tabs.radar.corner.shown and T.tabs.radar.scripts.OnUpdate == nil, "U7: geoeffnet -> Zahl und Blinken weg")
+  T.SetBadge("radar", nil)
+  check(T.tabs.radar.w == wWith, "0.96.2: Reiter mit und ohne Zahl gleich breit: " .. tostring(wWith) .. " " .. tostring(T.tabs.radar.w))
   R.CountHits = function() return 0 end
   ah:SetDisplayMode("Buy")
   mod:Fire("SCAN_DONE", "Markt")

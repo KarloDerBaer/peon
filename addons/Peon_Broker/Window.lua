@@ -178,13 +178,30 @@ function W.NewBack(parent, anchor)
     return b
 end
 
+-- ab 0.96.2 (KarloDerBaer 15.11.2026): Die Zahl sitzt als roter Kreis auf der unteren rechten Ecke des Reiters. Bis 0.96.1
+-- stand sie neben dem Text, der Reiter wurde breiter und mit neun Reitern ragten sie aus dem Fenster. Oben waere sie
+-- unter dem Fensterrahmen verdeckt, unten ist frei. Gilt im Broker-Fenster und im Auktionshaus (AHTabs.ShowBadge).
+W.CORNER_X, W.CORNER_Y = -10, 5
+function W.CornerBadge(tab)
+    if tab.corner then return tab.corner end
+    local UI = Peon.UI
+    if not (UI and UI.Badge) then return nil end
+    local b = UI.Badge(tab)
+    b:ClearAllPoints()
+    b:SetPoint("CENTER", tab, "BOTTOMRIGHT", W.CORNER_X, W.CORNER_Y)
+    if b.SetFrameLevel and tab.GetFrameLevel then b:SetFrameLevel((tab:GetFrameLevel() or 1) + 10) end
+    tab.corner = b
+    return b
+end
+
 -- Zahl am Reiter (wie im Auktionshaus, dort setzt sie AHTabs.SetBadge)
 function W.ApplyBadges()
     if not W.tabs then return end
     local T = ns.AHTabs
     for _, b in ipairs(W.tabs) do
         local badge = T and T.badges and T.badges[b.key]
-        if b.SetBadge then b:SetBadge(badge and badge.n or 0) end
+        local c = W.CornerBadge(b)
+        if c then c:SetCount(badge and badge.n or 0) end
     end
 end
 

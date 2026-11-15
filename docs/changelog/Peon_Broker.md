@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.96.2
+
+Kurz: Die rote Zahl an einem Reiter sitzt jetzt auf seiner unteren rechten Ecke. Die Reiter werden dadurch nicht mehr breiter und passen wieder ins Fenster.
+
+- 0.96.2 (15.11.2026, Rückmeldung KarloDerBaer mit Bild): Mit Zahlen an Einkaufen und Beobachten ragten die neun Reiter rechts aus dem Auktionshaus.
+  - **Ursache:** Die Zahl stand neben dem Text, `Peon.UI.FitTab` machte den Reiter um ihre Breite länger.
+  - **Behoben:** Neue `Window.CornerBadge`: die Zahl als roter Kreis auf der unteren rechten Ecke (`tab.corner`, oben läge sie unter dem Fensterrahmen). Im Broker-Fenster und im Auktionshaus, auch am Reiter Verkaufen. Der Kern bleibt unverändert.
+  - Tests: Zahl auf der Ecke, Reiter mit und ohne Zahl gleich breit, Broker-Fenster ebenso (`test_broker.lua`).
+  - **Im Spiel prüfen:** Zahl an Einkaufen und Beobachten gut sichtbar, nichts ragt aus dem Fenster.
+
 ## 0.96.1
 
 Kurz: Der Tooltip eines Rezepts zeigt jetzt die Preise des Rezepts. Bisher standen dort die Preise des Gegenstands, den das Rezept herstellt.

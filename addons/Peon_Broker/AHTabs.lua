@@ -572,18 +572,15 @@ T.BLINK_SPEED = 2.5   -- Wechsel je Sekunde
 
 -- ab 0.82: Zahl am Reiter als roter Kreis wie im UI-Design (Peon.UI.Badge), vorher "Einkaufen (1)" im Text.
 -- Auch an Blizzards Reiter Verkaufen (eigener Rahmen am Reiter, Blizzards Text bleibt).
+-- ab 0.96.2: auf der unteren rechten Ecke, der Reiter wird nicht breiter (Window.CornerBadge)
 function T.AddBadge(tab)
-    local UI = Peon.UI
-    if tab.badge or not (UI and UI.Badge) then return end
-    tab.badge = UI.Badge(tab)
-    local fs = tab.Text or (tab.GetFontString and tab:GetFontString())
-    if fs then tab.badge:SetPoint("LEFT", fs, "RIGHT", 4, 0) else tab.badge:SetPoint("RIGHT", -10, 0) end
+    return ns.Window.CornerBadge(tab)   -- als tab.corner, nicht tab.badge: das zaehlt Peon.UI.FitTab zur Breite
 end
 
 function T.ShowBadge(tab, n)
     if not tab then return end
     T.AddBadge(tab)
-    if tab.badge then tab.badge:SetCount(n or 0) end
+    if tab.corner then tab.corner:SetCount(n or 0) end
     local UI = Peon.UI
     if UI and UI.FitTab then UI.FitTab(tab)
     elseif PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, tab, 20, nil, 70) end
@@ -601,16 +598,16 @@ function T.SetBadge(key, n, blink)
     T.ShowBadge(tab, b and b.n or 0)
     T.AlignSoon()
     -- Blinken: der rote Kreis pulsiert (bis 0.81 der Text)
-    if b and b.blink and tab.badge then
+    if b and b.blink and tab.corner then
         tab.blinkT = 0
         tab:SetScript("OnUpdate", function(self, dt)
             self.blinkT = (self.blinkT or 0) + (dt or 0)
             local a = 0.55 + 0.45 * math.abs(math.sin(self.blinkT * T.BLINK_SPEED))
-            if self.badge.SetAlpha then self.badge:SetAlpha(a) end
+            if self.corner.SetAlpha then self.corner:SetAlpha(a) end
         end)
     else
         tab:SetScript("OnUpdate", nil)
-        if tab.badge and tab.badge.SetAlpha then tab.badge:SetAlpha(1) end
+        if tab.corner and tab.corner.SetAlpha then tab.corner:SetAlpha(1) end
     end
 end
 
