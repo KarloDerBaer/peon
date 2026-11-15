@@ -132,7 +132,7 @@ const methods = {
     const rules = this.chanceRules();
     const levels = new Map(db.prepare('SELECT item_id, req, equip FROM item_level WHERE req IS NOT NULL').all().map((x) => [x.item_id, x]));
     const fc = forecast.marketForecasts({ db, mid, now, today, bands: bd.items, values: bd.days, qty: this.snaps.dayQty(mid, now, 14), sales: stats,
-      levels, fests: this.fests(), switches: rules.f.signals });
+      levels, fests: this.fests(), festMap: this.festSignalsOf(mid), switches: rules.f.signals });
     const ctx = {
       mid, now, today, t: last ? last.t : null, age: last ? Math.max(0, now - last.t) : Infinity, rows, offers, stats, bands: bd.items, shifts: bd.shifts, days: bd.days,
       proof: pr, dur, rules, broker: this.brokerRules(), forecasts: fc.list, index: fc.index, signalRates: fc.rates,
@@ -301,7 +301,7 @@ const methods = {
     const biggest = [...mv.up, ...mv.down].sort((a, b) => Math.abs(b.change) - Math.abs(a.change)).slice(0, 50);
     const name = (k) => { const i = ctx.info(k); return { key: k, name: i.name, quality: i.quality, item: i.item_id }; };
     const index = [...ctx.index.values()].sort((a, b) => a.band - b.band || a.equip - b.equip).map((x) => ({ ...x, keys: undefined, rank: x.rank.map((r) => ({ ...r, ...name(r.key) })) }));
-    const fs_ = forecast.festSignals(this.db, mid, this.fests(), this.now());
+    const fs_ = this.festSignalsOf(mid);
     const fests = this.fests().filter((f) => f.s > this.now() - 3 * 86400).sort((a, b) => a.s - b.s).map((f) => ({ ...f,
       items: [...fs_].filter(([, l]) => l.some((x) => x.name === f.n && x.start === f.s)).map(([k, l]) => ({ ...name(k), change: l.find((x) => x.name === f.n).change }))
         .sort((a, b) => Math.abs(b.change) - Math.abs(a.change)).slice(0, 30) }));
@@ -400,6 +400,19 @@ const methods = {
   },
 
   // ---------- Feste (D4, aus Broker) und eigene Ereignisse ----------
+  // ab 0.39.1: Feste-Signale hoechstens einmal je Stunde und Markt rechnen. Sie haengen nur an den Preisen um das letzte
+  // gleiche Fest, nicht am neuesten Stand. Vorher bei jedem Einlesen, mit grossen Daten rund 60 Sek. (Manager blockiert).
+  festSignalsOf(mid) {
+    const now = this.now();
+    const fests = this.fests();
+    const key = `${Math.floor(now / 3600)}|${fests.length}|${JSON.stringify(fests.map((f) => [f.n, f.s]))}`;
+    this.festCache = this.festCache || new Map();
+    const c = this.festCache.get(mid);
+    if (c && c.key === key) return c.value;
+    const value = forecast.festSignals(this.db, mid, fests, now);
+    this.festCache.set(mid, { key, value });
+    return value;
+  },
   fests() {
     const out = [...(this.meta('feste') || [])];
     for (const e of this.meta('events') || []) out.push({ ...e, own: true });

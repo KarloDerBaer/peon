@@ -132,20 +132,27 @@ function levelIndex(salesByKey, levels, values, bands, today) {
 
 // F65 Feste: fuer jedes Fest, das in den naechsten 14 Tagen beginnt, das letzte gleiche Fest suchen und den
 // Preis damals vergleichen. Rueckgabe Map key -> [{ name, start, change }]
+// ab Manager 0.39.1: "+market_id" laesst SQLite den Index ueber die Zeit nehmen (vorher las jede Abfrage alle Zeilen des
+// Markts, mit 3,7 Mio. Zeilen rund 16 Sek.), und jedes Zeitfenster wird nur einmal gelesen (ein woechentliches Fest
+// steht mehrmals in der Liste und hat dasselbe letzte Mal).
 function festSignals(db, marketId, fests, now) {
   const out = new Map();
   const soon = fests.filter((f) => f.s > now && f.s - now <= P.festAhead * 86400);
+  const avgs = new Map();
+  const avg = (from, to) => {
+    const k = `${from}|${to}`;
+    if (avgs.has(k)) return avgs.get(k);
+    const m = new Map();
+    const put = (r) => { const x = m.get(r.item_key) || { s: 0, n: 0 }; x.s += r.m * r.n; x.n += r.n; m.set(r.item_key, x); };
+    for (const tb of ['item_hour', 'item_day', 'item_snap']) {
+      for (const r of db.prepare(`SELECT item_key, AVG(median) AS m, COUNT(*) AS n FROM ${tb} WHERE +market_id = ? AND source = 'scan' AND t >= ? AND t < ? AND median > 0 GROUP BY item_key`).iterate(marketId, from, to)) put(r);
+    }
+    avgs.set(k, m);
+    return m;
+  };
   for (const f of soon) {
     const prev = fests.filter((x) => x.n === f.n && x.s < now && x.s < f.s).sort((a, b) => b.s - a.s)[0];
     if (!prev) continue;
-    const avg = (from, to) => {
-      const m = new Map();
-      const put = (r) => { const x = m.get(r.item_key) || { s: 0, n: 0 }; x.s += r.m * r.n; x.n += r.n; m.set(r.item_key, x); };
-      for (const r of db.prepare("SELECT item_key, AVG(median) AS m, COUNT(*) AS n FROM item_hour WHERE market_id = ? AND source = 'scan' AND t >= ? AND t < ? AND median > 0 GROUP BY item_key").iterate(marketId, from, to)) put(r);
-      for (const r of db.prepare("SELECT item_key, AVG(median) AS m, COUNT(*) AS n FROM item_day WHERE market_id = ? AND source = 'scan' AND t >= ? AND t < ? AND median > 0 GROUP BY item_key").iterate(marketId, from, to)) put(r);
-      for (const r of db.prepare("SELECT item_key, AVG(median) AS m, COUNT(*) AS n FROM item_snap WHERE market_id = ? AND source = 'scan' AND t >= ? AND t < ? AND median > 0 GROUP BY item_key").iterate(marketId, from, to)) put(r);
-      return m;
-    };
     const base = avg(prev.s - 14 * 86400, prev.s);
     const during = avg(prev.s - 7 * 86400, Math.max(prev.e || prev.s, prev.s + 86400));
     for (const [k, d] of during) {
@@ -246,7 +253,7 @@ function marketForecasts(ctx) {
   const sd = salesDays(db, mid, today);
   const rates = signalRates(db, mid, now);
   const index = levelIndex(sd, ctx.levels || new Map(), values, bands, today);
-  const fest = festSignals(db, mid, ctx.fests || [], now);
+  const fest = ctx.festMap || festSignals(db, mid, ctx.fests || [], now);   // ab 0.39.1 vorgerechnet (chance-client festSignalsOf)
   const sigs = new Map();
   const add = (k, s) => { if (!sigs.has(k)) sigs.set(k, []); sigs.get(k).push(s); };
   const priceOf = (k) => { const dv = values.get(k); const v = dv && (dv.get(today) || dv.get(today - 1)); return v ? v.value : null; };

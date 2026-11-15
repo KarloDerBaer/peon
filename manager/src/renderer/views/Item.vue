@@ -22,11 +22,20 @@ const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const SLOTS = ['0-3', '3-6', '6-9', '9-12', '12-15', '15-18', '18-21', '21-24'];
 
 const info = ref(null);
+const failed = ref('');   // ab 0.39.1: Fehler beim Laden zeigen statt immer "Lade Gegenstand"
 async function load() {
   if (!props.market || !props.itemKey) return;
   const key = props.itemKey;
-  const r = await api.item(props.market.key, key, range.value);
+  failed.value = '';
+  let r;
+  try {
+    r = await api.item(props.market.key, key, range.value);
+  } catch (e) {
+    if (props.itemKey === key) failed.value = String((e && e.message) || e).replace(/^Error invoking remote method '[^']*': (Error: )?/, '');
+    return;
+  }
   if (props.itemKey !== key) return;
+  failed.value = '';
   d.value = r;
   if (r) emit('loaded', r);
 }
@@ -191,6 +200,7 @@ const levelsTop = computed(() => (d.value && d.value.levels ? d.value.levels.lis
       <p class="small muted">Die Spanne ist der tiefste und höchste Tagesmedian. Broker-Werte sind Mittel aller Scans eines Tages und gelten nur für Tage ohne eigenen Stand.</p>
     </section>
   </div>
+  <p v-else-if="failed" style="color: var(--down)">Gegenstand konnte nicht geladen werden: {{ failed }} <button @click="load">Erneut versuchen</button></p>
   <p v-else class="muted">Lade Gegenstand</p>
 </template>
 

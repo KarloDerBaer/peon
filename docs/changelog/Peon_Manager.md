@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.39.1
+
+Kurz: Der Manager reagiert wieder schneller. Die Gegenstandsseite blieb oft lange bei „Lade Gegenstand“ stehen, weil der Manager nach jedem neuen Stand über eine Minute mit der Rechnung für Feste beschäftigt war.
+
+- 0.39.1 (15.11.2026, Rückmeldung KarloDerBaer): Gegenstandsseite lud nicht, Manager allgemein langsamer.
+  - **Ursache:** Messung mit den echten Daten (1,9 GB, 3,7 Mio. Kennzahlen im größeren Markt): Die Chancen eines Markts brauchten 69 Sek., davon 60 Sek. `forecast.festSignals`. Seit dem Anglerwettbewerb vom 15.11. gibt es für die kommenden Termine ein letztes gleiches Fest, ab da lief die Rechnung bei jedem Einlesen. Jede Abfrage las alle Zeilen des Markts (Index über Markt statt über die Zeit), und das wöchentliche Fest stand zweimal in der Liste. Der Arbeitsprozess erledigt alles der Reihe nach, so lange wartete auch die Gegenstandsseite.
+  - **Behoben:** Abfragen mit `+market_id` über den Index der Zeit (16 auf 2 Sek.), jedes Zeitfenster nur einmal gelesen, Ergebnis je Markt höchstens einmal je Stunde gerechnet (`festSignalsOf`, auch für die Marktübersicht). Chancen eines Markts danach 7 Sek. statt 69, das Ergebnis bleibt gleich.
+  - **Neu:** Arbeiten, die den Arbeitsprozess über 10 Sek. am Stück belegen, stehen im Protokoll (Kennung `dauer`). Die Gegenstandsseite zeigt einen Fehler mit „Erneut versuchen“ statt immer „Lade Gegenstand“.
+  - Weiter langsam, aber kein Fehler: Absatz und Prognosen lesen je Markt rund 930 000 Vergleichszeilen (je etwa 4 Sek.), der erste Aufbau nach Start und Aufräumen etwa 30 Sek.
+  - Tests: Feste mit Zeitindex, gleiche Fenster einmal, Zwischenspeicher je Stunde (`chancen.test.js`).
+
 ## 0.39.0
 
 Kurz: Händler-Angebote zeigt der Manager nicht mehr, sie sind meist nach Minuten weg. Die findet das Radar in Broker.

@@ -356,3 +356,38 @@ test('0.37.0: Vergleiche der API werden im Hintergrund neu gerechnet (Schema 12)
   assert.ok(JSON.parse(db.prepare("SELECT value FROM meta WHERE key = 'apiRedoMax'").get().value) >= 1, 'Paare bis hier vorgemerkt');
   db.close();
 });
+
+test('0.39.1: Feste-Signale mit Zeitindex, gleiches letztes Fest nur einmal gelesen, je Stunde zwischengespeichert', () => {
+  const db = openDb(tmp());
+  const prev = NOW - 2 * 86400;
+  const ins = db.prepare("INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, median, qty) VALUES (?, ?, '2589', ?, 'scan', ?, 10)");
+  // vor dem letzten Fest 1000, waehrenddessen 1500 (+50 %), im anderen Markt nichts
+  for (let i = 0; i < 6; i++) ins.run(`a${i}`, 1, prev - 10 * 86400 + i * 3600, 1000);
+  for (let i = 0; i < 6; i++) ins.run(`b${i}`, 1, prev + i * 3600, 1500);
+  ins.run('c0', 2, prev + 3600, 1500);
+  const fests = [{ n: 'Angeln', s: prev, e: prev + 7200 }, { n: 'Angeln', s: NOW + 5 * 86400 }, { n: 'Angeln', s: NOW + 12 * 86400 }];
+  const plan = db.prepare("EXPLAIN QUERY PLAN SELECT item_key FROM item_snap WHERE +market_id = 1 AND source = 'scan' AND t >= 0 AND t < 1 GROUP BY item_key").all().map((x) => x.detail).join(' ');
+  assert.match(plan, /item_snap_t/, 'Index ueber die Zeit');
+  const out = forecast.festSignals(db, 1, fests, NOW);
+  const l = out.get('2589');
+  assert.ok(l && l.length === 2 && Math.abs(l[0].change - 0.5) < 1e-9, 'beide kommenden Feste mit +50 %');
+  assert.equal(forecast.festSignals(db, 2, fests, NOW).size, 0, 'nur der eigene Markt');
+  // Zwischenspeicher je Stunde (chance-client festSignalsOf)
+  const cc = require('../src/core/chance-client');
+  let now = NOW, calls = 0;
+  const self = { db, now: () => now, fests: () => fests };
+  const orig = forecast.festSignals;
+  forecast.festSignals = (...a) => { calls++; return orig(...a); };
+  try {
+    const proto = {};
+    cc.install(proto);
+    const of = proto.festSignalsOf;
+    assert.ok(of, 'festSignalsOf vorhanden');
+    of.call(self, 1); of.call(self, 1);
+    assert.equal(calls, 1, 'in derselben Stunde nur einmal');
+    now += 3600;
+    of.call(self, 1);
+    assert.equal(calls, 2, 'naechste Stunde neu');
+  } finally { forecast.festSignals = orig; }
+  db.close();
+});

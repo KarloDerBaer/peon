@@ -8,6 +8,12 @@
 const { parentPort, workerData } = require('node:worker_threads');
 const { BrokerClient } = require('./broker-client');
 const { BlizzardClient } = require('./blizzard');
+const { log } = require('./db');
+
+// ab Manager 0.39.1: Arbeiten, die den Arbeitsprozess lange am Stueck belegen, ins Protokoll (Kennung "dauer").
+// Solange wartet jede andere Anfrage, z. B. die Gegenstandsseite. Gemessen wird nur der Teil am Stueck, nicht das
+// Warten auf das Netz.
+const SLOW_MS = 10000;
 
 process.removeAllListeners('warning');   // Hinweis "SQLite is experimental" nicht anzeigen
 
@@ -50,7 +56,15 @@ async function run(msg) {
   const name = parts.pop();
   const obj = parts.reduce((o, k) => (o == null ? undefined : o[k]), broker);
   if (!obj || typeof obj[name] !== 'function') throw new Error(`Unbekannter Aufruf: ${msg.path}`);
-  return obj[name](...(msg.args || []).map(arg));
+  const t0 = Date.now();
+  const res = obj[name](...(msg.args || []).map(arg));
+  noteSlow(msg.path, Date.now() - t0);
+  return res;
+}
+
+function noteSlow(path, ms) {
+  if (ms < SLOW_MS) return;
+  try { log(broker.db, 'dauer', true, `${path}: ${Math.round(ms / 1000)} Sek. am Stück, andere Anfragen haben so lange gewartet`); } catch { /* Protokoll ist nur ein Hinweis */ }
 }
 
 parentPort.on('message', async (msg) => {
