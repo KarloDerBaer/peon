@@ -2,6 +2,7 @@
 // Tests fuer Muster nach Tageszeit und Wochentag (ab Manager 0.38.0, Peon_Chancen_Reiter_Muster.md 5): node --test test/
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { sidOf } = require('./snap-helper');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -16,11 +17,11 @@ const LDAY = Math.floor((NOW + OFF) / 86400);   // Ortstag von NOW
 
 // Kennzahlen in item_snap: je Tag und Abschnitt ein Wert, fn(tag, abschnitt) -> Preis
 function fill(db, key, days, fn, auctions = 8) {
-  const ins = db.prepare("INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, min, median, qty, auctions) VALUES (?, 1, ?, ?, 'scan', ?, ?, ?, ?)");
+  const ins = db.prepare("INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, qty, auctions) VALUES (?, 1, ?, ?, 'scan', ?, ?, ?, ?)");
   for (let d = days; d >= 1; d--) {
     for (let s = 0; s < 8; s++) {
       const t = (LDAY - d) * 86400 - OFF + s * 3 * 3600 + 3600;
-      ins.run(`s${d}-${s}`, key, t, fn(d, s), fn(d, s), auctions, auctions);
+      ins.run(sidOf(db, `s${d}-${s}`, 1, t), key, t, fn(d, s), fn(d, s), auctions, auctions);
     }
   }
 }

@@ -2,6 +2,7 @@
 // Tests fuer Datensicherung, Preisaenderungen und Modul-Gruppen (Manager 0.16.0): node --test test/
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { sidOf } = require('./snap-helper');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -24,8 +25,8 @@ function stand(db, id, t, rows) {
   db.prepare("INSERT INTO snapshots(id, market_id, source, art, t, offers, items) VALUES (?, 1, 'scan', 'api', ?, 10, 2)").run(id, t);
   for (const [key, r] of Object.entries(rows)) {
     db.prepare('INSERT OR IGNORE INTO items(key, item_id, name, quality) VALUES (?, ?, ?, 1)').run(key, parseInt(key, 10) || 1, `Name ${key}`);
-    db.prepare("INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, min, median, p25, p75, qty, auctions) VALUES (?, 1, ?, ?, 'scan', ?, ?, ?, ?, ?, ?)")
-      .run(id, key, t, r.min, r.median ?? r.min, r.min, r.min, r.qty ?? 5, r.qty ?? 5);
+    db.prepare("INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, p25, p75, qty, auctions) VALUES (?, 1, ?, ?, 'scan', ?, ?, ?, ?, ?, ?)")
+      .run(sidOf(db, id, 1, t), key, t, r.min, r.median ?? r.min, r.min, r.min, r.qty ?? 5, r.qty ?? 5);
   }
 }
 

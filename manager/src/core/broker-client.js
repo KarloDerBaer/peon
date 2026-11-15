@@ -137,6 +137,9 @@ class BrokerClient {
       let ch = null;
       try { this.chanceRun(m.id); ch = this.chancesForBroker(m.id); } catch (e) { log(this.db, 'chancen', false, `${m.key}: ${e.message}`); }
       this.listOf(m.id, m.key);   // Liste fuer die Ansichten gleich mitrechnen, dann oeffnet sie sofort
+      // ab 0.41.0: Tageswerte hoechstens einmal je Stunde sichern, beim naechsten Start sind sie dann sofort da
+      const si = this.snaps.markets.get(m.id);
+      if (si && (!si.savedAt || Date.now() - si.savedAt > 3600 * 1000)) this.snaps.save(m.id);
       const cur = this.currentOf(m.id);
       if (!lt.items.size && !st.size && !cur) continue;
       const items = {}, sl = {};
@@ -161,7 +164,7 @@ class BrokerClient {
     if (!last) return null;
     const items = {};
     let n = 0;
-    for (const r of this.db.prepare('SELECT item_key, min, median, qty, auctions FROM item_snap WHERE snapshot_id = ? AND qty > 0 AND min > 0').iterate(last.id)) {
+    for (const r of this.db.prepare('SELECT item_key, min, median, qty, auctions FROM item_snap WHERE sid = (SELECT sid FROM snapshots WHERE id = ?) AND qty > 0 AND min > 0').iterate(last.id)) {
       items[r.item_key] = `${Math.round(r.min)}:${Math.round(r.median > 0 ? r.median : r.min)}:${r.qty}:${r.auctions || 0}`;
       n++;
     }
@@ -242,7 +245,8 @@ class BrokerClient {
     const hourDays = this.settings.hourDays > 0 ? Math.max(retention.MIN_HOUR_DAYS, this.settings.hourDays) : 0;
     yield* retention.pruneSteps(this.db, { keepDays: this.settings.keepDays, hourDays, now: this.now() }, res);
     res.pairs = sales.prune(this.db, this.now());
-    this.snaps.reset();   // Zeilen sind verdichtet oder geloescht: beim naechsten Mal ganz neu lesen
+    // Zeilen sind verdichtet oder geloescht: Tageswerte neu lesen, ab 0.41.0 in Schritten (vorher beim naechsten Aufruf am Stueck)
+    for (const m of this.db.prepare('SELECT id FROM markets').all()) yield* this.snaps.rebuildSteps(m.id, this.now());
     pruneLogs(this.db, 30, this.now() * 1000);
     // ab 0.31.0: Protokoll des Abgleichs 90 Tage, Geloeschtes 30 Tage
     this.db.prepare('DELETE FROM sync_log WHERE t < ?').run(this.now() - synclog.LOG_DAYS * 86400);
@@ -470,7 +474,7 @@ class BrokerClient {
     const out = [];
     for (const m of this.db.prepare('SELECT id, key FROM markets WHERE id <> ? ORDER BY key').all(mid)) {
       const last = this.db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(m.id);
-      const c = last && this.db.prepare('SELECT min, median, qty, auctions FROM item_snap WHERE snapshot_id = ? AND item_key = ?').get(last.id, key);
+      const c = last && this.db.prepare('SELECT min, median, qty, auctions FROM item_snap WHERE sid = (SELECT sid FROM snapshots WHERE id = ?) AND item_key = ?').get(last.id, key);
       if (c && c.qty > 0) out.push({ market: m.key, label: marketLabel(m.key), t: last.t, min: c.min, median: c.median, qty: c.qty, auctions: c.auctions });
     }
     return out;
@@ -1269,7 +1273,7 @@ class BrokerClient {
     if (bands.size >= MOVES_MIN_BANDS) {
       const rows = [];
       for (const r of db.prepare(`SELECT a.item_key AS key, a.median AS now, a.qty AS qty, i.name AS name, i.quality AS quality, i.item_id AS item
-          FROM item_snap a LEFT JOIN items i ON i.key = a.item_key WHERE a.snapshot_id = ? AND a.median >= 100 AND a.qty >= 3`).iterate(last.id)) {
+          FROM item_snap a LEFT JOIN items i ON i.key = a.item_key WHERE a.sid = (SELECT sid FROM snapshots WHERE id = ?) AND a.median >= 100 AND a.qty >= 3`).iterate(last.id)) {
         const b = bands.get(r.key);
         if (!b || !(b.lang > 0) || b.schw > 0.5) continue;   // zu unruhig: kein verlaesslicher Vergleich
         rows.push({ ...r, before: b.lang, pct: r.now / b.lang - 1 });
@@ -1281,9 +1285,9 @@ class BrokerClient {
     if (!base) base = db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' AND t < ? ORDER BY t DESC LIMIT 1").get(marketId, last.t);
     if (!base) return { mode: 'scan', base: null, up: [], down: [] };
     const rows = db.prepare(`SELECT a.item_key AS key, a.median AS now, b.median AS before, a.qty AS qty, i.name AS name, i.quality AS quality, i.item_id AS item
-        FROM item_snap a JOIN item_snap b ON b.snapshot_id = ? AND b.item_key = a.item_key
+        FROM item_snap a JOIN item_snap b ON b.sid = (SELECT sid FROM snapshots WHERE id = ?) AND b.item_key = a.item_key
         LEFT JOIN items i ON i.key = a.item_key
-        WHERE a.snapshot_id = ? AND a.median >= 100 AND b.median >= 100 AND a.qty >= 3 AND b.qty >= 3`).all(base.id, last.id);
+        WHERE a.sid = (SELECT sid FROM snapshots WHERE id = ?) AND a.median >= 100 AND b.median >= 100 AND a.qty >= 3 AND b.qty >= 3`).all(base.id, last.id);
     for (const r of rows) r.pct = (r.now - r.before) / r.before;
     const up = rows.filter((r) => r.pct > 0).sort((x, y) => y.pct - x.pct).slice(0, 6);
     const down = rows.filter((r) => r.pct < 0).sort((x, y) => x.pct - y.pct).slice(0, 6);

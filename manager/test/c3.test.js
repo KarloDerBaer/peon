@@ -2,6 +2,7 @@
 // Tests fuer Broker-Verlauf und C3 (Gegenstaende, Gegenstand, Aufbewahrung): node --test test/
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { sidOf } = require('./snap-helper');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -151,14 +152,16 @@ test('Aufbewahrung: Verdichten zu Stunden- und Tageswerten, Schaetzung', () => {
   // 0 = unbegrenzt: nichts passiert
   svc.saveSettings({ keepDays: 0 });
   assert.deepEqual(svc.broker.prune(), { snaps: 0, hours: 0, blobs: 0, pairs: 0 });
-  // nur 1 Tag fein: der Scan von Tag-1 wird zu Stundenwerten
+  // nur 1 Tag fein: der Scan von Tag-1 wird zu 3-Stunden-Werten, seine Angebote bleiben (eigene Scans 14 Tage, ab 0.40.0)
   svc.saveSettings({ keepDays: 1 });
   const r = svc.broker.prune();
-  assert.equal(r.blobs, 1);
+  assert.equal(r.blobs, 0);
   assert.equal(r.snaps, 1);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM item_snap').get().n, before - 1);
   const h = db.prepare("SELECT * FROM item_hour WHERE item_key = '2770'").get();
   assert.equal(h.n, 1); assert.equal(h.median, 220);
+  assert.equal(h.hour, require('../src/core/db').slotHour(h.t), 'Abschnitt von 3 Std. in Ortszeit');
+  assert.equal(h.med_lo, 220); assert.equal(h.med_hi, 220);
   // Verlauf zeigt den Stundenwert, Broker-Tag bleibt ausgeblendet
   const d = svc.broker.itemDetail(M, '2770', 'all');
   assert.equal(d.hours.length, 1);
@@ -167,14 +170,15 @@ test('Aufbewahrung: Verdichten zu Stunden- und Tageswerten, Schaetzung', () => {
   retention.prune(db, { keepDays: 1, hourDays: 0.5, now: at(day, 22) });
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM item_hour').get().n, 0);
   assert.equal(db.prepare("SELECT n FROM item_day WHERE item_key = '2770'").get().n, 1);
-  // Zusammenfuehren: zweimal in dieselbe Stunde -> gewichtetes Mittel
-  db.prepare("INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, min, median, qty, auctions) VALUES ('x', 1, 'z', ?, 'scan', 10, 10, 1, 1)").run(at(day - 5, 10));
-  db.prepare("INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, min, median, qty, auctions) VALUES ('y', 1, 'z', ?, 'scan', 40, 40, 1, 1)").run(at(day - 5, 10) + 60);
+  // Zusammenfuehren: zweimal in denselben Abschnitt -> gewichtetes Mittel, tiefster und hoechster Median
+  db.prepare("INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, qty, auctions) VALUES (?, 1, 'z', ?, 'scan', 10, 10, 1, 1)").run(sidOf(db, 'x', 1, at(day - 5, 10)), at(day - 5, 10));
+  db.prepare("INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, qty, auctions) VALUES (?, 1, 'z', ?, 'scan', 40, 40, 1, 1)").run(sidOf(db, 'y', 1, at(day - 5, 10) + 60), at(day - 5, 10) + 60);
   retention.prune(db, { keepDays: 1, hourDays: 0, now: at(day, 22) });
-  db.prepare("INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, min, median, qty, auctions) VALUES ('w', 1, 'z', ?, 'scan', 100, 100, 1, 1)").run(at(day - 5, 10) + 120);
+  db.prepare("INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, qty, auctions) VALUES (?, 1, 'z', ?, 'scan', 100, 100, 1, 1)").run(sidOf(db, 'w', 1, at(day - 5, 10) + 120), at(day - 5, 10) + 120);
   retention.prune(db, { keepDays: 1, hourDays: 0, now: at(day, 22) });
   const z = db.prepare("SELECT * FROM item_hour WHERE item_key = 'z'").get();
   assert.equal(z.n, 3); assert.equal(z.median, 50);
+  assert.equal(z.med_lo, 10); assert.equal(z.med_hi, 100);
   // Schaetzung
   const e30 = svc.broker.retention(30), e90 = svc.broker.retention(90);
   assert.ok(e30.measured);
@@ -266,18 +270,18 @@ test('C4: Data.lua mit Langzeit-Teil, eigene Tage vor Broker, neu bei Aenderung'
 // Stundenwert von Hand, damit die Tests ohne viele Scans auskommen
 function addHour(db, key, t) {
   db.prepare("INSERT OR REPLACE INTO item_hour(market_id, item_key, source, hour, t, min, median, p25, p75, qty, auctions, n) VALUES (1, ?, 'scan', ?, ?, 10, 10, 10, 10, 1, 1, 1)")
-    .run(key, Math.floor(t / 3600), t);
+    .run(key, require('../src/core/db').slotHour(t), t);
 }
 
-test('Aufbewahrung: Stundenwerte bleiben mindestens 14 Tage, auch bei kleinerem Wert in den Einstellungen', () => {
+test('Aufbewahrung: 3-Stunden-Werte bleiben mindestens 28 Tage, auch bei kleinerem Wert in den Einstellungen', () => {
   const { svc, day } = setup();
   const db = svc.broker.db;
-  addHour(db, 'jung', at(day - 10, 12));
-  addHour(db, 'alt', at(day - 20, 12));
+  addHour(db, 'jung', at(day - 20, 12));
+  addHour(db, 'alt', at(day - 40, 12));
   svc.saveSettings({ hourDays: 5 });
   svc.broker.prune();
   const keys = db.prepare('SELECT item_key FROM item_hour').all().map((r) => r.item_key);
-  assert.ok(keys.includes('jung'), 'der uebliche Bereich braucht ihn noch');
+  assert.ok(keys.includes('jung'), 'die Muster brauchen ihn noch');
   assert.ok(!keys.includes('alt'));
   assert.equal(db.prepare("SELECT n FROM item_day WHERE item_key = 'alt'").get().n, 1);
   svc.close();
@@ -359,10 +363,10 @@ test('Schaetzung: Stundenwerte zaehlen, Vorlagen, Warnung nur wenn wirklich Date
   assert.equal(b.retention(14, 365).dayFirstYear, 0, 'im ersten Jahr noch keine Tageswerte');
   assert.ok(b.retention(14, 60).dayPerYear > 0);
   const e = b.retention(14, 60);
-  assert.deepEqual(e.presets.map((p) => [p.key, p.keepDays, p.hourDays]), [['sparsam', 7, 30], ['ausgewogen', 14, 60], ['ausfuehrlich', 30, 180], ['alles', 30, 365]]);
+  assert.deepEqual(e.presets.map((p) => [p.key, p.keepDays, p.hourDays]), [['sparsam', 3, 28], ['ausgewogen', 7, 28], ['ausfuehrlich', 14, 90], ['alles', 30, 365]]);
   const totals = e.presets.map((p) => p.total);
   assert.deepEqual([...totals].sort((x, y) => x - y), totals, 'aufsteigend');
-  assert.equal(e.total, totals[1], 'gleiche Rechnung wie die Vorlage');
+  assert.equal(b.retention(7, 28).total, totals[1], 'gleiche Rechnung wie die Vorlage');
   // Der aelteste Scan im Beispiel ist einen Tag alt
   assert.equal(b.retention(30, 60).wouldCompact, false);
   assert.equal(b.retention(0, 60).wouldCompact, false);
@@ -391,9 +395,58 @@ test('0.40.0: Angebote der API nach 2 Tagen, eigener Scans nach 14 Tagen weg, Li
   assert.equal(blob('own-a').b, 0, 'eigener Scan aelter als 14 Tage');
   assert.equal(blob('own-b').b, 1);
   assert.equal(blob('live-a'), undefined, 'Live-Abfrage aelter als 7 Tage ganz weg');
-  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM item_snap WHERE snapshot_id = 'live-a'").get().n, 0);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM item_snap WHERE sid = (SELECT sid FROM snapshots WHERE id = 'live-a')").get().n, 0);
   assert.equal(blob('live-b').b, 1);
-  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM item_snap WHERE snapshot_id = 'api-a'").get().n, 1, 'Kennzahlen bleiben');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM item_snap WHERE sid = (SELECT sid FROM snapshots WHERE id = 'api-a')").get().n, 1, 'Kennzahlen bleiben');
   assert.ok(res.blobs === 2 && res.live === 1);
   db.close();
+});
+
+test('Schema 14: alte Datenbank umstellen, Kennzahlen aelter als 7 Tage als 3-Stunden-Werte, juengere mit Zahl je Stand', () => {
+  const { DatabaseSync } = require('node:sqlite');
+  const { openDb, slotHour } = require('../src/core/db');
+  const dir = tmp();
+  const now = 1794000000, D = 86400;
+  const old = new DatabaseSync(path.join(dir, 'broker-client.db'));
+  old.exec(`CREATE TABLE snapshots (id TEXT PRIMARY KEY, market_id INTEGER NOT NULL, source TEXT NOT NULL, art TEXT NOT NULL, t INTEGER NOT NULL,
+      char TEXT, build TEXT, broker TEXT, region INTEGER, account TEXT, total INTEGER, offers INTEGER, lines INTEGER, items INTEGER, partial INTEGER,
+      item_key TEXT, commodity INTEGER, rows BLOB, imported INTEGER);
+    CREATE TABLE item_snap (snapshot_id TEXT NOT NULL, market_id INTEGER NOT NULL, item_key TEXT NOT NULL, t INTEGER NOT NULL, source TEXT NOT NULL,
+      min REAL, median REAL, p25 REAL, p75 REAL, qty INTEGER, auctions INTEGER, PRIMARY KEY (snapshot_id, item_key));
+    CREATE INDEX item_snap_mkt ON item_snap(market_id, item_key, t); CREATE INDEX item_snap_t ON item_snap(t);
+    CREATE TABLE item_hour (market_id INTEGER NOT NULL, item_key TEXT NOT NULL, source TEXT NOT NULL, hour INTEGER NOT NULL, t INTEGER NOT NULL,
+      min REAL, median REAL, p25 REAL, p75 REAL, qty REAL, auctions REAL, n INTEGER NOT NULL, PRIMARY KEY (market_id, item_key, source, hour));
+    CREATE INDEX item_hour_t ON item_hour(t);
+    CREATE TABLE list_cache (market_id INTEGER PRIMARY KEY, sig TEXT, data BLOB);`);
+  const snap = old.prepare("INSERT INTO snapshots(id, market_id, source, art, t) VALUES (?, 1, ?, 'api', ?)");
+  const row = old.prepare("INSERT INTO item_snap VALUES (?, 1, 'k', ?, ?, ?, ?, ?, ?, 5, 5)");
+  // zwei Staende im selben alten Abschnitt (10 und 30), ein junger Stand, eine alte und eine junge Live-Abfrage
+  const t0 = now - 10 * D;
+  const base = slotHour(t0) * 3600;
+  snap.run('a', 'scan', base + 600); row.run('a', base + 600, 'scan', 10, 10, 10, 10);
+  snap.run('b', 'scan', base + 4200); row.run('b', base + 4200, 'scan', 30, 30, 30, 30);
+  snap.run('c', 'scan', now - D); row.run('c', now - D, 'scan', 50, 50, 50, 50);
+  snap.run('la', 'live', now - 9 * D); row.run('la', now - 9 * D, 'live', 1, 1, 1, 1);
+  snap.run('lb', 'live', now - 2 * D); row.run('lb', now - 2 * D, 'live', 2, 2, 2, 2);
+  old.prepare("INSERT INTO item_hour VALUES (1, 'k', 'scan', ?, ?, 20, 20, 20, 20, 5, 5, 2)").run(Math.floor((base + 7000) / 3600), base + 7000);
+  old.close();
+  const db = openDb(dir, { now });
+  const cols = db.prepare('PRAGMA table_info(item_snap)').all().map((c) => c.name);
+  assert.ok(cols.includes('sid') && !cols.includes('snapshot_id'), 'neue Spalte sid');
+  const young = db.prepare("SELECT i.median FROM item_snap i JOIN snapshots s ON s.sid = i.sid WHERE s.id = 'c'").get();
+  assert.equal(young.median, 50, 'junger Stand bleibt je Stand');
+  assert.ok(db.prepare("SELECT 1 FROM item_snap i JOIN snapshots s ON s.sid = i.sid WHERE s.id = 'lb'").get(), 'junge Live-Abfrage bleibt');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM snapshots WHERE id = 'la'").get().n, 0, 'alte Live-Abfrage weg');
+  const h = db.prepare("SELECT * FROM item_hour WHERE item_key = 'k'").all();
+  assert.equal(h.length, 1, 'alter Abschnitt: ein 3-Stunden-Wert');
+  assert.equal(h[0].hour, slotHour(base));
+  assert.equal(h[0].n, 4, 'zwei Staende und ein Stundenwert mit 2');
+  assert.ok(Math.abs(h[0].median - (10 + 30 + 20 * 2) / 4) < 1e-9, 'gewichtetes Mittel');
+  assert.equal(h[0].med_lo, 10); assert.equal(h[0].med_hi, 30);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name IN ('item_snap_t', 'item_hour_t')").get().n, 0, 'alte Suchhilfen weg');
+  db.close();
+  // zweites Oeffnen: nichts mehr zu tun
+  const again = openDb(dir, { now });
+  assert.equal(again.prepare("SELECT COUNT(*) AS n FROM item_hour").get().n, 1);
+  again.close();
 });

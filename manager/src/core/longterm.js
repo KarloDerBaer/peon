@@ -4,6 +4,7 @@
 // TAGc = Mittel der Mediane aller eigenen Komplettscans eines Tages, sonst Broker-Tagesmittel (hist).
 
 const { dayOf } = require('./broker');
+const { SNAPS_IN, hourFrom } = require('./db');
 
 const DAYS = 14, MIN_DAYS = 3, HALF = 3, MIN_SCHW = 0.05;
 // Ab Manager 0.21.0 (KarloDerBaer 08.11.2026): nach unten wird erst bei mindestens 25 % Schwankung gekuerzt (F37a).
@@ -36,10 +37,11 @@ function dayValues(db, marketId, today, key = null, span = DAYS) {
   };
   // grob vorfiltern (ein Tag Spielraum fuer Zeitzonen), genau entscheidet dayOf
   const tFrom = (from - 1) * 86400;
-  for (const r of db.prepare("SELECT item_key, t, median FROM item_snap WHERE market_id = ? AND source = 'scan' AND t >= ?" + k1).iterate(marketId, tFrom, ...kv)) {
+  const q1 = key == null ? `SELECT item_key, t, median FROM item_snap WHERE ${SNAPS_IN} AND source = 'scan'` : "SELECT item_key, t, median FROM item_snap WHERE market_id = ? AND t >= ? AND t < ? AND source = 'scan' AND item_key = ?";
+  for (const r of db.prepare(q1).iterate(marketId, tFrom, 2 ** 40, ...kv)) {
     add(r.item_key, dayOf(r.t), r.median, 1);
   }
-  for (const r of db.prepare("SELECT item_key, t, median, n FROM item_hour WHERE market_id = ? AND source = 'scan' AND t >= ?" + k1).iterate(marketId, tFrom, ...kv)) {
+  for (const r of db.prepare("SELECT item_key, t, median, n FROM item_hour WHERE market_id = ? AND hour >= ? AND source = 'scan' AND t >= ?" + k1).iterate(marketId, hourFrom(tFrom), tFrom, ...kv)) {
     add(r.item_key, dayOf(r.t), r.median, r.n);
   }
   const out = new Map();
@@ -108,8 +110,10 @@ function shifts(db, marketId, now, bands, key = null) {
   if (!bands || !bands.size) return out;
   const k1 = key == null ? '' : ' AND item_key = ?';
   const by = new Map();
-  for (const r of db.prepare("SELECT item_key, t, median FROM item_snap WHERE market_id = ? AND source = 'scan' AND t > ? AND t <= ? AND median > 0" + k1)
-    .iterate(marketId, now - SHIFT_WINDOW, now, ...(key == null ? [] : [key]))) {
+  // ab Schema 14 ueber die Staende des Fensters (item_snap hat keine Suchhilfe ueber die Zeit mehr)
+  const q = key == null ? `SELECT item_key, t, median FROM item_snap WHERE ${SNAPS_IN} AND source = 'scan' AND median > 0`
+    : "SELECT item_key, t, median FROM item_snap WHERE market_id = ? AND t >= ? AND t < ? AND source = 'scan' AND median > 0 AND item_key = ?";
+  for (const r of db.prepare(q).iterate(marketId, now - SHIFT_WINDOW + 1, now + 1, ...(key == null ? [] : [key]))) {
     if (!bands.has(r.item_key)) continue;
     let x = by.get(r.item_key);
     if (!x) { x = { t0: r.t, t1: r.t, list: [] }; by.set(r.item_key, x); }

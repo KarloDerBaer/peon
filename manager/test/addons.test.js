@@ -526,7 +526,7 @@ test('Selbst-Update: nur eine neuere Version aus dem Manifest, Quelle ist der Or
 
 test('Einstellungen mit BOM-Markierung (Windows-Editor) bleiben gueltig', () => {
   const dir = tmp();
-  fs.writeFileSync(path.join(dir, 'settings.json'), '\uFEFF' + JSON.stringify({ wowDir: 'X:\\WoW', keepDays: 45, setup: { done: false }, modules: {} }));
+  fs.writeFileSync(path.join(dir, 'settings.json'), '\uFEFF' + JSON.stringify({ wowDir: 'X:\\WoW', keepDays: 45, retentionV: 3, setup: { done: false }, modules: {} }));
   const svc = new Service({ dbDir: dir });
   assert.equal(svc.settings.wowDir, 'X:\\WoW');
   assert.equal(svc.settings.keepDays, 45);

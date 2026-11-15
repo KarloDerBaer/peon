@@ -2,6 +2,7 @@
 // Tests fuer Marktnamen, Zwischenspeicher, Favoriten, Einkaufsliste und genaue Werte (Manager 0.17.0): node --test test/
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { sidOf } = require('./snap-helper');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -39,8 +40,8 @@ function stand(db, id, t, rows, market = M) {
   db.prepare("INSERT INTO snapshots(id, market_id, source, art, t, offers, items, rows) VALUES (?, ?, 'scan', 'api', ?, 10, 2, ?)").run(id, mid, t, require('node:zlib').deflateSync(Buffer.from(Object.entries(rows).map(([k, r]) => `${parseInt(k, 10)};;;${r.qty ?? 5};${(r.min) * (r.qty ?? 5)};;;4;;1`).join('\n'))));
   for (const [key, r] of Object.entries(rows)) {
     db.prepare('INSERT OR IGNORE INTO items(key, item_id, name, quality) VALUES (?, ?, ?, 1)').run(key, parseInt(key, 10) || 1, `Name ${key}`);
-    db.prepare("INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, min, median, p25, p75, qty, auctions) VALUES (?, ?, ?, ?, 'scan', ?, ?, ?, ?, ?, ?)")
-      .run(id, mid, key, t, r.min, r.median ?? r.min, r.min, r.min, r.qty ?? 5, r.qty ?? 5);
+    db.prepare("INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, p25, p75, qty, auctions) VALUES (?, ?, ?, ?, 'scan', ?, ?, ?, ?, ?, ?)")
+      .run(sidOf(db, id, mid, t), mid, key, t, r.min, r.median ?? r.min, r.min, r.min, r.qty ?? 5, r.qty ?? 5);
   }
   return mid;
 }

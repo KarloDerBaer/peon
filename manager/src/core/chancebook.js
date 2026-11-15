@@ -35,7 +35,8 @@ function log(db, mid, now, chances, near) {
 function bestPrice(db, mid, key, from, to) {
   const a = db.prepare('SELECT MAX(b) AS b FROM sale_px WHERE market_id = ? AND item_key = ? AND day >= ? AND day <= ?').get(mid, key, dayOf(from), dayOf(to)).b;
   const b = db.prepare("SELECT MAX(median) AS m FROM item_snap WHERE market_id = ? AND item_key = ? AND source = 'scan' AND t > ? AND t <= ?").get(mid, key, from, to).m;
-  const c = db.prepare("SELECT MAX(median) AS m FROM item_hour WHERE market_id = ? AND item_key = ? AND source = 'scan' AND t > ? AND t <= ?").get(mid, key, from, to).m;
+  // ab Schema 14 mit dem hoechsten Median des 3-Stunden-Abschnitts, eine kurze Spitze zaehlt weiter
+  const c = db.prepare("SELECT MAX(COALESCE(med_hi, median)) AS m FROM item_hour WHERE market_id = ? AND item_key = ? AND source = 'scan' AND t > ? AND t <= ?").get(mid, key, from, to).m;
   const sold = a != null ? proof.priceOf(a) : null;
   const best = Math.max(sold ?? -1, b ?? -1, c ?? -1);
   return best < 0 ? null : { price: best, sold };

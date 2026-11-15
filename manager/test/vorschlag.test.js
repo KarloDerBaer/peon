@@ -3,6 +3,7 @@
 // Kuerzung nach unten (F37a), neues Preisniveau (F54), Abstand zu den anderen Angeboten (F50a), Trefferquote (F55)
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { sidOf } = require('./snap-helper');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -31,8 +32,8 @@ function db() {
   return openDb(fs.mkdtempSync(path.join(os.tmpdir(), 'peon-')));
 }
 function snap(d, key, t, min, median) {
-  d.prepare("INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, min, median, qty, auctions) VALUES (?, 1, ?, ?, 'scan', ?, ?, 5, 5)")
-    .run(`s${t}-${key}`, key, t, min, median);
+  d.prepare("INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, qty, auctions) VALUES (?, 1, ?, ?, 'scan', ?, ?, 5, 5)")
+    .run(sidOf(d, `s${t}-${key}`, 1, t), key, t, min, median);
 }
 
 test('F54: neues Preisniveau, alle Staende der letzten 12 Std. unter dem Bereich (ab 0.22.0)', () => {

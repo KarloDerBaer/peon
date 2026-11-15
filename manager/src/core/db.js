@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
 const { sameMarket } = require('./markets');
 
-const SCHEMA = 13;   // 13: Haendler-Vorschlaege entfernt (meta vendorKindGone), Muster in meta patterns:<Markt>; 12: Umstellungen bei Einzelgegenstaenden, Vergleiche neu (meta singlesRecheck, apiRedoMax); 11: Haendlerpreise neu aus dem Spiel (meta vendorRecheck); 10: Herkunft des Haendlerpreises (items.vendor_src); 9: Chancen und Prognosen (sale_px, sale_life, auc_first, item_level, chance_log, chance_rate, forecast_log); 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
+const SCHEMA = 14;   // 14: Kennzahlen kompakt (item_snap ohne rowid mit Zahl sid, item_hour als 3-Stunden-Werte mit med_lo/med_hi), Zwischenspeicher snap_cache; 13: Haendler-Vorschlaege entfernt (meta vendorKindGone), Muster in meta patterns:<Markt>; 12: Umstellungen bei Einzelgegenstaenden, Vergleiche neu (meta singlesRecheck, apiRedoMax); 11: Haendlerpreise neu aus dem Spiel (meta vendorRecheck); 10: Herkunft des Haendlerpreises (items.vendor_src); 9: Chancen und Prognosen (sale_px, sale_life, auc_first, item_level, chance_log, chance_rate, forecast_log); 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -23,12 +23,12 @@ CREATE TABLE IF NOT EXISTS snapshots (
   id TEXT PRIMARY KEY, market_id INTEGER NOT NULL, source TEXT NOT NULL, art TEXT NOT NULL,
   t INTEGER NOT NULL, char TEXT, build TEXT, broker TEXT, region INTEGER, account TEXT,
   total INTEGER, offers INTEGER, lines INTEGER, items INTEGER, partial INTEGER, item_key TEXT, commodity INTEGER,
-  rows BLOB, imported INTEGER);
+  rows BLOB, imported INTEGER, sid INTEGER);
 CREATE INDEX IF NOT EXISTS snapshots_mt ON snapshots(market_id, source, t);
 CREATE TABLE IF NOT EXISTS item_snap (
-  snapshot_id TEXT NOT NULL, market_id INTEGER NOT NULL, item_key TEXT NOT NULL, t INTEGER NOT NULL, source TEXT NOT NULL,
+  sid INTEGER NOT NULL, market_id INTEGER NOT NULL, item_key TEXT NOT NULL, t INTEGER NOT NULL, source TEXT NOT NULL,
   min REAL, median REAL, p25 REAL, p75 REAL, qty INTEGER, auctions INTEGER,
-  PRIMARY KEY (snapshot_id, item_key));
+  PRIMARY KEY (sid, item_key)) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS item_snap_mkt ON item_snap(market_id, item_key, t);
 CREATE TABLE IF NOT EXISTS hist (
   market_id INTEGER NOT NULL, item_key TEXT NOT NULL, source TEXT NOT NULL, period TEXT NOT NULL, num INTEGER NOT NULL,
@@ -36,15 +36,15 @@ CREATE TABLE IF NOT EXISTS hist (
   PRIMARY KEY (market_id, item_key, source, period, num));
 CREATE INDEX IF NOT EXISTS hist_t ON hist(market_id, source, t);
 CREATE TABLE IF NOT EXISTS item_hour (
-  market_id INTEGER NOT NULL, item_key TEXT NOT NULL, source TEXT NOT NULL, hour INTEGER NOT NULL, t INTEGER NOT NULL,
-  min REAL, median REAL, p25 REAL, p75 REAL, qty REAL, auctions REAL, n INTEGER NOT NULL,
-  PRIMARY KEY (market_id, item_key, source, hour));
+  market_id INTEGER NOT NULL, hour INTEGER NOT NULL, item_key TEXT NOT NULL, source TEXT NOT NULL, t INTEGER NOT NULL,
+  min REAL, median REAL, p25 REAL, p75 REAL, qty REAL, auctions REAL, n INTEGER NOT NULL, med_lo REAL, med_hi REAL,
+  PRIMARY KEY (market_id, hour, item_key, source)) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS item_hour_mkt ON item_hour(market_id, item_key, t);
 CREATE TABLE IF NOT EXISTS item_day (
   market_id INTEGER NOT NULL, item_key TEXT NOT NULL, source TEXT NOT NULL, day INTEGER NOT NULL, t INTEGER NOT NULL,
   min REAL, median REAL, p25 REAL, p75 REAL, qty REAL, auctions REAL, n INTEGER NOT NULL,
   PRIMARY KEY (market_id, item_key, source, day));
-CREATE INDEX IF NOT EXISTS item_snap_t ON item_snap(t);
-CREATE INDEX IF NOT EXISTS item_hour_t ON item_hour(t);
+CREATE TABLE IF NOT EXISTS snap_cache (market_id INTEGER PRIMARY KEY, data BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS sales_pair (
   id INTEGER PRIMARY KEY AUTOINCREMENT, market_id INTEGER NOT NULL, a_id TEXT NOT NULL, b_id TEXT NOT NULL,
   ta INTEGER NOT NULL, tb INTEGER NOT NULL, src TEXT NOT NULL, item_key TEXT, folded INTEGER NOT NULL DEFAULT 0);
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS list_cache (
 CREATE TABLE IF NOT EXISTS market_alias (
   alias TEXT PRIMARY KEY, market_id INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS auc_first (
-  market_id INTEGER NOT NULL, id INTEGER NOT NULL, t INTEGER NOT NULL, PRIMARY KEY (market_id, id));
+  market_id INTEGER NOT NULL, id INTEGER NOT NULL, t INTEGER NOT NULL, PRIMARY KEY (market_id, id)) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS auc_first_t ON auc_first(t);
 CREATE TABLE IF NOT EXISTS sale_px (
   market_id INTEGER NOT NULL, item_key TEXT NOT NULL, day INTEGER NOT NULL, b INTEGER NOT NULL, qty REAL NOT NULL,
@@ -139,8 +139,10 @@ function open(dir, name, ddl) {
 }
 
 // Datenbank des Moduls Peon Broker Client
-function openDb(dir) {
-  const db = open(dir, BROKER_FILE, DDL);
+function openDb(dir, { now = Math.floor(Date.now() / 1000) } = {}) {
+  const db = open(dir, BROKER_FILE, OLD_SAFE(DDL));
+  migrate14(db, now);
+  db.exec(DDL);
   // Schema 3: Haendlerpreis und Warenart je Gegenstand
   const cols = new Set(db.prepare('PRAGMA table_info(items)').all().map((c) => c.name));
   if (!cols.has('vendor')) db.exec('ALTER TABLE items ADD COLUMN vendor INTEGER');
@@ -153,7 +155,7 @@ function openDb(dir) {
     db.exec(`ALTER TABLE items ADD COLUMN vendor_src TEXT;
       UPDATE items SET vendor_src = 'api' WHERE vendor IS NOT NULL;
       CREATE TEMP TABLE own_keys AS
-        SELECT DISTINCT item_key AS k FROM item_snap WHERE snapshot_id IN (SELECT id FROM snapshots WHERE art <> 'api')
+        SELECT DISTINCT item_key AS k FROM item_snap WHERE sid IN (SELECT sid FROM snapshots WHERE art <> 'api')
         UNION SELECT DISTINCT item_key FROM hist WHERE source = 'broker';
       UPDATE items SET vendor_src = 'game' WHERE vendor IS NOT NULL AND key IN (SELECT k FROM own_keys);
       DROP TABLE own_keys;`);
@@ -192,6 +194,88 @@ function openDb(dir) {
   }
   db.prepare("INSERT INTO meta(key, value) VALUES ('schema', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(SCHEMA));
   return db;
+}
+
+// Schema 14 (Manager 0.41.0, Stufe 2 der Beschleunigung, KarloDerBaer 15.11.2026). Mit echten Daten belegten die Kennzahlen je
+// Stand 206 Byte je Zeile (Tabelle, Schluessel aus Text, zwei Suchhilfen). Neu:
+//   snapshots.sid  Zahl je Stand (fest, aendert sich anders als rowid nie)
+//   item_snap      ohne rowid, Schluessel (sid, item_key), eine Suchhilfe (Markt, Gegenstand, Zeit): 114 Byte je Zeile.
+//                  Abfragen ueber eine Zeitspanne gehen ueber die Staende (sid IN ...), siehe SNAPS_IN
+//   item_hour      3-Stunden-Werte in Ortszeit (wie die Muster), Schluessel (Markt, Abschnitt, Gegenstand, Quelle), dazu
+//                  tiefster und hoechster Median des Abschnitts (med_lo, med_hi) fuer die Erfolgskontrolle
+// Umstellung einmalig beim Oeffnen: Kennzahlen aelter als KEEP_DAYS gleich als 3-Stunden-Werte (wie das Aufraeumen),
+// juengere in die neue Tabelle. Live-Abfragen aelter als 7 Tage fallen weg (retention.LIVE_DAYS).
+const KEEP_DAYS = 7;
+const SLOT_S = 3 * 3600;
+// Beginn des 3-Stunden-Abschnitts in Ortszeit als Stunde seit 1970 (UTC). Gleich in SQL (SLOT_SQL) und in JS (slotHour).
+const LOCAL_SQL = (t) => `CAST(strftime('%s', ${t}, 'unixepoch', 'localtime') AS INTEGER)`;
+const SLOT_SQL = (t) => `((${LOCAL_SQL(t)} / ${SLOT_S}) * ${SLOT_S} - (${LOCAL_SQL(t)} - ${t})) / 3600`;
+function slotHour(t) {
+  const off = -new Date(t * 1000).getTimezoneOffset() * 60;
+  return (Math.floor((t + off) / SLOT_S) * SLOT_S - off) / 3600;
+}
+// Bedingung "Zeilen der Staende eines Markts in [a, b)" fuer item_snap (Parameter: Markt, a, b)
+const SNAPS_IN = 'sid IN (SELECT sid FROM snapshots WHERE market_id = ? AND t >= ? AND t < ?)';
+// Erste Stunde (item_hour.hour), die Werte ab Zeit t enthalten kann: ein Abschnitt beginnt hoechstens 3 Std. vor t
+const hourFrom = (t) => Math.floor(t / 3600) - 3;
+
+// Alte Datei: die neuen Suchhilfen erst nach der Umstellung anlegen (die Spalten gibt es vorher nicht)
+function OLD_SAFE(ddl) { return ddl.replace(/CREATE INDEX IF NOT EXISTS item_hour_mkt[^;]*;/, ''); }
+
+function migrate14(db, now) {
+  const scols = new Set(db.prepare('PRAGMA table_info(snapshots)').all().map((c) => c.name));
+  if (!scols.has('sid')) db.exec('ALTER TABLE snapshots ADD COLUMN sid INTEGER; UPDATE snapshots SET sid = rowid;');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS snapshots_sid ON snapshots(sid)');
+  const icols = new Set(db.prepare('PRAGMA table_info(item_snap)').all().map((c) => c.name));
+  // erstes Auftauchen je Angebot (4 Mio. Zeilen fuer 3 Tage) ohne rowid, spart die doppelte Ablage
+  const auc = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'auc_first'").get();
+  if (auc && !/WITHOUT ROWID/i.test(auc.sql)) {
+    db.exec(`BEGIN;
+      CREATE TABLE auc_first_new (market_id INTEGER NOT NULL, id INTEGER NOT NULL, t INTEGER NOT NULL, PRIMARY KEY (market_id, id)) WITHOUT ROWID;
+      INSERT INTO auc_first_new SELECT market_id, id, t FROM auc_first;
+      DROP TABLE auc_first; ALTER TABLE auc_first_new RENAME TO auc_first;
+      CREATE INDEX auc_first_t ON auc_first(t);
+      COMMIT;`);
+  }
+  if (!icols.has('snapshot_id')) return false;   // schon umgestellt (oder neu)
+  const cut = now - KEEP_DAYS * 86400;
+  const liveCut = now - 7 * 86400;
+  const w = (c) => `SUM(${c} * n) / SUM(CASE WHEN ${c} IS NULL THEN 0 ELSE n END)`;
+  db.exec('BEGIN');
+  try {
+    db.exec(`
+      DROP INDEX IF EXISTS item_snap_t; DROP INDEX IF EXISTS item_hour_t;
+      CREATE TABLE item_hour_new (
+        market_id INTEGER NOT NULL, hour INTEGER NOT NULL, item_key TEXT NOT NULL, source TEXT NOT NULL, t INTEGER NOT NULL,
+        min REAL, median REAL, p25 REAL, p75 REAL, qty REAL, auctions REAL, n INTEGER NOT NULL, med_lo REAL, med_hi REAL,
+        PRIMARY KEY (market_id, hour, item_key, source)) WITHOUT ROWID;
+      INSERT INTO item_hour_new
+        SELECT market_id, slot, item_key, source, CAST(SUM(t * n) / SUM(n) AS INTEGER),
+          ${w('min')}, ${w('median')}, ${w('p25')}, ${w('p75')}, ${w('qty')}, ${w('auctions')}, SUM(n), MIN(median), MAX(median)
+        FROM (SELECT market_id, item_key, source, t, ${SLOT_SQL('t')} AS slot, min, median, p25, p75, qty, auctions, n FROM item_hour WHERE source = 'scan'
+              UNION ALL SELECT market_id, item_key, source, t, ${SLOT_SQL('t')}, min, median, p25, p75, qty, auctions, 1 FROM item_snap
+                WHERE t < ${cut} AND source = 'scan')
+        GROUP BY market_id, slot, item_key, source;
+      CREATE TABLE item_snap_new (
+        sid INTEGER NOT NULL, market_id INTEGER NOT NULL, item_key TEXT NOT NULL, t INTEGER NOT NULL, source TEXT NOT NULL,
+        min REAL, median REAL, p25 REAL, p75 REAL, qty INTEGER, auctions INTEGER,
+        PRIMARY KEY (sid, item_key)) WITHOUT ROWID;
+      INSERT INTO item_snap_new
+        SELECT s.sid, i.market_id, i.item_key, i.t, i.source, i.min, i.median, i.p25, i.p75, i.qty, i.auctions
+        FROM item_snap i JOIN snapshots s ON s.id = i.snapshot_id
+        WHERE (i.source = 'scan' AND i.t >= ${cut}) OR (i.source = 'live' AND i.t >= ${liveCut});
+      DELETE FROM snapshots WHERE source = 'live' AND t < ${liveCut};
+      DROP TABLE item_snap; DROP TABLE item_hour;
+      ALTER TABLE item_snap_new RENAME TO item_snap; ALTER TABLE item_hour_new RENAME TO item_hour;
+      CREATE INDEX item_snap_mkt ON item_snap(market_id, item_key, t);
+      CREATE INDEX item_hour_mkt ON item_hour(market_id, item_key, t);
+      DELETE FROM list_cache;`);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+  return true;
 }
 
 // Datenbank des Managers (Zustand, Protokoll)
@@ -299,4 +383,4 @@ function pruneLogs(db, days = 30, now = Date.now()) {
   return n;
 }
 
-module.exports = { openDb, openManagerDb, migrateSplit, fileSize, removeDb, BROKER_FILE, MANAGER_FILE, tx, log, marketId, dbSize, pruneLogs, SCHEMA };
+module.exports = { slotHour, SLOT_SQL, SNAPS_IN, hourFrom, migrate14, openDb, openManagerDb, migrateSplit, fileSize, removeDb, BROKER_FILE, MANAGER_FILE, tx, log, marketId, dbSize, pruneLogs, SCHEMA };

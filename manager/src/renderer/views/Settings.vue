@@ -54,9 +54,10 @@ async function doMove() {
   try { await api.dataDirMove(move.value.to); } catch (e) { moveError.value = cleanError(e); move.value = null; }
 }
 
-const KEEP = [7, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365, 0];
-const HOUR = [14, 30, 60, 90, 120, 180, 270, 365];
-const keepOf = (d) => { const i = KEEP.indexOf(d); return i >= 0 ? i : KEEP.indexOf(14); };
+// ab 0.41.0: Werte je Stand (stuendlich) und 3-Stunden-Werte, diese mindestens 28 Tage (Muster)
+const KEEP = [3, 7, 14, 21, 30, 45, 60, 90, 0];
+const HOUR = [28, 45, 60, 90, 120, 180, 270, 365];
+const keepOf = (d) => { const i = KEEP.indexOf(d); return i >= 0 ? i : KEEP.indexOf(7); };
 const hourOf = (d) => { const i = HOUR.findIndex((x) => x >= d); return i >= 0 ? i : HOUR.length - 1; };
 const keepStep = ref(keepOf(props.settings.keepDays));
 const hourStep = ref(hourOf(props.settings.hourDays));
@@ -71,7 +72,7 @@ watch(() => props.broker, estimate);
 watch([() => props.settings.keepDays, () => props.settings.hourDays], () => reset());
 onMounted(estimate);
 
-// Stundenwerte entstehen erst, wenn die Angebote zusammengefasst werden: Beide Schieber bleiben in dieser Reihenfolge
+// 3-Stunden-Werte entstehen erst, wenn die Werte je Stand zusammengefasst werden: Beide Schieber bleiben in dieser Reihenfolge
 function onKeep() { if (keep.value > hour.value) hourStep.value = hourOf(keep.value); }
 function onHour() {
   if (keep.value <= hour.value) return;
@@ -184,14 +185,14 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
       </div>
 
       <label class="field">
-        <span>Alle Angebote: <strong>{{ daysText(keep) }}</strong></span>
-        <input type="range" min="0" :max="KEEP.length - 1" step="1" v-model.number="keepStep" @input="onKeep" aria-label="Alle Angebote aufheben" />
-        <span class="small muted">Jedes einzelne Angebot jedes Stands. Daraus zeigt der Manager auch das Muster „Wann ist es günstig?“, das bis zu 60 Tage nutzt.</span>
+        <span>Werte je Stand: <strong>{{ daysText(keep) }}</strong></span>
+        <input type="range" min="0" :max="KEEP.length - 1" step="1" v-model.number="keepStep" @input="onKeep" aria-label="Werte je Stand aufheben" />
+        <span class="small muted">Preise und Mengen jedes Stands, mit der Blizzard-API also Stunde für Stunde. Die einzelnen Angebote braucht der Manager nur für den Vergleich mit dem nächsten Stand: von der Blizzard-API 2 Tage, aus eigenen Scans 14 Tage.</span>
       </label>
       <label class="field">
-        <span>Stundenwerte bis: <strong>{{ keep === 0 ? 'nicht nötig' : daysText(hour) }}</strong></span>
-        <input type="range" min="0" :max="HOUR.length - 1" step="1" v-model.number="hourStep" :disabled="keep === 0" @input="onHour" aria-label="Stundenwerte aufheben bis" />
-        <span class="small muted">Preise und Mengen je Gegenstand und Stunde. Mindestens 14 Tage, weil Broker daraus den üblichen Preisbereich bekommt.</span>
+        <span>3-Stunden-Werte bis: <strong>{{ keep === 0 ? 'nicht nötig' : daysText(hour) }}</strong></span>
+        <input type="range" min="0" :max="HOUR.length - 1" step="1" v-model.number="hourStep" :disabled="keep === 0" @input="onHour" aria-label="3-Stunden-Werte aufheben bis" />
+        <span class="small muted">Preise und Mengen je Gegenstand in Abschnitten von 3 Stunden, mit dem tiefsten und höchsten Wert. Mindestens 28 Tage, weil daraus die Muster nach Tageszeit und Wochentag und der übliche Preisbereich für Broker kommen.</span>
       </label>
       <p class="small muted">Danach bleibt ein Wert je Tag, ohne Ende. Zeit und Anzahl der Angebote jedes Stands bleiben immer.</p>
 
@@ -203,8 +204,8 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
             <span class="b-fine" :style="{ width: share(est.fine) }"></span><span class="b-hour" :style="{ width: share(est.hour) }"></span><span class="b-day" :style="{ width: share(est.dayFirstYear) }"></span>
           </div>
           <div class="small muted wide legend">
-            <span><i class="b-fine"></i>Alle Angebote {{ bytes(est.fine) }}</span>
-            <span><i class="b-hour"></i>Stundenwerte {{ bytes(est.hour) }}</span>
+            <span><i class="b-fine"></i>Werte je Stand {{ bytes(est.fine) }}</span>
+            <span><i class="b-hour"></i>3-Stunden-Werte {{ bytes(est.hour) }}</span>
             <span><i class="b-day"></i>Tageswerte {{ bytes(est.dayFirstYear) }}, danach {{ bytes(est.dayPerYear) }} je weiteres Jahr</span>
           </div>
           <div class="small muted wide">Gerechnet mit {{ est.scansPerDay.toLocaleString('de-DE') }} {{ est.scansPerDay === 1 ? 'Stand' : 'Ständen' }} am Tag (Scans und Blizzard-API) zu je etwa {{ bytes(est.perScan) }}{{ est.measured ? ', aus deinen Daten' : ', geschätzt, weil es noch keine Daten gibt' }}.</div>

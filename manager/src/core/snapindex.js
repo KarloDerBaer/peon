@@ -6,7 +6,9 @@
 // Neu gelesen wird, wenn sich die Zahl der Zeilen anders aendert als durch neue Momentaufnahmen (Aufraeumen, Verdichten).
 // Die Zeilen aus hist (Broker-Verlauf) sind wenige und werden wie bisher jedes Mal gelesen.
 
+const zlib = require('node:zlib');
 const { dayOf } = require('./broker');
+const { hourFrom } = require('./db');
 
 const KEEP_DAYS = 17;   // Tageswerte so weit zurueck (Bereich: 14 Tage, Liste: 9 Tage, dazu Spielraum)
 
@@ -19,6 +21,54 @@ class SnapIndex {
 
   reset() { this.markets.clear(); }
 
+  // ab Manager 0.41.0: Stand je Markt in der Datenbank sichern (snap_cache) und beim Start laden. Den Verlauf ganz zu lesen
+  // dauerte mit echten Daten 12 bis 27 Sek. Beim Laden kommen neuere Staende ueber update dazu, passt die Zahl der Zeilen
+  // danach nicht (Aufraeumen ohne Sichern), wird wie bisher neu gelesen.
+  save(mid) {
+    const s = this.markets.get(mid);
+    if (!s) return false;
+    const m2a = (m) => [...m].map(([k, v]) => [k, v instanceof Map ? [...v] : v]);
+    const data = { v: 1, today: s.today, rowid: s.rowid, snapRows: s.snapRows, hourRows: s.hourRows,
+      seen: [...s.seen], counts: [...s.counts], snapDays: m2a(s.snapDays), hourDays: m2a(s.hourDays), qtyDays: m2a(s.qtyDays) };
+    this.db.prepare('INSERT OR REPLACE INTO snap_cache(market_id, data) VALUES (?, ?)').run(mid, zlib.deflateSync(Buffer.from(JSON.stringify(data), 'utf8')));
+    s.savedAt = Date.now();
+    return true;
+  }
+
+  load(mid) {
+    const r = this.db.prepare('SELECT data FROM snap_cache WHERE market_id = ?').get(mid);
+    if (!r) return null;
+    try {
+      const d = JSON.parse(zlib.inflateSync(Buffer.from(r.data)).toString('utf8'));
+      if (d.v !== 1) return null;
+      const a2m = (l) => new Map(l.map(([k, v]) => [k, new Map(v)]));
+      const s = { today: d.today, rowid: d.rowid, snapRows: d.snapRows, hourRows: d.hourRows, seen: new Map(d.seen), counts: new Map(d.counts),
+        snapDays: a2m(d.snapDays), hourDays: a2m(d.hourDays), qtyDays: a2m(d.qtyDays), savedAt: Date.now() };
+      this.markets.set(mid, s);
+      this.loads = (this.loads || 0) + 1;
+      return s;
+    } catch { return null; }
+  }
+
+  // Neu lesen in Schritten (ein Stand je Schritt), fuer das Aufraeumen: Der bisherige Stand bleibt bis zum Ende gueltig.
+  // Zaehlung und hoechste Zahl der Staende am Anfang, Staende, die waehrenddessen dazukommen, nimmt danach update.
+  * rebuildSteps(mid, now) {
+    const today = dayOf(now);
+    const c = this.counts(mid);
+    const s = { today, rowid: 0, snapRows: c.snap, hourRows: c.hour, seen: new Map(), counts: new Map(), snapDays: new Map(), hourDays: new Map(), qtyDays: new Map() };
+    s.rowid = Number(this.db.prepare('SELECT COALESCE(MAX(sid), 0) AS r FROM snapshots WHERE market_id = ?').get(mid).r);
+    const sids = this.db.prepare('SELECT sid FROM snapshots WHERE market_id = ? AND sid <= ? ORDER BY sid').all(mid, s.rowid).map((x) => x.sid);
+    const rows = this.db.prepare('SELECT item_key, t, source, min, median, qty, auctions FROM item_snap WHERE sid = ?');
+    for (const sid of sids) {
+      for (const r of rows.iterate(sid)) this.addRow(s, r);
+      yield;
+    }
+    this.readHours(s, mid, today);
+    this.builds++;
+    this.markets.set(mid, s);
+    this.save(mid);
+  }
+
   counts(mid) {
     const a = this.db.prepare('SELECT COUNT(*) AS n FROM item_snap WHERE market_id = ?').get(mid).n;
     const b = this.db.prepare('SELECT COUNT(*) AS n FROM item_hour WHERE market_id = ?').get(mid).n;
@@ -28,7 +78,7 @@ class SnapIndex {
   // Aktueller Stand eines Markts
   of(mid, now) {
     const today = dayOf(now);
-    let s = this.markets.get(mid);
+    let s = this.markets.get(mid) || this.load(mid);
     if (s && s.today > today) s = null;              // Uhr zurueckgestellt: neu lesen
     if (s && s.today < today) this.shift(s, today);   // neuer Tag: Fenster verschiebt sich (bis 0.39 ganz neu gelesen, 27 Sek.)
     if (s) this.update(s, mid);
@@ -88,10 +138,16 @@ class SnapIndex {
   build(mid, today, c) {
     this.builds++;
     const s = { today, rowid: 0, snapRows: c.snap, hourRows: c.hour, seen: new Map(), counts: new Map(), snapDays: new Map(), hourDays: new Map(), qtyDays: new Map() };
-    s.rowid = Number(this.db.prepare('SELECT COALESCE(MAX(rowid), 0) AS r FROM snapshots WHERE market_id = ?').get(mid).r);
+    s.rowid = Number(this.db.prepare('SELECT COALESCE(MAX(sid), 0) AS r FROM snapshots WHERE market_id = ?').get(mid).r);
     for (const r of this.db.prepare('SELECT item_key, t, source, min, median, qty, auctions FROM item_snap WHERE market_id = ?').iterate(mid)) this.addRow(s, r);
-    // Stundenwerte (aus dem Verdichten): fuer den Bereich gewichtet (n), fuer die Liste je Stunde einmal, wie in den Abfragen
-    for (const r of this.db.prepare("SELECT item_key, t, median, n, qty FROM item_hour WHERE market_id = ? AND source = 'scan' AND t >= ?").iterate(mid, (today - KEEP_DAYS) * 86400)) {
+    this.readHours(s, mid, today);
+    this.markets.set(mid, s);
+    return s;
+  }
+
+  // 3-Stunden-Werte (aus dem Verdichten): fuer den Bereich gewichtet (n), fuer die Liste je Abschnitt einmal, wie in den Abfragen
+  readHours(s, mid, today) {
+    for (const r of this.db.prepare("SELECT item_key, t, median, n, qty FROM item_hour WHERE market_id = ? AND hour >= ? AND source = 'scan' AND t >= ?").iterate(mid, hourFrom((today - KEEP_DAYS) * 86400), (today - KEEP_DAYS) * 86400)) {
       if (r.median == null) continue;
       const day = dayOf(r.t);
       this.noteQty(s, r.item_key, day, r.t, r.qty);
@@ -101,17 +157,15 @@ class SnapIndex {
       x.wsum += r.median * r.n; x.w += r.n; x.sum += r.median; x.n++;
       m.set(day, x);
     }
-    this.markets.set(mid, s);
-    return s;
   }
 
   // Zeilen neuer Momentaufnahmen dazunehmen
   update(s, mid) {
-    const fresh = this.db.prepare('SELECT rowid AS r, id FROM snapshots WHERE market_id = ? AND rowid > ? ORDER BY rowid').all(mid, s.rowid);
+    const fresh = this.db.prepare('SELECT sid AS r FROM snapshots WHERE market_id = ? AND sid > ? ORDER BY sid').all(mid, s.rowid);
     if (!fresh.length) return;
-    const rows = this.db.prepare('SELECT item_key, t, source, min, median, qty, auctions FROM item_snap WHERE snapshot_id = ?');
+    const rows = this.db.prepare('SELECT item_key, t, source, min, median, qty, auctions FROM item_snap WHERE sid = ?');
     for (const f of fresh) {
-      for (const r of rows.iterate(f.id)) { this.addRow(s, r); s.snapRows++; }
+      for (const r of rows.iterate(f.r)) { this.addRow(s, r); s.snapRows++; }
       s.rowid = Number(f.r);
     }
   }

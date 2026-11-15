@@ -3,6 +3,7 @@
 // Seite Beobachten mit Preis, Kaufen bis, Zielpreis und Rat, Glocken je Grenze, Meldung einmal je Ueberschreiten.
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { sidOf } = require('./snap-helper');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -43,8 +44,8 @@ function stand(db, id, t, rows) {
   db.prepare("INSERT INTO snapshots(id, market_id, source, art, t, offers, items, rows) VALUES (?, ?, 'scan', 'api', ?, 10, 2, ?)").run(id, mid, t, require('node:zlib').deflateSync(Buffer.from(Object.entries(rows).map(([k, r]) => `${parseInt(k, 10)};;;5;${r * 5};;;4;;1`).join('\n'))));
   for (const [key, r] of Object.entries(rows)) {
     db.prepare('INSERT OR IGNORE INTO items(key, item_id, name, quality) VALUES (?, ?, ?, 1)').run(key, parseInt(key, 10), `Name ${key}`);
-    db.prepare("INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, min, median, p25, p75, qty, auctions) VALUES (?, ?, ?, ?, 'scan', ?, ?, ?, ?, 5, 5)")
-      .run(id, mid, key, t, r, r, r, r);
+    db.prepare("INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, p25, p75, qty, auctions) VALUES (?, ?, ?, ?, 'scan', ?, ?, ?, ?, 5, 5)")
+      .run(sidOf(db, id, mid, t), mid, key, t, r, r, r, r);
   }
 }
 

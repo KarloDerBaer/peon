@@ -3,6 +3,7 @@
 // Seite Einkaufen mit Vorrat je Konto (wie im Spiel nur Taschen und Bank), Fehlt, Zustand je Liste und Zeile.
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { sidOf } = require('./snap-helper');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -37,7 +38,7 @@ function setup() {
   const mid = marketId(b.db, M, {});
   b.db.prepare("INSERT INTO snapshots(id, market_id, source, art, t, offers, items, rows) VALUES ('s1', ?, 'scan', 'api', ?, 1, 1, ?)").run(mid, NOW - 60, require('node:zlib').deflateSync(Buffer.from('100;;;5;5000;;;4;;1')));
   b.db.prepare("INSERT OR IGNORE INTO items(key, item_id, name, quality) VALUES ('100', 100, 'Kupfererz', 1)").run();
-  b.db.prepare("INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, min, median, p25, p75, qty, auctions) VALUES ('s1', ?, '100', ?, 'scan', 1000, 1000, 1000, 1000, 5, 5)").run(mid, NOW - 60);
+  b.db.prepare("INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, p25, p75, qty, auctions) VALUES (?, ?, '100', ?, 'scan', 1000, 1000, 1000, 1000, 5, 5)").run(sidOf(b.db, 's1', mid, NOW - 60), mid, NOW - 60);
   return { svc, b, account, clock };
 }
 

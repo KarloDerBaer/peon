@@ -43,25 +43,27 @@ function importEntry(db, e, account) {
   const stats = summarize(rows);
   const source = e.kind === 'scan' ? 'scan' : 'live';
   const now = Math.floor(Date.now() / 1000);
+  // ab Schema 14: feste Zahl je Stand (sid), item_snap verweist darauf
+  const sid = Number(db.prepare('SELECT COALESCE(MAX(sid), 0) + 1 AS s FROM snapshots').get().s);
   db.prepare(`INSERT INTO snapshots(id, market_id, source, art, t, char, build, broker, region, account,
-      total, offers, lines, items, partial, item_key, commodity, rows, imported)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      total, offers, lines, items, partial, item_key, commodity, rows, imported, sid)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(String(e.id), mid, source, e.art || 'moment', e.t, e.char ?? null, e.build ?? null, e.broker ?? null, e.region ?? null, account ?? null,
       e.total ?? null, e.offers ?? rows.reduce((s, r) => s + r.n, 0), e.lines ?? rows.length, stats.size,
       e.partial ? 1 : 0, e.key ?? null, e.commodity == null ? null : (e.commodity ? 1 : 0),
-      zlib.deflateSync(Buffer.from(e.rows || '', 'utf8')), now);
+      zlib.deflateSync(Buffer.from(e.rows || '', 'utf8')), now, sid);
 
-  const ins = db.prepare(`INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, min, median, p25, p75, qty, auctions)
+  const ins = db.prepare(`INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, p25, p75, qty, auctions)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   for (const st of stats.values()) {
     // Teil-Ergebnis einer Live-Abfrage: Menge und Median sind zu niedrig -> nur Min behalten (wie Broker)
     const part = source === 'live' && e.partial;
-    ins.run(String(e.id), mid, st.key, e.t, source, st.min, part ? null : st.median, part ? null : st.p25, part ? null : st.p75,
+    ins.run(sid, mid, st.key, e.t, source, st.min, part ? null : st.median, part ? null : st.p25, part ? null : st.p75,
       part ? null : st.qty, part ? null : st.auctions);
   }
   // Live-Abfrage ohne Angebote: Gegenstand ist weg (Menge 0)
   if (source === 'live' && rows.length === 0 && !e.partial && e.key != null) {
-    ins.run(String(e.id), mid, String(e.key), e.t, source, null, null, null, null, 0, 0);
+    ins.run(sid, mid, String(e.key), e.t, source, null, null, null, null, 0, 0);
   }
 
   // Namen, Qualitaet, ab Peon_Client 0.3.0 Haendlerpreis und Warenart: "Name|Qualitaet|Haendlerpreis|Massenware"

@@ -9,6 +9,8 @@
 // Nur Gegenstaende mit im Schnitt mindestens 5 Angeboten.
 // Ergebnis: Map key -> { kind: 'tod' | 'wd', lo, hi, rel: { lo, hi }, spread, hits, n } (lo/hi: Abschnitt 0-7 oder Wochentag 0-6, Montag 0)
 
+const { SNAPS_IN, hourFrom } = require('./db');
+
 const SLOTS = 8, SLOT_H = 3;
 const SPAN_DAYS = 28;
 const P = { todDays: 14, todSure: 0.7, wdWeeks: 3, wdSure: 0.75, spread: 0.15, minAuctions: 5, cut: 0.05, minSlots: 6 };
@@ -33,16 +35,16 @@ function* gridSteps(db, mid, now, out = new Map()) {
   };
   // ab Manager 0.40.0 je Ortstag eine Abfrage ueber den Index der Zeit ("+market_id"). Vorher eine Abfrage ueber alle Zeilen
   // des Markts, mit echten Daten rund 20 Sek. am Stueck, in denen der Manager nichts anderes tun konnte.
-  const q = (table) => `SELECT item_key AS k, CAST((t + ?) / 86400 AS INTEGER) AS day, CAST(((t + ?) % 86400) / ${SLOT_H * 3600} AS INTEGER) AS slot,
-      AVG(min) AS v, AVG(auctions) AS a FROM ${table} WHERE +market_id = ? AND source = 'scan' AND t >= ? AND t < ? AND min > 0 GROUP BY item_key, day, slot`;
+  // ab Schema 14: Kennzahlen je Stand ueber die Staende des Tages, 3-Stunden-Werte ueber den Bereich des Schluessels
+  const cols = `item_key AS k, CAST((t + ?) / 86400 AS INTEGER) AS day, CAST(((t + ?) % 86400) / ${SLOT_H * 3600} AS INTEGER) AS slot, AVG(min) AS v, AVG(auctions) AS a`;
+  const qs = db.prepare(`SELECT ${cols} FROM item_snap WHERE ${SNAPS_IN} AND source = 'scan' AND min > 0 GROUP BY item_key, day, slot`);
+  const qh = db.prepare(`SELECT ${cols} FROM item_hour WHERE market_id = ? AND hour >= ? AND hour < ? AND t >= ? AND t < ? AND source = 'scan' AND min > 0 GROUP BY item_key, day, slot`);
   const first = Math.floor((from + off) / 86400), last = Math.floor((now + off) / 86400);
-  for (const table of ['item_snap', 'item_hour']) {
-    const st = db.prepare(q(table));
-    for (let day = first; day <= last; day++) {
-      const a = Math.max(from, day * 86400 - off), b = (day + 1) * 86400 - off;
-      for (const r of st.all(off, off, mid, a, b)) put(r.k, Number(r.day), Number(r.slot), r.v, r.a);
-      yield;
-    }
+  for (let day = first; day <= last; day++) {
+    const a = Math.max(from, day * 86400 - off), b = (day + 1) * 86400 - off;
+    for (const r of qs.all(off, off, mid, a, b)) put(r.k, Number(r.day), Number(r.slot), r.v, r.a);
+    for (const r of qh.all(off, off, mid, hourFrom(a), Math.ceil(b / 3600), a, b)) put(r.k, Number(r.day), Number(r.slot), r.v, r.a);
+    yield;
   }
   return out;
 }

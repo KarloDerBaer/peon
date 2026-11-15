@@ -140,11 +140,11 @@ test('Einlesen aus dem Spiel, Bestaetigung, kein doppeltes Einlesen', () => {
   assert.equal(snap.source, 'scan'); assert.equal(snap.art, 'moment'); assert.equal(snap.region, 110);
   assert.equal(snap.char, 'Mirel Dorna'); assert.equal(snap.offers, 8); assert.equal(snap.items, 4);
   assert.equal(game.snapshotRows(db, '1792700225-1').length, 6);
-  const cu = db.prepare("SELECT * FROM item_snap WHERE snapshot_id = '1792700225-1' AND item_key = '2770'").get();
+  const cu = db.prepare("SELECT * FROM item_snap WHERE sid = (SELECT sid FROM snapshots WHERE id = '1792700225-1') AND item_key = '2770'").get();
   assert.equal(cu.min, 120); assert.equal(cu.qty, 45); assert.equal(cu.auctions, 3);
   const big = db.prepare("SELECT * FROM item_snap WHERE item_key = '1288'").get();
   assert.equal(big.min, 99999999999);
-  const live = db.prepare("SELECT * FROM item_snap WHERE snapshot_id = '1792700300-2'").get();
+  const live = db.prepare("SELECT * FROM item_snap WHERE sid = (SELECT sid FROM snapshots WHERE id = '1792700300-2')").get();
   assert.equal(live.source, 'live'); assert.equal(live.min, 118); assert.equal(live.qty, 40);
   const items = db.prepare('SELECT key, name, quality FROM items ORDER BY key').all();
   assert.deepEqual({ ...items.find((x) => x.key === '2770') }, { key: '2770', name: 'Kupfererz', quality: 1 });

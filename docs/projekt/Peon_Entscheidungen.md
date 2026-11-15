@@ -2,6 +2,12 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 15.11.2026: Daten des Managers gestuft aufheben, Arbeitsprozess zum Lesen (Manager 0.40.0 bis 0.42.0)
+
+- **Live-Abfragen aus Broker** zählen nicht mehr für den Absatz und lösen keine Neurechnung aus (KarloDerBaer): Seit die Blizzard-API stündlich ganze Stände liefert, trugen sie fast nichts bei, jede kostete aber eine volle Neurechnung. Sie bleiben 7 Tage für den neuesten Preis.
+- **Stufen der Aufbewahrung** (KarloDerBaer, mit Stundenwerten für 7 Tage statt 3): 7 Tage je Stand, 3-Stunden-Werte bis 28 Tage, danach Tageswerte. Die einzelnen Angebote 2 Tage (API) bzw. 14 Tage (eigene Scans). Grund: Die Datenbank wuchs um 150 MB je Tag auf absehbar 7 bis 8 GB. Nachteil, bewusst in Kauf genommen: Geänderte Regeln für den Absatz lassen sich nur 2 Tage zurück neu rechnen.
+- **Ansichten lesen über einen eigenen Arbeitsprozess**: Das Fenster wartet nie auf eine Neurechnung. Abgeleitete Werte (Bereich, Absatz, Chancen) zeigen den Stand der letzten fertigen Rechnung, was bei stündlichen Daten unkritisch ist (KarloDerBaer).
+
 ## 14.11.2026: Regel „Seelentasche minus 1“ als Standard (ClassBuddy 0.3.0)
 
 - **Ein Platz der Seelentasche bleibt frei** (KarloDerBaer): So fällt ein neuer Splitter nie in eine normale Tasche, auch nicht kurz. Neuer Standard. Der alte Standard „Seelentasche voll“ wird einmal umgestellt (Claude), eigene Wahl bleibt danach.

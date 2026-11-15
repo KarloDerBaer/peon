@@ -29,10 +29,10 @@ const DEFAULTS = {
   itemColumns: [],        // Spalten unter Gegenstaende, leer = Standard
   checklistHidden: false, // Einrichtungsliste ausgeblendet
   theme: 'dark',
-  keepDays: 14,           // Momentaufnahmen vollstaendig aufheben (Tage, 0 = unbegrenzt)
-  retentionV: 2,          // Stand der Standardwerte der Aufbewahrung (Umstellung im Konstruktor)
+  keepDays: 7,            // Kennzahlen je Stand aufheben (Tage, 0 = unbegrenzt), ab 0.41.0 7 statt 14
+  retentionV: 3,          // Stand der Standardwerte der Aufbewahrung (Umstellung im Konstruktor)
   chances: { days: 7, minProfit: 1000, quality: 0 },   // Ansicht Chancen: Zeitraum, Mindestgewinn je Tag (Kupfer), Qualitaet ab
-  hourDays: 60,           // danach Stundenwerte bis zu so vielen Tagen, dann Tageswerte (mindestens 14, retention.js)
+  hourDays: 28,           // danach 3-Stunden-Werte bis zu so vielen Tagen, dann Tageswerte (mindestens 28, retention.js)
 };
 
 // Abstand der Suche nach Updates in Minuten: nur diese Werte, sonst der Standard
@@ -87,7 +87,12 @@ class Service {
     // Bis 0.14.0 waren es fest 365 Tage Stundenwerte, ohne Einstellung dafuer: also von niemandem gewaehlt und einmalig neu.
     // keepDays liess sich schon einstellen und bleibt.
     if (raw.retentionV === undefined && existed) {
-      this.saveSettings(raw.hourDays === 365 ? { hourDays: DEFAULTS.hourDays, retentionV: DEFAULTS.retentionV } : { retentionV: DEFAULTS.retentionV });
+      this.saveSettings(raw.hourDays === 365 ? { hourDays: 60, retentionV: 2 } : { retentionV: 2 });
+    }
+    // ab 0.41.0 (Stufe 2 der Beschleunigung, KarloDerBaer 15.11.2026): 7 Tage je Stand, 3-Stunden-Werte bis 28 Tage. Einmalig
+    // fuer alle, mit den alten Werten wuchs die Datenbank auf mehrere GB.
+    if (existed && (this.settings.retentionV || 0) < 3) {
+      this.saveSettings({ keepDays: DEFAULTS.keepDays, hourDays: DEFAULTS.hourDays, retentionV: DEFAULTS.retentionV });
     }
     this.reports = new ReportStore(this);
     this.broker = this.isActive('broker-client') ? this.brokerFactory(this) : null;

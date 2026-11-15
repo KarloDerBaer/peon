@@ -2,6 +2,7 @@
 // Tests fuer Chancen und Prognosen (ab Manager 0.35.0, docs/konzepte/manager/Peon_Manager_Chancen.md): node --test test/
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { sidOf } = require('./snap-helper');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -114,7 +115,7 @@ test('Nachpruefung: Ziel erreicht, Kaufpreis wieder drin, nicht', () => {
   const db = openDb(tmp());
   const x = spec.evalFast(ctx(), '2589');
   book.log(db, 1, NOW - 5 * 86400, [x], []);
-  db.prepare("INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, min, median, qty) VALUES ('s1', 1, '2589', ?, 'scan', 90000, 96000, 3)").run(NOW - 4 * 86400);
+  db.prepare("INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, qty) VALUES (?, 1, '2589', ?, 'scan', 90000, 96000, 3)").run(sidOf(db, 's1', 1, NOW - 4 * 86400), NOW - 4 * 86400);
   book.check(db, 1, NOW);
   assert.equal(db.prepare('SELECT outcome FROM chance_log').get().outcome, 'hit');
   const rates = book.rates(db, 1, NOW);
@@ -360,14 +361,16 @@ test('0.37.0: Vergleiche der API werden im Hintergrund neu gerechnet (Schema 12)
 test('0.39.1: Feste-Signale mit Zeitindex, gleiches letztes Fest nur einmal gelesen, je Stunde zwischengespeichert', () => {
   const db = openDb(tmp());
   const prev = NOW - 2 * 86400;
-  const ins = db.prepare("INSERT INTO item_snap(snapshot_id, market_id, item_key, t, source, median, qty) VALUES (?, ?, '2589', ?, 'scan', ?, 10)");
+  const ins = db.prepare("INSERT INTO item_snap(sid, market_id, item_key, t, source, median, qty) VALUES (?, ?, '2589', ?, 'scan', ?, 10)");
   // vor dem letzten Fest 1000, waehrenddessen 1500 (+50 %), im anderen Markt nichts
-  for (let i = 0; i < 6; i++) ins.run(`a${i}`, 1, prev - 10 * 86400 + i * 3600, 1000);
-  for (let i = 0; i < 6; i++) ins.run(`b${i}`, 1, prev + i * 3600, 1500);
-  ins.run('c0', 2, prev + 3600, 1500);
+  for (let i = 0; i < 6; i++) ins.run(sidOf(db, `a${i}`, 1, prev - 10 * 86400 + i * 3600), 1, prev - 10 * 86400 + i * 3600, 1000);
+  for (let i = 0; i < 6; i++) ins.run(sidOf(db, `b${i}`, 1, prev + i * 3600), 1, prev + i * 3600, 1500);
+  ins.run(sidOf(db, 'c0', 2, prev + 3600), 2, prev + 3600, 1500);
   const fests = [{ n: 'Angeln', s: prev, e: prev + 7200 }, { n: 'Angeln', s: NOW + 5 * 86400 }, { n: 'Angeln', s: NOW + 12 * 86400 }];
-  const plan = db.prepare("EXPLAIN QUERY PLAN SELECT item_key FROM item_snap WHERE +market_id = 1 AND source = 'scan' AND t >= 0 AND t < 1 GROUP BY item_key").all().map((x) => x.detail).join(' ');
-  assert.match(plan, /item_snap_t/, 'Index ueber die Zeit');
+  const { SNAPS_IN } = require('../src/core/db');
+  const plan = db.prepare(`EXPLAIN QUERY PLAN SELECT item_key FROM item_snap WHERE ${SNAPS_IN} AND source = 'scan' GROUP BY item_key`).all(1, 0, 1).map((x) => x.detail).join(' ');
+  assert.match(plan, /snapshots_mt|snapshots/, 'ab Schema 14 ueber die Staende der Zeitspanne');
+  assert.doesNotMatch(plan, /SCAN item_snap/, 'nicht alle Zeilen');
   const out = forecast.festSignals(db, 1, fests, NOW);
   const l = out.get('2589');
   assert.ok(l && l.length === 2 && Math.abs(l[0].change - 0.5) < 1e-9, 'beide kommenden Feste mit +50 %');

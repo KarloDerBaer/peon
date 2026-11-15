@@ -134,7 +134,7 @@ test('Abruf: Stand wird wie ein Scan eingelesen, Namen und Warenart kommen mit',
   assert.equal(s.offers, 5);
   const m = db.prepare('SELECT key FROM markets').all();
   assert.deepEqual(m.map((x) => x.key), ['Blizzard EU Haus 111 / Alliance']);
-  const cloth = db.prepare("SELECT * FROM item_snap WHERE snapshot_id = ? AND item_key = '2589'").get(s.id);
+  const cloth = db.prepare("SELECT * FROM item_snap WHERE sid = (SELECT sid FROM snapshots WHERE id = ?) AND item_key = '2589'").get(s.id);
   assert.deepEqual({ min: cloth.min, qty: cloth.qty, auctions: cloth.auctions }, { min: 50, qty: 25, auctions: 2 });
   const item = db.prepare("SELECT * FROM items WHERE key = '2589'").get();
   assert.deepEqual({ name: item.name, quality: item.quality, vendor: item.vendor, commodity: item.commodity }, { name: 'Leinenstoff', quality: 1, vendor: 13, commodity: 1 });

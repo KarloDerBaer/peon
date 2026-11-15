@@ -86,7 +86,7 @@ test('Umzug von Manager 0.6.0: peon.db mit Broker-Daten wird broker-client.db, M
   old.close();
   fs.renameSync(path.join(dir, 'broker-client.db'), path.join(dir, 'peon.db'));
   for (const ext of ['-wal', '-shm']) if (fs.existsSync(path.join(dir, 'broker-client.db' + ext))) fs.renameSync(path.join(dir, 'broker-client.db' + ext), path.join(dir, 'peon.db' + ext));
-  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ wowDir: 'X:\\WoW', keepDays: 45 }));
+  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ wowDir: 'X:\\WoW', keepDays: 45, retentionV: 3 }));
 
   const svc = new Service({ dbDir: dir });
   assert.equal(svc.isActive('broker-client'), true, 'wer schon Daten hatte, nutzt den Broker Client weiter');
@@ -180,21 +180,22 @@ test('Installieren, Entfernen, Daten loeschen, wieder installieren', () => {
   svc.close();
 });
 
-test('Aufbewahrung: Neue Nutzer 14 und 60 Tage, 365 Tage Stundenwerte werden einmalig umgestellt', () => {
+test('Aufbewahrung: Neue Nutzer 7 und 28 Tage, alte Werte werden einmalig umgestellt (ab 0.41.0)', () => {
   const fresh = new Service({ dbDir: fs.mkdtempSync(path.join(os.tmpdir(), 'peon-ret-')), version: '0.15.0' });
-  assert.equal(fresh.settings.keepDays, 14);
-  assert.equal(fresh.settings.hourDays, 60);
+  assert.equal(fresh.settings.keepDays, 7);
+  assert.equal(fresh.settings.hourDays, 28);
   fresh.close();
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'peon-ret-'));
-  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ wowDir: 'X:\WoW', keepDays: 30, hourDays: 365, modules: { 'broker-client': { enabled: false } } }));
+  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ wowDir: 'X:\WoW', keepDays: 30, hourDays: 60, retentionV: 2, modules: { 'broker-client': { enabled: false } } }));
   let svc = new Service({ dbDir: dir, version: '0.15.0' });
-  assert.equal(svc.settings.hourDays, 60, 'hatte bisher keine Einstellung, also von niemandem gewaehlt');
-  assert.equal(svc.settings.keepDays, 30, 'liess sich einstellen und bleibt');
-  // Wer danach bewusst 365 waehlt, behaelt das
-  svc.saveSettings({ hourDays: 365 });
+  assert.equal(svc.settings.keepDays, 7, 'einmalig auf die neuen Stufen');
+  assert.equal(svc.settings.hourDays, 28);
+  // Wer danach bewusst anders waehlt, behaelt das
+  svc.saveSettings({ keepDays: 14, hourDays: 365 });
   svc.close();
   svc = new Service({ dbDir: dir, version: '0.15.0' });
+  assert.equal(svc.settings.keepDays, 14);
   assert.equal(svc.settings.hourDays, 365);
   svc.close();
 });

@@ -105,3 +105,23 @@ test('Zwischenspeicher: neuer Tag verschiebt das Fenster', () => {
   }
   assert.equal(idx.builds, 1);
 });
+
+test('0.41.0: Sichern und Laden, Neu lesen in Schritten: gleiche Werte, kein ganzes Lesen beim Start', () => {
+  const { db, mid } = setup();
+  const a = new SnapIndex(db);
+  const want = norm(a.dayValues(mid, NOW, longterm.DAYS));
+  const list = JSON.stringify([...a.listParts(mid, NOW).counts]);
+  assert.ok(a.save(mid));
+  const b = new SnapIndex(db);
+  assert.deepEqual(norm(b.dayValues(mid, NOW, longterm.DAYS)), want, 'geladen wie gelesen');
+  assert.equal(b.builds, 0, 'nicht neu gelesen');
+  assert.equal(b.loads, 1);
+  assert.equal(JSON.stringify([...b.listParts(mid, NOW).counts]), list);
+  // in Schritten neu lesen: gleiches Ergebnis, mehrere Schritte
+  const c = new SnapIndex(db);
+  let steps = 0;
+  for (const _ of c.rebuildSteps(mid, NOW)) steps++;
+  assert.ok(steps > 1);
+  assert.deepEqual(norm(c.dayValues(mid, NOW, longterm.DAYS)), want);
+  assert.equal(c.builds, 1);
+});

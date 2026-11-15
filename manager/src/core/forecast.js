@@ -10,6 +10,7 @@
 // Jede Prognose wird gespeichert (forecast_log) und nach ihrem Zeitraum nachgeprueft (F67).
 
 const { dayOf, dayTime } = require('./broker');
+const { SNAPS_IN, hourFrom } = require('./db');
 const { low, high } = require('./chances');
 
 const CUT = 0.05;
@@ -132,8 +133,8 @@ function levelIndex(salesByKey, levels, values, bands, today) {
 
 // F65 Feste: fuer jedes Fest, das in den naechsten 14 Tagen beginnt, das letzte gleiche Fest suchen und den
 // Preis damals vergleichen. Rueckgabe Map key -> [{ name, start, change }]
-// ab Manager 0.39.1: "+market_id" laesst SQLite den Index ueber die Zeit nehmen (vorher las jede Abfrage alle Zeilen des
-// Markts, mit 3,7 Mio. Zeilen rund 16 Sek.), und jedes Zeitfenster wird nur einmal gelesen (ein woechentliches Fest
+// ab Manager 0.39.1: nur die Zeilen der Zeitspanne lesen (vorher las jede Abfrage alle Zeilen des Markts, mit 3,7 Mio. Zeilen
+// rund 16 Sek.), ab Schema 14 ueber die Staende bzw. den Schluessel der 3-Stunden-Werte. Jedes Zeitfenster wird nur einmal gelesen (ein woechentliches Fest
 // steht mehrmals in der Liste und hat dasselbe letzte Mal).
 function festSignals(db, marketId, fests, now) {
   const out = new Map();
@@ -144,9 +145,11 @@ function festSignals(db, marketId, fests, now) {
     if (avgs.has(k)) return avgs.get(k);
     const m = new Map();
     const put = (r) => { const x = m.get(r.item_key) || { s: 0, n: 0 }; x.s += r.m * r.n; x.n += r.n; m.set(r.item_key, x); };
-    for (const tb of ['item_hour', 'item_day', 'item_snap']) {
-      for (const r of db.prepare(`SELECT item_key, AVG(median) AS m, COUNT(*) AS n FROM ${tb} WHERE +market_id = ? AND source = 'scan' AND t >= ? AND t < ? AND median > 0 GROUP BY item_key`).iterate(marketId, from, to)) put(r);
-    }
+    const sel = 'SELECT item_key, AVG(median) AS m, COUNT(*) AS n';
+    for (const r of db.prepare(`${sel} FROM item_hour WHERE market_id = ? AND hour >= ? AND hour < ? AND t >= ? AND t < ? AND source = 'scan' AND median > 0 GROUP BY item_key`)
+      .iterate(marketId, hourFrom(from), Math.ceil(to / 3600), from, to)) put(r);
+    for (const r of db.prepare(`${sel} FROM item_day WHERE market_id = ? AND t >= ? AND t < ? AND source = 'scan' AND median > 0 GROUP BY item_key`).iterate(marketId, from, to)) put(r);
+    for (const r of db.prepare(`${sel} FROM item_snap WHERE ${SNAPS_IN} AND source = 'scan' AND median > 0 GROUP BY item_key`).iterate(marketId, from, to)) put(r);
     avgs.set(k, m);
     return m;
   };

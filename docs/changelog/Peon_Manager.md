@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.41.0
+
+Kurz: Die Datenbank ist nur noch etwa halb so groß und wächst kaum noch. Preise bleiben 7 Tage Stand für Stand, danach in Abschnitten von 3 Stunden bis 28 Tage, danach je Tag.
+Kurz: Beim ersten Start stellt der Manager die Daten einmal um, das dauert je nach Größe bis zu einer Minute.
+
+- 0.41.0 (15.11.2026, Stufe 2 der Beschleunigung, KarloDerBaer 15.11.2026: Stundenwerte 7 Tage, „setz alles so um“). Gemessen mit den echten Daten: Datei 1,96 auf 1,08 GB, Umstellung 18 Sek.
+  - **Schema 14** (`db.migrate14`): `snapshots.sid` als feste Zahl je Stand. `item_snap` ohne rowid mit Schlüssel (sid, Gegenstand) und einer Suchhilfe, 107 statt 206 Byte je Zeile. Abfragen über eine Zeitspanne gehen über die Stände (`db.SNAPS_IN`). `item_snap_t` und `item_hour_t` entfallen.
+  - **3-Stunden-Werte:** `item_hour` hält Abschnitte von 3 Stunden in Ortszeit (wie die Muster, `db.slotHour`) mit tiefstem und höchstem Median (`med_lo`, `med_hi`), Schlüssel (Markt, Abschnitt, Gegenstand, Quelle). Die Erfolgskontrolle nimmt den höchsten Median, eine kurze Spitze zählt weiter. Die Umstellung rechnet Kennzahlen älter als 7 Tage gleich so um.
+  - **Aufbewahrung neu:** 7 Tage je Stand, 3-Stunden-Werte bis 28 Tage (mindestens 28, die Muster brauchen sie), danach Tageswerte. Vorlagen Sparsam 3/28, Ausgewogen 7/28, Ausführlich 14/90, Alles 30/365. Einmalig für alle auf 7/28 (`retentionV` 3). Seite Einstellungen mit neuen Texten und Schätzung.
+  - **Tageswerte gesichert:** `SnapIndex.save`/`load` in `snap_cache`, beim Start 1 statt 12 Sek. Nach dem Aufräumen in Schritten neu gelesen (`rebuildSteps`), nicht mehr am Stück.
+  - **Erstes Auftauchen der Angebote** ohne rowid (`auc_first`), rund 70 MB weniger.
+  - Tests: Umstellung einer alten Datenbank, Abschnitte mit tiefstem und höchstem Wert, 28 Tage, Sichern und Laden, Neu lesen in Schritten. Tests legen Kennzahlen mit ihrem Stand an (`test/snap-helper.js`).
+
 ## 0.40.0
 
 Kurz: Der Manager rechnet nach einer Live-Abfrage aus Broker nicht mehr alles neu und hält die Datenbank kleiner. Die Angebote der Blizzard-Stände bleiben 2 Tage, Live-Abfragen 7 Tage.

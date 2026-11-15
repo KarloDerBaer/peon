@@ -6,6 +6,7 @@
 const zlib = require('node:zlib');
 const { parseRows, itemKey, unitPrice } = require('./stats');
 const { dayOf } = require('./broker');
+const { SNAPS_IN, hourFrom } = require('./db');
 
 function marketRow(db, key) {
   return db.prepare('SELECT id, key FROM markets WHERE key = ?').get(key) || null;
@@ -23,10 +24,11 @@ function dailyMedians(db, mid, from, key = null) {
     const x = m.get(day);
     if (x) { x.sum += med; x.n++; } else m.set(day, { sum: med, n: 1, own: true });
   };
-  for (const r of db.prepare("SELECT item_key, t, median FROM item_snap WHERE market_id = ? AND source = 'scan' AND t >= ?" + k1).iterate(mid, from, ...kv)) {
+  const q1 = key == null ? `SELECT item_key, t, median FROM item_snap WHERE ${SNAPS_IN} AND source = 'scan'` : "SELECT item_key, t, median FROM item_snap WHERE market_id = ? AND t >= ? AND t < ? AND source = 'scan' AND item_key = ?";
+  for (const r of db.prepare(q1).iterate(mid, from, 2 ** 40, ...kv)) {
     put(r.item_key, dayOf(r.t), r.median);
   }
-  for (const r of db.prepare("SELECT item_key, t, median FROM item_hour WHERE market_id = ? AND source = 'scan' AND t >= ?" + k1).iterate(mid, from, ...kv)) {
+  for (const r of db.prepare("SELECT item_key, t, median FROM item_hour WHERE market_id = ? AND hour >= ? AND source = 'scan' AND t >= ?" + k1).iterate(mid, hourFrom(from), from, ...kv)) {
     put(r.item_key, dayOf(r.t), r.median);
   }
   for (const r of db.prepare("SELECT item_key, num, median FROM hist WHERE market_id = ? AND source = 'broker' AND period = 'day' AND t >= ?" + k1).iterate(mid, from, ...kv)) {
@@ -62,7 +64,7 @@ function itemList(db, marketKey, now = Math.floor(Date.now() / 1000), parts = nu
   if (!m) return { market: marketKey, items: [], lastScan: null };
   const last = db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(m.id);
   const cur = new Map();
-  if (last) for (const r of db.prepare('SELECT * FROM item_snap WHERE snapshot_id = ?').iterate(last.id)) cur.set(r.item_key, r);
+  if (last) for (const r of db.prepare('SELECT * FROM item_snap WHERE sid = (SELECT sid FROM snapshots WHERE id = ?)').iterate(last.id)) cur.set(r.item_key, r);
   // zuletzt gesehen (mit Angeboten) je Gegenstand aus allen eigenen Daten und dem Broker-Verlauf
   const seen = new Map(parts ? parts.seen : []);
   const see = (k, t, row) => { const x = seen.get(k); if (!x || t > x.t) seen.set(k, { t, row }); };
@@ -121,7 +123,7 @@ function itemDetail(db, marketKey, key, { from = null, now = Math.floor(Date.now
 
   // aktueller Stand: letzter eigener Scan, sonst letzte Live-Abfrage
   const lastScan = db.prepare("SELECT id, t, art FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(m.id);
-  const curScan = lastScan ? db.prepare('SELECT * FROM item_snap WHERE snapshot_id = ? AND item_key = ?').get(lastScan.id, key) : null;
+  const curScan = lastScan ? db.prepare('SELECT * FROM item_snap WHERE sid = (SELECT sid FROM snapshots WHERE id = ?) AND item_key = ?').get(lastScan.id, key) : null;
   const lastLive = db.prepare("SELECT * FROM item_snap WHERE market_id = ? AND item_key = ? AND source = 'live' ORDER BY t DESC LIMIT 1").get(m.id, key);
   let current = null;
   if (curScan) current = { ...curScan, source: 'scan', art: lastScan.art };
@@ -152,7 +154,7 @@ function itemDetail(db, marketKey, key, { from = null, now = Math.floor(Date.now
 
   // Preisstufen im letzten Scan, in dem der Gegenstand vorkam
   let levels = null;
-  const lsnap = db.prepare(`SELECT s.id, s.t, s.rows FROM item_snap i JOIN snapshots s ON s.id = i.snapshot_id
+  const lsnap = db.prepare(`SELECT s.id, s.t, s.rows FROM item_snap i JOIN snapshots s ON s.sid = i.sid
       WHERE i.market_id = ? AND i.item_key = ? AND i.source = 'scan' AND i.qty > 0 AND s.rows IS NOT NULL ORDER BY i.t DESC LIMIT 1`).get(m.id, key);
   if (lsnap) {
     const rows = parseRows(zlib.inflateSync(Buffer.from(lsnap.rows)).toString('utf8')).filter((r) => itemKey(r) === key);

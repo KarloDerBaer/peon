@@ -120,7 +120,7 @@ function moves(db, marketId, bands, dayValues, last, today) {
   if (!last) return { up: [], down: [] };
   const info = itemInfo(db);
   const up = [], down = [];
-  for (const r of db.prepare('SELECT item_key, min, median, qty FROM item_snap WHERE snapshot_id = ?').iterate(last.id)) {
+  for (const r of db.prepare('SELECT item_key, min, median, qty FROM item_snap WHERE sid = (SELECT sid FROM snapshots WHERE id = ?)').iterate(last.id)) {
     const b = bands.get(r.item_key);
     // zu unruhig (Schwankung ueber 50 %): kein verlaesslicher Bereich fuer Fallend/Steigend
     if (!b || b.schw > 0.5 || r.median == null || r.median < 100 || r.qty < 3) continue;
