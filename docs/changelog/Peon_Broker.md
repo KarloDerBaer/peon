@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.96.1
+
+Kurz: Der Tooltip eines Rezepts zeigt jetzt die Preise des Rezepts. Bisher standen dort die Preise des Gegenstands, den das Rezept herstellt.
+
+- 0.96.1 (15.11.2026, Frage KarloDerBaer): Rezept „Schwerer Krokiliskeneintopf“: Gegenstandsseite üblich 2g 29s bis 3g 51s, Tooltip üblich 9s 90c bis 11s 97c.
+  - **Ursache:** Bei einem Rezept enthält Blizzards Tooltip das hergestellte Produkt, `GameTooltip:GetItem()` nennt dann dessen Link. Broker hat die Zeilen für das Produkt gerechnet.
+  - **Behoben:** `T.LinkFor` nimmt die Nummer aus `data.id`, die das Spiel dem Tooltip-Haken mitgibt, wenn sie vom Link abweicht (Link aus `data.hyperlink` oder `GetItemInfo`, sonst `item:Nummer`).
+  - Tests: Rezept statt Produkt, gleicher Gegenstand bleibt, ohne `data` wie bisher (`test_broker.lua`).
+  - **Im Spiel prüfen:** Tooltip des Rezepts zeigt Markt und üblichen Bereich wie die Gegenstandsseite.
+
 ## 0.96.0
 
 Kurz: Neuer Reiter Chancen rechts neben dem Radar: Hier stehen die Chancen des Peon Managers mit Zustand (ungeprüft, bestätigt, weg). „Alle prüfen“ fragt sie am Auktionator einmal ab.

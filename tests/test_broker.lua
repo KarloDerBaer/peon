@@ -3197,6 +3197,17 @@ end)()
   local found = false
   for _, l in ipairs(tt.lines) do local x = type(l) == "table" and (l[1] or l.text) or l if tostring(x):find("RADAR-ZUSATZ", 1, true) then found = true end end
   check(not found, "0.57: nach dem Verlassen kein Zusatz")
+  -- 0.96.1: Rezept: GetItem nennt das hergestellte Produkt, data.id das Rezept
+  local seen
+  local oldAdd = TT.AddLines
+  TT.AddLines = function(_, link) seen = link; return false end
+  TT.OnItem(GameTooltip, { id = 13947 })
+  check(seen and ns.Data.KeyFromLink(seen) == 13947, "0.96.1: Rezept statt Produkt im Tooltip: " .. tostring(seen))
+  TT.OnItem(GameTooltip, { id = 2770 })
+  check(ns.Data.KeyFromLink(seen) == 2770 and seen:find("Kupfererz", 1, true), "0.96.1: gleicher Gegenstand: Link bleibt")
+  TT.OnItem(GameTooltip)
+  check(ns.Data.KeyFromLink(seen) == 2770, "0.96.1: ohne data wie bisher")
+  TT.AddLines = oldAdd
   GameTooltip.GetItem, GameTooltip.GetOwner = oldItem, oldOwner
   -- Namen nachladen
   local saved, savedName = Rd.entries, ns.Data.ItemName

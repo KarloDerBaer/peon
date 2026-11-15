@@ -600,10 +600,26 @@ function T.SetExtra(owner, fn)
     return T.extra
 end
 
+-- ab 0.96.1 (Frage KarloDerBaer 15.11.2026): Bei einem Rezept enthaelt der Tooltip das hergestellte Produkt, und
+-- GetItem() nennt dessen Link. Broker zeigte dann Preise und ueblichen Bereich des Produkts unter dem Rezept.
+-- Das Spiel gibt mit data.id die Nummer des Gegenstands, um den es im Tooltip geht. Weicht sie ab, zaehlt data.id.
+function T.LinkFor(link, data)
+    local id = type(data) == "table" and data.id or nil
+    if type(id) ~= "number" or Peon.IsSecret(id) then return link end
+    local lid = type(link) == "string" and not Peon.IsSecret(link) and tonumber(link:match("item:(%d+)")) or nil
+    if lid == id then return link end
+    local h = data.hyperlink
+    if type(h) == "string" and not Peon.IsSecret(h) and tonumber(h:match("item:(%d+)")) == id then return h end
+    local full = select(2, ns.GetItemInfo(id))
+    if type(full) == "string" and not Peon.IsSecret(full) and tonumber(full:match("item:(%d+)")) == id then return full end
+    return "item:" .. id
+end
+
 function T.OnItem(tooltip, data)
     if tooltip ~= GameTooltip and tooltip ~= rawget(_G, "ItemRefTooltip") then return end
     if not tooltip.GetItem then return end
     local _, link = tooltip:GetItem()
+    link = T.LinkFor(link, data)
     if link == nil or Peon.IsSecret(link) then return end
     -- ab 0.87: Paketliste lesen, bevor eigene Zeilen dazukommen
     local packs = ns.Pack and ns.Pack.FromTooltip(tooltip, data)
