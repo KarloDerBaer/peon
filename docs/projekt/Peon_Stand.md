@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.97.0 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.41.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.3.1.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.97.0 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.42.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.3.1.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.22.0, API 22
@@ -109,8 +109,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.83.0, 0.82.0, 0.81.1, 0.81.0, 0.80.0, 0.79.0, 0.78.0, 0.77.0, 0.76.0, 0.75.1, 0.75.0, 0.74.0, 0.73.0, 0.72.0, 0.71.0, 0.70.0, 0.69.0, 0.68.0, 0.67.0, 0.66.0, 0.65.0, 0.64.1, 0.64.0, 0.63.0, 0.62.0, 0.61.0, 0.60.1, 0.60.0, 0.59.1, 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.41.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.42.0
 
+- **Stufe 3 der Beschleunigung (0.42.0):** zweiter Arbeitsprozess nur zum Lesen (`BrokerRemote.read`, `openReadDb`) für Gegenstandsseite, Liste und Protokoll des Abgleichs, Rückfall auf den ersten Prozess. Nicht veröffentlicht, nicht im echten Manager geprüft.
 - **Stufe 2 der Beschleunigung (0.41.0):** Schema 14 mit kompakten Kennzahlen (`sid`, ohne rowid), 3-Stunden-Werte mit `med_lo`/`med_hi`, Aufbewahrung 7/28 Tage, Tageswerte in `snap_cache`, `auc_first` ohne rowid. Echte Daten 1,96 auf 1,08 GB. Nicht veröffentlicht.
 - **Stufe 1 der Beschleunigung (0.40.0):** Live-Abfragen ohne Neurechnung und ohne Absatz, Angebote der API 2 Tage, eigener Scans 14 Tage, Live 7 Tage, Muster je Ortstag in Schritten, Tageswerte um Mitternacht verschoben. Stufe 2 (gestufte Kennzahlen) und 3 (Arbeitsprozess zum Lesen) folgen. Nicht veröffentlicht.
 - **Schneller nach jedem Stand (0.39.1):** Feste-Signale über den Zeitindex und höchstens einmal je Stunde (`festSignalsOf`), Chancen des großen Markts 7 statt 69 Sek. Lange Arbeiten im Protokoll (`dauer`), Gegenstandsseite zeigt Fehler. Offen: Absatz und Prognosen lesen je rund 930 000 Vergleichszeilen (je etwa 4 Sek.). Nicht veröffentlicht.

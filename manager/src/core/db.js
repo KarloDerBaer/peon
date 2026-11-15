@@ -278,6 +278,16 @@ function migrate14(db, now) {
   return true;
 }
 
+// ab Manager 0.42.0: nur lesen (Arbeitsprozess fuer die Ansichten). Keine Umstellung, kein Anlegen, die macht der Hauptteil.
+function openReadDb(dir) {
+  const file = path.join(dir, BROKER_FILE);
+  const db = new DatabaseSync(file, { readOnly: true });
+  db.file = file;
+  db.logDir = path.join(dir, 'logs');
+  db.readOnly = true;
+  return db;
+}
+
 // Datenbank des Managers (Zustand, Protokoll)
 function openManagerDb(dir) {
   return open(dir, MANAGER_FILE, MANAGER_DDL);
@@ -383,4 +393,4 @@ function pruneLogs(db, days = 30, now = Date.now()) {
   return n;
 }
 
-module.exports = { slotHour, SLOT_SQL, SNAPS_IN, hourFrom, migrate14, openDb, openManagerDb, migrateSplit, fileSize, removeDb, BROKER_FILE, MANAGER_FILE, tx, log, marketId, dbSize, pruneLogs, SCHEMA };
+module.exports = { openReadDb, slotHour, SLOT_SQL, SNAPS_IN, hourFrom, migrate14, openDb, openManagerDb, migrateSplit, fileSize, removeDb, BROKER_FILE, MANAGER_FILE, tx, log, marketId, dbSize, pruneLogs, SCHEMA };

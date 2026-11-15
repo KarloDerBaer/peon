@@ -118,3 +118,31 @@ test('Arbeitsprozess: Hauptteil bleibt frei, waehrend gerechnet wird', async () 
     assert.ok(ticks >= 3, `Hauptteil lief weiter (${ticks} Takte)`);
   } finally { await svc.broker.close(); svc.close(); }
 });
+
+test('0.42.0: Lese-Prozess fuer Ansichten, schreibt nicht, Fehler und Ausfall gehen an den ersten Prozess', async () => {
+  const { svc, errors } = setup();
+  const M = 'Classic Beta PvE / Alliance';
+  try {
+    assert.equal((await svc.broker.importGame()).imported, 1);
+    // nach der ersten Antwort laeuft der Lese-Prozess
+    const deadline = Date.now() + 5000;
+    while (!svc.broker.reader && Date.now() < deadline) await new Promise((r) => setTimeout(r, 20));
+    assert.ok(svc.broker.reader, 'Lese-Prozess gestartet');
+    const list = await svc.broker.read('itemList', M);
+    assert.ok(list.items.some((x) => x.key === '2770'), 'Liste ueber den Lese-Prozess');
+    const d = await svc.broker.read('itemDetail', M, '2770', '30d');
+    assert.ok(d && d.key === '2770', 'Gegenstand ueber den Lese-Prozess');
+    // Schreiben geht im Lese-Prozess nicht: dieselbe Anfrage beantwortet der erste Prozess
+    assert.deepEqual(await svc.broker.read('setFavorite', '2770', true), ['2770']);
+    assert.deepEqual(await svc.broker.favorites(), ['2770'], 'geschrieben hat der erste Prozess');
+    // Ausfall: weiter ueber den ersten Prozess
+    await svc.broker.reader.terminate();
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(svc.broker.reader, null);
+    const d2 = await svc.broker.read('itemDetail', M, '2770', '30d');
+    assert.ok(d2 && d2.key === '2770', 'ohne Lese-Prozess ueber den ersten');
+    assert.ok(errors.some((e) => /Lese-Prozess/.test(e.message)), 'Ausfall gemeldet');
+  } finally {
+    await svc.close();
+  }
+});

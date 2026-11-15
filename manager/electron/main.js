@@ -426,8 +426,10 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('reportsClear', () => svc.reports.deleteAll());
     ipcMain.handle('reportsSend', () => svc.reports.send());
     ipcMain.handle('settings', () => svc.settings);
-    ipcMain.handle('items', (_e, market) => (svc.broker ? svc.broker.itemList(String(market)) : null));
-    ipcMain.handle('item', (_e, market, key, range) => (svc.broker ? svc.broker.itemDetail(String(market), String(key), String(range || '30d')) : null));
+    // ab 0.42.0: Ansichten, die nur lesen, ueber den Lese-Prozess (warten nie hinter dem Neurechnen)
+    const rd = (name, ...a) => (svc.broker.read ? svc.broker.read(name, ...a) : svc.broker[name](...a));
+    ipcMain.handle('items', (_e, market) => (svc.broker ? rd('itemList', String(market)) : null));
+    ipcMain.handle('item', (_e, market, key, range) => (svc.broker ? rd('itemDetail', String(market), String(key), String(range || '30d')) : null));
     ipcMain.handle('itemInfo', (_e, key) => (svc.broker ? svc.broker.itemTip(String(key), blizzardClient()) : null));
     // Chancen und Prognosen (ab 0.35.0, Peon_Manager_Chancen.md)
     const chanceChanged = async (r) => { const v = await r; send('changed', { what: 'chancen' }); return v; };
@@ -468,8 +470,8 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('watchSetUp', (_e, key, value) => watchChanged(svc.broker.setWatchUp(String(key), value == null ? null : Number(value))));
     ipcMain.handle('watchSetBell', (_e, key, which, on) => watchChanged(svc.broker.setWatchBell(String(key), which || null, !!on)));
     // Abgleich nachvollziehen (ab 0.31.0): Protokoll, Geloeschtes, Wiederherstellen
-    ipcMain.handle('syncLog', (_e, area, origin) => (svc.broker ? svc.broker.syncLog({ area: area || null, origin: origin || null }) : []));
-    ipcMain.handle('syncTrash', (_e, area) => (svc.broker ? svc.broker.syncTrash({ area: area || null }) : []));
+    ipcMain.handle('syncLog', (_e, area, origin) => (svc.broker ? (svc.broker.read ? svc.broker.read('syncLog', { area: area || null, origin: origin || null }) : svc.broker.syncLog({ area: area || null, origin: origin || null })) : []));
+    ipcMain.handle('syncTrash', (_e, area) => (svc.broker ? (svc.broker.read ? svc.broker.read('syncTrash', { area: area || null }) : svc.broker.syncTrash({ area: area || null })) : []));
     ipcMain.handle('syncRestore', async (_e, id) => { const r = await svc.broker.restoreTrash(Number(id)); if (r && r.ok) send('changed', { what: 'wiederhergestellt' }); return r; });
     const shopChanged = async (r) => { const v = await r; send('changed', { what: 'einkaufsliste' }); return v; };
     ipcMain.handle('shopView', (_e, market) => (svc.broker ? svc.broker.shopView(String(market)) : { lists: [] }));

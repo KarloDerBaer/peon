@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.42.0
+
+Kurz: Gegenstandsseite und Gegenstandsliste laden jetzt auch dann sofort, wenn der Manager gerade neue Daten einliest oder neu rechnet.
+
+- 0.42.0 (15.11.2026, Stufe 3 der Beschleunigung, KarloDerBaer 15.11.2026). Gemessen mit den echten Daten: Während einer Neurechnung von 17 Sek. lädt die Gegenstandsseite in etwa 1 Sek., über den bisherigen Weg wartete sie 14 Sek.
+  - **Lese-Prozess:** `BrokerRemote.read` schickt Abfragen an einen zweiten Arbeitsprozess, der die Datenbank nur liest (`db.openReadDb`, `host.readOnly`). Er startet, sobald der erste Prozess bereit ist (dieser stellt die Datenbank beim Öffnen um). Über ihn laufen Gegenstandsseite, Gegenstandsliste und das Protokoll des Abgleichs.
+  - **Abgeleitete Werte:** Die Liste kommt aus dem Zwischenspeicher der letzten fertigen Rechnung (`list_cache`), auch wenn die Neurechnung nach einem neuen Stand noch läuft. Die Gegenstandsseite rechnet ihre Werte selbst aus der Datenbank.
+  - **Sicher:** Versucht eine Abfrage im Lese-Prozess zu schreiben oder fällt er aus, beantwortet der erste Prozess sie wie bisher. Nach einer Minute startet der Lese-Prozess neu. Ein Ausfall steht im Protokoll.
+  - Tests: Lesen über den zweiten Prozess, Schreiben geht an den ersten, Ausfall (`worker.test.js`).
+
 ## 0.41.0
 
 Kurz: Die Datenbank ist nur noch etwa halb so groß und wächst kaum noch. Preise bleiben 7 Tage Stand für Stand, danach in Abschnitten von 3 Stunden bis 28 Tage, danach je Tag.

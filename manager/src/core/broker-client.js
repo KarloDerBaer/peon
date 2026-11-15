@@ -5,7 +5,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { openDb, log, dbSize, pruneLogs, tx } = require('./db');
+const { openDb, openReadDb, log, dbSize, pruneLogs, tx } = require('./db');
 const pattern = require('./pattern');
 const game = require('./game');
 const { writeData, dataMatches, addonDir } = require('./datalua');
@@ -40,7 +40,9 @@ class BrokerClient {
   constructor(host) {
     this.host = host;
     this.dbDir = host.dbDir;
-    this.db = openDb(host.dbDir);
+    // ab 0.42.0: host.readOnly = Arbeitsprozess fuer die Ansichten (broker-remote.js read), liest nur
+    this.readOnly = !!host.readOnly;
+    this.db = this.readOnly ? openReadDb(host.dbDir) : openDb(host.dbDir);
     this.lastImport = null;
     this.lastFiles = [];
     this.info = new ItemInfo(this.db, () => this.now());
@@ -370,11 +372,13 @@ class BrokerClient {
     if (mem && mem.sig === sig) return mem.value;
     const row = this.db.prepare('SELECT sig, data FROM list_cache WHERE market_id = ?').get(mid);
     let value;
-    if (row && row.sig === sig) {
+    // ab 0.42.0: Der Lese-Prozess nimmt die gespeicherte Liste auch, wenn die Neurechnung nach einem neuen Stand noch laeuft.
+    // Die neue Liste schreibt der Hauptteil gleich danach, beim naechsten Oeffnen ist sie da.
+    if (row && (row.sig === sig || this.readOnly)) {
       value = JSON.parse(zlib.inflateSync(Buffer.from(row.data)).toString('utf8'));
     } else {
       value = this.computeList(marketKey, mid);
-      this.db.prepare('INSERT OR REPLACE INTO list_cache(market_id, sig, data) VALUES (?, ?, ?)').run(mid, sig, zlib.deflateSync(Buffer.from(JSON.stringify(value), 'utf8')));
+      if (!this.readOnly) this.db.prepare('INSERT OR REPLACE INTO list_cache(market_id, sig, data) VALUES (?, ?, ?)').run(mid, sig, zlib.deflateSync(Buffer.from(JSON.stringify(value), 'utf8')));
     }
     this.listCache.set(mid, { sig, value });
     return value;

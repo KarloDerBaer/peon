@@ -22,6 +22,7 @@ const host = {
   dbDir: workerData.dbDir,
   version: workerData.version,
   settings: workerData.settings,
+  readOnly: !!workerData.readOnly,   // ab 0.42.0: Arbeitsprozess fuer die Ansichten
   fetchImpl: (...a) => fetch(...a),
   now: () => Math.floor(Date.now() / 1000),
   saveSettings(patch) {
