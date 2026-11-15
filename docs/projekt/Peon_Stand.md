@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.96.2 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.39.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.3.1.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.97.0 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.39.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.3.1.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.22.0, API 22
@@ -66,8 +66,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.96.2 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.97.0 (neu, Auktionshaus-Helfer)
 
+- **Zahl am Reiter einstellbar (ab 0.97.0):** Optionen, Abschnitt „Zahl am Reiter“, je Reiter ob und wann (`AHTabs.BADGE_MODES`, `badgeBuy`, `badgeWatch`, `badgeRadar`, `badgeSell`, `badgeChances`). Chancen neu mit Zahl, Standard aus. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Zahl am Reiter auf der Ecke (ab 0.96.2):** roter Kreis unten rechts am Reiter (`Window.CornerBadge`, `tab.corner`), der Reiter wird nicht breiter. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Tooltip bei Rezepten (ab 0.96.1):** zeigte die Preise des hergestellten Gegenstands, jetzt die des Rezepts (`T.LinkFor` mit `data.id`). Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Reiter Chancen (ab 0.96.0, Konzept `Peon_Chancen_Reiter_Muster.md`):** Neue Datei `Chances.lua`, Reiter rechts neben dem Radar mit den Chancen des Managers und ihrem Zustand, „Alle prüfen“ (Radar-Scan `mgronly`), Erneuern auf der Seite, Klick in den Fokus. Radar ohne Kandidaten des Managers (`radarSpecOn` und „Vom Manager“ entfallen). Muster mit Zeitfenstern, Hinweise `chancesAhNote` und `chancesNotify`, Arten `chancesShowS`, `L`, `B`, `M`, Fenster Einstellungen Chancen. Fokus links neben Beobachten. Vorabversion `v2026.11.15-test` (15.11.2026, nur Kanal Test, mit Profession 0.3.1), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im Spiel noch nicht geprüft.

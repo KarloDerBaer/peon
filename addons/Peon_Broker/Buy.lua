@@ -314,13 +314,13 @@ end
 
 -- Zahl am Reiter Einkaufen (ab 0.49, U8): alle Zeilen aus Einkaufslisten und Beobachtung mit Rat Kaufen oder
 -- Teilweise, ohne Blinken
-function B.CountBuyable()
+function B.CountBuyable(onlyBuy)
     local n = 0
     local lists = {}
     for _, l in ipairs(B.Lists()) do lists[#lists + 1] = l end
     for _, l in ipairs(lists) do
         for _, r in ipairs(B.ListRows(l)) do
-            if r.advice == "buy" or r.advice == "part" then n = n + 1 end
+            if r.advice == "buy" or (r.advice == "part" and not onlyBuy) then n = n + 1 end
         end
     end
     return n
@@ -329,7 +329,8 @@ end
 function B.UpdateBadge()
     local T = ns.AHTabs
     if not (T and T.SetBadge and T.built) then return end
-    T.SetBadge("buy", B.CountBuyable(), false)
+    local mode = T.BadgeMode and T.BadgeMode("buy") or "buypart"   -- ab 0.97 einstellbar
+    T.SetBadge("buy", mode ~= "off" and B.CountBuyable(mode == "buy") or nil, false)
 end
 
 -- Reiter gerade zu sehen (Broker-Fenster oder Auktionshaus)

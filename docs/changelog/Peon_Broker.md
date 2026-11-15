@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.97.0
+
+Kurz: Für jeden Reiter mit roter Zahl stellst du in den Optionen von Broker ein, ob und wann die Zahl kommt. Neu kann auch der Reiter Chancen eine Zahl zeigen.
+
+- 0.97.0 (15.11.2026, Wunsch KarloDerBaer): Optionen, neuer Abschnitt „Zahl am Reiter“ mit einer Auswahl je Reiter (`AHTabs.BADGE_MODES`, Einstellungen `badgeBuy`, `badgeWatch`, `badgeRadar`, `badgeSell`, `badgeChances`).
+  - **Einkaufen:** Aus, Kaufen oder Teilweise (Standard, wie bisher), Nur Kaufen.
+  - **Beobachten:** Aus, Kaufen bis oder Zielpreis erreicht (Standard), Nur Kaufen bis, Nur Zielpreis.
+  - **Radar:** Aus, Treffer nach dem Scan mit Blinken (Standard), ohne Blinken.
+  - **Chancen (neu):** Aus (Standard), Bestätigte Chancen (bei der letzten Live-Prüfung noch da), Alle Chancen. Muster zählen nur in ihrer günstigen Zeit. Die Zahl wird nach jeder Prüfung, beim Öffnen des Auktionshauses und jede Minute neu gerechnet.
+  - **Verkaufen:** Aus, Offene Posten zum Einstellen (Standard).
+  - Eine Änderung wirkt sofort (`AHTabs.RefreshBadges` über das Ereignis `CHANGED`).
+  - Tests: Optionen, Standard und unbekannter Wert, jeder Reiter mit seinen Möglichkeiten (`test_broker.lua`).
+  - **Im Spiel prüfen:** Auswahl in den Optionen, Zahl verschwindet bei Aus sofort, Chancen mit Zahl.
+
 ## 0.96.2
 
 Kurz: Die rote Zahl an einem Reiter sitzt jetzt auf seiner unteren rechten Ecke. Die Reiter werden dadurch nicht mehr breiter und passen wieder ins Fenster.

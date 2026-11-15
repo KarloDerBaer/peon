@@ -151,6 +151,14 @@ local ns = load("Peon_Broker", "Peon_Broker")
 fire("ADDON_LOADED", "Peon_Broker")
 local mod = ns.mod
 check(mod.initialized and mod.page, "Modul + Optionsseite")
+do   -- ab 0.97: Abschnitt Zahl am Reiter, eine Auswahl je Reiter
+  local keys = {}
+  for _, c in ipairs(mod.page.controls) do if type(c.key) == "string" and c.key:sub(1, 5) == "badge" then keys[c.key] = c end end
+  check(keys.badgeBuy and keys.badgeWatch and keys.badgeRadar and keys.badgeSell and keys.badgeChances, "0.97: Optionen mit Auswahl je Reiter")
+  keys.badgeRadar.Select("still")
+  check(mod.db.badgeRadar == "still", "0.97: Auswahl schreibt die Einstellung")
+  keys.badgeRadar.Select("blink")
+end
 check(StaticPopupDialogs == POPUPS and POPUPS.PEON_BROKER_DELETE_MARKET, "StaticPopupDialogs nicht neu zugewiesen (sonst ESC-Problem)")
 check(type(PeonBrokerDB) == "table" and PeonBrokerDB.debug == false, "PeonBrokerDB angelegt")
 check(PeonBrokerDB.radarSound == false and PeonBrokerDB.radarSoundOff == true, "0.95.1: Ton bei neuen Radar-Treffern einmal ausgeschaltet (Bericht 29)")
@@ -1649,6 +1657,12 @@ end)()
     fire("AUCTION_HOUSE_SHOW")
     check(plain(ah.SellTab.text) == "Verkaufen" and ah.SellTab.corner and ah.SellTab.corner.shown and ah.SellTab.corner.text.text == "1",
       "H3/0.82: Blizzards Reiter Verkaufen mit Zahl im roten Kreis")
+    mod.db.badgeSell = "off"
+    LT.UpdateSellTab()
+    check(not ah.SellTab.corner.shown, "0.97: Zahl am Reiter Verkaufen abschaltbar")
+    mod.db.badgeSell = "on"
+    LT.UpdateSellTab()
+    check(ah.SellTab.corner.shown, "0.97: und wieder an")
     sf:UpdatePostState()
     local box = A.boxes[sf]
     check(A.lot and A.lot.id == lot.id and box.fill.shown and plain(box.lines.text):find("Posten: gekauft für 10s 38c je Stück, Ziel 15s", 1, true),
@@ -2620,6 +2634,42 @@ end)()
   ah:SetDisplayMode("Buy")
   mod:Fire("SCAN_DONE", "Markt")
   check(T.badges.radar == nil, "U7: ohne Treffer keine Zahl")
+  -- 0.97: je Reiter einstellbar, ob und wann die Zahl kommt
+  check(T.BadgeMode("radar") == "blink" and T.BadgeMode("chances") == "off" and T.BadgeMode("buy") == "buypart", "0.97: Standard je Reiter")
+  mod.db.badgeRadar = "quatsch"
+  check(T.BadgeMode("radar") == "blink", "0.97: unbekannter Wert -> Standard")
+  R.CountHits = function() return 2 end
+  mod.db.badgeRadar = "still"
+  mod:Fire("SCAN_DONE", "Markt")
+  check(T.badges.radar and T.badges.radar.n == 2 and not T.badges.radar.blink and T.tabs.radar.scripts.OnUpdate == nil
+    and T.tabs.radar.corner.shown, "0.97: Radar mit Zahl ohne Blinken")
+  mod.db.badgeRadar = "off"
+  mod:Fire("CHANGED", "badgeRadar")
+  check(T.badges.radar == nil and not T.tabs.radar.corner.shown, "0.97: Radar aus nimmt die Zahl gleich weg")
+  mod:Fire("SCAN_DONE", "Markt")
+  check(T.badges.radar == nil, "0.97: Radar aus, auch nach dem Scan keine Zahl")
+  mod.db.badgeRadar = "blink"
+  -- Chancen: Standard aus, ok = bestaetigt, all = alle ohne weg, Muster nur im Zeitfenster
+  local Ch = ns.Chances
+  local oldRows = Ch.Rows
+  Ch.Rows = function() return {
+    { state = "ok", mk = "s", x = {} }, { state = "new", mk = "l", x = {} }, { state = "gone", mk = "s", x = {} },
+    { state = "ok", mk = "m", x = { buyWin = { mask = 127, slot = 1 } }, inWindow = false },
+    { state = "new", mk = "m", x = { buyWin = { mask = 127, slot = 1 } }, inWindow = true } } end
+  local wasCur = T.current
+  T.current = nil
+  Ch.UpdateBadge()
+  check(T.badges.chances == nil, "0.97: Chancen ohne Zahl (Standard aus)")
+  mod.db.badgeChances = "all"
+  mod:Fire("CHANGED", "badgeChances")
+  check(T.badges.chances and T.badges.chances.n == 3 and T.tabs.chances.corner.shown, "0.97: alle Chancen: 3")
+  mod.db.badgeChances = "ok"
+  Ch.UpdateBadge()
+  check(T.badges.chances and T.badges.chances.n == 1, "0.97: nur bestaetigte: 1")
+  mod.db.badgeChances = "off"
+  mod:Fire("CHANGED", "badgeChances")
+  check(T.badges.chances == nil and not T.tabs.chances.corner.shown, "0.97: Chancen wieder aus")
+  Ch.Rows, T.current = oldRows, wasCur
   R.CountHits, R.LoadFromScan = oldCount, oldLoad
   -- Tastenbelegungen
   check(type(PeonBroker_RadarBuy) == "function" and type(PeonBroker_RadarNext) == "function", "U7: Tastenbelegungen Kaufen und Naechster")
@@ -2716,7 +2766,29 @@ end)()
   B.CountBuyable = function() return 5 end
   B.UpdateBadge()
   check(badge and badge.key == "buy" and badge.n == 5 and not badge.blink, "U8: Einkaufen (5) ohne Blinken")
+  local onlyArg
+  B.CountBuyable = function(only) onlyArg = only; return 2 end
+  mod.db.badgeBuy = "buy"
+  B.UpdateBadge()
+  check(badge.n == 2 and onlyArg == true, "0.97: Einkaufen nur Kaufen")
+  mod.db.badgeBuy = "off"
+  B.UpdateBadge()
+  check(badge.n == nil, "0.97: Einkaufen ohne Zahl")
+  mod.db.badgeBuy = "buypart"
   B.CountBuyable = oldCount
+  -- Beobachten: Richtung waehlbar
+  local WP = ns.WatchPage
+  local oldWRows = WP.Rows
+  WP.Rows = function() return { { advice = "buy" }, { advice = "sell" }, { advice = "sell" }, {} } end
+  check(WP.Count() == 3 and WP.Count("buy") == 1 and WP.Count("sell") == 2, "0.97: Beobachten zaehlt je Richtung")
+  mod.db.badgeWatch = "sell"
+  WP.UpdateBadge()
+  check(badge.key == "watch" and badge.n == 2, "0.97: Beobachten nur Zielpreis")
+  mod.db.badgeWatch = "off"
+  WP.UpdateBadge()
+  check(badge.key == "watch" and badge.n == nil, "0.97: Beobachten ohne Zahl")
+  mod.db.badgeWatch = "both"
+  WP.Rows = oldWRows
   check(type(B.CountBuyable()) == "number", "U8: Zaehlung ueber alle Listen und Beobachtung")
   ns.AHTabs.SetBadge, ns.AHTabs.built = oldT, wasBuilt
   -- Gegenstandsmenue und Tooltip-Zeichen

@@ -70,6 +70,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
         chancesShowS = true, chancesShowL = true, chancesShowB = true, chancesShowM = true,
         chancesAhNote = true,   -- beim Oeffnen des Auktionshauses sagen, wie viele Chancen warten
         chancesNotify = true,   -- Meldung, wenn ein guenstiges Zeitfenster beginnt (Muster)
+        -- ab 0.97 (Wunsch KarloDerBaer 15.11.2026): ob und wann die rote Zahl am Reiter kommt (AHTabs.BADGE_MODES)
+        badgeBuy = "buypart", badgeWatch = "both", badgeRadar = "blink", badgeSell = "on", badgeChances = "off",
         buyoutMinQty = 500,     -- Aufkauf (ab 0.71): Massenware erst ab so vielen Stueck im Angebot (bis 0.82 200)
         buyoutMinLevels = 4,    -- Aufkauf (ab 0.71): und so vielen Preisstufen (bis 0.82 5)
         buyoutMinSales = 270,   -- (bis 0.82 50)
@@ -107,6 +109,11 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  watchSoundDown = { off = true, raid = true, ready = true, alarm = true, tell = true },   -- ab 0.91
                  watchSoundUp = { off = true, raid = true, ready = true, alarm = true, tell = true },
                  tooltipNeutral = { always = true, shift = true, off = true },
+                 badgeBuy = { off = true, buypart = true, buy = true },   -- ab 0.97
+                 badgeWatch = { off = true, both = true, buy = true, sell = true },
+                 badgeRadar = { off = true, blink = true, still = true },
+                 badgeSell = { off = true, on = true },
+                 badgeChances = { off = true, ok = true, all = true },
                  windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true,
                               market = true, watch = true, sources = true, vendors = true,
                               browse = true, focus = true, more = true } },   -- ab 0.59 (Neuaufbau N1)   -- ab 0.51 neue Reiter   -- ab 0.28 mit "start", ohne "book"

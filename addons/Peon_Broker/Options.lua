@@ -41,6 +41,16 @@ function ns.CreateOptions()
     -- ab 0.46 (Umbau U5): Bausteine frei einstellbar, ersetzt die Schalter 7 Tage, Haendler, Hinweise und Neutral
     local ttLayout = ns.TooltipOptions.Build(page, left)
 
+    -- ab 0.97: Zahl am Reiter, je Reiter ob und wann
+    page:Add(left, page:Header(L.HDR_BADGES), 6)
+    local T = ns.AHTabs
+    for i, key in ipairs(T.BADGE_ORDER) do
+        local d = T.BADGE_MODES[key]
+        local opts = {}
+        for _, m in ipairs(d.modes) do opts[#opts + 1] = { m, L["BADGE_" .. key:upper() .. "_" .. m:upper()] or L["BADGE_" .. m:upper()] } end
+        page:Add(left, page:Dropdown(d.db, L[d.label], opts, L["BADGE_" .. key:upper() .. "_HINT"]), i == #T.BADGE_ORDER and 16 or nil)
+    end
+
     -- Berufsfenster: ab 0.95 in Peon_Profession
     page:Add(left, page:Header(L.HDR_CRAFT), 6)
     page:Add(left, page:Text(function() return L.CRAFT_MOVED end), 16)

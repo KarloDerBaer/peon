@@ -611,6 +611,43 @@ function T.SetBadge(key, n, blink)
     end
 end
 
+-- ab 0.97 (Wunsch KarloDerBaer 15.11.2026): je Reiter einstellbar, ob und wann die Zahl kommt (Optionen, Abschnitt
+-- "Zahl am Reiter"). Erster Wert ist "aus", def ist der Standard (wie in Broker.lua).
+--   buy      buypart = Rat Kaufen oder Teilweise, buy = nur Kaufen
+--   watch    both = Kaufen bis oder Zielpreis erreicht, buy = nur Kaufen bis, sell = nur Zielpreis
+--   radar    blink = Treffer nach dem Scan, blinkt bis zum Oeffnen, still = ohne Blinken
+--   sell     on = offene Posten zum Einstellen (Blizzards Reiter Verkaufen)
+--   chances  ok = live bestaetigte Chancen, all = alle gezeigten Chancen (Muster nur im guenstigen Zeitfenster)
+T.BADGE_MODES = {
+    buy     = { db = "badgeBuy",     label = "AHTAB_SHOP",    modes = { "off", "buypart", "buy" }, def = "buypart" },
+    watch   = { db = "badgeWatch",   label = "NTAB_WATCH",    modes = { "off", "both", "buy", "sell" }, def = "both" },
+    radar   = { db = "badgeRadar",   label = "AHTAB_RADAR",   modes = { "off", "blink", "still" }, def = "blink" },
+    sell    = { db = "badgeSell",    label = "AHTAB_SELL_BASE", modes = { "off", "on" }, def = "on" },
+    chances = { db = "badgeChances", label = "TAB_CHANCES",   modes = { "off", "ok", "all" }, def = "off" },
+}
+T.BADGE_ORDER = { "buy", "watch", "radar", "chances", "sell" }
+
+function T.BadgeMode(key)
+    local d = T.BADGE_MODES[key]
+    if not d then return "on" end
+    local v = mod.db[d.db]
+    for _, m in ipairs(d.modes) do if m == v then return v end end
+    return d.def
+end
+
+-- Einstellung geaendert: alle Zahlen neu
+function T.RefreshBadges()
+    if ns.Buy and ns.Buy.UpdateBadge then ns.Buy.UpdateBadge() end
+    if ns.WatchPage and ns.WatchPage.UpdateBadge then ns.WatchPage.UpdateBadge() end
+    if ns.Chances and ns.Chances.UpdateBadge then ns.Chances.UpdateBadge() end
+    if ns.Lots and ns.Lots.UpdateSellTab then ns.Lots.UpdateSellTab() end
+    local b = T.badges.radar
+    local mode = T.BadgeMode("radar")
+    if b and T.built then
+        if mode == "off" then T.SetBadge("radar", nil) else T.SetBadge("radar", b.n, mode == "blink" and b.blink) end
+    end
+end
+
 -- Nach einem Komplettscan: Treffer im Radar zaehlen (blinkt), Einkaufen kommt mit U8
 function T.OnScanDone()
     if not T.built or ns.AHPlain() then return end
@@ -618,7 +655,8 @@ function T.OnScanDone()
     if R and R.LoadFromScan and R.CountHits then
         R.LoadFromScan()
         local n = R.CountHits()
-        T.SetBadge("radar", n, n > 0)
+        local mode = T.BadgeMode("radar")
+        if mode == "off" then T.SetBadge("radar", nil) else T.SetBadge("radar", n, mode == "blink" and n > 0) end
         T.lastScanHits = n
     end
 end

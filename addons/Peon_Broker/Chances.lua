@@ -57,6 +57,30 @@ function C.Note(key, d, rows)
     local lv = ns.Data.Available(rows or {})
     C.checked[key] = { t = Now(), ok = d ~= nil, gain = d and (d.showGain or d.gain) or nil, offer = lv[1] and lv[1].price or nil }
     if C.Shown() then C.Refresh() end
+    C.UpdateBadge()
+end
+
+-- Zahl am Reiter (ab 0.97, einstellbar, Standard aus): ok = live bestaetigt, all = alle gezeigten.
+-- Muster zaehlen nur im guenstigen Zeitfenster.
+function C.BadgeCount(mode)
+    local n = 0
+    for _, r in ipairs(C.Rows()) do
+        local now = not (r.mk == "m" and r.x.buyWin and not r.inWindow)
+        if now and (mode == "all" and r.state ~= "gone" or r.state == "ok") then n = n + 1 end
+    end
+    return n
+end
+
+function C.UpdateBadge()
+    local T = ns.AHTabs
+    if not (T and T.SetBadge and T.built and T.BadgeMode) then return end
+    local mode = T.BadgeMode("chances")
+    if mode == "off" then
+        if T.badges.chances then T.SetBadge("chances", nil) end
+        return
+    end
+    if T.current == "chances" then return end   -- offen: keine Zahl, wie bei den anderen Reitern
+    T.SetBadge("chances", C.BadgeCount(mode), false)
 end
 
 -- Fenster als Text: "0 bis 3 Uhr", "Samstag", "Samstag 18 bis 21 Uhr"
@@ -232,12 +256,14 @@ end
 -- Hinweise: beim Oeffnen des Auktionshauses und wenn ein guenstiges Fenster beginnt
 ---------------------------------------------------------------------------
 function C.OnAHShow()
+    C.UpdateBadge()
     if mod.db.chancesAhNote == false then return end
     local n = #C.Keys()
     if n > 0 then mod:Print(L.CH_AH_NOTE:format(n)) end
 end
 
 function C.Tick()
+    C.UpdateBadge()   -- Muster: Zeitfenster beginnt oder endet
     if mod.db.chancesNotify == false or not C.KindOn("m") or not ns.Spec then return end
     local D = ns.Data
     local d = date("*t")
@@ -253,6 +279,9 @@ end
 
 function C.Init()
     mod:RegisterEvent("AUCTION_HOUSE_SHOW", function() mod:Call("Chancen", C.OnAHShow) end)
+    mod:On("CHANGED", function(key)   -- ab 0.97: Zahl am Reiter umgestellt (Optionen)
+        if type(key) == "string" and key:sub(1, 5) == "badge" and ns.AHTabs then mod:Call("Zahl am Reiter", ns.AHTabs.RefreshBadges) end
+    end)
     if C_Timer and C_Timer.NewTicker then
         C.ticker = C_Timer.NewTicker(60, function() mod:Call("Chancen", C.Tick) end)
     end

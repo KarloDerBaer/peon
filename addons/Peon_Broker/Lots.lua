@@ -262,7 +262,8 @@ function LT.UpdateSellTab()
     if type(tab) ~= "table" or not tab.SetText or not ns.AHTouch() then return end
     -- ab 0.82: Zahl als roter Kreis (wie Brokers Reiter), der Text bleibt "Verkaufen"
     tab:SetText(L.AHTAB_SELL_BASE)
-    if ns.AHTabs and ns.AHTabs.ShowBadge then ns.AHTabs.ShowBadge(tab, LT.Count())
+    local off = ns.AHTabs and ns.AHTabs.BadgeMode and ns.AHTabs.BadgeMode("sell") == "off"   -- ab 0.97 einstellbar
+    if ns.AHTabs and ns.AHTabs.ShowBadge then ns.AHTabs.ShowBadge(tab, off and 0 or LT.Count())
     elseif PanelTemplates_TabResize then pcall(PanelTemplates_TabResize, tab, 20, nil, 70) end
     if ns.AHTabs and ns.AHTabs.AlignSoon then ns.AHTabs.AlignSoon() end
 end

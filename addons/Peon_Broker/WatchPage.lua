@@ -144,15 +144,19 @@ function P.Rows()
 end
 
 -- Zahl am Reiter: Gegenstaende mit Rat KAUFEN oder VERKAUFEN
-function P.Count()
+-- ab 0.97: only = "buy" oder "sell" zaehlt nur diese Richtung
+function P.Count(only)
     local n = 0
-    for _, r in ipairs(P.Rows()) do if r.advice then n = n + 1 end end
+    for _, r in ipairs(P.Rows()) do if r.advice and (only == nil or r.advice == only) then n = n + 1 end end
     return n
 end
 
 function P.UpdateBadge()
     local T = ns.AHTabs
-    if T and T.SetBadge and T.built then T.SetBadge("watch", P.Count(), false) end
+    if not (T and T.SetBadge and T.built) then return end
+    local mode = T.BadgeMode and T.BadgeMode("watch") or "both"   -- ab 0.97 einstellbar
+    if mode == "off" then T.SetBadge("watch", nil) return end
+    T.SetBadge("watch", P.Count(mode ~= "both" and mode or nil), false)
 end
 
 function P.Build(c)
