@@ -105,7 +105,7 @@ test('Live-Abfragen mit Nummern nur ausserhalb von Scan-Paaren', () => {
   svc.close();
 });
 
-test('Chancen (ab 0.35.0): Haendler, Marktuebersicht, Kandidaten fuer Broker in Data.lua', () => {
+test('Chancen (ab 0.35.0): Marktuebersicht, Warum nicht, keine Haendler (ab 0.38.0 nur im Radar)', () => {
   const { svc, push, ad } = world();
   const t0 = at(DAY, 10);
   // Wiederverkauf ist abgeloest (KarloDerBaer 13.11.2026), Fallend und Lohnend stehen in der Marktuebersicht
@@ -117,33 +117,22 @@ test('Chancen (ab 0.35.0): Haendler, Marktuebersicht, Kandidaten fuer Broker in 
   const c = svc.broker.chanceView(M);
   assert.ok(c && c.t === t0 + 3 * 3600, 'Stand des letzten Scans');
   assert.equal(c.list.filter((x) => x.kind === 's').length, 0, 'ohne belegte Verkaeufe keine Spekulation');
-  const v = c.list.find((x) => x.key === '4306' && x.kind === 'v');
-  assert.ok(v && v.qty === 5 && v.gain === 1000 && v.buy === 499 && v.target === 500, 'Seidenstoff 300 statt Haendler 500');
-  assert.ok(v.say.includes('unter dem Händlerpreis') && v.checks.every((k) => k.ok), 'Satz und Pruefliste');
+  assert.equal(c.list.filter((x) => x.kind === 'v').length, 0, 'Seidenstoff unter dem Haendlerpreis: kein Vorschlag im Manager');
+  assert.equal(c.live, undefined, 'kein Reiter Nur live erreichbar');
   const why = svc.broker.chanceItem(M, '2589');
   const s = why.checks.find((x) => x.kind === 's');
   assert.ok(s && !s.ok && s.say.startsWith('Kein Vorschlag, weil:') && s.say.includes('belegter Verkaufspreis'), 'Warum nicht: noch kein belegter Verkaufspreis');
+  assert.ok(!svc.broker.chanceItem(M, '4306').checks.some((x) => x.kind === 'v'), 'keine Pruefliste Haendler');
   const mk = svc.broker.marketOverview(M);
   assert.ok(mk.down.length === 1 && mk.down[0].key === '4306', 'Fallend in der Marktuebersicht');
   assert.equal(mk.worth.find((x) => x.key === '2589'), undefined, 'Lohnend: nur zu 500 verkauft, weit unter dem Bereich');
-  // Data.lua: Kandidatenliste fuer Broker (9.1)
+  // Data.lua: ohne Chancen keine Kandidatenliste
   const d = parseLua(fs.readFileSync(path.join(ad, 'Data.lua'))).PeonBridgeData;
-  const ch = d.markets[M].chances;
-  assert.ok(ch && ch.list && /^v:499:500:\d+:1000:[012]:5$/.test(ch.list['4306'] || ch.list[4306]), 'Haendler als Kandidat mit Menge');
-  assert.ok((ch.say['4306'] || ch.say[4306]).includes('Händlerpreis'), 'Satz fuer den Fokus');
-  // Uebersteuerung: nie vorschlagen
-  svc.broker.setOverride('4306', { never: true });
-  const c2 = svc.broker.chanceView(M);
-  assert.equal(c2.list.find((x) => x.key === '4306'), undefined, 'nie vorschlagen');
-  assert.ok(svc.broker.chanceItem(M, '4306').checks.find((x) => x.kind === 'v').checks.some((k) => k.id === 'never' && k.user), 'in der Pruefliste: von dir geaendert');
-  svc.broker.setOverride('4306', {});
-  assert.ok(svc.broker.chanceView(M).list.find((x) => x.key === '4306'), 'zurueckgenommen');
-  // D5: Vorschlaege mit allen Werten gespeichert, Rueckmeldung zugeordnet
-  const db = svc.broker.db;
-  assert.ok(db.prepare("SELECT COUNT(*) AS n FROM chance_log WHERE kind = 'v' AND shown = 1").get().n >= 1);
-  const id = svc.broker.rateChance({ market: M, key: '4306', name: 'Seidenstoff', kind: 'v', up: true, reason: 'gekauft', note: 'x'.repeat(1200) });
+  assert.ok(!d.markets[M].chances, 'keine Kandidaten');
+  // Rueckmeldung ohne gespeicherten Vorschlag
+  const id = svc.broker.rateChance({ market: M, key: '4306', name: 'Seidenstoff', kind: 's', up: true, reason: 'gekauft', note: 'x'.repeat(1200) });
   const r = svc.broker.chanceRatings().list.find((x) => x.id === id);
-  assert.ok(r && r.log_id && r.note.length === 1000 && r.reason === 'gekauft', 'Rueckmeldung mit Vorschlag, Text gekuerzt');
+  assert.ok(r && r.note.length === 1000 && r.reason === 'gekauft', 'Rueckmeldung, Text gekuerzt');
   svc.close();
 });
 

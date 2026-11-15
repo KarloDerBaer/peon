@@ -35,7 +35,7 @@ R.PRICE_TOL = 0.01   -- ab 0.66: Gesamtpreis des Spiels mehr als 1 % ueber dem e
 R.KIND_ON = setmetatable({}, { __index = function(_, k)
     if k == "vendor" then return mod.db.radarVendorOn ~= false end
     if k == "buyout" then return mod.db.radarBuyoutOn ~= false end
-    if k == "spec" then return mod.db.radarSpecOn ~= false end   -- ab 0.93: Kandidaten vom Peon Manager (Spec.lua)
+    if k == "spec" then return true end   -- ab 0.93: Kandidaten vom Peon Manager (Spec.lua), ab 0.96 im Reiter Chancen
     return nil
 end })
 R.GONE_TIME = 30     -- Sekunden: so lange bleibt ein weggefallener Treffer grau mit Grund in der Liste (ab 0.20)
@@ -167,7 +167,7 @@ function R.LoadFromScan()
     -- ab 0.93: Spekulation vom Peon Manager. Ohne eigene Preisstufen mit den Werten des Managers, bis Erneuern live prueft
     if R.KIND_ON.spec and ns.Spec then
         for key, x in pairs(ns.Spec.All()) do
-            if not R.entries[key] and (x.mk == "s" or x.mk == "l") and ns.Buy.KnownKey(key) then
+            if not R.entries[key] and ns.Spec.FIND[x.mk] and ns.Buy.KnownKey(key) then
                 local e = market.items[key]
                 local d = type(e) == "table" and type(e.lv) == "string" and not e.gone and R.Evaluate(key, D.ParseLevels(e.lv), false, nil) or nil
                 if not d or d.kind ~= "spec" then
@@ -308,6 +308,7 @@ end
 -- Sichtbar: Art im Radar und, wenn nicht anders eingestellt, nur was sich mit meinem Gold lohnt
 function R.Visible(d, budget)
     if not R.KIND_ON[d.kind] then return false end
+    if d.kind == "spec" then return false end   -- ab 0.96: Kandidaten vom Manager zeigt der Reiter Chancen (Chances.lua)
     if budget == nil then budget = R.Budget() end
     R.Annotate(d, budget)
     if not mod.db.radarShowExpensive and d.cant then return false end
@@ -382,9 +383,10 @@ function R.ItemReady(key)
     return false
 end
 
--- Erneuern aktiv? Nur auf der Seite Radar am Auktionator
+-- Erneuern aktiv? Nur auf der Seite Radar oder (ab 0.96) Chancen am Auktionator
+function R.ChancesShown() return ns.Chances ~= nil and ns.Chances.Shown() end
 function R.Renewing()
-    return mod.db.radarRenew ~= false and AHOpen() and R.Shown()
+    return mod.db.radarRenew ~= false and AHOpen() and (R.Shown() or R.ChancesShown())
 end
 
 -- Anteil des Radar-Scans (0 bis 1)
@@ -401,6 +403,23 @@ end
 
 -- Naechste gezeigte Moeglichkeit, die dran ist (am laengsten nicht geprueft zuerst), sonst nil
 function R.NextRenew()
+    -- ab 0.96: Seite Chancen: die Kandidaten des Managers, am laengsten nicht geprueft zuerst
+    if R.ChancesShown() then
+        local keys, C = ns.Chances.Keys(), ns.Chances
+        local n = 0
+        for _, key in ipairs(keys) do if not R.skip[key] then n = n + 1 end end
+        local every = R.RenewInterval(n)
+        R.renewEvery = every
+        local now, best, bestT = Now(), nil, nil
+        for _, key in ipairs(keys) do
+            if not R.skip[key] then
+                local c = C.checked[key]
+                local t = c and c.t or -1e9
+                if now - t >= every and (bestT == nil or t < bestT) then best, bestT = key, t end
+            end
+        end
+        return best
+    end
     local budget, list = R.Budget(), {}
     for key, d in pairs(R.entries) do
         if R.Visible(d, budget) and ns.Buy.KnownKey(key) and not R.skip[key] and (d.loadWait or 0) < 30 then list[#list + 1] = d end
@@ -424,15 +443,9 @@ function R.SearchKeys(mode)
         table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
         return keys
     end
-    -- ab 0.93: "Vom Manager": zuerst alle Kandidaten des Managers (alle Arten), danach die Massenware wie bisher
-    if mode == "mgr" then
-        local seen = {}
-        for _, key in ipairs(ns.Spec and ns.Spec.Keys() or {}) do keys[#keys + 1] = key; seen[key] = true end
-        local rest = {}
-        for _, key in ipairs(R.SearchKeys("mass")) do if not seen[key] then rest[#rest + 1] = key end end
-        for i = #rest, 2, -1 do local j = math.random(i); rest[i], rest[j] = rest[j], rest[i] end
-        for _, key in ipairs(rest) do keys[#keys + 1] = key end
-        return keys
+    -- ab 0.96: "Alle pruefen" im Reiter Chancen: nur die Kandidaten des Managers, eine Runde (ersetzt "Vom Manager")
+    if mode == "mgronly" then
+        return ns.Chances and ns.Chances.Keys() or {}
     end
     local market = D.Market()
     if not market then return keys end
@@ -453,7 +466,7 @@ end
 -- Naechster Gegenstand des Radar-Scans (oder nil). peek = nur nachsehen, nicht weiterzaehlen
 function R.NextSearch(peek)
     if not R.running then return nil end
-    local mode = mod.db.radarScanMode or "watch"
+    local mode = R.forceMode or mod.db.radarScanMode or "watch"
     local sc = R.search
     if not sc or sc.mode ~= mode then
         sc = { mode = mode, keys = {}, index = 0, rounds = 0, done = 0 }
@@ -461,7 +474,11 @@ function R.NextSearch(peek)
     end
     for _ = 1, 50 do
         if sc.index >= #sc.keys then
-            sc.keys = (mode == "watch" or mode == "mgr") and R.SearchKeys(mode) or Shuffle(R.SearchKeys(mode))
+            if mode == "mgronly" and sc.rounds >= 1 then   -- ab 0.96: eine Runde, dann fertig
+                if not peek then R.Stop() end
+                return nil
+            end
+            sc.keys = (mode == "watch" or mode == "mgronly") and R.SearchKeys(mode) or Shuffle(R.SearchKeys(mode))
             sc.index, sc.rounds = 0, sc.rounds + 1
             if #sc.keys == 0 then return nil end
         end
@@ -529,12 +546,14 @@ end
 function R.Stop()
     if not R.running then return end
     R.running = false
+    R.forceMode = nil
     R.UpdateView()
 end
 
 -- Reiter verlassen oder Auktionshaus zu: alles anhalten
 function R.Halt()
     R.running = false
+    R.forceMode = nil
     R.loop = false
     R.pending = nil
     if R.focus and ns.Measure then ns.Measure.Stop() end   -- ab 0.66: letzte Messung merken
@@ -807,6 +826,7 @@ function R.Apply(p, rows, commodity, cached)
     local old = R.entries[p.key]
     local d = R.Perf("rechnen", R.Evaluate, p.key, rows, true, commodity)
     if d and not R.KIND_ON[d.kind] then d = nil end   -- Art nicht im Radar
+    if ns.Chances and not cached then ns.Chances.Note(p.key, d, rows) end   -- ab 0.96: Zustand im Reiter Chancen
     local hidden = false
     if not d and cached then R.Refresh(); return end
     -- keine Angebote mehr: erst nach einer zweiten Pruefung glauben (ab 0.20.1)
@@ -1158,7 +1178,7 @@ end
 -- Stand in der oberen Zeile
 -- Auswahl des Radar-Scans (ab 0.71)
 function R.MODES()
-    return { { "mgr", L.RADAR_MODE_MGR }, { "watch", L.RADAR_MODE_WATCH }, { "mass", L.RADAR_MODE_MASS }, { "all", L.RADAR_MODE_ALL } }
+    return { { "watch", L.RADAR_MODE_WATCH }, { "mass", L.RADAR_MODE_MASS }, { "all", L.RADAR_MODE_ALL } }
 end
 
 function R.ModeText()
@@ -1201,6 +1221,7 @@ end
 
 function R.UpdateView()
     if ns.Focus and ns.Focus.Update and ns.Focus.Shown() then R.Perf("fokus", ns.Focus.Update) end
+    if ns.Chances and ns.Chances.UpdateView then ns.Chances.UpdateView() end   -- ab 0.96: Knopf "Alle pruefen"
     if not R.list then return end
     R.status:SetText(R.StatusText())
     R.scanButton:SetText(R.running and L.RADAR_STOP or L.RADAR_START)
@@ -1302,7 +1323,7 @@ R.RISK_COLOR = { low = GREEN, mid = "|cffffd100", high = RED }
 function R.Build(c)
     local UI = Peon.UI
     -- ab 0.71: Knopf "Radar-Scan" mit Auswahl, was gesucht wird, und Fenster Einstellungen
-    R.scanButton = UI.Button(c, L.RADAR_START, 150, function() if R.running then R.Stop() else mod:Call("Radar", R.Start) end end)
+    R.scanButton = UI.Button(c, L.RADAR_START, 150, function() if R.running then R.Stop() else R.forceMode = nil; R.search = nil; mod:Call("Radar", R.Start) end end)
     R.scanButton:SetPoint("TOPRIGHT", -2, -2)
     UI.SetTooltip(R.scanButton, { L.RADAR_START, L.RADAR_SCAN_TIP })
     R.modeDrop = UI.Dropdown(c, 130, R.MODES(), function() return mod.db.radarScanMode or "watch" end, function(v)
@@ -1467,7 +1488,7 @@ function R.Shown()
 end
 
 function R.Active()
-    return R.Shown() or (ns.Focus ~= nil and ns.Focus.Shown()) or R.WatchShown()
+    return R.Shown() or R.ChancesShown() or (ns.Focus ~= nil and ns.Focus.Shown()) or R.WatchShown()
 end
 
 -- Treffer, die das Radar gerade zeigen wuerde (fuer die Zahl am Reiter)

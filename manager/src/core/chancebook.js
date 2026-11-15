@@ -13,7 +13,7 @@ const proof = require('./proof');
 
 const REASONS = ['Scherzpreis', 'verkauft sich nicht', 'Zielpreis zu hoch', 'zu riskant', 'schon bekannt', 'lief gut', 'gekauft'];
 const NOTE_MAX = 1000;   // ab 0.36.0, vorher 250 (Rueckmeldung: zu kurz)
-const WINDOW = { s: 3, b: 1, v: 1 };   // Tage bis zur Nachpruefung (l: Zeitraum der Prognose)
+const WINDOW = { s: 3, b: 1, m: 3 };   // Tage bis zur Nachpruefung (l: Zeitraum der Prognose); Haendler ab 0.38.0 nur im Radar
 const KEEP = 45;                        // Tage, die D5 aufgehoben wird
 
 function log(db, mid, now, chances, near) {
@@ -43,7 +43,7 @@ function bestPrice(db, mid, key, from, to) {
 
 // Abgelaufene Vorschlaege nachpruefen (Erfolgskontrolle, F55 ist darin aufgegangen)
 function check(db, mid, now) {
-  const open = db.prepare('SELECT id, item_key, kind, t, buy, target, until FROM chance_log WHERE market_id = ? AND checked IS NULL AND kind <> ?').all(mid, 'v');
+  const open = db.prepare('SELECT id, item_key, kind, t, buy, target, until FROM chance_log WHERE market_id = ? AND checked IS NULL').all(mid);
   const up = db.prepare('UPDATE chance_log SET outcome = ?, checked = ? WHERE id = ?');
   let n = 0;
   for (const x of open) {
@@ -55,7 +55,6 @@ function check(db, mid, now) {
     up.run(out, now, x.id);
     n++;
   }
-  db.prepare("UPDATE chance_log SET outcome = 'hit', checked = ? WHERE market_id = ? AND kind = 'v' AND checked IS NULL AND t < ?").run(now, mid, now - 86400);
   db.prepare('DELETE FROM chance_log WHERE t < ?').run(now - KEEP * 86400);
   return n;
 }
@@ -147,7 +146,7 @@ function importBroker(db, ratings, added = null) {
 
 // Text fuer den Reiter Rueckmeldungen (ab 0.35.1): Rueckmeldungen zu Chancen gehen so mit „Senden“ als Bericht hinaus.
 // Nur Gegenstand, Art, Bewertung und die Werte des Moments, der Markt nur als Fraktion.
-const KIND_TEXT = { s: 'Spekulation schnell', l: 'Spekulation langfristig', b: 'Aufkauf', v: 'Händler' };
+const KIND_TEXT = { s: 'Spekulation schnell', l: 'Spekulation langfristig', b: 'Aufkauf', m: 'Muster', v: 'Händler' };   // v: aeltere Rueckmeldungen und Einschaetzungen aus dem Radar
 function feedbackText(f) {
   const fac = (m) => (m ? (/Alliance|Allianz/i.test(m) ? 'Allianz' : /Horde/i.test(m) ? 'Horde' : 'Neutral') : '');
   const lines = [`Rückmeldung zu einer Chance (${f.origin === 'broker' ? 'aus Broker' : 'aus dem Manager'}): ${f.name || 'Gegenstand'} (${f.key})`];

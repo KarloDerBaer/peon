@@ -632,8 +632,8 @@ for _, n in ipairs(UISpecialFrames) do if n == "PeonBrokerFrame" then escape = t
 check(escape, "Escape schliesst das Fenster")
 local names = {}
 for _, b in ipairs(Win.tabButtons) do names[#names + 1] = b.text end
-check(table.concat(names, ",") == "Markt,Verkaufen,Auktionen,Einkaufen,Beobachten,Radar,Fokus,Mehr",
-  "0.82: Reiter Markt, Verkaufen, Auktionen, Einkaufen, Beobachten, Radar, Fokus, Mehr (Gegenstand unter Mehr): " .. table.concat(names, ","))
+check(table.concat(names, ",") == "Markt,Verkaufen,Auktionen,Einkaufen,Fokus,Beobachten,Radar,Chancen,Mehr",
+  "0.96: Reiter Markt, Verkaufen, Auktionen, Einkaufen, Fokus, Beobachten, Radar, Chancen, Mehr: " .. table.concat(names, ","))
 check(Win.tabButtons[2].key == "sell" and Win.tabButtons[2].disabled, "N1: Verkaufen ist unterwegs grau")
 check(Win.current == "more" and Win.more and Win.more.current == "prices", "Fenster oeffnet beim zuletzt gewaehlten Reiter (0.82: Gegenstand unter Mehr)")
 check(Win.status and Win.status.text.text:find("letzter Stand, nicht live", 1, true) == nil and Win.status.text.text:find("Scan", 1, true),
@@ -643,7 +643,7 @@ Win.Select("buy")
 check(Win.current == "buy" and mod.db.windowTab == "buy", "N1: Reiter Einkaufen gewaehlt und gemerkt")
 Win.tabButtons[2].scripts.OnClick(Win.tabButtons[2])
 check(Win.current == "buy" and Win.tabButtons[2].disabled, "N1: Klick auf Verkaufen bleibt beim bisherigen Reiter")
-Win.tabButtons[8].scripts.OnClick(Win.tabButtons[8])
+Win.tabButtons[9].scripts.OnClick(Win.tabButtons[9])
 check(Win.current == "more" and Win.more.current == "prices" and Win.contents.more.shown and not Win.contents.buy.shown, "0.82: Mehr mit Gegenstand gewaehlt, andere Seite verborgen")
 -- ===== Neuaufbau N2 (0.60): Seite Gegenstand =====
 check(ns.Prices == nil and P == ns.Item and P.results and P.tiers and P.header, "N2: Seite Gegenstand mit Peon.UI ersetzt den Reiter Preise")
@@ -2377,14 +2377,15 @@ Win.Refresh()
   check(sbt.points[1][1] == "TOPRIGHT" and sbt.points[1][3] == "TOPRIGHT" and sbt.points[1][4] == -34 and sbt.status,
     "0.59.1: Scan-Knopf mit Text in der Titelleiste neben dem Schliessen-Knopf")
   check(T.status and T.back and not T.back.shown, "N1: Statuszeile und Knopf Zurueck im Auktionshaus, Zurueck anfangs verborgen")
-  check(T.tabs.buy.points[1][2] == ah.AuctionsTab and T.tabs.watch.points[1][2] == T.tabs.buy and T.tabs.radar.points[1][2] == T.tabs.watch
-    and T.tabs.focus.points[1][2] == T.tabs.radar and T.tabs.more.points[1][2] == T.tabs.focus and #ah.AuctionsTab.points == 0,
-    "N1: Reihenfolge Markt, Verkaufen, Auktionen, Einkaufen, Radar, Fokus, Gegenstand, Mehr, Blizzards Auktionen bleibt an seinem Platz")
+  check(T.tabs.buy.points[1][2] == ah.AuctionsTab and T.tabs.focus.points[1][2] == T.tabs.buy and T.tabs.watch.points[1][2] == T.tabs.focus
+    and T.tabs.radar.points[1][2] == T.tabs.watch and T.tabs.chances.points[1][2] == T.tabs.radar and T.tabs.more.points[1][2] == T.tabs.chances
+    and #ah.AuctionsTab.points == 0,
+    "0.96: Reihenfolge Markt, Verkaufen, Auktionen, Einkaufen, Fokus, Beobachten, Radar, Chancen, Mehr, Blizzards Auktionen bleibt an seinem Platz")
   check(ah.BuyTab.text == ns.L.AHTAB_MARKET, "0.54: Kaufen heisst Markt")
   check(T.tabs.radar.text == ns.L.AHTAB_RADAR and T.tabs.buy.text == ns.L.AHTAB_SHOP and T.tabs.focus.text == "Fokus"
     and T.tabs.watch.text == "Beobachten" and T.tabs.more.text == "Mehr", "0.82: Reiter heissen Einkaufen, Beobachten, Radar, Fokus, Mehr")
   check(#ah.Tabs == 3 and ah.numTabs == nil, "U0: Blizzards Reiterliste bleibt unberuehrt")
-  check(T.tabs.radar.parent == T.tabHolder and T.tabHolder.parent == ah and #T.tabHolder.Tabs == 5, "0.41.2: Reiter haengen am eigenen Rahmen, nicht an Blizzards Liste")
+  check(T.tabs.radar.parent == T.tabHolder and T.tabHolder.parent == ah and #T.tabHolder.Tabs == 6, "0.41.2: Reiter haengen am eigenen Rahmen, nicht an Blizzards Liste")
   check(T.tabs.radar.points[1][4] == T.TAB_GAP and T.TAB_GAP == -15, "0.56: Grundabstand wie Blizzard (-15)")
   ;(function()
     -- 0.56: sichtbaren Abstand von Blizzards Markt/Verkaufen messen und uebernehmen
@@ -3363,7 +3364,7 @@ end)()
     if c.row[2] == "radarVendorOn" then vendor = c end
     if c.row[2] == "radarSpecOn" then spec = c end
   end
-  check(f:IsShown() and vendor and spec and not spec.frame.disabled, "0.71: Radar-Einstellungen mit Haendler, Aufkauf, ab 0.93 Spekulation (an)")
+  check(f:IsShown() and vendor and spec == nil, "0.71: Radar-Einstellungen mit Haendler und Aufkauf, ab 0.96 ohne Spekulation")
   vendor.frame:SetChecked(false)
   vendor.frame.scripts.OnClick(vendor.frame)
   check(S.Get("radar", "radarVendorOn") == false and mod.db.radarVendorOn ~= false, "0.74: Haken aendert erst den Entwurf")
@@ -3890,10 +3891,9 @@ end)()
   check(d and d.kind == "spec" and d.qty == 2 and d.limit == 480 and d.ref == 900 and d.gain == math.floor(math.floor(900 * (1 - D.Cut())) * 2 - 880), "0.93: Spekulation aus den Preisstufen")
   check(Sp.Find(nil, { { price = 600, qty = 1 } }, 2770) == nil, "0.93: nichts bis Kaufen bis: weg")
   check(Sp.Find(nil, rows, 2772) == nil, "0.93: Aufkauf prueft Broker selbst")
-  local keys = R.SearchKeys("mgr")
   local modes = {}
   for _, m in ipairs(R.MODES()) do modes[m[1]] = true end
-  check(modes.mgr and type(keys) == "table", "0.93: Radar-Scan Vom Manager")
+  check(modes.mgr == nil and modes.mass and type(R.SearchKeys("mgronly")) == "table", "0.96: Radar-Scan ohne Vom Manager, Alle pruefen im Reiter Chancen")
   local txt = Sp.FocusText(2770)
   check(txt and txt:find("Liegt 40 %%") and txt:find("Vom Manager"), "0.93: Satz und Stand im Fokus")
   local snapRadar = R.entries[2770]
@@ -3905,6 +3905,70 @@ end)()
   Peon.GetModule = orig
   Sp.cache = nil
   check(ns.Calendar and ns.Calendar.Time({ year = 2026, month = 11, monthDay = 20, hour = 10, minute = 0 }) == time({ year = 2026, month = 11, day = 20, hour = 10, min = 0, sec = 0 }), "0.93: Zeit aus dem Kalender")
+end)()
+
+-- ===== 0.96: Reiter Chancen (Chances.lua, Peon_Chancen_Reiter_Muster.md 3) =====
+;(function()
+  local Sp, R, C, S = ns.Spec, ns.Radar, ns.Chances, ns.Settings
+  local now = time()
+  -- Muster mit Zeitfenstern: kaufen jeden Tag 0 bis 3 Uhr, verkaufen samstags
+  local m = Sp.Parse("m:700:1100:" .. (now + 3600) .. ":1600:0:4:127/0:32/-1")
+  check(m and m.mk == "m" and m.qty == 4 and m.buyWin and m.buyWin.mask == 127 and m.buyWin.slot == 0 and m.sellWin.mask == 32 and m.sellWin.slot == -1,
+    "0.96: Muster mit Fenstern gelesen")
+  check(Sp.Parse("v:1:2:3:4:0") == nil, "0.96: Haendler kommt nicht mehr vom Manager")
+  check(C.WindowText(m.buyWin) == "0 bis 3 Uhr" and C.WindowText(m.sellWin) == "Samstag", "0.96: Fenster als Text")
+  local sat3 = time({ year = 2026, month = 11, day = 21, hour = 1, min = 30 })   -- Samstag 1:30
+  local mon10 = time({ year = 2026, month = 11, day = 16, hour = 10, min = 0 })  -- Montag 10:00
+  check(C.InWindow(m.buyWin, sat3) and not C.InWindow(m.buyWin, mon10) and C.InWindow(m.sellWin, sat3) and not C.InWindow(m.sellWin, mon10),
+    "0.96: Zeit im Fenster")
+  local fake = { Chances = function()
+    return now - 7200, { ["2770"] = "s:500:900:" .. (now + 3600) .. ":1200:1:2", ["2771"] = "m:700:1100:" .. (now + 3600) .. ":1600:0:4:127/0:32/-1" },
+      { ["2770"] = "Liegt 40 % unter dem, wofuer er zuletzt verkauft wurde." }
+  end }
+  local orig = Peon.GetModule
+  Peon.GetModule = function(self, k) if k == "bridge" then return fake end return orig(self, k) end
+  Sp.cache = nil
+  local knownOrig = ns.Buy.KnownKey
+  ns.Buy.KnownKey = function() return true end
+  local keys = C.Keys()
+  check(#keys == 2 and keys[1] == 2771, "0.96: Kandidaten, hoechster Gewinn zuerst")
+  mod.db.chancesShowM = false
+  check(#C.Keys() == 1, "0.96: Art Muster abschaltbar")
+  mod.db.chancesShowM = true
+  -- Zustand: ungeprueft, nach einer Antwort bestaetigt oder weg
+  C.checked = {}
+  local rows = C.Rows()
+  local by = {}
+  for _, r in ipairs(rows) do by[r.key] = r end
+  check(by[2770] and by[2770].state == "new" and by[2771], "0.96: zuerst ungeprueft")
+  C.Note(2770, { showGain = 999 }, { { price = 450, qty = 1 } })
+  C.Note(2771, nil, {})
+  by = {}
+  for _, r in ipairs(C.Rows()) do by[r.key] = r end
+  check(by[2770].state == "ok" and by[2770].gain == 999 and by[2771].state == "gone", "0.96: bestaetigt mit Live-Gewinn, sonst weg")
+  check(C.StateText(by[2770]):find("bestätigt", 1, true), "0.96: Zustand als Text")
+  -- Radar zeigt die Kandidaten nicht, Chancen schon
+  check(R.Visible({ kind = "spec", gain = 5, qty = 1, cost = 1 }, 1e9) == false, "0.96: Radar ohne Kandidaten vom Manager")
+  -- Hinweis beim Oeffnen des Auktionshauses
+  local n0 = #out
+  C.OnAHShow()
+  check(#out == n0 + 1 and out[#out]:find("2 Chancen vom Peon Manager warten", 1, true), "0.96: Hinweis beim Oeffnen")
+  mod.db.chancesAhNote = false
+  local n1 = #out
+  C.OnAHShow()
+  check(#out == n1, "0.96: Hinweis abschaltbar: " .. tostring(out[#out]) .. " / " .. tostring(mod.db.chancesAhNote))
+  mod.db.chancesAhNote = true
+  -- Einstellungen
+  S.Toggle("chances")
+  local f = S.frames.chances
+  local found = {}
+  for _, c in ipairs(f.controls) do if c.row[2] then found[c.row[2]] = true end end
+  check(f:IsShown() and found.chancesShowS and found.chancesShowM and found.chancesAhNote and found.chancesNotify, "0.96: Fenster Einstellungen Chancen")
+  S.Hide("chances")
+  C.checked = {}
+  ns.Buy.KnownKey = knownOrig
+  Peon.GetModule = orig
+  Sp.cache = nil
 end)()
 
 -- 0.94: Schnittstelle fuer Peon_Profession (Kaufpreis, Einkaufsliste mit festem Namen)

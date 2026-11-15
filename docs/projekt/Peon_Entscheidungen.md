@@ -31,6 +31,14 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Trennstrich über den Kern** (Claude, beim Bau): `UI.Table` mit `o.rowLine`, Kern-API 21, weil der Kern nur erweitert wird.
 - **Post in der Ruhezeit, Kontrollrechnung mit „Unterwegs“, einmalige Reparatur, Fortschritt beim Einsammeln** (KarloDerBaer nach dem Fehler mit Twink-Post). Ein langsameres Einsammeln hätte nicht geholfen, die Ursache war die Ruhezeit von 20 Sekunden nach dem Einloggen.
 
+## 15.11.2026: Reiter Chancen in Broker, Muster, Händler nur im Radar (Broker 0.96.0, Manager 0.39.0)
+
+- **Händler nur noch im Radar, im Manager gelöscht** (KarloDerBaer). Die Angebote sind meist nach Minuten weg.
+- **Eigener Reiter „Chancen“ rechts neben dem Radar, Fokus links neben Beobachten** (KarloDerBaer). Chancen sind Beobachtungen über Tage, das Radar zeigt, was ein Scan gerade findet. Das Radar gibt die Kandidaten des Managers ganz ab (KarloDerBaer).
+- **Meldungen einstellbar über ein Fenster Einstellungen im Reiter Chancen** (KarloDerBaer): Hinweis beim Öffnen des Auktionshauses und beim Beginn eines günstigen Zeitfensters, beide ab Werk an (Claude).
+- **Neue Art Muster nach Tageszeit und Wochentag** (Idee KarloDerBaer, Regeln Claude, zugestimmt): Trend herausrechnen, Tageszeit ab 14 Tagen, Wochentag ab 3 Wochen, strenge Grenzen. Die Messung mit 10 Tagen zeigte nur Scheinmuster durch den fallenden Markt.
+- **Live-Prüfung über den Radar-Teil** (Claude, beim Bau): Der Reiter Chancen nutzt dieselbe Abfrage, denselben Fokus und denselben Kauf, nur die Anzeige ist getrennt.
+
 ## 14.11.2026: Chancen nach Prüfung mit echten Daten (Manager 0.37.0)
 
 - **Ein fallender Preis schließt Spekulation aus** (KarloDerBaer). Auch wenn es dadurch erst kaum Vorschläge gibt, der Markt muss sich einpendeln.

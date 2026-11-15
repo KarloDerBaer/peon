@@ -24,7 +24,7 @@ const LEVEL_BATCH = 100;      // D3: so viele Gegenstaende je Minute ohne Abruf 
 const LEVEL_FRESH = 90 * 86400;
 // Aufkauf wie Broker (Startwerte aus Broker.lua), bis Brokers Einstellungen eingelesen sind
 const BROKER_RULES = { hours: 2, minGain: 5000, minQty: 500, minLevels: 4, minSales: 270, targetPct: 0.2 };
-const KIND_CODE = { s: 's', l: 'l', b: 'b', v: 'v' };
+const KIND_CODE = { s: 's', l: 'l', b: 'b', m: 'm' };
 const RISK_CODE = { low: 0, mid: 1, high: 2 };
 
 const methods = {
@@ -101,7 +101,8 @@ const methods = {
   // Stand eines Markts fuer die Chancen: letzter vollstaendiger Stand mit Angeboten
   chanceCtx(mid) {
     const money = this.ledgerGold(mid);
-    const sig = `${this.dataSig(mid)}|${JSON.stringify([this.meta('chanceRules'), this.meta('chanceOverrides'), this.meta('brokerRules'), this.meta('feste'), money])}`;
+    const pat = this.meta(`patterns:${mid}`);   // ab 0.38.0: Muster, einmal am Tag beim Aufraeumen gerechnet
+    const sig = `${this.dataSig(mid)}|${JSON.stringify([this.meta('chanceRules'), this.meta('chanceOverrides'), this.meta('brokerRules'), this.meta('feste'), money, pat ? pat.t : null])}`;
     this.chanceCache = this.chanceCache || new Map();
     const c0 = this.chanceCache.get(mid);
     if (c0 && c0.sig === sig) return c0.ctx;
@@ -136,6 +137,7 @@ const methods = {
       mid, now, today, t: last ? last.t : null, age: last ? Math.max(0, now - last.t) : Infinity, rows, offers, stats, bands: bd.items, shifts: bd.shifts, days: bd.days,
       proof: pr, dur, rules, broker: this.brokerRules(), forecasts: fc.list, index: fc.index, signalRates: fc.rates,
       gold: money ? money.gold : null, goldChars: money ? money.chars : 0,
+      patterns: new Map(pat && Array.isArray(pat.list) ? pat.list : []),
       over: (k) => over[k] || {},
       // ab 0.35.1: Haendlerpreis nur aus dem Spiel. Ein Wert aus der Blizzard-API (fuer Forever oft Classic-Daten) ist
       // nicht bestaetigt, er zaehlt nur fuer die Einstellgebuehr und steht in der Pruefliste
@@ -154,7 +156,7 @@ const methods = {
     const ctx = this.chanceCtx(mid);
     const res = spec.marketChances(ctx);
     if (ctx.t) {
-      book.log(this.db, mid, ctx.now, [...res.list, ...res.live], res.near);
+      book.log(this.db, mid, ctx.now, res.list, res.near);
       book.check(this.db, mid, ctx.now);
       forecast.logForecasts(this.db, mid, ctx.forecasts, ctx.now);
       forecast.checkForecasts(this.db, mid, ctx.now);
@@ -185,13 +187,15 @@ const methods = {
     const now = this.now();
     const rated = this.latestRatings();
     const down = (k) => { const r = rated.get(k); return !!(r && r.up === 0); };
-    const all = [...res.list, ...res.live].filter((x) => x.buy > 0 && (x.until || 0) > now && (pinned[x.key] || !down(x.key))).sort((a, b) => (b.gain || 0) - (a.gain || 0));
+    const all = res.list.filter((x) => x.buy > 0 && (x.until || 0) > now && (pinned[x.key] || !down(x.key))).sort((a, b) => (b.gain || 0) - (a.gain || 0));
     const list = {}, say = {};
     let n = 0;
     const put = (x) => {
       if (list[x.key]) return;
-      list[x.key] = `${KIND_CODE[x.kind]}:${Math.round(x.buy)}:${Math.round(x.target || 0)}:${Math.round(x.until || 0)}:${Math.max(0, Math.round(x.gain || 0))}:${RISK_CODE[x.risk] ?? 1}:${Math.max(1, Math.round(x.qty || 1))}`;
-      if (x.say) say[x.key] = x.liveOnly ? `${x.say} Nur live erreichbar.` : x.say;
+      // ab 0.38.0: Muster mit Zeitfenstern zum Kaufen und Verkaufen ("Wochentage/Abschnitt", pattern.windowCode)
+      const win = x.window ? `:${x.window.buy}:${x.window.sell}` : '';
+      list[x.key] = `${KIND_CODE[x.kind]}:${Math.round(x.buy)}:${Math.round(x.target || 0)}:${Math.round(x.until || 0)}:${Math.max(0, Math.round(x.gain || 0))}:${RISK_CODE[x.risk] ?? 1}:${Math.max(1, Math.round(x.qty || 1))}${win}`;
+      if (x.say) say[x.key] = x.say;
       n++;
     };
     for (const x of all) if (pinned[x.key]) put(x);
@@ -226,9 +230,9 @@ const methods = {
     const strip = (x) => ({ ...x, rated: rated.get(x.key) || null, pinned: !!pinned[x.key], watched: fav.has(x.key) });
     const down = (x) => x.rated && x.rated.up === 0 && !x.pinned;
     const proven = ctx.proof.size;
-    const list = res.list.map(strip), live = res.live.map(strip);
-    return { market: marketKey, now: ctx.now, t: ctx.t, age: ctx.age, list: list.filter((x) => !down(x)), live: live.filter((x) => !down(x)),
-      rejected: [...list, ...live].filter(down), near: res.near.length,
+    const list = res.list.map(strip);
+    return { market: marketKey, now: ctx.now, t: ctx.t, age: ctx.age, list: list.filter((x) => !down(x)),
+      rejected: list.filter(down), near: res.near.length, patterns: ctx.patterns.size, patternsAt: (this.meta(`patterns:${mid}`) || {}).t || null,
       proven, holdKnown: ctx.dur.size, bands: ctx.bands.size, salesItems: ctx.stats.size, forecasts: ctx.forecasts.size, rules: ctx.rules,
       gold: ctx.gold, goldChars: ctx.goldChars, histDays: this.marketDays(mid),
       start: proof.startOf(this.db, mid), kinds: spec.KINDS };

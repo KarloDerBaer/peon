@@ -163,7 +163,7 @@ end
 -- der Gegenstand beobachtet, gelten seine gespeicherten Werte (Kaufen bis, Zielpreis) als eigene Werte.
 function F.FromPage(key, from)
     if from == "focus" then return end           -- naechste Chance aus dem Fokus heraus: Herkunft bleibt
-    F.origin = (from == "radar") and "radar" or "watch"
+    F.origin = (from == "radar" or from == "chances") and from or "watch"
     if F.origin == "watch" then F.LoadWatch(key) end
     F.UpdateBack()
     F.Update()
@@ -213,7 +213,7 @@ function F.UpdateBack()
 end
 
 function F.GoBack()
-    ns.Window.Open(F.origin == "radar" and "radar" or "watch")
+    ns.Window.Open((F.origin == "radar" or F.origin == "chances") and F.origin or "watch")
 end
 
 -- Kauf "alles unter dem Ziel" aus den Live-Stufen. Rueckgabe: Plan wie eine Chance (kind "own") oder nil

@@ -24,7 +24,7 @@ const SLIDERS = {
   ],
   v: [{ key: 'minGain', label: 'Mindestgewinn', unit: 'gold' }],
 };
-const KIND = { s: 'Spekulation schnell', l: 'Spekulation langfristig', v: 'Händler' };
+const KIND = { s: 'Spekulation schnell', l: 'Spekulation langfristig' };
 const SIGNALS = { scarce: 'Knappheit', glut: 'Schwemme', level: 'Stufenbereich', fest: 'Fest', week: 'Wochenrhythmus' };
 const rules = ref(null);
 const draft = reactive({ s: {}, l: {}, v: {} });

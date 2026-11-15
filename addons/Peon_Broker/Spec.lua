@@ -2,10 +2,13 @@
 -- Ab 0.93 (Konzept Peon_Manager_Chancen.md, Abschnitt 9.2): Kandidaten vom Peon Manager.
 -- Der Manager rechnet mit den stuendlichen Staenden der Blizzard-API Chancen aus (Spekulation schnell und langfristig,
 -- Aufkauf, Haendler) und schreibt je Markt eine Liste in Data.lua. Peon_Bridge gibt sie ueber mod:Chances(market):
---   list[Schluessel] = "Art:KaufenBis:Zielpreis:GueltigBis:Gewinn:Risiko[:Menge]"  (Art s, l, b, v; Risiko 0, 1, 2)
+--   list[Schluessel] = "Art:KaufenBis:Zielpreis:GueltigBis:Gewinn:Risiko[:Menge[:Kaufen:Verkaufen]]"
+--                      Art s, l, b, ab 0.96 m (Muster), Haendler (v) nur noch im Radar; Risiko 0, 1, 2.
+--                      Kaufen und Verkaufen (nur Muster): Zeitfenster "Wochentage/Abschnitt", Wochentage als 7 Bits
+--                      (Montag = 1, alle = 127), Abschnitt 0 bis 7 zu je 3 Std., -1 = ganzer Tag
 --   say[Schluessel]  = Satz, warum der Manager ihn vorschlaegt
--- Das Radar zeigt die Arten s und l als Art "Spekulation" (Einstellung radarSpecOn), Erneuern prueft sie live wie jede
--- andere Zeile. Der Radar-Scan "Vom Manager" fragt zuerst alle Kandidaten ab (auch b und v), danach die Massenware.
+-- Ab 0.96 zeigt sie der Reiter Chancen (Chances.lua), nicht mehr das Radar. Die Live-Pruefung macht weiter der Radar-Teil
+-- (Art "spec" in R.entries), "Alle pruefen" ersetzt den Radar-Scan "Vom Manager".
 -- Abgelaufene Eintraege (GueltigBis) ignoriert Broker. Das Urteil faellt live: Was nicht mehr stimmt, wird "weg".
 
 local ADDON_NAME, ns = ...
@@ -15,7 +18,7 @@ local mod = ns.mod
 local Sp = {}
 ns.Spec = Sp
 
-Sp.KINDS = { s = true, l = true, b = true, v = true }
+Sp.KINDS = { s = true, l = true, b = true, m = true }
 
 local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
 
@@ -24,9 +27,16 @@ function Sp.Parse(s)
     if type(s) ~= "string" then return nil end
     local k, lim, tg, untilT, gain, risk, qty = s:match("^(%a):(%d+):(%d+):(%d+):(%d+):(%d)(.*)$")
     if not k or not Sp.KINDS[k] then return nil end
-    local q = qty and qty:match("^:(%d+)") or nil
-    return { mk = k, limit = tonumber(lim), target = tonumber(tg), untilT = tonumber(untilT), gain = tonumber(gain),
+    local q, more = qty:match("^:(%d+)(.*)$")
+    local x = { mk = k, limit = tonumber(lim), target = tonumber(tg), untilT = tonumber(untilT), gain = tonumber(gain),
              risk = ({ [0] = "low", [1] = "mid", [2] = "high" })[tonumber(risk)] or "mid", qty = q and tonumber(q) or nil }
+    -- ab 0.96: Zeitfenster der Muster
+    local bm, bs, sm, ss = (more or ""):match("^:(%d+)/(%-?%d+):(%d+)/(%-?%d+)")
+    if bm then
+        x.buyWin = { mask = tonumber(bm), slot = tonumber(bs) }
+        x.sellWin = { mask = tonumber(sm), slot = tonumber(ss) }
+    end
+    return x
 end
 
 -- Alle gueltigen Kandidaten des aktuellen Markts: { [key] = Eintrag }, t = Stand des Managers. Einmal je Stand gelesen.
@@ -68,10 +78,11 @@ function Sp.Keys()
 end
 
 -- Chance "Spekulation" aus den Preisstufen (Scan oder live): kaufen bis KaufenBis, verkaufen zum Zielpreis.
--- Nur Arten s und l, Aufkauf und Haendler prueft Broker mit seinen eigenen Regeln.
+-- Arten s, l und ab 0.96 m (Muster), den Aufkauf prueft Broker mit seinen eigenen Regeln.
+Sp.FIND = { s = true, l = true, m = true }
 function Sp.Find(e, rows, key)
     local x = Sp.Get(key)
-    if not x or (x.mk ~= "s" and x.mk ~= "l") then return nil end
+    if not x or not Sp.FIND[x.mk] then return nil end
     local D = ns.Data
     local lv = D.Available(rows or {})
     if #lv == 0 then return nil end

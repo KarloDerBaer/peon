@@ -12,7 +12,7 @@ const d = ref(null);
 async function load() { if (props.market) d.value = await window.peon.successView(props.market.key); }
 onMounted(load);
 watch(() => [props.market && props.market.key, props.stamp], load);
-const KIND = { s: 'Spekulation schnell', l: 'Spekulation langfristig', b: 'Aufkauf', v: 'Händler' };
+const KIND = { s: 'Spekulation schnell', l: 'Spekulation langfristig', b: 'Aufkauf', m: 'Muster', v: 'Händler' };
 // ab 0.36.0: Kauf zum Behalten, zaehlt nicht als Spekulation
 const ownBuys = computed(() => (d.value ? d.value.buys.filter((b) => b.own) : []));
 const tradeBuys = computed(() => (d.value ? d.value.buys.filter((b) => !b.own) : []));

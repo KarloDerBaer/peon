@@ -16,7 +16,6 @@ const api = window.peon;
 
 const TABS = [
   { key: 'list', label: 'Vorschläge' },
-  { key: 'live', label: 'Nur live erreichbar' },
   { key: 'ratings', label: 'Rückmeldungen' },
   { key: 'rules', label: 'Einstellen' },
 ];
@@ -50,9 +49,9 @@ watch([search, kind, minGold, quality, tab], () => { limit.value = 60; why.value
 
 const RISK = { low: 'gering', mid: 'mittel', high: 'hoch' };
 const SURE = { low: 'niedrig', mid: 'mittel', high: 'hoch' };
-const KIND_SHORT = { s: 'Spekulation', l: 'Langfristig', b: 'Aufkauf', v: 'Händler' };
+const KIND_SHORT = { s: 'Spekulation', l: 'Langfristig', b: 'Aufkauf', m: 'Muster', v: 'Händler' };
 
-const source = computed(() => (!d.value ? [] : tab.value === 'live' ? d.value.live : d.value.list));
+const source = computed(() => (!d.value ? [] : d.value.list));
 const rows = computed(() => {
   const q = fold(search.value.trim());
   const minP = Math.max(0, Number(minGold.value) || 0) * 10000;
@@ -63,7 +62,7 @@ const rows = computed(() => {
 });
 const shown = computed(() => rows.value.slice(0, limit.value));
 const counts = computed(() => {
-  const c = { all: 0, s: 0, l: 0, b: 0, v: 0 };
+  const c = { all: 0, s: 0, l: 0, b: 0, m: 0 };
   for (const x of source.value) { c.all++; c[x.kind]++; }
   return c;
 });
@@ -80,7 +79,7 @@ watch(search, async (s) => {
 });
 
 function daysText(x) {
-  if (x.kind === 'v') return 'sofort';
+  if (x.kind === 'm') return x.window ? `kaufen ${x.window.buyText}` : '–';
   if (x.days == null) return '–';
   if (x.days < 1) return `${Math.max(1, Math.round(x.days * 24))} Std.`;
   return `${(Math.round(x.days * 10) / 10).toLocaleString('de-DE')} Tage`;
@@ -117,12 +116,14 @@ const ratingLabel = (r) => [r.up === 1 ? '👍' : r.up === 0 ? '👎' : null, r.
     </p>
     <div class="tabs" role="tablist">
       <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key">
-        {{ t.label }}<span class="cnt" v-if="d && t.key === 'list' && d.list.length">{{ num(d.list.length) }}</span><span class="cnt" v-if="d && t.key === 'live' && d.live.length">{{ num(d.live.length) }}</span>
+        {{ t.label }}<span class="cnt" v-if="d && t.key === 'list' && d.list.length">{{ num(d.list.length) }}</span>
       </button>
     </div>
 
-    <template v-if="tab === 'list' || tab === 'live'">
-      <p class="small muted" v-if="tab === 'live'">Unter dem Händlerpreis, aber solche Angebote sind meist nach weniger als einer Stunde weg. Sie gehen als Kandidaten an das Radar in Broker.</p>
+    <template v-if="tab === 'list'">
+      <!-- ab 0.38.0: Haendler-Angebote zeigt nur noch das Radar in Broker, Muster kommen dazu -->
+      <p class="small muted">Händler-Angebote sind meist nach Minuten weg, die findet das Radar in Broker. Muster nach Tageszeit und Wochentag
+        <template v-if="d && d.patternsAt">rechnet der Manager einmal am Tag (zuletzt {{ when(d.patternsAt) }}, {{ num(d.patterns) }} gefunden)</template><template v-else>rechnet der Manager einmal am Tag beim Aufräumen, frühestens nach 14 Tagen Daten</template>.</p>
       <div class="filters">
         <input type="text" v-model="search" placeholder="Name oder Nummer suchen" aria-label="Suchen" spellcheck="false" />
         <select v-model="kind" aria-label="Art">
@@ -130,7 +131,7 @@ const ratingLabel = (r) => [r.up === 1 ? '👍' : r.up === 0 ? '👎' : null, r.
           <option value="s">Spekulation schnell ({{ counts.s }})</option>
           <option value="l">Spekulation langfristig ({{ counts.l }})</option>
           <option value="b">Aufkauf ({{ counts.b }})</option>
-          <option value="v">Händler ({{ counts.v }})</option>
+          <option value="m">Muster ({{ counts.m }})</option>
         </select>
         <label>Gewinn ab <input class="short" type="number" min="0" step="1" v-model.number="minGold" aria-label="Mindestgewinn in Gold" /> Gold</label>
         <select v-model="quality" aria-label="Qualität">
@@ -172,6 +173,7 @@ const ratingLabel = (r) => [r.up === 1 ? '👍' : r.up === 0 ? '👎' : null, r.
                     <span v-if="x.cost">Einsatz <Gold :copper="x.cost" /></span>
                     <span v-if="x.ref">Belegter Verkaufspreis <Gold :copper="x.ref" /></span>
                     <span v-if="x.loss != null">Möglicher Verlust <Gold :copper="x.loss" /></span>
+                    <span v-if="x.window" :class="{ ok: x.window.now }">Kaufen {{ x.window.buyText }}{{ x.window.now ? ' (jetzt)' : '' }}, verkaufen {{ x.window.sellText }}</span>
                   </div>
                   <ChecksList :checks="x.checks" :signals="x.outlook && x.outlook.signals ? x.outlook.signals : null" />
                   <div class="btns">
@@ -187,7 +189,7 @@ const ratingLabel = (r) => [r.up === 1 ? '👍' : r.up === 0 ? '👎' : null, r.
           </template>
         </tbody>
       </table>
-      <p v-else-if="d" class="muted empty">{{ source.length ? 'Nichts passt zu den Filtern.' : tab === 'live' ? 'Gerade nichts.' : 'Gerade keine Chancen. Fehlen belegte Verkäufe, kommen sie mit den nächsten Ständen der Blizzard-API.' }}</p>
+      <p v-else-if="d" class="muted empty">{{ source.length ? 'Nichts passt zu den Filtern.' : 'Gerade keine Chancen. Fehlen belegte Verkäufe, kommen sie mit den nächsten Ständen der Blizzard-API.' }}</p>
       <!-- ab 0.36.0: mit Daumen runter bewertete Chancen sind ausgeblendet, auch fuer Broker -->
       <p v-if="d && d.rejected && d.rejected.length" class="small muted">
         {{ d.rejected.length === 1 ? '1 Chance ist' : `${num(d.rejected.length)} Chancen sind` }} nach deiner Bewertung mit Daumen runter ausgeblendet und gehen nicht an Broker:

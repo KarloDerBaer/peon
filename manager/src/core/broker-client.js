@@ -6,6 +6,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { openDb, log, dbSize, pruneLogs, tx } = require('./db');
+const pattern = require('./pattern');
 const game = require('./game');
 const { writeData, dataMatches, addonDir } = require('./datalua');
 const broker = require('./broker');
@@ -237,6 +238,7 @@ class BrokerClient {
 
   * pruneSteps(res) {
     yield* this.redoApiSteps(res);
+    yield* this.patternSteps(res);
     const hourDays = this.settings.hourDays > 0 ? Math.max(retention.MIN_HOUR_DAYS, this.settings.hourDays) : 0;
     yield* retention.pruneSteps(this.db, { keepDays: this.settings.keepDays, hourDays, now: this.now() }, res);
     res.pairs = sales.prune(this.db, this.now());
@@ -276,6 +278,25 @@ class BrokerClient {
     this.chanceRes = null;
     res.redone = n;
     if (n) log(this.db, 'aufbewahrung', true, `${n} Vergleiche der Blizzard-API neu gerechnet (umgestellte Angebote zählen nicht mehr als Verkauf)`);
+  }
+
+  // ab 0.38.0: Muster nach Tageszeit und Wochentag einmal am Tag je Markt (pattern.js), in meta patterns:<Markt>.
+  // Bei grossen Daten etwa 15 Sek. je Markt, davon der groesste Teil eine Abfrage am Stueck.
+  * patternSteps(res = {}) {
+    const today = broker.dayOf(this.now());
+    for (const m of this.db.prepare('SELECT id FROM markets').all()) {
+      const k = `patterns:${m.id}`;
+      const old = this.meta(k);
+      if (old && old.day === today) continue;
+      const out = new Map();
+      yield* pattern.marketPatternSteps(this.db, m.id, this.now(), out);
+      if (this.closed) return;
+      this.meta(k, { day: today, t: this.now(), list: [...out] });
+      if (out.size) res.patterns = (res.patterns || 0) + out.size;
+      this.chanceCache = null;
+      this.chanceRes = null;
+      yield;
+    }
   }
 
   retention(keepDays, hourDays) {

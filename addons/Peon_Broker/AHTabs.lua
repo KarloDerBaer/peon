@@ -27,9 +27,10 @@ ns.AHTabs = T
 -- Einkaufen, Radar, Fokus, Gegenstand, Mehr. Die Schluessel sind die der Seiten im Broker-Fenster (W.pages).
 T.TABS = {
     { key = "buy",    label = "AHTAB_SHOP" },
+    { key = "focus",  label = "NTAB_FOCUS" },   -- ab 0.96 links neben Beobachten
     { key = "watch",  label = "NTAB_WATCH" },   -- ab 0.82
     { key = "radar",  label = "AHTAB_RADAR" },
-    { key = "focus",  label = "NTAB_FOCUS" },
+    { key = "chances", label = "TAB_CHANCES" }, -- ab 0.96
     { key = "more",   label = "NTAB_MORE" },    -- ab 0.82 mit Gegenstand
 }
 -- Rahmenebenen (Blizzards Fenstervorlage, nachgelesen im Zweig forever, SharedUIPanelTemplates.xml): rundes Bild 400,

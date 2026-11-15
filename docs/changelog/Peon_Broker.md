@@ -2,6 +2,22 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.96.0
+
+Kurz: Neuer Reiter Chancen rechts neben dem Radar: Hier stehen die Chancen des Peon Managers mit Zustand (ungeprüft, bestätigt, weg). „Alle prüfen“ fragt sie am Auktionator einmal ab.
+Kurz: Das Radar zeigt nur noch, was ein Scan im Spiel findet: Händler und Aufkauf. Der Fokus steht jetzt links neben Beobachten.
+Kurz: Für Muster (günstige Tageszeit oder Wochentag) sagt Broker, wann es günstig ist, und meldet sich im Chat, wenn die günstige Zeit beginnt. Einstellbar über den Knopf Einstellungen im Reiter Chancen.
+
+- 0.96.0 (15.11.2026): Konzept `docs/konzepte/manager/Peon_Chancen_Reiter_Muster.md` (KarloDerBaer 15.11.2026). Gehört zu Manager 0.39.
+  - **Reiter Chancen:** Neue Datei `Chances.lua`. Liste aller gültigen Einträge des Managers mit Art (Spekulation, Langfristig, Aufkauf, Muster), Gewinn, Kaufen bis und Zustand, Tooltip mit Satz, Alter des Stands, Preisen und Zeitfenstern. Klick öffnet den Fokus, „Zurück“ führt zu Chancen.
+  - **Live-Prüfung:** Die Arbeit macht weiter der Radar-Teil. Ist die Seite Chancen am Auktionator offen, erneuert er die Kandidaten des Managers, am längsten nicht geprüft zuerst (`R.NextRenew`). Jede Antwort setzt den Zustand (`C.Note` aus `R.Apply`). „Alle prüfen“ ist ein Radar-Scan mit der Auswahl `mgronly`, eine Runde, dann Schluss.
+  - **Radar:** zeigt keine Art Spekulation mehr (`R.Visible`), die Auswahl „Vom Manager“ und die Einstellung `radarSpecOn` entfallen.
+  - **Muster:** `Spec.Parse` liest die Zeitfenster (`buyWin`, `sellWin`), `Spec.Find` prüft auch die Art `m` live. Außerhalb des günstigen Fensters steht „ab 0 bis 3 Uhr“, die Zeile rutscht nach unten.
+  - **Hinweise:** beim Öffnen des Auktionshauses „2 Chancen vom Peon Manager warten“ (`chancesAhNote`), bei Beginn eines günstigen Fensters eine Chatzeile mit Kaufen bis und Verkaufszeit (`chancesNotify`, Prüfung jede Minute). Arten einzeln an oder aus (`chancesShowS`, `L`, `B`, `M`), alles im neuen Fenster Einstellungen Chancen.
+  - **Reihenfolge der Reiter** (KarloDerBaer): Markt, Verkaufen, Auktionen, Einkaufen, Fokus, Beobachten, Radar, Chancen, Mehr, im Fenster und im Auktionshaus.
+  - Tests: Reihenfolge der Reiter, Radar-Einstellungen ohne Spekulation, Auswahl ohne „Vom Manager“, neuer Abschnitt 0.96 (Fenster lesen und als Text, Zeit im Fenster, Kandidaten und Arten, Zustand, Radar ohne Kandidaten, Hinweis beim Öffnen, Einstellungen) in `test_broker.lua`. Alle Lua-Tests grün.
+  - **Im Spiel prüfen:** Reiter Chancen am Auktionator und unterwegs, „Alle prüfen“, Klick in den Fokus und zurück, Hinweis beim Öffnen des Auktionshauses, Einstellungen.
+
 ## 0.95.1
 
 Kurz: Das Radar spielt bei neuen Treffern keinen Warnton mehr. Wer ihn möchte, schaltet ihn in den Einstellungen unter Radar wieder ein.

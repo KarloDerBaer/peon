@@ -89,14 +89,6 @@ test('Spekulation schnell: belegter Preis, Zielpreis unter dem naechsten Angebot
   assert.ok(!n.ok && n.checks.some((k) => k.id === 'never'));
 });
 
-test('Haendler: nur live erreichbar bei kurzer Haltbarkeit', () => {
-  const c = ctx({ offers: new Map([['2589', [{ p: 5, q: 20 }]]]), hold: () => ({ hours: 0, n: 4 }), rules: spec.rulesOf({ v: { minGain: 50 } }) });
-  const v = spec.evalVendor(c, '2589');
-  assert.ok(v.ok && v.gain === 100 && v.liveOnly);
-  const all = spec.marketChances(c);
-  assert.ok(all.live.some((x) => x.key === '2589') && !all.list.some((x) => x.kind === 'v'), 'geht als Kandidat an den Radar');
-});
-
 test('Regler: Grenzen, Standard, Probe mit Rueckmeldungen', () => {
   const r = spec.rulesOf({ s: { gap: 5, nProof: 0 }, f: { signals: { glut: false }, minSure: 'mid' } });
   assert.equal(r.s.gap, 0.8, 'auf den Regler geklemmt');
@@ -190,7 +182,7 @@ test('Einschaetzungen aus Broker: einmal je Eintrag, Art aus dem Radar', () => {
   db.close();
 });
 
-test('0.35.1: Haendlerpreis nur aus dem Spiel, Wert aus der API nicht bestaetigt', () => {
+test('0.35.1: Haendlerpreis aus dem Spiel ersetzt den Wert der API, nie umgekehrt', () => {
   const game = require('../src/core/game');
   const { tx } = require('../src/core/db');
   const db = openDb(tmp());
@@ -203,10 +195,6 @@ test('0.35.1: Haendlerpreis nur aus dem Spiel, Wert aus der API nicht bestaetigt
   tx(db, () => game.importEntry(db, entry('api', NOW, { 4306: 'Seidenstoff|1|9000|' }), null));
   assert.deepEqual({ ...db.prepare("SELECT vendor, vendor_src FROM items WHERE key = '4306'").get() }, { vendor: 500, vendor_src: 'game' }, 'die API ersetzt den Wert aus dem Spiel nicht');
   db.close();
-  // Haendler-Chance nur mit bestaetigtem Preis
-  const c = ctx({ offers: new Map([['2589', [{ p: 5, q: 20 }]]]), vendor: () => null, vendorApi: () => 9000 });
-  const v = spec.evalVendor(c, '2589');
-  assert.ok(!v.ok && v.say.includes('Händlerpreis nicht bestätigt') && v.say.includes('90s'), v.say);
 });
 
 test('0.35.1: Rueckmeldungen zu Chancen gehen einmal in den Reiter Rueckmeldungen, auch aeltere', () => {

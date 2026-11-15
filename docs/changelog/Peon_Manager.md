@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.39.0
+
+Kurz: Händler-Angebote zeigt der Manager nicht mehr, sie sind meist nach Minuten weg. Die findet das Radar in Broker.
+Kurz: Neue Art Muster: Ist ein Gegenstand zu einer Tageszeit oder an einem Wochentag fest günstiger, schlägt der Manager vor, dann zu kaufen und zur teuren Zeit zu verkaufen. Vorschläge gibt es frühestens nach 14 Tagen Daten.
+
+- 0.39.0 (15.11.2026): Konzept `docs/konzepte/manager/Peon_Chancen_Reiter_Muster.md` (KarloDerBaer 15.11.2026). Braucht Broker 0.96 für die Zeitfenster im Spiel.
+  - **Händler entfernt** (KarloDerBaer: löschen): `spec.evalVendor`, der Reiter „Nur live erreichbar“, die Regler der Art und die Händler-Kandidaten für Broker. Schema 13 löscht gespeicherte Händler-Vorschläge aus `chance_log` (`meta` `vendorKindGone`), Rückmeldungen dazu bleiben. Der Händlerpreis selbst zählt weiter für die Einstellgebühr.
+  - **Muster:** Neue Datei `pattern.js`. Einmal am Tag je Markt beim Aufräumen (`broker-client.patternSteps`, `meta` `patterns:<Markt>`) aus den Kennzahlen der letzten 28 Tage: Preis je Tag und 3-Stunden-Abschnitt in Ortszeit, Trend herausgerechnet (gleitendes Tagesmittel). Tageszeit ab 14 Tagen mit 70 % gleichem günstigstem Abschnitt, Wochentag ab 3 Wochen mit 75 %, Abstand nach Gebühr mindestens 15 %, im Schnitt mindestens 5 Angebote. Messung mit 10 Tagen echter Daten: mit diesen Grenzen noch kein Muster, die Rechnung braucht etwa 15 Sek. je Markt.
+  - **Chance Muster** (`spec.evalPattern`, Art `m`): Kaufen bis und Zielpreis aus dem üblichen Preis und den Anteilen im günstigen und teuren Fenster, Menge höchstens ein Tagesabsatz und das Gold. Prüfungen: festes Muster, Abstand nach Gebühr, Absatz, Preis fällt nicht, Schwankung, Gold. Satz „Am günstigsten 0 bis 3 Uhr, am teuersten 9 bis 12 Uhr, an 12 von 14 Tagen so.“ Nachprüfung nach 3 Tagen.
+  - **Übergabe an Broker:** Einträge der Art Muster tragen die Zeitfenster zum Kaufen und Verkaufen (`m:…:Menge:127/0:32/-1`, Wochentage als 7 Bits, Abschnitt oder -1).
+  - Seite Chancen: Art Muster in der Auswahl, Zeitfenster bei jeder Chance (mit „jetzt“), Hinweis, wann die Muster zuletzt gerechnet wurden. Erfolgskontrolle mit der Art Muster.
+  - Tests: neue Datei `test/muster.test.js` (Muster trotz fallendem Markt, nur Trend ist kein Muster, Grenzen, Wochentag, Chance mit Gold und Preis fällt, Übergabe mit Fenstern, Schema 13). Händler-Tests entfernt oder umgestellt (`test/chancen.test.js`, `test/c6.test.js`). Alle 237 Tests grün, Oberfläche gebaut.
+  - **Im echten Programm prüfen:** Seite Chancen ohne Händler, Hinweis zu den Mustern nach dem ersten Aufräumen des Tages, Protokoll ohne Fehler.
+
 ## 0.38.0
 
 Kurz: Wird ein Peon-Addon durch ein anderes ersetzt, installiert der Manager das neue mit und entfernt das alte von selbst, sobald das neue seine Einstellungen übernommen hat. Zuerst betrifft das Peon ComboPoints, das im Klassenbuddy aufgeht.

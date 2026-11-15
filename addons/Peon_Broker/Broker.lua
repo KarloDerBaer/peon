@@ -66,7 +66,10 @@ local mod = Peon:NewModule(ADDON_NAME, {
         focusPriceTol = 1,      -- Fokus (ab 0.70): Warnung, wenn der Gesamtpreis so viel % ueber dem erwarteten liegt
         radarVendorOn = true,   -- Radar (ab 0.71): Art Haendler zeigen
         radarBuyoutOn = true,   -- Radar (ab 0.71): Art Aufkauf zeigen
-        radarSpecOn = true,     -- Radar (ab 0.93): Art Spekulation zeigen (Kandidaten vom Peon Manager, Spec.lua)
+        -- ab 0.96: Reiter Chancen (Chances.lua) statt Art Spekulation im Radar (radarSpecOn entfaellt)
+        chancesShowS = true, chancesShowL = true, chancesShowB = true, chancesShowM = true,
+        chancesAhNote = true,   -- beim Oeffnen des Auktionshauses sagen, wie viele Chancen warten
+        chancesNotify = true,   -- Meldung, wenn ein guenstiges Zeitfenster beginnt (Muster)
         buyoutMinQty = 500,     -- Aufkauf (ab 0.71): Massenware erst ab so vielen Stueck im Angebot (bis 0.82 200)
         buyoutMinLevels = 4,    -- Aufkauf (ab 0.71): und so vielen Preisstufen (bis 0.82 5)
         buyoutMinSales = 270,   -- (bis 0.82 50)
@@ -99,7 +102,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
     choices  = { undercutMode = { copper = true, percent = true }, undercutMassMode = { copper = true, percent = true },
                  duration = { [2] = true, [8] = true, [24] = true },
                  radarKind = { both = true, vendor = true, market = true },
-                 radarScanMode = { watch = true, mass = true, all = true, mgr = true },
+                 radarScanMode = { watch = true, mass = true, all = true },
                  radarSoundKey = { raid = true, ready = true, alarm = true, tell = true },
                  watchSoundDown = { off = true, raid = true, ready = true, alarm = true, tell = true },   -- ab 0.91
                  watchSoundUp = { off = true, raid = true, ready = true, alarm = true, tell = true },
@@ -580,6 +583,7 @@ mod:On("INIT", function()
     mod:Call("Meine Auktionen", ns.Auctions.Init)
     mod:Call("Einkaufsliste", ns.Buy.Init)
     mod:Call("Radar", ns.Radar.Init)
+    mod:Call("Chancen", ns.Chances.Init)   -- ab 0.96
     if ns.Lots then mod:Call("Posten", ns.Lots.Init) end   -- ab 0.67 (H3)
     mod:Call("Sprung", ns.Go.InitMarket)   -- ab 0.73: sicherer Knopf Im Markt zeigen
     -- ab 0.95: Berufsfenster in Peon_Profession (Craft.lua dort)

@@ -80,7 +80,6 @@ S.SPECS.radar = {
     { "slider", "buyoutMinQty", "SET_RADAR_MIN_QTY", 0, 5000, 50, function(v) return L.SET_QTY_FMT:format(v) end, off = BuyoutOff },
     { "slider", "buyoutMinLevels", "SET_RADAR_MIN_LEVELS", 2, 12, 1, function(v) return tostring(v) end, off = BuyoutOff },
     { "slider", "buyoutMinSales", "SET_RADAR_MIN_SALES", 0, 2000, 10, function(v) return L.SET_QTY_FMT:format(v) end, off = BuyoutOff },
-    { "check", "radarSpecOn", "SET_RADAR_SPEC", "SET_RADAR_SPEC_TIP" },
     { "col" },
     { "head", "SET_RADAR_GENERAL" },
     { "money", "radarReserve", "SET_RADAR_RESERVE", 10000 },
@@ -97,6 +96,22 @@ S.changed.radar = function()
     R.loaded = nil   -- Grenzen geaendert: Chancen aus der Datenbank neu rechnen
     if R.Shown() then R.Open(); R.Wake() end
 end
+
+-- Chancen vom Peon Manager (ab 0.96, Chances.lua): Arten und Hinweise
+S.SPECS.chances = {
+    title = "SET_CH_TITLE",
+    { "head", "SET_CH_KINDS" },
+    { "check", "chancesShowS", "SET_CH_S", "SET_CH_S_TIP" },
+    { "check", "chancesShowL", "SET_CH_L", "SET_CH_L_TIP" },
+    { "check", "chancesShowB", "SET_CH_B", "SET_CH_B_TIP" },
+    { "check", "chancesShowM", "SET_CH_M", "SET_CH_M_TIP" },
+    { "col" },
+    { "head", "SET_CH_NOTES" },
+    { "check", "chancesAhNote", "SET_CH_AH_NOTE", "SET_CH_AH_NOTE_TIP" },
+    { "check", "chancesNotify", "SET_CH_NOTIFY", "SET_CH_NOTIFY_TIP" },
+    { "note", "SET_CH_NOTE" },
+}
+S.changed.chances = function() if ns.Chances and ns.Chances.Shown() then ns.Chances.Refresh() end end
 
 -- Beobachten (ab 0.91, Fehlerbericht 20): Warnton und Chatnachricht je Richtung
 local function Sounds()

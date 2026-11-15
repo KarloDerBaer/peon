@@ -28,9 +28,10 @@ W.TABS = {
     { key = "sell",     label = "TAB_SELL" },        -- Verkaufen (nur am Auktionator, Blizzards Seite)
     { key = "auctions", label = "NTAB_AUCTIONS" },   -- Auktionen
     { key = "buy",      label = "AHTAB_SHOP" },      -- Einkaufen
+    { key = "focus",    label = "NTAB_FOCUS" },      -- ab 0.96 links neben Beobachten (KarloDerBaer 15.11.2026)
     { key = "watch",    label = "NTAB_WATCH" },      -- Beobachten (ab 0.82 eigener Reiter)
     { key = "radar",    label = "TAB_RADAR" },
-    { key = "focus",    label = "NTAB_FOCUS" },
+    { key = "chances",  label = "TAB_CHANCES" },     -- ab 0.96: Chancen vom Peon Manager (Chances.lua)
     { key = "more",     label = "NTAB_MORE" },       -- Mehr: Gegenstand (ab 0.82), Haendler, Neutral, Datenlage
 }
 W.AH_ONLY = { sell = true, focus = true }   -- ab 0.70 auch der Fokus (nur Live-Daten, KarloDerBaer 12.11.2026)                          -- unterwegs grau

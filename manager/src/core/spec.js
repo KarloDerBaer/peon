@@ -4,24 +4,26 @@
 //   s  Spekulation schnell (4.2): unter dem belegten Verkaufspreis kaufen, zum belegten Preis wieder einstellen
 //   l  Spekulation langfristig (4.3): kaufen, weil eine Prognose einen Anstieg erwartet
 //   b  Aufkauf-Kandidat (4.4): wie Broker Buyout.lua, Regeln aus Brokers Einstellungen
-//   v  Haendler (4.5): unter dem Haendlerpreis kaufen
+//   m  Muster (ab 0.38.0, Peon_Chancen_Reiter_Muster.md 5): zur guenstigen Tageszeit oder am guenstigen Wochentag kaufen,
+//      zur teuren verkaufen (pattern.js)
+// Haendler (4.5) gibt es ab 0.38.0 nur noch im Radar von Broker, die Angebote sind meist nach Minuten weg (KarloDerBaer 15.11.2026).
 // Jede Chance traegt ihre Pruefliste (checks): Bedingung, echter Wert, Grenze, erfuellt, knapp. Daraus entstehen der
 // Satz fuer die Liste und fuer jeden anderen Gegenstand die Antwort auf „Warum nicht?“ (6.2).
 // Wiederverkauf (F50) ist mit Manager 0.35.0 abgeloest (KarloDerBaer 13.11.2026).
 
 const { buyout, low, high, UNSURE } = require('./chances');
+const pattern = require('./pattern');
 const MARGIN = 0.10;   // ab 0.37.0: nach der Gebuehr mindestens so viel Abstand zwischen Kaufen bis und Zielpreis
 
 const CUT = 0.05;
 const EG_24 = 12;   // Einstellgebuehr fuer 24 Std. = 12 x die Gebuehr fuer 2 Std. (Broker D.Deposit)
-const KINDS = { s: 'Spekulation schnell', l: 'Spekulation langfristig', b: 'Aufkauf', v: 'Händler' };
+const KINDS = { s: 'Spekulation schnell', l: 'Spekulation langfristig', b: 'Aufkauf', m: 'Muster' };
 const NEAR = 0.1;   // innerhalb 10 % der Grenze: knapp (gelb)
 
 // Startwerte (Abschnitt 4, KarloDerBaer 13.11.2026: wie im Konzept). Je Art hoechstens 5 Regler.
 const DEFAULTS = {
   s: { gap: 0.30, nProof: 5, maxDays: 3, minGain: 10000, minDays: 7, share: 0.25 },   // ab 0.37.0: minDays fest, share als Regler
   l: { rise: 0.25, maxDays: 14 },
-  v: { minGain: 100 },
   f: { signals: { scarce: true, glut: true, level: true, fest: true, week: true }, minSure: 'low' },
 };
 const SLIDERS = {
@@ -36,12 +38,11 @@ const SLIDERS = {
     { key: 'rise', label: 'Erwarteter Anstieg nach Gebühr mindestens', unit: '%', min: 0.05, max: 1, step: 0.05 },
     { key: 'maxDays', label: 'Zeitraum der Prognose höchstens', unit: 'Tage', min: 1, max: 30, step: 1 },
   ],
-  v: [{ key: 'minGain', label: 'Mindestgewinn', unit: 'gold', min: 0, max: 100000, step: 100 }],
 };
 
 function rulesOf(saved) {
   const out = JSON.parse(JSON.stringify(DEFAULTS));
-  for (const k of ['s', 'l', 'v']) {
+  for (const k of ['s', 'l']) {
     for (const sl of SLIDERS[k]) {
       const v = saved && saved[k] && saved[k][sl.key];
       if (typeof v === 'number' && Number.isFinite(v)) out[k][sl.key] = Math.max(sl.min, Math.min(sl.max, v));
@@ -257,29 +258,6 @@ function evalFast(c, key) {
     loss, surePrice, budget, perDay: pd, ahead, offers: buy.length, cheapest, gainCheapest, risk: pts >= 3 ? 'high' : pts >= 1 ? 'mid' : 'low', why, until: c.now + 6 * 3600 });
 }
 
-// Haendler (4.5, F51): Angebote unter dem Haendlerpreis
-function evalVendor(c, key) {
-  const R = c.rules.v;
-  const hp = c.vendor(key);
-  const apiHp = !hp && c.vendorApi ? c.vendorApi(key) : null;
-  const offers = c.offers.get(key) || [];
-  // ab 0.37.0: hoechstens so viel Einsatz wie bei Spekulation (Anteil deines Golds)
-  const budget = c.gold != null ? Math.floor(c.gold * c.rules.s.share) : null;
-  const { qty, cost } = takeBudget(hp ? offers.filter((o) => o.p < hp) : [], budget);
-  const gain = hp ? Math.floor(qty * hp - cost) : null;
-  const pr = c.proof.get(key);
-  const hold = c.hold(key, pr && pr.n >= c.rules.s.nProof ? pr.median : null);
-  const checks = [
-    check('vendor', 'Unter dem Händlerpreis', offers.length && hp ? offers[0].p : null, hp, qty > 0,
-      apiHp ? `Händlerpreis nicht bestätigt: nur die Blizzard-API nennt ${gold(apiHp)}, das Spiel hat ihn noch nicht geliefert` : !hp ? 'Händlerpreis unbekannt' : offers.length ? `Günstigstes Angebot ${gold(offers[0].p)}, Händler zahlt ${gold(hp)}` : 'Gerade nicht im Angebot',
-      { weight: 3, say: qty > 0 ? `${qty.toLocaleString('de-DE')} Stück unter dem Händlerpreis von ${gold(hp)}.` : null }),
-    check('gain', 'Mindestgewinn', gain, R.minGain, gain != null && gain >= R.minGain, gain == null ? 'Kein Gewinn zu rechnen' : `Gewinn beim Händler ${gold(gain)} (mindestens ${gold(R.minGain)})`, { weight: 1, say: gain > 0 ? `Bringt beim Händler ${gold(gain)}.` : null }),
-  ];
-  const liveOnly = !!(hold && hold.hours < 1);
-  return finish(c, key, 'v', checks, { buy: hp ? hp - 1 : null, limit: hp ? hp - 1 : null, target: hp, qty, cost, gain, days: 0, hold, liveOnly,
-    risk: c.age > 1800 ? 'mid' : 'low', why: c.age > 1800 ? ['Der Stand ist älter als 30 Min.'] : [], until: c.now + 3 * 3600 });
-}
-
 // Aufkauf-Kandidaten (4.4) fuer den ganzen Markt. Regeln aus Brokers Einstellungen (c.broker).
 function buyoutList(c) {
   const B = c.broker;
@@ -367,17 +345,61 @@ function finish(c, key, kind, checks, x) {
     outlook: x.outlook || (fc ? { dir: fc.dir, days: fc.days, sure: fc.sure, expect: fc.expect } : null), t: c.t, user: !!(ov.target != null || ov.limit != null), ...x };
 }
 
-// Alle Chancen eines Markts: { list (ok), near (fast erfuellt, fuer die Probe), live (nur live erreichbar) }
+// Muster (ab 0.38.0): zur guenstigen Zeit kaufen, zur teuren verkaufen. p aus pattern.marketPatterns.
+// Kaufen bis = ueblicher Preis x Anteil im guenstigen Fenster, Zielpreis = ueblicher Preis x Anteil im teuren Fenster.
+// Menge hoechstens ein Tagesabsatz und dein Gold.
+function evalPattern(c, key, p) {
+  const st = c.stats.get(key);
+  const b = c.bands.get(key);
+  const offers = c.offers.get(key) || [];
+  const base = b ? b.lang : null;
+  const limit = base && p ? Math.floor(base * p.rel.lo) : null;
+  const target = base && p ? Math.floor(base * p.rel.hi) : null;
+  const fit = target != null ? Math.floor(target * (1 - CUT) * (1 - MARGIN)) : null;
+  const pd = st && st.perDay > 0 ? st.perDay : null;
+  const budget = c.gold != null ? Math.floor(c.gold * c.rules.s.share) : null;
+  let qty = pd ? Math.max(1, Math.floor(pd)) : 0;
+  if (budget != null && limit) qty = Math.min(qty, Math.floor(budget / limit));
+  const cost = limit != null ? qty * limit : 0;
+  const gain = target != null && qty > 0 ? Math.floor(target * (1 - CUT) * qty - cost) : null;
+  const trend = trendOf(c, key);
+  const unsure = !b || b.schw > UNSURE;
+  const win = p ? `${pattern.windowText(p.kind, p.lo)}` : null;
+  const now = p ? pattern.inWindow(p.kind, p.lo, c.now) : false;
+  const what = p && p.kind === 'tod' ? 'Tagen' : 'Wochen';
+  const checks = [
+    check('pattern', 'Festes Muster', p ? p.hits / p.n : null, p ? (p.kind === 'tod' ? pattern.P.todSure : pattern.P.wdSure) : null, !!p,
+      p ? `Am günstigsten ${win}, am teuersten ${pattern.windowText(p.kind, p.hi)}, an ${p.hits} von ${p.n} ${what} so` : 'Kein festes Muster nach Tageszeit oder Wochentag',
+      { fixed: true, weight: 3, say: p ? `Am günstigsten ${win}, am teuersten ${pattern.windowText(p.kind, p.hi)}, an ${p.hits} von ${p.n} ${what} so.` : null }),
+    check('margin', 'Abstand nach Gebühr', limit, fit, limit != null && fit != null && limit <= fit,
+      limit == null ? 'Kein üblicher Preis' : `Kaufen bis ${gold(limit)}, Zielpreis ${gold(target)}, nach Gebühr ${pctText(p.spread)} Abstand`, { fixed: true }),
+    check('sales', 'Verkauft sich', pd, 1, pd != null && pd >= 1, `Absatz ${pd ? dec(pd) : 0} am Tag (nötig 1)`, { fixed: true }),
+    check('shift', 'Preis fällt nicht', null, null, !trend, trend ? trend.text : 'Preis stabil oder steigend', { fixed: true }),
+    check('band', 'Verlässlicher üblicher Preis', b ? b.schw : null, UNSURE, !unsure,
+      !b ? 'Noch kein üblicher Bereich' : unsure ? `Der Preis schwankt um ${pctText(b.schw)} (höchstens ${pctText(UNSURE)})` : `Schwankung ${pctText(b.schw)}`, { fixed: true }),
+    check('budget', 'Einsatz passt zu deinem Gold', cost, budget, budget == null || qty > 0,
+      budget == null ? 'Dein Gold ist unbekannt (Ledger fehlt), der Einsatz ist nicht begrenzt'
+        : qty > 0 ? `Einsatz ${gold(cost)}, erlaubt ${gold(budget)} (${pctText(c.rules.s.share)} von ${gold(c.gold)})` : `Schon ein Stück kostet mehr als ${gold(budget)}`),
+  ];
+  return finish(c, key, 'm', checks, { buy: limit, limit, target, qty, cost, gain, days: p && p.kind === 'wd' ? 7 : 1, hold: null, perDay: pd,
+    cheapest: offers.length ? offers[0].p : null, pattern: p, window: p ? { buy: pattern.windowCode(p.kind, p.lo), sell: pattern.windowCode(p.kind, p.hi),
+      buyText: win, sellText: pattern.windowText(p.kind, p.hi), now } : null,
+    risk: p && p.hits / p.n >= 0.85 ? 'low' : 'mid', why: [], until: c.now + 2 * 86400 });
+}
+
+// Alle Chancen eines Markts: { list (ok), near (fast erfuellt, fuer die Probe) }
 function marketChances(c) {
-  const list = [], near = [], live = [];
+  const list = [], near = [];
   for (const key of c.offers.keys()) {
     const s = evalFast(c, key);
     if (s.ok) list.push(s);
     else if (s.cheapest != null && s.proven != null && s.checks.find((k) => k.id === 'gap').value >= c.rules.s.gap / 2 && !c.over(key).never) near.push(s);
-    const v = evalVendor(c, key);
-    if (v.ok) (v.liveOnly ? live : list).push(v);
   }
   for (const b of buyoutList(c)) if (b.ok) list.push(b);
+  for (const [key, p] of c.patterns || []) {
+    const m = evalPattern(c, key, p);
+    if (m.ok) list.push(m);
+  }
   if (c.forecasts) {
     for (const [key, fc] of c.forecasts) {
       if (fc.dir < 0) continue;
@@ -386,12 +408,14 @@ function marketChances(c) {
     }
   }
   list.sort((a, b) => (b.gain ?? 0) - (a.gain ?? 0));
-  return { list, near, live };
+  return { list, near };
 }
 
 // Pruefliste fuer einen Gegenstand mit allen Arten (Warum nicht?, 6.2)
 function itemChecks(c, key) {
-  const out = [evalFast(c, key), evalVendor(c, key)];
+  const out = [evalFast(c, key)];
+  const p = c.patterns && c.patterns.get(key);
+  if (p) out.push(evalPattern(c, key, p));
   const b = buyoutList(c).find((x) => x.key === key);
   if (b) out.push(b);
   if (c.forecasts && c.forecasts.get(key)) out.push(evalLong(c, key, c.forecasts.get(key)));
@@ -404,7 +428,6 @@ function passes(kind, d, R) {
     const gain = d.gain != null && d.gain > 0 ? d.gain : d.gainCheapest;
     return d.disc != null && d.disc >= R.s.gap && d.n >= R.s.nProof && d.days != null && d.days <= R.s.maxDays && gain != null && gain >= R.s.minGain && !d.shift && !d.mass;
   }
-  if (kind === 'v') return d.gain != null && d.gain >= R.v.minGain;
   if (kind === 'l') return d.rise != null && d.rise >= R.l.rise && d.fcDays != null && d.fcDays <= R.l.maxDays && d.sure;
   return true;
 }
@@ -417,5 +440,5 @@ function moment(x) {
     rise: v('rise'), fcDays: x.outlook ? x.outlook.days : null, sure: ok('fc'), qty: x.qty, cost: x.cost, ref: x.ref ?? null, hold: x.hold ? x.hold.hours : null, risk: x.risk, say: x.say };
 }
 
-module.exports = { KINDS, DEFAULTS, SLIDERS, rulesOf, gold, daysText, hoursText, deposit, profit, evalFast, evalVendor, evalLong, buyoutList, sentence,
+module.exports = { KINDS, DEFAULTS, SLIDERS, rulesOf, gold, daysText, hoursText, deposit, profit, evalFast, evalPattern, evalLong, buyoutList, sentence,
   marketChances, itemChecks, passes, moment, CUT, low };
