@@ -88,20 +88,20 @@ test('Absatz aus zwei Scans: von unten gekauft, oben abgebrochen, Einzelgegensta
   svc.close();
 });
 
-test('Live-Abfragen mit Nummern nur ausserhalb von Scan-Paaren', () => {
+test('Live-Abfragen zaehlen ab 0.40.0 nicht fuer den Absatz und loesen keine Neurechnung aus', () => {
   const { svc, push } = world();
   const t0 = at(DAY, 2);
+  push({ kind: 'scan', t: t0 - 3600, rows: '2770;;;10;1000;;;3;;1' });
+  svc.broker.importGame();
+  const mid = svc.broker.marketId(M);
+  const sig = svc.broker.dataSig(mid);
   push({ kind: 'live', t: t0, key: '2770', commodity: true, rows: '2770;;;10;;100;;3;77;1\n2770;;;5;;120;;3;78;1' });
   push({ kind: 'live', t: t0 + 600, key: '2770', commodity: true, rows: '2770;;;6;;100;;3;77;1\n2770;;;5;;120;;3;78;1' });
   svc.broker.importGame();
-  let s = sales.marketStats(svc.broker.db, svc.broker.marketId(M), svc.now()).get('2770');
-  assert.equal(s.sold, 4); assert.equal(s.minutes, 10);
-  // Scans, die diese Zeit abdecken: der Live-Vergleich kommt nicht dazu (kein doppeltes Zaehlen)
-  push({ kind: 'scan', t: t0 - 300, rows: '2770;;;10;1000;;;3;;1' });
-  push({ kind: 'scan', t: t0 + 900, rows: '2770;;;10;1000;;;3;;1' });
-  svc.broker.importGame();
-  const live = svc.broker.db.prepare("SELECT COUNT(*) AS n FROM sales_pair WHERE src = 'live'").get().n;
-  assert.equal(live, 1, 'bereits gezaehlter Live-Vergleich bleibt, neue nur ohne Scan-Paar');
+  assert.equal(svc.broker.db.prepare("SELECT COUNT(*) AS n FROM sales_pair WHERE src = 'live'").get().n, 0, 'kein Live-Paar');
+  assert.equal(sales.marketStats(svc.broker.db, mid, svc.now()).get('2770'), undefined, 'kein Absatz aus Live');
+  assert.equal(svc.broker.dataSig(mid), sig, 'Datenstand gleich: keine Neurechnung');
+  assert.ok(svc.broker.itemDetail(M, '2770', '7d').own.some((x) => x.source === 'live'), 'Live-Preis auf der Gegenstandsseite');
   svc.close();
 });
 

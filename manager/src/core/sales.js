@@ -3,7 +3,7 @@
 // Vergleicht zwei aufeinanderfolgende Komplettscans eines Markts mit allen Angeboten nach Brokers Regeln
 // (Peon_Broker Sales.lua, Konzept Peon_Broker_Absatz.md Abschnitt 3 und 7). Staende der Blizzard-API (art = 'api') werden
 // nur untereinander ueber die Angebotsnummern verglichen und haben Vorrang. Eigene Scans zaehlen nur fuer Zeiten ohne
-// API-Paar, Live-Abfragen nur fuer Zeiten ohne beides. Ergebnis je Paar und Gegenstand in sales_cmp.
+// API-Paar. Live-Abfragen zaehlen ab 0.40.0 nicht mehr. Ergebnis je Paar und Gegenstand in sales_cmp, nach 3 Std. in sales_day.
 
 const zlib = require('node:zlib');
 const { parseRows, itemKey, unitPrice } = require('./stats');
@@ -19,7 +19,12 @@ const DAYS = 14;                 // Zeitraum fuer Absatz je Tag
 const MID_MIN = 60, SURE_MIN = 180;   // Sicherheit nach beobachteter Zeit (Minuten, wie Broker)
 const BANDS = { 0: [0, 1800], 1: [0, 1800], 2: [1800, 7200], 3: [7200, 43200], 4: [43200, 172800] };
 const KEEP_DAYS = 365;           // Tageswerte des Absatzes so lange aufheben
-const FOLD_AFTER = 2 * 86400;    // einzelne Vergleiche nach 2 Tagen zu Tageswerten zusammenfassen (Platz)
+// Einzelvergleiche nach 2 Tagen zu Tageswerten zusammenfassen. Eigene Scans kommen manchmal erst Stunden spaeter ins
+// Programm (beim naechsten /reload), ein Scan dazwischen ersetzt dann noch das alte Paar.
+// ab Manager 0.40.0: Paare der Blizzard-API schon nach 3 Std., sie werden nie ersetzt. Ihre Einzelvergleiche (930 000 Zeilen
+// im grossen Markt) lasen Absatz und Prognosen bei jeder Neurechnung je rund 4 Sek.
+const FOLD_AFTER = 2 * 86400;
+const FOLD_API_AFTER = 3 * 3600;
 
 function ends(t, band) {
   const b = BANDS[band];
@@ -238,21 +243,12 @@ function updateMarket(db, marketId, now = Math.floor(Date.now() / 1000)) {
     }
     for (const [a, b] of want.values()) if (addPair(db, marketId, a, b, 'scan')) res.added++;
 
-    // Live-Abfragen: Paare je Gegenstand, nur wo kein Scan-Paar die Zeit abdeckt
-    const covered = db.prepare("SELECT ta, tb FROM sales_pair WHERE market_id = ? AND src IN ('scan', 'api')").all(marketId);
-    const overlaps = (ta, tb) => covered.some((c) => c.ta < tb && c.tb > ta);
-    const lives = db.prepare("SELECT id, t, item_key, partial, commodity FROM snapshots WHERE market_id = ? AND source = 'live' AND rows IS NOT NULL AND item_key IS NOT NULL ORDER BY item_key, t").all(marketId);
-    const haveLive = new Set(db.prepare("SELECT a_id || '>' || b_id AS k FROM sales_pair WHERE market_id = ? AND src = 'live'").all(marketId).map((x) => x.k));
-    for (let i = 1; i < lives.length; i++) {
-      const a = lives[i - 1], b = lives[i];
-      if (a.item_key !== b.item_key) continue;
-      const gap = b.t - a.t;
-      if (gap < MIN_GAP || gap > MAX_GAP || haveLive.has(a.id + '>' + b.id) || overlaps(a.t, b.t)) continue;
-      if (addPair(db, marketId, a, b, 'live', a.item_key)) res.added++;
-    }
+    // ab Manager 0.40.0 keine Paare aus Live-Abfragen mehr: Seit die Blizzard-API jede Stunde einen ganzen Stand liefert,
+    // trugen sie fast nichts bei (290 von 1,16 Mio. Vergleichen). Bisherige Ergebnisse bleiben in den Tageswerten.
 
     // Aeltere Vergleiche zu Tageswerten zusammenfassen
-    const old = db.prepare('SELECT id FROM sales_pair WHERE market_id = ? AND folded = 0 AND tb < ?').all(marketId, now - FOLD_AFTER).map((x) => x.id);
+    const old = db.prepare("SELECT id FROM sales_pair WHERE market_id = ? AND folded = 0 AND (tb < ? OR (src = 'api' AND tb < ?))")
+      .all(marketId, now - FOLD_AFTER, now - FOLD_API_AFTER).map((x) => x.id);
     if (old.length) {
       const list = old.join(',');
       for (const r of db.prepare(`SELECT item_key, day, SUM(secs) AS secs, COUNT(*) AS cmp, SUM(sold) AS sold, SUM(expired) AS expired,

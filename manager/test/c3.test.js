@@ -371,3 +371,29 @@ test('Schaetzung: Stundenwerte zaehlen, Vorlagen, Warnung nur wenn wirklich Date
   assert.equal(b.retention(30, 180).wouldCompact, false);
   svc.close();
 });
+
+test('0.40.0: Angebote der API nach 2 Tagen, eigener Scans nach 14 Tagen weg, Live-Abfragen nach 7 Tagen ganz', () => {
+  const { openDb } = require('../src/core/db');
+  const game = require('../src/core/game');
+  const db = openDb(tmp());
+  const now = 1794000000, D = 86400;
+  const put = (id, kind, art, t, extra = {}) => game.importEntry(db, { id, kind, art, market: M, t, rows: '2589;;;20;100;;;4;;1', ...extra }, null);
+  put('api-a', 'scan', 'api', now - 3 * D);
+  put('api-b', 'scan', 'api', now - 1 * D);
+  put('own-a', 'scan', 'moment', now - 15 * D);
+  put('own-b', 'scan', 'moment', now - 5 * D);
+  put('live-a', 'live', 'moment', now - 8 * D, { key: '2589' });
+  put('live-b', 'live', 'moment', now - 2 * D, { key: '2589' });
+  const res = retention.prune(db, { keepDays: 30, hourDays: 60, now });
+  const blob = (id) => db.prepare('SELECT rows IS NOT NULL AS b FROM snapshots WHERE id = ?').get(id);
+  assert.equal(blob('api-a').b, 0, 'API aelter als 2 Tage: Angebote weg');
+  assert.equal(blob('api-b').b, 1);
+  assert.equal(blob('own-a').b, 0, 'eigener Scan aelter als 14 Tage');
+  assert.equal(blob('own-b').b, 1);
+  assert.equal(blob('live-a'), undefined, 'Live-Abfrage aelter als 7 Tage ganz weg');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM item_snap WHERE snapshot_id = 'live-a'").get().n, 0);
+  assert.equal(blob('live-b').b, 1);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM item_snap WHERE snapshot_id = 'api-a'").get().n, 1, 'Kennzahlen bleiben');
+  assert.ok(res.blobs === 2 && res.live === 1);
+  db.close();
+});

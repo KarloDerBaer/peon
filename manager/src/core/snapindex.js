@@ -29,11 +29,23 @@ class SnapIndex {
   of(mid, now) {
     const today = dayOf(now);
     let s = this.markets.get(mid);
-    if (s && s.today !== today) s = null;   // neuer Tag: Fenster verschiebt sich
+    if (s && s.today > today) s = null;              // Uhr zurueckgestellt: neu lesen
+    if (s && s.today < today) this.shift(s, today);   // neuer Tag: Fenster verschiebt sich (bis 0.39 ganz neu gelesen, 27 Sek.)
     if (s) this.update(s, mid);
     const c = this.counts(mid);
     if (!s || s.snapRows !== c.snap || s.hourRows !== c.hour) s = this.build(mid, today, c);
     return s;
+  }
+
+  // ab Manager 0.40.0: Tage, die aus dem Fenster fallen, entfernen. Gleiches Ergebnis wie neu lesen (build liest Scans ab
+  // dem Tag nach today - KEEP_DAYS, Stundenwerte ab diesem Tag).
+  shift(s, today) {
+    s.today = today;
+    const cut = today - KEEP_DAYS;
+    const drop = (map, keep) => { for (const [k, m] of map) { for (const day of [...m.keys()]) if (!keep(day)) m.delete(day); if (!m.size) map.delete(k); } };
+    drop(s.snapDays, (d) => d > cut);
+    drop(s.hourDays, (d) => d >= cut);
+    drop(s.qtyDays, (d) => d >= cut);
   }
 
   addRow(s, r) {

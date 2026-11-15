@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.40.0
+
+Kurz: Der Manager rechnet nach einer Live-Abfrage aus Broker nicht mehr alles neu und hält die Datenbank kleiner. Die Angebote der Blizzard-Stände bleiben 2 Tage, Live-Abfragen 7 Tage.
+
+- 0.40.0 (15.11.2026, Stufe 1 der Beschleunigung, KarloDerBaer 15.11.2026: „setz alles so um“). Gemessen mit den echten Daten (1,9 GB nach 10 Tagen).
+  - **Live-Abfragen lösen keine Neurechnung mehr aus:** `dataSig` zählt nur Scans und Stände der API. Vorher rechnete jede Live-Abfrage beide Märkte neu (rund 20 Sek.). Ihr Preis steht sofort auf der Gegenstandsseite, Liste und Bereich kommen mit dem nächsten Stand.
+  - **Live-Abfragen zählen nicht mehr für den Absatz** (`sales.updateMarket` ohne Live-Paare). Sie trugen 290 von 1,16 Mio. Vergleichen bei. Nach 7 Tagen löscht das Aufräumen sie ganz (`retention.LIVE_DAYS`).
+  - **Angebote der Stände kürzer:** Blizzard-API 2 Tage (`API_BLOB_DAYS`), eigene Scans 14 Tage (`SCAN_BLOB_DAYS`), die Kennzahlen bleiben. Gebraucht werden nur der neueste und der vorige Stand. Mit den echten Daten rund 400 MB weniger (1,93 auf 1,58 GB), danach 50 MB je Tag. Gelöscht wird in Gruppen zu 20 Ständen.
+  - **Absatz der API schneller:** Einzelvergleiche der Blizzard-API nach 3 Std. zu Tageswerten (`FOLD_API_AFTER`), eigene Scans weiter nach 2 Tagen (ein später eingelesener Scan ersetzt dann noch das Paar).
+  - **Muster in Schritten:** eine Abfrage je Ortstag über den Index der Zeit, längster Schritt 0,6 statt 20 Sek. am Stück.
+  - **Mitternacht:** Die Tageswerte verschieben sich um einen Tag (`SnapIndex.shift`), bisher wurde alles neu gelesen (27 Sek.).
+  - Tests: Aufräumen von Angeboten und Live-Abfragen (`c3.test.js`), Live ohne Absatz und ohne Neurechnung (`c6.test.js`), Verschieben gleich wie neu lesen (`snapindex.test.js`).
+
 ## 0.39.1
 
 Kurz: Der Manager reagiert wieder schneller. Die Gegenstandsseite blieb oft lange bei „Lade Gegenstand“ stehen, weil der Manager nach jedem neuen Stand über eine Minute mit der Rechnung für Feste beschäftigt war.

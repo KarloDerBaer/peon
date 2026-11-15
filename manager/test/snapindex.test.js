@@ -98,5 +98,10 @@ test('Zwischenspeicher: neuer Tag verschiebt das Fenster', () => {
   idx.dayValues(mid, NOW, longterm.DAYS);
   const later = NOW + 86400;
   assert.deepEqual(norm(idx.dayValues(mid, later, longterm.DAYS)), norm(longterm.dayValues(db, mid, TODAY + 1)));
-  assert.equal(idx.builds, 2);
+  assert.equal(idx.builds, 1, 'ab 0.40.0: verschoben statt neu gelesen');
+  for (const d of [5, 16, 18]) {
+    assert.deepEqual(norm(idx.dayValues(mid, NOW + d * 86400, longterm.DAYS)), norm(longterm.dayValues(db, mid, TODAY + d)), `Tag +${d}`);
+    assert.deepEqual(norm(idx.dayValues(mid, NOW + d * 86400, longterm.DAYS)), norm(new SnapIndex(db).dayValues(mid, NOW + d * 86400, longterm.DAYS)), `wie neu gelesen, Tag +${d}`);
+  }
+  assert.equal(idx.builds, 1);
 });

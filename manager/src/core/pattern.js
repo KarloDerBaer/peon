@@ -31,15 +31,17 @@ function* gridSteps(db, mid, now, out = new Map()) {
     d[slot] = d[slot] == null ? v : (d[slot] + v) / 2;
     if (a != null) { it.auc += a; it.n++; }
   };
-  const q = (table, col) => `SELECT item_key AS k, CAST((${col} + ?) / 86400 AS INTEGER) AS day, CAST(((${col} + ?) % 86400) / ${SLOT_H * 3600} AS INTEGER) AS slot,
-      AVG(min) AS v, AVG(auctions) AS a FROM ${table} WHERE market_id = ? AND source = 'scan' AND ${col} >= ? AND min > 0 GROUP BY item_key, day, slot`;
+  // ab Manager 0.40.0 je Ortstag eine Abfrage ueber den Index der Zeit ("+market_id"). Vorher eine Abfrage ueber alle Zeilen
+  // des Markts, mit echten Daten rund 20 Sek. am Stueck, in denen der Manager nichts anderes tun konnte.
+  const q = (table) => `SELECT item_key AS k, CAST((t + ?) / 86400 AS INTEGER) AS day, CAST(((t + ?) % 86400) / ${SLOT_H * 3600} AS INTEGER) AS slot,
+      AVG(min) AS v, AVG(auctions) AS a FROM ${table} WHERE +market_id = ? AND source = 'scan' AND t >= ? AND t < ? AND min > 0 GROUP BY item_key, day, slot`;
+  const first = Math.floor((from + off) / 86400), last = Math.floor((now + off) / 86400);
   for (const table of ['item_snap', 'item_hour']) {
-    const rows = db.prepare(q(table, 't')).all(off, off, mid, from);
-    yield;
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i];
-      put(r.k, Number(r.day), Number(r.slot), r.v, r.a);
-      if (i % 20000 === 19999) yield;
+    const st = db.prepare(q(table));
+    for (let day = first; day <= last; day++) {
+      const a = Math.max(from, day * 86400 - off), b = (day + 1) * 86400 - off;
+      for (const r of st.all(off, off, mid, a, b)) put(r.k, Number(r.day), Number(r.slot), r.v, r.a);
+      yield;
     }
   }
   return out;

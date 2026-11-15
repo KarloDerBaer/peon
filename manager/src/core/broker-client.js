@@ -305,10 +305,12 @@ class BrokerClient {
     return retention.estimate(this.db, { keepDays: k, hourDays: h, now: this.now(), current: dbSize(this.db) });
   }
 
-  // Stand der Daten eines Markts: Aendert er sich, sind fertig gerechnete Listen und Bereiche alt
+  // Stand der Daten eines Markts: Aendert er sich, sind fertig gerechnete Listen und Bereiche alt.
+  // ab 0.40.0: nur Scans und Staende der API zaehlen. Eine Live-Abfrage aus Broker loeste vorher die ganze Neurechnung beider
+  // Maerkte aus (rund 20 Sek.), aenderte daran aber fast nichts. Ihr Preis zeigt sich auf der Gegenstandsseite sofort.
   dataSig(mid) {
     const last = this.db.prepare("SELECT id FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(mid);
-    const n = this.db.prepare('SELECT COUNT(*) AS n FROM snapshots WHERE market_id = ?').get(mid).n;
+    const n = this.db.prepare("SELECT COUNT(*) AS n FROM snapshots WHERE market_id = ? AND source = 'scan'").get(mid).n;
     return `${broker.dayOf(this.now())}|${last ? last.id : ''}|${n}|${JSON.stringify(this.meta('brokerFiles') || {})}`;
   }
 

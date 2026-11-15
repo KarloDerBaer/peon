@@ -12,6 +12,12 @@ const MIN_HOUR_DAYS = 14;
 const SLICE = 6 * 3600;                  // Groesse einer Zeitscheibe, ganze Stunden
 const SHRINK_FROM = 16 * 1024 * 1024;    // Datei erst ab so viel freiem Platz verkleinern
 const SHRINK_PAGES = 4096;               // Seiten je Schritt beim Verkleinern
+// ab Manager 0.40.0 (Messung mit echten Daten 15.11.2026): Die Angebote eines Stands der Blizzard-API (rund 2 MB je Stand
+// und Haus) braucht nur der Vergleich mit dem naechsten Stand und die Ansicht des neuesten. Eigene Scans sind klein.
+// Live-Abfragen aus Broker zeigen den neuesten Preis, fuer Verlauf und Absatz zaehlen sie nicht mehr.
+const API_BLOB_DAYS = 2;
+const SCAN_BLOB_DAYS = 14;
+const LIVE_DAYS = 7;
 
 const PRESETS = [
   { key: 'sparsam', label: 'Sparsam', keepDays: 7, hourDays: 30 },
@@ -75,6 +81,31 @@ function* snapsToHours(db, cut, res) {
   }
 }
 
+// ab 0.40.0: Angebote der Staende frueher loeschen (die Kennzahlen bleiben), Live-Abfragen nach LIVE_DAYS ganz
+function* dropOld(db, now, res) {
+  // in kleinen Gruppen, beim ersten Mal sind es einige hundert MB
+  const pick = db.prepare(`SELECT id FROM snapshots WHERE rows IS NOT NULL AND source = 'scan'
+      AND ((art = 'api' AND t < ?) OR (art <> 'api' AND t < ?)) LIMIT 20`);
+  const clear = db.prepare('UPDATE snapshots SET rows = NULL WHERE id = ?');
+  for (;;) {
+    const ids = pick.all(now - API_BLOB_DAYS * 86400, now - SCAN_BLOB_DAYS * 86400);
+    if (!ids.length) break;
+    tx(db, () => { for (const x of ids) clear.run(x.id); });
+    res.blobs += ids.length;
+    yield;
+  }
+  const old = db.prepare("SELECT id FROM snapshots WHERE source = 'live' AND t < ? LIMIT 500");
+  const delRows = db.prepare('DELETE FROM item_snap WHERE snapshot_id = ?');
+  const delSnap = db.prepare('DELETE FROM snapshots WHERE id = ?');
+  for (;;) {
+    const ids = old.all(now - LIVE_DAYS * 86400);
+    if (!ids.length) break;
+    tx(db, () => { for (const x of ids) { delRows.run(x.id); delSnap.run(x.id); } });
+    res.live = (res.live || 0) + ids.length;
+    yield;
+  }
+}
+
 // Alles Aeltere als cut von den Stundenwerten zu Tageswerten. Tag = Stunde / 24 (UTC), fuer Tageswerte ueber Jahre genau genug
 function* hoursToDays(db, cut, res) {
   const f = db.prepare('SELECT MIN(t) AS t FROM item_hour').get().t;
@@ -111,6 +142,7 @@ function* shrink(db) {
 
 // Schritte der Aufbewahrung, zwischen zwei Schritten darf anderes laufen. Das Ergebnis steht am Ende in res.
 function* pruneSteps(db, { keepDays = 14, hourDays = 60, now = Math.floor(Date.now() / 1000) } = {}, res = { snaps: 0, hours: 0, blobs: 0 }) {
+  yield* dropOld(db, now, res);
   if (keepDays > 0) yield* snapsToHours(db, now - keepDays * 86400, res);
   if (hourDays > 0) yield* hoursToDays(db, now - hourDays * 86400, res);
   yield* shrink(db);
@@ -165,4 +197,4 @@ function estimate(db, { keepDays = 14, hourDays = 60, now = Math.floor(Date.now(
     presets: PRESETS.map((p) => ({ ...p, total: project(m, p.keepDays, p.hourDays).total })) };
 }
 
-module.exports = { prune, pruneSteps, estimate, MIN_HOUR_DAYS, PRESETS };
+module.exports = { prune, pruneSteps, estimate, MIN_HOUR_DAYS, PRESETS, API_BLOB_DAYS, SCAN_BLOB_DAYS, LIVE_DAYS };
