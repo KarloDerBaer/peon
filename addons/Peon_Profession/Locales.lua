@@ -33,6 +33,7 @@ L.NOT_LEARNED    = "|cff999999Not learned yet%s|r"
 L.LEARN_AT       = ", trainer from %d"
 L.LEARN_SRC      = { t = ", trainer from %d", v = ", vendor from %d", d = ", drop from %d", q = ", quest from %d", m = ", from %d" }
 L.FREE_STEP      = "Any orange recipe from the profession window."
+L.SELF_CRAFT     = "craft yourself"
 L.ALT            = "Instead: |cffffd100%s|r (%s). %s is already %s for you."
 L.ALT_FREE       = "Suggestion: |cffffd100%s|r (%s)."
 L.GATHER         = "Gather: %s"
@@ -113,6 +114,7 @@ if GetLocale() == "deDE" then
     L.LEARN_AT       = ", beim Lehrer ab %d"
     L.LEARN_SRC      = { t = ", beim Lehrer ab %d", v = ", beim Händler, ab %d", d = ", als Beute, ab %d", q = ", aus einer Quest, ab %d", m = ", ab %d" }
     L.FREE_STEP      = "Ein beliebiges oranges Rezept aus dem Berufsfenster."
+    L.SELF_CRAFT     = "selbst herstellen"
     L.ALT            = "Stattdessen: |cffffd100%s|r (%s). %s ist bei dir schon %s."
     L.ALT_FREE       = "Vorschlag: |cffffd100%s|r (%s)."
     L.GATHER         = "Sammeln: %s"

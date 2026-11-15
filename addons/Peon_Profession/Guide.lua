@@ -234,16 +234,71 @@ function G.SetTarget(key, value)
     return value
 end
 
--- Bedarf an Material fuer eine Reihe von Schritten (Plan-Zeilen) zusammenzaehlen: { [itemID] = Stueck }
+-- ab 0.3.1: Stellt der Beruf den Gegenstand selbst her (erlerntes Rezept oder Schritt der Route)?
+-- Rueckgabe: Material je Herstellung { { id, q } }, Stueck je Herstellung, sonst nil
+function G.Producer(key, item)
+    if not item then return nil end
+    local bestId, best
+    for id, rec in pairs(G.Known(key)) do
+        if rec.out == item and #G.MatsOf(rec) > 0 and (not bestId or id < bestId) then bestId, best = id, rec end
+    end
+    if best then return G.MatsOf(best), math.max(1, math.floor(best.n or 1)) end
+    local r = G.Route(key)
+    if type(r) == "table" then
+        for _, s in ipairs(r) do
+            if s.item == item and #G.MatsOf(nil, s) > 0 then return G.MatsOf(nil, s), 1 end
+        end
+    end
+    return nil
+end
+
+-- ab 0.3.1: Selbst herstellbare Zwischenprodukte in ihr Material aufloesen. Vorrat (alle Charaktere) und was
+-- der Plan ohnehin herstellt (produced) wird zuerst verbraucht. Rueckgabe: base = { [itemID] = Stueck } zum Kaufen,
+-- made = { [itemID] = { need, have, crafts } } fuer die Zwischenprodukte
+function G.Resolve(key, need, produced)
+    local base, made, avail = {}, {}, {}
+    for id, n in pairs(need) do base[id] = n end
+    for _ = 1, 4 do   -- hoechstens vier Stufen tief, schuetzt vor Kreisen
+        local todo = {}
+        for id, n in pairs(base) do
+            local mats, yield = G.Producer(key, id)
+            if mats then todo[#todo + 1] = { id = id, n = n, mats = mats, yield = yield } end
+        end
+        if #todo == 0 then break end
+        table.sort(todo, function(a, b) return a.id < b.id end)
+        for _, t in ipairs(todo) do
+            base[t.id] = nil
+            if avail[t.id] == nil then
+                avail[t.id] = (ns.Prices and ns.Prices.Stock(t.id) or 0) + (produced and produced[t.id] or 0)
+            end
+            local use = math.min(avail[t.id], t.n)
+            avail[t.id] = avail[t.id] - use
+            local crafts = math.ceil((t.n - use) / t.yield - 0.0001)
+            local m = made[t.id] or { need = 0, have = 0, crafts = 0 }
+            m.need, m.have, m.crafts = m.need + t.n, m.have + use, m.crafts + crafts
+            made[t.id] = m
+            if crafts > 0 then
+                for _, x in ipairs(t.mats) do base[x.id] = (base[x.id] or 0) + x.q * crafts end
+            end
+        end
+    end
+    return base, made
+end
+
+-- Bedarf an Material fuer eine Reihe von Schritten (Plan-Zeilen) zusammenzaehlen: { [itemID] = Stueck }.
+-- Ab 0.3.1 sind selbst herstellbare Zwischenprodukte aufgeloest, was der Plan selbst herstellt, zaehlt mit.
+-- Zweite Rueckgabe: die Zwischenprodukte (siehe G.Resolve)
 function G.Need(key, rows)
-    local need = {}
+    local need, produced = {}, {}
     for _, e in ipairs(rows) do
         if e.step and e.count and not e.trainer then
             local _, rec = G.KnownFor(key, e.step)
             for _, m in ipairs(G.MatsOf(rec, e.step)) do
                 need[m.id] = (need[m.id] or 0) + m.q * e.count
             end
+            local out = (rec and rec.out) or e.item
+            if out then produced[out] = (produced[out] or 0) + e.count * math.max(1, math.floor(rec and rec.n or 1)) end
         end
     end
-    return need
+    return G.Resolve(key, need, produced)
 end

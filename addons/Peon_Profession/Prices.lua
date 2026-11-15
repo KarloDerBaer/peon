@@ -54,20 +54,41 @@ function P.Stock(id)
 end
 
 -- Tabelle fuer das Material: Bedarf { [itemID] = Stueck } bzw. Liste { { id, q } } mit crafts.
--- Rueckgabe: rows = { { id, per, need, have, own, others, missing, unit, src, cost } }, Summe, Zahl ohne Preis
-function P.Rows(mats, crafts)
-    local rows, total, noPrice = {}, 0, 0
+-- Rueckgabe: rows = { { id, per, need, have, own, others, missing, unit, src, cost } }, Summe, Zahl ohne Preis.
+-- Ab 0.3.1 mit key: Zwischenprodukte, die der Beruf selbst herstellt, stehen mit src "craft" und ohne Preis,
+-- ihr Material folgt als eigene Zeilen (Guide.Resolve).
+function P.Rows(mats, crafts, key)
+    local need, per, order = {}, {}, {}
     for _, m in ipairs(mats) do
-        local need = m.q * (crafts or 1)
-        local have, own, others = P.Stock(m.id)
-        local missing = math.max(0, need - have)
-        local unit, src = P.Unit(m.id)
-        local cost
-        if missing > 0 then
-            if unit then cost = unit * missing; total = total + cost else noPrice = noPrice + 1 end
+        if not need[m.id] then order[#order + 1] = m.id end
+        need[m.id] = (need[m.id] or 0) + m.q * (crafts or 1)
+        per[m.id] = (per[m.id] or 0) + m.q
+    end
+    local base, made = need, {}
+    if key and ns.Guide then base, made = ns.Guide.Resolve(key, need) end
+    local extra = {}
+    for id in pairs(base) do if not per[id] then extra[#extra + 1] = id end end
+    table.sort(extra)
+    for _, id in ipairs(extra) do order[#order + 1] = id end
+    local rows, total, noPrice = {}, 0, 0
+    for _, id in ipairs(order) do
+        local have, own, others = P.Stock(id)
+        local mk = made[id]
+        if mk then
+            rows[#rows + 1] = { id = id, per = per[id], need = mk.need, have = have, own = own, others = others,
+                missing = math.max(0, mk.need - mk.have), src = "craft", craft = mk.crafts }
         end
-        rows[#rows + 1] = { id = m.id, per = m.q, need = need, have = have, own = own, others = others,
-            missing = missing, unit = unit, src = src, cost = cost }
+        if base[id] then
+            local n = base[id]
+            local missing = math.max(0, n - have)
+            local unit, src = P.Unit(id)
+            local cost
+            if missing > 0 then
+                if unit then cost = unit * missing; total = total + cost else noPrice = noPrice + 1 end
+            end
+            rows[#rows + 1] = { id = id, per = per[id], need = n, have = have, own = own, others = others,
+                missing = missing, unit = unit, src = src, cost = cost }
+        end
     end
     return rows, total, noPrice
 end

@@ -493,6 +493,31 @@ end)()
   GetProfessions = function() return 1, 2 end
 end)()
 
+-- 0.3.1: selbst herstellbare Zwischenprodukte (Schneiderei: Wollstoffballen 2997 aus Wollstoff 2592)
+;(function()
+  local G, P = ns.Guide, ns.Prices
+  mod.db.known[197] = nil
+  local mats, yield = G.Producer(197, 2997)
+  check(mats and mats[1].id == 2592 and mats[1].q == 3 and yield == 1, "0.3.1: Wollstoffballen stellt die Schneiderei selbst her")
+  check(G.Producer(197, 2592) == nil, "0.3.1: Wollstoff nicht herstellbar")
+  bags[2997] = 5
+  local base, made = G.Resolve(197, { [2997] = 135, [2321] = 90 })
+  check(base[2997] == nil and base[2592] == 390 and base[2321] == 90, "0.3.1: Ballen in Wollstoff aufgeloest, Vorrat abgezogen")
+  check(made[2997].need == 135 and made[2997].have == 5 and made[2997].crafts == 130, "0.3.1: Zwischenprodukt mit Bedarf und Herstellungen")
+  bags[2997] = nil
+  -- Plan: die Ballen aus dem Schritt 60-70 zaehlen fuer die spaeteren Schritte
+  local plan = { { from = 60, to = 70, count = 12, item = 2997, step = ns.Routes[197][1] } }
+  for _, s in ipairs(ns.Routes[197]) do if s.item == 2997 then plan[1].step = s end end
+  for _, s in ipairs(ns.Routes[197]) do if s.item == 4314 then plan[2] = { from = 85, to = 125, count = 45, item = 4314, step = s } end end
+  local need, mk = G.Need(197, plan)
+  check(need[2997] == nil and need[2592] == 36 + (135 - 12) * 3 and mk[2997].have == 12, "0.3.1: Plan rechnet hergestellte Ballen an (" .. tostring(need[2592]) .. ")")
+  -- Tabelle im Jetzt: Zeile fuer die Ballen ohne Preis, danach Wollstoff
+  local rows = P.Rows({ { id = 2997, q = 3 }, { id = 2321, q = 2 } }, 45, 197)
+  check(rows[1].id == 2997 and rows[1].src == "craft" and rows[1].cost == nil and rows[2].id == 2321 and rows[3].id == 2592 and rows[3].need == 405,
+      "0.3.1: Jetzt zeigt Ballen als selbst herstellen und Wollstoff dazu")
+  check(#P.Rows({ { id = 2997, q = 3 } }, 1) == 1, "0.3.1: ohne Beruf keine Aufloesung")
+end)()
+
 -- Starter-Text und Slash
 ns.Window.Open(186)
 check(ns.LauncherText() == "Bergbau 40/75", "Text fuer Peon_Panel: gewaehlter Beruf")

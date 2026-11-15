@@ -15,7 +15,7 @@ local mod = ns.mod
 local W = {}
 ns.Window = W
 
-local GOLD, GREY = "|cffffd100", "|cff999999"
+local GOLD, GREY, GREEN = "|cffffd100", "|cff999999", "|cff8ccf4d"
 local function UI() return Peon.UI end
 local function G() return ns.Guide end
 local function P() return ns.Prices end
@@ -45,7 +45,10 @@ local function MatColumns()
         { key = "missing", title = L.COL_MISSING, width = 60, align = "RIGHT",
           format = function(v) return (v and v > 0) and tostring(v) or (GREY .. "–|r") end },
         { key = "unit", title = L.COL_UNIT, width = 100, align = "RIGHT",
-          format = function(v, item) return MoneyOrDash(v, item.src == "vendor") end },
+          format = function(v, item)
+              if item.src == "craft" then return GREEN .. L.SELF_CRAFT .. "|r" end   -- ab 0.3.1
+              return MoneyOrDash(v, item.src == "vendor")
+          end },
         { key = "cost", title = L.COL_COST, width = 100, align = "RIGHT", format = function(v) return MoneyOrDash(v) end },
     }
 end
@@ -449,7 +452,7 @@ function W.FillNow(prof, v)
         W.name:SetText(name)
         W.count:SetText(v.count and L.CRAFT_N:format(v.count, v.to) or L.CRAFT_RANGE:format(v.from, v.to))
         local mats = G().Active(v) or {}
-        local list = P().Rows(mats, v.count or 1)
+        local list = P().Rows(mats, v.count or 1, key)
         for i, r in ipairs(list) do
             local n, rq = ns.ItemName(r.id)
             r.sort, r.name, r.icon, r.quality = i, n or ("#" .. r.id), ns.ItemIcon(r.id), rq
@@ -533,8 +536,14 @@ end
 
 -- Reiter Material: alles von der Stufe bis zum Ziel
 function W.FillMats(prof)
-    local need = G().Need(prof.key, W.planRows or {})
+    local need, made = G().Need(prof.key, W.planRows or {})
     local rows = {}
+    for id, mk in pairs(made or {}) do   -- ab 0.3.1: Zwischenprodukte, die der Beruf selbst herstellt
+        local have, own, others = P().Stock(id)
+        local name, q = ns.ItemName(id)
+        rows[#rows + 1] = { id = id, name = name or ("#" .. id), quality = q, icon = ns.ItemIcon(id), need = mk.need,
+            have = have, own = own, others = others, missing = math.max(0, mk.need - mk.have), src = "craft" }
+    end
     for id, n in pairs(need) do
         local have, own, others = P().Stock(id)
         local missing = math.max(0, n - have)
@@ -579,6 +588,7 @@ function W.ToList(which)
         local v = W.view
         if not v or v.gather then return 0 end
         for _, m in ipairs(G().Active(v) or {}) do need[m.id] = (need[m.id] or 0) + m.q * (v.count or 1) end
+        need = G().Resolve(prof.key, need)   -- ab 0.3.1: Zwischenprodukte als Material
     else
         need = G().Need(prof.key, G().Plan(prof.key, prof.skill, prof.max, G().Target(prof.key, prof.skill, prof.max)))
     end

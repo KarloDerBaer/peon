@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.3.1
+
+Kurz: Material, das du mit deinem Beruf selbst herstellst (zum Beispiel Wollstoffballen), steht nicht mehr zum Kauf da. Der Guide rechnet stattdessen das Grundmaterial (Wollstoff) und nutzt deinen Vorrat.
+
+- 0.3.1 (15.11.2026, Fehler gemeldet von KarloDerBaer): Bei „Doppelt genähte Wollschultern“ standen Wollstoffballen mit AH-Preis im Material, obwohl die Route sie vorher selbst herstellt.
+  - **Zwischenprodukte:** Stellt der Beruf ein Material selbst her (erlerntes Rezept oder Schritt der Route), löst der Guide es in sein Material auf (`Guide.Producer`, `Guide.Resolve`, bis vier Stufen tief). Zuerst zählt der Vorrat aller Charaktere, im Plan auch das, was frühere Schritte herstellen (etwa die Ballen aus 60–70).
+  - **Jetzt:** Das Zwischenprodukt steht mit „selbst herstellen“ statt Preis in der Tabelle, sein Grundmaterial darunter mit Preis und Kosten. Reiter Material, Kosten im Plan, Statuszeile und beide Knöpfe für die Einkaufsliste rechnen genauso.
+  - Tests: Erkennung, Auflösung mit Vorrat, Plan mit selbst hergestellten Ballen, Tabelle im Jetzt.
+  - **Im Spiel prüfen:** Schneiderei, Schritt Wollschultern: steht Wollstoff statt Wollstoffballen auf der Einkaufsliste?
+
 ## 0.3.0
 
 Kurz: Bei Erster Hilfe, Kochkunst und Angeln nennt der Guide das Buch für den Rang Experte mit Preis und Händler. Ein Klick markiert den Händler auf der Karte.
