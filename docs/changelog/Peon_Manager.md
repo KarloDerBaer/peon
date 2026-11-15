@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.43.0
+
+Kurz: Deine Eingaben im Manager werden jetzt sofort gespeichert, auch wenn er gerade neue Daten rechnet.
+Kurz: Chancen, Marktübersicht, Beobachten und Einkaufen öffnen sofort, auch während einer Rechnung.
+
+- 0.43.0 (16.11.2026, KarloDerBaer 15.11.2026: Ergebnisse auf die Platte, Schreiben und Rechnen trennen, „beides“). Gemessen mit den echten Daten während einer Neurechnung von 15 Sek.: Eine Eingabe brauchte 0,0 statt 14,3 Sek., Chancen, Beobachten und Einkaufen öffneten in höchstens 0,4 Sek.
+  - **Drei Arbeitsprozesse** (`broker-remote.js`, Rolle in `BrokerClient.role`): Der Schreib-Prozess liest ein, nimmt alle Eingaben an, räumt auf und schreibt Data.lua. Er rechnet nichts Abgeleitetes. Der Rechen-Prozess rechnet nach jedem Einlesen Bereich, Absatz, Chancen, Liste und Marktübersicht (`calcMarkets`), nach dem Aufräumen Vergleiche, Muster und Tageswerte (`maintainInBackground`). Danach schreibt der Schreib-Prozess Data.lua aus den gespeicherten Werten (`bridgeFromCalc`). Der Lese-Prozess (ab 0.42.0) beantwortet die Ansichten.
+  - **Ergebnisse in der Datenbank** (Tabelle `calc_cache`): Chancen, Marktübersicht, Bewegungen für die Übersicht und Werte für Broker je Markt, jeweils mit Datenstand und Regelstand (`ruleSig`). Ein Ergebnis zu einem älteren Datenstand gilt, solange die Rechnung läuft, eines zu alten Regeln nie. Dann antwortet der Rechen-Prozess.
+  - **Über den Lese-Prozess** neu: Chancen, Marktübersicht, Beobachten, Einkaufen und „Jetzt kaufbar“. Ob WoW läuft, bekommt er mit jeder Anfrage. „Warum nicht“ und Steckbrief kommen aus dem Rechen-Prozess.
+  - **Nach Eingaben zu den Chancen** (Regler, Übersteuerung, eigene Ereignisse, Rückmeldungen) rechnet der Rechen-Prozess gleich neu, Broker bekommt die neuen Kandidaten mit Data.lua. Bisher erst beim nächsten Einlesen. Angeheftetes und Daumen runter gelten wie bisher sofort.
+  - **Sicher:** Beide Prozesse schreiben, gewartet wird statt Fehler (`busy_timeout`, Transaktionen mit `BEGIN IMMEDIATE`). Fällt der Rechen-Prozess aus oder antwortet 10 Min. nicht, rechnet der Schreib-Prozess wie bisher. Nach einer Minute startet er neu, ein Ausfall steht im Protokoll.
+  - Behoben: Der Lese-Prozess hielt eine Liste zum alten Stand für den neuen. Die fertige neue Liste kam so erst nach dem übernächsten Stand an.
+  - Eigene Ereignisse zählen jetzt zum Regelstand der Chancen. Neue Stufen von Gegenständen aus der Blizzard-API kommen mit der nächsten Rechnung in die Chancen.
+  - Tests: gespeicherte Ergebnisse im Lese-Prozess, alte Regeln, neue Liste (`c6.test.js`), Eingabe während einer Rechnung, Regeln geändert, Aufräumen, Ausfall des Rechen-Prozesses (`worker.test.js`).
+
 ## 0.42.0
 
 Kurz: Gegenstandsseite und Gegenstandsliste laden jetzt auch dann sofort, wenn der Manager gerade neue Daten einliest oder neu rechnet.

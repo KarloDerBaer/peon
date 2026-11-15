@@ -168,3 +168,41 @@ test('0.5.0: Bereich je Tag, Absatz je Tag, Liste mit Bereich und Warenart, Prot
   assert.ok(!fs.existsSync(path.join(svc.broker.db.logDir, '2020-01-01.log')));
   svc.close();
 });
+
+test('0.43.0: Chancen und Marktuebersicht im Lese-Prozess aus den gespeicherten Ergebnissen', () => {
+  const { svc, push } = world();
+  const { BrokerClient } = require('../src/core/broker-client');
+  const t0 = at(DAY, 10);
+  push({ kind: 'scan', t: t0, names: NAMES, rows: ['2589;;;20;10000;;;4;;3', '4306;;;5;1500;;;4;;1'].join('\n') });
+  push({ kind: 'scan', t: t0 + 3 * 3600, rows: ['2589;;;20;10000;;;4;;1', '4306;;;5;1500;;;4;;1'].join('\n') });
+  svc.broker.importGame();
+  const rd = new BrokerClient(Object.assign(Object.create(svc), { readOnly: true }));
+  try {
+    const strip = (v) => JSON.parse(JSON.stringify(v));
+    assert.deepEqual(strip(rd.chanceView(M)), strip(svc.broker.chanceView(M)), 'Chancen wie im ersten Prozess');
+    assert.deepEqual(strip(rd.marketOverview(M)), strip(svc.broker.marketOverview(M)), 'Marktuebersicht wie im ersten Prozess');
+    // Neurechnung laeuft noch (Ergebnis zu einem aelteren Datenstand): das gespeicherte Ergebnis gilt weiter
+    svc.broker.db.prepare("UPDATE calc_cache SET dsig = 'alt'").run();
+    assert.equal(rd.chanceView(M).t, t0 + 3 * 3600);
+    // Regeln geaendert: nie ein Ergebnis zu alten Regeln, dann rechnet der erste Prozess
+    svc.broker.setChanceRules({ s: { minGain: 12345 } });
+    assert.throws(() => rd.chanceView(M), /alten Regeln/);
+    assert.throws(() => rd.marketOverview(M), /alten Regeln/);
+    svc.broker.chanceView(M);
+    svc.broker.marketOverview(M);
+    assert.equal(rd.chanceView(M).rules.s.minGain, 12345, 'nach der Rechnung im ersten Prozess gilt das neue Ergebnis');
+    // Eigene Ereignisse zaehlen jetzt auch zu den Regeln
+    svc.broker.setEvents([{ n: 'Test', s: t0 + 86400 }]);
+    assert.throws(() => rd.chanceView(M), /alten Regeln/);
+    // Liste: der Lese-Prozess merkt sich den Stand der gespeicherten Liste und nimmt die neue, sobald sie da ist
+    const l1 = rd.itemList(M);
+    push({ kind: 'scan', t: t0 + 4 * 3600, rows: ['2589;;;20;10000;;;4;;1', '2770;;;5;1500;;;4;;1', '4306;;;5;1500;;;4;;1'].join('\n') });
+    svc.broker.importGame();
+    assert.ok(!l1.items.some((x) => x.key === '2770'));
+    assert.ok(rd.itemList(M).items.some((x) => x.key === '2770'), 'neue Liste angekommen');
+    // Beobachten und Einkaufen lesen nur; laeuft WoW, sagt es der erste Prozess
+    rd.gameState = { running: true, mt: 0 };
+    assert.equal(rd.watchView(M).running, true);
+    assert.equal(rd.shopView(M).running, true);
+  } finally { rd.close(); svc.close(); }
+});

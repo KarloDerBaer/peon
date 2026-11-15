@@ -75,6 +75,9 @@ CREATE TABLE IF NOT EXISTS item_tip (
   key TEXT PRIMARY KEY, lines TEXT NOT NULL, t INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS list_cache (
   market_id INTEGER PRIMARY KEY, sig TEXT NOT NULL, data BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS calc_cache (
+  market_id INTEGER NOT NULL, name TEXT NOT NULL, dsig TEXT NOT NULL, rsig TEXT NOT NULL, t INTEGER NOT NULL, data BLOB NOT NULL,
+  PRIMARY KEY (market_id, name)) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS market_alias (
   alias TEXT PRIMARY KEY, market_id INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS auc_first (
@@ -131,7 +134,8 @@ function open(dir, name, ddl) {
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, name);
   const db = new DatabaseSync(file);
-  db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF;');
+  // ab 0.44.0: busy_timeout, seit Schreib- und Rechen-Prozess beide schreiben. Wer gerade nicht darf, wartet statt Fehler.
+  db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF; PRAGMA busy_timeout = 30000;');
   db.exec(ddl);
   db.file = file;
   db.logDir = path.join(dir, 'logs');
@@ -278,10 +282,21 @@ function migrate14(db, now) {
   return true;
 }
 
+// ab Manager 0.44.0: Rechen-Prozess. Schreibt nur seine Ergebnisse, Umstellungen macht der Schreib-Prozess vorher.
+function openWorkDb(dir) {
+  const file = path.join(dir, BROKER_FILE);
+  const db = new DatabaseSync(file);
+  db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF; PRAGMA busy_timeout = 30000;');
+  db.file = file;
+  db.logDir = path.join(dir, 'logs');
+  return db;
+}
+
 // ab Manager 0.42.0: nur lesen (Arbeitsprozess fuer die Ansichten). Keine Umstellung, kein Anlegen, die macht der Hauptteil.
 function openReadDb(dir) {
   const file = path.join(dir, BROKER_FILE);
   const db = new DatabaseSync(file, { readOnly: true });
+  db.exec('PRAGMA busy_timeout = 30000;');
   db.file = file;
   db.logDir = path.join(dir, 'logs');
   db.readOnly = true;
@@ -326,8 +341,10 @@ function removeDb(file) {
   return n;
 }
 
+// ab 0.44.0 BEGIN IMMEDIATE: Mit zwei schreibenden Prozessen scheitert eine Transaktion, die erst liest und dann schreiben will,
+// sofort, wenn der andere dazwischen geschrieben hat. So wartet sie am Anfang, bis sie dran ist (busy_timeout).
 function tx(db, fn) {
-  db.exec('BEGIN');
+  db.exec('BEGIN IMMEDIATE');
   try {
     const r = fn();
     db.exec('COMMIT');
@@ -393,4 +410,4 @@ function pruneLogs(db, days = 30, now = Date.now()) {
   return n;
 }
 
-module.exports = { openReadDb, slotHour, SLOT_SQL, SNAPS_IN, hourFrom, migrate14, openDb, openManagerDb, migrateSplit, fileSize, removeDb, BROKER_FILE, MANAGER_FILE, tx, log, marketId, dbSize, pruneLogs, SCHEMA };
+module.exports = { openWorkDb, openReadDb, slotHour, SLOT_SQL, SNAPS_IN, hourFrom, migrate14, openDb, openManagerDb, migrateSplit, fileSize, removeDb, BROKER_FILE, MANAGER_FILE, tx, log, marketId, dbSize, pruneLogs, SCHEMA };

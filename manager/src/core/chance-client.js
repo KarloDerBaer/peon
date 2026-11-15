@@ -98,11 +98,21 @@ const methods = {
     return value;
   },
 
+  // ab 0.43.0: alles ausser dem Datenstand, wovon die Chancen abhaengen (Regeln, Uebersteuerungen, Aufkauf von Broker, Feste
+  // und eigene Ereignisse, Gold, Muster). Aendert es sich, ist ein gespeichertes Ergebnis nicht mehr gueltig.
+  ruleSig(mid) {
+    const money = this.ledgerGold(mid);
+    const pat = this.db.prepare('SELECT json_extract(value, \'$.t\') AS t FROM meta WHERE key = ?').get(`patterns:${mid}`);
+    return JSON.stringify([this.meta('chanceRules'), this.meta('chanceOverrides'), this.meta('brokerRules'), this.meta('feste'), this.meta('events'), money, pat ? pat.t : null]);
+  },
+
   // Stand eines Markts fuer die Chancen: letzter vollstaendiger Stand mit Angeboten
   chanceCtx(mid) {
     const money = this.ledgerGold(mid);
     const pat = this.meta(`patterns:${mid}`);   // ab 0.38.0: Muster, einmal am Tag beim Aufraeumen gerechnet
-    const sig = `${this.dataSig(mid)}|${JSON.stringify([this.meta('chanceRules'), this.meta('chanceOverrides'), this.meta('brokerRules'), this.meta('feste'), money, pat ? pat.t : null])}`;
+    const dsig = this.dataSig(mid);
+    const rsig = this.ruleSig(mid);
+    const sig = `${dsig}|${rsig}`;
     this.chanceCache = this.chanceCache || new Map();
     const c0 = this.chanceCache.get(mid);
     if (c0 && c0.sig === sig) return c0.ctx;
@@ -134,7 +144,7 @@ const methods = {
     const fc = forecast.marketForecasts({ db, mid, now, today, bands: bd.items, values: bd.days, qty: this.snaps.dayQty(mid, now, 14), sales: stats,
       levels, fests: this.fests(), festMap: this.festSignalsOf(mid), switches: rules.f.signals });
     const ctx = {
-      mid, now, today, t: last ? last.t : null, age: last ? Math.max(0, now - last.t) : Infinity, rows, offers, stats, bands: bd.items, shifts: bd.shifts, days: bd.days,
+      dsig, rsig, mid, now, today, t: last ? last.t : null, age: last ? Math.max(0, now - last.t) : Infinity, rows, offers, stats, bands: bd.items, shifts: bd.shifts, days: bd.days,
       proof: pr, dur, rules, broker: this.brokerRules(), forecasts: fc.list, index: fc.index, signalRates: fc.rates,
       gold: money ? money.gold : null, goldChars: money ? money.chars : 0,
       patterns: new Map(pat && Array.isArray(pat.list) ? pat.list : []),
@@ -163,7 +173,23 @@ const methods = {
     }
     this.chanceRes = this.chanceRes || new Map();
     this.chanceRes.set(mid, { t: ctx.t, sig: ctx, res });
+    this.calcPut(mid, 'chances', ctx.dsig, ctx.rsig, this.chanceSummary(ctx, res));   // ab 0.43.0 fuer den Lese-Prozess
     return res;
+  },
+
+  // ab 0.43.0: was die Seite Chancen aus der Rechnung braucht (gespeichert in calc_cache)
+  chanceSummary(ctx, res) {
+    return { now: ctx.now, t: ctx.t, list: res.list, near: res.near.length, patterns: ctx.patterns.size, proven: ctx.proof.size, holdKnown: ctx.dur.size,
+      bands: ctx.bands.size, salesItems: ctx.stats.size, forecasts: ctx.forecasts.size, gold: ctx.gold, goldChars: ctx.goldChars };
+  },
+
+  // ab 0.43.0: gespeichertes Ergebnis fuer den Lese-Prozess. Zu einem aelteren Datenstand ist es recht (die Neurechnung laeuft),
+  // zu anderen Regeln nicht. Dann und ohne Ergebnis rechnet der erste Prozess (broker-remote faellt bei einem Fehler auf ihn zurueck).
+  storedCalc(mid, name) {
+    const c = this.calcGet(mid, name);
+    if (!c) throw new Error(`Noch kein Ergebnis (${name})`);
+    if (c.rsig !== this.ruleSig(mid)) throw new Error(`Ergebnis zu alten Regeln (${name})`);
+    return c.value;
   },
   chanceResult(mid) {
     const ctx = this.chanceCtx(mid);
@@ -182,7 +208,10 @@ const methods = {
 
   // Kandidatenliste fuer Broker (9.1): { t, list = { [key] = "Art:KaufenBis:Zielpreis:GueltigBis:Gewinn:Risiko" }, say }
   chancesForBroker(mid) {
-    const res = this.chanceResult(mid);
+    // ab 0.44.0: Schreib- und Lese-Prozess nehmen das gespeicherte Ergebnis (Anheften schreibt Data.lua gleich neu)
+    const st = this.derivedOnly ? this.calcGet(mid, 'chances') : null;
+    if (this.derivedOnly && !st) return null;
+    const res = st ? st.value : this.chanceResult(mid);
     const pinned = this.meta('chancePinned') || {};
     const now = this.now();
     const rated = this.latestRatings();
@@ -200,8 +229,8 @@ const methods = {
     };
     for (const x of all) if (pinned[x.key]) put(x);
     for (const x of all) { if (n >= MAX_FOR_BROKER) break; put(x); }
-    const ctx = this.chanceCtx(mid);
-    return n ? { t: ctx.t || now, list, say } : null;
+    const t = st ? st.value.t : this.chanceCtx(mid).t;
+    return n ? { t: t || now, list, say } : null;
   },
   pinChance(key, on = true) {
     const p = this.meta('chancePinned') || {};
@@ -222,19 +251,22 @@ const methods = {
   chanceView(marketKey) {
     const mid = this.marketId(marketKey);
     if (mid == null) return null;
-    const ctx = this.chanceCtx(mid);
-    const res = this.chanceResult(mid);
+    let sum;
+    if (this.readOnly) sum = this.storedCalc(mid, 'chances');
+    else { const ctx = this.chanceCtx(mid); sum = this.chanceSummary(ctx, this.chanceResult(mid)); }
+    const now = this.now();
+    const rules = this.chanceRules();
     const rated = this.latestRatings();
     const pinned = this.meta('chancePinned') || {};
     const fav = new Set(this.favorites());
     const strip = (x) => ({ ...x, rated: rated.get(x.key) || null, pinned: !!pinned[x.key], watched: fav.has(x.key) });
     const down = (x) => x.rated && x.rated.up === 0 && !x.pinned;
-    const proven = ctx.proof.size;
-    const list = res.list.map(strip);
-    return { market: marketKey, now: ctx.now, t: ctx.t, age: ctx.age, list: list.filter((x) => !down(x)),
-      rejected: list.filter(down), near: res.near.length, patterns: ctx.patterns.size, patternsAt: (this.meta(`patterns:${mid}`) || {}).t || null,
-      proven, holdKnown: ctx.dur.size, bands: ctx.bands.size, salesItems: ctx.stats.size, forecasts: ctx.forecasts.size, rules: ctx.rules,
-      gold: ctx.gold, goldChars: ctx.goldChars, histDays: this.marketDays(mid),
+    const list = sum.list.map(strip);
+    const pat = this.db.prepare('SELECT json_extract(value, \'$.t\') AS t FROM meta WHERE key = ?').get(`patterns:${mid}`);
+    return { market: marketKey, now, t: sum.t, age: sum.t ? Math.max(0, now - sum.t) : Infinity, list: list.filter((x) => !down(x)),
+      rejected: list.filter(down), near: sum.near, patterns: sum.patterns, patternsAt: (pat && pat.t) || null,
+      proven: sum.proven, holdKnown: sum.holdKnown, bands: sum.bands, salesItems: sum.salesItems, forecasts: sum.forecasts, rules,
+      gold: sum.gold, goldChars: sum.goldChars, histDays: this.marketDays(mid),
       start: proof.startOf(this.db, mid), kinds: spec.KINDS };
   },
 
@@ -294,7 +326,15 @@ const methods = {
   marketOverview(marketKey) {
     const mid = this.marketId(marketKey);
     if (mid == null) return null;
+    const v = this.readOnly ? this.storedCalc(mid, 'overview') : this.overviewOf(mid);
+    return { ...v, market: marketKey, levelsKnown: this.db.prepare('SELECT COUNT(*) AS n FROM item_level').get().n };
+  },
+
+  // Rechnung der Marktuebersicht, ab 0.43.0 nach jedem Einlesen gespeichert (calc_cache) und einmal je Stand gerechnet
+  overviewOf(mid) {
     const ctx = this.chanceCtx(mid);
+    const c = this.calcGet(mid, 'overview');
+    if (c && c.dsig === ctx.dsig && c.rsig === ctx.rsig) return c.value;
     const lt = this.bands(mid);
     const last = this.db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(mid);
     const mv = chances.moves(this.db, mid, lt.items, lt.days, last, lt.day);
@@ -307,8 +347,10 @@ const methods = {
         .sort((a, b) => Math.abs(b.change) - Math.abs(a.change)).slice(0, 30) }));
     const fc = [...ctx.forecasts.values()].filter((f) => forecast.SURE.indexOf(f.sure) >= forecast.SURE.indexOf(ctx.rules.f.minSure))
       .map((f) => ({ ...f, ...name(f.key) })).sort((a, b) => forecast.SURE.indexOf(b.sure) - forecast.SURE.indexOf(a.sure) || b.expect - a.expect).slice(0, 300);
-    return { market: marketKey, t: ctx.t, up: mv.up, down: mv.down, worth: chances.worth(this.db, lt.items, ctx.stats), biggest, index, fests, forecasts: fc,
-      signals: [...ctx.signalRates].map(([id, r]) => ({ id, label: forecast.SIGNALS[id].label, ...r, on: ctx.rules.f.signals[id] })), levelsKnown: this.db.prepare('SELECT COUNT(*) AS n FROM item_level').get().n };
+    const value = { t: ctx.t, up: mv.up, down: mv.down, worth: chances.worth(this.db, lt.items, ctx.stats), biggest, index, fests, forecasts: fc,
+      signals: [...ctx.signalRates].map(([id, r]) => ({ id, label: forecast.SIGNALS[id].label, ...r, on: ctx.rules.f.signals[id] })) };
+    this.calcPut(mid, 'overview', ctx.dsig, ctx.rsig, value);
+    return value;
   },
 
   // Erfolgskontrolle (8): Trefferquote je Art und Signal, eigene Kaeufe aus Ledger
@@ -444,7 +486,7 @@ const methods = {
     const out = (Array.isArray(list) ? list : []).filter((e) => e && String(e.n || '').trim() && Number(e.s) > 0)
       .map((e) => ({ n: String(e.n).trim().slice(0, 60), s: Math.floor(Number(e.s)), e: Math.floor(Number(e.e) || Number(e.s)) }));
     this.meta('events', out);
-    this.chanceCache = null;
+    this.chanceCache = null;   // ab 0.43.0 auch in ruleSig, damit gespeicherte Ergebnisse nicht mehr gelten
     return out;
   },
   // Rueckgabe: neue Einschaetzungen (ab 0.35.1 gehen sie auch in den Reiter Rueckmeldungen)

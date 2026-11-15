@@ -23,6 +23,7 @@ const host = {
   version: workerData.version,
   settings: workerData.settings,
   readOnly: !!workerData.readOnly,   // ab 0.42.0: Arbeitsprozess fuer die Ansichten
+  role: workerData.role || (workerData.readOnly ? 'read' : 'all'),   // ab 0.44.0: write, calc, read (broker-client.js)
   fetchImpl: (...a) => fetch(...a),
   now: () => Math.floor(Date.now() / 1000),
   saveSettings(patch) {
@@ -51,6 +52,8 @@ async function run(msg) {
     if (msg.host.settings) host.settings = msg.host.settings;
     if (msg.host.channels) state.channels = msg.host.channels;
     if (msg.host.marks) state.marks = msg.host.marks;
+    // ab 0.43.0: Laeuft WoW? Das weiss nur der erste Prozess (noteGame), der Lese-Prozess bekommt es mit jeder Anfrage
+    if (host.readOnly && msg.host.game) broker.gameState = msg.host.game;
   }
   if (msg.path === '$get') return broker.get(msg.args[0]);
   const parts = String(msg.path).split('.');

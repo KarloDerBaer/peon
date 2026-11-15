@@ -433,10 +433,11 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('itemInfo', (_e, key) => (svc.broker ? svc.broker.itemTip(String(key), blizzardClient()) : null));
     // Chancen und Prognosen (ab 0.35.0, Peon_Manager_Chancen.md)
     const chanceChanged = async (r) => { const v = await r; send('changed', { what: 'chancen' }); return v; };
-    ipcMain.handle('chanceView', (_e, market) => (svc.broker ? svc.broker.chanceView(String(market)) : null));
+    // ab 0.43.0: Chancen, Marktuebersicht, Beobachten und Einkaufen ebenfalls ueber den Lese-Prozess (gespeicherte Ergebnisse)
+    ipcMain.handle('chanceView', (_e, market) => (svc.broker ? rd('chanceView', String(market)) : null));
     ipcMain.handle('chanceItem', (_e, market, key) => (svc.broker ? svc.broker.chanceItem(String(market), String(key)) : null));
     ipcMain.handle('brief', (_e, market, key, days) => (svc.broker ? svc.broker.brief(String(market), String(key), Number(days) || 14) : null));
-    ipcMain.handle('marketOverview', (_e, market) => (svc.broker ? svc.broker.marketOverview(String(market)) : null));
+    ipcMain.handle('marketOverview', (_e, market) => (svc.broker ? rd('marketOverview', String(market)) : null));
     ipcMain.handle('successView', (_e, market) => (svc.broker ? svc.broker.successView(String(market)) : null));
     ipcMain.handle('setOwnUse', (_e, key, t, on) => (svc.broker ? svc.broker.setOwnUse(String(key), Number(t), !!on) : false));
     ipcMain.handle('chanceRules', () => (svc.broker ? svc.broker.chanceRules() : null));
@@ -465,7 +466,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('accountName', async (_e, id, name) => { const r = await svc.broker.nameAccount(String(id), String(name || '')); send('changed', { what: 'konto' }); return r; });
     // Seite Beobachten (ab 0.32.0)
     const watchChanged = async (r) => { const v = await r; notifyWatch().catch(() => {}); return v; };
-    ipcMain.handle('watchView', (_e, market) => (svc.broker ? svc.broker.watchView(String(market)) : { rows: [] }));
+    ipcMain.handle('watchView', (_e, market) => (svc.broker ? rd('watchView', String(market)) : { rows: [] }));
     ipcMain.handle('watchSetBuy', (_e, key, kind, value) => watchChanged(svc.broker.setWatchBuy(String(key), kind || null, value == null ? null : Number(value))));
     ipcMain.handle('watchSetUp', (_e, key, value) => watchChanged(svc.broker.setWatchUp(String(key), value == null ? null : Number(value))));
     ipcMain.handle('watchSetBell', (_e, key, which, on) => watchChanged(svc.broker.setWatchBell(String(key), which || null, !!on)));
@@ -474,8 +475,8 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('syncTrash', (_e, area) => (svc.broker ? (svc.broker.read ? svc.broker.read('syncTrash', { area: area || null }) : svc.broker.syncTrash({ area: area || null })) : []));
     ipcMain.handle('syncRestore', async (_e, id) => { const r = await svc.broker.restoreTrash(Number(id)); if (r && r.ok) send('changed', { what: 'wiederhergestellt' }); return r; });
     const shopChanged = async (r) => { const v = await r; send('changed', { what: 'einkaufsliste' }); return v; };
-    ipcMain.handle('shopView', (_e, market) => (svc.broker ? svc.broker.shopView(String(market)) : { lists: [] }));
-    ipcMain.handle('shopBuyable', (_e, market) => (svc.broker ? svc.broker.shopBuyable(String(market)) : []));
+    ipcMain.handle('shopView', (_e, market) => (svc.broker ? rd('shopView', String(market)) : { lists: [] }));
+    ipcMain.handle('shopBuyable', (_e, market) => (svc.broker ? rd('shopBuyable', String(market)) : []));
     ipcMain.handle('shopLists', (_e, key) => (svc.broker ? svc.broker.shopLists(key == null ? null : String(key)) : []));
     ipcMain.handle('shopNewList', (_e, name) => shopChanged(svc.broker.newShopList(name == null ? '' : String(name))));
     ipcMain.handle('shopDeleteList', (_e, id) => shopChanged(svc.broker.deleteShopList(id)));

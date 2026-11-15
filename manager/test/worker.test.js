@@ -135,6 +135,11 @@ test('0.42.0: Lese-Prozess fuer Ansichten, schreibt nicht, Fehler und Ausfall ge
     // Schreiben geht im Lese-Prozess nicht: dieselbe Anfrage beantwortet der erste Prozess
     assert.deepEqual(await svc.broker.read('setFavorite', '2770', true), ['2770']);
     assert.deepEqual(await svc.broker.favorites(), ['2770'], 'geschrieben hat der erste Prozess');
+    // ab 0.43.0: Chancen aus dem gespeicherten Ergebnis, Beobachten mit dem Zustand des Spiels aus dem ersten Prozess
+    const c = await svc.broker.read('chanceView', M);
+    assert.ok(c && c.market === M, 'Chancen ueber den Lese-Prozess');
+    await svc.broker.noteGame(true);
+    assert.equal((await svc.broker.read('watchView', M)).running, true, 'Lese-Prozess weiss, dass WoW laeuft');
     // Ausfall: weiter ueber den ersten Prozess
     await svc.broker.reader.terminate();
     await new Promise((r) => setTimeout(r, 100));
@@ -142,6 +147,46 @@ test('0.42.0: Lese-Prozess fuer Ansichten, schreibt nicht, Fehler und Ausfall ge
     const d2 = await svc.broker.read('itemDetail', M, '2770', '30d');
     assert.ok(d2 && d2.key === '2770', 'ohne Lese-Prozess ueber den ersten');
     assert.ok(errors.some((e) => /Lese-Prozess/.test(e.message)), 'Ausfall gemeldet');
+  } finally {
+    await svc.close();
+  }
+});
+
+test('0.44.0: Schreiben und Rechnen getrennt, Eingaben warten nicht auf die Rechnung, Ausfall des Rechen-Prozesses', async () => {
+  const { svc, ad, errors } = setup();
+  const M = 'Classic Beta PvE / Alliance';
+  try {
+    assert.equal((await svc.broker.importGame()).imported, 1);
+    assert.ok(svc.broker.calcer, 'Rechen-Prozess laeuft');
+    // Data.lua mit den Werten aus dem Rechen-Prozess, geschrieben vom Schreib-Prozess
+    const data = parseLua(fs.readFileSync(path.join(ad, 'Data.lua'))).PeonBridgeData;
+    assert.ok(data.ack[`${T}-1`], 'Bestaetigung');
+    assert.ok(data.markets[M] && data.markets[M].cur && data.markets[M].cur.items[2770], 'Werte fuer Broker aus der Rechnung');
+    // Der Rechen-Prozess ist beschaeftigt (absichtlich lange Abfrage), eine Eingabe kommt trotzdem sofort an
+    const block = svc.broker.calcSide.send('db.exec', ["WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < 6000000) SELECT SUM(x) FROM c"]);
+    let blockDone = false;
+    block.then(() => { blockDone = true; }, () => { blockDone = true; });
+    await new Promise((r) => setTimeout(r, 50));
+    assert.deepEqual(await svc.broker.setFavorite('2770', true), ['2770']);
+    assert.equal(blockDone, false, 'Eingabe fertig, waehrend der Rechen-Prozess noch rechnet');
+    await block.catch(() => null);
+    // Regeln geaendert: die Seite Chancen zeigt sofort das Ergebnis zu den neuen Regeln (Rechen-Prozess)
+    await svc.broker.setChanceRules({ s: { minGain: 4321 } });
+    assert.equal((await svc.broker.read('chanceView', M)).rules.s.minGain, 4321);
+    assert.ok((await svc.broker.chanceItem(M, '2770')).checks.length > 0, 'Warum nicht im Rechen-Prozess');
+    // Aufraeumen: Schreib-Prozess, danach Vergleiche und Tageswerte im Rechen-Prozess
+    assert.ok(await svc.broker.pruneInBackground());
+    assert.equal(await svc.broker.get('pruning'), false);
+    // Ausfall: der Schreib-Prozess rechnet selbst, Data.lua kommt trotzdem
+    await svc.broker.calcer.terminate();
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(svc.broker.calcer, null);
+    fs.writeFileSync(path.join(ad, 'Data.lua'), '-- weg\n');
+    await svc.broker.call('meta', 'ack', null);
+    await svc.broker.importGame();
+    const d2 = parseLua(fs.readFileSync(path.join(ad, 'Data.lua'))).PeonBridgeData;
+    assert.ok(d2.markets[M] && d2.markets[M].cur, 'ohne Rechen-Prozess gerechnet');
+    assert.ok(errors.some((e) => /Rechen-Prozess/.test(e.message)), 'Ausfall gemeldet');
   } finally {
     await svc.close();
   }

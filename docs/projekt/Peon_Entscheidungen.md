@@ -2,6 +2,12 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 16.11.2026: Schreiben, Rechnen und Lesen in eigenen Prozessen (Manager 0.43.0)
+
+- **Drei Arbeitsprozesse** (KarloDerBaer 15.11.2026: „Schreiben und Rechnen sollten doch nicht in einem Prozess sein“): Der Schreib-Prozess nimmt Eingaben und neue Stände an und schreibt Data.lua, der Rechen-Prozess rechnet, der Lese-Prozess bedient die Ansichten. Grund: Eine Eingabe wartete bis zu 15 Sek. hinter einer Rechnung.
+- **Ergebnisse in der Datenbank** statt nur im Speicher (KarloDerBaer): Die Rechnung läuft einmal je Stand, die Ansichten lesen ihr Ergebnis. Ein Ergebnis zu einem älteren Stand ist während der Rechnung recht, eines zu alten Regeln nie.
+- Ein neuer Stand selbst wird weiter im Schreib-Prozess eingelesen. Eingaben können also kurz warten, während ein Stand hereinkommt, aber nicht mehr während einer Rechnung.
+
 ## 15.11.2026: Daten des Managers gestuft aufheben, Arbeitsprozess zum Lesen (Manager 0.40.0 bis 0.42.0)
 
 - **Live-Abfragen aus Broker** zählen nicht mehr für den Absatz und lösen keine Neurechnung aus (KarloDerBaer): Seit die Blizzard-API stündlich ganze Stände liefert, trugen sie fast nichts bei, jede kostete aber eine volle Neurechnung. Sie bleiben 7 Tage für den neuesten Preis.

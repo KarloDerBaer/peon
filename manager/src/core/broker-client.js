@@ -5,7 +5,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { openDb, openReadDb, log, dbSize, pruneLogs, tx } = require('./db');
+const { openDb, openReadDb, openWorkDb, log, dbSize, pruneLogs, tx } = require('./db');
 const pattern = require('./pattern');
 const game = require('./game');
 const { writeData, dataMatches, addonDir } = require('./datalua');
@@ -40,9 +40,13 @@ class BrokerClient {
   constructor(host) {
     this.host = host;
     this.dbDir = host.dbDir;
-    // ab 0.42.0: host.readOnly = Arbeitsprozess fuer die Ansichten (broker-remote.js read), liest nur
-    this.readOnly = !!host.readOnly;
-    this.db = this.readOnly ? openReadDb(host.dbDir) : openDb(host.dbDir);
+    // ab 0.44.0 Rolle (broker-remote.js): 'all' = alles in einem (Tests, Rueckfall), 'write' = Einlesen, Eingaben, Data.lua,
+    // 'calc' = Rechnen (Bereich, Absatz, Chancen, Liste, Muster), 'read' = Ansichten (ab 0.42.0, host.readOnly)
+    this.role = host.role || (host.readOnly ? 'read' : 'all');
+    this.readOnly = this.role === 'read';
+    // Schreib- und Lese-Prozess rechnen nichts Abgeleitetes, sie nehmen die gespeicherten Ergebnisse des Rechen-Prozesses
+    this.derivedOnly = this.role === 'write' || this.role === 'read';
+    this.db = this.readOnly ? openReadDb(host.dbDir) : this.role === 'calc' ? openWorkDb(host.dbDir) : openDb(host.dbDir);
     this.lastImport = null;
     this.lastFiles = [];
     this.info = new ItemInfo(this.db, () => this.now());
@@ -97,25 +101,12 @@ class BrokerClient {
     if (sum.broker.some((b) => b.vendors)) this.vendorsFromGame(sum.broker);
     // ab 0.35.0 (Chancen): Feste, Einschaetzungen und Regeln des Aufkaufs aus Broker
     try { this.festsFromGame(sum.broker); this.ratingsFromGame(sum.broker); this.rulesFromGame(sum.broker); } catch (e) { log(this.db, 'chancen', false, `Aus Broker: ${e.message}`); }
-    const markets = this.buildMarkets();
+    // ab 0.44.0: Im Schreib-Prozess rechnet der Rechen-Prozess danach (broker-remote importGame), Data.lua kommt dann aus
+    // bridgeFromCalc. Hier gleich die Bestaetigung mit den Werten der letzten Rechnung.
+    const markets = this.role === 'write' ? this.storedMarkets() : this.buildMarkets();
     // Bestaetigen nur, was sicher in der Datenbank ist
     const known = ids.filter((id) => this.db.prepare('SELECT 1 FROM snapshots WHERE id = ?').get(id));
-    const prev = this.meta('ack') || { ids: [] };
-    const same = prev.ids.length === known.length && prev.ids.every((x, k) => x === known[k]);
-    const accts = this.acctsForGame();
-    const aliases = this.aliases();
-    const tipWant = this.tipWants();
-    const hash = crypto.createHash('md5').update(JSON.stringify([markets.values, accts, aliases, tipWant])).digest('hex');
-    const marks = this.host.reports.marks();
-    if (!same || !prev.t || prev.hash !== hash || !dataMatches(wow, this.host.channels(), marks)) {
-      try {
-        const w = writeData(wow, { ack: known, markets: markets.lua, channels: this.host.channels(), version: this.version, now: this.now(), aliases, accts, tipWant, ...marks });
-        sum.ack = { t: this.now(), count: known.length, file: w.file, items: markets.count, bytes: w.bytes };
-        this.meta('ack', { ids: known, t: this.now(), file: w.file, hash, items: markets.count, sales: markets.salesCount, bytes: w.bytes, day: markets.day });
-      } catch (e) {
-        sum.failed.push({ file: path.join(addonDir(wow), 'Data.lua'), error: e.message });
-      }
-    }
+    this.writeAck(known, markets, sum);
     if (sum.imported > 0 || sum.failed.length > 0 || sum.error) {
       const text = sum.error || `${sum.imported} ${sum.imported === 1 ? 'neue Momentaufnahme' : 'neue Momentaufnahmen'}, ${sum.known} schon bekannt` + (sum.failed.length ? `, ${sum.failed.length} Fehler: ${sum.failed.map((x) => x.error).join('; ')}` : '');
       log(this.db, 'spiel', sum.failed.length === 0 && !sum.error, text);
@@ -123,6 +114,66 @@ class BrokerClient {
     this.lastImport = sum;
     this.lastFiles = sum.files;
     return sum;
+  }
+
+  // Data.lua mit Bestaetigung und Werten fuer Broker, nur wenn sich etwas geaendert hat
+  writeAck(known, markets, sum = { failed: [] }) {
+    const wow = this.settings.wowDir;
+    const prev = this.meta('ack') || { ids: [] };
+    const same = prev.ids.length === known.length && prev.ids.every((x, k) => x === known[k]);
+    const accts = this.acctsForGame();
+    const aliases = this.aliases();
+    const tipWant = this.tipWants();
+    const hash = crypto.createHash('md5').update(JSON.stringify([markets.values, accts, aliases, tipWant])).digest('hex');
+    const marks = this.host.reports.marks();
+    if (same && prev.t && prev.hash === hash && dataMatches(wow, this.host.channels(), marks)) return false;
+    try {
+      const w = writeData(wow, { ack: known, markets: markets.lua, channels: this.host.channels(), version: this.version, now: this.now(), aliases, accts, tipWant, ...marks });
+      sum.ack = { t: this.now(), count: known.length, file: w.file, items: markets.count, bytes: w.bytes };
+      this.meta('ack', { ids: known, t: this.now(), file: w.file, hash, items: markets.count, sales: markets.salesCount, bytes: w.bytes, day: markets.day });
+      return true;
+    } catch (e) {
+      sum.failed.push({ file: path.join(addonDir(wow), 'Data.lua'), error: e.message });
+      return false;
+    }
+  }
+
+  // ab 0.44.0: Werte fuer Broker aus der letzten Rechnung (calc_cache 'lua', geschrieben von buildMarkets)
+  storedMarkets() {
+    const lua = {}, values = {};
+    let count = 0, salesCount = 0, day = broker.dayOf(this.now());
+    for (const m of this.db.prepare('SELECT id, key FROM markets').all()) {
+      const c = this.calcGet(m.id, 'lua');
+      const v = c && c.value;
+      if (!v || !v.day) continue;
+      lua[m.key] = { t: v.t, day: v.day, items: v.items, sales: v.sales };
+      values[m.key] = { day: v.day, items: v.items, sales: v.sales };
+      if (v.cur) { lua[m.key].cur = v.cur; values[m.key].cur = v.cur; }
+      // Kandidaten neu aus dem gespeicherten Ergebnis: Angeheftetes und Daumen runter gelten sofort, nicht erst nach der Rechnung
+      const ch = this.chancesForBroker(m.id);
+      if (ch) { lua[m.key].chances = ch; values[m.key].chances = ch.list; }
+      count += v.n || 0;
+      salesCount += v.ns || 0;
+      day = v.day;
+    }
+    this.lastLua = lua;
+    return { lua, values, count, salesCount, day };
+  }
+
+  // ab 0.44.0: nach der Rechnung im Rechen-Prozess Data.lua mit den neuen Werten schreiben (Bestaetigung wie zuletzt)
+  bridgeFromCalc() {
+    const prev = this.meta('ack') || { ids: [] };
+    const sum = { failed: [] };
+    const done = this.writeAck(prev.ids, this.storedMarkets(), sum);
+    if (sum.ack && this.lastImport) this.lastImport.ack = sum.ack;
+    if (sum.failed.length) log(this.db, 'spiel', false, `Data.lua: ${sum.failed.map((x) => x.error).join('; ')}`);
+    return done;
+  }
+
+  // ab 0.44.0 fuer den Rechen-Prozess: alles rechnen, nur eine kurze Antwort zurueck (die Werte liegen in calc_cache)
+  calcMarkets() {
+    const r = this.buildMarkets();
+    return { count: r.count, salesCount: r.salesCount, day: r.day };
   }
 
   // Werte fuer Broker je Markt: Langzeit-Teil (Kapitel 8), Absatz (Kapitel 9) und ab 0.35.0 die Kandidatenliste der
@@ -138,12 +189,16 @@ class BrokerClient {
       const st = this.statsOf(m.id);
       let ch = null;
       try { this.chanceRun(m.id); ch = this.chancesForBroker(m.id); } catch (e) { log(this.db, 'chancen', false, `${m.key}: ${e.message}`); }
-      this.listOf(m.id, m.key);   // Liste fuer die Ansichten gleich mitrechnen, dann oeffnet sie sofort
+      try { this.overviewOf(m.id); } catch (e) { log(this.db, 'chancen', false, `Marktübersicht ${m.key}: ${e.message}`); }   // ab 0.43.0 fuer den Lese-Prozess
+      this.listOf(m.id, m.key, true);   // Liste fuer die Ansichten gleich mitrechnen, dann oeffnet sie sofort
+      const dsig = this.dataSig(m.id);
+      const last = this.db.prepare("SELECT id, t FROM snapshots WHERE market_id = ? AND source = 'scan' ORDER BY t DESC LIMIT 1").get(m.id);
+      if (last) this.calcPut(m.id, 'moves', dsig, '', { id: last.id, value: this.computeMoves(m.id, last) });   // ab 0.44.0 fuer die Uebersicht
       // ab 0.41.0: Tageswerte hoechstens einmal je Stunde sichern, beim naechsten Start sind sie dann sofort da
       const si = this.snaps.markets.get(m.id);
       if (si && (!si.savedAt || Date.now() - si.savedAt > 3600 * 1000)) this.snaps.save(m.id);
       const cur = this.currentOf(m.id);
-      if (!lt.items.size && !st.size && !cur) continue;
+      if (!lt.items.size && !st.size && !cur) { this.calcPut(m.id, 'lua', dsig, '', null); continue; }
       const items = {}, sl = {};
       for (const [k, r] of lt.items) items[k] = longterm.encode(r);
       for (const [k, s] of st) sl[k] = sales.encode(s);
@@ -151,6 +206,8 @@ class BrokerClient {
       values[m.key] = { day: lt.day, items, sales: sl };
       if (cur) { lua[m.key].cur = cur; values[m.key].cur = cur; }
       if (ch) { lua[m.key].chances = ch; values[m.key].chances = ch.list; }
+      // ab 0.44.0: Werte fuer Data.lua ablegen, der Schreib-Prozess schreibt sie (bridgeFromCalc)
+      this.calcPut(m.id, 'lua', dsig, '', { ...lua[m.key], n: lt.items.size, ns: st.size });
       count += lt.items.size;
       salesCount += st.size;
     }
@@ -241,14 +298,13 @@ class BrokerClient {
     }
   }
 
+  // ab 0.44.0: Mit Rechen-Prozess raeumt der Schreib-Prozess nur auf (Aufbewahrung, Protokolle). Vergleiche, Muster und das
+  // neue Lesen der Tageswerte macht danach der Rechen-Prozess (maintainSteps, broker-remote pruneInBackground).
   * pruneSteps(res) {
-    yield* this.redoApiSteps(res);
-    yield* this.patternSteps(res);
+    if (this.role !== 'write') { yield* this.redoApiSteps(res); yield* this.patternSteps(res); }
     const hourDays = this.settings.hourDays > 0 ? Math.max(retention.MIN_HOUR_DAYS, this.settings.hourDays) : 0;
     yield* retention.pruneSteps(this.db, { keepDays: this.settings.keepDays, hourDays, now: this.now() }, res);
-    res.pairs = sales.prune(this.db, this.now());
-    // Zeilen sind verdichtet oder geloescht: Tageswerte neu lesen, ab 0.41.0 in Schritten (vorher beim naechsten Aufruf am Stueck)
-    for (const m of this.db.prepare('SELECT id FROM markets').all()) yield* this.snaps.rebuildSteps(m.id, this.now());
+    if (this.role !== 'write') yield* this.afterPruneSteps(res);
     pruneLogs(this.db, 30, this.now() * 1000);
     // ab 0.31.0: Protokoll des Abgleichs 90 Tage, Geloeschtes 30 Tage
     this.db.prepare('DELETE FROM sync_log WHERE t < ?').run(this.now() - synclog.LOG_DAYS * 86400);
@@ -256,6 +312,35 @@ class BrokerClient {
     proof.prune(this.db, this.now(), broker.dayOf(this.now()));   // ab 0.35.0: belegte Verkaeufe 30 Tage
     if (res.snaps || res.hours) log(this.db, 'aufbewahrung', true, `${res.snaps} Kennzahlen zu Stundenwerten, ${res.hours} Stundenwerte zu Tageswerten verdichtet`);
     this.meta('pruneAt', this.now());
+  }
+
+  * afterPruneSteps(res) {
+    res.pairs = sales.prune(this.db, this.now());
+    // Zeilen sind verdichtet oder geloescht: Tageswerte neu lesen, ab 0.41.0 in Schritten (vorher beim naechsten Aufruf am Stueck)
+    for (const m of this.db.prepare('SELECT id FROM markets').all()) yield* this.snaps.rebuildSteps(m.id, this.now());
+  }
+
+  // ab 0.44.0 im Rechen-Prozess nach dem Aufraeumen des Schreib-Prozesses
+  * maintainSteps(res) {
+    yield* this.redoApiSteps(res);
+    yield* this.patternSteps(res);
+    yield* this.afterPruneSteps(res);
+  }
+
+  async maintainInBackground() {
+    if (this.pruning) return null;
+    this.pruning = true;
+    const res = {};
+    try {
+      for (const _ of this.maintainSteps(res)) {
+        await new Promise((done) => setImmediate(done));
+        if (this.closed) return res;
+      }
+      return res;
+    } catch (e) {
+      if (!this.closed) log(this.db, 'aufbewahrung', false, `Nach dem Aufräumen: ${e.message}`);
+      return null;
+    } finally { this.pruning = false; }
   }
 
   // ab 0.37.0 (Schema 12): Vergleiche der Blizzard-API bis zur Umstellung einzeln neu rechnen, neueste zuerst. Jeder Schritt
@@ -309,6 +394,28 @@ class BrokerClient {
     const k = keepDays == null ? this.settings.keepDays : keepDays;
     const h = hourDays == null ? this.settings.hourDays : hourDays;
     return retention.estimate(this.db, { keepDays: k, hourDays: h, now: this.now(), current: dbSize(this.db) });
+  }
+
+  // ab Manager 0.43.0: fertige Ergebnisse je Markt (Chancen, Marktuebersicht) in calc_cache. dsig = Datenstand (dataSig),
+  // rsig = Regeln und Vorgaben (chance-client ruleSig). Der Lese-Prozess zeigt ein Ergebnis zu einem aelteren Datenstand,
+  // solange die Neurechnung laeuft, aber nie eines zu alten Regeln.
+  calcPut(mid, name, dsig, rsig, value) {
+    if (this.readOnly) return false;
+    this.db.prepare('INSERT OR REPLACE INTO calc_cache(market_id, name, dsig, rsig, t, data) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(mid, name, dsig, rsig, this.now(), zlib.deflateSync(Buffer.from(JSON.stringify(value), 'utf8')));
+    return true;
+  }
+
+  calcGet(mid, name) {
+    const r = this.db.prepare('SELECT dsig, rsig, t, data FROM calc_cache WHERE market_id = ? AND name = ?').get(mid, name);
+    if (!r) return null;
+    this.calcMem = this.calcMem || new Map();
+    const k = `${mid}|${name}`;
+    const m = this.calcMem.get(k);
+    if (m && m.dsig === r.dsig && m.rsig === r.rsig && m.t === r.t) return m;
+    const x = { dsig: r.dsig, rsig: r.rsig, t: r.t, value: JSON.parse(zlib.inflateSync(Buffer.from(r.data)).toString('utf8')) };
+    this.calcMem.set(k, x);
+    return x;
   }
 
   // Stand der Daten eines Markts: Aendert er sich, sind fertig gerechnete Listen und Bereiche alt.
@@ -365,22 +472,29 @@ class BrokerClient {
   }
 
   // Fertige Liste aus dem Speicher oder der Datenbank, nur bei neuen Daten neu gerechnet
-  listOf(mid, marketKey) {
+  // fresh (ab 0.44.0): immer zum neuesten Stand rechnen, auch im Schreib-Prozess (buildMarkets)
+  listOf(mid, marketKey, fresh = false) {
     const sig = this.dataSig(mid);
     this.listCache = this.listCache || new Map();
     const mem = this.listCache.get(mid);
-    if (mem && mem.sig === sig) return mem.value;
+    const stored = this.derivedOnly && !fresh;
+    // ab 0.42.0: Der Lese-Prozess nimmt die gespeicherte Liste auch, wenn die Neurechnung nach einem neuen Stand noch laeuft.
+    // ab 0.43.0 merkt er sie sich mit dem Stand der gespeicherten Liste. Vorher galt sie fuer den neuen Stand, und die
+    // fertige neue Liste kam erst nach dem uebernaechsten Stand an.
+    if (stored) {
+      const r = this.db.prepare('SELECT sig FROM list_cache WHERE market_id = ?').get(mid);
+      if (r && mem && mem.rowSig === r.sig) return mem.value;
+      if (!r && mem && mem.sig === sig) return mem.value;
+    } else if (mem && mem.sig === sig) return mem.value;
     const row = this.db.prepare('SELECT sig, data FROM list_cache WHERE market_id = ?').get(mid);
     let value;
-    // ab 0.42.0: Der Lese-Prozess nimmt die gespeicherte Liste auch, wenn die Neurechnung nach einem neuen Stand noch laeuft.
-    // Die neue Liste schreibt der Hauptteil gleich danach, beim naechsten Oeffnen ist sie da.
-    if (row && (row.sig === sig || this.readOnly)) {
+    if (row && (row.sig === sig || stored)) {
       value = JSON.parse(zlib.inflateSync(Buffer.from(row.data)).toString('utf8'));
     } else {
       value = this.computeList(marketKey, mid);
       if (!this.readOnly) this.db.prepare('INSERT OR REPLACE INTO list_cache(market_id, sig, data) VALUES (?, ?, ?)').run(mid, sig, zlib.deflateSync(Buffer.from(JSON.stringify(value), 'utf8')));
     }
-    this.listCache.set(mid, { sig, value });
+    this.listCache.set(mid, { sig, rowSig: row ? row.sig : null, value });
     return value;
   }
 
@@ -660,6 +774,7 @@ class BrokerClient {
   // Zeit 0, dann gewinnt beim naechsten Einlesen die Grenze aus dem Spiel. Wartende leere Werte entfallen.
   repairWatchTimes() {
     if (this.meta('fixWatchT')) return 0;
+    if (this.readOnly) throw new Error('Reparatur steht noch aus');   // ab 0.43.0: dann antwortet der erste Prozess
     let n = 0;
     const logged = this.db.prepare("SELECT 1 FROM sync_log WHERE acct IS ? AND area = 'watch' AND origin = 'manager' AND item_key = ? AND field = ? LIMIT 1");
     for (const acct of this.acctIds()) {
@@ -1266,6 +1381,10 @@ class BrokerClient {
   // Groesste Bewegungen gegenueber dem ueblichen Preis, gerechnet einmal je Stand. In den ersten Tagen gibt es den noch nicht,
   // dann gegen einen Scan etwa einen Tag vorher (sonst den vorigen).
   moves(marketId, last) {
+    if (this.derivedOnly) {   // ab 0.44.0 aus der letzten Rechnung, die Bereiche rechnet nur der Rechen-Prozess
+      const c = this.calcGet(marketId, 'moves');
+      if (c && c.value) return c.value.value;
+    }
     const key = `${marketId}:${last.id}`;
     if (!this.movesCache || this.movesCache.key !== key) this.movesCache = { key, value: this.computeMoves(marketId, last) };
     return this.movesCache.value;
