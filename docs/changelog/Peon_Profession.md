@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.4.1
+
+Kurz: Die Guide-Leiste über dem Berufsfenster schlägt keine Rezepte aus anderen Berufen mehr vor, etwa Gifte beim Kochen.
+Kurz: Neu ist ein Ton mit Chatzeile, wenn der Guide ein neues Rezept vorschlägt oder der Höchstwert erreicht ist. Ton und Klang lassen sich in den Optionen einstellen.
+
+- 0.4.1 (16.11.2026, Fehler gemeldet von KarloDerBaer): Beim Kochen zeigte die Leiste „21x Sofort wirkendes Gift (bis 175)“.
+  - **Ursache:** Beim Wechsel im Berufsfenster (etwa von Gifte zu Kochkunst) meldet das Spiel schon den neuen Beruf, die Rezeptliste ist aber noch die alte. Die Gifte landeten so unter Kochkunst. Weil das Rezept der Route grün war, schlug der Guide ein „oranges“ Gift als Ersatz vor. Die Sperre „höchstens einmal je Sekunde lesen“ verschluckte zudem das richtige Lesen danach.
+  - **Rezept-Prüfung** (`Measure.Belongs`): Kennt das Spiel `GetProfessionInfoByRecipeID` oder `GetTradeSkillLineForRecipe`, wird jedes Rezept gegen den Beruf geprüft (Nummer des Berufs oder Grundberufs, Name). Fremde Rezepte werden nicht gemerkt, früher falsch gemerkte beim nächsten Öffnen entfernt. Ohne diese Schnittstellen bleibt alles wie bisher. `/prof pruefen` zeigt, ob es sie gibt und wie viele Rezepte verworfen wurden.
+  - **Lesen erst nach Ruhe:** Auf `TRADE_SKILL_LIST_UPDATE` liest Profession jetzt 0,4 Sekunden nach dem letzten Ereignis statt höchstens einmal je Sekunde.
+  - **`/prof vergessen`:** löscht die gemerkten Rezepte dieses Charakters, beim nächsten Öffnen des Berufsfensters werden sie neu gelesen.
+  - **Ton bei Meilensteinen (Wunsch KarloDerBaer):** Wechselt das Rezept des Guides (Schritt fertig, Rezept nicht mehr orange oder gelb und ein Ersatz kommt, beim Bergbau Wechsel zwischen Verhütten und Sammeln) oder ist der Höchstwert erreicht, gibt es einen Ton auf dem Kanal „Master“ und eine Chatzeile mit dem nächsten Rezept. Höchstens eine Meldung je Stufe, gemessen ab dem Stand beim Einloggen. Optionen: neuer Abschnitt „Meilensteine“ mit `stepSound` (an), Klang `stepSoundKey` (Bereitschaftscheck, Schlachtzugswarnung, Flüstern, Stufenaufstieg) und Knopf „Probe“.
+  - **Behoben:** Der Reiter Verlauf aus 0.4.0 fehlte in den erlaubten Werten von `windowTab` und wurde beim Laden auf Guide zurückgesetzt. `histDays` steht jetzt in den Standardwerten. Bergbau kennt die Namen „Verhütten“ und „Smelting“ für das Verhüttungsfenster.
+  - Tests: Gifte unter einem anderen Beruf verworfen und entfernt, Prüfung über Unterberuf und Grundberuf, ohne Schnittstelle nichts verworfen, Lesen nur nach dem letzten Ereignis, `/prof vergessen`, Meilensteine mit Ton, Chatzeile, Ersatz wegen Farbe, Höchstwert, abschaltbar, Probe und über die Stufe des Spiels.
+  - **Im Spiel prüfen:** `/prof pruefen` im Berufsfenster: steht bei der Rezept-Prüfung „da“? Zwischen Gifte und Kochkunst wechseln: bleibt die Leiste beim Kochrezept? Falls nicht, einmal `/prof vergessen`. Beim nächsten Rezeptwechsel kommt der Ton.
+
 ## 0.4.0
 
 Kurz: Beim Bergbau zeigt der Guide jetzt auch das Verhütten von Erz zu Barren, mit Erz, Anzahl und Kosten.

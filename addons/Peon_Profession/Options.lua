@@ -14,6 +14,12 @@ function ns.CreateOptions()
     page:Add(left, page:Check("minimapShow", L.MINIMAP))
     page:Add(left, page:Check("showAll", L.SHOW_ALL, L.SHOW_ALL_HINT))
     page:Add(left, page:Button(L.OPEN, function() ns.Window.Open() end), 16)
+    -- ab 0.4.1: Ton, wenn das Rezept des Guides wechselt
+    page:Add(left, page:Header(L.HDR_SOUND), 6)
+    page:Add(left, page:Check("stepSound", L.STEP_SOUND, L.STEP_SOUND_HINT))
+    page:Add(left, page:Dropdown("stepSoundKey", L.STEP_SOUND_KEY, {
+        { "ready", L.SOUND_READY }, { "raid", L.SOUND_RAID }, { "tell", L.SOUND_TELL }, { "levelup", L.SOUND_LEVELUP } }))
+    page:Add(left, page:Button(L.SOUND_TEST, function() ns.Measure.Alert(L.SOUND_TEST_MSG, true) end), 10)
     page:Add(left, page:Header(L.HDR_CRAFT_WIN), 6)
     page:Add(left, page:Check("titleButton", L.TITLE_BUTTON))
     page:Add(left, page:Check("craftBar", L.CRAFT_BAR, L.CRAFT_BAR_HINT))

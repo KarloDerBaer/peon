@@ -31,6 +31,9 @@ local mod = Peon:NewModule(ADDON_NAME, {
         showAll      = false,    -- ab 0.2.0: auch nicht gelernte Berufe in der Liste
         craftBar     = true,
         titleButton  = true,     -- ab 0.2.0: Knopf in der Titelleiste des Berufsfensters
+        histDays     = 30,       -- ab 0.4.0: Zeitraum im Reiter Verlauf (7, 14, 30, 90)
+        stepSound    = true,     -- ab 0.4.1: Ton und Chatzeile, wenn das Rezept des Guides wechselt
+        stepSoundKey = "ready",  -- ab 0.4.1: ready, raid, tell, levelup
         colors       = {},   -- [recipeID] = { [0..3] = { von, bis } }  gemessene Farben (Measure.lua)
         ups          = {},   -- [recipeID] = { von, bis }               Stufen, bei denen dieses Rezept Punkte gab
         sel          = 0,    -- je Charakter: zuletzt gewaehlter Beruf (Skill-Linie)
@@ -55,7 +58,9 @@ local mod = Peon:NewModule(ADDON_NAME, {
         craftMigrated = false,   -- Einstellungen einmal von Broker uebernommen
     },
     ranges   = { minimapAngle = { 0, 359, 1 } },
-    choices  = { windowTab = { guide = true, route = true, mats = true },
+    choices  = { windowTab = { guide = true, route = true, mats = true, history = true },   -- history ab 0.4.1
+                 histDays = { [7] = true, [14] = true, [30] = true, [90] = true },
+                 stepSoundKey = { ready = true, raid = true, tell = true, levelup = true },
                  craftListWhich = { all = true, profit = true, top3 = true, top5 = true, top10 = true },
                  craftListMode = { money = true, pct = true } },
     -- Einstellungen des Berufsfensters einmal aus Peon_Broker uebernehmen (bis Broker 0.94 dort)
@@ -81,6 +86,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
             ns.Measure.Report()
         elseif cmd == "pruefen" or cmd == "check" then
             ns.Craft.Probe()
+        elseif cmd == "vergessen" or cmd == "forget" then   -- ab 0.4.1
+            ns.Measure.Forget()
         else
             ns.Window.Toggle()
         end
@@ -98,7 +105,7 @@ ns.PROFS = {
     [197] = { craft = true,  icon = "Interface\\Icons\\Trade_Tailoring",             de = "Schneiderei",       en = "Tailoring", alias = { "Schneidern" } },
     [185] = { craft = true,  icon = "Interface\\Icons\\INV_Misc_Food_15",            de = "Kochkunst",         en = "Cooking", book = 150 },
     [129] = { craft = true,  icon = "Interface\\Icons\\Spell_Holy_SealOfSacrifice",  de = "Erste Hilfe",       en = "First Aid", book = 150 },
-    [186] = { gather = true, icon = "Interface\\Icons\\Trade_Mining",                de = "Bergbau",           en = "Mining" },
+    [186] = { gather = true, icon = "Interface\\Icons\\Trade_Mining",                de = "Bergbau",           en = "Mining", alias = { "Verhütten", "Smelting" } },
     [182] = { gather = true, icon = "Interface\\Icons\\Spell_Nature_NatureTouchGrow", de = "Kräuterkunde",     en = "Herbalism" },
     [393] = { gather = true, icon = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01",       de = "Kürschnerei",       en = "Skinning" },
     [356] = { gather = true, icon = "Interface\\Icons\\Trade_Fishing",               de = "Angeln",            en = "Fishing", book = 150 },

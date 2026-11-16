@@ -3,7 +3,7 @@
 ## Notes: Profession leveling guide with prices and shopping list from Peon Broker.
 ## Notes-deDE: Guide zum Leveln der Berufe, mit Preisen und Einkaufsliste von Peon Broker.
 ## Author: KarloDerBaer
-## Version: 0.4.0
+## Version: 0.4.1
 ## Dependencies: Peon
 ## OptionalDeps: Peon_Broker, Peon_Ledger
 ## Group: Peon

@@ -13,6 +13,8 @@ local M = {}
 ns.Measure = M
 
 M.UP_WINDOW = 15   -- Sekunden: so lange gilt eine Herstellung als Ursache eines Punkts
+M.SETTLE = 0.4     -- ab 0.4.1: Sekunden Ruhe im Berufsfenster, bevor die Rezepte gelesen werden
+M.sig = {}         -- ab 0.4.1: [Beruf] = { sig, base } Rezept des Guides und Stufe der letzten Meldung
 
 local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
 local function TS() return rawget(_G, "C_TradeSkillUI") end
@@ -95,6 +97,10 @@ function M.ProbeLines()
     local key, skill, max = M.OpenProfession()
     local n = 0
     for _ in pairs(key and mod.db.known[key] or {}) do n = n + 1 end
+    -- ab 0.4.1: kann das Spiel sagen, zu welchem Beruf ein Rezept gehoert?
+    out[#out + 1] = ("Rezept-Pruefung: GetProfessionInfoByRecipeID %s, GetTradeSkillLineForRecipe %s, zuletzt %s fremde verworfen")
+        :format(ts and ts.GetProfessionInfoByRecipeID and "da" or "fehlt", ts and ts.GetTradeSkillLineForRecipe and "da" or "fehlt",
+            tostring(M.foreign or 0))
     out[#out + 1] = ("Erkannt: Beruf %s, Stufe %s/%s, gemerkte Rezepte %d"):format(tostring(key), tostring(skill), tostring(max), n)
     return out
 end
@@ -126,18 +132,64 @@ function M.ReadRecipe(id, info)
     return rec
 end
 
+-- ab 0.4.1: Gehoert das Rezept zum Beruf? Beim Wechsel im Berufsfenster (etwa von Gifte zu Kochkunst) meldet das Spiel
+-- schon den neuen Beruf, die Rezeptliste ist aber noch die alte. So landeten Gifte unter Kochkunst und der Guide schlug
+-- "Sofort wirkendes Gift" als Ersatz vor. Rueckgabe: true, false (sicher ein anderer Beruf) oder nil (unbekannt).
+local function Matches(key, id, name)
+    if Num(id) and id == key then return true end
+    if type(name) == "string" and not Peon.IsSecret(name) and name ~= "" then
+        if ns.KeyForName(name) == key then return true end
+        local p, low = ns.PROFS[key], name:lower()
+        if p and (low:find(p.de:lower(), 1, true) or low:find(p.en:lower(), 1, true)) then return true end
+    end
+    return false
+end
+
+function M.Belongs(recipeID, key)
+    local ts = TS()
+    if not ts then return nil end
+    local seen = false
+    if ts.GetProfessionInfoByRecipeID then
+        local ok, i = pcall(ts.GetProfessionInfoByRecipeID, recipeID)
+        if ok and type(i) == "table" and (Num(i.professionID) or Num(i.parentProfessionID)) then
+            seen = true
+            if Matches(key, i.professionID, i.professionName) or Matches(key, i.parentProfessionID, i.parentProfessionName) then
+                return true
+            end
+        end
+    end
+    if ts.GetTradeSkillLineForRecipe then
+        local ok, line, name, parent = pcall(ts.GetTradeSkillLineForRecipe, recipeID)
+        if ok and (Num(line) or Num(parent)) then
+            seen = true
+            if Matches(key, line, name) or Matches(key, parent) then return true end
+        end
+    end
+    if seen then return false end
+    return nil
+end
+
 -- Alle erlernten Rezepte des offenen Berufs lesen, Farben messen
 function M.ReadAll()
     local ts = TS()
     if not (ts and ts.GetAllRecipeIDs and ts.GetRecipeInfo) then return 0 end
-    local key, skill = M.OpenProfession()
+    local key, skill, max = M.OpenProfession()
     if not key then return 0 end
     local ok, ids = pcall(ts.GetAllRecipeIDs)
     if not ok or type(ids) ~= "table" then return 0 end
     local known = mod.db.known
     known[key] = type(known[key]) == "table" and known[key] or {}
     local list, colors, n = known[key], mod.db.colors, 0
+    -- ab 0.4.1: fremde Rezepte, die frueher hier gelandet sind, wieder entfernen
+    M.foreign = 0
+    for id in pairs(list) do
+        if M.Belongs(id, key) == false then list[id] = nil; M.foreign = M.foreign + 1 end
+    end
     for _, id in ipairs(ids) do
+        if Num(id) and M.Belongs(id, key) == false then
+            M.foreign = M.foreign + 1
+            id = nil
+        end
         if Num(id) then
             local oki, info = pcall(ts.GetRecipeInfo, id)
             -- ab 0.2.1 wie Broker: erlernt, solange das Spiel nicht ausdruecklich "nicht erlernt" meldet
@@ -154,7 +206,88 @@ function M.ReadAll()
     end
     if skill then mod.char.skills[key] = skill end
     M.key, M.skill = key, skill
-    mod:Dbg(("Berufe: %d Rezepte gelesen (%s, Stufe %s)"):format(n, tostring(key), tostring(skill)))
+    mod:Dbg(("Berufe: %d Rezepte gelesen (%s, Stufe %s, %d fremde verworfen)"):format(n, tostring(key), tostring(skill), M.foreign))
+    if skill then M.CheckMilestone(key, skill, max) end   -- neue Farben koennen das Rezept des Guides wechseln
+    return n
+end
+
+-- ab 0.4.1: Meilensteine. Wechselt das Rezept des Guides (Schritt zu Ende, Rezept nicht mehr orange oder gelb, ein
+-- Ersatz kommt) oder ist der Hoechstwert erreicht, gibt es einen Ton und eine Chatzeile (Einstellung stepSound).
+-- Kennung: Schritt und aktives Rezept. Text: was jetzt kommt.
+function M.GuideSig(key, skill, max)
+    local G = ns.Guide
+    if not (G and G.Route(key)) or not Num(skill) then return nil end
+    if Num(max) and max > 0 and max < 300 and skill >= max then
+        return "max" .. max, L.MILESTONE_MAX:format(ns.ProfName(key), max)
+    end
+    local step, i = G.CraftStepAt(key, skill)
+    if not step then return "done", L.MILESTONE_DONE:format(ns.ProfName(key), skill) end
+    local v = G.View(key, step, skill, i)
+    if not v then return nil end
+    if v.gather then
+        local names = {}
+        for _, id in ipairs(v.gather) do names[#names + 1] = ns.ItemName(id) or ("#" .. id) end
+        return "g" .. i, L.MILESTONE_GATHER:format(table.concat(names, ", "), v.to)
+    end
+    local _, rid, item = G.Active(v)
+    local spell = v.alt and v.alt.id or v.spell
+    local name = G.RecipeName(item, spell, v.alt and v.alt.rec or v.rec)
+    if not (v.item or v.spell or v.alt) then name = L.FREE_STEP end
+    if v.smelt and not v.alt then name = L.SMELT_ROW:format(name) end
+    return i .. ":" .. tostring(rid or item or "-"), L.MILESTONE_NEXT:format(name, v.to)
+end
+
+function M.CheckMilestone(key, skill, max)
+    local ok, sig, text = pcall(M.GuideSig, key, skill, max)
+    if not ok or not sig then return false end
+    local old = M.sig[key]
+    if not old then M.sig[key] = { sig = sig, base = skill }; return false end
+    local prev = old.sig
+    old.sig = sig
+    if prev == sig or skill <= old.base then return false end
+    old.base = skill   -- hoechstens eine Meldung je Stufe
+    M.Alert(text)
+    return true
+end
+
+function M.InitMilestones()
+    for _, p in ipairs(ns.ReadProfessions()) do
+        M.sig[p.key] = nil
+        M.CheckMilestone(p.key, p.skill, p.max)
+    end
+end
+
+M.SOUNDS = {
+    { key = "ready", kit = "READY_CHECK", id = 8960 },   -- id = Rueckfall, falls SOUNDKIT den Namen nicht kennt
+    { key = "raid", kit = "RAID_WARNING", id = 8959 },
+    { key = "tell", kit = "TELL_MESSAGE", id = 3081 },
+    { key = "levelup", kit = "LEVELUPSOUND", id = 888 },
+}
+
+-- Ton (Kanal "Master" wie bei Broker) und Chatzeile. force = Probe aus den Optionen
+function M.Alert(text, force)
+    if not force and not mod.db.stepSound then return end
+    if text then mod:Print(text) end
+    if not PlaySound then return end
+    local key = mod.db.stepSoundKey or "ready"
+    for _, s in ipairs(M.SOUNDS) do
+        if s.key == key then
+            local id = (SOUNDKIT and SOUNDKIT[s.kit]) or s.id
+            pcall(PlaySound, id, "Master")
+            return
+        end
+    end
+end
+
+-- ab 0.4.1: /prof vergessen: gemerkte Rezepte dieses Charakters loeschen, beim naechsten Oeffnen neu lesen
+function M.Forget()
+    local n = 0
+    for _, list in pairs(mod.db.known) do
+        if type(list) == "table" then for _ in pairs(list) do n = n + 1 end end
+    end
+    wipe(mod.db.known)
+    mod:Print(L.FORGET_DONE:format(n))
+    if ns.Window and ns.Window.IsOpen() then ns.Window.Refresh() end
     return n
 end
 
@@ -178,6 +311,7 @@ function M.OnSkills()
                 Extend(mod.db.ups, l.id, p.skill - 1)
             end
         end
+        if type(old) == "number" and p.skill > old then M.CheckMilestone(p.key, p.skill, p.max) end   -- ab 0.4.1
         skills[p.key] = p.skill
     end
     if ns.Window and ns.Window.IsOpen() then ns.Window.Refresh() end
@@ -198,11 +332,15 @@ function M.Init()
     end
     pcall(mod.RegisterEvent, mod, "TRADE_SKILL_SHOW", function() M.OnShow() end)
     pcall(mod.RegisterEvent, mod, "TRADE_SKILL_LIST_UPDATE", function()
-        -- kommt oft hintereinander: hoechstens einmal je Sekunde lesen
-        if M.readAt and Now() - M.readAt < 1 then return end
-        M.readAt = Now()
-        M.OnShow()
+        -- kommt oft hintereinander. Ab 0.4.1 erst lesen, wenn eine Weile Ruhe ist: Vorher las die Sperre "einmal je
+        -- Sekunde" beim Wechsel des Berufs mitten im Umbau und verschluckte das Lesen danach.
+        M.token = (M.token or 0) + 1
+        local token = M.token
+        local function Run() if token == M.token then M.OnShow() end end
+        if C_Timer and C_Timer.After then C_Timer.After(M.SETTLE, Run) else Run() end
     end)
+    -- ab 0.4.1: Meilensteine erst ab hier, gemessen an der Stufe beim Einloggen
+    mod:Call("Meilensteine", M.InitMilestones)
     pcall(mod.RegisterEvent, mod, "UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID) M.OnCast(unit, spellID) end)
     pcall(mod.RegisterEvent, mod, "SKILL_LINES_CHANGED", function() mod:Call("Stufen", M.OnSkills) end)
 end

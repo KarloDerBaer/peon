@@ -595,6 +595,83 @@ end)()
   ns.Window.Select("guide")
 end)()
 
+-- 0.4.1: Fremde Rezepte (Gifte beim Wechsel zu Kochkunst) nicht merken, Lesen erst nach Ruhe, /prof vergessen
+;(function()
+  local M = ns.Measure
+  recipes[901] = { name = "Sofort wirkendes Gift", out = 6947, c = 0, m = { { 2928, 1 } } }
+  mod.db.known[171][902] = { out = 6950, c = 0, name = "Altes Gift" }   -- frueher falsch gemerkt
+  local keepIDs = C_TradeSkillUI.GetAllRecipeIDs
+  C_TradeSkillUI.GetAllRecipeIDs = function() return { 101, 102, 103, 104, 105, 901 } end
+  C_TradeSkillUI.GetTradeSkillLineForRecipe = function(id) if id >= 900 then return 40, "Gifte" end return 171, "Alchimie" end
+  fire("TRADE_SKILL_SHOW")
+  local k = mod.db.known[171]
+  check(k[101] and k[102] and k[901] == nil and k[902] == nil and M.foreign >= 1, "0.4.1: Gifte unter Alchimie verworfen, alte entfernt")
+  check(M.Belongs(101, 171) == true and M.Belongs(901, 171) == false and M.Belongs(901, 185) == false, "0.4.1: Rezept-Pruefung")
+  C_TradeSkillUI.GetTradeSkillLineForRecipe = function() return 2550, "Kochkunst (Classic)" end
+  check(M.Belongs(1, 185) == true, "0.4.1: Unterberuf mit Namen des Berufs gehoert dazu")
+  C_TradeSkillUI.GetTradeSkillLineForRecipe = nil
+  C_TradeSkillUI.GetProfessionInfoByRecipeID = function(id) return { professionID = 2550, parentProfessionID = 185 } end
+  check(M.Belongs(1, 185) == true and M.Belongs(1, 171) == false, "0.4.1: Pruefung ueber den Grundberuf")
+  C_TradeSkillUI.GetProfessionInfoByRecipeID = nil
+  check(M.Belongs(901, 171) == nil, "0.4.1: ohne Schnittstelle unbekannt, nichts wird verworfen")
+  local probe = M.ProbeLines()
+  check(probe[#probe - 1]:find("Rezept-Pruefung", 1, true), "0.4.1: /prof pruefen nennt die Rezept-Pruefung")
+  C_TradeSkillUI.GetAllRecipeIDs = keepIDs
+  -- Lesen erst nach Ruhe: zwei Ereignisse kurz hintereinander, gelesen wird einmal am Ende
+  local queue, reads = {}, 0
+  local keepTimer, keepShow = C_Timer.After, M.OnShow
+  C_Timer.After = function(_, fn) queue[#queue + 1] = fn end
+  M.OnShow = function() reads = reads + 1 end
+  fire("TRADE_SKILL_LIST_UPDATE")
+  fire("TRADE_SKILL_LIST_UPDATE")
+  for _, fn in ipairs(queue) do fn() end
+  check(reads == 1, "0.4.1: nur das letzte Ereignis liest")
+  C_Timer.After, M.OnShow = keepTimer, keepShow
+  -- /prof vergessen
+  SlashCmdList.PEON("profession vergessen")
+  check(next(mod.db.known) == nil and out[#out - 0]:find("vergessen", 1, true), "0.4.1: /prof vergessen leert die gemerkten Rezepte")
+  fire("TRADE_SKILL_SHOW")
+  check(mod.db.known[171][102] ~= nil, "0.4.1: danach neu gelesen")
+end)()
+
+-- 0.4.1: Ton und Chatzeile, wenn das Rezept des Guides wechselt
+;(function()
+  local M = ns.Measure
+  local played = {}
+  PlaySound = function(id, ch) played[#played + 1] = { id, ch } end
+  SOUNDKIT = { READY_CHECK = 11, RAID_WARNING = 12 }
+  check(mod.db.stepSound == true and mod.db.stepSoundKey == "ready", "0.4.1: Ton ab Werk an")
+  M.sig[171] = nil
+  check(M.CheckMilestone(171, 89, 150) == false and #played == 0, "0.4.1: erster Stand ohne Ton")
+  check(M.CheckMilestone(171, 95, 150) == false and #played == 0, "0.4.1: gleiches Rezept, kein Ton")
+  local function LastMsg() for i = #out, 1, -1 do if out[i]:find("Meilenstein", 1, true) and not out[i]:find("ok  ", 1, true) then return out[i] end end return "" end
+  check(M.CheckMilestone(171, 100, 150) == true and played[1][1] == 11 and played[1][2] == "Master", "0.4.1: neuer Schritt bei 100: Ton")
+  check(LastMsg():find("bis 135", 1, true), "0.4.1: Chatzeile nennt den naechsten Schritt")
+  check(M.CheckMilestone(171, 100, 150) == false and #played == 1, "0.4.1: nur einmal")
+  -- Rezept des Schritts wird gruen: der Guide nimmt einen Ersatz, das ist auch ein Meilenstein
+  mod.db.known[171][201] = { out = 3383, c = 2, n = 1, m = { 785, 1 } }
+  check(M.CheckMilestone(171, 101, 150) == true and #played == 2, "0.4.1: Ersatz wegen Farbe: Ton")
+  mod.db.known[171][201] = nil
+  mod.db.stepSoundKey = "raid"
+  check(M.CheckMilestone(171, 150, 150) == true and played[3][1] == 12 and LastMsg():find("Höchstwert", 1, true), "0.4.1: Hoechstwert erreicht, gewaehlter Ton")
+  mod.db.stepSound = false
+  M.sig[171] = { sig = "x", base = 0 }
+  check(M.CheckMilestone(171, 120, 150) == true and #played == 3, "0.4.1: Ton abschaltbar")
+  mod.db.stepSound, mod.db.stepSoundKey = true, "ready"
+  M.Alert("Probe", true)
+  check(#played == 4, "0.4.1: Probe-Knopf spielt den Ton")
+  -- ueber die Stufe des Spiels
+  M.sig[171] = nil
+  M.InitMilestones()
+  check(M.sig[171] and M.sig[171].base == 89, "0.4.1: beim Einloggen gemerkt")
+  profs[1][2] = 100
+  fire("SKILL_LINES_CHANGED")
+  check(#played == 5, "0.4.1: Punkt im Spiel loest den Ton aus")
+  profs[1][2] = 89
+  fire("SKILL_LINES_CHANGED")
+  PlaySound, SOUNDKIT = nil, nil
+end)()
+
 -- Starter-Text und Slash
 ns.Window.Open(186)
 check(ns.LauncherText() == "Bergbau 40/75", "Text fuer Peon_Panel: gewaehlter Beruf")
