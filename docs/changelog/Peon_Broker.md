@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.99.0
+
+Kurz: Im Fokus stellst du mit Schieberegler oder Feld ein, wie viele Stück du höchstens kaufen willst. Die Zahl bleibt, auch wenn mehr Ware unter den Preis fällt. Beim Verkaufen stehen rechts neben dem Rat Knöpfe, die mit einem Klick den günstigsten Preis, den Vorschlag, deinen zuletzt eingestellten Preis oder deinen Zielpreis eintragen.
+
+- 0.99.0 (16.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Fokus: Menge.** Zeile „Menge“ unter dem Risiko mit Schieberegler, Feld und Hinweis („alle“ oder „von N“). Die eingestellte Zahl ist eine feste Höchstmenge (`F.manualQty`, nur diese Sitzung). Ändert sich die Menge im Markt, rückt der Regler, die Zahl bleibt. Regler ganz rechts oder Feld leer heißt alle. Gekauft wird von billig nach teuer. Menge, Kosten, Gewinn, Verkaufsdauer und die blaue Markierung der Preisstufen richten sich nach der Menge (`F.CapPlan`, Kopie des Plans, die Chance im Radar bleibt unberührt). „Auto“ und ein anderer Gegenstand im Fokus setzen die Menge zurück. Bei Einzelgegenständen zählt jede Auktion als ein Stück.
+  - Zeilen Üblich, Verkauft in und Risiko 4 Punkte höher (`F.ROW_Y`), Platz für die neue Zeile.
+  - **Neu, Verkaufen: Preisknöpfe.** Der Kasten unter „Auktion erstellen“ hat zwei Spalten. Links der Rat, rechts Knöpfe mit Preis: „Günstige“ (günstigstes Angebot anderer Verkäufer, bei Varianten genau dieser Variante, ohne Unterbieten), „Vorschlag“ (`Data.Suggest`), „Letzter“ (zuletzt eingestellter Preis) und „Ziel“ (Zielpreis des Postens, sonst aus Beobachten, nur zu sehen, wenn es einen gibt). Ohne Preis ist der Knopf grau. Eingetragen wird wie bisher über `Lots.FillTarget`, nach einer Blockade bleiben alle Knöpfe grau.
+  - **Neu:** Broker merkt sich beim Einstellen den Preis je Gegenstand und Markt (`PeonBrokerDB.lastPost`, bestätigt durch `AUCTION_HOUSE_AUCTION_CREATED`). Vor diesem Update eingestellte Gegenstände haben noch keinen Wert.
+  - **Entfernt:** Die Knöpfe „Zielpreis eintragen“ und „Preis eintragen“ (Variante) im Kasten. Ihre Aufgabe übernehmen „Ziel“ und „Günstige“.
+  - Tests: feste Menge per Feld und Regler, Nachziehen zählt nicht als Wahl, Regler ganz rechts gleich alle, Menge über dem Angebot. Knöpfe mit Preisen, Eintragen, letzter Preis gemerkt, Ziel aus Posten und aus Beobachten, grau nach Blockade (`test_broker.lua`).
+  - **Im Spiel prüfen:** Fokus mit vielen Stück unter dem Ziel: Regler und Feld, Kaufen mit kleinerer Menge, Regler bei wachsender Menge. Verkaufen: Kasten in zwei Spalten, Text nicht abgeschnitten, Knöpfe tragen ein, „Auktion erstellen“ geht danach ohne Blockade, „Letzter“ nach dem Einstellen.
+
 ## 0.98.0
 
 Kurz: Beim Verkaufen von Gegenständen mit Zusatz zeigt Broker nur die Angebote genau dieser Variante. Ein Klick auf eine Zeile trägt ihren Preis ein. Mit „Alle Varianten zeigen“ kommt Blizzards Liste zurück.

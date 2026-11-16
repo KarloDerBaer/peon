@@ -164,6 +164,8 @@ function LT.OnCreated()
     local p = LT.pendingPost
     LT.pendingPost = nil
     if not p or (GetTime and GetTime() or 0) - p.t > LT.POST_WAIT then return end
+    -- ab 0.99: zuletzt eingestellter Preis fuer den Knopf "Letzter" beim Verkaufen
+    if ns.Advice and ns.Advice.SetLastPost then ns.Advice.SetLastPost(p.key, p.price) end
     LT.OnPosted(p.key, p.qty, p.price)
 end
 

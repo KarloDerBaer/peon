@@ -1344,6 +1344,25 @@ end
     check(F.ManualTarget(2770) == 200 and F.buyButton.text == "Kaufen 15" and not F.autoButton.disabled
         and FocusText(F):find("Art=Eigenes Ziel|Ziel=200|Kaufen bis=150|Üblich=", 1, true),
         "0.70: Klick auf eine Preisstufe macht sie zum Ziel: " .. FocusText(F))
+    -- ab 0.99: feste Menge (Feld und Regler), bleibt bei mehr Ware im Markt
+    check(F.qtySlider.shown and F.qtyInput.text == "15" and plain(F.qtyHint.text) == "alle" and F.qtySlider.peonMax == 15 and F.qtySlider.peonVal == 15,
+        "0.99: Zeile Menge zeigt alle: " .. tostring(F.qtyInput.text) .. " / " .. plain(F.qtyHint.text or ""))
+    F.qtyInput:SetText("12"); F.qtyInput.scripts.OnTextChanged(F.qtyInput, true)
+    check(F.ManualQty(2770) == 12 and F.buyButton.text == "Kaufen 12" and plain(F.buyInfo.text) == "Menge: 12    Kosten: 13s    Gewinn: +9s 80c"
+        and plain(F.qtyHint.text) == "von 15" and F.qtySlider.peonVal == 12 and #F.tiers.items == 3 and F.tiers.items[2].inBuy and not F.tiers.items[3].inBuy,
+        "0.99: Menge 12 getippt: " .. tostring(F.buyButton.text) .. " / " .. plain(F.buyInfo.text))
+    local d12 = F.Plan()
+    check(d12.best.qty == 12 and d12.maxQty == 15 and d12.capped and (not Rd.entries[2770] or Rd.entries[2770] ~= d12), "0.99: Plan begrenzt, Kopie")
+    F.OnQtySlider(5)
+    check(F.ManualQty(2770) == 5 and F.buyButton.text == "Kaufen 5" and F.qtyInput.text == "5", "0.99: Regler auf 5")
+    F.qtySync = true; F.OnQtySlider(9); F.qtySync = false
+    check(F.ManualQty(2770) == 5, "0.99: Nachziehen durch die Anzeige zaehlt nicht als Wahl")
+    F.OnQtySlider(15)
+    check(F.ManualQty(2770) == nil and F.buyButton.text == "Kaufen 15" and plain(F.qtyHint.text) == "alle", "0.99: Regler ganz rechts: alle")
+    F.SetQty(20)
+    check(F.ManualQty(2770) == 20 and F.buyButton.text == "Kaufen 15" and F.qtyInput.text == "20" and F.qtySlider.peonVal == 15,
+        "0.99: Menge ueber dem Angebot: alle kaufen, Zahl bleibt")
+    F.SetQty(nil)
     F.SetTargetTyped(105)
     check(F.ManualTarget(2770) == 105 and F.buyButton.text == "Kaufen 10" and plain(F.verdict.text) == "KEIN GEWINN" and not F.buyButton.disabled,
         "0.70: Ziel von Hand, kein Gewinn, kaufen geht trotzdem")
@@ -1674,17 +1693,36 @@ end)()
     check(ah.SellTab.corner.shown, "0.97: und wieder an")
     sf:UpdatePostState()
     local box = A.boxes[sf]
-    check(A.lot and A.lot.id == lot.id and box.fill.shown and plain(box.lines.text):find("Posten: gekauft für 10s 38c je Stück, Ziel 15s", 1, true),
-        "H3: Rat nennt Einsatz und Ziel, Knopf Zielpreis eintragen: " .. plain(box.lines.text))
+    local bt = box.btn
+    check(A.lot and A.lot.id == lot.id and bt.target.shown and not bt.target.disabled and plain(bt.target.text) == "Ziel  15s"
+        and plain(box.lines.text):find("Posten: gekauft für 10s 38c je Stück, Ziel 15s", 1, true),
+        "H3/0.99: Rat nennt Einsatz und Ziel, Knopf Ziel: " .. plain(box.lines.text) .. " / " .. plain(bt.target.text))
+    check(plain(bt.cheap.text) == "Günstige  14s" and not bt.cheap.disabled and plain(bt.suggest.text):find("^Vorschlag  ") and not bt.suggest.disabled
+        and plain(bt.last.text) == "Letzter" and bt.last.disabled and bt.last.shown,
+        "0.99: Knoepfe Guenstige, Vorschlag, Letzter (noch grau): " .. plain(bt.cheap.text) .. " / " .. plain(bt.suggest.text) .. " / " .. plain(bt.last.text))
     check(plain(box.lines.text):find("unter dem Ziel", 1, true), "H3: Warnung: Markt liegt unter dem Ziel")
     GetTime = function() return now end
-    box.fill.scripts.OnClick(box.fill)
+    bt.cheap.scripts.OnClick(bt.cheap)
+    check(setTo == 1400 and sf.price == 1400, "0.99: Guenstige ins Preisfeld geschrieben")
+    bt.target.scripts.OnClick(bt.target)
     check(setTo == 1500 and sf.price == 1500 and LT.filledAt, "H3: Zielpreis ins Preisfeld geschrieben")
     -- Einstellen: Anhang an PostItem, Ereignis bestaetigt
     sf:PostItem()
     fire("AUCTION_HOUSE_AUCTION_CREATED", 555)
     check(posted == 1 and lot.left == 0 and lot.posted and lot.posted.price == 1500 and lot.posted.qty == 80 and LT.Count() == 0,
         "H3: eingestellt: Posten erledigt, Preis gemerkt")
+    check(A.LastPost(7961) == 1500, "0.99: zuletzt eingestellter Preis gemerkt")
+    sf.price = 1300
+    sf:UpdatePostState()
+    check(plain(bt.last.text) == "Letzter  15s" and not bt.last.disabled and not bt.target.shown, "0.99: Knopf Letzter mit Preis, ohne Posten kein Ziel")
+    bt.last.scripts.OnClick(bt.last)
+    check(setTo == 1500, "0.99: Letzter ins Preisfeld geschrieben")
+    -- Ziel aus Beobachten, wenn es keinen Posten gibt
+    ns.Watch.Add(7961, { name = "Postenstein" })
+    ns.Watch.SetUp(7961, 1700)
+    sf:UpdatePostState()
+    check(bt.target.shown and plain(bt.target.text) == "Ziel  17s" and box.prices.targetSrc == "watch", "0.99: Ziel aus Beobachten")
+    ns.Watch.Store()[7961] = nil
     check(plain(ah.SellTab.text) == "Verkaufen", "H3: Zahl am Reiter Verkaufen weg")
     -- Blockade direkt nach dem Eintragen: Knopf nicht mehr anbieten
     LT.Add(7961, 10, 10000, 1500, "radar")
@@ -1692,7 +1730,8 @@ end)()
     fire("ADDON_ACTION_FORBIDDEN", "Peon_Broker", "UNKNOWN()")
     check(type(mod.acc.targetBlocked) == "table" and not LT.CanFill(), "H3: Blockade nach dem Eintragen gemerkt")
     sf:UpdatePostState()
-    check(not box.fill.shown and plain(box.lines.text):find("selbst eintippen", 1, true), "H3: dann nur noch der Preis im Rat")
+    check(bt.target.shown and bt.target.disabled and bt.cheap.disabled and bt.last.disabled and plain(box.lines.text):find("selbst eintippen", 1, true),
+        "H3/0.99: dann Knoepfe grau, nur noch der Preis im Rat")
     mod.acc.targetBlocked = nil
     LT.filledAt = nil
     fire("ADDON_ACTION_FORBIDDEN", "Peon_Broker", "UNKNOWN()")

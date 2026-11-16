@@ -24,6 +24,7 @@ F.key = nil      -- Gegenstand im Fokus (Schluessel wie in der Preisdatenbank), 
 F.manual = nil   -- ab 0.70: eigenes Ziel { key, price } (nur diese Sitzung)
 F.manualLimit = nil   -- ab 0.76: eigenes "Kaufen bis" { key, price }: nur bis zu diesem Preis kaufen, Ziel bleibt
 F.manualSrc = nil     -- ab 0.82: "watch" = eigene Werte kommen aus der Beobachtung (Art "Beobachten"), sonst "own"
+F.manualQty = nil     -- ab 0.99: feste Hoechstmenge { key, qty } (nur diese Sitzung), nil = alle
 F.origin = "watch"    -- ab 0.82: wohin "Zurueck" fuehrt: "radar" (von dort gekommen) oder "watch" (sonst)
 F.since = 0      -- ab 0.70: Live-Daten zaehlen erst ab hier (time(), neuer Gegenstand oder Auktionshaus geoeffnet)
 
@@ -124,9 +125,75 @@ function F.SetLimitTyped(amount)
     F.Update()
 end
 
--- "Auto": eigenes Ziel und eigenes "Kaufen bis" zurueck
+---------------------------------------------------------------------------
+-- Menge (ab 0.99, Wunsch KarloDerBaer 16.11.2026): feste Hoechstmenge per Schieberegler oder Feld. Sie bleibt,
+-- wenn sich die Menge im Markt aendert (der Regler rueckt dann, die Zahl nicht). Regler ganz rechts = alle.
+---------------------------------------------------------------------------
+function F.ManualQty(key)
+    local m = F.manualQty
+    if m and key ~= nil and m.key == key and Num(m.qty) and m.qty > 0 then return m.qty end
+    return nil
+end
+
+-- n = Hoechstmenge, nil oder < 1 = alle
+function F.SetQty(n)
+    if F.key == nil then return end
+    n = tonumber(n)
+    if n and n >= 1 then F.manualQty = { key = F.key, qty = math.floor(n) } else F.manualQty = nil end
+    F.Update()
+end
+
+-- Getippte Menge (leer oder 0 = alle)
+function F.SetQtyTyped(n)
+    F.SetQty(n)
+end
+
+-- Regler bewegt (nicht beim Nachziehen durch die Anzeige): ganz rechts heisst alle
+function F.OnQtySlider(v)
+    if F.qtySync or F.key == nil or not Num(v) then return end
+    v = math.floor(v + 0.5)
+    local max = F.qtyMax or 0
+    if max < 1 then return end
+    if v >= max then F.SetQty(nil) else F.SetQty(math.max(1, v)) end
+end
+
+-- Plan auf die feste Menge begrenzen. Gibt immer eine Kopie zurueck (Chancen des Radars bleiben unberuehrt),
+-- mit maxQty = was ohne Grenze gekauft wuerde und buyLimit = Preis des teuersten Stuecks dieses Kaufs.
+function F.CapPlan(d)
+    if not d or d.gone then return d end
+    local c = {}
+    for k, v in pairs(d) do c[k] = v end
+    local best = d.best or {}
+    -- eigenes Ziel: auch was gerade zu teuer fuer mein Gold ist (mit kleinerer Menge geht es vielleicht)
+    local max = (d.own and Num(d.qty) and d.qty) or (Num(best.qty) and best.qty) or 0
+    c.maxQty = max
+    local cap = F.ManualQty(d.key or F.key)
+    if not cap or max < 1 or cap >= max then return c end
+    local D = ns.Data
+    local cost, got, last = D.CostOf(d.rows or {}, cap)
+    if got < 1 then   -- ohne Preisstufen (Stand des Managers): anteilig
+        got, last = cap, d.limit
+        cost = math.floor((Num(best.cost) and best.cost or 0) * cap / max + 0.5)
+    end
+    local gain
+    if d.kind == "market" then gain = D.ProfitOf(d, got) end
+    if not Num(gain) and Num(d.net) then gain = math.floor(d.net * got - cost) end
+    if not Num(gain) and Num(best.gain) then gain = math.floor(best.gain * got / max) end
+    c.best = { qty = got, cost = cost, gain = gain }
+    c.qty, c.cost, c.gain, c.showGain = got, cost, gain, gain
+    c.buyLimit = last
+    c.capped = true
+    if Num(d.perHour) and d.perHour > 0 then c.hours = got / d.perHour end
+    if d.own then
+        local budget = ns.Radar.Budget()
+        c.cant = got < 1 or (budget ~= nil and cost > budget)
+    end
+    return c
+end
+
+-- "Auto": eigenes Ziel und eigenes "Kaufen bis" zurueck (ab 0.99 auch die Menge)
 function F.ResetOwn()
-    F.manualLimit, F.manualSrc = nil, nil
+    F.manualLimit, F.manualSrc, F.manualQty = nil, nil, nil
     ClearMoney(F.limitInput)
     F.SetTarget(nil)
 end
@@ -266,13 +333,13 @@ function F.Plan()
     if d and not manual and not buyLimit then
         ns.Radar.Annotate(d, ns.Radar.Budget())
         d.risk = ns.Radar.Risk(d)
-        return d
+        return F.CapPlan(d)
     end
     -- eben weggefallene Chance: "VORBEI" mit Grund, bis man ein eigenes Ziel waehlt
     if not d and not manual and not buyLimit and ns.Radar.gone[F.key] then return ns.Radar.gone[F.key] end
     local M = ns.Measure
     local mt = M and M.cur and M.cur.key == F.key and M.cur.target or nil
-    local p = F.OwnPlan(manual or (d and d.ref) or mt, buyLimit)
+    local p = F.CapPlan(F.OwnPlan(manual or (d and d.ref) or mt, buyLimit))
     if p then
         local age = p.seenT and (time() - p.seenT) or nil
         p.risk, p.riskWhy = ns.Buyout.Risk(p, age, ns.Radar.Budget())
@@ -396,6 +463,43 @@ function F.SyncInputs(d)
     end
 end
 
+-- Regler auf Bereich und Stelle setzen, ohne dass das als eigene Wahl zaehlt (F.qtySync)
+local function SliderSet(s, lo, hi, pos, enabled)
+    if s.peonMin ~= lo or s.peonMax ~= hi or s.peonVal ~= pos then
+        F.qtySync = true
+        if type(s.Slider) == "table" and type(s.Init) == "function" then
+            pcall(s.Init, s, pos, lo, hi, math.max(1, hi - lo))   -- MinimalSliderWithSteppersTemplate
+        else
+            if s.SetMinMaxValues then s:SetMinMaxValues(lo, hi) end
+            if s.SetValue then s:SetValue(pos) end
+        end
+        F.qtySync = false
+        s.peonMin, s.peonMax, s.peonVal = lo, hi, pos
+    end
+    if s.peonOn ~= enabled then
+        s.peonOn = enabled
+        if type(s.SetEnabled) == "function" then pcall(s.SetEnabled, s, enabled)
+        elseif enabled then s:Enable() else s:Disable() end
+    end
+end
+
+-- Zeile Menge: Regler, Feld (zeigt die feste Menge oder, ohne sie, alle) und Hinweis "alle" bzw. "von N"
+function F.SyncQty(d)
+    if not F.qtySlider then return end
+    local has = d ~= nil and not d.gone and F.key ~= nil
+    for _, f in ipairs({ F.qtyLabel, F.qtySlider, F.qtyInput, F.qtyHint }) do f:SetShown(has) end
+    local max = has and (d.maxQty or 0) or 0
+    F.qtyMax = max
+    if not has then return end
+    local cap = F.ManualQty(F.key)
+    if not (F.qtyInput.HasFocus and F.qtyInput:HasFocus()) then
+        F.qtyInput:SetText(tostring(cap or max))
+    end
+    F.qtyHint:SetText(cap and (GREY .. L.FOCUS_QTY_MAX:format(max) .. "|r") or (GREEN .. L.FOCUS_QTY_ALL .. "|r"))
+    if max >= 2 then SliderSet(F.qtySlider, 1, max, cap and math.min(cap, max) or max, true)
+    else SliderSet(F.qtySlider, 0, 1, math.min(max, 1), false) end
+end
+
 -- Ueblicher Bereich als Text ("1s 20c bis 1s 60c", sonst "unbekannt")
 function F.BandText(d)
     local band = d and d.band
@@ -424,8 +528,9 @@ end
 ---------------------------------------------------------------------------
 -- Anzeige
 ---------------------------------------------------------------------------
-F.ROW_Y, F.ROW_STEP = -240, 18   -- ab 0.77: Ueblich, Verkauft in, Risiko unter den Eingabefeldern (ab 0.82 enger)
+F.ROW_Y, F.ROW_STEP = -236, 18   -- ab 0.77: Ueblich, Verkauft in, Risiko unter den Eingabefeldern (ab 0.82 enger)
 F.KIND_Y, F.TARGET_Y, F.LIMIT_Y = -150, -180, -210
+F.QTY_Y, F.QTY_SLIDER_W = -294, 140   -- ab 0.99: Zeile Menge nach dem Risiko
 F.BLUE = "|cff4da6ff"
 function F.Build(c)
     local UI = Peon.UI
@@ -501,6 +606,22 @@ function F.Build(c)
         r.hover:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
         F.rows[i] = r
     end
+
+    -- ab 0.99: Menge per Regler und Feld (Feld zeigt zugleich den Wert)
+    F.qtyLabel = Label(L.FOCUS_R_QTY, F.QTY_Y)
+    F.qtySlider = UI.Slider(left, F.QTY_SLIDER_W, 0, 1, 1, 1, function(v) F.OnQtySlider(v) end)
+    F.qtySlider:SetPoint("LEFT", F.qtyLabel, "RIGHT", 6, 0)
+    UI.SetTooltip(F.qtySlider, { L.FOCUS_R_QTY, L.FOCUS_QTY_TIP })
+    F.qtyInput = UI.Input(left, 56, { numeric = true, maxLetters = 6 })
+    if F.qtyInput.SetScale then F.qtyInput:SetScale(0.8) end
+    if F.qtyInput.SetJustifyH then F.qtyInput:SetJustifyH("RIGHT") end
+    if F.qtyInput.SetTextInsets then F.qtyInput:SetTextInsets(6, 8, 0, 0) end
+    F.qtyInput:SetPoint("LEFT", F.qtySlider, "RIGHT", 6 / 0.8, 0)
+    F.qtyInput:HookScript("OnTextChanged", function(self, user)
+        if user then F.SetQtyTyped(tonumber(self:GetText() or "")) end
+    end)
+    F.qtyHint = UI.Text(left, "small", "")
+    F.qtyHint:SetPoint("LEFT", F.qtyInput, "RIGHT", 4, 0)
 
     F.buyButton = UI.Button(left, L.BUY_BUY, UI.LEFT_W - 20, function()
         local d = F.Plan()
@@ -712,6 +833,7 @@ function F.Update()
         for _, r in ipairs(F.rows) do r.label:SetText(""); r.value:SetText("") end
         F.kindValue:SetText("")
         F.SyncInputs(nil)
+        F.SyncQty(nil)
         F.tiers:SetData({})
         F.stand:SetText("")
         F.UpdateMeasure(nil)
@@ -740,7 +862,9 @@ function F.Update()
     end
     -- Preisstufen nur aus der letzten Live-Abfrage (ab 0.70)
     local limit = d and not d.gone and d.limit or nil
-    F.tiers:SetData(F.Tiers(limit, d and not d.gone and d.ref or nil))
+    -- ab 0.99: blau nur, was der Kauf mit der festen Menge nimmt
+    F.tiers:SetData(F.Tiers(d and not d.gone and d.buyLimit or limit, d and not d.gone and d.ref or nil))
+    F.SyncQty(live and d or nil)
     local _, t = F.LiveRows()
     if not live then F.stand:SetText(GREY .. L.TAB_AH_ONLY .. "|r")
     elseif t then F.stand:SetText(L.FOCUS_LIVE:format(ns.Scan.Age(t)))
@@ -756,7 +880,7 @@ end
 function F.Set(key)
     if key == nil then return end
     if key ~= F.key then
-        F.manual, F.manualLimit, F.manualSrc = nil, nil, nil
+        F.manual, F.manualLimit, F.manualSrc, F.manualQty = nil, nil, nil, nil
         ClearMoney(F.limitInput)
         F.since = time()
         F.chartN = nil

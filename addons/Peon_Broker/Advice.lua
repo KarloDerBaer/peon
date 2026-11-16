@@ -132,6 +132,66 @@ function A.Read(sf, commodity)
 end
 
 ---------------------------------------------------------------------------
+-- Preise fuer die Knoepfe (ab 0.99, Wunsch KarloDerBaer 16.11.2026). Ein Klick schreibt den Preis ins Preisfeld
+-- (gleicher Weg wie frueher "Zielpreis eintragen": Lots.FillTarget, gleiche Sperre nach einer Blockade).
+--   Guenstige  guenstigstes Angebot anderer Verkaeufer, bei Varianten genau dieser Variante, ohne Unterbieten
+--   Vorschlag  Preisvorschlag aus diesem Angebot (oder dem ueblichen Bereich), minus Unterbieten (Data.Suggest)
+--   Letzter    zuletzt von mir eingestellter Preis, egal ob verkauft (ab 0.99 gemerkt je Markt in acc.lastPost)
+--   Ziel       Zielpreis eines Postens, sonst Zielpreis aus Beobachten (nur zu sehen, wenn es einen gibt)
+---------------------------------------------------------------------------
+A.BUTTONS = { "cheap", "suggest", "last", "target" }
+A.BTN_W, A.BTN_H, A.BTN_GAP = 130, 20, 2
+
+local function LastStore(create)
+    local acc = mod.acc
+    if type(acc) ~= "table" then return nil end
+    if type(acc.lastPost) ~= "table" then
+        if not create then return nil end
+        acc.lastPost = {}
+    end
+    local mk = ns.MarketKey and ns.MarketKey() or "?"
+    if type(acc.lastPost[mk]) ~= "table" then
+        if not create then return nil end
+        acc.lastPost[mk] = {}
+    end
+    return acc.lastPost[mk]
+end
+
+function A.SetLastPost(key, price)
+    if key == nil or not Num(price) or price <= 0 then return end
+    local st = LastStore(true)
+    if st then st[key] = { p = math.floor(price), t = time() } end
+end
+
+function A.LastPost(key)
+    local st = key ~= nil and LastStore(false) or nil
+    local x = st and st[key]
+    return type(x) == "table" and Num(x.p) and x.p or nil
+end
+
+-- Rueckgabe { cheap, suggest, last, target, targetSrc = "lot" oder "watch" }, fehlende Preise nil
+function A.Prices(key, e, lot)
+    local p = {}
+    if key == nil then return p end
+    local v = A.var
+    if v and v.key == key and Num(v.best) then p.cheap = v.best
+    elseif type(e) == "table" and not e.gone and Num(e.m) then p.cheap = e.m end
+    if p.cheap then
+        local te = type(e) == "table" and e or nil
+        local ok, vp = pcall(ns.Data.Suggest, p.cheap, te and te.md, key, mod.db, te, te and te.pmd)
+        if ok and Num(vp) then p.suggest = vp end
+    end
+    p.last = A.LastPost(key)
+    if lot and Num(lot.target) then
+        p.target, p.targetSrc = lot.target, "lot"
+    elseif ns.Watch and ns.Watch.Is(key) then
+        local w = ns.Watch.Store()[key]
+        if type(w) == "table" and Num(w.up) and w.up > 0 then p.target, p.targetSrc = w.up, "watch" end
+    end
+    return p
+end
+
+---------------------------------------------------------------------------
 -- Kasten
 ---------------------------------------------------------------------------
 -- ab 0.56: ohne Rahmen und ohne Ueberschrift "Broker", dichter unter dem Knopf (KarloDerBaer: Text war abgeschnitten)
@@ -142,46 +202,68 @@ local function Box(sf)
     local anchor = rawget(sf, "PostButton")
     if type(anchor) == "table" then b:SetPoint("TOP", anchor, "BOTTOM", 0, -6)
     else b:SetPoint("BOTTOM", sf, "BOTTOM", 0, 40) end
+    -- ab 0.99: zwei Spalten, links der Text, rechts die Preisknoepfe (vorher ein Knopf "Zielpreis eintragen")
+    local textW = A.WIDTH - A.BTN_W - 8
     local title = b:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 0)
     b.title = title
     local market = b:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    market:SetPoint("TOPRIGHT", b, "TOPRIGHT", 0, -3)
+    market:SetPoint("LEFT", title, "RIGHT", 6, 0)
     b.market = market
     local why = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     why:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
-    why:SetPoint("RIGHT", b, "RIGHT", 0, 0)
+    why:SetPoint("RIGHT", b, "LEFT", textW, 0)
     why:SetJustifyH("LEFT")
     b.why = why
     local lines = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     lines:SetPoint("TOPLEFT", why, "BOTTOMLEFT", 0, -4)
-    lines:SetPoint("RIGHT", b, "RIGHT", 0, 0)
+    lines:SetPoint("RIGHT", b, "LEFT", textW, 0)
     lines:SetJustifyH("LEFT")
     b.lines = lines
-    -- ab 0.67 (H3): Knopf "Zielpreis eintragen" bei einem Posten (oben rechts im Kasten)
-    local fill = CreateFrame("Button", nil, b, "UIPanelButtonTemplate")
-    fill:SetSize(140, 20)
-    fill:SetPoint("TOPRIGHT", b, "TOPRIGHT", 0, 2)
-    fill:SetText(L.LOTS_FILL)
-    fill:SetScript("OnClick", function()
-        if not ns.Lots then return end
-        local lot = A.lot
-        if lot and lot.target then mod:Call("Posten", ns.Lots.FillTarget, sf, lot)
-        elseif A.last and A.last.fillPrice then mod:Call("Posten", ns.Lots.FillTarget, sf, { target = A.last.fillPrice }) end
-    end)
-    fill:SetScript("OnEnter", function(self)
-        if not GameTooltip then return end
-        local variant = not (A.lot and A.lot.target) and A.last and A.last.fillPrice
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine(variant and L.ADV_VARIANT_FILL or L.LOTS_FILL, 1, 0.82, 0)
-        GameTooltip:AddLine(variant and L.ADV_VARIANT_FILL_TIP or L.LOTS_FILL_TIP, 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    fill:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
-    fill:Hide()
-    b.fill = fill
+    b.btn = {}
+    for i, k in ipairs(A.BUTTONS) do
+        local btn = CreateFrame("Button", nil, b, "UIPanelButtonTemplate")
+        btn:SetSize(A.BTN_W, A.BTN_H)
+        btn:SetPoint("TOPRIGHT", b, "TOPRIGHT", 0, 2 - (i - 1) * (A.BTN_H + A.BTN_GAP))
+        if btn.SetNormalFontObject then
+            btn:SetNormalFontObject("GameFontNormalSmall")
+            btn:SetHighlightFontObject("GameFontHighlightSmall")
+            btn:SetDisabledFontObject("GameFontDisableSmall")
+        end
+        btn.which = k
+        btn:SetScript("OnClick", function(self)
+            local price = b.prices and b.prices[self.which]
+            if ns.Lots and Num(price) then mod:Call("Posten", ns.Lots.FillTarget, sf, { target = price }) end
+        end)
+        btn:SetScript("OnEnter", function(self)
+            if not GameTooltip then return end
+            local tip = L["ADV_BTN_" .. k:upper() .. "_TIP"]
+            if k == "target" and b.prices and b.prices.targetSrc == "watch" then tip = L.ADV_BTN_TARGET_WATCH_TIP end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(L["ADV_BTN_" .. k:upper()], 1, 0.82, 0)
+            GameTooltip:AddLine(tip, 1, 1, 1, true)
+            if not (b.prices and Num(b.prices[k])) then GameTooltip:AddLine(L.ADV_BTN_NONE, 0.6, 0.6, 0.6, true)
+            elseif ns.Lots and not ns.Lots.CanFill() then GameTooltip:AddLine(L.ADV_LOT_TYPE, 1, 0.4, 0.4, true) end
+            GameTooltip:Show()
+        end)
+        btn:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+        b.btn[k] = btn
+    end
     A.boxes[sf] = b
     return b
+end
+
+-- Knoepfe mit Preis beschriften, ohne Preis (oder nach einer Blockade) grau. "Ziel" nur, wenn es einen gibt.
+function A.ShowButtons(b, prices)
+    b.prices = prices
+    local can = ns.Lots and ns.Lots.CanFill() or false
+    for _, k in ipairs(A.BUTTONS) do
+        local btn, price = b.btn[k], prices[k]
+        local name = L["ADV_BTN_" .. k:upper()]
+        btn:SetText(Num(price) and (name .. "  " .. Money(price)) or name)
+        if Num(price) and can then btn:Enable() else btn:Disable() end
+        btn:SetShown(k ~= "target" or Num(price))
+    end
 end
 
 function A.Show(sf, r, isNeutral)
@@ -199,7 +281,7 @@ function A.Show(sf, r, isNeutral)
         if r.vendor then erl = erl .. "  " .. L.ADV_LINE_VENDOR:format(Money(r.vendor)) end
         parts[#parts + 1] = erl
     end
-    -- ab 0.67 (H3): Posten zum Gegenstand: Einsatz, Ziel, Warnung, Knopf "Zielpreis eintragen"
+    -- ab 0.67 (H3): Posten zum Gegenstand: Einsatz, Ziel, Warnung (ab 0.99 Knopf "Ziel" rechts)
     local lot = A.lot
     if lot then
         local unit = ns.Lots.UnitCost(lot)
@@ -213,9 +295,7 @@ function A.Show(sf, r, isNeutral)
         end
         table.insert(parts, 1, line)
     end
-    local lotFill = lot ~= nil and lot.target ~= nil
-    b.fill:SetText(lotFill and L.LOTS_FILL or L.ADV_VARIANT_FILL)
-    b.fill:SetShown((lotFill or r.fillPrice ~= nil) and ns.Lots and ns.Lots.CanFill() or false)
+    A.ShowButtons(b, A.Prices(r.key, r.key ~= nil and ns.Data.Lookup(r.key) or nil, lot))
     b.lines:SetText(table.concat(parts, "\n"))
     b:Show()
     A.last = r

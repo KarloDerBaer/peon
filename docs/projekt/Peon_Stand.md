@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.98.0 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.43.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.2 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.4.1.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.99.0 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.43.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.2 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.4.1.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.22.0, API 22
@@ -66,8 +66,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.98.0 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.99.0 (neu, Auktionshaus-Helfer)
 
+- **Menge im Fokus und Preisknöpfe beim Verkaufen (ab 0.99.0):** Fokus mit Zeile Menge (Schieberegler und Feld, feste Höchstmenge, ganz rechts alle). Kasten beim Verkaufen in zwei Spalten mit Knöpfen Günstige, Vorschlag, Letzter, Ziel. Zuletzt eingestellter Preis in `PeonBrokerDB.lastPost`. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Nur diese Variante beim Verkaufen (ab 0.98.0):** Neue Datei `SellVariant.lua`. Eigene Liste über Blizzards Liste mit den Angeboten genau dieser Variante, Klick trägt den Preis ein, Knopf schaltet auf alle Varianten (`sellVariantOnly`, Standard an). Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Wieder einstellen und Varianten beim Verkaufen (ab 0.97.1):** Käufe aus Chancen werden mit Haken zum Posten (jede Art außer Händlerware). Rat beim Verkaufen erkennt einen Preis von einer anderen Variante („Andere Variante“, Knopf „Preis eintragen“, `A.CheckVariant`). Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Zahl am Reiter einstellbar (ab 0.97.0):** Optionen, Abschnitt „Zahl am Reiter“, je Reiter ob und wann (`AHTabs.BADGE_MODES`, `badgeBuy`, `badgeWatch`, `badgeRadar`, `badgeSell`, `badgeChances`). Chancen neu mit Zahl, Standard aus. Nicht veröffentlicht, im Spiel noch nicht geprüft.
