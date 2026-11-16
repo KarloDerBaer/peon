@@ -43,8 +43,43 @@ local function IsNew(b, keepNew)
     return keepNew[k] == info.itemID
 end
 
+-- Freie Plaetze zusammenfassen (ab 0.7, Einstellung <Fenster>FreeStack): Statt aller leeren Plaetze eines
+-- Abschnitts steht dort einer je Taschenart, mit der Zahl der freien Plaetze. Es ist ein echter leerer Platz,
+-- Ablegen legt den Gegenstand also genau dort hinein. Die anderen leeren Plaetze werden ausgeblendet.
+local function SetCount(b, n)
+    local f = rawget(_G, "SetItemButtonCount")
+    if f then pcall(f, b, n) end
+end
+
+local function StackFree(sec)
+    local keep, byFam, order = {}, {}, {}
+    for _, b in ipairs(sec.items) do
+        b.peonFree = nil
+        if b.peonInfo then
+            keep[#keep + 1] = b
+        else
+            local fam = ns.BagFamily(b.peonBag or 0)
+            local rep = byFam[fam]
+            if rep then
+                rep.peonFree = rep.peonFree + 1
+            else
+                b.peonFree = 1
+                byFam[fam] = b
+                order[#order + 1] = b
+            end
+        end
+    end
+    if #order == 0 then return end
+    for _, b in ipairs(order) do
+        keep[#keep + 1] = b
+        SetCount(b, b.peonFree)
+    end
+    sec.items = keep
+end
+
 -- Abschnitte fuer eine Liste von Plaetzen nach Anordnung bauen (ab 0.5)
--- cfg = { layout = "classic" | "type" | "custom", catsOff, groupsOff, collapsed, useGroups, keepNew }
+-- cfg = { layout = "classic" | "type" | "custom", catsOff, groupsOff, collapsed, useGroups, keepNew,
+--         freeStack, emptyMode = "hint" | "slot" | "drag", dragging }
 --   (Window:SectionConfig), ein Text gilt als layout ohne weitere Einstellungen
 -- main = Plaetze (Taschenreihenfolge), extra = weitere Abschnitte { title, items, key } (bleiben eigene Abschnitte)
 -- Eigene Bereiche (nur "custom" mit useGroups) stehen oben und ziehen ihre Gegenstaende auch aus den weiteren
@@ -63,11 +98,16 @@ function ns.BuildSections(cfg, main, extra)
         end
     end
     local hasGroups = #own > 0
+    -- leere Bereiche (ab 0.7): "hint" Hinweis in der Ueberschrift, "slot" Ablage-Platz, "drag" nur beim Ziehen
+    local emptyMode = cfg.emptyMode or "hint"
+    local showEmpty = emptyMode ~= "drag" or cfg.dragging and true or false
+    local dropSlot = emptyMode ~= "hint" and showEmpty
     if hasGroups then
         target = ns.GROUP_NONE
         local byId = {}
         for _, g in ipairs(own) do
-            local sec = { name = g.name, items = {}, target = g.id, keepEmpty = true, key = "g" .. g.id }
+            local sec = { name = g.name, items = {}, target = g.id, keepEmpty = showEmpty, dropSlot = dropSlot,
+                          key = "g" .. g.id }
             byId[g.id] = sec
             sections[#sections + 1] = sec
         end
@@ -88,7 +128,7 @@ function ns.BuildSections(cfg, main, extra)
         extra = restExtra
         for _, sec in ipairs(sections) do
             table.sort(sec.items, SortItems)
-            sec.title = #sec.items > 0 and sec.name or L.GROUP_EMPTY:format(sec.name)
+            sec.title = (#sec.items > 0 or dropSlot) and sec.name or L.GROUP_EMPTY:format(sec.name)
         end
     end
     if layout == "type" or layout == "custom" then
@@ -110,7 +150,8 @@ function ns.BuildSections(cfg, main, extra)
         end
         -- Uebrige: der Rest in Taschenreihenfolge, mit Ueberschrift nur, wenn es andere Abschnitte gibt
         sections[#sections + 1] = { title = (hasGroups or anyCat) and L.SEC_OTHER or nil, items = rest,
-                                    target = target, keepEmpty = hasGroups, key = "other" }
+                                    target = target, keepEmpty = hasGroups and showEmpty, key = "other",
+                                    dropSlot = hasGroups and dropSlot }
     else
         sections[#sections + 1] = { title = nil, items = main, key = "other" }
     end
@@ -125,6 +166,7 @@ function ns.BuildSections(cfg, main, extra)
     end
     for _, sec in ipairs(sections) do
         if sec.title and sec.key and collapsed[sec.key] then sec.collapsed = true end
+        if cfg.freeStack then StackFree(sec) end
     end
     return sections
 end
@@ -428,6 +470,7 @@ function ns.InitInventory()
     local name = UnitName and UnitName("player")
     if name then w.title:SetText(name .. " – " .. L.TITLE_BAGS) end
     w.useGroups = true
+    w.Refresh = function() Refresh() end
     local C = ns.C()
     if type(C.SortBags) == "function" then
         w.sortBtn = w:AddButton(L.BTN_SORT, 80, L.BTN_SORT_TIP, function()

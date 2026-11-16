@@ -204,6 +204,7 @@ function ns.InitBank()
         end,
     })
     w.useGroups = true
+    w.Refresh = function() Refresh() end
     local C = ns.C()
     if type(C.SortBankBags) == "function" then
         w:AddButton(L.BTN_SORT, 80, L.BTN_SORT_TIP, function()

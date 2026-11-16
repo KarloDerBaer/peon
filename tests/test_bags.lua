@@ -203,7 +203,7 @@ local function load(dir, addon) local ns = {} for l in io.lines(dir .. "/" .. di
 local function check(c, m) if not c then error("FEHLER: " .. m, 2) end print("ok  " .. m) end
 
 -- ===== Laden =====
-load("Peon", "Peon")
+local peonNs = load("Peon", "Peon")
 fire("ADDON_LOADED", "Peon")
 PeonBagsDB = { bagCols = 99, bagLayout = "falsch", pos = { bag = { x = 10, y = 600 } } }
 local ns = load("Peon_Bags", "Peon_Bags")
@@ -553,6 +553,7 @@ local function allOff() local t = {} for _, c in ipairs(ns.CATS) do t[c] = true 
 PeonBagsDB.bagCatsOff, PeonBagsDB.bankCatsOff = allOff(), allOff()
 PeonBagsDB.bagLayout, PeonBagsDB.bankLayout = "custom", "custom"
 PeonBagsDB.bagPack, PeonBagsDB.bankPack = false, false   -- Positionen untereinander pruefen (nebeneinander: unten)
+PeonBagsDB.bagEmpty, PeonBagsDB.bankEmpty = "hint", "hint"   -- Hinweis in der Ueberschrift (Ablage-Platz: unten)
 ns.ShowBags()
 check(headers(w) == "Reagenzientasche", "ohne Bereiche sieht das Fenster aus wie bisher: " .. headers(w))
 check(headerOf(w, "Reagenzientasche").target == nil, "ohne Bereiche nimmt keine Ueberschrift etwas an")
@@ -719,7 +720,7 @@ do
   check(ns.slots[0][6].points[1][4] == q.points[1][4] and ns.slots[0][6].points[1][5] == q.points[1][5] - 16, "Gegenstand unter seiner Ueberschrift")
   local fr = headerOf(w, "Freie Plätze")
   check(fr.points[1][4] == 0 and fr.points[1][5] < q.points[1][5], "volle Zeilen stehen allein")
-  check(w.setup and (w.setup.pack.checked == true or not w.setup:IsShown()), "Haken nebeneinander gesetzt")
+  check(w.setup and (w.setup.packRow.check.checked == true or not w.setup:IsShown()), "Haken nebeneinander gesetzt")
   w:Set("Pack", false)
   q, e = headerOf(w, "Quest"), headerOf(w, "Ausrüstung")
   check(q.points[1][4] == 0 and e.points[1][4] == 0 and e.points[1][5] < q.points[1][5], "ohne nebeneinander: untereinander")
@@ -796,6 +797,187 @@ do
   check(PeonBagsDB.guildLayout == "type" and headers(gw) == "Freie Plätze", "Gildenbank nach Art (leeres Fach): " .. headers(gw))
   gw:Hide()
   fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 10)
+end
+
+-- ===== Hinweis nach dem Update (ab 0.7) =====
+do
+  local n = peonNs.Notice and peonNs.Notice.byId["bags:layout-2026-11"]
+  check(n and n.title == "Bags: weniger leerer Platz" and #n.text == 4 and n.text[2]:find("Einstellen") ~= nil, "Hinweis zum neuen Layout angemeldet")
+end
+
+-- ===== Platz sparen: Planung (ab 0.7) =====
+do
+  local P = ns.PlanLayout
+  local function B(n, extra) local b = { n = n, titled = true, headerW = 40 } for k, v in pairs(extra or {}) do b[k] = v end return b end
+  -- Luecken fuellen: kleiner Abschnitt nach einem vollen kommt in die erste Zeile zurueck
+  local blocks = { B(1), B(20), B(2) }
+  local p1, h1 = P(blocks, { cols = 10, pack = true })
+  check(p1[3].y > p1[2].y and p1[3].x == 0, "ohne Luecken fuellen: hinter dem vollen Abschnitt")
+  local p2, h2 = P(blocks, { cols = 10, pack = true, fill = true })
+  check(p2[3].y == 0 and p2[3].x == p2[1].x + p2[1].width + 14, "Luecken fuellen: neben dem ersten Abschnitt")
+  check(h2 < h1, "Luecken fuellen spart Hoehe: " .. h1 .. " -> " .. h2)
+  -- grosse Abschnitte schmaler: 12 Plaetze bei 10 Spalten werden 6 x 2, daneben passt ein kleiner
+  local p3 = P({ B(12), B(2) }, { cols = 10, pack = true, narrow = true })
+  check(p3[1].c == 6 and p3[1].width == 6 * 41 - 4 and not p3[1].alone, "schmaler: 12 Plaetze als 6 x 2")
+  check(p3[2].y == 0 and p3[2].x == p3[1].width + 14, "daneben der kleine Abschnitt")
+  local p4 = P({ B(12), B(2) }, { cols = 10, pack = true })
+  check(p4[1].c == 10 and p4[1].alone and p4[2].y > 0, "ohne schmaler: volle Breite, allein")
+  check(P({ B(20) }, { cols = 10, pack = true, narrow = true })[1].alone, "volle Reihen bleiben allein")
+  -- Breite je Abschnitt
+  local p5 = P({ B(5, { width = 2 }), B(1) }, { cols = 10, pack = true })
+  check(p5[1].c == 2 and p5[1].height == 16 + 3 * 41 and p5[2].y == 0, "eigene Breite: 2 Spalten, 3 Reihen, daneben Platz")
+  local p6 = P({ B(5, { width = 2 }) }, { cols = 10, pack = false })
+  check(p6[1].c == 2 and p6[1].alone, "eigene Breite gilt auch untereinander")
+  check(P({ B(3, { headerW = 200 }) }, { cols = 10, pack = true })[1].width == 200, "Ueberschrift breiter als die Plaetze")
+  check(P({ B(3, { titled = false }) }, { cols = 10, pack = true, fill = true })[1].alone, "ohne Ueberschrift allein")
+end
+
+-- ===== Vorauswahl (ab 0.7) =====
+do
+  local function apply(k) return ns.ApplyPreset("bag", k) end
+  check(apply("compact") and ns.CurrentPreset("bag") == "compact" and PeonBagsDB.bagFreeStack == true and PeonBagsDB.bagEmpty == "drag" and PeonBagsDB.bagAutoCols == true, "Kompakt gesetzt")
+  PeonBagsDB.bagFill = false
+  check(ns.CurrentPreset("bag") == "custom", "eine Abweichung: Individuell")
+  check(apply("stacked") and ns.CurrentPreset("bag") == "stacked" and PeonBagsDB.bagPack == false, "Untereinander")
+  check(apply("loose") and ns.CurrentPreset("bag") == "loose", "Locker (wie bis 0.6)")
+  check(not apply("gibtsnicht"), "unbekannte Vorauswahl aendert nichts")
+  apply("balanced")
+  ns.ApplyPreset("guild", "balanced"); PeonBagsDB.guildEmpty = "drag"
+  check(ns.CurrentPreset("guild") == "balanced", "Gildenbank: leere Bereiche zaehlen nicht")
+  ns.ApplyPreset("guild", "balanced")
+  -- Standardwerte sind Ausgewogen
+  local d = mod.opts.defaults
+  local same = true
+  for _, k in ipairs(ns.PRESET_KEYS) do
+    for _, win in ipairs({ "bag", "bank", "guild" }) do if d[win .. k] ~= ns.PRESETS[3][k] then same = false end end
+  end
+  check(same and ns.PRESETS[3].key == "balanced", "Standard ist Ausgewogen")
+end
+
+-- ===== Einstellen: Reiter Kategorien und Layout (ab 0.7) =====
+do
+  w:Set("Layout", "type")
+  PeonBagsDB.bagCatsOff = {}
+  ns.ShowBags()
+  if not sp:IsShown() then w:ToggleSetup() end
+  check(sp.catsScroll:IsShown() and not sp.layoutScroll:IsShown(), "Reiter Kategorien zuerst")
+  check(sp.tabs and #sp.tabs == 2, "zwei Reiter")
+  sp.tabs[2].scripts.OnClick(sp.tabs[2])
+  check(PeonBagsDB.setupTab == "layout" and sp.layoutScroll:IsShown() and not sp.catsScroll:IsShown(), "Klick auf Layout wechselt den Reiter")
+  w:ToggleSetup(); w:ToggleSetup()
+  check(sp.layoutScroll:IsShown(), "Reiter bleibt gemerkt")
+  -- Vorauswahl
+  check(sp.preset.current == "balanced", "Vorauswahl zeigt Ausgewogen: " .. tostring(sp.preset.current))
+  sp.preset.Choose("compact")
+  check(ns.CurrentPreset("bag") == "compact" and sp.preset.current == "compact", "Kompakt gewaehlt")
+  sp.preset.Choose("balanced")
+  check(sp.preset.current == "balanced" and sp.fillRow.check.checked and sp.narrowRow.check.checked, "Haken folgen der Vorauswahl")
+  sp.fillRow.check.checked = false
+  sp.fillRow.check.scripts.OnClick(sp.fillRow.check)
+  check(PeonBagsDB.bagFill == false and sp.preset.current == "custom", "einzelne Einstellung: Individuell")
+  check(sp.presetText.text:find("weichen") ~= nil, "Erklaerung zu Individuell")
+  sp.packRow.check.checked = false
+  sp.packRow.check.scripts.OnClick(sp.packRow.check)
+  check(PeonBagsDB.bagPack == false and sp.narrowRow.check.enabled == false and sp.narrowRow.alpha == 0.45, "ohne nebeneinander: Luecken und schmaler ausgegraut")
+  sp.preset.Choose("balanced")
+  -- Spalten
+  local cols = PeonBagsDB.bagCols
+  sp.colsRow.plus.scripts.OnClick(sp.colsRow.plus)
+  check(PeonBagsDB.bagCols == cols + 1 and sp.colsRow.value.text.text == cols + 1, "Spalten +1")
+  sp.colsRow.minus.scripts.OnClick(sp.colsRow.minus)
+  check(PeonBagsDB.bagCols == cols, "Spalten -1")
+  -- Breite je Abschnitt: Liste der Abschnitte des Fensters
+  local row
+  for _, r in ipairs(sp.widthRows) do if r.shown and r.secKey == "c:quest" then row = r end end
+  check(row and row.value.text.text == "auto", "Breite je Abschnitt: Quest steht auf auto")
+  row.plus.scripts.OnClick(row.plus)
+  check(PeonBagsDB.bagWidths["c:quest"] == 2 and row.value.text.text == "2", "plus: eine Spalte mehr als jetzt")
+  check(ns.CurrentPreset("bag") == "balanced", "Breite aendert die Vorauswahl nicht")
+  row.value.scripts.OnClick(row.value)
+  check(PeonBagsDB.bagWidths["c:quest"] == nil and row.value.text.text == "auto", "Klick auf den Wert: wieder auto")
+  -- leere eigene Bereiche: drei Knoepfe
+  check(#sp.emptyBtns == 3 and sp.emptyBtns[2].peonOn, "leere Bereiche: Als Platz gewaehlt")
+  sp.emptyBtns[1].scripts.OnClick(sp.emptyBtns[1])
+  check(PeonBagsDB.bagEmpty == "hint" and sp.emptyBtns[1].peonOn and sp.preset.current == "custom", "Mit Hinweis gewaehlt")
+  sp.preset.Choose("balanced")
+  w:SetupTab("cats")
+  check(sp.catsScroll:IsShown() and PeonBagsDB.setupTab == "cats", "zurueck zu Kategorien")
+  w:ToggleSetup()
+end
+
+-- ===== Freie Plaetze als ein Platz (ab 0.7) =====
+do
+  local function freeShown()
+    local list = {}
+    for _, bag in ipairs({ 0, 1, 2 }) do
+      for _, b in pairs(ns.slots[bag] or {}) do if not b.peonInfo and b.shown then list[#list + 1] = b end end
+    end
+    return list
+  end
+  check(#freeShown() > 1, "ohne Zusammenfassen: alle freien Plaetze sichtbar (" .. #freeShown() .. ")")
+  local total = 0
+  for _, bag in ipairs({ 0, 1, 2 }) do total = total + C_Container.GetContainerNumFreeSlots(bag) end
+  w:Set("FreeStack", true)
+  local f = freeShown()
+  check(#f == 1 and f[1]._count == total and f[1].peonFree == total, "ein freier Platz mit Zahl " .. total)
+  local rf = 0
+  for _, b in pairs(ns.slots[5]) do if not b.peonInfo and b.shown then rf = rf + 1; check(b._count == 11, "Reagenzientasche: eigener Platz mit 11") end end
+  check(rf == 1, "Reagenzientasche: ein freier Platz")
+  -- andere Taschenart (z. B. Kraeutertasche): eigener Platz
+  local keepFree = C_Container.GetContainerNumFreeSlots
+  C_Container.GetContainerNumFreeSlots = function(b) local n = keepFree(b) return n, b == 2 and 32 or 0 end
+  ns.RefreshBags()
+  f = freeShown()
+  check(#f == 2 and (f[1].peonBag == 2) ~= (f[2].peonBag == 2), "Taschenart getrennt: zwei Plaetze")
+  C_Container.GetContainerNumFreeSlots = keepFree
+  -- Klassisch: Gegenstaende ohne Luecken, der freie Platz am Ende
+  w:Set("Layout", "classic")
+  f = freeShown()
+  check(#f == 1 and f[1]._count == total, "Klassisch: ein freier Platz")
+  w:Set("FreeStack", false)
+  check(#freeShown() == total and ns.slots[0][16]._count == 0, "wieder aus: alle Plaetze, keine Zahl")
+end
+
+-- ===== Leere eigene Bereiche: Platz und nur beim Ziehen (ab 0.7) =====
+do
+  w:Set("Layout", "custom")
+  PeonBagsDB.bagCatsOff = allOff()
+  local g = ns.AddGroup("Leerbereich")
+  local h = headerOf(w, "Leerbereich")
+  check(h and w.dropSlots and w.dropSlots[1].shown, "Als Platz: Name ohne Hinweis, ein Ablage-Platz")
+  local d = w.dropSlots[1]
+  check(d.points[1][4] == h.points[1][4] and d.points[1][5] == h.points[1][5] - 16, "Ablage-Platz unter der Ueberschrift")
+  check(d.target == g.id, "Ablage-Platz kennt seinen Bereich")
+  cursor = { "item", 3300, "|cnIQ0:|Hitem:3300|h[Hasenpfote]|h|r" }
+  d.scripts.OnReceiveDrag(d)
+  check(PeonBagsDB.groupItems[3300] == g.id and cursor == nil, "Ablegen auf dem Platz ordnet zu")
+  check(not d.shown, "Bereich nicht mehr leer: Platz weg")
+  PeonBagsDB.groupItems[3300] = nil
+  w:Set("Empty", "drag")
+  check(headerOf(w, "Leerbereich") == nil and headerOf(w, "Übrige") ~= nil, "Beim Ziehen: leerer Bereich ausgeblendet")
+  cursor = { "item", 25, "|cnIQ2:|Hitem:25|h[x]|h|r" }
+  ns.OnCursor()
+  check(headerOf(w, "Leerbereich") ~= nil and w.dropSlots[1].shown, "Gegenstand am Mauszeiger: Bereich erscheint")
+  cursor = nil
+  ns.OnCursor()
+  check(headerOf(w, "Leerbereich") == nil, "losgelassen: wieder ausgeblendet")
+  ns.DeleteGroup(g.id)
+  w:Set("Empty", "slot")
+end
+
+-- ===== Spaltenzahl automatisch (ab 0.7) =====
+do
+  w:Set("Layout", "type")
+  PeonBagsDB.bagCatsOff = {}
+  w:Set("Cols", 24)
+  check(w.usedCols == 24, "ohne Automatik: eingestellte Spalten")
+  w:Set("AutoCols", true)
+  check(w.usedCols >= 6 and w.usedCols < 24, "automatisch: weniger Spalten (" .. tostring(w.usedCols) .. ")")
+  check(w.frame.w == math.max(330, 20 + w.usedCols * 41 - 4), "Fensterbreite passt zur Spaltenzahl")
+  w:Set("AutoCols", false)
+  w:Set("Cols", 10)
+  w:Set("Layout", "classic")
+  ns.HideBags()
 end
 
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end

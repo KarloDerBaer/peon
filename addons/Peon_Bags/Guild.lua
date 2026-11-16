@@ -281,6 +281,7 @@ function ns.InitGuild()
             if StaticPopup_Hide then pcall(StaticPopup_Hide, "PEON_BAGS_GB_DEPOSIT"); pcall(StaticPopup_Hide, "PEON_BAGS_GB_WITHDRAW") end
         end,
     })
+    w.Refresh = function() ns.RefreshGuild() end
     w.note = w.content:CreateFontString(nil, "OVERLAY", "GameFontRedSmall")
     w.note:SetPoint("BOTTOMLEFT", w.content, "TOPLEFT", 0, 2)
     w:AddButton(L.BTN_DEPOSIT, 80, nil, function()

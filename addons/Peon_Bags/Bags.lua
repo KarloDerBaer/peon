@@ -18,6 +18,18 @@ end
 -- Anordnungen (ab 0.5): Klassisch, Nach Art, Individuell. Die Gildenbank kennt kein Individuell.
 local LAYOUTS = { classic = true, type = true, custom = true }
 local GUILD_LAYOUTS = { classic = true, type = true }
+-- Leere eigene Bereiche (ab 0.7): mit Hinweis in der Ueberschrift, mit einem Ablage-Platz, nur beim Ziehen
+local EMPTY_MODES = { hint = true, slot = true, drag = true }
+
+-- Vorauswahlen fuer den Reiter "Layout" (ab 0.7). Weicht eine Einstellung ab, heisst es "Individuell".
+-- Spalten und die Breite je Abschnitt gehoeren nicht dazu.
+ns.PRESET_KEYS = { "Pack", "Fill", "Narrow", "FreeStack", "Empty", "AutoCols" }
+ns.PRESETS = {
+    { key = "stacked",  Pack = false, Fill = false, Narrow = false, FreeStack = false, Empty = "hint", AutoCols = false },
+    { key = "loose",    Pack = true,  Fill = false, Narrow = false, FreeStack = false, Empty = "hint", AutoCols = false },
+    { key = "balanced", Pack = true,  Fill = true,  Narrow = true,  FreeStack = false, Empty = "slot", AutoCols = false },
+    { key = "compact",  Pack = true,  Fill = true,  Narrow = true,  FreeStack = true,  Empty = "drag", AutoCols = true },
+}
 
 -- Automatische Kategorien in ihrer Standardreihenfolge (ab 0.5, Konzept Peon_Bags_Anordnung.md)
 ns.CATS = { "new", "quest", "equip", "food", "potion", "bandage", "consumable", "trade", "reagent", "recipe",
@@ -90,16 +102,27 @@ local mod = Peon:NewModule(ADDON_NAME, {
         bagCollapsed = {}, bankCollapsed = {}, guildCollapsed = {},
         catOrder     = CatList(), -- gemeinsame Reihenfolge der Kategorien
         bagPack      = true, bankPack = true, guildPack = true,   -- ab 0.6: Abschnitte nebeneinander
+        -- ab 0.7: Platz sparen (Reiter "Layout" in Einstellen), Standard ist die Vorauswahl "Ausgewogen"
+        bagFill      = true, bankFill = true, guildFill = true,           -- Luecken frueherer Zeilen fuellen
+        bagNarrow    = true, bankNarrow = true, guildNarrow = true,       -- grosse Abschnitte schmaler
+        bagFreeStack = false, bankFreeStack = false, guildFreeStack = false, -- freie Plaetze als ein Platz
+        bagEmpty     = "slot", bankEmpty = "slot", guildEmpty = "slot",   -- leere eigene Bereiche
+        bagAutoCols  = false, bankAutoCols = false, guildAutoCols = false, -- Spaltenzahl automatisch
+        bagWidths    = {}, bankWidths = {}, guildWidths = {},             -- [Abschnitt] = Spalten
+        setupTab     = "cats",                                           -- zuletzt gewaehlter Reiter
         layoutVer    = 2,
     },
     ranges = {
         bagCols = { 6, 24, 1 }, bankCols = { 6, 24, 1 }, guildCols = { 6, 24, 1 },
         bagScale = { 50, 200, 5 }, bankScale = { 50, 200, 5 }, guildScale = { 50, 200, 5 },
     },
-    choices  = { bagLayout = LAYOUTS, bankLayout = LAYOUTS, guildLayout = GUILD_LAYOUTS },
+    choices  = { bagLayout = LAYOUTS, bankLayout = LAYOUTS, guildLayout = GUILD_LAYOUTS,
+                 bagEmpty = EMPTY_MODES, bankEmpty = EMPTY_MODES, guildEmpty = EMPTY_MODES,
+                 setupTab = { cats = true, layout = true } },
     migrate  = Migrate,
     keepOnReset = { pos = true, groups = true, groupItems = true, catOrder = true, layoutVer = true,
-                    bagCatsOff = true, bankCatsOff = true, guildCatsOff = true, bagGroupsOff = true, bankGroupsOff = true },
+                    bagCatsOff = true, bankCatsOff = true, guildCatsOff = true, bagGroupsOff = true, bankGroupsOff = true,
+                    bagWidths = true, bankWidths = true, guildWidths = true },
     onSlash  = function(m, cmd)
         if cmd == "optionen" or cmd == "options" or cmd == "config" then
             m:OpenOptions()
@@ -109,6 +132,11 @@ local mod = Peon:NewModule(ADDON_NAME, {
     end,
 })
 ns.mod = mod
+
+-- Einmaliger Hinweis nach dem Update auf 0.7 (Kern-API 20): Einstellen ueberarbeitet, wo die Einstellungen sind
+if mod.AddNotice then
+    mod:AddNotice({ id = "layout-2026-11", date = "16.11.2026", title = L.NOTICE_LAYOUT_TITLE, text = L.NOTICE_LAYOUT_TEXT })
+end
 
 ---------------------------------------------------------------------------
 -- Kleine Hilfen
@@ -133,6 +161,20 @@ end
 function ns.FreeSlots(bag)
     local n = ns.Try(ns.C().GetContainerNumFreeSlots, bag)
     return ns.Num(n) and n or 0
+end
+
+-- Art einer Tasche (0 = normal, sonst z. B. Kraeutertasche): passt nicht jeder Gegenstand hinein (ab 0.7)
+function ns.BagFamily(bag)
+    local _, fam = ns.Try(ns.C().GetContainerNumFreeSlots, bag)
+    return ns.Num(fam) and fam or 0
+end
+
+-- Gegenstand am Mauszeiger? (ab 0.7, fuer leere Bereiche "nur beim Ziehen")
+function ns.CursorItem()
+    local f = rawget(_G, "GetCursorInfo")
+    if type(f) ~= "function" then return false end
+    local ok, kind = pcall(f)
+    return ok and kind == "item"
 end
 
 -- Taschen: 0 bis letzte normale Tasche; Reagenzientasche getrennt (Forever: 0-4 und 5)
@@ -424,6 +466,56 @@ mod:On("LOGIN", function()
         })
     end
 end)
+
+---------------------------------------------------------------------------
+-- Vorauswahlen (ab 0.7)
+---------------------------------------------------------------------------
+-- Vorauswahl eines Fensters, "custom" = Individuell. Die Gildenbank kennt keine eigenen Bereiche (Empty egal).
+function ns.CurrentPreset(key)
+    local db = mod.db
+    for _, p in ipairs(ns.PRESETS) do
+        local same = true
+        for _, k in ipairs(ns.PRESET_KEYS) do
+            if not (k == "Empty" and key == "guild") then
+                local v = db[key .. k]
+                if type(p[k]) == "boolean" then v = v and true or false end
+                if v ~= p[k] then same = false break end
+            end
+        end
+        if same then return p.key end
+    end
+    return "custom"
+end
+
+function ns.ApplyPreset(key, presetKey)
+    for _, p in ipairs(ns.PRESETS) do
+        if p.key == presetKey then
+            for _, k in ipairs(ns.PRESET_KEYS) do mod.db[key .. k] = p[k] end
+            mod:Fire("CHANGED", key .. "Preset")
+            return true
+        end
+    end
+    return false
+end
+
+-- Mauszeiger nimmt einen Gegenstand auf oder legt ihn ab: Fenster mit "nur beim Ziehen" neu anordnen
+local cursorItem = false
+local function OnCursor()
+    local now = ns.CursorItem()
+    if now == cursorItem then return end
+    cursorItem = now
+    for key, w in pairs(ns.windows or {}) do
+        if w.useGroups and w.Refresh and w:IsShown() and mod.db[key .. "Empty"] == "drag" then
+            mod:Call("Ziehen", w.Refresh)
+        end
+    end
+end
+mod:On("LOGIN", function()
+    for _, e in ipairs({ "CURSOR_CHANGED", "CURSOR_UPDATE" }) do
+        pcall(mod.RegisterEvent, mod, e, OnCursor)
+    end
+end)
+ns.OnCursor = OnCursor
 
 local function ApplyAll()
     for _, w in pairs(ns.windows or {}) do

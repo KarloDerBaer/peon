@@ -2,6 +2,25 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.7.0
+
+Kurz: Unter „Einstellen“ gibt es jetzt zwei Reiter. „Kategorien“ enthält die bisherigen Einstellungen, „Layout“ die neuen zum Platzsparen.
+Kurz: Oben unter „Layout“ wählst du eine Vorauswahl: Untereinander, Locker, Ausgewogen oder Kompakt. Änderst du einzelne Einstellungen, heißt sie „Individuell“.
+Kurz: Taschen, Bank und Gildenbank lassen weniger Plätze leer: Kleine Abschnitte füllen Lücken, große werden schmaler, freie Plätze können als ein Platz mit Zahl erscheinen.
+
+- 0.7.0 (16.11.2026, Wunsch KarloDerBaer, Konzept `docs/konzepte/bags/Peon_Bags_Layout.md`):
+  - **Reiter:** Die Leiste „Einstellen“ hat die Reiter „Kategorien“ (Anordnung, Kategorien, eigene Bereiche wie bisher) und „Layout“. Der zuletzt gewählte Reiter bleibt (`setupTab`). Der Haken „Abschnitte nebeneinander“ steht jetzt unter „Layout“. Titel der Leiste „Einstellen“ statt „Anordnung“.
+  - **Vorauswahl:** Auswahlliste oben im Reiter Layout. Untereinander (jeder Abschnitt eine Zeile), Locker (wie bis 0.6), Ausgewogen (Standard), Kompakt. Weicht eine Einstellung ab, zeigt die Liste „Individuell“. Gespeichert werden nur die einzelnen Werte. Spalten und Breite je Abschnitt gehören nicht zur Vorauswahl.
+  - **Lücken füllen** (`Fill`): Ein Abschnitt kommt in die erste Zeile, in der er Platz hat, nicht nur in die letzte.
+  - **Große Abschnitte schmaler** (`Narrow`): Ein Abschnitt mit mehr Gegenständen als Spalten wird so schmal, wie es bei gleich vielen Reihen geht (12 Plätze bei 10 Spalten: 6 × 2). Daneben passen andere Abschnitte.
+  - **Freie Plätze als ein Platz** (`FreeStack`): Statt aller leeren Plätze eines Abschnitts steht ein echter leerer Platz je Taschenart mit der Zahl der freien Plätze. Ablegen legt den Gegenstand genau dort hinein. Spezialtaschen (zum Beispiel Kräutertasche) bekommen ihren eigenen Platz.
+  - **Leere eigene Bereiche** (`Empty`): „Mit Hinweis“ wie bisher, „Als Platz“ (Name und ein Ablage-Platz, Standard), „Beim Ziehen“ (ausgeblendet, erscheinen solange ein Gegenstand am Mauszeiger hängt). Gilt auch für „Übrige“.
+  - **Spalten** stellbar in der Leiste, dazu **Spaltenzahl automatisch** (`AutoCols`): nimmt die Spaltenzahl bis zur eingestellten, bei der das Fenster am kleinsten ist.
+  - **Breite je Abschnitt** (`Widths`): Spalten je Abschnitt mit „-“ und „+“, Klick auf den Wert stellt wieder „auto“ ein. Gilt je Fenster, bleibt bei „Standardwerte“, Löschen eines Bereichs entfernt seine Breite.
+  - **Hinweis beim ersten Start** (Peon-Hinweisfenster, Kern-API 20, `bags:layout-2026-11`): erklärt die Überarbeitung und wo die Einstellungen sind (Knopf „Einstellen“, Reiter Kategorien und Layout, Vorauswahl). Erscheint einmal je Konto, `/peon neu` zeigt ihn wieder.
+  - Die Planung der Zeilen ist eine eigene Rechnung (`ns.PlanLayout`), die Tests prüfen sie ohne Fenster.
+  - **Im Spiel prüfen:** Aussehen der Reiter und der Auswahlliste in der Leiste. Vorauswahl wechseln und „Individuell“ nach einer Einzeländerung. Ablegen auf dem Platz mit der Zahl der freien Plätze und auf dem Ablage-Platz eines leeren Bereichs. „Beim Ziehen“: Bereiche erscheinen beim Aufnehmen eines Gegenstands und verschwinden beim Ablegen. Spaltenzahl automatisch bei wenigen und vielen Gegenständen. Bank mit Kompakt.
+
 ## 0.6.1
 
 Kurz: Über den Knopf „Blizzard“ im Bankfenster kannst du wieder Bankfächer kaufen. Kosten und Kaufen-Knopf erscheinen wieder.

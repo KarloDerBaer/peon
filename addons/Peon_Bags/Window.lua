@@ -211,8 +211,11 @@ end
 -- Alles, was ns.BuildSections fuer dieses Fenster braucht (ab 0.5)
 function Window:SectionConfig()
     local layout = self:Layout()
+    local empty = self:Setting("Empty") or "slot"
     return { layout = layout, catsOff = self:Table("CatsOff"), groupsOff = self.useGroups and self:Table("GroupsOff") or {},
-             collapsed = self:Table("Collapsed"), useGroups = self.useGroups, keepNew = self.keepNew }
+             collapsed = self:Table("Collapsed"), useGroups = self.useGroups, keepNew = self.keepNew,
+             freeStack = self:Setting("FreeStack") and true or false, emptyMode = empty,
+             dragging = empty == "drag" and ns.CursorItem() or false }
 end
 
 -- Abschnitt ein- oder ausklappen (Klick auf die Ueberschrift ohne Gegenstand am Mauszeiger)
@@ -407,9 +410,98 @@ local function TextWidth(h)
     return (ok and ns.Num(wdt)) and math.ceil(wdt) + 4 or 0
 end
 
+-- Ablage-Platz fuer einen leeren eigenen Bereich (ab 0.7, Einstellung <Fenster>Empty = "slot" oder "drag"):
+-- ein leerer Platz statt des langen Hinweises in der Ueberschrift. Kein Taschenknopf, nimmt nur Zuordnungen an.
+local function DropSlot(w, i)
+    w.dropSlots = w.dropSlots or {}
+    local b = w.dropSlots[i]
+    if b then return b end
+    b = CreateFrame("Button", nil, w.content)
+    b:SetSize(SLOT, SLOT)
+    b.icon = b:CreateTexture(nil, "ARTWORK")
+    b.icon:SetAllPoints()
+    b.icon:SetTexture("Interface\\PaperDoll\\UI-Backpack-EmptySlot")
+    b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    b:RegisterForClicks("LeftButtonUp")
+    local function Drop(self)
+        if self.target ~= nil and ns.CursorItem() then mod:Call("Bereich", ns.DropOnHeader, self.target) end
+    end
+    b:SetScript("OnClick", Drop)
+    b:SetScript("OnReceiveDrag", Drop)
+    b:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(self.text or "", 1, 1, 1)
+        GameTooltip:AddLine(L.DROP_SLOT_TIP, nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    w.dropSlots[i] = b
+    return b
+end
+
+-- Abschnitte auf Zeilen verteilen, rein rechnerisch (ab 0.7, vorher Teil von Arrange).
+-- blocks: { n = Plaetze, titled = mit Ueberschrift, headerW = Breite der Ueberschrift, folded, width = eigene Spalten }
+-- o: { cols, pack, fill, narrow }
+--   pack:   kleine Abschnitte teilen sich eine Zeile (ab 0.6). Ohne Ueberschrift oder volle Breite: allein.
+--   fill:   ein Abschnitt kommt in die erste Zeile, in der er noch Platz hat, nicht nur in die letzte.
+--   narrow: ein grosser Abschnitt (mehr Plaetze als Spalten) wird so schmal, wie es bei gleich vielen Reihen geht.
+--   width:  eigene Spaltenzahl des Abschnitts (Breite je Abschnitt), gilt vor narrow.
+-- Rueckgabe: { [i] = { x, y, c = Spalten der Plaetze, width, height } }, Hoehe
+function ns.PlanLayout(blocks, o)
+    local cols = o.cols
+    local step = SLOT + GAP
+    local full = cols * step - GAP
+    local res, lines = {}, {}
+    for i, bl in ipairs(blocks) do
+        local n = bl.folded and 0 or bl.n
+        local alone = not o.pack or not bl.titled
+        local c
+        if ns.Num(bl.width) and bl.width > 0 then c = math.min(bl.width, cols)
+        elseif alone then c = cols
+        elseif n <= cols then c = math.max(1, n)
+        elseif o.narrow then c = math.ceil(n / math.ceil(n / cols))
+        else c = cols end
+        local rows = n > 0 and math.ceil(n / c) or 0
+        local width = n > 0 and math.min(n, c) * step - GAP or 0
+        width = math.min(full, math.max(width, bl.headerW or 0, 1))
+        if alone or width >= full then alone, width = true, full end
+        local p = { c = c, width = width, alone = alone,
+                    height = (bl.titled and HDR_H or 0) + rows * step }
+        res[i] = p
+        -- Zeile suchen: ohne fill nur die letzte, mit fill die erste mit genug Platz
+        local line
+        if not alone then
+            local first = o.fill and 1 or #lines
+            for k = math.max(1, first), #lines do
+                local l = lines[k]
+                if not l.alone and l.used + PACK_GAP + width <= full then line = l break end
+            end
+        end
+        if line then
+            p.x = line.used + PACK_GAP
+            line.used = p.x + width
+            line.h = math.max(line.h, p.height)
+        else
+            line = { alone = alone, used = width, h = p.height }
+            p.x = 0
+            lines[#lines + 1] = line
+        end
+        line[#line + 1] = p
+    end
+    local y = 0
+    for k, l in ipairs(lines) do
+        if k > 1 then y = y + SEC_GAP end
+        for _, p in ipairs(l) do p.y = y end
+        y = y + l.h
+    end
+    return res, y
+end
+
 -- Abschnitte anordnen. Mit "nebeneinander" (ab 0.6, Einstellung <Fenster>Pack) teilen sich kleine Abschnitte
 -- eine Zeile, wenn sie zusammen in die Breite passen. Ein Abschnitt ist dann so breit wie seine Plaetze,
 -- mindestens aber wie seine Ueberschrift. Abschnitte ohne Ueberschrift und volle Zeilen stehen allein.
+-- Ab 0.7: Luecken fuellen, grosse Abschnitte schmaler, Breite je Abschnitt, Spaltenzahl automatisch
+-- (die Spaltenzahl bis zur eingestellten, bei der das Fenster am kleinsten ist), Ablage-Platz leerer Bereiche.
 function Window:Arrange(sections, allButtons)
     local f = self.frame
     -- im Kampf: geschuetzte Knoepfe nicht bewegen, spaeter nachholen
@@ -421,87 +513,106 @@ function Window:Arrange(sections, allButtons)
             end
         end
     end
-    local cols = self:Cols()
-    local step = SLOT + GAP
-    local full = cols * step - GAP
     local pack = self:Setting("Pack") ~= false
-    local hi = 0
+    local opts = { pack = pack, fill = pack and self:Setting("Fill") and true or false,
+                   narrow = pack and self:Setting("Narrow") and true or false }
+    local widths = self:Table("Widths")
+    local hi, di = 0, 0
     local shown = {}
+    local list = {}
 
-    -- 1. Bloecke: Ueberschrift beschriften, Breite und Hoehe bestimmen
+    -- 1. Bloecke: Ueberschrift beschriften, Breite der Ueberschrift messen
     local blocks = {}
     for _, sec in ipairs(sections) do
-        local n = #sec.items
+        local items = sec.items
+        if #items == 0 and sec.dropSlot and sec.target ~= nil then
+            di = di + 1
+            local d = DropSlot(self, di)
+            d.target, d.text = sec.target, sec.name or sec.title
+            items = { d }
+        end
+        local n = #items
         if n > 0 or sec.keepEmpty then
             local folded = sec.collapsed and sec.title ~= nil
-            local bl = { sec = sec, n = n, folded = folded }
-            local slots = folded and 0 or math.min(n, cols)
-            bl.width = slots > 0 and slots * step - GAP or 0
-            bl.rows = folded and 0 or math.ceil(n / cols)
+            local wc = sec.key and widths[sec.key]
+            local bl = { sec = sec, items = items, n = n, folded = folded, titled = sec.title ~= nil,
+                         width = ns.Num(wc) and wc or nil, headerW = 0 }
             if sec.title then
                 hi = hi + 1
                 local h = Header(self, hi)
                 -- Zeichen vor dem Namen zeigt, dass sich der Abschnitt einklappen laesst (ab 0.5)
                 local label = sec.title
                 if sec.key then label = (folded and PLUS or MINUS) .. label end
-                if folded then label = label .. " (" .. n .. ")" end
+                if folded then label = label .. " (" .. #sec.items .. ")" end
                 h.label:SetText(label)
                 h.text, h.target, h.key, h.folded = sec.title, sec.target, sec.key, folded
                 h:EnableMouse(sec.target ~= nil or sec.key ~= nil)
                 bl.header = h
-                bl.width = math.max(bl.width, TextWidth(h))
+                bl.headerW = TextWidth(h)
+                if sec.key then
+                    bl.entry = { key = sec.key, title = sec.name or sec.title }
+                    list[#list + 1] = bl.entry
+                end
             end
-            bl.width = math.min(full, math.max(bl.width, 1))
-            -- allein in der Zeile: ohne Ueberschrift, volle Zeilen, oder nicht packen
-            if not pack or not sec.title or n >= cols then bl.width, bl.alone = full, true end
-            bl.height = (bl.header and HDR_H or 0) + bl.rows * step
             blocks[#blocks + 1] = bl
         end
     end
+    self.lastSections = list
 
-    -- 2. Zeilen fuellen und setzen
-    local y, x, lineH, lineAlone, started = 0, 0, 0, false, false
-    for _, bl in ipairs(blocks) do
-        if started then
-            if bl.alone or lineAlone or x + PACK_GAP + bl.width > full then
-                y = y + lineH + SEC_GAP
-                x, lineH = 0, 0
-            else
-                x = x + PACK_GAP
-            end
+    -- 2. Zeilen planen, bei "Spaltenzahl automatisch" die Spaltenzahl mit der kleinsten Flaeche waehlen
+    local cols = self:Cols()
+    opts.cols = cols
+    local plan, height = ns.PlanLayout(blocks, opts)
+    if self:Setting("AutoCols") then
+        local minW = self.minW or MIN_W
+        local function Area(c, h) return math.max(minW, PAD * 2 + c * (SLOT + GAP) - GAP) * math.max(h, SLOT) end
+        local best = Area(cols, height)
+        for c = cols - 1, 6, -1 do
+            local o2 = { cols = c, pack = opts.pack, fill = opts.fill, narrow = opts.narrow }
+            local p2, h2 = ns.PlanLayout(blocks, o2)
+            local a = Area(c, h2)
+            if a < best then best, cols, plan, height = a, c, p2, h2 end
         end
-        started = true
-        local top = y
+    end
+    self.usedCols = cols
+    for i, bl in ipairs(blocks) do
+        if bl.entry then bl.entry.c = plan[i].c end   -- Spalten fuer "Breite je Abschnitt" in Einstellen
+    end
+    local step = SLOT + GAP
+    local full = cols * step - GAP
+
+    -- 3. setzen
+    for i, bl in ipairs(blocks) do
+        local p = plan[i]
+        local top = p.y
         if bl.header then
             local h = bl.header
             h:ClearAllPoints()
-            h:SetPoint("TOPLEFT", self.content, "TOPLEFT", x, -top)
-            h:SetWidth(bl.width)
+            h:SetPoint("TOPLEFT", self.content, "TOPLEFT", p.x, -top)
+            h:SetWidth(p.width)
             h:Show()
             top = top + HDR_H
         end
-        local c = bl.alone and cols or math.max(1, math.min(bl.n, cols))
-        for i, b in ipairs(bl.folded and {} or bl.sec.items) do
-            local row, col = math.floor((i - 1) / c), (i - 1) % c
+        for j, b in ipairs(bl.folded and {} or bl.items) do
+            local row, col = math.floor((j - 1) / p.c), (j - 1) % p.c
             b:ClearAllPoints()
-            b:SetPoint("TOPLEFT", self.content, "TOPLEFT", x + col * step, -(top + row * step))
+            b:SetPoint("TOPLEFT", self.content, "TOPLEFT", p.x + col * step, -(top + row * step))
             b:Show()
             shown[b] = true
         end
-        x = x + bl.width
-        lineH = math.max(lineH, bl.height)
-        lineAlone = bl.alone
     end
-    y = y + lineH
 
     for i = hi + 1, #self.headers do self.headers[i]:Hide() end
+    for _, d in ipairs(self.dropSlots or {}) do
+        if not shown[d] then d:Hide() end
+    end
     for _, b in ipairs(allButtons or {}) do
         if not shown[b] then b:Hide() end
     end
     local width = math.max(self.minW or MIN_W, PAD * 2 + full)
-    local height = TOP_H + math.max(y, SLOT) + FOOT_H + 6
-    self.content:SetSize(full, math.max(1, y))
-    if not ns.Locked(f) then f:SetSize(width, height) end
+    local frameH = TOP_H + math.max(height, SLOT) + FOOT_H + 6
+    self.content:SetSize(full, math.max(1, height))
+    if not ns.Locked(f) then f:SetSize(width, frameH) end
     return true
 end
 
