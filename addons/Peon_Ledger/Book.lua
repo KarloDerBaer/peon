@@ -30,7 +30,7 @@ B.ORDER = {}
 for _, k in ipairs(B.AH) do B.ORDER[#B.ORDER + 1] = k end
 for _, k in ipairs(B.DAILY) do B.ORDER[#B.ORDER + 1] = k end
 -- graue davon-Zeilen unter dem Handelsgewinn
-B.BRIDGE = { "stock", "open", "loot", "foreign", "used" }
+B.BRIDGE = { "stock", "auction", "open", "loot", "foreign", "used" }
 
 function B.From(period, now)
     now = now or time()
@@ -187,8 +187,10 @@ function B.Collect(period, onlyMe, now, char)
     res.profit = res.inc - res.exp - res.fee
     -- davon-Zeilen: Geldfluss im Auktionshaus = Handelsgewinn + stock + open + loot + foreign + used
     -- (der Spielalltag enthaelt die Einzahlungen und Gebuehren der Beute schon, deshalb dort abziehen)
-    local b = { open = -(res.fee - feesUsed), loot = lootFees, foreign = foreign, used = -usedA }
-    b.stock = ahflow - res.trade - b.open - b.loot - b.foreign - b.used
+    -- ab 0.15: Ware aus Kaeufen im Zeitraum, die gerade in laufenden Auktionen steht, getrennt vom Lager
+    local listed = ns.Cost and ns.Cost.ListedValue and ns.Cost.ListedValue(from, onlyMe and me or nil) or 0
+    local b = { open = -(res.fee - feesUsed), loot = lootFees, foreign = foreign, used = -usedA, auction = -listed }
+    b.stock = ahflow - res.trade - b.open - b.loot - b.foreign - b.used - b.auction
     res.bridge = b
     return res
 end
@@ -371,8 +373,9 @@ function B.Build(c)
         function(v) mod.db.bookPeriod = v; mod:Call("Buch", W.Refresh) end)
     page.charDD = U.Dropdown(c, 170, W.CharItems, function() return mod.db.bookChar or "*" end,
         function(v) mod.db.bookChar = v; mod:Call("Buch", W.Refresh) end)
-    page.charDD:SetPoint("TOPRIGHT", -16, -32)
-    page.periodDD:SetPoint("RIGHT", page.charDD, "LEFT", -8, 0)
+    -- ab 0.15.1: Charakter ganz links, Zeitraum ganz rechts (vorher lag der Zeitraum ueber dem Reiter "Nach Gegenstand")
+    page.charDD:SetPoint("TOPLEFT", 80, -32)
+    page.periodDD:SetPoint("TOPRIGHT", -16, -32)
     -- links die Summen
     local lw = 260
     local left = U.Panel(c, "left")
@@ -384,22 +387,32 @@ function B.Build(c)
     head:SetPoint("TOPLEFT", 14, -12)
     head:SetText(L.BK_HEAD)
     page.lines = {}
+    -- ab 0.15: grosse Werte (Handelsgewinn, Gesamtergebnis) in eigener Zeile unter der Beschriftung, sonst lagen
+    -- Text und Betrag uebereinander
     local keys = { "trade", "daily", "result", "-", "gold", "-", "use" }
+    local big = { trade = true, result = true }
     local y = -38
     for _, k in ipairs(keys) do
         if k == "-" then
             y = y - 10
         else
-            page.lines[k] = W.ValueLine(left, y)
-            y = y - 22
+            local line = W.ValueLine(left, y)
+            if big[k] then
+                line.value:ClearAllPoints()
+                line.value:SetPoint("TOPRIGHT", -14, y - 18)
+                U.Font(line.value, "big")
+                y = y - 46
+            else
+                y = y - 22
+            end
+            page.lines[k] = line
         end
     end
-    U.Font(page.lines.trade.value, "big"); U.Font(page.lines.result.value, "big")
     -- Tooltip ueber der Zeile Handelsgewinn
     local hover = CreateFrame("Frame", nil, left)
     hover:SetPoint("TOPLEFT", 8, -34)
     hover:SetPoint("TOPRIGHT", -8, -34)
-    hover:SetHeight(22)
+    hover:SetHeight(44)
     if hover.EnableMouse then hover:EnableMouse(true) end
     hover:SetScript("OnEnter", function(self) B.TradeTooltip(self) end)
     hover:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
@@ -432,9 +445,9 @@ function B.Build(c)
                 if r.style == "total" then return W.YELLOW .. (v or "") .. "|r" end
                 if r.style == "sub" then return GREY .. "   " .. (v or "") .. "|r" end
                 return v or "" end },
-            { key = "inc", title = L.BK_INC, width = 120, align = "RIGHT", nosort = true, format = function(v, r) return Cash(v, r, W.GREEN) end },
-            { key = "exp", title = L.BK_EXP, width = 120, align = "RIGHT", nosort = true, format = function(v, r) return Cash(v, r, W.RED) end },
-            { key = "sum", title = L.BK_SUM, width = 120, align = "RIGHT", nosort = true, format = function(v, r)
+            { key = "inc", title = L.BK_INC, width = 110, align = "RIGHT", nosort = true, format = function(v, r) return Cash(v, r, W.GREEN) end },
+            { key = "exp", title = L.BK_EXP, width = 110, align = "RIGHT", nosort = true, format = function(v, r) return Cash(v, r, W.RED) end },
+            { key = "sum", title = L.BK_SUM, width = 110, align = "RIGHT", nosort = true, format = function(v, r)
                 if r.style == "blank" then return "" end
                 if r.style == "sub" then return GREY .. ((v or 0) >= 0.5 and "+" or ((v or 0) <= -0.5 and "-" or "")) .. M(v) .. "|r" end
                 return W.Signed(v) end },
@@ -459,7 +472,7 @@ function B.Build(c)
         onClick = function(r, button) if button == "RightButton" then W.ItemMenu(r.id) elseif r.id then mod:ShowItem(r.id) end end,
     })
     page.searchBox = U.SearchBox(c, 170, function(text) page.search = text; mod:Call("Buch", W.Refresh) end)
-    page.searchBox:SetPoint("TOPLEFT", 80, -32)
+    page.searchBox:SetPoint("RIGHT", page.periodDD, "LEFT", -8, 0)   -- ab 0.15.1 neben dem Zeitraum
     page.view:Select(mod.db.bookView == "items" and "items" or "kinds")
 end
 

@@ -445,6 +445,7 @@ function C.Apply(st, e, groups)
     end
     local k, id, n, m = e.k, e.id, e.n or 0, e.m or 0
     if k == "twink" then Twink(st, e, id, n); return end
+    if k == "aucfix" then return end   -- ab 0.15: gepaarte Abweichung durch Einstellen, aendert keine Posten
     if k == "posted" or k == "ahback" or k == "ahreturn" then   -- Umbuchung
         -- ab 0.15: Stueck im Auktionshaus zaehlen (Gebuehren anteilig je Stueck)
         if id and k == "posted" and n < 0 then st.listed[id] = (st.listed[id] or 0) - n
@@ -814,6 +815,32 @@ function C.ByChar(id)
 end
 
 function C.Result(e) return C.State().res[e] end
+
+-- AH-Kosten der Stueck in laufenden Auktionen (ab 0.15, fuer "davon in laufenden Auktionen" im Buch): je Charakter
+-- so viele Stueck wie unter Auktionen stehen, in der Reihenfolge, in der sie verkauft werden; nur Posten ab from.
+function C.ListedValue(from, char)
+    local st, v = C.State(), 0
+    local lifo = C.LIFO()
+    for name, c in pairs(ns.Inventory.RealmData().chars) do
+        local x = st.chars[name]
+        local p = type(c) == "table" and type(c.places) == "table" and c.places.auctions
+        if x and type(p) == "table" and type(p.items) == "table" and (char == nil or char == "*" or char == name) then
+            for id, n in pairs(p.items) do
+                local q = x.lots[id]
+                local left = Num(n) and n or 0
+                local i, step = lifo and #(q or {}) or 1, lifo and -1 or 1
+                while q and left > 0 and q[i] do
+                    local lot = q[i]
+                    local k = math.min(left, lot.n)
+                    if (lot.t or 0) >= (from or 0) then v = v + k * LA(lot) end
+                    left = left - k
+                    i = i + step
+                end
+            end
+        end
+    end
+    return v
+end
 
 -- Lagerwert aller Gegenstaende (char: nil/"*" = alle Charaktere, sonst nur dieser)
 function C.TotalValue(char)

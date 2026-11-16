@@ -474,6 +474,21 @@ function I.MailInfo(c)
     return res
 end
 
+-- Nach dem Einstellen die eigenen Auktionen neu abfragen (ab 0.15, nur lesend): Das Spiel meldet neue Auktionen
+-- sonst erst, wenn man die Seite Auktionen ansieht. Mehrere Einstellungen kurz hintereinander fragen einmal.
+I.REQUERY_DELAY = 2.5
+function I.RequeryAuctions()
+    I.requery = (I.requery or 0) + 1
+    local gen = I.requery
+    local CT = rawget(_G, "C_Timer")
+    if not (CT and CT.After) then return end
+    CT.After(I.REQUERY_DELAY, function()
+        if gen ~= I.requery or not (ns.Moves and ns.Moves.IsOpen("auction")) then return end
+        local ah = rawget(_G, "C_AuctionHouse")
+        if ah and ah.QueryOwnedAuctions then pcall(ah.QueryOwnedAuctions, {}) end
+    end)
+end
+
 -- Eigene Auktionen (wenn das Spiel sie meldet): laufende als Bestand, verkaufte nur gezaehlt
 function I.ScanAuctions()
     local ah = rawget(_G, "C_AuctionHouse")

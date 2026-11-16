@@ -102,6 +102,9 @@ local function Tile(parent, x, y, w, h, title)
     p.sub = p:CreateFontString(nil, "ARTWORK", U.FONT.small)
     p.sub:SetPoint("TOPLEFT", 12, -48)
     p.sub:SetJustifyH("LEFT")
+    -- ab 0.15: Zusatz bleibt in der Kachel (vorher lief er in die naechste)
+    p.sub:SetWidth(w - 24)
+    if p.sub.SetWordWrap then p.sub:SetWordWrap(false) end
     function p:Set(big, sub) self.big:SetText(big or ""); self.sub:SetText(sub or "") end
     return p
 end

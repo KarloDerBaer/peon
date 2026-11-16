@@ -50,6 +50,7 @@ M.KINDS = {
     other    = { side = "both" },
     fix      = { side = "move" },   -- Korrektur aus "Inventur neu" (ab 0.6), zaehlt nicht als Gewinn
     diff     = { side = "move" },   -- Abweichung der Kontrollrechnung (ab 0.14, Check.lua), zaehlt nicht als Gewinn
+    aucfix   = { side = "move" },   -- ab 0.15: Abweichung durch eingestellte Ware, die nicht unter Auktionen ankam (Check.PairAuctionDiffs)
 }
 
 -- Filter im Verlauf (ab 0.6): Gruppe -> Arten
@@ -849,7 +850,11 @@ function M.Flush()
                 local why = letter and M.AHLetterKind(letter.subject)
                 M.Add("ahreturn", id, net, nil, why == "cancelled" and L.MV_X_CANCEL or (why == "expired" and L.MV_X_EXPIRED or nil))
             elseif k == "posted" then
-                M.Add("posted", id, net)
+                local pe = M.Add("posted", id, net)
+                if pe then pe.pl = true end   -- schon unter Auktionen (fuer Check.RepairListed)
+                -- ab 0.15: gleich unter Auktionen fuehren. Das Spiel meldet neue Auktionen nicht von selbst, sonst
+                -- fehlte die Ware bis zum naechsten Blick auf die eigenen Auktionen (Kontrollrechnung: Abweichung)
+                ns.Inventory.AddToPlace(ns.Inventory.Char(), "auctions", id, -net)
                 M.Note("postedItem", { id = id })   -- Einstellgebuehr diesem Gegenstand zurechnen (ab 0.7)
             elseif k == "twink" then
                 M.Add("twink", id, net, nil, x)
@@ -939,6 +944,13 @@ end
 function M.OnAuctions(old, new, info)
     local sold = info and info.soldItems or {}
     local oldSold = info and info.oldSold or {}
+    -- ab 0.15.1: Auktion jetzt in der Liste, die vorher fehlte: offene Abweichung nach dem Einstellen aufheben
+    if ns.Check and ns.Check.ResolveListed then
+        for id, n in pairs(new) do
+            local d = n - (old[id] or 0)
+            if d > 0 then ns.Check.ResolveListed(ns.CharName(), id, d) end
+        end
+    end
     for id, n in pairs(old) do
         local d = (new[id] or 0) - n
         if d < 0 then
@@ -1050,7 +1062,10 @@ function M.InitEvents()
     Ev("TRADE_CLOSED", function() M.Close("trade") end)
     -- Ereignisse
     Ev("QUEST_TURNED_IN", function() M.Note("quest") end)
-    Ev("AUCTION_HOUSE_AUCTION_CREATED", function() M.Note("posted") end)
+    Ev("AUCTION_HOUSE_AUCTION_CREATED", function()
+        M.Note("posted")
+        ns.Inventory.RequeryAuctions()   -- ab 0.15: eigene Auktionen danach neu lesen
+    end)
     Ev("AUCTION_CANCELED", function(_, auctionID)
         local map = ns.Inventory.auctionItems
         M.Note("cancel", { id = map and Num(auctionID) and map[auctionID] or nil })

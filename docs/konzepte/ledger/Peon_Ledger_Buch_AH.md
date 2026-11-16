@@ -42,10 +42,11 @@ AH: Ware an Händler         (Handelsteil von Händlerverkäufen)
 
 AH: Handelsgewinn
    davon ins Lager
-   davon offene Einstellgebühren
-   davon Einstellgebühren für Beute (unten)
-   davon Ware von Händlern und Spielern
-   davon selbst verbraucht
+   davon in Auktionen            (ab 0.15.1)
+   davon offene Gebühren
+   davon Gebühren für Beute
+   davon Händler/Spieler
+   davon verbraucht
 ──────────
 Händler, AH: Verkauf Beute, Rückkauf, Reparaturen, Beute, Quests, Herstellen,
 Spielerhandel, Post, Flüge, Lehrer, Sonstiges
@@ -74,6 +75,12 @@ Der Trennstrich kommt aus dem Kern: `UI.Table` mit `o.rowLine(item)` (Peon 0.21.
 - In den ersten 20 Sekunden nach dem Einloggen verbucht Ledger keine Bewegungen. Anhänge aus einem gerade genommenen Brief sind davon jetzt ausgenommen.
 - Findet die Kontrollrechnung mehr Ware, als sie erwartet, und liegt diese Ware beim Charakter unter „Unterwegs“, verbucht sie den Zugang als Twink-Post mit den mitgewanderten Kosten.
 - Einmalige Reparatur beim ersten Start von 0.15.0: Abweichungen, die zu „Unterwegs“ desselben Charakters passen, werden zu Twink-Post.
+
+## 5a. Eingestellte Ware (ab 0.15.1)
+
+- Beim Einstellen kommt die Ware gleich unter Auktionen, danach fragt Ledger die eigenen Auktionen neu ab. Vorher fehlte sie bis zum nächsten Blick auf die Seite Auktionen, und die Kontrollrechnung buchte Abweichungen, die die Kosten zerstörten.
+- Alte Paare aus Minus nach dem Einstellen und späterem Plus werden bei jedem Login zu „Auktion (korrigiert)“.
+- „davon in Auktionen“ zeigt die AH-Kosten der Stücke aus Käufen im Zeitraum, die gerade in laufenden Auktionen stehen.
 
 ## 6. Anzeige beim Einsammeln
 

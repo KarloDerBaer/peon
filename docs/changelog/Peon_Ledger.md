@@ -2,6 +2,23 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.15.1
+
+Kurz: Eingestellte Ware steht jetzt sofort unter „Auktionen“. Vorher zählte die Kontrollrechnung sie als fehlend, und die Kosten gekaufter Ware gingen verloren.
+Kurz: Das Buch zeigt Ware aus Käufen, die gerade in laufenden Auktionen steht, als eigene Zeile „davon in Auktionen“.
+Kurz: In der Übersicht und im Buch liegen keine Texte mehr übereinander. Im Buch steht die Auswahl des Charakters jetzt links und der Zeitraum rechts.
+
+- 0.15.1 (14.11.2026): **Eingestellte Ware fehlte unter Auktionen** (Rückmeldung KarloDerBaer zu Flitzdistel). Das Spiel meldet neue eigene Auktionen erst, wenn man die Seite Auktionen ansieht. Bis dahin fehlte die Ware im Bestand, die Kontrollrechnung buchte sie beim nächsten Einloggen als Abweichung minus und nach dem Verkauf als Abweichung plus. Das Minus nahm die gekauften Posten mit ihren Kosten weg, das Plus legte Startbestand mit Kosten 0 dazu. Verkäufe zählten dadurch als Beute oder bekamen falsche Kosten.
+  - Beim Einstellen kommt die Ware gleich unter Auktionen (`Moves.Flush`), danach fragt Ledger die eigenen Auktionen einmal neu ab (`Inventory.RequeryAuctions`, 2,5 Sekunden nach dem letzten Einstellen, nur lesend).
+  - **Alte Abweichungen paaren** (`Check.PairAuctionDiffs`, bei jedem Einloggen nach der Kontrollrechnung): Ein Minus bis 3 Tage nach dem Einstellen desselben Gegenstands und ein späteres Plus heben sich auf und werden zur neuen Art „Auktion (korrigiert)“ (`aucfix`, Umbuchung). Der Rest bleibt Abweichung. In den Daten von KarloDerBaer betraf das 25 Zeilen, der Handelsgewinn des Tages lag danach bei +4g 81s statt −1g 70s.
+  - **davon in Auktionen** (`Cost.ListedValue`): Kosten aus dem Auktionshaus der Stücke, die gerade in laufenden Auktionen stehen und im Zeitraum gekauft wurden. „davon ins Lager“ ist nur noch der Rest.
+  - **Vorher eingestellte Ware nachtragen** (`Check.RepairListed`, einmal, gemerkt in `fixListed`): Was nach dem letzten Lesen der Auktionsliste eines Charakters eingestellt und seitdem weder verkauft noch zurückgekommen ist, kommt unter Auktionen. Einstellungen mit 0.15.1 tragen `pl` und zählen nicht doppelt. In den Daten von KarloDerBaer: 100 Flitzdistel eines Twinks, „davon in Auktionen“ −2g 64s.
+  - **Neue Auktion in der Liste** (`Check.ResolveListed` aus `Moves.OnAuctions`): Taucht Ware in der Auktionsliste auf, die vorher fehlte, wird eine offene Abweichung minus nach dem Einstellen sofort zu „Auktion (korrigiert)“.
+  - **Buch:** Auswahl des Charakters ganz links, Zeitraum ganz rechts, die Suche bei „Nach Gegenstand“ links neben dem Zeitraum. Vorher lag der Zeitraum über dem Reiter „Nach Gegenstand“.
+  - **Überlagerungen:** Im Buch stehen AH: Handelsgewinn und Gesamtergebnis groß in einer eigenen Zeile unter der Beschriftung, die davon-Zeilen haben kürzere Namen, die Spalten mit Beträgen sind schmaler. In der Übersicht bleibt der kleine Text in seiner Kachel („1 ohne Preis“ statt „1 Gegenstände ohne Preis“), die Kachel heißt „AH: Handelsgewinn heute“.
+  - Tests: Einstellen mit Neuabfrage, Paarung mit Rest und ohne Einstellen, Kontrollrechnung bleibt gleich, Nachtrag einmal und ohne Doppelte, Auflösen bei neuer Auktion in der Liste, davon in Auktionen (`test_ledger.lua`).
+  - **Im Spiel prüfen:** Etwas einstellen, ohne die Seite Auktionen anzusehen, ausloggen und wieder einloggen: keine neue Abweichung. Nach dem ersten Login stehen im Verlauf bei Flitzdistel Zeilen „Auktion (korrigiert)“, die Statuszeile zählt weniger Abweichungen. Buch und Übersicht ohne überlappende Texte.
+
 ## 0.15.0
 
 Kurz: Das Buch zeigt den Handelsgewinn im Auktionshaus jetzt sauber getrennt: Käufe, Einstellgebühren mit zurückgezahlter Einzahlung, Abbruchkosten, Verkäufe, Anteil des Auktionshauses und Ware an Händler stehen einzeln da.

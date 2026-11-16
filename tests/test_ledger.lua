@@ -1920,6 +1920,74 @@ mod.acc.fixTransit = nil
 check(K.RepairTransit() == 1 and realm.moves[1].k == "twink" and realm.moves[1].n == 5 and realm.moves[2].k == "diff" and realm.moves[2].n == 2
   and not me.places.transit.items[2589] and said("Repariert: 1"), "0.15: Reparatur: Abweichung wird Twink-Post, Rest bleibt Abweichung")
 check(K.RepairTransit() == 0 and mod.acc.fixTransit, "0.15: Reparatur nur einmal")
+-- Einstellen: Ware gleich unter Auktionen, eigene Auktionen danach neu abgefragt
+inbox = {}
+fire("AUCTION_HOUSE_SHOW"); settle()
+me.places.auctions = { t = 1, items = {}, soldItems = {} }
+local queried = 0
+C_AuctionHouse.QueryOwnedAuctions = function() queried = queried + 1 end
+C_AuctionHouse.GetNumOwnedAuctions = function() return 0 end   -- das Spiel meldet die neue Auktion noch nicht
+BAGS[0][16] = { itemID = 2592, stackCount = 5 }
+Mv.paused = true; bags(); settle(); Mv.paused = nil
+local q0 = queried
+local d0 = ns.Check.Run("Mirel Dorna").items[2592]
+fire("AUCTION_HOUSE_AUCTION_CREATED", 1)
+BAGS[0][16] = nil
+bags(); settle()
+local post = realm.moves[#realm.moves]
+for i = #realm.moves, 1, -1 do if realm.moves[i].k == "posted" then post = realm.moves[i]; break end end
+check(post.k == "posted" and post.id == 2592 and post.n == -5 and me.places.auctions.items[2592] == 5 and queried > q0,
+  "0.15: eingestellte Ware gleich unter Auktionen, eigene Auktionen neu abgefragt")
+check(ns.Check.Run("Mirel Dorna").items[2592] == d0, "0.15: Einstellen aendert die Kontrollrechnung nicht (vorher fehlte die Ware)")
+fire("AUCTION_HOUSE_CLOSED"); settle()
+-- alte Abweichungen durch Einstellen paaren
+local t1 = time() - 5000
+realm.moves = {
+  { t = t1, c = "Mirel Dorna", k = "posted", id = 7000, n = -80 },
+  { t = t1 + 300, c = "Mirel Dorna", k = "diff", id = 7000, n = -80, x = ns.L.MV_X_DIFF },
+  { t = t1 + 600, c = "Mirel Dorna", k = "ahsold", id = 7000, n = -80, m = 8000, q = 80 },
+  { t = t1 + 900, c = "Mirel Dorna", k = "diff", id = 7000, n = 90, x = ns.L.MV_X_DIFF, v = 50 },
+  { t = t1 + 1000, c = "Mirel Dorna", k = "diff", id = 7001, n = -3, x = ns.L.MV_X_DIFF },
+}
+local _, before = K.Expected("Mirel Dorna")
+check(K.PairAuctionDiffs() == 2 and realm.moves[2].k == "aucfix" and realm.moves[4].k == "diff" and realm.moves[4].n == 10
+  and realm.moves[5].k == "aucfix" and realm.moves[5].n == 80 and realm.moves[6].k == "diff" and realm.moves[6].n == -3,
+  "0.15: Minus nach dem Einstellen und spaeteres Plus gepaart, Rest bleibt Abweichung, ohne Einstellen keine Paarung")
+local _, after = K.Expected("Mirel Dorna")
+check(before[7000] == after[7000] and ns.Moves.Label(realm.moves[2]) == "Auktion (korrigiert)", "0.15: Kontrollrechnung bleibt gleich, Zeile heisst Auktion (korrigiert)")
+check(K.PairAuctionDiffs() == 0, "0.15: Paarung nur einmal")
+-- ab 0.15.1: vor dem Update eingestellte Ware unter Auktionen nachtragen (einmal), neue Auktion in der Liste hebt Minus auf
+me.places.auctions = { t = time() - 4000, items = {} }
+realm.moves = {
+  { t = time() - 5000, c = "Mirel Dorna", k = "posted", id = 7200, n = -9 },     -- vor dem letzten Lesen: zaehlt nicht
+  { t = time() - 3000, c = "Mirel Dorna", k = "posted", id = 7201, n = -100 },
+  { t = time() - 2000, c = "Mirel Dorna", k = "ahsold", id = 7201, n = -30, m = 300, q = 30 },
+  { t = time() - 1000, c = "Mirel Dorna", k = "posted", id = 7202, n = -5, pl = true },   -- schon mit 0.15.1 eingestellt
+}
+mod.acc.fixListed = nil
+check(K.RepairListed() == 1 and me.places.auctions.items[7201] == 70 and not me.places.auctions.items[7200] and not me.places.auctions.items[7202]
+  and K.RepairListed() == 0, "0.15.1: vor dem Update eingestellte Ware einmal unter Auktionen nachgetragen")
+realm.moves = {
+  { t = time() - 3000, c = "Mirel Dorna", k = "posted", id = 7300, n = -20 },
+  { t = time() - 2000, c = "Mirel Dorna", k = "diff", id = 7300, n = -20, x = ns.L.MV_X_DIFF },
+}
+me.places.auctions = { t = 1, items = {}, soldItems = {} }
+C_AuctionHouse.GetNumOwnedAuctions = function() return 1 end
+C_AuctionHouse.GetOwnedAuctionInfo = function() return { itemKey = { itemID = 7300 }, quantity = 20, status = 0 } end
+fire("OWNED_AUCTIONS_UPDATED"); settle()
+check(realm.moves[2].k == "aucfix" and me.places.auctions.items[7300] == 20, "0.15.1: Auktion taucht in der Liste auf, offenes Minus wird Auktion (korrigiert)")
+C_AuctionHouse.GetNumOwnedAuctions = function() return 0 end
+-- davon in Auktionen
+local keepS, keepB = me.start, realm.lotBase
+me.start, realm.lotBase = { t = 0, places = {} }, nil
+realm.moves = { { t = time() - 100, c = "Mirel Dorna", k = "ahbuy", id = 7100, n = 4, m = -400 } }
+me.places.auctions = { t = 1, items = { [7100] = 3 } }
+ns.Cost.Invalidate()
+local bk = ns.Book.Collect("today", false)
+check(math.abs(ns.Cost.ListedValue(nil, "Mirel Dorna") - 300) < 0.01 and math.abs(bk.bridge.auction + 300) < 0.01 and math.abs(bk.bridge.stock + 100) < 0.01,
+  "0.15: davon in Auktionen (3 von 4 gekauften Stueck), Rest ins Lager")
+me.start, realm.lotBase = keepS, keepB
+me.places.auctions = { t = 1, items = {} }
 -- Fortschritt beim Einsammeln
 inbox = { { nil, nil, "Bob Baum", "Gold", 100, 0, 29, nil }, { nil, nil, "Bob Baum", "Gold", 200, 0, 29, nil } }
 fire("MAIL_SHOW"); fire("MAIL_INBOX_UPDATE"); settle()

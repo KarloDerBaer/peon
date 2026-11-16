@@ -16,7 +16,8 @@ local K = {}
 ns.Check = K
 
 K.PLACES = { "bags", "bank", "auctions", "equip" }
-K.SKIP = { posted = true, ahback = true, ahreturn = true }   -- nur Umbuchung zwischen Taschen und Auktionen
+K.SKIP = { posted = true, ahback = true, ahreturn = true, aucfix = true }   -- nur Umbuchung zwischen Taschen und Auktionen
+K.PAIR_DAYS = 3     -- ab 0.15: Abweichung minus bis so lange nach dem Einstellen gilt als nicht angekommene Auktion
 K.DELAY = 25        -- Sekunden nach dem Einloggen (Inventory.LOGIN_QUIET ist 20)
 K.DAYS = 7          -- Abweichungen der letzten Tage in der Anzeige
 
@@ -167,6 +168,136 @@ function K.RepairTransit()
     return fixed
 end
 
+-- Abweichungen durch Einstellen paaren (ab 0.15): Bis 0.14.9 kam eingestellte Ware erst unter Auktionen an, wenn
+-- man die eigenen Auktionen ansah. Die Kontrollrechnung buchte sie als fehlend (minus) und nach dem Verkauf wieder
+-- als Zugang (plus). Beide nahmen und gaben Posten (Kosten weg, Startbestand mit Kosten 0 dazu). Ein Minus bis
+-- K.PAIR_DAYS nach dem Einstellen desselben Gegenstands und ein spaeteres Plus werden gegeneinander aufgehoben:
+-- Art "aucfix" (Umbuchung, zaehlt weder fuer Kosten noch fuer die Kontrollrechnung). Rest bleibt Abweichung.
+function K.PairAuctionDiffs()
+    local r = ns.Inventory.RealmData()
+    local list = type(r.moves) == "table" and r.moves or {}
+    local lastPost, neg, conv = {}, {}, {}
+    local paired = 0
+    for _, e in ipairs(list) do
+        if type(e) == "table" and e.id and e.c then
+            local key = e.c .. "|" .. tostring(e.id)
+            if e.k == "posted" then
+                lastPost[key] = e.t or 0
+            elseif e.k == "diff" and Num(e.n) and e.n < 0 and lastPost[key] and (e.t or 0) - lastPost[key] <= K.PAIR_DAYS * 86400 then
+                local q = neg[key]
+                if not q then q = {}; neg[key] = q end
+                q[#q + 1] = { e = e, rem = -e.n }
+            elseif e.k == "diff" and Num(e.n) and e.n > 0 and neg[key] then
+                local want = e.n
+                local q = neg[key]
+                while want > 0 and q[1] do
+                    local x = q[1]
+                    local k = math.min(want, x.rem)
+                    x.rem, want = x.rem - k, want - k
+                    conv[x.e] = (conv[x.e] or 0) + k
+                    conv[e] = (conv[e] or 0) + k
+                    if x.rem <= 0 then table.remove(q, 1) end
+                end
+                if not q[1] then neg[key] = nil end
+            end
+        end
+    end
+    if not next(conv) then return 0 end
+    local out = {}
+    for _, e in ipairs(list) do
+        out[#out + 1] = e
+        local k = conv[e]
+        if k then
+            local sign = e.n < 0 and -1 or 1
+            if k >= math.abs(e.n) then
+                e.k, e.x, e.v = "aucfix", nil, nil
+            else
+                local fix = {}
+                for a, b in pairs(e) do fix[a] = b end
+                fix.k, fix.n, fix.x, fix.v = "aucfix", sign * k, nil, nil
+                e.n = e.n - sign * k
+                out[#out + 1] = fix
+            end
+            paired = paired + 1
+        end
+    end
+    for i = 1, math.max(#list, #out) do list[i] = out[i] end
+    ns.Moves.Changed()
+    mod:Dbg(("Kontrollrechnung: %d Abweichungen durch Einstellen gepaart"):format(paired))
+    return paired
+end
+
+-- Neue Auktion in der Liste, die vorher fehlte (ab 0.15.1, aus Moves.OnAuctions): offene Abweichungen minus nach
+-- dem Einstellen desselben Gegenstands werden zu "Auktion (korrigiert)", die Ware war nie weg. Rueckgabe: Stueck
+function K.ResolveListed(name, id, n)
+    local list = ns.Moves.List()
+    local lastPost
+    for _, e in ipairs(list) do
+        if e.c == name and e.id == id and e.k == "posted" then lastPost = e.t or 0 end
+    end
+    if not lastPost then return 0 end
+    local left, done = n, 0
+    for i = #list, 1, -1 do
+        if left <= 0 then break end
+        local e = list[i]
+        if e.c == name and e.id == id and e.k == "diff" and Num(e.n) and e.n < 0 and (e.t or 0) >= lastPost - K.PAIR_DAYS * 86400 then
+            local k = math.min(left, -e.n)
+            if k >= -e.n then
+                e.k, e.x, e.v = "aucfix", nil, nil
+            else
+                local fix = {}
+                for a, b in pairs(e) do fix[a] = b end
+                fix.k, fix.n, fix.x, fix.v = "aucfix", -k, nil, nil
+                e.n = e.n + k
+                table.insert(list, i + 1, fix)
+            end
+            left, done = left - k, done + k
+        end
+    end
+    if done > 0 then ns.Moves.Changed() end
+    return done
+end
+
+-- Einmalig (ab 0.15.1, gemerkt in fixListed): Ware, die vor 0.15.1 eingestellt wurde und seitdem weder verkauft
+-- noch zurueckgekommen ist, unter Auktionen nachtragen. Nur Einstellungen nach dem letzten Lesen der Auktionsliste
+-- des Charakters (davor stimmt die Liste).
+function K.RepairListed()
+    local db = mod.acc
+    if type(db) ~= "table" or db.fixListed then return 0 end
+    local fixed = 0
+    for _, r in pairs(type(db.realms) == "table" and db.realms or {}) do
+        local open = {}
+        for name, c in pairs(type(r) == "table" and type(r.chars) == "table" and r.chars or {}) do
+            local p = type(c) == "table" and type(c.places) == "table" and c.places.auctions
+            open[name] = { t = type(p) == "table" and p.t or 0, items = {} }
+        end
+        for _, e in ipairs(type(r.moves) == "table" and r.moves or {}) do
+            local o = e.c and open[e.c]
+            if o and e.id and Num(e.n) and (e.t or 0) > o.t then
+                if e.k == "posted" and e.n < 0 and not e.pl then o.items[e.id] = (o.items[e.id] or 0) - e.n
+                elseif (e.k == "ahreturn" and e.n > 0) or (e.k == "ahsold" and e.n < 0) then
+                    o.items[e.id] = math.max(0, (o.items[e.id] or 0) - math.abs(e.n))
+                end
+            end
+        end
+        for name, o in pairs(open) do
+            for id, n in pairs(o.items) do
+                if n > 0 then
+                    local c = r.chars[name]
+                    if type(c.places.auctions) ~= "table" then c.places.auctions = { t = 0, items = {} } end
+                    local p = c.places.auctions
+                    if type(p.items) ~= "table" then p.items = {} end
+                    p.items[id] = (p.items[id] or 0) + n
+                    fixed = fixed + 1
+                end
+            end
+        end
+    end
+    db.fixListed = true
+    if fixed > 0 then ns.Moves.Changed() end
+    return fixed
+end
+
 -- Zeilen "Abweichung" der letzten Tage (alle Charaktere des Realms)
 function K.Recent(days, now)
     now = now or time()
@@ -191,7 +322,9 @@ function K.OnLogin()
     local CT = rawget(_G, "C_Timer")
     local function Go()
         mod:Call("Kontrollrechnung", K.RepairTransit)
+        mod:Call("Kontrollrechnung", K.RepairListed)
         mod:Call("Kontrollrechnung", K.Book)
+        mod:Call("Kontrollrechnung", K.PairAuctionDiffs)
     end
     if CT and CT.After then CT.After(K.DELAY, Go) else Go() end
 end
