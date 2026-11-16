@@ -468,7 +468,12 @@ local function SliderSet(s, lo, hi, pos, enabled)
     if s.peonMin ~= lo or s.peonMax ~= hi or s.peonVal ~= pos then
         F.qtySync = true
         if type(s.Slider) == "table" and type(s.Init) == "function" then
-            pcall(s.Init, s, pos, lo, hi, math.max(1, hi - lo))   -- MinimalSliderWithSteppersTemplate
+            -- MinimalSliderWithSteppersTemplate. Ab 0.99.1 ohne eigene Zahl rechts (zeigte einen alten Stand, die
+            -- Menge steht im Feld daneben)
+            local mix = rawget(_G, "MinimalSliderWithSteppersMixin")
+            local right = mix and mix.Label and mix.Label.Right
+            pcall(s.Init, s, pos, lo, hi, math.max(1, hi - lo), right and { [right] = function() return "" end } or nil)
+            if type(s.RightText) == "table" and s.RightText.Hide then s.RightText:Hide() end
         else
             if s.SetMinMaxValues then s:SetMinMaxValues(lo, hi) end
             if s.SetValue then s:SetValue(pos) end

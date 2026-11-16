@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.99.1
+
+Kurz: Beim Verkaufen steht im Rat jede Angabe in einer eigenen Zeile, ganz unten der mögliche Gewinn nach Gebühr und Einkauf. Im Fokus zeigt der Mengenregler keine zweite, veraltete Zahl mehr.
+
+- 0.99.1 (16.11.2026, Rückmeldung KarloDerBaer):
+  - **Behoben, Fokus:** Neben dem Mengenregler stand eine gelbe Zahl mit altem Stand. Das war die Wertanzeige von Blizzards Regler, die beim Nachziehen nicht neu gesetzt wurde. Sie ist jetzt aus, die Menge steht im Feld.
+  - **Geändert, Verkaufen:** Der Rat links zeigt Üblich, Absatz, Verkaufsquote, Erlös und Händler je in einer eigenen Zeile mit goldener Beschriftung.
+  - **Neu, Verkaufen:** Zeile „Möglicher Gewinn“ ganz unten: Erlös nach Gebühr beim Preis im Feld minus Einkauf (`A.Profit`). Der Einkauf kommt aus dem Posten, sonst aus Peon_Ledger. Ohne bekannten Einkauf zählt der Erlös ganz, mit Hinweis.
+  - Tests: Zeilen Erlös und Möglicher Gewinn, Gewinn mit und ohne Einkauf (`test_broker.lua`).
+  - **Im Spiel prüfen:** Keine gelbe Zahl mehr am Regler. Kasten beim Verkaufen gut lesbar, Gewinn plausibel.
+
 ## 0.99.0
 
 Kurz: Im Fokus stellst du mit Schieberegler oder Feld ein, wie viele Stück du höchstens kaufen willst. Die Zahl bleibt, auch wenn mehr Ware unter den Preis fällt. Beim Verkaufen stehen rechts neben dem Rat Knöpfe, die mit einem Klick den günstigsten Preis, den Vorschlag, deinen zuletzt eingestellten Preis oder deinen Zielpreis eintragen.

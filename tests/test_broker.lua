@@ -1701,6 +1701,16 @@ end)()
         and plain(bt.last.text) == "Letzter" and bt.last.disabled and bt.last.shown,
         "0.99: Knoepfe Guenstige, Vorschlag, Letzter (noch grau): " .. plain(bt.cheap.text) .. " / " .. plain(bt.suggest.text) .. " / " .. plain(bt.last.text))
     check(plain(box.lines.text):find("unter dem Ziel", 1, true), "H3: Warnung: Markt liegt unter dem Ziel")
+    do
+      local t = plain(box.lines.text)
+      check(t:find("\nErlös:  ", 1, true) and t:find("\nMöglicher Gewinn:  ", 1, true) and t:find("(Einkauf ", 1, true),
+        "0.99.1: Erloes und moeglicher Gewinn in eigener Zeile, Einkauf aus dem Posten: " .. t)
+      local g = A.Profit({ net = 2850, qty = 2 }, { cost = 2076, qty = 2 })
+      check(g and g.cost == 2076 and g.gain == 774, "0.99.1: Gewinn = Erloes minus Einkauf")
+      g = A.Profit({ net = 950.4, qty = 1 }, nil)
+      check(g and g.cost == nil and g.gain == 950, "0.99.1: ohne Einkauf zaehlt der Erloes ganz")
+      check(A.Profit({ qty = 1 }, nil) == nil, "0.99.1: ohne Erloes kein Gewinn")
+    end
     GetTime = function() return now end
     bt.cheap.scripts.OnClick(bt.cheap)
     check(setTo == 1400 and sf.price == 1400, "0.99: Guenstige ins Preisfeld geschrieben")

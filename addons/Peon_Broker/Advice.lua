@@ -266,6 +266,19 @@ function A.ShowButtons(b, prices)
     end
 end
 
+-- Moeglicher Gewinn (ab 0.99.1): Erloes nach Gebuehr minus Einkauf. Einkauf je Stueck aus dem Posten, sonst aus
+-- Peon_Ledger. Ohne Einkauf zaehlt der Erloes ganz. Rueckgabe { gain, cost } oder nil (ohne Erloes)
+function A.Profit(r, lot)
+    if not (r and Num(r.net)) then return nil end
+    local qty = r.qty or 1
+    local unit = lot and ns.Lots and ns.Lots.UnitCost(lot) or nil
+    if not Num(unit) and r.key ~= nil and ns.Item and ns.Item.OwnCost and ns.Data.ItemID then
+        unit = ns.Item.OwnCost(ns.Data.ItemID(r.key))
+    end
+    local cost = Num(unit) and math.floor(unit * qty + 0.5) or nil
+    return { gain = math.floor(r.net + 0.5) - (cost or 0), cost = cost }
+end
+
 function A.Show(sf, r, isNeutral)
     local b = Box(sf)
     local c = A.COLORS[r.kind] or A.COLORS.none
@@ -273,13 +286,23 @@ function A.Show(sf, r, isNeutral)
     b.title:SetTextColor(c[1], c[2], c[3])
     b.why:SetText(r.extra and (r.why .. " " .. r.extra) or (r.why or ""))
     b.market:SetText(isNeutral and L.ADV_NEUTRAL or "")
+    -- ab 0.99.1 (Wunsch KarloDerBaer): jede Angabe in eigener Zeile, Beschriftung gold, unten der moegliche Gewinn
     local parts = {}
-    if r.band then parts[#parts + 1] = L.ADV_LINE_RANGE:format(ns.Tooltip.RangeText(r.band)) end
-    if r.sales and ns.Sales then parts[#parts + 1] = L.ADV_LINE_SALES:format(ns.Sales.TooltipText(r.sales)) end
-    if r.net then
-        local erl = L.ADV_LINE_NET:format(Money(r.net), r.qty or 1)
-        if r.vendor then erl = erl .. "  " .. L.ADV_LINE_VENDOR:format(Money(r.vendor)) end
-        parts[#parts + 1] = erl
+    local function Row(label, value) parts[#parts + 1] = "|cffffd100" .. label .. "|r  " .. value end
+    if r.band then Row(L.ADV_ROW_RANGE, ns.Tooltip.RangeText(r.band)) end
+    if r.sales and ns.Sales then
+        Row(L.ADV_ROW_SALES, ns.Sales.PerHourText(r.sales))
+        if Num(r.sales.rate) then Row(L.ADV_ROW_RATE, L.ADV_RATE:format(math.floor(r.sales.rate * 100 + 0.5))) end
+    end
+    if r.net then Row(L.ADV_ROW_NET, L.ADV_FOR:format(Money(math.floor(r.net + 0.5)), r.qty or 1)) end
+    if r.vendor then Row(L.ADV_ROW_VENDOR, Money(r.vendor)) end
+    local g = A.Profit(r, A.lot)
+    if g then
+        local col = g.gain >= 0 and "|cff33ff33+" or "|cffff6666-"
+        local v = col .. Money(math.abs(g.gain)) .. "|r"
+        if g.cost then v = v .. "  |cff999999" .. L.ADV_PROFIT_COST:format(Money(g.cost)) .. "|r"
+        else v = v .. "  |cff999999" .. L.ADV_PROFIT_NOCOST .. "|r" end
+        Row(L.ADV_ROW_PROFIT, v)
     end
     -- ab 0.67 (H3): Posten zum Gegenstand: Einsatz, Ziel, Warnung (ab 0.99 Knopf "Ziel" rechts)
     local lot = A.lot
