@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.97.0 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.43.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.1 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.4.1.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.97.0 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.43.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.2 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.6.1 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.4.1.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.22.0, API 22
@@ -181,8 +181,9 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Verlauf der Versionen: `docs/changelog/Peon_Bridge.md`
 - Im Spiel prüfen (nach dem Start): Optionsseite zeigt „Kanal broker freigeschaltet“ und „Peon Manager: Werte vom … (Version 0.6.0)“.
 
-## Peon_Ledger – 0.15.1 (Bestand, Buch und Postfenster)
+## Peon_Ledger – 0.15.2 (Bestand, Buch und Postfenster)
 
+- **Bestand 0 im Tooltip (ab 0.15.2, 16.11.2026):** Bei Handwerksmaterial (Klasse 7 oder Kennzeichen „Handwerksmaterial“ des Spiels) zeigt der Tooltip auch dann „Ledger · Bestand 0“, wenn kein Charakter etwas davon hat. Andere Gegenstände ohne Bestand bleiben ohne Ledger-Zeile. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Eingestellte Ware unter Auktionen (ab 0.15.1):** Ware kommt beim Einstellen gleich unter Auktionen, danach Neuabfrage der eigenen Auktionen. Alte Abweichungen durch Einstellen werden bei jedem Login gepaart (`aucfix`, „Auktion (korrigiert)“). Einmaliger Nachtrag vorher eingestellter Ware (`fixListed`), Auflösen offener Abweichungen bei neuer Auktion in der Liste. Buch mit „davon in Auktionen“, Charakter links und Zeitraum rechts, Überlagerungen in Buch und Übersicht behoben. Neues Feld an Bewegungen: `pl` (Einstellung schon unter Auktionen). Nicht veröffentlicht, im Spiel noch nicht geprüft.
 
 - **Buch mit klarem Handelsgewinn (ab 0.15.0, 14.11.2026):** Konzept `docs\konzepte\ledger\Peon_Ledger_Buch_AH.md`, abgestimmt mit KarloDerBaer. Beuteanteil je Posten (`b`, `a`), Verkäufe teilen sich in Handelsteil und Beuteteil, Sondereinnahme entfällt. Buch „Nach Art“ mit Auktionshaus, AH: Handelsgewinn und davon-Zeilen, Spielalltag, Summen. Gebühren je Stück, mehrere Käufe aus einem Schwung Post zusammengezählt. Post in der Ruhezeit nach dem Einloggen wird verbucht, Kontrollrechnung nimmt Ware aus „Unterwegs“ als Twink-Post, einmalige Reparatur (`fixTransit`). Fortschritt beim Einsammeln. Braucht für den Trennstrich Peon 0.21.0 (Kern-API 21), sonst nur ohne Strich. Daten vor dem Update gesichert in `<Archiv>\Ledger_vor_0.15`. Vorabversion `v2026.11.14.4-test` (14.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Normales Release `v2026.11.14.6` (14.11.2026), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im Spiel noch nicht geprüft.

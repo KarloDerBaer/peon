@@ -3,6 +3,7 @@
 -- Bausteine mit Wann (immer / mit Umschalt / aus), Format und Reihenfolge, Vorlagen Schlank / Standard /
 -- Ausfuehrlich. Standard: Bestand immer, Orte je Charakter, Kosten und zuletzt gezahlt mit Umschalt.
 --   stock  Bestand        all = Summe mit Vornamen, sum = nur Summe, me = dieser Charakter, bagsbank = Taschen + Bank
+--          ab 0.15.2 bei Handwerksmaterial auch "Bestand 0", damit klar ist, dass Ledger nichts auf Lager kennt
 --   chars  je Charakter   places = Orte (Taschen 5, Bank 15), total = nur Summe je Charakter
 --   cost   Kosten         both = naechstes Stueck (Ø), next = naechstes Stueck, value = Lagerwert des Bestands
 --   last   zuletzt gezahlt   price = Preis je Stueck, full = mit Menge, Quelle und Datum
@@ -37,6 +38,22 @@ for _, b in ipairs(T.BLOCKS) do T.BLOCK[b.key] = b end
 function T.ItemID(link)
     if type(link) ~= "string" or Peon.IsSecret(link) then return nil end
     return tonumber(link:match("item:(%d+)"))
+end
+
+-- Handwerksmaterial (Klasse 7 oder Kennzeichen des Spiels): dort zeigt der Tooltip auch Bestand 0
+function T.IsMaterial(id)
+    local CI = rawget(_G, "C_Item")
+    local inst = (CI and CI.GetItemInfoInstant) or rawget(_G, "GetItemInfoInstant")
+    if type(inst) == "function" then
+        local ok, _, _, _, _, _, classID = pcall(inst, id)
+        if ok and classID == 7 then return true end
+    end
+    local info = (CI and CI.GetItemInfo) or rawget(_G, "GetItemInfo")
+    if type(info) == "function" then
+        local ok, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, reagent = pcall(info, id)
+        if ok and reagent == true then return true end
+    end
+    return false
 end
 
 -- Vorname (Charaktere haben in Forever Vor- und Nachnamen)
@@ -127,6 +144,7 @@ end
 function T.Data(id)
     local c = ns.Inventory.Count(id)
     local d = { total = c.total, chars = c.chars, warband = c.warband, me = 0, bags = 0, bank = 0 }
+    if (c.total or 0) <= 0 then d.mat = T.IsMaterial(id) end
     local me = ns.CharName()
     for _, ch in ipairs(c.chars) do
         if ch.name == me then d.me, d.bags, d.bank = ch.total, ch.places.bags or 0, ch.places.bank or 0 end
@@ -145,7 +163,10 @@ local function Src(src) return ns.Stock and ns.Stock.SourceText(src) or tostring
 -- Zeilen eines Bausteins: Liste { left, right }, leer wenn nichts zu zeigen ist
 function T.BlockLines(key, fmt, d)
     if key == "stock" then
-        if (d.total or 0) <= 0 then return {} end
+        if (d.total or 0) <= 0 then
+            if not d.mat then return {} end
+            return { { L.TT_STOCK_LEFT, "0" } }
+        end
         local right
         if fmt == "sum" then right = tostring(d.total)
         elseif fmt == "me" then right = L.TT_STOCK_ME:format(d.me, d.total)

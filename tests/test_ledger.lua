@@ -316,6 +316,15 @@ do
 end
 tt.lines = {}; tt.link = "item:99999"; ttPost(tt, {})
 check(#tt.lines == 0, "niemand hat ihn: keine Zeile")
+do
+  local keepI = C_Item.GetItemInfoInstant
+  C_Item.GetItemInfoInstant = function(id) return id, "", "", "", 1, id == 3357 and 7 or 2, 0 end
+  tt.lines = {}; tt.link = "item:3357"; ttPost(tt, {})
+  check(#tt.lines == 1 and tt.lines[1]:find("Bestand", 1, true) and tt.lines[1]:find("| 0", 1, true), "0.15.2: Handwerksmaterial ohne Bestand zeigt Bestand 0 (" .. tostring(tt.lines[1]) .. ")")
+  tt.lines = {}; tt.link = "item:99999"; ttPost(tt, {})
+  check(#tt.lines == 0, "0.15.2: anderer Gegenstand ohne Bestand bleibt ohne Zeile")
+  C_Item.GetItemInfoInstant = keepI
+end
 -- Fenster (ab 0.14 mit Peon.UI, vier Reiter)
 SlashCmdList.PEON_LEDGER("")
 local W = ns.Window

@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.15.2
+
+Kurz: Bei Handwerksmaterial zeigt der Tooltip jetzt auch „Bestand 0“. So siehst du sofort, dass keiner deiner Charaktere etwas davon hat.
+
+- 0.15.2 (16.11.2026): **Bestand 0 bei Handwerksmaterial** (Wunsch KarloDerBaer, Lebenswurz im Berufsfenster ohne Ledger-Zeile). Bisher fehlte der Ledger-Block ganz, wenn kein Charakter etwas hatte und es keine Kaufdaten gab. Man konnte nicht unterscheiden, ob man nichts hat oder ob Ledger nichts weiß.
+  - `Tooltip.IsMaterial`: Klasse 7 aus `GetItemInfoInstant` oder Kennzeichen Handwerksmaterial aus `GetItemInfo`. Nur dann zeigt der Baustein Bestand bei 0 Stück „0“, in jedem Format.
+  - Andere Gegenstände ohne Bestand bleiben wie bisher ohne Ledger-Zeile.
+  - Tests: Material ohne Bestand zeigt Bestand 0, anderer Gegenstand ohne Bestand keine Zeile (`test_ledger.lua`).
+  - **Im Spiel prüfen:** Maus über ein Material, das kein Charakter hat (z. B. im Berufsfenster): Zeile „Ledger · Bestand 0“. Über einem Ausrüstungsteil, das niemand hat: keine Ledger-Zeile.
+
 ## 0.15.1
 
 Kurz: Eingestellte Ware steht jetzt sofort unter „Auktionen“. Vorher zählte die Kontrollrechnung sie als fehlend, und die Kosten gekaufter Ware gingen verloren.
