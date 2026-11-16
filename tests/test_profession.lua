@@ -133,6 +133,10 @@ end
 function fb:AhPrice(id) return AH[id] end
 function fb:ItemValue(id, n) local v = VALUE[id] or AH[id] return v and math.floor(v * (n or 1) * 0.95) or nil end
 function fb:AddToList(name, mats, keepMax) listCalls[#listCalls + 1] = { name = name, mats = mats, keepMax = keepMax } return #mats end
+-- ab 0.4.0 (Reiter Verlauf): Verlauf im AH und Tagesnummer
+local HIST = {}
+function fb:History(id) return HIST[id] or {} end
+function fb:DayOf() return 20000 end
 fire("ADDON_LOADED", "Peon_FakeBroker")
 -- Einstellungen des Berufsfensters lagen bis Broker 0.94 in PeonBrokerDB
 PeonBrokerDB = { craftListMode = "pct", craftHint = false, keepAllChars = true }
@@ -516,6 +520,79 @@ end)()
   check(rows[1].id == 2997 and rows[1].src == "craft" and rows[1].cost == nil and rows[2].id == 2321 and rows[3].id == 2592 and rows[3].need == 405,
       "0.3.1: Jetzt zeigt Ballen als selbst herstellen und Wollstoff dazu")
   check(#P.Rows({ { id = 2997, q = 3 } }, 1) == 1, "0.3.1: ohne Beruf keine Aufloesung")
+end)()
+
+-- 0.4.0: Verhuetten beim Bergbau
+;(function()
+  local G = ns.Guide
+  local steps = G.Steps(186)
+  check(#steps == #ns.Routes[186] + #ns.Smelt[186] and steps[1] == ns.Routes[186][1] and steps[#steps].smelt,
+      "0.4.0: Route und Verhuetten zusammen, Nummern der Route bleiben")
+  for _, s in ipairs(ns.Smelt[186]) do assert(s.from < s.to and s.smelt and s.n and ns.Learn[s.spell], "Verhuetten gueltig") end
+  check(#G.Steps(171) == #ns.Routes[171], "0.4.0: andere Berufe ohne Verhuetten")
+  local s = G.SmeltAt(186, 40)
+  check(s and s.item == 2840, "0.4.0: bei 40 Kupferbarren verhuetten")
+  check(G.SmeltAt(186, 50) == nil, "0.4.0: bei 50 nichts zu verhuetten")
+  check(G.CraftStepAt(186, 40) == s and G.CraftStepAt(186, 50).gather and G.CraftStepAt(171, 89) == G.StepAt(171, 89),
+      "0.4.0: Berufsfenster beim Bergbau zeigt das Verhuetten")
+  local plan = G.Plan(186, 40, 75, 100)
+  local prev, sm, tr = 0, 0, false
+  for _, e in ipairs(plan) do
+    assert(e.from >= prev, "Plan nach Stufe geordnet")
+    prev = e.from
+    if e.smelt then sm = sm + 1 end
+    if e.trainer and e.from == 75 then tr = true end
+    assert(e.trainer or e.from >= 75 or e.to <= 75, "an 75 geteilt")
+  end
+  check(sm >= 4 and tr, "0.4.0: Plan Bergbau mit Verhuetten, geteilt an der Lehrerzeile bei 75")
+  local need, made = G.Need(186, plan)
+  check(need[2770] and need[2770] > 0 and need[2771] and need[2840] == nil and made[2840], "0.4.0: Bronze aus selbst verhuettetem Kupfer und Zinn")
+  local v = G.View(186, s, 40)
+  check(v and not v.gather and v.smelt and v.mats[1].id == 2770 and v.count > 0, "0.4.0: Verhuetten im Jetzt als Rezept mit Erz")
+  ns.Window.Open(186)
+  check(ns.Window.info.text:find("Verhütten", 1, true) and ns.Window.view.gather, "0.4.0: Jetzt beim Sammeln nennt das Verhuetten")
+  local row
+  for _, it in ipairs(ns.Window.plan.items) do if it.name and it.name:find("^Verhütten") then row = it end end
+  check(row ~= nil and ns.Window.btnTarget.shown, "0.4.0: Plan zeigt Verhuetten, Knopf Einkaufsliste da")
+  ns.Window.plan.o.onClick(row, "LeftButton")
+  check(ns.Window.view.smelt and ns.Window.name.text:find("^Verhütten"), "0.4.0: Klick zeigt das Verhuetten im Jetzt")
+  ns.Window.Select("route")
+  local nSm = 0
+  for _, it in ipairs(ns.Window.route.items) do if it.name:find("Verhütten", 1, true) then nSm = nSm + 1 end end
+  check(#ns.Window.route.items == #steps and nSm == #ns.Smelt[186], "0.4.0: Route mit Verhuetten")
+  ns.Window.Select("guide")
+end)()
+
+-- 0.4.0: Reiter Verlauf (Kosten bis zum Ziel je Tag)
+;(function()
+  local H = ns.History
+  HIST[2449] = { { day = 19990, min = 20 }, { day = 19995, min = 30 }, { week = 2854, min = 10 } }
+  HIST[3371] = { { day = 19996, min = 9 } }
+  local s, real = H.Prices(2449, 7, 20000)
+  check(s and s[1] == 30 and s[2] == 30 and s[6] == 30 and s[7] == 40 and real[2] and not real[1],
+      "0.4.0: Tagespreise, Luecken mit dem letzten Wert, heute der aktuelle Preis")
+  local s2 = H.Prices(3371, 7, 20000)
+  check(s2[3] == 4 and s2[1] == 4, "0.4.0: hoechstens der Haendlerpreis")
+  check(H.Prices(77777, 7, 20000) == nil, "0.4.0: ohne Preis nil")
+  HIST[2449][#HIST[2449] + 1] = { week = 2856, min = 25 }   -- Tage 19992-19998, Tageswert geht vor
+  s = H.Prices(2449, 7, 20000)
+  check(s[1] == 25 and s[2] == 30 and s[3] == 25, "0.4.0: Wochenwert fuellt Tage ohne Tageswert")
+  check(H.Signed(150):find("+", 1, true) and H.Signed(-150):find("-", 1, true) and H.Percent(0.25):find("+25 %", 1, true), "0.4.0: Vorzeichen")
+  mod.db.histDays = 7
+  ns.Window.Open(171)
+  ns.Window.Select("history")
+  local d = ns.Window.histData
+  check(d and d.days == 7 and #d.total == 7 and #ns.Window.histTable.items > 0, "0.4.0: Verlauf berechnet")
+  local m
+  for _, it in ipairs(ns.Window.histTable.items) do if it.id == 2449 then m = it end end
+  check(m and m.first == 25 and m.now == 40 and m.delta == 15 * m.need, "0.4.0: Material mit Preis vorher, heute, Mehrkosten")
+  check(ns.Window.histHead.text:find("heute", 1, true) and ns.Window.histHead.text:find("vor 7 Tagen", 1, true), "0.4.0: Kopf mit Summe")
+  check(d.real >= 2 and ns.Window.histEmpty.shown == false, "0.4.0: Diagramm mit echten Tagen")
+  check(mod.db.windowTab == "history", "0.4.0: Reiter gemerkt")
+  HIST[2449], HIST[3371] = nil, nil
+  ns.Window.Select("history")
+  check(ns.Window.histEmpty.shown and ns.Window.histEmpty.text:find("Noch kein Verlauf", 1, true), "0.4.0: ohne Verlauf ein Hinweis")
+  ns.Window.Select("guide")
 end)()
 
 -- Starter-Text und Slash

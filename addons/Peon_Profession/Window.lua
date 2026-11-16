@@ -20,8 +20,13 @@ local function UI() return Peon.UI end
 local function G() return ns.Guide end
 local function P() return ns.Prices end
 
-W.TABS = { { "guide", "TAB_GUIDE" }, { "route", "TAB_ROUTE" }, { "mats", "TAB_MATS" } }
+W.TABS = { { "guide", "TAB_GUIDE" }, { "route", "TAB_ROUTE" }, { "mats", "TAB_MATS" }, { "history", "TAB_HISTORY" } }
 W.contents = {}
+
+function W.IsTab(key)
+    for _, t in ipairs(W.TABS) do if t[1] == key then return true end end
+    return false
+end
 
 local function SavePosition(f)
     if not f.GetPoint then return end
@@ -114,7 +119,8 @@ function W.Content(key)
     c = CreateFrame("Frame", nil, W.frame)
     c:SetAllPoints()
     W.contents[key] = c
-    if key == "guide" then W.BuildGuide(c) elseif key == "route" then W.BuildRoute(c) else W.BuildMats(c) end
+    if key == "guide" then W.BuildGuide(c) elseif key == "route" then W.BuildRoute(c)
+    elseif key == "history" then W.BuildHistory(c) else W.BuildMats(c) end
     return c
 end
 
@@ -249,7 +255,7 @@ function W.IsOpen() return W.frame ~= nil and W.frame:IsShown() end
 
 function W.Select(key)
     W.Create()
-    if key ~= "route" and key ~= "mats" then key = "guide" end
+    if not W.IsTab(key) then key = "guide" end
     W.current = key
     mod.db.windowTab = key
     W.selecting = true
@@ -320,6 +326,9 @@ function W.InfoText(key, v, prof)
     local t = {}
     if v.gather then
         t[#t + 1] = Zones(v.step)
+        -- ab 0.4.0: Verhuetten gibt beim Bergbau auch Punkte
+        local s = G().SmeltAt(key, math.max(v.from or 0, prof and prof.skill or 0))
+        if s then t[#t + 1] = L.SMELT_TOO:format(G().RecipeName(s.item, s.spell), s.to) end
     elseif not (v.step.item or v.step.spell) then
         t[#t + 1] = L.FREE_STEP
     elseif v.learned then
@@ -344,8 +353,9 @@ end
 function W.ViewFor(key, prof)
     local route = G().Route(key)
     if type(route) ~= "table" then return nil end
-    if W.pick and route[W.pick] then
-        local s = route[W.pick]
+    local steps = G().Steps(key)   -- ab 0.4.0 mit Verhuetten
+    if W.pick and steps[W.pick] then
+        local s = steps[W.pick]
         return G().View(key, s, math.max(s.from, prof.skill), W.pick)
     end
     local step, i = G().StepAt(key, prof.skill)
@@ -356,7 +366,7 @@ end
 function W.Refresh()
     if not W.frame then return end
     W.current = W.current or mod.db.windowTab or "guide"
-    if W.current ~= "route" and W.current ~= "mats" then W.current = "guide" end
+    if not W.IsTab(W.current) then W.current = "guide" end
     W.Content(W.current)   -- OnShow kann vor dem ersten Select kommen
     local profs = W.ProfList()
     local nodes = {}
@@ -367,7 +377,7 @@ function W.Refresh()
     W.cats:SetNodes(nodes)
     local prof = W.Current(profs)
     W.prof, W.view = prof, nil
-    local craft = prof and ns.PROFS[prof.key] and ns.PROFS[prof.key].craft
+    local craft = prof and ns.PROFS[prof.key] and (ns.PROFS[prof.key].craft or (ns.Smelt and ns.Smelt[prof.key])) and true
     local hasBroker = P().Broker() ~= nil
     W.btnStep:SetShown(craft and hasBroker and W.current == "guide")
     W.btnTarget:SetShown(craft and hasBroker)
@@ -398,6 +408,7 @@ function W.Refresh()
     W.planRows = G().Plan(prof.key, prof.skill, prof.max, W.goal)
     if W.current == "route" then W.FillRoute(prof)
     elseif W.current == "mats" then W.FillMats(prof)
+    elseif W.current == "history" then W.FillHistory(prof)
     else
         local v = W.ViewFor(prof.key, prof)
         W.view = v
@@ -423,6 +434,7 @@ function W.Empty(text)
         W.EmptyNow(text)
         if W.plan then W.plan:SetData({}) end
     elseif W.current == "route" and W.route then W.route:SetData({})
+    elseif W.current == "history" and W.histTable then W.FillHistory(nil, text)
     elseif W.allMats then W.allMats:SetData({}); W.matsNote:SetText(text or "") end
     W.status:SetText(P().Broker() and L.PRICES_BROKER or L.PRICES_NONE)
     if W.status.money then W.status.money:SetAmount(0) end
@@ -448,6 +460,7 @@ function W.FillNow(prof, v)
         local spell = v.alt and v.alt.id or v.spell
         local name, q = G().RecipeName(item, spell, v.alt and v.alt.rec or v.rec)
         if not (v.item or v.spell or v.alt) then name = L.FREE_STEP end
+        if v.smelt then name = L.SMELT_ROW:format(name) end   -- ab 0.4.0
         W.icon:Set(G().RecipeIcon(item, spell), q)
         W.name:SetText(name)
         W.count:SetText(v.count and L.CRAFT_N:format(v.count, v.to) or L.CRAFT_RANGE:format(v.from, v.to))
@@ -489,6 +502,7 @@ local function StepItem(key, e, order)
     elseif e.item or e.spell then
         local _, rec = G().KnownFor(key, e.step)
         local n, q = G().RecipeName(e.item, e.spell, rec)
+        if e.step and e.step.smelt then n = L.SMELT_ROW:format(n) end   -- ab 0.4.0
         it.name, it.quality, it.icon = n, q, G().RecipeIcon(e.item, e.spell)
         local need = G().Need(key, { e })
         if next(need) then
@@ -514,9 +528,14 @@ function W.FillRoute(prof)
     local key = prof.key
     local items = {}
     local _, cur = G().StepAt(key, prof.skill)
-    for i, s in ipairs(G().Route(key)) do
+    -- ab 0.4.0 mit Verhuetten, nach Stufe geordnet
+    local list = {}
+    for i, s in ipairs(G().Steps(key)) do list[#list + 1] = { s = s, i = i } end
+    table.sort(list, function(a, b) if a.s.from ~= b.s.from then return a.s.from < b.s.from end return a.i < b.i end)
+    for order, x in ipairs(list) do
+        local s, i = x.s, x.i
         local e = { from = s.from, to = s.to, step = s, index = i, item = s.item, spell = s.spell, gather = s.gather, count = s.n }
-        local it = StepItem(key, e, i)
+        local it = StepItem(key, e, order)
         it.current = prof.learned and i == cur
         if s.to <= prof.skill then it.name = GREY .. (it.name or "") .. "|r" end
         if s.gather then

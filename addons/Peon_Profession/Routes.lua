@@ -200,6 +200,24 @@ R[356] = {   -- Angeln (Forever)
     { from = 225, to = 300, A = { 1446, 1444, 1452, 1448, 1425, 1449, 1422 }, H = { 1446, 1444, 1452, 1448, 1425, 1449, 1422 } },
 }
 
+-- ab 0.4.0: Verhuetten beim Bergbau (Wunsch von KarloDerBaer, 16.11.2026). Schritte neben der Sammel-Route, je Barren
+-- from = Stufe zum Lernen, to = ab hier gruen (gibt kaum noch Punkte), n = geschaetzte Herstellungen (orange 1 Punkt,
+-- gelb etwa 1,6 Herstellungen je Punkt). Werte wie in Classic, fuer Forever noch nicht gemessen (/prof messungen).
+-- Stahl (kaum Punkte) und Dunkeleisen (nur an der Schwarzen Esse) fehlen mit Absicht.
+ns.Smelt = {
+    [186] = {
+        { from = 1, to = 47, n = 60, item = 2840, spell = 2657, mats = { 2770, 1 }, smelt = true },              -- Kupferbarren
+        { from = 65, to = 70, n = 8, item = 3576, spell = 3304, mats = { 2771, 1 }, smelt = true },              -- Zinnbarren
+        { from = 65, to = 90, n = 40, item = 2841, spell = 2659, mats = { 2840, 1, 3576, 1 }, smelt = true },    -- Bronzebarren
+        { from = 75, to = 122, n = 51, item = 2842, spell = 2658, mats = { 2775, 1 }, smelt = true },            -- Silberbarren
+        { from = 125, to = 145, n = 29, item = 3575, spell = 3307, mats = { 2772, 1 }, smelt = true },           -- Eisenbarren
+        { from = 155, to = 177, n = 26, item = 3577, spell = 3308, mats = { 2776, 1 }, smelt = true },           -- Goldbarren
+        { from = 175, to = 202, n = 43, item = 3860, spell = 10097, mats = { 3858, 1 }, smelt = true },          -- Mithrilbarren
+        { from = 230, to = 250, n = 32, item = 6037, spell = 10098, mats = { 7911, 1 }, smelt = true },          -- Echtsilberbarren
+        { from = 250, to = 270, n = 32, item = 12359, spell = 16153, mats = { 10620, 1 }, smelt = true },        -- Thoriumbarren
+    },
+}
+
 -- Forever-Rezepte der Routen: Stufe zum Lernen, Quelle (t Lehrer, v Haendler, d Beute, q Quest, m Muster)
 ns.Learn = {
     [3170] = { skill = 15, src = "t" },
@@ -221,4 +239,14 @@ ns.Learn = {
     [13917] = { skill = 230, src = "t" },
     [17554] = { skill = 265, src = "t" },
     [1245246] = { skill = 10, src = "t" },
+    -- ab 0.4.0: Verhuetten
+    [2657] = { skill = 1, src = "t" },
+    [3304] = { skill = 65, src = "t" },
+    [2659] = { skill = 65, src = "t" },
+    [2658] = { skill = 75, src = "t" },
+    [3307] = { skill = 125, src = "t" },
+    [3308] = { skill = 155, src = "t" },
+    [10097] = { skill = 175, src = "t" },
+    [10098] = { skill = 230, src = "t" },
+    [16153] = { skill = 250, src = "t" },
 }

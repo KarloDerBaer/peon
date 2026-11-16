@@ -235,3 +235,36 @@ if GetLocale() == "deDE" then
     L.WAYPOINT_SET  = "Wegpunkt gesetzt: %s"
     L.WAYPOINT_NONE = "Diese Stelle lässt sich nicht auf der Karte markieren."
 end
+
+-- ab 0.4.0: Verhuetten beim Bergbau, Reiter Verlauf (History.lua)
+L.SMELT_ROW      = "Smelt: %s"
+L.SMELT_TOO      = "Smelting also gives skill: %s (up to about %d)"
+L.TAB_HISTORY    = "History"
+L.HIST_DAYS      = "Days"
+L.HIST_HEAD      = "Cost %d to %d per day"
+L.HIST_SUM       = "today %s, %d days ago %s (%s)"
+L.HIST_TIP       = "Materials up to %d: %s"
+L.HIST_COL_FIRST = "Before"
+L.HIST_COL_NOW   = "Today"
+L.HIST_COL_CHANGE = "Change"
+L.HIST_COL_DELTA = "Cost diff."
+L.HIST_NOTE      = "All materials without stock, at the cheapest Auction House price of each day (at most the vendor price)."
+L.HIST_EMPTY     = "No history yet. Broker collects prices with every scan."
+L.HIST_NO_MATS   = "No materials to buy up to the target."
+
+if GetLocale() == "deDE" then
+    L.SMELT_ROW      = "Verhütten: %s"
+    L.SMELT_TOO      = "Verhütten gibt auch Punkte: %s (bis etwa %d)"
+    L.TAB_HISTORY    = "Verlauf"
+    L.HIST_DAYS      = "Tage"
+    L.HIST_HEAD      = "Kosten %d bis %d je Tag"
+    L.HIST_SUM       = "heute %s, vor %d Tagen %s (%s)"
+    L.HIST_TIP       = "Material bis %d: %s"
+    L.HIST_COL_FIRST = "Vorher"
+    L.HIST_COL_NOW   = "Heute"
+    L.HIST_COL_CHANGE = "Änderung"
+    L.HIST_COL_DELTA = "Mehrkosten"
+    L.HIST_NOTE      = "Alles Material ohne Vorrat, zum günstigsten Preis im Auktionshaus am jeweiligen Tag (höchstens der Händlerpreis)."
+    L.HIST_EMPTY     = "Noch kein Verlauf. Broker sammelt die Preise mit jedem Scan."
+    L.HIST_NO_MATS   = "Bis zum Ziel gibt es kein Material zu kaufen."
+end

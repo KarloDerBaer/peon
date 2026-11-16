@@ -211,10 +211,9 @@ end
 function M.Report()
     local lines = {}
     for _, key in ipairs(ns.ORDER) do
-        local route = ns.Routes and ns.Routes[key]
         local known = ns.Guide.Known(key)
         local used = {}
-        for _, s in ipairs(type(route) == "table" and route or {}) do
+        for _, s in ipairs(ns.Guide.Steps(key)) do   -- ab 0.4.0 mit Verhuetten
             local id = ns.Guide.KnownFor(key, s)
             id = id or s.spell
             if id then

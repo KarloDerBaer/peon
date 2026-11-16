@@ -111,7 +111,7 @@ function B.Update()
     if not host then if B.frame then B.frame:Hide() end return end
     local key, skill = ns.Measure.OpenProfession()
     if not key or not skill or not ns.Guide.Route(key) then if B.frame then B.frame:Hide() end return end
-    local step, i = ns.Guide.StepAt(key, skill)
+    local step, i = ns.Guide.CraftStepAt(key, skill)   -- ab 0.4.0: beim Bergbau das Verhuetten
     local v = step and ns.Guide.View(key, step, skill, i)
     if not v then if B.frame then B.frame:Hide() end return end
     local f = B.Create(host)

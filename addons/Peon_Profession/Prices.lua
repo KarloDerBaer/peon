@@ -36,6 +36,34 @@ function P.Unit(id)
     return nil
 end
 
+-- ab 0.4.0 (Reiter Verlauf): Haendlerpreis je Stueck, nil = unbekannt
+function P.Vendor(id)
+    local b = P.Broker()
+    if not b then return nil end
+    local ok, _, _, _, vp = pcall(b.BuyPrice, b, id)
+    if ok and type(vp) == "number" and not Peon.IsSecret(vp) then return vp end
+    return nil
+end
+
+-- ab 0.4.0: Verlauf im AH ueber Broker (aelteste zuerst, { day, week, min, median, ... }), leer ohne Broker 0.27
+function P.History(id)
+    local b = P.Broker()
+    if not (b and type(b.History) == "function") then return {} end
+    local ok, rows = pcall(b.History, b, id)
+    return ok and type(rows) == "table" and rows or {}
+end
+
+-- ab 0.4.0: heutige Tagesnummer wie in Brokers Daten
+function P.Today()
+    local b = P.Broker()
+    if b and type(b.DayOf) == "function" then
+        local ok, d = pcall(b.DayOf, b)
+        if ok and type(d) == "number" then return d end
+    end
+    local d = date("*t", time())
+    return math.floor(time({ year = d.year, month = d.month, day = d.day, hour = 12 }) / 86400)
+end
+
 -- Vorrat: eigener Charakter (Taschen, Bank, Materiallager) und andere Charaktere laut Ledger
 function P.Stock(id)
     local own = 0

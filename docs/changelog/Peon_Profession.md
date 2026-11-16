@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.4.0
+
+Kurz: Beim Bergbau zeigt der Guide jetzt auch das Verhütten von Erz zu Barren, mit Erz, Anzahl und Kosten.
+Kurz: Neuer Reiter „Verlauf“: Wie haben sich die Kosten bis zum Ziel in den letzten Tagen verändert, und welches Material ist teurer oder billiger geworden?
+
+- 0.4.0 (16.11.2026, Wunsch KarloDerBaer): Verhütten beim Bergbau und Reiter Verlauf.
+  - **Verhütten:** Neue Liste `ns.Smelt[186]` in `Routes.lua` mit Kupfer-, Zinn-, Bronze-, Silber-, Eisen-, Gold-, Mithril-, Echtsilber- und Thoriumbarren (Lernstufe, Ende gelb, geschätzte Anzahl, Erz je Barren). Werte wie in Classic, für Forever noch nicht gemessen. Stahl und Dunkeleisen fehlen mit Absicht. Die Schritte stehen neben der Sammel-Route (`Guide.Steps`), Plan und Reiter Route ordnen sie nach Stufe ein und teilen sie an fehlenden Rängen.
+  - **Jetzt:** Beim Sammeln nennt der Guide, welcher Barren bei dieser Stufe auch Punkte gibt. Ein Klick auf eine Zeile „Verhütten: …“ zeigt das Rezept mit Erz, Vorrat, Preis und Kosten. Bronze rechnet mit selbst verhüttetem Kupfer und Zinn. Die Knöpfe für die Einkaufsliste gibt es jetzt auch beim Bergbau.
+  - **Verhüttungsfenster:** Leiste und grüner Pfeil zeigen dort den passenden Barren (`Guide.CraftStepAt`), `/prof messungen` vergleicht auch das Verhütten.
+  - **Reiter Verlauf (neue Datei `History.lua`):** Diagramm mit den Kosten für alles Material von der Stufe bis zum Ziel je Tag (7, 14, 30 oder 90 Tage), ohne Vorrat gerechnet. Preis eines Tages: günstigstes Angebot im AH laut Broker (Tageswert, ältere Tage als Wochenwert), höchstens der Händlerpreis, heute der aktuelle Kaufpreis. Darunter je Material: Preis vorher und heute, Änderung in Prozent und Mehrkosten, sortiert nach den Mehrkosten. Mauszeiger über dem Diagramm zeigt Tag und Betrag. Neue Einstellung `histDays` (30).
+  - Braucht für den Verlauf Broker mit `History` und `DayOf` (ab 0.27), ohne Broker steht ein Hinweis.
+  - Tests: Schritte mit Verhütten, Wahl des Barrens, Plan mit Lehrerzeile, Bronze aus eigenem Kupfer und Zinn, Fenster mit Verhütten, Tagespreise mit Lücken, Wochenwerten und Händlerpreis, Reiter Verlauf.
+  - **Im Spiel prüfen:** Bergbau öffnen: stehen die Zeilen „Verhütten“ im Plan, und stimmen die Stufen mit dem Verhüttungsfenster überein (`/prof messungen` nach ein paar Barren)? Reiter Verlauf bei einem Herstellberuf: Linie, Tooltip, Tabelle und die Knöpfe für die Tage.
+
 ## 0.3.1
 
 Kurz: Material, das du mit deinem Beruf selbst herstellst (zum Beispiel Wollstoffballen), steht nicht mehr zum Kauf da. Der Guide rechnet stattdessen das Grundmaterial (Wollstoff) und nutzt deinen Vorrat.

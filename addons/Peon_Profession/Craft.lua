@@ -592,7 +592,7 @@ function C.GuideRecipe()
     if not (ns.Measure and ns.Guide) then return nil end
     local key, skill = ns.Measure.OpenProfession()
     if not key or not skill then return nil end
-    local step, i = ns.Guide.StepAt(key, skill)
+    local step, i = ns.Guide.CraftStepAt(key, skill)   -- ab 0.4.0: beim Bergbau das Verhuetten
     local v = step and ns.Guide.View(key, step, skill, i)
     if not v or v.gather then return nil end
     local _, rid = ns.Guide.Active(v)

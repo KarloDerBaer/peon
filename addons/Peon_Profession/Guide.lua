@@ -13,6 +13,43 @@ G.RANK_MAX = { 75, 150, 225, 300 }
 
 function G.Route(key) return ns.Routes and ns.Routes[key] end
 
+-- ab 0.4.0: Route und Verhuetten zusammen (Verhuetten hinten angehaengt, die Nummern der Route bleiben gleich)
+G.steps = {}
+function G.Steps(key)
+    local s = G.steps[key]
+    if s then return s end
+    s = {}
+    for _, x in ipairs(G.Route(key) or {}) do s[#s + 1] = x end
+    for _, x in ipairs(ns.Smelt and ns.Smelt[key] or {}) do s[#s + 1] = x end
+    G.steps[key] = s
+    return s
+end
+
+-- ab 0.4.0: Verhuetten bei dieser Stufe. Bevorzugt ein erlerntes Rezept, das noch orange oder gelb ist.
+-- Rueckgabe: Schritt, Nummer in G.Steps oder nil
+function G.SmeltAt(key, skill)
+    skill = tonumber(skill) or 0
+    local first, firstI
+    for i, s in ipairs(G.Steps(key)) do
+        if s.smelt and skill >= s.from and skill < s.to then
+            local _, rec = G.KnownFor(key, s)
+            if rec and (rec.c == 0 or rec.c == 1) then return s, i end
+            if not first then first, firstI = s, i end
+        end
+    end
+    return first, firstI
+end
+
+-- ab 0.4.0: Schritt fuer das Berufsfenster (Leiste, Pfeil). Beim Bergbau ist das Berufsfenster das Verhuetten.
+function G.CraftStepAt(key, skill)
+    local step, i = G.StepAt(key, skill)
+    if step and step.gather then
+        local s, si = G.SmeltAt(key, skill)
+        if s then return s, si end
+    end
+    return step, i
+end
+
 -- Schritt fuer die Stufe: der erste mit from <= skill < to. Unter dem ersten: der erste. Ueber dem letzten: nil.
 function G.StepAt(key, skill)
     local r = G.Route(key)
@@ -135,12 +172,12 @@ function G.View(key, step, skill, index)
     if type(step) ~= "table" then return nil end
     local v = { step = step, index = index, from = math.max(step.from, skill or step.from), to = step.to }
     v.count = G.Remaining(step, skill)
-    if step.gather or not ns.PROFS[key] or ns.PROFS[key].gather then
+    if step.gather or (not step.smelt and (not ns.PROFS[key] or ns.PROFS[key].gather)) then
         v.gather = step.gather or {}
         v.zones = step
         return v
     end
-    v.item, v.spell = step.item, step.spell
+    v.item, v.spell, v.smelt = step.item, step.spell, step.smelt
     v.recipeID, v.rec = G.KnownFor(key, step)
     v.learned = v.recipeID ~= nil
     v.color = v.rec and v.rec.c
@@ -189,7 +226,9 @@ function G.Plan(key, skill, max, target)
             pending = pending + 1
         end
     end
-    for i, s in ipairs(r) do
+    -- ab 0.4.0 mit Verhuetten: erst alle Teile sammeln, nach Stufe ordnen, dann die Lehrerzeilen einfuegen
+    local pieces = {}
+    for i, s in ipairs(G.Steps(key)) do
         if s.to > skill and s.from < untilT then
             local from, to = math.max(s.from, skill), math.min(s.to, untilT)
             -- an fehlenden Raengen teilen
@@ -198,15 +237,23 @@ function G.Plan(key, skill, max, target)
             cuts[#cuts + 1] = to
             for c = 1, #cuts - 1 do
                 local a, z = cuts[c], cuts[c + 1]
-                Trainer(a)
-                local e = { from = a, to = z, step = s, index = i, item = s.item, spell = s.spell, gather = s.gather }
+                local e = { from = a, to = z, step = s, index = i, item = s.item, spell = s.spell, gather = s.gather,
+                    smelt = s.smelt }
                 if s.n then
                     local span = math.max(1, s.to - s.from)
                     e.count = math.max(1, math.ceil(s.n * (z - a) / span - 0.0001))
                 end
-                out[#out + 1] = e
+                pieces[#pieces + 1] = e
             end
         end
+    end
+    table.sort(pieces, function(a, b)
+        if a.from ~= b.from then return a.from < b.from end
+        return a.index < b.index
+    end)
+    for _, e in ipairs(pieces) do
+        Trainer(e.from)
+        out[#out + 1] = e
     end
     Trainer(untilT)
     -- Ziel = Hoechstwert (auch ohne Ziel): danach der naechste Rang (ab 0.3.0 auch mit Ziel, dort steht das Buch)
@@ -243,11 +290,8 @@ function G.Producer(key, item)
         if rec.out == item and #G.MatsOf(rec) > 0 and (not bestId or id < bestId) then bestId, best = id, rec end
     end
     if best then return G.MatsOf(best), math.max(1, math.floor(best.n or 1)) end
-    local r = G.Route(key)
-    if type(r) == "table" then
-        for _, s in ipairs(r) do
-            if s.item == item and #G.MatsOf(nil, s) > 0 then return G.MatsOf(nil, s), 1 end
-        end
+    for _, s in ipairs(G.Steps(key)) do   -- ab 0.4.0 auch Verhuetten (Bronze aus Kupfer- und Zinnbarren)
+        if s.item == item and #G.MatsOf(nil, s) > 0 then return G.MatsOf(nil, s), 1 end
     end
     return nil
 end
