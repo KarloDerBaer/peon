@@ -207,6 +207,7 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - **Accountbank / Gildenbank (Recherche 06.10.2026):** Eine Accountbank (Kriegsmeutenbank) gibt es in Forever nach allem Bekannten nicht – der Reiter im Bankfenster und die Taschen-Nummern stammen aus der Retail-Oberfläche, die Taschen haben keine Plätze. Ledger liest sie nur, falls sie Plätze hat (Code bleibt). Die **Gildenbank** gibt es (Beta, 100 Gold); Gildenbank wird noch nicht erfasst (Ein- und Auslagern erscheint als „verbraucht/sonstiges“ bzw. „sonstiger Zugang“ mit Kosten 0) – erst testbar, wenn KarloDerBaers Gilde eine Gildenbank hat.
 - Befehle: `/ledger` (Fenster), `/ledger optionen`, `/ledger pruefen` (auch `check`), `/ledger debug`, `/peon ledger`
 - Verlauf der Versionen: `docs/changelog/Peon_Ledger.md`
+- Normales Release `v2026.11.16.2` (16.11.2026, ohne Vorabversion auf Wunsch von KarloDerBaer), Bau auf GitHub erfolgreich, Manifest nachgelesen. Ledger 0.15.1 und 0.15.2 im Spiel noch nicht geprüft.
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.10.2, 0.10.0, 0.9.1 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ### Ledger – offen (Stand 03.10.2026, für die nächste Session)
@@ -267,6 +268,7 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Braucht Peon API 7 (Liste, ab 0.3); Bereiche für Peon_Feedback ab API 9.
 - Befehle: `/peon bags` (Taschenfenster ein/aus, geht immer – auch mit Bagnon), `/peon bags optionen`, `/peon bags debug`.
 - Verlauf der Versionen: `docs/changelog/Peon_Bags.md`
+- Normales Release `v2026.11.16.2` (16.11.2026, ohne Vorabversion auf Wunsch von KarloDerBaer), Bau auf GitHub erfolgreich, Manifest nachgelesen. Layout im Spiel von KarloDerBaer geprüft (Entwicklung), Hinweis beim ersten Start noch nicht gesehen.
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.7.0, 0.3.0, 0.2.2, 0.2.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon_Profession – 0.4.1 (neu, Berufe)
@@ -280,6 +282,7 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Braucht Peon API 18. Preise und Einkaufsliste über Broker 0.95 (`BuyPrice`, `AhPrice`, `ItemValue`, `AddToList`), Vorrat der Twinks über Ledger (`StockOthers`). Starter für Peon_Panel mit Text „Beruf Stufe/Höchstwert“.
 - Befehle: `/prof` (Fenster), `/prof optionen`, `/prof messungen`, `/prof pruefen` (Berufsfenster, ab 0.2), `/prof vergessen` (gemerkte Rezepte neu lesen, ab 0.4.1), `/peon profession`, `/peon debug profession`.
 - Verlauf der Versionen: `docs/changelog/Peon_Profession.md`
+- Normales Release `v2026.11.16.2` (16.11.2026, ohne Vorabversion auf Wunsch von KarloDerBaer), Bau auf GitHub erfolgreich, Manifest nachgelesen. Profession 0.4.0 und 0.4.1 im Spiel noch nicht geprüft.
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.4.1, 0.4.0, 0.3.1, 0.3.0, 0.2.2, 0.2.1, 0.2.0, 0.1.0
 
 ## Projektordner <Repo>
