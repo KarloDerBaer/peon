@@ -1018,7 +1018,7 @@ function R.BuyStep(d, mode)
         local ok = pcall(ah.PlaceBid, queue[1].id, queue[1].price)
         if not ok then mod:Print(L.BUY_FAILED); return end
         R.job = { key = d.key, items = true, queue = queue, idx = 1, qty = #queue, done = 0, cost = 0, name = d.name,
-                  stage = "wait", kind = d.kind, mode = mode, t = Now() }
+                  stage = "wait", kind = d.kind, mode = mode, t = Now(), target = d.ref }
     end
     JobTimer(R.job, 20)
     R.UpdateView()
@@ -1065,7 +1065,9 @@ function R.FinishJob(ok)
         -- ab 0.67 (H3): ein Aufkauf wird ein Posten zum Einstellen (kommt per Post)
         -- ab 0.70 auch ein Kauf mit eigenem Ziel im Fokus
         -- ab 0.91 nur, wenn fuer den Gegenstand eingeschaltet (Lots.Wanted, Standard aus)
-        if (job.kind == "buyout" or job.kind == "own") and ns.Lots and ns.Lots.Wanted(job.key) then ns.Lots.Add(job.key, n, cost, job.target, "radar") end
+        -- ab 0.97.1 jede Art ausser Haendlerware: Kaeufe aus Chancen (spec) und Markt-Schnaeppchen fehlten, obwohl
+        -- der Haken im Fokus gesetzt war
+        if job.kind ~= "vendor" and ns.Lots and ns.Lots.Wanted(job.key) then ns.Lots.Add(job.key, n, cost, job.target, "radar") end
     end
     -- Rest pruefen lassen: Treffer bleibt, bis die naechste Abfrage zeigt, was noch da ist
     local d = R.entries[job.key]

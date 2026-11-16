@@ -1624,6 +1624,15 @@ end)()
     Rd.job = { key = 7962, id = 7962, qty = 5, limit = 3, name = "Billig", stage = "wait", kind = "vendor", total = 15, done = 0 }
     Rd.FinishJob(true)
     check(LT.Count() == 1, "H3: Haendler-Kauf wird kein Posten")
+    -- ab 0.97.1: Kauf aus Chancen (Art spec) mit Haken wird ein Posten
+    LT.SetWanted(7963, true)
+    Rd.job = { key = 7963, id = 7963, qty = 1, limit = 1000, name = "Chancenkette", stage = "wait", kind = "spec", total = 1000, target = 3000, done = 0 }
+    Rd.FinishJob(true)
+    local specLot = LT.ForKey(7963)
+    check(LT.Count() == 2 and specLot and specLot.target == 3000 and specLot.cost == 1000, "0.97.1: Kauf aus Chancen wird Posten")
+    if specLot then LT.Remove(specLot.id) end
+    LT.SetWanted(7963, false)
+    check(LT.Count() == 1, "0.97.1: Posten wieder entfernt")
     Rd.entries = {}
     -- Liste "Zum Einstellen" im Radar
     local keepCount = C_Item.GetItemCount
@@ -3028,6 +3037,27 @@ end)()
   check(v.kind == "vendor" and v.title == L.ADV_VENDOR, "U3: Haendler zahlt mehr -> Lieber zum Haendler")
   ns.Data.Evaluate = function() return {} end
   check(A.Judge(e, 2770, 100, 1, 5, mod.db).kind == "none", "U3: ohne ueblichen Bereich keine Einschaetzung")
+  -- ab 0.97.1: Preis im Feld von einer anderen Variante
+  do
+    local vk = "12042:Kette des Baeren"
+    A.var = { key = vk, other = 5, best = 38400 }
+    local r = { kind = "wait", title = "x", why = "y", extra = "z" }
+    A.CheckVariant(r, { key = vk, price = 6050 }, nil)
+    check(r.title == L.ADV_VARIANT and r.extra == nil and r.fillPrice and r.fillPrice < 38400 and r.fillPrice > 30000
+      and plain(r.why):find("3g 84s", 1, true), "0.97.1: andere Variante erkannt, Preis eintragen angeboten: " .. plain(tostring(r.why)))
+    local r2 = { kind = "sell", title = "x" }
+    A.CheckVariant(r2, { key = vk, price = 39000 }, nil)
+    check(r2.title == "x" and r2.fillPrice == nil, "0.97.1: Preis ueber dem Angebot der Variante bleibt")
+    A.var = { key = vk, other = 0, best = 38400 }
+    local r3 = { kind = "wait", title = "x" }
+    A.CheckVariant(r3, { key = vk, price = 6050 }, nil)
+    check(r3.fillPrice == nil, "0.97.1: ohne andere Varianten kein Hinweis")
+    A.var = { key = vk, other = 3 }
+    local r4 = { kind = "wait", title = "x" }
+    A.CheckVariant(r4, { key = vk, price = 6050 }, { m = 40000 })
+    check(r4.title == L.ADV_VARIANT and r4.why == L.ADV_VARIANT_WHY_MKT:format(ns.Tooltip.Money(40000)), "0.97.1: ohne Angebot in der Liste der letzte Marktpreis")
+    A.var = nil
+  end
   check(A.Judge(e, 2770, 0, 1, 5, mod.db).why == L.ADV_NO_PRICE, "U3: ohne Preis")
   ns.Data.Evaluate = oldEval
 
@@ -3443,6 +3473,51 @@ end)()
   LT.toggle, LT.panel, LT.sel = nil, nil, nil
   mod.char.lots = {}
   market.items[7971] = nil
+end)()
+
+-- ===== 0.98: im Verkaufen nur die Angebote dieser Variante =====
+;(function()
+  local VS, A = ns.SellVariant, ns.Advice
+  local keepAH, keepMore = AuctionHouseFrame, ns.Live.RequestMore
+  local ah = CreateFrame("Frame", "AuctionHouseFrame")
+  ah.ItemSellFrame, ah.ItemSellList = CreateFrame("Frame"), CreateFrame("Frame")
+  ah.CommoditiesSellFrame = CreateFrame("Frame"); ah.CommoditiesSellFrame.shown = false
+  local setTo
+  ah.ItemSellFrame.PriceInput = { SetAmount = function(_, v) setTo = v end }
+  VS.toggle, VS.panel, VS.hooked, VS.more = nil, nil, nil, nil
+  local more = 0
+  ns.Live.RequestMore = function() more = more + 1; return "wait" end
+  local vk = "12042:Kette des Baeren"
+  A.current = { key = vk }
+  A.var = nil
+  fire("AUCTION_HOUSE_SHOW")
+  check(VS.panel and not VS.panel.shown and not VS.toggle.shown, "0.98: ohne andere Varianten keine eigene Liste")
+  A.var = { key = vk, other = 4, best = 38400, partial = true, itemKey = { itemID = 12042 },
+            rows = { { price = 38400, qty = 1, own = 0 }, { price = 41000, qty = 2, own = 1 } } }
+  VS.Refresh()
+  local items = VS.list:GetItems()
+  check(VS.panel.shown and VS.toggle.shown and #items == 2 and plain(VS.toggle.text) == "Alle Varianten zeigen",
+    "0.98: eigene Liste mit den Angeboten dieser Variante")
+  check(plain(VS.hint.text):find("4 Angebote anderer Varianten ausgeblendet", 1, true) and more == 1, "0.98: Hinweis und Rest angefordert: " .. plain(VS.hint.text))
+  VS.list.o.onClick(items[2], "LeftButton")
+  check(setTo == 41000, "0.98: Klick traegt den Preis der Zeile ein")
+  VS.toggle.scripts.OnClick(VS.toggle)
+  check(mod.db.sellVariantOnly == false and not VS.panel.shown and VS.toggle.shown and plain(VS.toggle.text) == "Nur diese Variante",
+    "0.98: Umschalten auf Blizzards Liste mit allen Varianten")
+  VS.toggle.scripts.OnClick(VS.toggle)
+  check(mod.db.sellVariantOnly == true and VS.panel.shown, "0.98: und zurueck")
+  for _ = 1, 10 do VS.Refresh() end
+  check(more == ns.Live.MORE_MAX, "0.98: Rest hoechstens MORE_MAX mal angefordert: " .. more)
+  A.current = { key = "12042:Kette des Adlers" }
+  VS.Refresh()
+  check(not VS.panel.shown and not VS.toggle.shown, "0.98: anderer Gegenstand im Fenster, Liste weg")
+  A.current = { key = vk }
+  ah.ItemSellList.shown = false
+  VS.Refresh()
+  check(not VS.panel.shown, "0.98: ausserhalb von Verkaufen nichts zu sehen")
+  AuctionHouseFrame, ns.Live.RequestMore = keepAH, keepMore
+  VS.toggle, VS.panel, VS.hooked, VS.more = nil, nil, nil, nil
+  A.current, A.var = nil, nil
 end)()
 
 -- ===== 0.71: Fenster Einstellungen im Radar, Arten abschaltbar =====

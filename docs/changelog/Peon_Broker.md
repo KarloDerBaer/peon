@@ -2,6 +2,29 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.98.0
+
+Kurz: Beim Verkaufen von Gegenständen mit Zusatz zeigt Broker nur die Angebote genau dieser Variante. Ein Klick auf eine Zeile trägt ihren Preis ein. Mit „Alle Varianten zeigen“ kommt Blizzards Liste zurück.
+
+- 0.98.0 (16.11.2026, Wunsch KarloDerBaer): Neue Datei `SellVariant.lua`.
+  - **Neu:** Zeigt Blizzards Liste im Verkaufen Angebote anderer Varianten, legt Broker eine eigene Liste darüber (wie „Zum Einstellen“, Blizzards Liste bleibt darunter unberührt). Spalten Kaufpreis, Menge, Eigene. Unten steht, wie viele Angebote anderer Varianten ausgeblendet sind.
+  - Klick auf eine Zeile trägt ihren Preis ins Preisfeld ein (über `Lots.FillTarget`, gleiche Sperre nach einer Blockade).
+  - Knopf über der Liste links: „Alle Varianten zeigen“ bzw. „Nur diese Variante“, gemerkt in `sellVariantOnly` (Standard an).
+  - Liefert das Spiel die Angebote in Teilen, fordert Broker den Rest an wie Blizzards Liste beim Blättern (höchstens `Live.MORE_MAX` mal je Gegenstand). Der Rat beim Verkaufen hört dafür auch auf `ITEM_SEARCH_RESULTS_ADDED`.
+  - Die Liste „Zum Einstellen“ liegt darüber, wenn sie offen ist.
+  - Tests: Liste nur bei anderen Varianten, Klick trägt den Preis ein, Umschalten, Nachladen begrenzt, anderer Gegenstand und außerhalb von Verkaufen ohne Liste (`test_broker.lua`).
+  - **Im Spiel prüfen:** Variante ins Verkaufsfenster legen, Liste zeigt nur diese Variante, Klick trägt den Preis ein, „Auktion erstellen“ geht danach ohne Blockade. Umschalten auf alle Varianten und zurück.
+
+## 0.97.1
+
+Kurz: Mit dem Haken „Wieder einstellen“ wird jetzt auch ein Kauf aus den Chancen gemerkt. Beim Verkaufen von Gegenständen mit Zusatz sagt Broker, wenn der Preis im Feld von einer anderen Variante stammt, und trägt auf Knopfdruck einen passenden Preis ein.
+
+- 0.97.1 (16.11.2026, Rückmeldung KarloDerBaer mit Bild):
+  - **Behoben, Wieder einstellen:** Ein Kauf im Fokus aus dem Reiter Chancen wurde trotz Haken kein Posten zum Einstellen. `R.FinishJob` nahm nur Aufkauf und eigenes Ziel (`buyout`, `own`), jetzt jede Art außer Händlerware. Käufe von Einzelgegenständen tragen den Zielpreis jetzt mit (`target` im Auftrag).
+  - **Behoben, Rat beim Verkaufen bei Varianten:** Blizzards Liste zeigt alle Varianten („… des Bären“, „… des Banditen“) und trägt das günstigste Angebot ein, auch von einer anderen Variante. Der Rat hieß dann „Lieber warten, jemand verkauft gerade billig“. Liegt der Preis im Feld unter dem günstigsten Angebot genau dieser Variante, heißt der Kasten jetzt „Andere Variante“ und nennt dieses Angebot. Ohne Angebot dieser Variante in der Liste nennt er ihren letzten Marktpreis. Knopf „Preis eintragen“ trägt das Angebot unterboten wie im Vorschlag ein (gleicher Weg wie „Zielpreis eintragen“, `A.CheckVariant`, `A.var`). Ein Posten mit Zielpreis geht vor.
+  - Tests: Kauf aus Chancen wird Posten, Varianten-Hinweis mit und ohne Angebot, ohne andere Varianten kein Hinweis (`test_broker.lua`).
+  - **Im Spiel prüfen:** Kauf aus Chancen mit Haken erscheint unter „Zum Einstellen“. Verkaufen einer Variante: Kasten „Andere Variante“, Knopf trägt den Preis ein, „Auktion erstellen“ geht danach ohne Blockade.
+
 ## 0.97.0
 
 Kurz: Für jeden Reiter mit roter Zahl stellst du in den Optionen von Broker ein, ob und wann die Zahl kommt. Neu kann auch der Reiter Chancen eine Zahl zeigen.

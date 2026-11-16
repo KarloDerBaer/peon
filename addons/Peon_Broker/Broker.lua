@@ -58,6 +58,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         focusSure    = 60,      -- Fokus (ab 0.70): Urteil ohne "vorlaeufig" ab so vielen Sekunden (bis 0.82 120)
         focusMore    = 10,      -- Fokus (ab 0.70): "Kaufen" erst, wenn der Abfluss so viel % ueber dem Zufluss liegt (bis 0.82 20)
         focusGrow    = 10,      -- Fokus (ab 0.70): Menge unter Ziel waechst/schrumpft ab so viel %
+        sellVariantOnly = true, -- ab 0.98: im Verkaufen nur die Angebote dieser Variante zeigen (SellVariant.lua)
         relistDefault = false,  -- ab 0.91: Gekauftes zum Wiedereinstellen merken (je Gegenstand in relist, sonst dieser Wert)
         watchSoundDown = "raid", -- ab 0.91: Warnton der Beobachtung bei Kaufen bis (off = kein Ton)
         watchSoundUp = "raid",  -- ab 0.91: Warnton der Beobachtung beim Zielpreis
@@ -592,6 +593,7 @@ mod:On("INIT", function()
     mod:Call("Radar", ns.Radar.Init)
     mod:Call("Chancen", ns.Chances.Init)   -- ab 0.96
     if ns.Lots then mod:Call("Posten", ns.Lots.Init) end   -- ab 0.67 (H3)
+    if ns.SellVariant then mod:Call("Varianten", ns.SellVariant.Init) end   -- ab 0.98
     mod:Call("Sprung", ns.Go.InitMarket)   -- ab 0.73: sicherer Knopf Im Markt zeigen
     -- ab 0.95: Berufsfenster in Peon_Profession (Craft.lua dort)
     mod.char.vendorFlip = nil   -- Haendler-Knopf entfaellt (0.24, Feedback #8)

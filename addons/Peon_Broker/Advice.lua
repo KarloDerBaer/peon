@@ -164,14 +164,17 @@ local function Box(sf)
     fill:SetPoint("TOPRIGHT", b, "TOPRIGHT", 0, 2)
     fill:SetText(L.LOTS_FILL)
     fill:SetScript("OnClick", function()
+        if not ns.Lots then return end
         local lot = A.lot
-        if lot and ns.Lots then mod:Call("Posten", ns.Lots.FillTarget, sf, lot) end
+        if lot and lot.target then mod:Call("Posten", ns.Lots.FillTarget, sf, lot)
+        elseif A.last and A.last.fillPrice then mod:Call("Posten", ns.Lots.FillTarget, sf, { target = A.last.fillPrice }) end
     end)
     fill:SetScript("OnEnter", function(self)
         if not GameTooltip then return end
+        local variant = not (A.lot and A.lot.target) and A.last and A.last.fillPrice
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine(L.LOTS_FILL, 1, 0.82, 0)
-        GameTooltip:AddLine(L.LOTS_FILL_TIP, 1, 1, 1, true)
+        GameTooltip:AddLine(variant and L.ADV_VARIANT_FILL or L.LOTS_FILL, 1, 0.82, 0)
+        GameTooltip:AddLine(variant and L.ADV_VARIANT_FILL_TIP or L.LOTS_FILL_TIP, 1, 1, 1, true)
         GameTooltip:Show()
     end)
     fill:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
@@ -210,7 +213,9 @@ function A.Show(sf, r, isNeutral)
         end
         table.insert(parts, 1, line)
     end
-    b.fill:SetShown(lot ~= nil and lot.target ~= nil and ns.Lots.CanFill())
+    local lotFill = lot ~= nil and lot.target ~= nil
+    b.fill:SetText(lotFill and L.LOTS_FILL or L.ADV_VARIANT_FILL)
+    b.fill:SetShown((lotFill or r.fillPrice ~= nil) and ns.Lots and ns.Lots.CanFill() or false)
     b.lines:SetText(table.concat(parts, "\n"))
     b:Show()
     A.last = r
@@ -230,8 +235,31 @@ function A.Update(sf, commodity)
     local hp = ns.VendorPrice(it.id or it.key)
     local r = A.Judge(e, it.key, it.price, it.qty, hp, mod.db)
     r.key = it.key
+    A.CheckVariant(r, it, e)
     A.lot = ns.Lots and ns.Lots.ForKey(it.key) or nil
     A.Show(sf, r, ns.AtNeutralAH and ns.AtNeutralAH())
+    if ns.SellVariant then ns.SellVariant.Refresh() end
+end
+
+---------------------------------------------------------------------------
+-- Varianten (ab 0.97.1, Rueckmeldung KarloDerBaer): Blizzards Liste im Verkaufen zeigt alle Varianten eines
+-- Gegenstands mit Zusatz ("... des Baeren", "... des Banditen") und traegt das guenstigste Angebot ein, auch wenn es
+-- eine andere Variante ist. Liegt der Preis im Feld unter dem guenstigsten Angebot genau dieser Variante, sagt der
+-- Kasten das und bietet "Preis eintragen" an (guenstigstes Angebot dieser Variante, unterboten wie im Vorschlag).
+-- A.var = { key, other = Zahl der Angebote anderer Varianten, best = guenstigstes Angebot dieser Variante }
+---------------------------------------------------------------------------
+function A.CheckVariant(r, it, e)
+    local v = A.var
+    if not (v and v.key == it.key and (v.other or 0) > 0) or not Num(it.price) then return end
+    local best = v.best
+    if not Num(best) and type(e) == "table" and not e.gone and Num(e.m) then best = e.m end
+    if not Num(best) or it.price >= best then return end
+    local fill = ns.Data.Undercut(best, it.key, mod.db)
+    if not Num(fill) or fill <= it.price then return end
+    r.kind, r.title = "wait", L.ADV_VARIANT
+    r.why = v.best and L.ADV_VARIANT_WHY:format(Money(best)) or L.ADV_VARIANT_WHY_MKT:format(Money(best))
+    r.extra = nil
+    r.fillPrice = fill
 end
 
 -- Blizzards Angebote fuer den Gegenstand im Fenster sind da: als Live-Stand uebernehmen, dann neu rechnen
@@ -247,6 +275,12 @@ function A.OnResults(commodity, arg)
     else
         if type(arg) ~= "table" or arg.itemID ~= it.id or type(S.ReadItems) ~= "function" then return end
         rows = S.ReadItems(arg, it.key)
+        if ns.Data.IsVariantKey(it.key) and type(rows) == "table" then
+            -- ab 0.98: auch die Zeilen fuer die eigene Liste (SellVariant.lua)
+            A.var = { key = it.key, other = rows.other or 0, best = rows[1] and rows[1].price or nil,
+                      rows = rows, partial = rows.partial, itemKey = arg }
+            if ns.SellVariant then ns.SellVariant.Refresh() end
+        end
     end
     if type(rows) ~= "table" or #rows == 0 or rows.foreign then return end
     ns.Data.ApplyLive(it.key, rows, time())
@@ -294,7 +328,7 @@ function A.Hook()
                 hooksecurefunc(sf, "Layout", function() mod:Call("Rat beim Verkaufen", A.Compact, sf) end)
                 mod:Call("Rat beim Verkaufen", A.Compact, sf)
             end
-            if sf.HookScript then sf:HookScript("OnHide", function() A.current = nil end) end
+            if sf.HookScript then sf:HookScript("OnHide", function() A.current, A.var = nil, nil end) end
             done = done + 1
         end
     end
@@ -306,4 +340,6 @@ function A.Init()
     mod:RegisterEvent("AUCTION_HOUSE_SHOW", function() mod:Call("Rat beim Verkaufen", A.Hook) end)
     mod:RegisterEvent("COMMODITY_SEARCH_RESULTS_UPDATED", function(_, id) mod:Call("Rat beim Verkaufen", A.OnResults, true, id) end)
     mod:RegisterEvent("ITEM_SEARCH_RESULTS_UPDATED", function(_, key) mod:Call("Rat beim Verkaufen", A.OnResults, false, key) end)
+    -- ab 0.98: nachgeladene Teile (Blizzards Liste beim Blaettern oder SellVariant.MaybeMore)
+    pcall(mod.RegisterEvent, mod, "ITEM_SEARCH_RESULTS_ADDED", function(_, key) mod:Call("Rat beim Verkaufen", A.OnResults, false, key) end)
 end
