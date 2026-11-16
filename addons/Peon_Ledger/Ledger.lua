@@ -111,6 +111,13 @@ function mod:Cost(id, char)
     return info.next, info.avg, info.n, info.value
 end
 
+-- Offene Gebuehren (ab 0.16): Einstellgebuehren ohne Verkauf (abgelaufen, abgebrochen), gesamt und je Stueck
+-- des Bestands (Kupfer); nil ohne offene Gebuehren. Sie stecken nicht in mod:Cost.
+function mod:OpenFee(id, char)
+    if not ns.Cost or type(id) ~= "number" then return nil end
+    return ns.Cost.OpenFee(id, char)
+end
+
 -- Zuletzt gezahlt und zuletzt verkauft (ab 0.14, Last.lua): Preis je Stueck, Zeit, Stueck, Quelle; nil ohne Kauf
 function mod:LastBuy(id)
     local b = ns.Last and type(id) == "number" and ns.Last.Buy(id)

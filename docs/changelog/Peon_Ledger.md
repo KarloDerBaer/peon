@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.16.0
+
+Kurz: Einstellgebühren von Auktionen, die nicht verkauft wurden, zeigt der Tooltip jetzt unter den Kosten als „Offene Gebühren“, gesamt und je Stück.
+
+- 0.16.0 (16.11.2026, Wunsch KarloDerBaer): **Offene Gebühren sichtbar.** Ledger hat Einstellgebühren abgelaufener oder abgebrochener Auktionen schon immer beim Gegenstand gemerkt und beim nächsten Verkauf vom Gewinn abgezogen. Zu sehen war das aber nirgends.
+  - **Neu, Tooltip:** Im Baustein Kosten steht darunter „Offene Gebühren“ mit Summe aller Charaktere und Anteil je Stück des Bestands. Die Kosten je Stück bleiben ohne Gebühren, sonst würden sie beim Verkauf doppelt zählen.
+  - **Neu, API:** `mod:OpenFee(id, char)` liefert offene Gebühren gesamt und je Stück (`Cost.OpenFee`). Broker zieht sie ab 0.100.0 vom möglichen Gewinn ab.
+  - Tests: offene Gebühr einer abgelaufenen Auktion, Anteil je Stück, Kosten unverändert, Tooltipzeile (`test_ledger.lua`).
+
 ## 0.15.2
 
 Kurz: Bei Handwerksmaterial zeigt der Tooltip jetzt auch „Bestand 0“. So siehst du sofort, dass keiner deiner Charaktere etwas davon hat.

@@ -6,6 +6,7 @@
 --          ab 0.15.2 bei Handwerksmaterial auch "Bestand 0", damit klar ist, dass Ledger nichts auf Lager kennt
 --   chars  je Charakter   places = Orte (Taschen 5, Bank 15), total = nur Summe je Charakter
 --   cost   Kosten         both = naechstes Stueck (Ø), next = naechstes Stueck, value = Lagerwert des Bestands
+--          ab 0.16 darunter "Offene Gebuehren" (Einstellgebuehren ohne Verkauf), gesamt und je Stueck
 --   last   zuletzt gezahlt   price = Preis je Stueck, full = mit Menge, Quelle und Datum
 --   sale   zuletzt verkauft  price, full
 --   rate   Verkaufsquote (30 Tage)
@@ -151,6 +152,7 @@ function T.Data(id)
     end
     local info = ns.Cost and ns.Cost.Info(id, "*")
     if info then d.next, d.avg, d.value = ns.Cost.Info(id) and ns.Cost.Info(id).next or info.next, info.avg, info.value end
+    if ns.Cost and ns.Cost.OpenFee then d.fee, d.feePer = ns.Cost.OpenFee(id, "*") end   -- ab 0.16
     d.last = ns.Last and ns.Last.Buy(id)
     d.sale = ns.Last and ns.Last.Sale(id)
     if ns.Book then d.rate, d.sold, d.back = ns.Book.SellRate(id) end
@@ -188,7 +190,12 @@ function T.BlockLines(key, fmt, d)
         end
         return out
     elseif key == "cost" then
-        if not d.next and not d.value then return {} end
+        -- ab 0.16 (Wunsch KarloDerBaer): offene Einstellgebuehren (abgelaufen, abgebrochen) in eigener Zeile
+        local feeLine
+        if d.fee then
+            feeLine = { L.TT_FEE_OPEN, d.feePer and L.TT_FEE_OPEN_TEXT:format(M(d.fee), M(d.feePer)) or M(d.fee) }
+        end
+        if not d.next and not d.value then return feeLine and { feeLine } or {} end
         local right
         if fmt == "next" then right = M(d.next)
         elseif fmt == "value" then right = M(d.value)
@@ -196,7 +203,9 @@ function T.BlockLines(key, fmt, d)
             right = M(d.next)
             if d.avg and math.abs((d.avg or 0) - (d.next or 0)) >= 1 then right = right .. " (Ø " .. M(d.avg) .. ")" end
         end
-        return { { fmt == "value" and L.TT_LAGER or L.TT_COST, right } }
+        local out = { { fmt == "value" and L.TT_LAGER or L.TT_COST, right } }
+        if feeLine then out[2] = feeLine end
+        return out
     elseif key == "last" or key == "sale" then
         local x = key == "last" and d.last or d.sale
         if not x then return {} end

@@ -957,6 +957,23 @@ table.insert(realm.moves, E(160, "trade", 2447, -2))
 table.insert(realm.moves, E(160, "trade", 5001, 4))
 Co.Invalidate()
 check(math.abs(Co.Info(5001).next - 100) < 0.01, "Handel: Gegenwert der gegebenen Blumen (4s) auf 4 Stueck verteilt")
+-- ab 0.16: offene Gebuehren einer abgelaufenen Auktion (18 Blumen, 5 eingestellt, 90c Gebuehr, zurueck)
+check(Co.OpenFee(2447) == nil, "0.16: ohne abgelaufene Auktion keine offenen Gebuehren")
+local avgBefore = Co.Info(2447).avg
+table.insert(realm.moves, E(170, "posted", 2447, -5))
+table.insert(realm.moves, E(170, "ahfee", 2447, nil, -90))
+table.insert(realm.moves, E(180, "ahreturn", 2447, 5))
+Co.Invalidate()
+do
+  local fee, per = Co.OpenFee(2447)
+  check(fee == 90 and per and math.abs(per - 5) < 0.01, "0.16: offene Gebuehren 90c, je Stueck 5c (18 Blumen)")
+  local f2 = mod:OpenFee(2447, "*")
+  check(f2 == 90, "0.16: mod:OpenFee fuer alle Charaktere")
+  check(math.abs(Co.Info(2447).avg - avgBefore) < 0.01, "0.16: Gebuehren stecken nicht in den Kosten je Stueck")
+  local d = ns.Tooltip.Data(2447)
+  local lines = ns.Tooltip.BlockLines("cost", "both", d)
+  check(lines[2] and lines[2][1] == "Offene Gebühren" and lines[2][2]:find("je Stück", 1, true), "0.16: Tooltip zeigt offene Gebuehren unter den Kosten")
+end
 -- Nachnahme
 table.insert(realm.moves, E(170, "mail", 5002, 2, nil, { paid = 300 }))
 table.insert(realm.moves, E(180, "mail", 5003, 2))

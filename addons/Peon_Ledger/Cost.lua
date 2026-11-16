@@ -814,6 +814,25 @@ function C.ByChar(id)
     return list
 end
 
+-- Offene Gebuehren (ab 0.16, Wunsch KarloDerBaer): Einstellgebuehren und Abbruchkosten, die noch keinem Verkauf
+-- angerechnet sind (z. B. abgelaufene Auktionen). char wie bei C.Info ("*" = alle Charaktere).
+-- Rueckgabe gesamt, je Stueck des Bestands (oder nil ohne Bestand); nil ohne offene Gebuehren.
+-- Die Gebuehren stecken nicht in den Kosten je Stueck, Ledger zieht sie beim naechsten Verkauf vom Gewinn ab.
+function C.OpenFee(id, char)
+    char = char or ns.CharName()
+    local st, sum = C.State(), 0
+    for c, x in pairs(st.chars) do
+        if char == "*" or c == char then
+            local f = x.fee and x.fee[id]
+            if Num(f) and f > 0 then sum = sum + f end
+        end
+    end
+    if sum < 0.5 then return nil end
+    local info = C.Info(id, char)
+    local per = info and info.n > 0 and sum / info.n or nil
+    return sum, per
+end
+
 function C.Result(e) return C.State().res[e] end
 
 -- AH-Kosten der Stueck in laufenden Auktionen (ab 0.15, fuer "davon in laufenden Auktionen" im Buch): je Charakter
