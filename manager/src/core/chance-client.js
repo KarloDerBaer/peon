@@ -206,6 +206,59 @@ const methods = {
     return rated;
   },
 
+  // ab 0.44.0 (Broker 0.101, Wunsch KarloDerBaer 17.11.2026): Chancen, die Broker beim Pruefen im Spiel als weg erkannt
+  // hat. Broker schreibt PeonBrokerDB.chancesGone[Markt][Schluessel] = "Stand:Zeit:Angebot" (Stand = t der Chancen aus
+  // Data.lua, Zeit der Pruefung, guenstigstes Angebot in Kupfer, 0 = keine Angebote). Gemerkt je Kontoordner in
+  // meta chanceGone = { [Ordner]: { [Markt]: { [Schluessel]: Text } } }, jede neu gelesene Datei ersetzt ihren Teil.
+  // Bis ein neuerer Stand kommt, ist die Chance ausgeblendet, in der Liste und fuer Broker.
+  goneFromGame(results) {
+    const keep = this.meta('chanceGone') || {};
+    let changed = false, n = 0;
+    for (const r of results) {
+      if (!r || !r.chancesGone || typeof r.chancesGone !== 'object') continue;
+      const part = {};
+      for (const [mkey, list] of Object.entries(r.chancesGone)) {
+        if (!list || typeof list !== 'object') continue;
+        const m = {};
+        for (const [k, v] of Object.entries(list)) if (parseGone(v)) { m[String(k)] = String(v); n++; }
+        if (Object.keys(m).length) part[mkey] = m;
+      }
+      const folder = r.folder || r.file || '?';
+      if (JSON.stringify(keep[folder] || {}) === JSON.stringify(part)) continue;
+      if (Object.keys(part).length) keep[folder] = part; else delete keep[folder];
+      changed = true;
+    }
+    if (changed) {
+      this.meta('chanceGone', keep);
+      log(this.db, 'chancen', true, n === 1 ? '1 Chance laut Broker im Spiel weg' : `${n} Chancen laut Broker im Spiel weg`);
+    }
+    return changed;
+  },
+  // Weg-Meldungen fuer einen Markt: Map Schluessel -> { stand, t, offer }, je Schluessel die neueste
+  goneFor(mid) {
+    const out = new Map();
+    const keep = this.meta('chanceGone') || {};
+    const ids = new Map();
+    const idOf = (mkey) => {
+      if (!ids.has(mkey)) {
+        const m = this.db.prepare('SELECT id FROM markets WHERE key = ?').get(mkey) || this.db.prepare('SELECT market_id AS id FROM market_alias WHERE alias = ?').get(mkey);
+        ids.set(mkey, m ? m.id : null);
+      }
+      return ids.get(mkey);
+    };
+    for (const part of Object.values(keep)) {
+      for (const [mkey, list] of Object.entries(part || {})) {
+        if (idOf(mkey) !== mid) continue;
+        for (const [k, v] of Object.entries(list || {})) {
+          const g = parseGone(v);
+          const old = out.get(k);
+          if (g && (!old || g.stand > old.stand || (g.stand === old.stand && g.t > old.t))) out.set(k, g);
+        }
+      }
+    }
+    return out;
+  },
+
   // Kandidatenliste fuer Broker (9.1): { t, list = { [key] = "Art:KaufenBis:Zielpreis:GueltigBis:Gewinn:Risiko" }, say }
   chancesForBroker(mid) {
     // ab 0.44.0: Schreib- und Lese-Prozess nehmen das gespeicherte Ergebnis (Anheften schreibt Data.lua gleich neu)
@@ -216,7 +269,11 @@ const methods = {
     const now = this.now();
     const rated = this.latestRatings();
     const down = (k) => { const r = rated.get(k); return !!(r && r.up === 0); };
-    const all = res.list.filter((x) => x.buy > 0 && (x.until || 0) > now && (pinned[x.key] || !down(x.key))).sort((a, b) => (b.gain || 0) - (a.gain || 0));
+    const t = st ? st.value.t : this.chanceCtx(mid).t;
+    // ab 0.44.0: im Spiel weg zu diesem Stand: nicht mehr an Broker, bis ein neuerer Stand kommt
+    const gone = this.goneFor(mid);
+    const away = (k) => { const g = gone.get(String(k)); return !!(g && g.stand >= (t || now)); };
+    const all = res.list.filter((x) => x.buy > 0 && (x.until || 0) > now && (pinned[x.key] || !down(x.key)) && !away(x.key)).sort((a, b) => (b.gain || 0) - (a.gain || 0));
     const list = {}, say = {};
     let n = 0;
     const put = (x) => {
@@ -229,7 +286,6 @@ const methods = {
     };
     for (const x of all) if (pinned[x.key]) put(x);
     for (const x of all) { if (n >= MAX_FOR_BROKER) break; put(x); }
-    const t = st ? st.value.t : this.chanceCtx(mid).t;
     return n ? { t: t || now, list, say } : null;
   },
   pinChance(key, on = true) {
@@ -259,12 +315,15 @@ const methods = {
     const rated = this.latestRatings();
     const pinned = this.meta('chancePinned') || {};
     const fav = new Set(this.favorites());
-    const strip = (x) => ({ ...x, rated: rated.get(x.key) || null, pinned: !!pinned[x.key], watched: fav.has(x.key) });
+    const gone = this.goneFor(mid);   // ab 0.44.0: laut Broker im Spiel weg (zu diesem Stand oder neuer)
+    const goneOf = (k) => { const g = gone.get(String(k)); return g && g.stand >= (sum.t || now) ? g : null; };
+    const strip = (x) => ({ ...x, rated: rated.get(x.key) || null, pinned: !!pinned[x.key], watched: fav.has(x.key), gone: goneOf(x.key) });
     const down = (x) => x.rated && x.rated.up === 0 && !x.pinned;
-    const list = sum.list.map(strip);
+    const all = sum.list.map(strip);
+    const list = all.filter((x) => !x.gone);
     const pat = this.db.prepare('SELECT json_extract(value, \'$.t\') AS t FROM meta WHERE key = ?').get(`patterns:${mid}`);
     return { market: marketKey, now, t: sum.t, age: sum.t ? Math.max(0, now - sum.t) : Infinity, list: list.filter((x) => !down(x)),
-      rejected: list.filter(down), near: sum.near, patterns: sum.patterns, patternsAt: (pat && pat.t) || null,
+      rejected: list.filter(down), gone: all.filter((x) => x.gone), near: sum.near, patterns: sum.patterns, patternsAt: (pat && pat.t) || null,
       proven: sum.proven, holdKnown: sum.holdKnown, bands: sum.bands, salesItems: sum.salesItems, forecasts: sum.forecasts, rules,
       gold: sum.gold, goldChars: sum.goldChars, histDays: this.marketDays(mid),
       start: proof.startOf(this.db, mid), kinds: spec.KINDS };
@@ -530,6 +589,12 @@ const methods = {
 };
 
 // Stufen aus der Antwort von /data/wow/item/{id}
+// ab 0.44.0: Weg-Meldung aus Broker "Stand:Zeit:Angebot" lesen, sonst null
+function parseGone(v) {
+  const m = /^(\d+):(\d+):(\d+)$/.exec(String(v ?? ''));
+  return m ? { stand: Number(m[1]), t: Number(m[2]), offer: Number(m[3]) } : null;
+}
+
 function levelOf(json) {
   const p = (json && json.preview_item) || {};
   const req = p.requirements && p.requirements.level ? Number(p.requirements.level.value) || null : json && Number(json.required_level) > 0 ? Number(json.required_level) : null;
@@ -540,4 +605,4 @@ function levelOf(json) {
 
 function install(proto) { Object.assign(proto, methods); }
 
-module.exports = { install, levelOf, BROKER_RULES, MAX_FOR_BROKER, zlib, parseRows };
+module.exports = { install, levelOf, parseGone, BROKER_RULES, MAX_FOR_BROKER, zlib, parseRows };

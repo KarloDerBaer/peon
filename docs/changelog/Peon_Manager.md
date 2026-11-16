@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.44.0
+
+Kurz: Chancen, die Broker im Spiel beim Prüfen nicht mehr gefunden hat, blendet der Manager aus, bis neue Daten sie wieder bewerten.
+
+- 0.44.0 (17.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Chancen:** Der Manager liest `PeonBrokerDB.chancesGone` (Broker 0.101.0) aus `Peon_Broker.lua` und merkt sich die Einträge je Kontoordner in `meta` `chanceGone` (`goneFromGame`, `goneFor`). Jede neu gelesene Datei ersetzt den Teil ihres Kontoordners. Andere Namen desselben Markts zählen mit.
+  - **Neu, Chancen:** Was zum aktuellen Stand im Spiel weg ist, geht nicht mehr an Broker und steht auf der Seite Chancen nicht in der Liste. Darunter steht eine Zeile mit Gegenstand, Zeitpunkt und günstigstem Angebot. Mit dem nächsten Stand werden die Chancen neu bewertet.
+  - Tests: Einlesen, zwei Kontoordner, anderer Name des Markts, neuer Stand (`chancen.test.js`).
+
 ## 0.43.0
 
 Kurz: Deine Eingaben im Manager werden jetzt sofort gespeichert, auch wenn er gerade neue Daten rechnet.

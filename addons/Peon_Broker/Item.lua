@@ -87,6 +87,15 @@ function P.OwnCost(id)
     return nil
 end
 
+-- Offene Einstellgebuehren je Stueck laut Peon_Ledger (ab 0.100, Ledger 0.16) oder nil
+function P.OpenFee(id)
+    local led = P.Ledger()
+    if not led or type(led.OpenFee) ~= "function" then return nil end
+    local ok, _, per = pcall(led.OpenFee, led, id)
+    if ok and Num(per) and per > 0 then return per end
+    return nil
+end
+
 -- Abschnitt "Mein Bestand": nur mit Peon_Ledger. Zeilen { label, value }
 function P.StockRows(key, ctx)
     local out = {}

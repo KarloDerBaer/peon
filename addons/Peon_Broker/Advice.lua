@@ -267,16 +267,20 @@ function A.ShowButtons(b, prices)
 end
 
 -- Moeglicher Gewinn (ab 0.99.1): Erloes nach Gebuehr minus Einkauf. Einkauf je Stueck aus dem Posten, sonst aus
--- Peon_Ledger. Ohne Einkauf zaehlt der Erloes ganz. Rueckgabe { gain, cost } oder nil (ohne Erloes)
+-- Peon_Ledger. Ohne Einkauf zaehlt der Erloes ganz. Ab 0.100 (Wunsch KarloDerBaer) zaehlen offene
+-- Einstellgebuehren laut Peon_Ledger (abgelaufene oder abgebrochene Auktionen) je Stueck mit.
+-- Rueckgabe { gain, cost, fee } oder nil (ohne Erloes)
 function A.Profit(r, lot)
     if not (r and Num(r.net)) then return nil end
     local qty = r.qty or 1
     local unit = lot and ns.Lots and ns.Lots.UnitCost(lot) or nil
-    if not Num(unit) and r.key ~= nil and ns.Item and ns.Item.OwnCost and ns.Data.ItemID then
-        unit = ns.Item.OwnCost(ns.Data.ItemID(r.key))
-    end
+    local id = r.key ~= nil and ns.Data.ItemID and ns.Data.ItemID(r.key) or nil
+    if not Num(unit) and id and ns.Item and ns.Item.OwnCost then unit = ns.Item.OwnCost(id) end
     local cost = Num(unit) and math.floor(unit * qty + 0.5) or nil
-    return { gain = math.floor(r.net + 0.5) - (cost or 0), cost = cost }
+    local per = id and ns.Item and ns.Item.OpenFee and ns.Item.OpenFee(id) or nil
+    local fee = Num(per) and math.floor(per * qty + 0.5) or nil
+    if fee and fee <= 0 then fee = nil end
+    return { gain = math.floor(r.net + 0.5) - (cost or 0) - (fee or 0), cost = cost, fee = fee }
 end
 
 function A.Show(sf, r, isNeutral)
@@ -302,6 +306,7 @@ function A.Show(sf, r, isNeutral)
         local v = col .. Money(math.abs(g.gain)) .. "|r"
         if g.cost then v = v .. "  |cff999999" .. L.ADV_PROFIT_COST:format(Money(g.cost)) .. "|r"
         else v = v .. "  |cff999999" .. L.ADV_PROFIT_NOCOST .. "|r" end
+        if g.fee then v = v .. " |cff999999" .. L.ADV_PROFIT_FEE:format(Money(g.fee)) .. "|r" end
         Row(L.ADV_ROW_PROFIT, v)
     end
     -- ab 0.67 (H3): Posten zum Gegenstand: Einsatz, Ziel, Warnung (ab 0.99 Knopf "Ziel" rechts)

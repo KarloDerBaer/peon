@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.99.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.43.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.15.2 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.4.1.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.101.0 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.44.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.4.1.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.22.0, API 22
@@ -66,8 +66,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Broker – 0.99.1 (neu, Auktionshaus-Helfer)
+## Peon_Broker – 0.101.0 (neu, Auktionshaus-Helfer)
 
+- **Offene Gebühren im möglichen Gewinn (ab 0.100.0, 16.11.2026):** Der mögliche Gewinn beim Verkaufen zieht offene Einstellgebühren laut Ledger (`mod:OpenFee`) je Stück ab. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Rat beim Verkaufen aufgeräumt (ab 0.99.1):** jede Angabe in eigener Zeile, unten der mögliche Gewinn (Erlös minus Einkauf aus Posten oder Ledger). Gelbe Zahl am Mengenregler im Fokus entfernt. Normales Release `v2026.11.16.3` (16.11.2026, ohne Vorabversion auf Wunsch von KarloDerBaer), Bau auf GitHub erfolgreich, Manifest nachgelesen. Im Spiel von KarloDerBaer geprüft (Entwicklung).
 - **Menge im Fokus und Preisknöpfe beim Verkaufen (ab 0.99.0):** Fokus mit Zeile Menge (Schieberegler und Feld, feste Höchstmenge, ganz rechts alle). Kasten beim Verkaufen in zwei Spalten mit Knöpfen Günstige, Vorschlag, Letzter, Ziel. Zuletzt eingestellter Preis in `PeonBrokerDB.lastPost`. Normales Release `v2026.11.16.3` (16.11.2026, ohne Vorabversion auf Wunsch von KarloDerBaer), Bau auf GitHub erfolgreich, Manifest nachgelesen. Im Spiel von KarloDerBaer geprüft (Entwicklung).
 - **Nur diese Variante beim Verkaufen (ab 0.98.0):** Neue Datei `SellVariant.lua`. Eigene Liste über Blizzards Liste mit den Angeboten genau dieser Variante, Klick trägt den Preis ein, Knopf schaltet auf alle Varianten (`sellVariantOnly`, Standard an). Normales Release `v2026.11.16.3` (16.11.2026, ohne Vorabversion auf Wunsch von KarloDerBaer), Bau auf GitHub erfolgreich, Manifest nachgelesen. Im Spiel noch nicht geprüft.
@@ -75,6 +76,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - **Zahl am Reiter einstellbar (ab 0.97.0):** Optionen, Abschnitt „Zahl am Reiter“, je Reiter ob und wann (`AHTabs.BADGE_MODES`, `badgeBuy`, `badgeWatch`, `badgeRadar`, `badgeSell`, `badgeChances`). Chancen neu mit Zahl, Standard aus. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Zahl am Reiter auf der Ecke (ab 0.96.2):** roter Kreis unten rechts am Reiter (`Window.CornerBadge`, `tab.corner`), der Reiter wird nicht breiter. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Tooltip bei Rezepten (ab 0.96.1):** zeigte die Preise des hergestellten Gegenstands, jetzt die des Rezepts (`T.LinkFor` mit `data.id`). Nicht veröffentlicht, im Spiel noch nicht geprüft.
+- **Verworfene Chancen (ab 0.101.0, Wunsch KarloDerBaer 17.11.2026):** Was beim Prüfen weg ist, merkt sich Broker mit dem Stand des Managers in `PeonBrokerDB.chancesGone[Markt][Schlüssel] = "Stand:Zeit:Angebot"` und zeigt es bis zu einem neueren Stand nicht mehr (nach Verlassen des Reiters, Öffnen des Auktionshauses oder Reload). Der Manager 0.44.0 liest die Liste und blendet die Chancen ebenfalls aus. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Reiter Chancen (ab 0.96.0, Konzept `Peon_Chancen_Reiter_Muster.md`):** Neue Datei `Chances.lua`, Reiter rechts neben dem Radar mit den Chancen des Managers und ihrem Zustand, „Alle prüfen“ (Radar-Scan `mgronly`), Erneuern auf der Seite, Klick in den Fokus. Radar ohne Kandidaten des Managers (`radarSpecOn` und „Vom Manager“ entfallen). Muster mit Zeitfenstern, Hinweise `chancesAhNote` und `chancesNotify`, Arten `chancesShowS`, `L`, `B`, `M`, Fenster Einstellungen Chancen. Fokus links neben Beobachten. Vorabversion `v2026.11.15-test` (15.11.2026, nur Kanal Test, mit Profession 0.3.1), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Im Spiel noch nicht geprüft.
 - **Kein Ton bei neuen Radar-Treffern (ab 0.95.1, Fehlerbericht 29):** `radarSound` ab Werk aus und einmal ausgeschaltet (`radarSoundOff`), weil der Ton ohne Chatzeile kam. Im Spiel noch nicht geprüft.
 
@@ -113,8 +115,9 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Verlauf der Versionen: `docs/changelog/Peon_Broker.md`
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.83.0, 0.82.0, 0.81.1, 0.81.0, 0.80.0, 0.79.0, 0.78.0, 0.77.0, 0.76.0, 0.75.1, 0.75.0, 0.74.0, 0.73.0, 0.72.0, 0.71.0, 0.70.0, 0.69.0, 0.68.0, 0.67.0, 0.66.0, 0.65.0, 0.64.1, 0.64.0, 0.63.0, 0.62.0, 0.61.0, 0.60.1, 0.60.0, 0.59.1, 0.36.0, 0.34.0, 0.33.1, 0.28.0, 0.25.2, 0.24.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.43.0
+## Peon Manager (Programm für Windows, bis 0.5.0 Peon Client) – 0.44.0
 
+- **Im Spiel weg (0.44.0, mit Broker 0.101.0):** liest `PeonBrokerDB.chancesGone` je Kontoordner in `meta` `chanceGone`, solche Chancen gehen bis zum nächsten Stand nicht an Broker und stehen auf der Seite Chancen unter der Liste. Nicht veröffentlicht, nicht im echten Manager geprüft.
 - **Schreiben, Rechnen und Lesen getrennt (0.43.0):** drei Arbeitsprozesse (`BrokerClient.role` write, calc, read), Ergebnisse in `calc_cache`, Data.lua nach der Rechnung über `bridgeFromCalc`, Rückfall auf den Schreib-Prozess. Nicht veröffentlicht, nicht im echten Manager geprüft.
 - **Stufe 3 der Beschleunigung (0.42.0):** zweiter Arbeitsprozess nur zum Lesen (`BrokerRemote.read`, `openReadDb`) für Gegenstandsseite, Liste und Protokoll des Abgleichs, Rückfall auf den ersten Prozess. Nicht veröffentlicht, nicht im echten Manager geprüft.
 - **Stufe 2 der Beschleunigung (0.41.0):** Schema 14 mit kompakten Kennzahlen (`sid`, ohne rowid), 3-Stunden-Werte mit `med_lo`/`med_hi`, Aufbewahrung 7/28 Tage, Tageswerte in `snap_cache`, `auc_first` ohne rowid. Echte Daten 1,96 auf 1,08 GB. Nicht veröffentlicht.
@@ -185,8 +188,9 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Verlauf der Versionen: `docs/changelog/Peon_Bridge.md`
 - Im Spiel prüfen (nach dem Start): Optionsseite zeigt „Kanal broker freigeschaltet“ und „Peon Manager: Werte vom … (Version 0.6.0)“.
 
-## Peon_Ledger – 0.15.2 (Bestand, Buch und Postfenster)
+## Peon_Ledger – 0.16.0 (Bestand, Buch und Postfenster)
 
+- **Offene Gebühren (ab 0.16.0, 16.11.2026):** Einstellgebühren abgelaufener oder abgebrochener Auktionen stehen im Tooltip unter den Kosten als „Offene Gebühren“ (gesamt und je Stück). Neue Abfrage `mod:OpenFee(id, char)` für Broker. Die Kosten je Stück bleiben ohne Gebühren, Ledger zieht sie wie bisher beim nächsten Verkauf vom Gewinn ab. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Bestand 0 im Tooltip (ab 0.15.2, 16.11.2026):** Bei Handwerksmaterial (Klasse 7 oder Kennzeichen „Handwerksmaterial“ des Spiels) zeigt der Tooltip auch dann „Ledger · Bestand 0“, wenn kein Charakter etwas davon hat. Andere Gegenstände ohne Bestand bleiben ohne Ledger-Zeile. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Eingestellte Ware unter Auktionen (ab 0.15.1):** Ware kommt beim Einstellen gleich unter Auktionen, danach Neuabfrage der eigenen Auktionen. Alte Abweichungen durch Einstellen werden bei jedem Login gepaart (`aucfix`, „Auktion (korrigiert)“). Einmaliger Nachtrag vorher eingestellter Ware (`fixListed`), Auflösen offener Abweichungen bei neuer Auktion in der Liste. Buch mit „davon in Auktionen“, Charakter links und Zeitraum rechts, Überlagerungen in Buch und Übersicht behoben. Neues Feld an Bewegungen: `pl` (Einstellung schon unter Auktionen). Nicht veröffentlicht, im Spiel noch nicht geprüft.
 

@@ -86,6 +86,9 @@ function importFile(db, file) {
   // (ab Broker 0.93, D4) und die Regeln des Aufkaufs, damit Manager und Broker gleich rechnen (4.4)
   if (acc && acc.ratings && typeof acc.ratings === 'object') res.ratings = acc.ratings;
   if (acc && acc.feste && typeof acc.feste === 'object') res.feste = acc.feste;
+  // ab Manager 0.44.0 (Broker 0.101): im Spiel als weg erkannte Chancen, je Markt "Stand:Zeit:Angebot". Immer gesetzt,
+  // damit ein leerer Stand die Eintraege dieses Kontoordners loescht
+  if (acc) res.chancesGone = acc.chancesGone && typeof acc.chancesGone === 'object' ? acc.chancesGone : {};
   if (acc) {
     const n = (k) => (typeof acc[k] === 'number' && Number.isFinite(acc[k]) ? acc[k] : undefined);
     const rules = { hours: n('buyoutHours'), minGain: n('dealMinMarket') != null ? n('dealMinMarket') * 100 : undefined, minQty: n('buyoutMinQty'),

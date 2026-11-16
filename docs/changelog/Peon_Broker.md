@@ -2,6 +2,26 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.101.0
+
+Kurz: Chancen, die beim Prüfen weg waren, kommen nach einem Reload nicht mehr wieder. Erst wenn der Peon Manager sie mit neuen Daten wieder findet, stehen sie erneut in der Liste.
+
+- 0.101.0 (17.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Chancen:** Was beim Prüfen „weg“ ist, merkt sich Broker mit dem Stand des Managers, aus dem die Chance kam, in `PeonBrokerDB.chancesGone[Markt][Schlüssel] = "Stand:Zeit:Angebot"` (Angebot = günstigstes Angebot in Kupfer, 0 = keine Angebote). Solange der Reiter offen ist, bleibt die Zeile als „weg“ stehen. Nach dem Verlassen des Reiters, beim Öffnen des Auktionshauses und nach einem Reload ist sie ausgeblendet und wird nicht mehr geprüft (`C.Forget`, `C.Hidden`, `C.Leave`).
+  - **Neu, Chancen:** Bringt der Manager einen neueren Stand, gilt die Chance wieder und der Eintrag wird entfernt (`C.Prune`). Wird sie beim Prüfen wieder bestätigt, ist der Eintrag gleich fort. Einträge ohne neuen Stand fallen nach 3 Tagen weg.
+  - **Neu, Chancen:** Oben steht, wie viele Chancen bis zum nächsten Stand ausgeblendet sind („· 8 weg bis zum nächsten Stand“).
+  - Aufkauf: Ist der Aufkauf im Radar aus, merkt sich Broker dazu nichts, die Prüfung sagt dann nichts über die Chance.
+  - Der Manager ab 0.44.0 liest die Liste aus `Peon_Broker.lua` und blendet diese Chancen ebenfalls aus.
+  - Tests: merken, ausblenden, Reload, bestätigt, neuer Stand, Aufräumen (`test_broker.lua`).
+
+## 0.100.0
+
+Kurz: Der mögliche Gewinn beim Verkaufen rechnet jetzt auch Einstellgebühren von Auktionen ab, die vorher nicht verkauft wurden.
+
+- 0.100.0 (16.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Verkaufen:** „Möglicher Gewinn“ zieht offene Einstellgebühren aus Peon_Ledger je Stück ab und nennt sie dahinter („offene Gebühren …“). Braucht Ledger 0.16.0, sonst wie bisher (`A.Profit`, `Item.OpenFee`).
+  - Tests: Gewinn mit und ohne offene Gebühren (`test_broker.lua`).
+
 ## 0.99.1
 
 Kurz: Beim Verkaufen steht im Rat jede Angabe in einer eigenen Zeile, ganz unten der mögliche Gewinn nach Gebühr und Einkauf. Im Fokus zeigt der Mengenregler keine zweite, veraltete Zahl mehr.

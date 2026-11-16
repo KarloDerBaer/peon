@@ -2,6 +2,13 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 17.11.2026: Verworfene Chancen merken und an den Manager melden (Broker 0.101.0, Manager 0.44.0)
+
+- **Weg gilt bis zum nächsten Stand** (Wunsch KarloDerBaer): Eine Chance, die beim Prüfen weg ist, kommt erst wieder, wenn der Manager sie mit einem neueren Stand erneut als Chance bewertet. Grund: Nach jedem Reload musste man dieselben Chancen wieder prüfen.
+- **Format der Rückmeldung** (KarloDerBaer): `PeonBrokerDB.chancesGone[Markt][Schlüssel] = "Stand:Zeit:Angebot"`. Der Manager liest es direkt aus `Peon_Broker.lua` wie die Einschätzungen, Peon_Bridge bleibt unverändert.
+- **Im Manager ausblenden mit Hinweis** (KarloDerBaer): wie Daumen runter nicht in der Liste und nicht an Broker, darunter eine Zeile mit Gegenstand, Zeitpunkt und Angebot.
+- **Im Spiel sichtbar bis zum Verlassen des Reiters** (KarloDerBaer): Eine gerade verworfene Zeile bleibt als „weg“ stehen, damit man sieht, was passiert ist.
+
 ## 16.11.2026: Schreiben, Rechnen und Lesen in eigenen Prozessen (Manager 0.43.0)
 
 - **Drei Arbeitsprozesse** (KarloDerBaer 15.11.2026: „Schreiben und Rechnen sollten doch nicht in einem Prozess sein“): Der Schreib-Prozess nimmt Eingaben und neue Stände an und schreibt Data.lua, der Rechen-Prozess rechnet, der Lese-Prozess bedient die Ansichten. Grund: Eine Eingabe wartete bis zu 15 Sek. hinter einer Rechnung.

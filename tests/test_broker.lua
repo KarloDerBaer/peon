@@ -1710,6 +1710,16 @@ end)()
       g = A.Profit({ net = 950.4, qty = 1 }, nil)
       check(g and g.cost == nil and g.gain == 950, "0.99.1: ohne Einkauf zaehlt der Erloes ganz")
       check(A.Profit({ qty = 1 }, nil) == nil, "0.99.1: ohne Erloes kein Gewinn")
+      do   -- ab 0.100: offene Einstellgebuehren je Stueck aus Peon_Ledger
+        local saved = ns.Item.OpenFee
+        ns.Item.OpenFee = function() return 15 end
+        g = A.Profit({ net = 2850, qty = 2, key = 2589 }, { cost = 2076, qty = 2 })
+        check(g and g.fee == 30 and g.gain == 744, "0.100: Gewinn minus offene Gebuehren (2 x 15c)")
+        ns.Item.OpenFee = function() return nil end
+        g = A.Profit({ net = 2850, qty = 2, key = 2589 }, { cost = 2076, qty = 2 })
+        check(g and g.fee == nil and g.gain == 774, "0.100: ohne offene Gebuehren wie bisher")
+        ns.Item.OpenFee = saved
+      end
     end
     GetTime = function() return now end
     bt.cheap.scripts.OnClick(bt.cheap)
@@ -4164,7 +4174,8 @@ end)()
   check(C.StateText(by[2770]):find("bestätigt", 1, true), "0.96: Zustand als Text")
   -- Radar zeigt die Kandidaten nicht, Chancen schon
   check(R.Visible({ kind = "spec", gain = 5, qty = 1, cost = 1 }, 1e9) == false, "0.96: Radar ohne Kandidaten vom Manager")
-  -- Hinweis beim Oeffnen des Auktionshauses
+  -- Hinweis beim Oeffnen des Auktionshauses (ab 0.101 zaehlt Verworfenes nicht mit, hier nur der Hinweis)
+  PeonBrokerDB.chancesGone = nil
   local n0 = #out
   C.OnAHShow()
   check(#out == n0 + 1 and out[#out]:find("2 Chancen vom Peon Manager warten", 1, true), "0.96: Hinweis beim Oeffnen")
@@ -4181,6 +4192,67 @@ end)()
   check(f:IsShown() and found.chancesShowS and found.chancesShowM and found.chancesAhNote and found.chancesNotify, "0.96: Fenster Einstellungen Chancen")
   S.Hide("chances")
   C.checked = {}
+  ns.Buy.KnownKey = knownOrig
+  Peon.GetModule = orig
+  Sp.cache = nil
+end)()
+
+-- ===== 0.101: verworfene Chancen merken (Chances.lua, Wunsch KarloDerBaer 17.11.2026) =====
+;(function()
+  local Sp, C = ns.Spec, ns.Chances
+  local now = time()
+  local stand = now - 1800
+  local fake = { Chances = function()
+    return stand, { ["2770"] = "s:500:900:" .. (now + 3600) .. ":1200:1:2", ["2772"] = "b:10:12:" .. (now + 3600) .. ":5000:0",
+                    ["2773"] = "s:500:900:" .. (now + 3600) .. ":800:1" }, {}
+  end }
+  local orig = Peon.GetModule
+  Peon.GetModule = function(self, k) if k == "bridge" then return fake end return orig(self, k) end
+  Sp.cache = nil
+  local knownOrig = ns.Buy.KnownKey
+  ns.Buy.KnownKey = function() return true end
+  C.checked, C.goneNow, PeonBrokerDB.chancesGone = {}, {}, nil
+  local function byKey() local by = {} for _, r in ipairs(C.Rows()) do by[r.key] = r end return by end
+  -- weg: gemerkt mit Stand, Zeit und Angebot, bleibt bis zum Verlassen als "weg" stehen
+  C.Note(2770, nil, { { price = 650, qty = 1 } })
+  local store = PeonBrokerDB.chancesGone and PeonBrokerDB.chancesGone[ns.MarketKey()]
+  local g = store and C.ParseGone(store[2770])
+  check(g and g.stand == stand and math.abs(g.t - now) <= 2 and g.offer == 650, "0.101: weg mit Stand, Zeit und Angebot gemerkt")
+  check(byKey()[2770] and byKey()[2770].state == "gone", "0.101: gerade verworfen steht noch als weg da")
+  C.Leave()
+  check(byKey()[2770] == nil and byKey()[2773] ~= nil, "0.101: nach dem Verlassen ausgeblendet")
+  local keys = C.Keys()
+  local inKeys = false
+  for _, k in ipairs(keys) do if k == 2770 then inKeys = true end end
+  check(not inKeys and C.HiddenCount() == 1, "0.101: nicht mehr pruefen, einmal gezaehlt")
+  check(C.StatusText():find("1 weg bis zum nächsten Stand", 1, true), "0.101: Zahl im Status")
+  -- Reload: Sitzung leer, Eintrag bleibt
+  C.checked, C.goneNow = {}, {}
+  Sp.cache = nil
+  check(byKey()[2770] == nil, "0.101: nach dem Reload weiter ausgeblendet")
+  -- Aufkauf bei abgeschaltetem Aufkauf im Radar: nichts merken
+  mod.db.radarBuyoutOn = false
+  C.Note(2772, nil, {})
+  check(store[2772] == nil, "0.101: Aufkauf aus im Radar, Pruefung sagt nichts")
+  mod.db.radarBuyoutOn = nil
+  -- wieder da: vergessen
+  C.Note(2773, nil, {})
+  check(C.ParseGone(store[2773]).offer == 0, "0.101: keine Angebote: Angebot 0")
+  C.Note(2773, { gain = 300 }, { { price = 400, qty = 1 } })
+  check(store[2773] == nil and byKey()[2773].state == "ok", "0.101: bestaetigt nimmt den Eintrag weg")
+  -- neuer Stand des Managers: Chance kommt zurueck, Eintrag wird beim Aufraeumen entfernt
+  stand = now - 60
+  Sp.cache = nil
+  C.checked = {}
+  check(byKey()[2770] ~= nil and byKey()[2770].state == "new", "0.101: neuer Stand bringt die Chance zurueck")
+  C.Prune()
+  check(PeonBrokerDB.chancesGone == nil, "0.101: alter Eintrag aufgeraeumt")
+  -- sehr alte Eintraege anderer Maerkte fallen ebenfalls weg
+  PeonBrokerDB.chancesGone = { ["Anderer / Horde"] = { [1] = "100:" .. (now - 4 * 86400) .. ":0", [2] = "100:" .. (now - 3600) .. ":0" } }
+  C.Prune()
+  check(PeonBrokerDB.chancesGone["Anderer / Horde"][1] == nil and PeonBrokerDB.chancesGone["Anderer / Horde"][2], "0.101: nach 3 Tagen entfernt")
+  PeonBrokerDB.chancesGone = nil
+  C.checked, C.goneNow = {}, {}
   ns.Buy.KnownKey = knownOrig
   Peon.GetModule = orig
   Sp.cache = nil

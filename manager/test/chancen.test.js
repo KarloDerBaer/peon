@@ -261,6 +261,45 @@ test('0.36.0: Daumen runter blendet die Chance aus, auch fuer Broker, ausser sie
   db.close();
 });
 
+test('0.44.0: im Spiel weg (Broker 0.101) blendet die Chance bis zum naechsten Stand aus', () => {
+  const { install, parseGone } = require('../src/core/chance-client');
+  const broker = require('../src/core/broker');
+  const { toLua } = require('../src/core/lua');
+  const dir = tmp();
+  const db = openDb(dir);
+  const M = 'Realm / Alliance';
+  const mid = Number(db.prepare('INSERT INTO markets(key, realm, faction, created) VALUES (?, ?, ?, ?)').run(M, 'Realm', 'Alliance', NOW).lastInsertRowid);
+  db.prepare('INSERT INTO market_alias(alias, market_id) VALUES (?, ?)').run('Realm-Alt / Alliance', mid);
+  const bc = { db, now: () => NOW, store: {}, meta(k, v) { if (v === undefined) return this.store[k] ?? null; this.store[k] = v; return v; } };
+  install(bc);
+  const T = NOW - 1800;
+  const ch = (key) => ({ key, kind: 's', buy: 100, target: 200, until: NOW + 3600, gain: 1000, risk: 'low', qty: 1, say: 'x' });
+  bc.chanceResult = () => ({ list: [ch('2770'), ch('2771'), ch('3:Name')], live: [] });
+  bc.chanceCtx = () => ({ t: T });
+  assert.deepEqual(parseGone('5:6:0'), { stand: 5, t: 6, offer: 0 });
+  assert.equal(parseGone('x'), null);
+  // Broker schreibt chancesGone, der Einleser reicht es durch
+  const file = path.join(dir, 'Peon_Broker.lua');
+  fs.writeFileSync(file, 'PeonBrokerDB = ' + toLua({ markets: {}, chancesGone: { [M]: { 2770: `${T}:${NOW - 60}:650` }, 'Realm-Alt / Alliance': { '3:Name': `${T}:${NOW - 30}:0`, 2999: 'kaputt' } } }));
+  const r = broker.importFile(db, file);
+  assert.ok(r.chancesGone && r.chancesGone[M]);
+  assert.equal(bc.goneFromGame([{ folder: 'A', chancesGone: r.chancesGone }]), true);
+  assert.equal(bc.goneFromGame([{ folder: 'A', chancesGone: r.chancesGone }]), false, 'gleicher Stand: nichts neu');
+  const g = bc.goneFor(mid);
+  assert.equal(g.size, 2, 'auch ueber den anderen Namen des Markts, Kaputtes nicht');
+  assert.deepEqual(g.get('2770'), { stand: T, t: NOW - 60, offer: 650 });
+  assert.deepEqual(Object.keys(bc.chancesForBroker(mid).list), ['2771'], 'weg geht nicht mehr an Broker');
+  // ein zweiter Kontoordner zaehlt mit, eine neue Datei ohne Eintraege loescht nur ihren Teil
+  bc.goneFromGame([{ folder: 'B', chancesGone: { [M]: { 2771: `${T}:${NOW - 10}:0` } } }]);
+  assert.equal(bc.chancesForBroker(mid), null, 'alle weg: keine Liste');
+  bc.goneFromGame([{ folder: 'B', chancesGone: {} }]);
+  assert.deepEqual(Object.keys(bc.chancesForBroker(mid).list), ['2771']);
+  // neuer Stand des Managers: die Chance kommt zurueck
+  bc.chanceCtx = () => ({ t: NOW });
+  assert.deepEqual(Object.keys(bc.chancesForBroker(mid).list).sort(), ['2770', '2771', '3:Name']);
+  db.close();
+});
+
 test('0.36.0: Haendlerpreise gelten einmal wieder als unbestaetigt (Schema 11)', () => {
   const dir = tmp();
   let db = openDb(dir);

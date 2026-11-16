@@ -100,7 +100,7 @@ class BrokerClient {
     if (sum.broker.some((b) => b.watch)) this.watchFromGame(sum.broker);
     if (sum.broker.some((b) => b.vendors)) this.vendorsFromGame(sum.broker);
     // ab 0.35.0 (Chancen): Feste, Einschaetzungen und Regeln des Aufkaufs aus Broker
-    try { this.festsFromGame(sum.broker); this.ratingsFromGame(sum.broker); this.rulesFromGame(sum.broker); } catch (e) { log(this.db, 'chancen', false, `Aus Broker: ${e.message}`); }
+    try { this.festsFromGame(sum.broker); this.ratingsFromGame(sum.broker); this.rulesFromGame(sum.broker); this.goneFromGame(sum.broker); } catch (e) { log(this.db, 'chancen', false, `Aus Broker: ${e.message}`); }
     // ab 0.44.0: Im Schreib-Prozess rechnet der Rechen-Prozess danach (broker-remote importGame), Data.lua kommt dann aus
     // bridgeFromCalc. Hier gleich die Bestaetigung mit den Werten der letzten Rechnung.
     const markets = this.role === 'write' ? this.storedMarkets() : this.buildMarkets();
@@ -256,7 +256,7 @@ class BrokerClient {
       try {
         const r = broker.importFile(this.db, f.file);
         seen[f.file] = mt;
-        out.push({ file: f.file, folder: f.account, mt: Math.floor(mt / 1000), acct: r.acct, markets: r.markets, shop: r.shop, watch: r.watch, vendors: r.vendors, ratings: r.ratings, feste: r.feste, rules: r.rules });
+        out.push({ file: f.file, folder: f.account, mt: Math.floor(mt / 1000), acct: r.acct, markets: r.markets, shop: r.shop, watch: r.watch, vendors: r.vendors, ratings: r.ratings, feste: r.feste, rules: r.rules, chancesGone: r.chancesGone });
         const n = r.markets.reduce((a, m) => a + m.items, 0);
         log(this.db, 'broker', true, `Broker-Verlauf: ${n} Gegenstände in ${r.markets.length} ${r.markets.length === 1 ? 'Markt' : 'Märkten'}`);
       } catch (e) {

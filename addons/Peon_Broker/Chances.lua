@@ -9,6 +9,9 @@
 --   Muster    liegt die Uhrzeit im guenstigen Fenster, ist die Zeile gruen, sonst steht dort "ab 21 Uhr"
 --   Einstellungen  Arten an oder aus, Hinweis beim Oeffnen des Auktionshauses, Meldung beim Beginn eines Fensters
 -- Klick auf eine Zeile oeffnet den Fokus, gekauft wird dort wie bisher.
+-- Ab 0.101 (Wunsch KarloDerBaer 17.11.2026): Was beim Pruefen weg war, merkt sich Broker mit dem Stand des Managers, aus
+-- dem die Chance kam (C.Forget). Bis ein neuerer Stand sie wieder bringt, steht sie nicht mehr in der Liste. Der Manager
+-- liest die Liste aus Peon_Broker.lua und blendet sie ebenfalls aus.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -39,13 +42,107 @@ function C.Shown()
     return W.IsOpen() and W.current == "chances"
 end
 
+---------------------------------------------------------------------------
+-- Verworfene Chancen (ab 0.101), accountweit je Markt:
+--   PeonBrokerDB.chancesGone[Markt][Schluessel] = "Stand:Zeit:Angebot"
+--   Stand = Zeit des Manager-Stands (t aus Data.lua), Zeit = time() der Pruefung, Angebot = guenstigstes Angebot
+--   in Kupfer (0 = keine Angebote mehr). Kommt ein neuerer Stand, gilt der Eintrag nicht mehr und wird entfernt.
+-- C.goneNow: in dieser Sitzung verworfen, solange der Reiter offen ist. Diese Zeilen bleiben als "weg" stehen.
+---------------------------------------------------------------------------
+C.GONE_KEEP = 3 * 86400   -- Eintraege ohne neueren Stand fallen nach 3 Tagen weg
+C.goneNow = {}
+
+function C.GoneStore(create)
+    local acc, market = mod.acc, ns.MarketKey()
+    if type(acc) ~= "table" or type(market) ~= "string" then return nil end
+    if type(acc.chancesGone) ~= "table" then
+        if not create then return nil end
+        acc.chancesGone = {}
+    end
+    local s = acc.chancesGone[market]
+    if type(s) ~= "table" then
+        if not create then return nil end
+        s = {}
+        acc.chancesGone[market] = s
+    end
+    return s
+end
+
+function C.ParseGone(v)
+    if type(v) ~= "string" then return nil end
+    local s, t, o = v:match("^(%d+):(%d+):(%d+)$")
+    if not s then return nil end
+    return { stand = tonumber(s), t = tonumber(t), offer = tonumber(o) }
+end
+
+-- Verworfen zu diesem Stand des Managers (oder einem neueren)?
+function C.GoneAt(key, stand)
+    local s = C.GoneStore(false)
+    local g = s and C.ParseGone(s[key])
+    return g ~= nil and type(stand) == "number" and g.stand >= stand
+end
+
+-- Nicht zeigen: verworfen und nicht gerade erst (dann steht die Zeile noch als "weg" da)
+function C.Hidden(key, x)
+    if C.goneNow[key] then return false end
+    return C.GoneAt(key, x and x.t)
+end
+
+-- Ergebnis der Pruefung merken. Ohne Stand des Managers nichts. Aufkauf prueft Broker mit den Regeln des Radars,
+-- ist die Art dort aus, sagt die Pruefung nichts.
+function C.Forget(key, x, offer)
+    if not (x and type(x.t) == "number") then return end
+    if x.mk == "b" and ns.Radar and not ns.Radar.KIND_ON.buyout then return end
+    local s = C.GoneStore(true)
+    if not s then return end
+    s[key] = ("%d:%d:%d"):format(x.t, time(), math.max(0, math.floor(tonumber(offer) or 0)))
+    C.goneNow[key] = true
+end
+
+function C.Unforget(key)
+    local s = C.GoneStore(false)
+    if s then s[key] = nil end
+    C.goneNow[key] = nil
+end
+
+-- Aufraeumen: im aktuellen Markt alles zu einem aelteren Stand, ueberall alles nach C.GONE_KEEP
+function C.Prune()
+    local acc = mod.acc
+    if type(acc) ~= "table" or type(acc.chancesGone) ~= "table" then return end
+    local market, now = ns.MarketKey(), time()
+    local stand
+    if ns.Spec and market then stand = select(2, ns.Spec.All()) end
+    for m, s in pairs(acc.chancesGone) do
+        if type(s) == "table" then
+            for key, v in pairs(s) do
+                local g = C.ParseGone(v)
+                if not g or now - g.t > C.GONE_KEEP or (m == market and type(stand) == "number" and g.stand < stand) then s[key] = nil end
+            end
+            if next(s) == nil then acc.chancesGone[m] = nil end
+        else
+            acc.chancesGone[m] = nil
+        end
+    end
+    if next(acc.chancesGone) == nil then acc.chancesGone = nil end
+end
+
+-- Wie viele Chancen sind gerade verworfen und ausgeblendet?
+function C.HiddenCount()
+    local n = 0
+    if not ns.Spec then return 0 end
+    for key, x in pairs(ns.Spec.All()) do
+        if C.KindOn(x.mk) and C.Hidden(key, x) then n = n + 1 end
+    end
+    return n
+end
+
 -- Schluessel der gezeigten Arten, hoechster Gewinn zuerst (fuer Erneuern und "Alle pruefen")
 function C.Keys()
     local Sp = ns.Spec
     if not Sp then return {} end
     local all, keys = Sp.All(), {}
     for key, x in pairs(all) do
-        if C.KindOn(x.mk) and ns.Buy.KnownKey(key) then keys[#keys + 1] = key end
+        if C.KindOn(x.mk) and not C.Hidden(key, x) and ns.Buy.KnownKey(key) then keys[#keys + 1] = key end
     end
     table.sort(keys, function(a, b) return (all[a].gain or 0) > (all[b].gain or 0) end)
     return keys
@@ -53,9 +150,12 @@ end
 
 -- Antwort einer Live-Abfrage (Radar.lua R.Apply): Zustand merken, wenn der Gegenstand eine Chance des Managers ist
 function C.Note(key, d, rows)
-    if not (ns.Spec and ns.Spec.Get(key)) then return end
+    local x = ns.Spec and ns.Spec.Get(key)
+    if not x then return end
     local lv = ns.Data.Available(rows or {})
     C.checked[key] = { t = Now(), ok = d ~= nil, gain = d and (d.showGain or d.gain) or nil, offer = lv[1] and lv[1].price or nil }
+    -- ab 0.101: weg merken (mit dem Stand des Managers), wieder da: vergessen
+    if d then C.Unforget(key) else C.Forget(key, x, lv[1] and lv[1].price) end
     if C.Shown() then C.Refresh() end
     C.UpdateBadge()
 end
@@ -115,7 +215,7 @@ function C.Rows()
     local market = D.Market()
     local now = Now()
     for key, x in pairs(Sp.All()) do
-        if C.KindOn(x.mk) then
+        if C.KindOn(x.mk) and not C.Hidden(key, x) then
             local e = market and market.items[key]
             local r = { key = key, mk = x.mk, x = x, limit = x.limit, target = x.target, qty = x.qty, say = x.say }
             r.name = (type(e) == "table" and e.nm) or D.ItemName(key, e)
@@ -224,6 +324,8 @@ function C.StatusText()
     else
         local age = math.max(0, time() - t)
         st = GREY .. L.CH_STAND:format(age < 3600 and L.SPEC_MIN:format(math.max(1, math.floor(age / 60))) or L.SPEC_HOURS:format(math.floor(age / 3600))) .. "|r"
+        local hidden = C.HiddenCount()   -- ab 0.101
+        if hidden > 0 then st = st .. GREY .. L.CH_HIDDEN:format(hidden) .. "|r" end
     end
     if R.running and R.forceMode == "mgronly" then
         local sc = R.search
@@ -246,6 +348,12 @@ function C.Refresh()
     C.UpdateView()
 end
 
+-- ab 0.101: gerade Verworfenes steht beim naechsten Oeffnen nicht mehr da (Reiter verlassen, Auktionshaus neu offen)
+function C.Leave()
+    C.goneNow = {}
+    C.Prune()
+end
+
 function C.Open()
     if ns.Radar then ns.Radar.LoadIfStale() end
     C.Refresh()
@@ -256,6 +364,7 @@ end
 -- Hinweise: beim Oeffnen des Auktionshauses und wenn ein guenstiges Fenster beginnt
 ---------------------------------------------------------------------------
 function C.OnAHShow()
+    C.Leave()
     C.UpdateBadge()
     if mod.db.chancesAhNote == false then return end
     local n = #C.Keys()
@@ -290,5 +399,8 @@ end
 W.pages.chances = {
     build = C.Build,
     refresh = function() C.Open() end,
-    leave = function() if ns.Radar then ns.Radar.Halt() end end,
+    leave = function()
+        C.Leave()
+        if ns.Radar then ns.Radar.Halt() end
+    end,
 }

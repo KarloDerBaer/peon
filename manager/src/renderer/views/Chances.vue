@@ -8,7 +8,7 @@ import ChecksList from '../components/ChecksList.vue';
 import RateDialog from '../components/RateDialog.vue';
 import WhyNot from '../components/WhyNot.vue';
 import ChanceRules from '../components/ChanceRules.vue';
-import { num, fold, qualityColor, itemName, ago, when } from '../util.js';
+import { num, fold, qualityColor, itemName, ago, when, shortMoney } from '../util.js';
 
 const props = defineProps({ market: Object, now: Number, stamp: Number, settings: Object });
 const emit = defineEmits(['open', 'save', 'brief']);
@@ -50,6 +50,11 @@ watch([search, kind, minGold, quality, tab], () => { limit.value = 60; why.value
 const RISK = { low: 'gering', mid: 'mittel', high: 'hoch' };
 const SURE = { low: 'niedrig', mid: 'mittel', high: 'hoch' };
 const KIND_SHORT = { s: 'Spekulation', l: 'Langfristig', b: 'Aufkauf', m: 'Muster', v: 'Händler' };
+// ab 0.44.0: "Malachit (vor 20 Min., ab 52c)" oder "(vor 20 Min., keine Angebote)"
+function goneText(x) {
+  const g = x.gone;
+  return `${itemName(x)} (${ago(g.t, props.now)}, ${g.offer > 0 ? `ab ${shortMoney(g.offer)}` : 'keine Angebote'})`;
+}
 
 const source = computed(() => (!d.value ? [] : d.value.list));
 const rows = computed(() => {
@@ -194,6 +199,11 @@ const ratingLabel = (r) => [r.up === 1 ? '👍' : r.up === 0 ? '👎' : null, r.
       <p v-if="d && d.rejected && d.rejected.length" class="small muted">
         {{ d.rejected.length === 1 ? '1 Chance ist' : `${num(d.rejected.length)} Chancen sind` }} nach deiner Bewertung mit Daumen runter ausgeblendet und gehen nicht an Broker:
         {{ d.rejected.map((x) => itemName(x)).join(', ') }}. Löschst du die Bewertung im Reiter Rückmeldungen, kommt die Chance zurück.
+      </p>
+      <!-- ab 0.44.0: Broker hat sie beim Pruefen im Spiel als weg erkannt (Broker 0.101) -->
+      <p v-if="d && d.gone && d.gone.length" class="small muted">
+        {{ d.gone.length === 1 ? '1 Chance ist' : `${num(d.gone.length)} Chancen sind` }} laut Broker im Spiel weg und bis zum nächsten Stand ausgeblendet:
+        {{ d.gone.map(goneText).join(', ') }}.
       </p>
       <p v-if="rows.length > shown.length" class="more small muted">{{ num(shown.length) }} von {{ num(rows.length) }} <button class="link" @click="limit += 60">60 weitere zeigen</button></p>
 
