@@ -2,6 +2,74 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.3.3
+
+Kurz: In den Einstellungen steht „Blizzard ersetzen:“ jetzt gut lesbar vor den Haken.
+
+- 0.3.3 (17.11.2026, Wunsch KarloDerBaer): Die Überschrift „Warhorn statt Blizzard“ lag oben links unter dem runden Bild. Sie heißt jetzt „Blizzard ersetzen:“ und steht in derselben Zeile vor den Haken Suchen, Eintragen und Wer-Liste.
+
+## 0.3.2
+
+Kurz: Der Reiter Eintragen zeigt jetzt zuverlässig Warhorns Seite. Der Reiter Einstellungen sitzt unten am Rand, und beim Öffnen der Gruppensuche sucht Warhorn gleich.
+
+- 0.3.2 (17.11.2026, nach dem Test von 0.3.1 durch KarloDerBaer):
+  - **Reiter Eintragen:** Blizzard zeigt beim Wechsel die neue Seite, bevor es die alte versteckt. Warhorn fand darum noch die Suchseite offen und blieb dort oder zeigte Blizzards Seite. Jetzt zählt zuerst Blizzards gewählter Reiter (`selectedTab`).
+  - **Reiter Einstellungen unten** am rechten Rand statt direkt unter Blizzards Reitern (Wunsch KarloDerBaer).
+  - **Suchen beim Öffnen:** Öffnet man die Gruppensuche auf der Seite Suchen (Menüknopf, Taste, `/warhorn`), sucht Warhorn gleich. Höchstens alle 5 Sekunden. Nicht, wenn Blizzard die Gruppensuche von selbst öffnet (Antwort der Wer-Liste).
+  - **Im Spiel prüfen:** Wechsel auf Eintragen, Lage des Reiters Einstellungen, Suche beim Öffnen ohne Meldung „blockiert“.
+
+## 0.3.1
+
+Kurz: Warhorn ist jetzt so groß wie Ledger und deckt Blizzards Fenster ganz ab. Beim Eintragen gibt es den Spielstil (Vorgabe Entspannt), und der Knopf zum Kommentar führt direkt zum Kommentarfeld.
+
+- 0.3.1 (17.11.2026, nach dem Test von 0.3.0 durch KarloDerBaer):
+  - **Blizzards Fenster schaute unten heraus:** Seit 0.3.0 kommt Warhorns Anzeige vor Blizzards eigener, Blizzards Reiter unten waren da noch nicht versteckt. Warhorn hielt den modernen Stil darum für den alten und endete zu weit oben. Jetzt zählt zuerst Blizzards Schalter `LFGVANILLA_SETTING_MODERN_STYLE`.
+  - **Blizzards Suchfeld der Wer-Liste schien durch:** Es liegt bei Blizzard in der Schicht HIGH. Warhorn liegt in dieser Schicht jetzt auf Ebene 300.
+  - **Größe wie Ledger:** 800 x 538 (Peons Fenstergröße) statt 680 breit. Die Listen nutzen dieselben Schriften wie Ledger (Peons Tabelle).
+  - **Spielstil beim Eintragen:** Auswahl wie bei Blizzard (Lernen, Entspannt, Ernsthaft, Experte), Vorgabe Entspannt, je Charakter gemerkt (`lPlaystyle`).
+  - **Kommentar:** Der Knopf „Kommentar bei Blizzard“ öffnet Blizzards Seite gleich in der Ansicht mit dem Kommentarfeld (Warhorns Kategorie). Warhorn zeigt den Kommentar unten an, wenn das Spiel ihn lesen lässt.
+  - **Rückweg:** Der Knopf „Warhorn“ an Blizzards Seiten liegt jetzt in der Schicht HIGH. Auf Blizzards Seite Eintragen lag er unter Blizzards Teilen und war nicht zu sehen.
+  - **Im Spiel prüfen:** Warhorn deckt Blizzards Fenster auf allen Seiten, Knopf Warhorn oben rechts auf Blizzards Seiten, Kommentar-Knopf landet beim Kommentarfeld, Eintragen mit Spielstil und Kommentar.
+
+## 0.3.0
+
+Kurz: Warhorn hat jetzt auch eigene Seiten zum Eintragen und für die Wer-Liste, dazu einen Reiter Einstellungen rechts am Fenster.
+Kurz: Anflüstern öffnet ein kleines Fenster mit fertigen Vorlagen, abgeschickt wird erst mit Senden.
+
+- 0.3.0 (17.11.2026, Wunsch KarloDerBaer, Konzept Abschnitt 13):
+  - **Fenster für alle Seiten** (`Overlay.lua`, `Window.lua`): hängt an Blizzards ganzem Fenster (`LFGParentFrame`) statt an der Suchseite und zeigt je nach Blizzards Reiter die Seite Eintragen, Suchen oder Wer-Liste. Je Seite ein Knopf „Blizzard“, auf Blizzards Seiten ein Knopf „Warhorn“. Öffnet die Gruppensuche auf einer Seite, die Blizzard zeigt, springt sie wie bisher auf „Suchen“.
+  - **Reiter Einstellungen** unter Blizzards Reitern rechts (eigener Rahmen, Zahnrad).
+  - **Seite Eintragen** (`Listing.lua`): Kategorie, Aktivitäten zum Anhaken mit empfohlener Stufe, Knöpfe Alle und Keine, Rollen, „Neue Spieler willkommen“, Eintragen, Eintrag ändern, Austragen. In einer Gruppe nur für den Anführer. Statuszeile mit dem eigenen Eintrag.
+  - **Kommentar:** Blizzards Kommentarfeld ist geschützt, ein Addon kann dort nichts hineinschreiben. Der Knopf „Kommentar bei Blizzard“ zeigt dafür Blizzards Seite, der Knopf Warhorn bringt zurück.
+  - **Seite Wer-Liste** (`Who.lua`): Suchfeld wie bei Blizzard, Schnellsuche (meine Stufe ±3, meine Zone, beides), Filter nach Klasse, Stufe und „ohne Gilde“. Spalten Name, Stufe, Klasse, Gilde, Zone. Doppelklick flüstert an, Rechtsklick mit Anflüstern und Einladen.
+  - **Flüsterfenster** (`Whisper.lua`): Empfänger, Auswahl der Vorlage, Textfeld, Zähler bis 255 Zeichen, Senden und Abbrechen. Platzhalter `{name}`, `{rolle}`, `{klasse}`, `{stufe}`, `{aktivitaet}`. Zwei Vorlagen zu Beginn: „Gruppe anfragen“ und „Mitspieler einladen“. Doppelklick und „Anflüstern“ in allen Listen öffnen es.
+  - **Seite Einstellungen** (`Settings.lua`): je Seite Warhorn oder Blizzard, sichtbare Spalten je Liste (die erste Spalte bleibt), Farben für neue Einträge und den eigenen Eintrag, Flüstervorlagen anlegen, ändern, löschen, Standard für Gruppen und für Mitspieler.
+  - Neu in `PeonWarhornDB`: `replace`, `whisper`, `hideCols`, `colors`. Neu je Charakter: `lCategory`, `lActivities`, `lNewPlayer`, `wFilter`, `wText`. Die Vorlagen bleiben bei „Standardwerte“.
+  - Tests: Seiten nach Blizzards Reiter, Umschalten je Seite, Reiter Einstellungen, Eintragen, Ändern, Austragen, Wer-Suche mit Filtern und Schnellsuche, Flüsterfenster mit Vorlagen, Spalten, Farben, Vorlagen bearbeiten.
+  - **Im Spiel prüfen:** ob Eintragen, Ändern und Austragen aus Warhorn gehen, ob die Wer-Suche aus Warhorn geht und die Antwort ankommt, Aussehen und Lage des Reiters Einstellungen, ob Senden im Flüsterfenster ankommt, Farbwahl.
+
+## 0.2.2
+
+Kurz: Warhorn sucht jetzt bei jeder Änderung an Auswahl und Filtern gleich neu. Die Rollen zeigen nur noch die Anzahl, eine grüne Zahl heißt: Platz frei.
+
+- 0.2.2 (17.11.2026, Wünsche KarloDerBaer nach dem Test im Spiel):
+  - **Automatisch neu suchen** bei jeder Änderung: Kategorie, Aktivitäten, Rollen-Haken, alles im Filtermenü und „Zurücksetzen“. Die Stufe filtert beim Tippen und sucht mit der Eingabetaste neu. Das geht, weil jede dieser Änderungen aus einem Klick oder Tastendruck kommt. Im Kampf filtert Warhorn nur die vorhandene Liste.
+  - **Knopf der Aktivitäten heißt „Filter“:** Blizzards Vorlage setzte den Text beim Öffnen ohnehin auf „Filter“ zurück, darum zeigt er nicht mehr „Alle Aktivitäten“ oder die Anzahl.
+  - **Rollen ohne „+n“:** nur Symbol und Anzahl. Ist für eine Rolle ein Platz frei, steht die Zahl grün.
+  - Nicht mehr von selbst auf Leiste und Panel (Peon_Panel 0.4.1).
+
+## 0.2.1
+
+Kurz: Warhorn lässt sich jetzt bedienen, und die Gruppensuche öffnet gleich mit Warhorn.
+
+- 0.2.1 (17.11.2026, nach dem ersten Blick im Spiel von KarloDerBaer):
+  - **Bedienung ging nicht:** Ein eigener Rahmen zum Abfangen der Maus lag auf derselben Ebene wie die Bedienelemente und konnte ihre Klicks schlucken. Jetzt fängt das Fenster selbst die Maus ab, nur die Titelleiste bleibt für Blizzards Fenster frei.
+  - **Kategorie blieb leer:** Kurz nach dem Anmelden liefert das Spiel noch keine Kategorien. Die Auswahl wird jetzt nachgeholt, sobald das Spiel sie meldet (`LFG_LIST_AVAILABILITY_UPDATE`), und beim Zeigen der Fläche.
+  - **Linie quer durchs Fenster:** Blizzards Suchseite ist selbst ein Fenster mit Rahmen auf hoher Ebene, dieser Rahmen lag über Warhorn. Warhorn liegt jetzt in der Schicht HIGH.
+  - **Moderner Stil der Gruppensuche** (Reiter rechts am Fenster statt unten): Die Fläche reicht bis an den unteren Rand und deckt Blizzards Knöpfe „Nachricht senden“ und „Gruppeneinladung“ ab. Die Reiter rechts wandern an Warhorns rechten Rand, solange Warhorn zu sehen ist.
+  - **Öffnen auf Warhorn:** Öffnet man die Gruppensuche (Menüknopf, Taste), springt sie auf den Reiter „Suchen“, solange Warhorn eingeschaltet ist. Fragt Blizzard selbst einen Reiter an, gilt Blizzards Wahl.
+  - **Im Spiel prüfen:** keine Linie mehr, Bedienung, Kategorie gefüllt, Reiter rechts am Rand, Öffnen über den Menüknopf landet in Warhorn.
+
 ## 0.2.0
 
 Kurz: Warhorn liegt jetzt über Blizzards Gruppensuche und filtert Gruppen und Mitspieler nach Rolle, Klasse und Stufe. Mit dem Knopf Blizzard kommst du jederzeit zur Originalansicht zurück.

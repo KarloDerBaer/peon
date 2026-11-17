@@ -1,4 +1,5 @@
--- Test fuer Peon + Peon_Warhorn (ab 0.2.0 Gruppensuche mit Filtern, dazu der Pruefaufbau aus 0.1.0)
+-- Test fuer Peon + Peon_Warhorn (ab 0.2.0 Gruppensuche mit Filtern, ab 0.3.0 Seiten Eintragen, Wer-Liste,
+-- Einstellungen und Fluesterfenster, dazu der Pruefaufbau aus 0.1.0)
 -- Nachgebaute Rahmen ohne Blizzards Vorlagen (Rueckfall-Wege der Peon-Bausteine) und nachgebaute Gruppensuche.
 -- Ausfuehren aus dem AddOns-Ordner (siehe tests/README.md).
 local out = {}
@@ -18,6 +19,13 @@ local inGroup, leader = false, false
 function IsInGroup() return inGroup end
 function UnitIsGroupLeader() return leader end
 function UnitIsGroupAssistant() return false end
+function UnitName() return "Ich" end
+function UnitLevel() return 34 end
+function GetRealZoneText() return "Eisenschmiede" end
+function UnitGroupRolesAssigned() return "NONE" end
+Enum = { SocialWhoOrigin = { Social = 1 }, LFGEntryGeneralPlaystyle = { Learning = 1, FunRelaxed = 2, FunSerious = 3, Expert = 4 } }
+local chat = {}
+function SendChatMessage(text, kind, lang, to) chat[#chat+1] = { text = text, kind = kind, to = to } end
 function hooksecurefunc(t, name, fn) local old = t[name] t[name] = function(...) local r = old and old(...) fn(...) return r end end
 SlashCmdList, UISpecialFrames = {}, {}
 local cats = {}
@@ -64,6 +72,10 @@ local function W(kind)
   function m.ClearAllPoints(s) s.points = {} end
   function m.GetFrameLevel(s) return s.level or 1 end
   function m.SetFrameLevel(s, l) s.level = l end
+  function m.SetFrameStrata(s, v) s.strata = v end
+  function m.SetHitRectInsets(s, l, r, t, b) s.hit = { l, r, t, b } end
+  function m.EnableMouse(s, v) s.mouse = v end
+  function m.IsVisible(s) local x = s while x do if not x.shown then return false end x = x.parent end return true end
   function m.SetTextColor(s, r, g, b) s.color = { r, g, b } end
   function m.GetPoint(s, i) local p = s.points[i or 1] if p then return unpack(p) end end
   function m.SetValue(s, v) s.value = v end
@@ -84,13 +96,17 @@ local tipLines = {}
 GameTooltip.AddLine = function(_, t) tipLines[#tipLines + 1] = t end
 GameTooltip.SetText = function(_, t) tipLines = { t } end
 function CreateFrame(kind, name, parent, tmpl)
-  if tmpl and tmpl ~= "UIPanelButtonTemplate" and tmpl ~= "InputBoxTemplate" and tmpl ~= "UICheckButtonTemplate" then error("Couldn't find inherited node \"" .. tmpl .. "\"") end
+  if tmpl and tmpl ~= "UIPanelButtonTemplate" and tmpl ~= "InputBoxTemplate" and tmpl ~= "UICheckButtonTemplate" and tmpl ~= "WowStyle1FilterDropdownTemplate" and tmpl ~= "WowStyle1DropdownTemplate" then error("Couldn't find inherited node \"" .. tmpl .. "\"") end
   local f = W(kind)
   f.name, f.parent, f.tmpl = name, parent, tmpl
   if kind == "Button" then
     local fs = W("FontString")
     f.GetFontString = function() return fs end
     f.SetText = function(s, t) s.txt = t; fs.txt = t end
+  end
+  if kind == "DropdownButton" then
+    f.Text = W("FontString")
+    f.SetupMenu = function(s, gen) s.menuGen = gen end
   end
   if name then _G[name] = f end
   created[#created + 1] = f
@@ -163,7 +179,21 @@ C_LFGList = {
   GetLfgCategoryInfo = function(id) return { name = id == 2 and "Dungeons" or "Raids" } end,
   GetActivityInfoTable = function(id) return { fullName = ({ [801] = "Kloster", [802] = "Uldaman", [901] = "Geschmolzener Kern" })[id] } end,
 }
-C_LFGListRoles = { GetRoles = function() return { tank = false, healer = true, dps = false } end }
+local myRoles = { tank = false, healer = true, dps = false }
+C_LFGListRoles = { GetRoles = function() return { tank = myRoles.tank, healer = myRoles.healer, dps = myRoles.dps } end,
+  SetRoles = function(t) myRoles = t end }
+-- Eintragen (ab 0.3.0)
+local active, listings = nil, {}
+C_LFGList.HasActiveEntryInfo = function() return active ~= nil end
+C_LFGList.GetActiveEntryInfo = function() return active end
+C_LFGList.CreateListing = function(d) listings[#listings+1] = { "create", d } end
+C_LFGList.UpdateListing = function(d) listings[#listings+1] = { "update", d } end
+C_LFGList.RemoveListing = function() listings[#listings+1] = { "remove" } end
+-- Wer-Liste (ab 0.3.0)
+local whos, whoResults = {}, {}
+C_FriendList = { SendWho = function(text, origin, filters) whos[#whos+1] = { text = text, origin = origin } end,
+  GetNumWhoResults = function() return #whoResults, #whoResults end,
+  GetWhoInfo = function(i) return whoResults[i] end }
 local invited, told, menus = {}, {}, {}
 C_PartyInfo = { InviteUnit = function(n) invited[#invited+1] = n end }
 ChatFrameUtil = { SendTell = function(n) told[#told+1] = n end }
@@ -178,7 +208,23 @@ LFGParentFrame.h = 535
 LFGBrowseFrame = CreateFrame("Frame", "LFGBrowseFrame", LFGParentFrame)
 LFGBrowseFrame.CategoryDropdown = { GetValue = function() return 2 end }
 LFGBrowseFrame.ActivityDropdown = { selectedValues = {} }
+LFGListingFrame = CreateFrame("Frame", "LFGListingFrame", LFGParentFrame)
+LFGListingFrame.shown = false
+local blizzCat
+LFGListingFrame.SetCategorySelection = function(self, c) blizzCat = c end
+LFGListingFrame.GetCategorySelection = function() return blizzCat end
+LFGListingComment = { EditBox = { GetText = function() return "Suche Heiler" end } }
+LFGWhoListFrame = CreateFrame("Frame", "LFGWhoListFrame", LFGParentFrame)
+LFGWhoListFrame.shown = false
 LFGParentFrameTab1 = CreateFrame("Button", "LFGParentFrameTab1", LFGParentFrame)
+LFGParentFrame.selectedTab = 2
+local tab2Clicks = 0
+function LFGParentFrameTab2_OnClick()
+  tab2Clicks = tab2Clicks + 1
+  LFGParentFrame.selectedTab = 2
+  LFGBrowseFrame.shown, LFGListingFrame.shown, LFGWhoListFrame.shown = true, false, false
+  if LFGBrowseFrame.scripts.OnShow then LFGBrowseFrame.scripts.OnShow(LFGBrowseFrame) end
+end
 
 -- ===== Laden =====
 load("Peon", "Peon")
@@ -192,17 +238,122 @@ check(PeonWarhornCharDB.gFilter.roles.healer == true and not PeonWarhornCharDB.g
 fire("PLAYER_LOGIN")
 local O, Win, S, F = ns.Overlay, ns.Window, ns.Search, ns.Filter
 local f = PeonWarhornFrame
-check(O.built and f and f.parent == LFGBrowseFrame, "Flaeche haengt an Blizzards Suchseite")
+check(O.built and f and f.parent == LFGParentFrame, "Fenster haengt an Blizzards Gruppensuche")
+check(Win.page == "search" and Win.pages.search.shown and not Win.pages.listing.shown, "Seite Suchen zu Blizzards Reiter Suchen")
 local anchoredToTab = false
 for _, p in ipairs(f.points) do if p[2] == LFGParentFrameTab1 then anchoredToTab = true end end
-check(anchoredToTab and f.w == 680, "endet ueber Blizzards Reitern, 680 breit")
+check(anchoredToTab and f.w == 800, "alter Stil: endet ueber Blizzards Reitern, 800 breit wie Ledger")
 check(f.shown and not O.button.shown, "Warhorn sichtbar, Knopf an Blizzards Fenster versteckt")
 check(PeonWarhornCharDB.category == 2, "Kategorie aus Blizzards Auswahl")
 check(Win.statusText == "Noch nicht gesucht", "Statuszeile vor der ersten Suche")
 local function Errors() local t = {} for _, e in ipairs(PeonDB.errors or {}) do t[#t+1] = tostring(e.where) .. ": " .. tostring(e.msg) end return table.concat(t, " | ") end
 check(#(PeonDB.errors or {}) == 0, "keine Fehler beim Aufbau " .. Errors())
 
+-- ===== ab 0.2.1: Schicht, Maus, Stil, Reiter rechts, Oeffnen auf "Suchen" =====
+check(f.strata == "HIGH" and f.level == 300, "Fenster liegt ueber Blizzards Rahmen und Blizzards Teilen in HIGH")
+check(f.mouse == true and f.hit and f.hit[3] == 24, "Fenster faengt die Maus ab, Titelleiste ausgespart")
+local blockers = 0
+for _, c in ipairs(created) do if c.parent == f and c.kind == "Frame" and c.mouse == true then blockers = blockers + 1 end end
+check(blockers == 0, "kein eigener Rahmen faengt Klicks vor den Bedienelementen ab")
+-- moderner Stil: Blizzards Reiter unten versteckt, Reiter rechts am Fenster
+LFGParentFrameTab1.shown = false
+local side = CreateFrame("Frame", nil, LFGParentFrame)
+side:SetPoint("TOPLEFT", LFGParentFrame, "TOPRIGHT", 0, -60)
+LFGParentFrame.ListingTab = side
+f.shown = false
+f.scripts.OnHide()
+f.shown = true
+f.scripts.OnShow()
+check(O.style == "modern" and #f.points == 1 and f.w == 800 and f.h == 538, "moderner Stil: so gross wie Ledger (800 x 538)")
+-- Blizzards Schalter gilt, auch wenn die Reiter unten beim Oeffnen noch nicht versteckt sind
+LFGParentFrameTab1.shown = true
+LFGVANILLA_SETTING_MODERN_STYLE = true
+O.Layout()
+check(O.style == "modern" and f.h == 538, "moderner Stil an Blizzards Schalter erkannt")
+LFGVANILLA_SETTING_MODERN_STYLE = nil
+LFGParentFrameTab1.shown = false
+O.Layout()
+check(side.points[1][2] == f and side.points[1][3] == "TOPRIGHT" and side.points[1][5] == -60, "Reiter rechts wandern an Warhorns Rand")
+f.shown = false
+f.scripts.OnHide()
+check(side.points[1][2] == LFGParentFrame and side.points[1][5] == -60, "Reiter rechts zurueck, wenn Warhorn weg ist")
+f.shown = true
+f.scripts.OnShow()
+O.SetShow(false)
+check(side.points[1][2] == LFGParentFrame, "Reiter rechts zurueck beim Umschalten zu Blizzard")
+O.SetShow(true)
+check(side.points[1][2] == f, "Reiter rechts wieder an Warhorn")
+LFGParentFrameTab1.shown = true
+O.Layout()
+check(O.style == "classic", "alter Stil wieder erkannt")
+-- ab 0.3.0: Blizzards Reiter Eintragen zeigt Warhorns Seite Eintragen
+local function OnBlizzPage(key)
+  LFGBrowseFrame.shown, LFGListingFrame.shown, LFGWhoListFrame.shown = key == "search", key == "listing", key == "who"
+  LFGParentFrame.selectedTab = ({ listing = 1, search = 2, who = 3 })[key]
+  local fr = ({ listing = LFGListingFrame, search = LFGBrowseFrame, who = LFGWhoListFrame })[key]
+  fr.scripts.OnShow(fr)
+end
+OnBlizzPage("listing")
+check(f.shown and Win.page == "listing" and Win.pages.listing.shown and not Win.pages.search.shown, "Reiter Eintragen: Warhorns Seite Eintragen")
+local openBefore = #searches
+LFGParentFrame.scripts.OnShow()
+check(tab2Clicks == 0 and #searches == openBefore, "Oeffnen auf Eintragen bleibt dort, keine Suche")
+OnBlizzPage("who")
+check(f.shown and Win.page == "who", "Reiter Wer-Liste: Warhorns Wer-Liste")
+-- Seite auf Blizzard: Oeffnen springt auf "Suchen"
+O.SetReplace("who", false)
+check(not f.shown and O.buttons.who.shown and not O.buttons.search.shown, "Wer-Liste auf Blizzard: Knopf Warhorn an Blizzards Seite")
+check(mod.db.replace.who == false and mod.db.replace.search == true, "nur diese Seite umgeschaltet")
+LFGParentFrame.scripts.OnShow()
+check(tab2Clicks == 1 and LFGParentFrame.selectedTab == 2, "Oeffnen auf Blizzards Seite springt auf Suchen")
+check(#searches == openBefore + 1 and Win.page == "search", "Oeffnen auf Suchen sucht gleich (ab 0.3.2)")
+fire("LFG_LIST_SEARCH_RESULTS_RECEIVED")
+LFGParentFrame.scripts.OnShow()
+check(#searches == openBefore + 1, "nicht noch einmal innerhalb weniger Sekunden")
+now = now + 6
+LFGParentFrame.scripts.OnShow()
+check(#searches == openBefore + 2, "spaeter wieder")
+fire("LFG_LIST_SEARCH_RESULTS_RECEIVED")
+now = now + 6
+mod.db.show = false
+LFGParentFrame.scripts.OnShow()
+check(tab2Clicks == 1, "Warhorn aus: Blizzards Reiter bleibt")
+check(#searches == openBefore + 2, "Warhorn aus: keine Suche beim Oeffnen")
+mod.db.show = true
+OnBlizzPage("who")
+check(not f.shown, "Blizzards Wer-Liste")
+O.buttons.who.scripts.OnClick(O.buttons.who)
+check(mod.db.replace.who == true and f.shown and Win.page == "who", "Knopf Warhorn an Blizzards Wer-Liste holt Warhorn zurueck")
+-- Reiter Einstellungen
+local st = PeonWarhornSettingsTab
+check(st and st.scripts.OnMouseUp, "eigener Reiter Einstellungen")
+check(st.points[1][1] == "BOTTOMLEFT" and st.points[1][2] == f and st.points[1][3] == "BOTTOMRIGHT", "Reiter Einstellungen unten am rechten Rand")
+-- Klick auf Blizzards Reiter Eintragen: Blizzard zeigt die neue Seite, bevor es die alte versteckt
+LFGParentFrame.selectedTab = 1
+LFGListingFrame.shown = true
+LFGListingFrame.scripts.OnShow(LFGListingFrame)
+check(Win.page == "listing" and f.shown, "Wechsel auf Eintragen, auch wenn die alte Seite noch offen ist")
+LFGWhoListFrame.shown = false
+OnBlizzPage("who")
+st.scripts.OnMouseUp(st, "LeftButton")
+check(O.settings and f.shown and Win.page == "settings" and Win.pages.settings.shown, "Reiter Einstellungen zeigt die Seite")
+O.SetReplace("who", false)
+check(f.shown and Win.page == "settings", "Einstellungen bleiben, auch wenn die Seite darunter Blizzard ist")
+O.SetReplace("who", true)
+OnBlizzPage("search")
+check(not O.settings and Win.page == "search", "anderer Blizzard-Reiter verlaesst die Einstellungen")
+-- Kategorien kommen spaeter vom Server
+local savedCat = mod.db.category
+mod.db.category = 0
+fire("LFG_LIST_AVAILABILITY_UPDATE")
+check(mod.db.category == 2, "Auswahl wird nachgeholt, sobald das Spiel die Kategorien meldet")
+mod.db.category = savedCat
+check(#(PeonDB.errors or {}) == 0, "keine Fehler bei Stil und Reitern " .. Errors())
+
 -- ===== Suchen per Knopf =====
+-- Suchen beim Oeffnen (ab 0.3.2) oben schon geprueft: hier wieder wie vor der ersten Suche
+searches = {}
+ns.Search.lastSearch, ns.Search.seen, ns.Search.entries, ns.Search.list, ns.Search.searching = nil, {}, {}, {}, false
 Win.searchBtn.scripts.OnClick()
 check(#searches == 1 and searches[1].cat == 2 and #searches[1].acts == 2, "Knopf sucht mit allen Aktivitaeten der Kategorie")
 check(S.searching and Win.statusText == "Suche läuft...", "Suche laeuft")
@@ -244,6 +395,9 @@ check(g.levelMin == 50 and Win.counts.groups == 2, "Stufe ab 50 (12 und geheim)"
 Win.lvlMin:SetText("")
 Win.lvlMin.scripts.OnTextChanged(Win.lvlMin, true)
 check(g.levelMin == 0, "Stufe geleert")
+check(#searches == 1, "Tippen in der Stufe sucht nicht")
+Win.lvlMin.scripts.OnEnterPressed(Win.lvlMin)
+check(#searches == 2, "Eingabetaste in der Stufe sucht neu")
 Win.roleChecks.healer:SetChecked(true)
 Win.roleChecks.healer.scripts.OnClick(Win.roleChecks.healer)
 check(g.roles.healer == true and Win.counts.groups == 3, "Haken Heiler an")
@@ -252,6 +406,38 @@ Win.roleChecks.healer.scripts.OnClick(Win.roleChecks.healer)
 check(not g.roles.healer and Win.counts.groups == 4, "Haken Heiler aus")
 Win.roleChecks.healer:SetChecked(true)
 Win.roleChecks.healer.scripts.OnClick(Win.roleChecks.healer)
+check(#searches == 5, "jeder Rollen-Haken sucht gleich neu")
+-- Menues: Aktivitaeten und Filter suchen gleich neu
+local function MenuRoot()
+  local r = { items = {} }
+  local function add(kind) return function(_, t, a, b) local it = { kind = kind, text = t, a = a, b = b } r.items[#r.items+1] = it return it end end
+  r.CreateTitle, r.CreateButton, r.CreateCheckbox, r.CreateRadio, r.CreateDivider = add("title"), add("button"), add("check"), add("radio"), add("div")
+  return r
+end
+local ar = MenuRoot()
+Win.actDD.menuGen(nil, ar)
+local firstAct
+for _, it in ipairs(ar.items) do if it.kind == "check" then firstAct = it break end end
+firstAct.b()
+check(#searches == 6 and #PeonWarhornCharDB.activities == 1, "Aktivitaet im Menue sucht gleich neu")
+ar.items[1].a()
+check(#searches == 7 and #PeonWarhornCharDB.activities == 0, "Alle Aktivitaeten sucht gleich neu")
+local fr = MenuRoot()
+Win.filterDD.menuGen(nil, fr)
+for _, it in ipairs(fr.items) do if it.kind == "radio" and it.text:find("3") then it.b() end end
+check(#searches == 8 and g.sizeMax == 3, "Filtermenue sucht gleich neu")
+g.sizeMax = 0
+check(Win.actDD.Text.txt == "Filter", "Knopf der Aktivitaeten heisst Filter")
+combat = true
+Win.roleChecks.tank:SetChecked(true)
+Win.roleChecks.tank.scripts.OnClick(Win.roleChecks.tank)
+check(#searches == 8 and g.roles.tank, "im Kampf nur filtern, nicht suchen")
+combat = false
+Win.roleChecks.tank:SetChecked(false)
+Win.roleChecks.tank.scripts.OnClick(Win.roleChecks.tank)
+fire("LFG_LIST_SEARCH_RESULTS_RECEIVED")
+searches = { searches[1] }
+e11, e21, e31 = S.entries[11], S.entries[21], S.entries[31]
 
 -- ===== Reiter Mitspieler =====
 Win.tabs:Select("players")
@@ -260,7 +446,7 @@ check(not Win.roleChecks.healer.checked, "Haken zeigen den Filter der Mitspieler
 local p = PeonWarhornCharDB.pFilter
 p.roles.healer = true
 Win.Update()
-check(Win.counts.players == 1 and Win.tables.players.items[1] == e21, "Mitspieler Heiler")
+check(Win.counts.players == 1 and Win.tables.players.items[1].id == 21, "Mitspieler Heiler")
 p.roles = {}
 p.classes.MAGE = true
 Win.Update()
@@ -272,7 +458,7 @@ check(Win.counts.players == 1, "Mitspieler bis Stufe 40")
 p.levelMax = 0
 
 -- ===== Spalten und Tooltip =====
-check(Win.RolesText(e11):find("groupfinder%-icon%-role%-large%-heal:14:14|a0|cff40ff40%+1"), "Rollen mit freiem Platz in Gruen")
+check(Win.RolesText(e11):find("groupfinder%-icon%-role%-large%-heal:14:14|a|cff40ff400|r") and not Win.RolesText(e11):find("%+"), "Rollen ohne +n, freier Platz als gruene Zahl")
 check(Win.ClassesText(e11):find("groupfinder%-icon%-class%-warrior"), "Klassensymbole")
 check(Win.LevelText(e11) == "28-33" and Win.LevelText(e21) == "60", "Stufen")
 Win.ShowTooltip(UIParent, S.entries[12])
@@ -282,14 +468,31 @@ Win.ShowTooltip(UIParent, e31)
 check(table.concat(tipLines, "\n"):find("geheim"), "Tooltip nennt geheime Werte")
 
 -- ===== Aktionen =====
+local Wh = ns.Whisper
 Win.OnRowClick(e21, "LeftButton")
 now = now + 0.2
 Win.OnRowClick(e21, "LeftButton")
-check(told[1] == "Tyrande", "Doppelklick fluestert an")
+check(Wh.frame and Wh.frame.shown and Wh.target == "Tyrande", "Doppelklick oeffnet das Fluesterfenster")
+check(Wh.edit:GetText() == "Hallo Tyrande, wir suchen noch Mitspieler für Kloster. Lust mitzukommen?", "Vorlage fuer Mitspieler mit Platzhaltern")
+check(#chat == 0, "nichts von selbst gesendet")
+Wh.sendBtn.scripts.OnClick(Wh.sendBtn)
+check(#chat == 1 and chat[1].kind == "WHISPER" and chat[1].to == "Tyrande" and chat[1].text:find("Kloster"), "Senden fluestert an")
+check(not Wh.frame.shown, "Fenster nach dem Senden zu")
+Win.OnRowClick(e11, "LeftButton")
+now = now + 0.2
+Win.OnRowClick(e11, "LeftButton")
+check(Wh.target == "Thrall" and Wh.edit:GetText() == "Hallo Thrall, ich würde gern als Heiler mit in Kloster kommen (Priester, Stufe 34).", "Vorlage fuer Gruppen mit Rolle, Klasse und Stufe")
+Wh.UseTemplate(0)
+check(Wh.edit:GetText() == "" and not Wh.sendBtn.enabled, "ohne Vorlage leer, Senden gesperrt")
+Wh.edit:SetText("Eigener Text {unbekannt}")
+Wh.UpdateCount()
+check(Wh.sendBtn.enabled and Wh.count.txt == "24/255", "eigener Text, Zeichen gezaehlt")
+Wh.frame.shown = false
+Wh.target = nil
 Win.OnRowClick(e11, "LeftButton")
 now = now + 1
 Win.OnRowClick(e11, "LeftButton")
-check(#told == 1, "zwei langsame Klicks sind kein Doppelklick")
+check(Wh.target == nil, "zwei langsame Klicks sind kein Doppelklick")
 local function Menu(e)
   Win.OnRowClick(e, "RightButton")
   local items = {}
@@ -356,6 +559,160 @@ Win.searchBtn.scripts.OnClick()
 check(searches[#searches].cat == 5 and searches[#searches].acts[1] == 901 and #searches[#searches].acts == 1, "Suche mit gewaehlter Aktivitaet")
 S.ToggleActivity(901)
 check(not S.IsActivitySelected(901), "Aktivitaet abgewaehlt")
+
+-- ===== Seite Eintragen (ab 0.3.0) =====
+local Lst, Who, St = ns.Listing, ns.Who, ns.Settings
+local function Click(b) b.scripts.OnClick(b, "LeftButton") end
+local function Tick(cb, on) cb:SetChecked(on) cb.scripts.OnClick(cb) end
+OnBlizzPage("listing")
+Win.pages.listing.scripts.OnShow(Win.pages.listing)
+Lst.SetCategory(2)
+Lst.Update()
+check(Win.page == "listing" and #Lst.table.items == 2 and Lst.table.items[1].name == "Kloster", "Eintragen: Aktivitaeten der Kategorie")
+check(not Lst.postBtn.enabled and not Lst.removeBtn.enabled and Lst.statusText == "Nicht eingetragen", "ohne Auswahl kein Eintragen")
+Win.specs.listing.onClick(Lst.table.items[1], "LeftButton")
+check(Lst.IsSelected(801) and Lst.postBtn.enabled and Lst.table.items[1].id == 801, "Klick hakt die Aktivitaet an")
+Click(Lst.postBtn)
+check(listings[1][1] == "create" and listings[1][2].activityIDs[1] == 801 and listings[1][2].newPlayerFriendly == false, "Eintragen legt den Eintrag an")
+check(listings[1][2].generalPlaystyle == 2, "Spielstil Entspannt als Vorgabe")
+check(Lst.commentText.txt == "Kommentar: Suche Heiler", "Kommentar aus Blizzards Feld angezeigt")
+check(Lst.statusText == "Warte auf das Spiel...", "Statuszeile wartet auf das Spiel")
+active = { activityIDs = { 801 }, newPlayerFriendly = false, comment = SECRET }
+fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
+check(Lst.statusText:find("Eingetragen für 1") and Lst.postBtn.txt == "Eintrag ändern" and not Lst.postBtn.enabled and Lst.removeBtn.enabled, "eingetragen: Aendern erst nach Aenderung, Austragen frei")
+Win.specs.listing.onClick({ id = 802 }, "LeftButton")
+Tick(Lst.newPlayer, true)
+check(Lst.postBtn.enabled and Lst.statusText:find("noch nicht übernommen"), "Aenderung ist vorgemerkt")
+Click(Lst.postBtn)
+check(listings[2][1] == "update" and #listings[2][2].activityIDs == 2 and listings[2][2].newPlayerFriendly == true, "Eintrag aendern")
+mod.db.lPlaystyle = 4
+check(Lst.Playstyle() == 4 and #Lst.Playstyles() == 4, "Spielstil waehlbar")
+mod.db.lPlaystyle = 99
+check(Lst.Playstyle() == 2, "unbekannter Spielstil: Vorgabe")
+mod.db.lPlaystyle = 0
+Click(Lst.removeBtn)
+check(listings[3][1] == "remove", "Austragen")
+active = nil
+fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
+check(Lst.statusText == "Nicht eingetragen" and Lst.postBtn.txt == "Eintragen", "ausgetragen")
+inGroup, leader = true, false
+Lst.Update()
+check(not Lst.postBtn.enabled and Lst.statusText:find("Anführer"), "in der Gruppe nur der Anfuehrer")
+check(Lst.Post() == false and #listings == 3, "kein Eintragen ohne Anfuehrer")
+inGroup = false
+combat = true
+check(Lst.Post() == false and #listings == 3, "kein Eintragen im Kampf")
+combat = false
+Tick(Lst.roleChecks.tank, true)
+check(myRoles.tank == true and myRoles.healer == true, "Rollen-Haken setzen Blizzards Rollenwahl")
+Tick(Lst.roleChecks.tank, false)
+fire("LFG_LIST_ENTRY_CREATION_FAILED")
+check(Lst.statusText:find("abgelehnt"), "Ablehnung beim Eintragen in der Statuszeile")
+-- Kommentar bei Blizzard
+local commentBtn
+for _, c in ipairs(created) do if c.parent == Win.pages.listing and c.txt == "Kommentar bei Blizzard" then commentBtn = c end end
+Click(commentBtn)
+check(not f.shown and O.buttons.listing.shown and mod.db.replace.listing ~= false, "Kommentar: Blizzards Seite fuer einen Schritt")
+check(blizzCat == mod.db.lCategory, "Kommentar: Blizzards Ansicht mit dem Kommentarfeld")
+check(O.buttons.listing.strata == "HIGH", "Knopf Warhorn liegt ueber Blizzards Teilen")
+LFGListingFrame.scripts.OnHide(LFGListingFrame)
+OnBlizzPage("listing")
+check(f.shown and Win.page == "listing", "danach wieder Warhorn")
+
+-- ===== Seite Wer-Liste (ab 0.3.0) =====
+OnBlizzPage("who")
+Win.pages.who.scripts.OnShow(Win.pages.who)
+check(Win.page == "who" and Who.statusText == "Noch nicht gesucht", "Wer-Liste vor der ersten Suche")
+Who.box:SetText("30-35")
+Click(Who.searchBtn)
+check(whos[1].text == "30-35" and whos[1].origin == 1 and mod.db.wText == "30-35", "Suchen schickt die Wer-Suche")
+whoResults = {
+  { fullName = "Arthas", fullGuildName = "", level = 34, classStr = "Krieger", filename = "WARRIOR", raceStr = "Mensch", area = "Eisenschmiede" },
+  { fullName = "Ich", fullGuildName = "", level = 34, classStr = "Priester", filename = "PRIEST", raceStr = "Mensch", area = "Eisenschmiede" },
+  { fullName = "Bolvar", fullGuildName = "Silberne Hand", level = 40, classStr = "Paladin", filename = "PALADIN", raceStr = "Mensch", area = "Sturmwind" },
+  { fullName = SECRET, fullGuildName = "", level = 30, classStr = "Magier", filename = "MAGE", raceStr = "Gnom", area = "Dun Morogh" },
+}
+fire("WHO_LIST_UPDATE")
+check(#Who.list == 4 and #Who.table.items == 4 and Who.statusText == "4 von 4 Spielern", "Ergebnisse gelesen")
+check(Who.list[4].name == nil, "geheimer Name nicht benutzt")
+mod.db.wFilter.noGuild = true
+Who.Update()
+check(#Who.table.items == 3, "ohne Gilde")
+mod.db.wFilter.noGuild = false
+mod.db.wFilter.classes.WARRIOR = true
+Who.Update()
+check(#Who.table.items == 1 and Who.table.items[1].name == "Arthas", "Filter Klasse")
+mod.db.wFilter.classes = {}
+Who.lvlMin:SetText("35")
+Who.lvlMin.scripts.OnTextChanged(Who.lvlMin, true)
+check(#Who.table.items == 1 and Who.table.items[1].name == "Bolvar", "Filter Stufe")
+Who.lvlMin:SetText("")
+Who.lvlMin.scripts.OnTextChanged(Who.lvlMin, true)
+local pr = MenuRoot()
+Who.presetDD.menuGen(nil, pr)
+pr.items[1].a()
+check(whos[2].text == "31-37" and Who.box.txt == "31-37", "Schnellsuche meine Stufe")
+pr.items[2].a()
+check(whos[3].text == 'z-"Eisenschmiede"', "Schnellsuche meine Zone")
+combat = true
+Click(Who.searchBtn)
+check(#whos == 3 and Who.statusText:find("Kampf"), "keine Wer-Suche im Kampf")
+combat = false
+fire("WHO_LIST_UPDATE")
+Who.OnRowClick(Who.list[1], "LeftButton")
+now = now + 0.2
+Who.OnRowClick(Who.list[1], "LeftButton")
+check(Wh.target == "Arthas" and Wh.frame.shown, "Doppelklick in der Wer-Liste oeffnet das Fluesterfenster")
+Wh.frame.shown = false
+Who.OnRowClick(Who.list[2], "RightButton")
+local wi = {}
+menus[#menus](nil, { CreateTitle = function() end, CreateButton = function(_, t, fn) local b = { text = t, fn = fn, enabled = true } b.SetEnabled = function(s, v) s.enabled = v end wi[#wi+1] = b return b end })
+check(not wi[1].enabled and not wi[2].enabled, "sich selbst weder anfluestern noch einladen")
+Who.OnRowClick(Who.list[1], "RightButton")
+wi = {}
+menus[#menus](nil, { CreateTitle = function() end, CreateButton = function(_, t, fn) local b = { text = t, fn = fn, enabled = true } b.SetEnabled = function(s, v) s.enabled = v end wi[#wi+1] = b return b end })
+wi[2].fn()
+check(invited[#invited] == "Arthas", "Einladen aus der Wer-Liste")
+
+-- ===== Seite Einstellungen (ab 0.3.0) =====
+st.scripts.OnMouseUp(st, "LeftButton")
+check(Win.page == "settings" and St.pageChecks.who.checked and St.pageChecks.search.checked, "Einstellungen zeigen die Seiten")
+Tick(St.pageChecks.listing, false)
+check(mod.db.replace.listing == false, "Seite Eintragen auf Blizzard")
+Tick(St.pageChecks.listing, true)
+check(mod.db.replace.listing == true, "Seite Eintragen wieder Warhorn")
+local oldPanel = Win.panels.groups
+Tick(St.colChecks.groups.classes, false)
+check(mod.db.hideCols.groups.classes == true and #Win.tables.groups.o.columns == 5 and Win.panels.groups ~= oldPanel and not oldPanel.shown, "Spalte Klassen ausgeblendet, Liste neu aufgebaut")
+check(#Win.tables.groups.items == Win.counts.groups, "neue Liste hat die Eintraege")
+Tick(St.colChecks.groups.classes, true)
+check(#Win.tables.groups.o.columns == 6, "Spalte Klassen wieder da")
+Tick(St.colChecks.who.guild, false)
+check(#Who.table.o.columns == 4 and #Who.table.items == 4, "Wer-Liste ohne Spalte Gilde")
+Tick(St.colChecks.who.guild, true)
+St.SetColor("new", 1, 0, 0, 0.5)
+local cr, cg, cb, ca = Win.Color("new")
+check(cr == 1 and cg == 0 and ca == 0.5 and select(1, Win.RowBg({ isNew = true })) == 1, "Farbe fuer neue Eintraege")
+St.ResetColors()
+check(select(2, Win.Color("new")) == 0.8, "Standardfarben")
+check(#mod.db.whisper.templates == 2 and St.tpl == 1 and St.nameInput.txt == "Gruppe anfragen", "zwei Vorlagen, die erste gewaehlt")
+St.NewTemplate()
+check(#mod.db.whisper.templates == 3 and St.tpl == 3 and St.nameInput.txt == "Vorlage 3", "neue Vorlage")
+St.nameInput:SetText("Kurz")
+St.nameInput.scripts.OnTextChanged(St.nameInput, true)
+St.textInput:SetText("Hi {name}, {rolle} hier!")
+St.textInput.scripts.OnTextChanged(St.textInput, true)
+check(mod.db.whisper.templates[3].name == "Kurz" and mod.db.whisper.templates[3].text == "Hi {name}, {rolle} hier!", "Vorlage bearbeitet")
+mod.db.whisper.groupTpl = 3
+Win.Whisper(e11)
+check(Wh.edit:GetText() == "Hi Thrall, Heiler hier!", "eigene Vorlage als Standard fuer Gruppen")
+Wh.frame.shown = false
+St.DeleteTemplate()
+check(#mod.db.whisper.templates == 2 and mod.db.whisper.groupTpl == 0 and St.tpl == 2, "Vorlage geloescht, Standard zurueckgesetzt")
+mod.db.whisper.groupTpl = 1
+OnBlizzPage("search")
+check(Win.page == "search" and not O.settings, "zurueck zur Suche")
+check(#(PeonDB.errors or {}) == 0, "keine Fehler auf den neuen Seiten " .. Errors())
 
 -- ===== Umschalten =====
 Win.tabs:Select("groups")

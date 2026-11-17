@@ -305,6 +305,14 @@ mod:RegisterEvent("LFG_LIST_SEARCH_RESULTS_RECEIVED", function()
     Notify("results")
 end)
 
+-- Kategorien kommen vom Server, kurz nach dem Anmelden kann die Liste noch leer sein (in 0.2.0 blieb die
+-- Auswahl dann leer). Sobald das Spiel sie meldet, wird eine fehlende Auswahl nachgeholt.
+mod:RegisterEvent("LFG_LIST_AVAILABILITY_UPDATE", function()
+    local before = mod.db and mod.db.category
+    S.EnsureSelection()
+    if mod.db and mod.db.category ~= before then Notify("selection") end
+end)
+
 mod:RegisterEvent("LFG_LIST_SEARCH_FAILED", function(event, reason)
     S.searching = false
     S.status = "failed"

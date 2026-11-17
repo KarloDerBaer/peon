@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.103.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.46.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.0 / Fishing 1.7.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.5.0 / Warhorn 0.2.0.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.103.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.46.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.0 / Fishing 1.7.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.1 / Profession 0.5.0 / Warhorn 0.3.3.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.22.0, API 22
@@ -263,12 +263,12 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Befehle: `/peon mover` (Optionen), `/peon mover zuruecksetzen` (alle Fenster), `/peon debug mover` (Log: eingehängte Fenster, Verschieben, Größe).
 - Verlauf der Versionen: `docs/changelog/Peon_Mover.md`
 
-## Peon_Panel – 0.4.0 (neu, Leiste und Panel)
+## Peon_Panel – 0.4.1 (neu, Leiste und Panel)
 
 - Konzept: `Peon_Panel_Konzept.md` (abgestimmt 06.11.2026, Überarbeitungen 07.11.2026 in den Abschnitten 12 und 13). Dateien: Locales.lua, Panel.lua, Skin.lua (ab 0.2), Display.lua, Menu.lua, Info.lua, InfoXP.lua, InfoPlace.lua, InfoSystem.lua, InfoSocial.lua (ab 0.3), Options.lua, Media\corner_fill.tga und corner_line.tga (ab 0.2, erzeugt mit `scripts\panel_media.js`); Symbol `INV_Misc_Spyglass_03`.
 - Allgemeine Einträge (ab 0.3): XP, XP pro Stunde, Zeit bis Level-Up, Zone, Koordinaten, Haltbarkeit, Uhr auf der Leiste, Leistung, Spielzeit, Lautstärke, Freunde, Gilde, Ruf, Reset-Zeiten zum Anhaken.
 - SavedVariables: `PeonPanelDB` (accountweit): `barShow` (an, immer oben in der Mitte), `barWidth` (30–100 %, 65), `barSize` (14–40, 18), `barHeight` (18–48, 26), `barGap` (4–30, 18), `barSeps` (aus), `barBg`, `barLabels` (Modulname vor dem Text, an), `barVis`, `style` (`tooltipDark`, `tooltip`, `metal`, `dialog`, `wood`, `plain`), `fontFace`, `fontStyle` (`none`, `shadow`, `outline`), `fontSize` (8–16, 11), `bgColor`, `lineColor`, `labelColor`, `valueColor`, `iconBorder` (aus), `highlight` (`soft`, `glow`, `none`), `xpLog` (Messung XP pro Stunde), `session` (Sitzung), `boxShow` (an), `boxCols` (0–8, 1, 0 = möglichst quadratisch), `boxSize` (16–48, 18), `boxBg`, `boxVis`, `boxLocked`, `boxPos` (x, y, leer = oben links unter der Leiste), `entries[Starter] = { bar, box, text, side, show }` (`side`: `left`, `center`, `right`, ohne Wahl Bags und Peon rechts, sonst links; `show`: `both`, `icon`, `text`), `barOrder`, `boxOrder`, `known`, `hintShown`. `barVis` und `boxVis`: `always`, `hover`, `combat`. Bei „Standardwerte“ bleiben `boxPos`, `entries`, die Reihenfolgen, die Merker, `xpLog` und `session`. `barPos`, `barX`, `barY` entfallen ab 0.2 (Übernahme über `migrate`).
-- Standard ab 0.4.0 nach der Einstellung von KarloDerBaer: Stil `plain`, Panel an und aufklappbar (`fold`), Einträge beim ersten Start aus `DEFAULT_ENTRIES`, Reihenfolge als Standard von `barOrder` und `boxOrder`.
+- Standard ab 0.4.0 nach der Einstellung von KarloDerBaer: Stil `plain`, Panel an und aufklappbar (`fold`), Einträge beim ersten Start aus `DEFAULT_ENTRIES` (ab 0.4.1 Warhorn nur zum Anhaken), Reihenfolge als Standard von `barOrder` und `boxOrder`.
 - Braucht Peon API 15. Module melden sich als Starter (`mod:NewLauncher`, `mod:NewMinimapButton`). Der Peon-Starter kommt aus Panel, weil der Kern kein Modul ist.
 - Befehle: `/peon panel` (Optionen), `/peon debug panel`.
 - Verlauf der Versionen: `docs/changelog/Peon_Panel.md`
@@ -300,15 +300,15 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Normales Release `v2026.11.16.2` (16.11.2026, ohne Vorabversion auf Wunsch von KarloDerBaer), Bau auf GitHub erfolgreich, Manifest nachgelesen. Profession 0.4.0 und 0.4.1 im Spiel noch nicht geprüft.
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.5.0, 0.4.1, 0.4.0, 0.3.1, 0.3.0, 0.2.2, 0.2.1, 0.2.0, 0.1.0
 
-## Peon_Warhorn – 0.2.0 (neu, Gruppen, Dungeons und Raids)
+## Peon_Warhorn – 0.3.3 (neu, Gruppen, Dungeons und Raids)
 
-- Konzept: `docs\konzepte\warhorn\Peon_Warhorn_Konzept.md` (abgestimmt 17.11.2026). Gebaut: Prüfaufbau (0.1.0), Gruppensuche mit Filtern, Umschalten und Aktionen (0.2.0).
-- Dateien: Locales.lua, Warhorn.lua, Search.lua, Filter.lua, Window.lua, Overlay.lua, Probe.lua, Options.lua, Bindings.xml; Symbol `INV_Misc_Horn_01`.
-- SavedVariables: `PeonWarhornDB` (accountweit): `show` (Warhorn über Blizzards Suchseite, an), `probe` (Ergebnis der letzten Prüfung). `PeonWarhornCharDB` (je Charakter): `category`, `activities`, `tab` (`groups`/`players`), `gFilter` und `pFilter` (`roles`, `classes`, `mode` `with`/`without`, `noMyClass`, `levelMin`, `levelMax`, `sizeMax`, `init`). Bei „Standardwerte“ bleiben `probe`, `category`, `activities`, `tab`, die Filter starten neu.
+- Konzept: `docs\konzepte\warhorn\Peon_Warhorn_Konzept.md` (abgestimmt 17.11.2026). Gebaut: Prüfaufbau (0.1.0), Gruppensuche mit Filtern, Umschalten und Aktionen (0.2.0), Seiten Eintragen, Wer-Liste und Einstellungen mit Flüstervorlagen (0.3.0, Abschnitt 13).
+- Dateien: Locales.lua, Warhorn.lua, Search.lua, Filter.lua, Window.lua, Whisper.lua, Listing.lua, Who.lua, Settings.lua, Overlay.lua, Probe.lua, Options.lua, Bindings.xml; Symbol `INV_Misc_Horn_01`.
+- SavedVariables: `PeonWarhornDB` (accountweit): `show` (Hauptschalter, an), `replace` (je Seite `search`, `listing`, `who` Warhorn oder Blizzard), `whisper` (`templates` mit `name` und `text`, `groupTpl`, `playerTpl`), `hideCols` (je Liste `groups`, `players`, `who`), `colors` (`new`, `own`), `probe` (Ergebnis der letzten Prüfung). `PeonWarhornCharDB` (je Charakter): `category`, `activities`, `tab` (`groups`/`players`), `gFilter` und `pFilter` (`roles`, `classes`, `mode` `with`/`without`, `noMyClass`, `levelMin`, `levelMax`, `sizeMax`, `init`), `lCategory`, `lActivities`, `lNewPlayer`, `lPlaystyle` (Eintragen, Spielstil 0 = Entspannt), `wFilter` (`classes`, `levelMin`, `levelMax`, `noGuild`), `wText` (Wer-Liste). Bei „Standardwerte“ bleiben `probe`, `category`, `activities`, `tab`, `whisper`, `lCategory`, `lActivities`, `wText`, alles andere startet neu.
 - Braucht Peon API 18 (`Peon.UI`). Starter für Peon_Panel. Taste „Gruppensuche: Suchen“.
 - Befehle: `/warhorn` (Gruppensuche öffnen), `/warhorn suchen`, `/warhorn optionen`, `/peon warhorn` (Optionen), `/peon warhorn pruefen`, `/peon debug warhorn`.
 - Verlauf der Versionen: `docs/changelog/Peon_Warhorn.md`
-- Nicht veröffentlicht. 0.2.0 im Spiel noch nicht geprüft (Punkte im Verlauf bei 0.2.0).
+- Nicht veröffentlicht. Erster Blick im Spiel auf 0.2.0 (KarloDerBaer, 17.11.2026): Bedienung ging nicht, Kategorie leer, Linie von Blizzards Rahmen über der Fläche, Gruppensuche öffnete auf Blizzards Seite. Behoben in 0.2.1, von KarloDerBaer im Spiel bestätigt (Suche, Filter, Reiter und Liste gehen). Danach in 0.2.2 auf Wunsch: Suchen bei jeder Änderung, Knopf „Filter“, Rollen ohne „+n“, nicht mehr von selbst im Panel. 0.2.2 von KarloDerBaer im Spiel bestätigt. Danach 0.3.0 auf Wunsch (Konzept Abschnitt 13): Seiten Eintragen und Wer-Liste, Reiter Einstellungen, Flüsterfenster mit Vorlagen. Test von 0.3.0 durch KarloDerBaer: Blizzards Fenster schaute unten heraus, Spielstil fehlte, Kommentar-Knopf landete in Blizzards Übersicht ohne Rückweg. Behoben in 0.3.1, dazu Größe wie Ledger. Test von 0.3.1: Reiter Eintragen wechselte nicht oder zeigte Blizzard, Reiter Einstellungen sollte unten sitzen, Wunsch Suchen beim Öffnen. Umgesetzt in 0.3.2, von KarloDerBaer im Spiel bestätigt (Haken Eintragen in den Einstellungen war aus, danach ging es). 0.3.3: Beschriftung „Blizzard ersetzen:“ vor den Haken, im Spiel noch nicht geprüft.
 
 ## Projektordner <Repo>
 

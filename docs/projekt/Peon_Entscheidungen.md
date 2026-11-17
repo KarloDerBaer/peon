@@ -13,6 +13,39 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Rezepte aus Route, Lehrer, Händler und allen Charakteren in einer Zeile, zusammengeführt über den Namen** (Claude, beim Bau): Lehrer und Händler nennen keine Nummer des Rezepts. Bei Händlern wird der Vorsatz wie „Rezept:“ entfernt.
 - **Datenaustausch über Addon-Flüstern im Kern, Bau in eigener Sitzung** (KarloDerBaer): Entwurf `docs\konzepte\kern\Peon_Comm_Konzept.md`. Von Anfang an an und abschaltbar, fremde Daten sofort sichtbar und als fremd erkennbar.
 
+## 17.11.2026: Suchen beim Öffnen (Warhorn 0.3.2)
+
+- Beim Öffnen der Gruppensuche sucht Warhorn gleich (KarloDerBaer). Nur auf der Seite Suchen und höchstens alle 5 Sekunden (Claude): Blizzard öffnet die Gruppensuche auch von selbst, etwa mit der Antwort der Wer-Liste. Ohne Klick würde das Spiel die Suche blockieren.
+- Reiter Einstellungen unten am rechten Rand (KarloDerBaer).
+
+## 17.11.2026: Korrekturen nach dem Test von 0.3.0 (Warhorn 0.3.1)
+
+- Größe wie Ledger, 800 x 538 (KarloDerBaer).
+- Spielstil beim Eintragen, Vorgabe Entspannt (KarloDerBaer).
+- Der Kommentar-Knopf wechselt Blizzards Seite Eintragen mit Blizzards `SetCategorySelection` in die Ansicht mit dem Kommentarfeld (Claude). Das ruft eine Funktion von Blizzards Fenster aus Warhorn auf. Ob Blizzards eigenes Eintragen danach noch geht, wird im Spiel geprüft. Eingetragen wird ohnehin in Warhorn.
+
+## 17.11.2026: Alle Seiten der Gruppensuche und Einstellungen (Warhorn 0.3.0)
+
+- Eintragen und Wer-Liste bekommen Warhorn-Seiten, dazu ein Reiter Einstellungen rechts (KarloDerBaer, Konzept Abschnitt 13).
+- Eintragen alles auf einer Seite (KarloDerBaer). Wer-Liste mit Filtern, Anflüstern und Einladen und Schnellsuche (KarloDerBaer). Flüstern über ein eigenes Fenster mit Textfeld und Vorlagen, nie von selbst (KarloDerBaer). Einstellungen: welche Seiten Warhorn ersetzt, Spalten und Farben, dazu die Vorlagen (KarloDerBaer).
+- Das Fenster hängt an Blizzards ganzem Fenster statt an der Suchseite und wechselt die Seite mit Blizzards Reiter (Claude): So bleibt Blizzards Seite darunter offen, und Blizzards Abläufe (Wer-Antwort, Eintrag) laufen weiter.
+- Kommentar beim Eintragen über Blizzards Seite (Claude): Blizzards Kommentarfeld ist geschützt (`SetSecurityDisableSetText`), ein Addon kann dort keinen Text setzen.
+- Spalten ausblenden baut die Liste neu auf (Claude): Peons Tabelle kennt kein Ausblenden einzelner Spalten. Die erste Spalte bleibt immer.
+- Die Vorlagen bleiben bei „Standardwerte“ (Claude): Sie sind eigene Texte und gingen sonst verloren.
+
+## 17.11.2026: Suchen bei jeder Änderung (Warhorn 0.2.2)
+
+- **Bei jeder Änderung an Auswahl und Filter sucht Warhorn gleich neu** (KarloDerBaer). Das ersetzt „Suchen nie automatisch“ aus dem Konzept für Änderungen durch den Spieler. Ein Zeitgeber sucht weiterhin nie, das lässt das Spiel nicht zu.
+- Die Stufe sucht erst mit der Eingabetaste, beim Tippen wird nur gefiltert (Claude): sonst eine Suche je Ziffer.
+- Rollen ohne „+n“, freier Platz als grüne Zahl (KarloDerBaer wollte das „+n“ weg, die grüne Zahl hat Claude gewählt, damit die freien Plätze sichtbar bleiben).
+- Warhorn nicht von selbst auf Leiste und Panel (KarloDerBaer), über `DEFAULT_ENTRIES` in Peon_Panel.
+
+## 17.11.2026: Korrekturen nach dem ersten Blick im Spiel (Warhorn 0.2.1)
+
+- Warhorn liegt in der Schicht HIGH statt auf einer höheren Ebene in Blizzards Schicht (Claude): Blizzards Suchseite ist selbst ein Fenster mit Rahmen auf hoher Ebene. Eine feste Ebene wie bei Broker hätte auch Warhorns eigenen Rahmen betroffen. Andere Fenster der Schicht MEDIUM liegen damit unter Warhorn.
+- Öffnet man die Gruppensuche, springt sie auf den Reiter „Suchen“, solange Warhorn eingeschaltet ist (Wunsch KarloDerBaer). Kein eigener Haken dafür, der Haken „Warhorn zeigen“ gilt auch hier.
+- Im modernen Stil wandern Blizzards Reiter rechts an Warhorns Rand, solange Warhorn zu sehen ist (Claude). Warhorn ändert dafür nur ihren Anker und setzt ihn danach zurück.
+
 ## 17.11.2026: Gruppensuche mit Filtern gebaut (Warhorn 0.2.0)
 
 - **Alles in einem Zug** statt 0.2 bis 0.4 nacheinander (KarloDerBaer).

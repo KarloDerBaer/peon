@@ -48,6 +48,7 @@ local DEFAULT_ENTRIES = {
     xpRate     = { bar = false, box = true,  text = "rate", boxShow = "text", boxLabel = true },
     xp         = { bar = false, box = true,  side = "center", text = "full", boxShow = "text" },
     xpEta      = { bar = false, box = true,  text = "eta", boxShow = "text" },
+    warhorn    = { bar = false, box = false, text = "none" },   -- ab 0.4.1: Warhorn zum Anhaken (Wunsch KarloDerBaer)
     clock      = { bar = false, box = false, text = "local" },
     resets     = { bar = false, box = false, text = "daily" },
     perf       = { bar = false, box = false, text = "both" },

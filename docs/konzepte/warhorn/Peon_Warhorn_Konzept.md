@@ -1,6 +1,6 @@
 # Peon_Warhorn: Konzept Gruppensuche mit Filtern
 
-Stand: 17.11.2026, Entwurf von Claude für Schritt 2 bis 4 des Plans in `Peon_Stand.md`, Fragen beantwortet von KarloDerBaer (Abschnitt 10). Gebaut in Warhorn 0.2.0 (alle drei Schritte aus Abschnitt 11 in einem Zug), Abweichungen beim Bau in `Peon_Entscheidungen.md`. Grundlage ist die Prüfung mit Warhorn 0.1.0 (Ergebnis in `Peon_Stand.md` und `Peon_Ueberblick.md`).
+Stand: 17.11.2026, Entwurf von Claude für Schritt 2 bis 4 des Plans in `Peon_Stand.md`, Fragen beantwortet von KarloDerBaer (Abschnitt 10). Gebaut in Warhorn 0.2.0 (alle drei Schritte aus Abschnitt 11 in einem Zug), Abweichungen beim Bau in `Peon_Entscheidungen.md`. Ausbau mit allen Seiten und Einstellungen in Warhorn 0.3.0 (Abschnitt 13). Grundlage ist die Prüfung mit Warhorn 0.1.0 (Ergebnis in `Peon_Stand.md` und `Peon_Ueberblick.md`).
 
 ## 1. Idee
 
@@ -123,3 +123,18 @@ Beantwortet am 17.11.2026:
 - Ton oder Hinweis, wenn nach einer Suche ein neuer Treffer für die eigenen Filter da ist.
 - Merkliste für Spieler, mit denen man gut gespielt hat.
 - Eigene Gruppe schnell ausschreiben mit gespeicherten Vorlagen.
+
+## 13. Ausbau: alle Seiten und Einstellungen (Warhorn 0.3.0, abgestimmt 17.11.2026)
+
+Wunsch von KarloDerBaer nach dem Test von 0.2.2: Auch „Eintragen“ und die Wer-Liste sollen Warhorn-Seiten haben, dazu ein Reiter Einstellungen in Blizzards Reiterleiste rechts.
+
+- **Aufbau:** Die Warhorn-Fläche hängt ab 0.3.0 an Blizzards ganzem Fenster (`LFGParentFrame`) und zeigt je nach Blizzards Reiter die passende Seite: Eintragen, Suchen, Wer-Liste. Dazu kommt ein eigener Reiter **Einstellungen** unter Blizzards drei Reitern rechts. Je Seite gibt es den Knopf „Blizzard“, auf Blizzards Seite den Knopf „Warhorn“.
+- **Eintragen** (Antwort: alles auf einer Seite): Kategorie, Aktivitäten als Liste zum Anhaken, Rollen, „Neue Spieler willkommen“, Knopf Eintragen. Ist man eingetragen: Ändern und Austragen. In einer Gruppe darf nur der Anführer eintragen. Eintragen geht wie Suchen nur per Klick.
+  - **Kommentar:** Blizzards Kommentarfeld ist im Spiel geschützt, ein Addon kann keinen Text hineinschreiben. Warhorn zeigt darum einen Knopf „Kommentar bei Blizzard“, der für diesen Schritt Blizzards Seite zeigt.
+- **Wer-Liste** (Antworten: Filter, Anflüstern und Einladen, vorgefertigte Suchen): Suchfeld wie bei Blizzard, vorgefertigte Suchen (meine Stufe ±3, meine Zone), Filter nach Klasse, Stufe und „ohne Gilde“. Spalten Name, Stufe, Klasse, Gilde, Zone. Doppelklick flüstert an, Rechtsklick mit Anflüstern und Einladen. Die Wer-Suche geht nur per Klick oder Taste.
+- **Flüstern** (Antwort: eigenes Fenster mit Textfeld und Vorlagen): Doppelklick und „Anflüstern“ öffnen ein kleines Fenster mit Empfänger, Auswahl der Vorlage und Textfeld. Platzhalter `{name}`, `{rolle}`, `{klasse}`, `{stufe}`, `{aktivitaet}` werden eingesetzt. Abgeschickt wird erst mit dem Knopf „Senden“.
+- **Einstellungen** (Antworten: was Warhorn ersetzt, Spalten und Farben, dazu die Vorlagen):
+  - Je Seite (Suchen, Eintragen, Wer-Liste) Warhorn oder Blizzard.
+  - Flüstervorlagen anlegen, ändern, löschen. Eine Vorlage für Gruppen und eine für Mitspieler als Standard.
+  - Sichtbare Spalten je Liste.
+  - Farben für neue Einträge und den eigenen Eintrag.

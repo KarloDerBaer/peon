@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.4.1
+
+Kurz: Warhorn erscheint nicht mehr von selbst auf Leiste und Panel. Du kannst es dort anhaken.
+
+- 0.4.1 (17.11.2026, Wunsch KarloDerBaer): Eintrag `warhorn` in `DEFAULT_ENTRIES` (weder Leiste noch Panel). Gilt wie alle Standardwerte nur, wenn Panel Warhorn noch nie gesehen hat. Wer Warhorn schon auf Leiste oder Panel hat, nimmt es per Rechtsklick weg.
+
 ## 0.4.0
 
 Kurz: Neue Standardeinstellung für Leiste und Panel: schlichter Stil, das Panel klappt oben links auf und zeigt die XP-Werte.

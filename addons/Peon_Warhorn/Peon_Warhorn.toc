@@ -1,9 +1,9 @@
 ## Interface: 16001
 ## Title: |cff8ccf4dPeon|r Warhorn
-## Notes: Groups, dungeons and raids. Group finder with filters for role, class and level.
-## Notes-deDE: Gruppen, Dungeons und Raids. Gruppensuche mit Filtern nach Rolle, Klasse und Stufe.
+## Notes: Groups, dungeons and raids. Group finder with filters, listing, who list and whisper templates.
+## Notes-deDE: Gruppen, Dungeons und Raids. Gruppensuche mit Filtern, Eintragen, Wer-Liste und Flüstervorlagen.
 ## Author: KarloDerBaer
-## Version: 0.2.0
+## Version: 0.3.3
 ## Dependencies: Peon
 ## Group: Peon
 ## IconTexture: Interface\Icons\INV_Misc_Horn_01
@@ -15,6 +15,10 @@ Warhorn.lua
 Search.lua
 Filter.lua
 Window.lua
+Whisper.lua
+Listing.lua
+Who.lua
+Settings.lua
 Overlay.lua
 Probe.lua
 Options.lua

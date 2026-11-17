@@ -1,70 +1,319 @@
 -- Peon_Warhorn - Overlay.lua
--- Legt die Warhorn-Flaeche ueber Blizzards Suchseite (LFGBrowseFrame in der Gruppensuche im Vanilla-Stil).
---   * Die Flaeche haengt an LFGBrowseFrame: Blizzard zeigt die Suchseite nur auf dem Reiter "Suchen", auf den
---     anderen Reitern ist Warhorn darum von selbst weg. Sie wandert mit, wenn Peon_Mover das Fenster verschiebt.
---   * Unten endet sie ueber Blizzards Reitern (LFGParentFrameTab1), damit diese bedienbar bleiben.
---   * Umschalten ohne Neuladen: Warhorn schreibt nichts in Blizzards Tabellen. Der Knopf "Warhorn" an Blizzards
---     Fenster ist ein eigener Rahmen, nur angehaengt.
+-- Legt das Warhorn-Fenster ueber Blizzards Gruppensuche (Gruppensuche im Vanilla-Stil, LFGParentFrame).
+--   * Ab 0.3.0 haengt es an Blizzards ganzem Fenster und zeigt je nach Blizzards Reiter die passende Seite:
+--     Eintragen (LFGListingFrame), Suchen (LFGBrowseFrame), Wer-Liste (LFGWhoListFrame). Dazu ein eigener
+--     Reiter Einstellungen unter Blizzards Reitern rechts. Je Seite waehlbar: Warhorn oder Blizzard.
+--   * Es wandert mit, wenn Peon_Mover das Fenster verschiebt.
+--   * Schicht HIGH (ab 0.2.1): Blizzards Seiten sind selbst Fenster mit Rahmen auf hoher Ebene.
+--   * Unten reicht es bis an Blizzards Reiter (alter Stil, LFGParentFrameTab1) oder bis an den Fensterrand
+--     (moderner Stil, Reiter rechts am Fenster). Die Reiter rechts wandern an Warhorns rechten Rand, solange
+--     Warhorn zu sehen ist, und zurueck, wenn es weg ist. Warhorn aendert dafuer nur ihren Anker.
+--   * Oeffnet der Spieler die Gruppensuche auf einer Seite, die Blizzard zeigt, springt sie auf "Suchen",
+--     wenn Warhorn dort eingeschaltet ist. Fragt Blizzard selbst einen Reiter an, gilt Blizzards Wahl.
+--   * Umschalten ohne Neuladen: Warhorn schreibt nichts in Blizzards Tabellen. Die Knoepfe "Warhorn" an
+--     Blizzards Seiten und der Reiter Einstellungen sind eigene Rahmen, nur angehaengt.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
 local mod = ns.mod
 
-local O = {}
+local O = { once = {}, buttons = {} }
 ns.Overlay = O
 
-O.LEVEL_UP = 20     -- so viel hoeher als Blizzards Suchseite liegt Warhorn
 O.TAB_X = 16        -- Blizzard setzt LFGParentFrameTab1 auf BOTTOMLEFT 16, 45 (Blizzard_LFGVanilla_Browse.lua)
+O.PAGE_OF_TAB = { "listing", "search", "who" }
+O.BLIZZ = { listing = "LFGListingFrame", search = "LFGBrowseFrame", who = "LFGWhoListFrame" }
+O.SIDE_TABS = { "ListingTab", "BrowsingTab", "WhoListingTab" }
+O.SETTINGS_ICON = "Interface\\Icons\\INV_Misc_Gear_01"
 
 function O.Available()
     return _G.LFGBrowseFrame ~= nil and _G.LFGParentFrame ~= nil
 end
 
+local function Blizz(key) return rawget(_G, O.BLIZZ[key]) end
+
+---------------------------------------------------------------------------
+-- Was gezeigt wird
+---------------------------------------------------------------------------
+-- Warhorn ersetzt diese Seite (Einstellung, unabhaengig vom kurzen Blick auf Blizzard)
+function O.IsReplaced(key)
+    local db = mod.db
+    if not db or db.show == false then return false end
+    return not (type(db.replace) == "table" and db.replace[key] == false)
+end
+
+local function Shows(key) return O.IsReplaced(key) and not O.once[key] end
+
+-- Seite nach Blizzards Reiter. Ab 0.3.2 zaehlt zuerst Blizzards selectedTab: Blizzard setzt ihn vor dem Wechsel
+-- der Seiten und zeigt die neue Seite, bevor es die alte versteckt. In 0.3.0 und 0.3.1 fand Warhorn darum beim
+-- Klick auf Eintragen noch die Suchseite offen und blieb dort oder zeigte Blizzards Seite.
+function O.CurrentPage()
+    local parent = _G.LFGParentFrame
+    local key = parent and O.PAGE_OF_TAB[parent.selectedTab]
+    if key then return key end
+    for k in pairs(O.BLIZZ) do
+        local fr = Blizz(k)
+        if fr and fr.IsShown and fr:IsShown() then return k end
+    end
+    return "search"
+end
+
+function O.Apply()
+    if not O.built then return end
+    O.Layout()
+    local page = O.settings and "settings" or O.CurrentPage()
+    local visible = O.settings or Shows(page)
+    if visible then ns.Window.ShowPage(page) end
+    O.frame:SetShown(visible and true or false)
+    for key, b in pairs(O.buttons) do b:SetShown(not Shows(key)) end
+    O.MoveSideTabs(visible and O.frame:IsVisible())
+    O.UpdateSettingsTab()
+    O.page = visible and page or nil
+    if visible then
+        if page == "search" then ns.Window.Update()
+        elseif page == "listing" and ns.Listing.Update then ns.Listing.Update()
+        elseif page == "who" and ns.Who.Update then ns.Who.Update()
+        elseif page == "settings" and ns.Settings.Update then ns.Settings.Update() end
+    end
+end
+
+-- Warhorn oder Blizzard fuer eine Seite (Knoepfe und Einstellungen)
+function O.SetReplace(key, on)
+    if not mod.db then return end
+    if type(mod.db.replace) ~= "table" then mod.db.replace = {} end
+    mod.db.replace[key] = on and true or false
+    if on then
+        mod.db.show = true
+        O.once[key] = nil
+    end
+    O.Apply()
+    if mod.page then mod.page:Refresh() end
+end
+
+-- Hauptschalter aus den Optionen (alle Seiten)
+function O.SetShow(on)
+    if not mod.db then return end
+    mod.db.show = on and true or false
+    if on then O.once = {} end
+    O.Apply()
+    if mod.page then mod.page:Refresh() end
+end
+
+-- Fuer einen Schritt Blizzards Seite zeigen (Kommentar beim Eintragen). Zurueck mit dem Knopf Warhorn oder
+-- von selbst, sobald Blizzards Seite zugeht.
+function O.ShowBlizzardOnce(key)
+    O.once[key] = true
+    O.settings = false
+    O.Apply()
+end
+
+---------------------------------------------------------------------------
+-- Reiter Einstellungen
+---------------------------------------------------------------------------
+function O.OpenSettings()
+    O.settings = true
+    local parent = _G.LFGParentFrame
+    for _, k in ipairs(O.SIDE_TABS) do
+        local t = parent and parent[k]
+        if type(t) == "table" and type(t.SetChecked) == "function" then pcall(t.SetChecked, t, false) end
+    end
+    O.Apply()
+end
+
+function O.CloseSettings()
+    if not O.settings then return end
+    O.settings = false
+    local parent = _G.LFGParentFrame
+    if parent and type(parent.UpdateTabs) == "function" then pcall(parent.UpdateTabs, parent) end
+    O.Apply()
+end
+
+function O.CreateSettingsTab(parent)
+    local UI = Peon.UI
+    local tab = UI.TryFrame("Frame", "PeonWarhornSettingsTab", parent, "LargeSideTabButtonTemplate")
+    if tab and type(tab.Icon) == "table" and tab.Icon.SetTexture then
+        tab.Icon:SetTexture(O.SETTINGS_ICON)
+        if tab.Icon.SetSize then tab.Icon:SetSize(30, 30) end
+        if tab.Icon.SetTexCoord then tab.Icon:SetTexCoord(0.03125, 0.96875, 0.03125, 0.96875) end
+        tab.tooltipText = L.SETTINGS_TAB
+        O.tabStyle = "blizzard"
+    else
+        tab = CreateFrame("Button", "PeonWarhornSettingsTab", parent)
+        tab:SetSize(44, 44)
+        local bg = tab:CreateTexture(nil, "BACKGROUND")
+        bg:SetTexture("Interface\\SpellBook\\SpellBook-SkillLineTab")
+        bg:SetSize(64, 64)
+        bg:SetPoint("TOPLEFT", -3, 11)
+        local ic = tab:CreateTexture(nil, "ARTWORK")
+        ic:SetSize(32, 32)
+        ic:SetPoint("CENTER", -2, 0)
+        ic:SetTexture(O.SETTINGS_ICON)
+        tab.Icon = ic
+        UI.SetTooltip(tab, { L.SETTINGS_TAB, L.SETTINGS_TAB_TIP })
+        O.tabStyle = "own"
+    end
+    if tab.EnableMouse then tab:EnableMouse(true) end
+    if O.tabStyle == "blizzard" and type(tab.SetCustomOnMouseUpHandler) == "function" then
+        tab:SetCustomOnMouseUpHandler(function(_, button, upInside)
+            if button == "LeftButton" and upInside ~= false then mod:Call("Einstellungen", O.OpenSettings) end
+        end)
+    else
+        tab:SetScript("OnMouseUp", function(_, button)
+            if button == "LeftButton" then mod:Call("Einstellungen", O.OpenSettings) end
+        end)
+    end
+    O.settingsTab = tab
+    return tab
+end
+
+-- Reiter Einstellungen unten am rechten Rand (ab 0.3.2, Wunsch KarloDerBaer), an Warhorn oder an Blizzards Fenster
+O.TAB_BOTTOM = 40
+function O.UpdateSettingsTab()
+    local tab, parent = O.settingsTab, _G.LFGParentFrame
+    if not tab then return end
+    tab:ClearAllPoints()
+    if O.frame and O.frame:IsShown() then
+        tab:SetPoint("BOTTOMLEFT", O.frame, "BOTTOMRIGHT", 0, O.TAB_BOTTOM)
+    elseif O.IsModern() then
+        tab:SetPoint("BOTTOMLEFT", parent, "BOTTOMRIGHT", 0, O.TAB_BOTTOM)
+    else
+        tab:SetPoint("BOTTOMLEFT", parent, "BOTTOMRIGHT", -30, 74 + O.TAB_BOTTOM)
+    end
+    if type(tab.SetChecked) == "function" then pcall(tab.SetChecked, tab, O.settings == true) end
+end
+
+---------------------------------------------------------------------------
+-- Aufbau
+---------------------------------------------------------------------------
 function O.Build()
     if O.built or not O.Available() then return O.built end
     if not Peon.UI then
         if not O.warned then O.warned = true; mod:Print(L.MSG_NO_UI) end
         return false
     end
-    local browse, parent = LFGBrowseFrame, LFGParentFrame
+    local parent = LFGParentFrame
     ns.Search.EnsureSelection()
-    local f = ns.Window.Create(browse)
-    f:ClearAllPoints()
-    f:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
-    local tab = _G.LFGParentFrameTab1
-    if tab then
-        f:SetPoint("BOTTOMLEFT", tab, "TOPLEFT", -O.TAB_X, -4)
-    else
-        f:SetHeight((parent:GetHeight() or 535) - 80)
-    end
-    if f.SetFrameLevel and browse.GetFrameLevel then f:SetFrameLevel((browse:GetFrameLevel() or 1) + O.LEVEL_UP) end
-
-    -- Knopf "Warhorn" oben an Blizzards Suchseite (sichtbar, wenn Blizzard gezeigt wird)
-    local b = Peon.UI.Button(browse, L.BTN_WARHORN, 90, function() O.SetShow(true) end)
-    b:SetPoint("TOPRIGHT", browse, "TOPRIGHT", -30, -1)
-    if b.SetFrameLevel and browse.GetFrameLevel then b:SetFrameLevel((browse:GetFrameLevel() or 1) + 10) end
-    Peon.UI.SetTooltip(b, { L.BTN_WARHORN, L.BTN_WARHORN_TIP })
-    O.button = b
+    local W = ns.Window
+    local f = W.Create(parent)
     O.frame = f
+    O.Layout()
+    if ns.Listing and ns.Listing.Create then mod:Call("Eintragen", ns.Listing.Create, W.NewPage("listing")) end
+    if ns.Who and ns.Who.Create then mod:Call("Wer-Liste", ns.Who.Create, W.NewPage("who")) end
+    if ns.Settings and ns.Settings.Create then mod:Call("Einstellungen", ns.Settings.Create, W.NewPage("settings")) end
+
+    f:HookScript("OnShow", function() O.Layout(); O.MoveSideTabs(true); O.UpdateSettingsTab() end)
+    f:HookScript("OnHide", function() O.MoveSideTabs(false); O.UpdateSettingsTab() end)
+    if parent.HookScript then
+        parent:HookScript("OnShow", function() mod:Call("Gruppensuche oeffnen", O.OnParentShow) end)
+        parent:HookScript("OnHide", function() O.settings = false; O.once = {} end)
+    end
+
+    -- Blizzards Seiten: Wechsel der Seite, Knopf "Warhorn" oben (sichtbar, wenn Blizzard gezeigt wird)
+    for key in pairs(O.BLIZZ) do
+        local page = Blizz(key)
+        if page and page.HookScript then
+            page:HookScript("OnShow", function() O.settings = false; mod:Call("Seite", O.Apply) end)
+            page:HookScript("OnHide", function() O.once[key] = nil end)
+            local b = Peon.UI.Button(page, L.BTN_WARHORN, 90, function() O.SetReplace(key, true) end)
+            b:SetPoint("TOPRIGHT", page, "TOPRIGHT", -30, -1)
+            -- ab 0.3.1 in der Schicht HIGH: Blizzards Seite Eintragen hat Teile auf Ebene 501, der Knopf lag darunter
+            if b.SetFrameStrata then b:SetFrameStrata("HIGH") end
+            if b.SetFrameLevel then b:SetFrameLevel(ns.Window.LEVEL) end
+            Peon.UI.SetTooltip(b, { L.BTN_WARHORN, L.BTN_WARHORN_TIP })
+            O.buttons[key] = b
+        end
+    end
+    O.button = O.buttons.search
+    -- Blizzards Reiter verlassen die Einstellungen, auch wenn ihre Seite schon offen ist
+    for _, k in ipairs(O.SIDE_TABS) do
+        local t = parent[k]
+        if type(t) == "table" and type(t.HookScript) == "function" then
+            t:HookScript("OnMouseUp", function() mod:Call("Einstellungen", O.CloseSettings) end)
+        end
+    end
+    for i = 1, 3 do
+        local t = rawget(_G, "LFGParentFrameTab" .. i)
+        if type(t) == "table" and type(t.HookScript) == "function" then
+            t:HookScript("OnClick", function() mod:Call("Einstellungen", O.CloseSettings) end)
+        end
+    end
+    mod:Call("Reiter Einstellungen", O.CreateSettingsTab, parent)
+
     O.built = true
     O.Apply()
-    mod:Dbg("Flaeche ueber der Gruppensuche angelegt")
+    mod:Dbg("Fenster ueber der Gruppensuche angelegt")
     return true
 end
 
-function O.Apply()
-    if not O.built then return end
-    local show = mod.db and mod.db.show ~= false
-    O.frame:SetShown(show)
-    O.button:SetShown(not show)
-    if show then ns.Window.Update() end
+-- Moderner Stil: Blizzards Schalter, sonst Reiter unten versteckt. Ab 0.3.1 zuerst der Schalter: Seit Warhorn
+-- an Blizzards ganzem Fenster haengt, kommt sein OnShow vor Blizzards eigenem, die Reiter unten sind dann noch
+-- nicht versteckt (0.3.0 hielt den modernen Stil darum fuer den alten und endete zu weit oben).
+function O.IsModern()
+    if rawget(_G, "LFGVANILLA_SETTING_MODERN_STYLE") then return true end
+    local tab = _G.LFGParentFrameTab1
+    return not (tab and tab.IsShown and tab:IsShown())
 end
 
-function O.SetShow(on)
-    if not mod.db then return end
-    mod.db.show = on and true or false
-    O.Apply()
-    if mod.page then mod.page:Refresh() end
+-- Groesse wie Ledger (Window.lua). Im alten Stil endet Warhorn ueber Blizzards Reitern unten.
+function O.Layout()
+    local f, parent = O.frame, _G.LFGParentFrame
+    if not (f and parent) then return end
+    f:ClearAllPoints()
+    f:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
+    if O.IsModern() then
+        f:SetHeight(ns.Window.HEIGHT)
+        O.style = "modern"
+    else
+        f:SetPoint("BOTTOMLEFT", _G.LFGParentFrameTab1, "TOPLEFT", -O.TAB_X, -4)
+        O.style = "classic"
+    end
+end
+
+-- Reiter rechts am Fenster (moderner Stil) an Warhorns rechten Rand und zurueck. Die anderen beiden Reiter
+-- haengen bei Blizzard am ersten, wandern also mit.
+function O.MoveSideTabs(toWarhorn)
+    local parent = _G.LFGParentFrame
+    local tab = parent and parent.ListingTab
+    if type(tab) ~= "table" or type(tab.GetPoint) ~= "function" or type(tab.SetPoint) ~= "function" then return end
+    if toWarhorn then
+        if not (tab.IsShown and tab:IsShown()) or O.sideMoved then return end
+        if not O.sidePoint then
+            local ok, p1, rel, p2, x, y = pcall(tab.GetPoint, tab, 1)
+            if not ok or not p1 then return end
+            O.sidePoint = { p1, rel, p2, x, y }
+        end
+        tab:ClearAllPoints()
+        tab:SetPoint("TOPLEFT", O.frame, "TOPRIGHT", 0, O.sidePoint[5] or -60)
+        O.sideMoved = true
+    elseif O.sideMoved and O.sidePoint then
+        local sp = O.sidePoint
+        tab:ClearAllPoints()
+        tab:SetPoint(sp[1], sp[2], sp[3], sp[4], sp[5])
+        O.sideMoved = false
+    end
+end
+
+-- Blizzards Gruppensuche geht auf einer Seite auf, die Blizzard zeigt: auf "Suchen" springen, wenn Warhorn
+-- dort eingeschaltet ist
+-- Ab 0.3.2 sucht Warhorn dabei gleich (Wunsch KarloDerBaer): Der Klick auf den Menueknopf oder die Taste
+-- zaehlt fuer das Spiel. Nur auf der Seite Suchen, so oeffnet Blizzards Wer-Antwort (Reiter 3, kein Klick) nie
+-- eine Suche. Hoechstens alle O.OPEN_GAP Sekunden.
+O.OPEN_GAP = 5
+function O.OnParentShow()
+    if not (mod.db and mod.db.show ~= false) or Peon.InCombat() then return end
+    local parent = _G.LFGParentFrame
+    if not Shows(O.CurrentPage()) and Shows("search") and parent.selectedTab ~= 2 then
+        local fn = rawget(_G, "LFGParentFrameTab2_OnClick")
+        if type(fn) == "function" then fn() end
+    end
+    if O.CurrentPage() == "search" and Shows("search") then
+        local S = ns.Search
+        local now = GetTime and GetTime() or 0
+        if not S.searching and not (S.requestedAt and now - S.requestedAt < O.OPEN_GAP) then
+            S.requestedAt = now
+            S.Search()
+        end
+    end
 end
 
 -- /warhorn, Starter: Blizzards Gruppensuche auf dem Reiter Suchen oeffnen oder schliessen
@@ -91,5 +340,11 @@ mod:RegisterEvent("ADDON_LOADED", function(event, name)
     if name == "Blizzard_GroupFinder_VanillaStyle" and mod.initialized then mod:Call("Overlay", O.Build) end
 end)
 
-mod:On("COMBAT_START", function() if ns.Window.frame then ns.Window.Update() end end)
-mod:On("COMBAT_END", function() if ns.Window.frame then ns.Window.Update() end end)
+local function CombatChanged()
+    if not ns.Window.frame then return end
+    ns.Window.Update()
+    if ns.Listing.Update then ns.Listing.Update() end
+    if ns.Who.Update then ns.Who.Update() end
+end
+mod:On("COMBAT_START", CombatChanged)
+mod:On("COMBAT_END", CombatChanged)

@@ -1,6 +1,8 @@
 -- Peon_Warhorn - Window.lua
--- Flaeche ueber Blizzards Suchseite (Overlay.lua legt sie dorthin): Auswahl, Filterleiste, Reiter Gruppen und
--- Mitspieler, Liste mit Tooltip und Menue, Statuszeile. Bausteine aus Peon.UI (API 18).
+-- Warhorn-Fenster (Overlay.lua legt es ueber Blizzards Gruppensuche) mit Seiten (ab 0.3.0): Suchen (hier),
+-- Eintragen (Listing.lua), Wer-Liste (Who.lua), Einstellungen (Settings.lua).
+-- Die Seite Suchen: Auswahl, Filterleiste, Reiter Gruppen und Mitspieler, Liste mit Tooltip und Menue, Statuszeile.
+-- Dazu Hilfen fuer alle Seiten: Klassenfarben, Alter, Tabellen mit waehlbaren Spalten. Bausteine aus Peon.UI (API 18).
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -11,11 +13,15 @@ local F = ns.Filter
 local W = {}
 ns.Window = W
 
-W.WIDTH = 680
+-- ab 0.3.1 so gross wie Ledger und Peons andere Fenster (Peon.UI.WINDOW_W, WINDOW_H), vorher 680 breit
+W.WIDTH, W.HEIGHT = 800, 538
+W.STRATA = "HIGH"   -- ueber Blizzards Fenster samt Rahmen (dort MEDIUM)
+W.LEVEL = 300       -- ueber Blizzards Teilen in der Schicht HIGH (Suchfeld und Knopf der Wer-Liste)
 W.TICK = 1          -- Sekunden zwischen zwei Aktualisierungen der Statuszeile
 W.AGE_REFRESH = 10  -- Sekunden zwischen zwei Aktualisierungen der Spalte Alter
 W.OLD = 60          -- ab so vielen Sekunden ist die Suche "alt" (Hinweis gold)
 W.DOUBLE = 0.4      -- Doppelklick
+W.TITLE_H = 24      -- Hoehe der Titelleiste, dort gehen Klicks zu Blizzards Fenster
 
 local ICON = 14
 local function A(atlas, size) size = size or ICON return ("|A:%s:%d:%d|a"):format(atlas, size, size) end
@@ -34,7 +40,7 @@ function W.ClassName(c)
     local names = rawget(_G, "LOCALIZED_CLASS_NAMES_MALE")
     return (names and c and names[c]) or c or "?"
 end
-local function Colored(text, c)
+function W.Colored(text, c)
     local r, g, b = W.ClassColor(c)
     return ("|cff%02x%02x%02x%s|r"):format(r * 255, g * 255, b * 255, text or "?")
 end
@@ -51,8 +57,8 @@ function W.RolesText(e)
     local parts = {}
     for _, role in ipairs(S.ROLES) do
         local n, free = e.count[role] or 0, e.free[role] or 0
-        local t = A(ROLE_ATLAS[role]) .. n
-        if free > 0 then t = t .. "|cff40ff40+" .. free .. "|r" end
+        -- ab 0.2.2 ohne "+n" (Wunsch KarloDerBaer): ist ein Platz frei, steht die Zahl gruen
+        local t = A(ROLE_ATLAS[role]) .. (free > 0 and ("|cff40ff40" .. n .. "|r") or n)
         parts[#parts + 1] = t
     end
     return table.concat(parts, " ")
@@ -90,11 +96,11 @@ function W.CanInvite()
     return (UnitIsGroupLeader and UnitIsGroupLeader("player")) or (UnitIsGroupAssistant and UnitIsGroupAssistant("player")) or false
 end
 
+-- ab 0.3.0: eigenes Fenster mit Vorlage (Whisper.lua)
 function W.Whisper(e)
     local name = e and e.leaderName
     if not name then return end
-    if ChatFrameUtil and ChatFrameUtil.SendTell then pcall(ChatFrameUtil.SendTell, name)
-    elseif ChatFrame_SendTell then pcall(ChatFrame_SendTell, name) end
+    ns.Whisper.Open(name, { activity = e.activityText }, e.isSolo and "player" or "group")
 end
 
 function W.Invite(e)
@@ -142,7 +148,7 @@ function W.ShowTooltip(row, e)
     else
         GameTooltip:SetText(e.activityText or "?", 1, 0.82, 0)
     end
-    if e.leaderName then GameTooltip:AddLine(L.TIP_LEADER:format(Colored(e.leaderName, e.leaderClass)), 1, 1, 1) end
+    if e.leaderName then GameTooltip:AddLine(L.TIP_LEADER:format(W.Colored(e.leaderName, e.leaderClass)), 1, 1, 1) end
     if e.comment and e.comment ~= "" then GameTooltip:AddLine(e.comment, 0.8, 0.8, 0.8, true) end
     if #e.members > 0 then
         GameTooltip:AddLine(" ")
@@ -150,7 +156,7 @@ function W.ShowTooltip(row, e)
         for _, m in ipairs(e.members) do
             local role = m.role and ROLE_ATLAS[m.role] and A(ROLE_ATLAS[m.role]) or ""
             local cls = m.class and A(ClassAtlas(m.class)) or ""
-            GameTooltip:AddLine(("%s %s %s %s"):format(role, cls, Colored(m.name or W.ClassName(m.class), m.class), m.level and ("(" .. m.level .. ")") or ""), 1, 1, 1)
+            GameTooltip:AddLine(("%s %s %s %s"):format(role, cls, W.Colored(m.name or W.ClassName(m.class), m.class), m.level and ("(" .. m.level .. ")") or ""), 1, 1, 1)
         end
     end
     GameTooltip:AddLine(" ")
@@ -168,15 +174,23 @@ local function Gray(e) if e.isDelisted then return 0.5, 0.5, 0.5 end return 1, 1
 -- eigener Eintrag immer oben (Alter aufsteigend), geheime Eintraege unten (nil)
 local function AgeSort(e) if e.hasSelf then return -1 end return S.Age(e) end
 
-local function RowBg(e)
-    if e.hasSelf then return 0.3, 0.6, 1, 0.15 end
-    if e.isNew and not e.isDelisted then return 0.2, 0.8, 0.2, 0.12 end
+-- Farben aus den Einstellungen (ab 0.3.0)
+W.DEFAULT_COLORS = { new = { 0.2, 0.8, 0.2, 0.12 }, own = { 0.3, 0.6, 1, 0.15 } }
+function W.Color(key)
+    local c = mod.db and type(mod.db.colors) == "table" and mod.db.colors[key]
+    if type(c) ~= "table" or type(c[1]) ~= "number" then c = W.DEFAULT_COLORS[key] end
+    return c[1], c[2], c[3], c[4] or 1
 end
+local function RowBg(e)
+    if e.hasSelf then return W.Color("own") end
+    if e.isNew and not e.isDelisted then return W.Color("new") end
+end
+W.RowBg = RowBg
 
 function W.GroupColumns()
     return {
         { key = "activity", title = L.COL_ACTIVITY, format = function(_, e) return e.activityText end, sort = function(e) return e.activityText end, color = Gray },
-        { key = "leader", title = L.COL_LEADER, width = 110, format = function(_, e) return Colored(e.leaderName or "?", e.leaderClass) end, sort = function(e) return e.leaderName end },
+        { key = "leader", title = L.COL_LEADER, width = 110, format = function(_, e) return W.Colored(e.leaderName or "?", e.leaderClass) end, sort = function(e) return e.leaderName end },
         { key = "level", title = L.COL_LEVEL, width = 58, align = "CENTER", format = function(_, e) return W.LevelText(e) end, sort = function(e) return e.levelMin end, color = Gray },
         { key = "roles", title = L.COL_ROLES, width = 128, format = function(_, e) return W.RolesText(e) end,
           sort = function(e) return -F.FreeFor(e, mod.db.gFilter.roles) end },
@@ -187,13 +201,76 @@ end
 
 function W.PlayerColumns()
     return {
-        { key = "name", title = L.COL_NAME, width = 120, format = function(_, e) return Colored(e.leaderName or "?", e.leaderClass) end, sort = function(e) return e.leaderName end },
+        { key = "name", title = L.COL_NAME, width = 120, format = function(_, e) return W.Colored(e.leaderName or "?", e.leaderClass) end, sort = function(e) return e.leaderName end },
         { key = "class", title = L.COL_CLASS, width = 92, format = function(_, e) return W.ClassName(e.leaderClass) end, sort = function(e) return W.ClassName(e.leaderClass) end, color = Gray },
         { key = "level", title = L.COL_LEVEL, width = 52, align = "CENTER", format = function(_, e) return e.leaderLevel and tostring(e.leaderLevel) or "" end, sort = function(e) return e.leaderLevel end, color = Gray },
         { key = "roles", title = L.COL_ROLES, width = 72, nosort = true, format = function(_, e) return W.PlayerRolesText(e) end },
         { key = "activity", title = L.COL_ACTIVITY, format = function(_, e) return e.activityText end, sort = function(e) return e.activityText end, color = Gray },
         { key = "age", title = L.COL_AGE, width = 66, align = "RIGHT", format = function(_, e) return W.AgeText(S.Age(e)) end, sort = AgeSort, color = Gray },
     }
+end
+
+---------------------------------------------------------------------------
+-- Seiten und Tabellen mit waehlbaren Spalten (ab 0.3.0)
+---------------------------------------------------------------------------
+W.pages = {}
+W.PAGE_TITLE = { search = "PAGE_SEARCH", listing = "PAGE_LISTING", who = "PAGE_WHO", settings = "PAGE_SETTINGS" }
+
+function W.NewPage(key)
+    local p = CreateFrame("Frame", nil, W.frame)
+    p:SetAllPoints(W.frame)
+    p:Hide()
+    p.key = key
+    W.pages[key] = p
+    return p
+end
+
+function W.ShowPage(key)
+    for k, p in pairs(W.pages) do p:SetShown(k == key) end
+    W.page = key
+    local t = W.PAGE_TITLE[key] and L[W.PAGE_TITLE[key]]
+    if W.frame and W.frame.SetTitle then pcall(W.frame.SetTitle, W.frame, t and (L.TITLE .. ": " .. t) or L.TITLE) end
+end
+
+-- Spalten ohne die ausgeblendeten (die erste Spalte bleibt immer)
+function W.Visible(kind, cols)
+    local hc = mod.db and type(mod.db.hideCols) == "table" and mod.db.hideCols[kind]
+    local hide = type(hc) == "table" and hc or {}
+    local out = {}
+    for i, c in ipairs(cols) do if i == 1 or not hide[c.key] then out[#out + 1] = c end end
+    return out
+end
+
+-- Tabelle in eigenem Bereich. spec: page, columns (Funktion), top, bottom, sortKey, empty, rowBg, onEnter,
+-- onClick, onBuilt(panel, table). Neuaufbau mit W.RebuildTable(kind), wenn sich die Spalten aendern.
+W.specs = {}
+function W.BuildTable(kind, spec)
+    spec = spec or W.specs[kind]
+    W.specs[kind] = spec
+    local UI = Peon.UI
+    local old = spec.table
+    local p = UI.Panel(spec.page, "list", true)
+    p:SetPoint("TOPLEFT", 8, spec.top)
+    p:SetPoint("BOTTOMRIGHT", -8, spec.bottom or 29)
+    local cols = W.Visible(kind, spec.columns())
+    local sortKey = spec.sortKey
+    if old then
+        for _, c in ipairs(cols) do if c.key == old.sortKey then sortKey = old.sortKey end end
+    end
+    local t = UI.Table(p, {
+        columns = cols, sortKey = sortKey, sortDesc = (old and old.sortKey == sortKey and old.sortDesc) or nil,
+        empty = spec.empty, loadingText = L.SEARCHING, rowBg = spec.rowBg,
+        onEnter = spec.onEnter, onClick = spec.onClick,
+    })
+    if spec.panel then spec.panel:Hide() end
+    spec.panel, spec.table = p, t
+    if old and old.items then t:SetData(old.items) end
+    if spec.onBuilt then spec.onBuilt(p, t) end
+    return p, t
+end
+
+function W.RebuildTable(kind)
+    if W.specs[kind] then W.BuildTable(kind) end
 end
 
 ---------------------------------------------------------------------------
@@ -207,18 +284,18 @@ local function CategoryItems()
     return out
 end
 
-local function ActivityLabel()
-    local n = #(mod.db.activities or {})
-    if n == 0 then return L.ACT_ALL end
-    if n == 1 then return S.ActivityName(mod.db.activities[1]) end
-    return L.ACT_SOME:format(n)
+-- Jede Aenderung an Auswahl oder Filter sucht gleich neu (ab 0.2.2, Wunsch KarloDerBaer). Das geht, weil jede
+-- dieser Aenderungen aus einem Klick oder Tastendruck kommt. Im Kampf bleibt es beim Filtern der alten Liste.
+function W.Changed()
+    W.Update()
+    if not Peon.InCombat() then S.Search() end
 end
 
 local function BuildActivityMenu(root)
     local acts = S.Activities(mod.db.category)
-    root:CreateButton(L.ACT_ALL, function() mod.db.activities = {}; S.Notify("selection") end)
+    root:CreateButton(L.ACT_ALL, function() mod.db.activities = {}; S.Notify("selection"); W.Changed() end)
     for _, id in ipairs(acts) do
-        root:CreateCheckbox(S.ActivityName(id), function() return S.IsActivitySelected(id) end, function() S.ToggleActivity(id) end)
+        root:CreateCheckbox(S.ActivityName(id), function() return S.IsActivitySelected(id) end, function() S.ToggleActivity(id); W.Changed() end)
     end
 end
 
@@ -227,24 +304,24 @@ local function BuildFilterMenu(root)
     root:CreateTitle(L.CLASSES)
     local my = F.MyClass()
     for _, c in ipairs(F.CLASSES) do
-        root:CreateCheckbox(Colored(W.ClassName(c), c), function() return f.classes[c] == true end, function()
+        root:CreateCheckbox(W.Colored(W.ClassName(c), c), function() return f.classes[c] == true end, function()
             f.classes[c] = not f.classes[c] or nil
-            W.Update()
+            W.Changed()
         end)
     end
     if mod.db.tab == "groups" then
         if root.CreateDivider then root:CreateDivider() end
-        root:CreateRadio(L.MODE_WITH, function() return f.mode == "with" end, function() f.mode = "with"; W.Update() end)
-        root:CreateRadio(L.MODE_WITHOUT, function() return f.mode == "without" end, function() f.mode = "without"; W.Update() end)
-        root:CreateCheckbox(L.NO_MY_CLASS .. (my and (" (" .. W.ClassName(my) .. ")") or ""), function() return f.noMyClass end, function() f.noMyClass = not f.noMyClass; W.Update() end)
+        root:CreateRadio(L.MODE_WITH, function() return f.mode == "with" end, function() f.mode = "with"; W.Changed() end)
+        root:CreateRadio(L.MODE_WITHOUT, function() return f.mode == "without" end, function() f.mode = "without"; W.Changed() end)
+        root:CreateCheckbox(L.NO_MY_CLASS .. (my and (" (" .. W.ClassName(my) .. ")") or ""), function() return f.noMyClass end, function() f.noMyClass = not f.noMyClass; W.Changed() end)
         if root.CreateDivider then root:CreateDivider() end
         root:CreateTitle(L.SIZE)
         for _, n in ipairs({ 0, 2, 3, 4 }) do
-            root:CreateRadio(n == 0 and L.SIZE_ALL or L.SIZE_MAX:format(n), function() return f.sizeMax == n end, function() f.sizeMax = n; W.Update() end)
+            root:CreateRadio(n == 0 and L.SIZE_ALL or L.SIZE_MAX:format(n), function() return f.sizeMax == n end, function() f.sizeMax = n; W.Changed() end)
         end
     end
     if root.CreateDivider then root:CreateDivider() end
-    root:CreateButton(L.FILTER_RESET, function() F.Reset(mod.db.tab); W.SyncControls(); W.Update() end)
+    root:CreateButton(L.FILTER_RESET, function() F.Reset(mod.db.tab); W.SyncControls(); W.Changed() end)
 end
 
 function W.Create(parent)
@@ -252,16 +329,20 @@ function W.Create(parent)
     local UI = Peon.UI
     local f = UI.TryFrame("Frame", "PeonWarhornFrame", parent, "PortraitFrameTemplate") or CreateFrame("Frame", "PeonWarhornFrame", parent)
     W.frame = f
-    f:SetWidth(W.WIDTH)
+    local win = f
+    -- Schicht und Ebene vor allen Kindern setzen, damit sie mitwandern
+    if f.SetFrameStrata then f:SetFrameStrata(W.STRATA) end
+    if f.SetFrameLevel then f:SetFrameLevel(W.LEVEL) end
+    W.WIDTH = Peon.UI.WINDOW_W or W.WIDTH
+    W.HEIGHT = Peon.UI.WINDOW_H or W.HEIGHT
+    f:SetSize(W.WIDTH, W.HEIGHT)
     if f.SetTitle then pcall(f.SetTitle, f, L.TITLE) end
     if type(f.SetPortraitToAsset) == "function" then pcall(f.SetPortraitToAsset, f, "Interface\\Icons\\INV_Misc_Horn_01") end
-    -- Titelleiste bleibt fuer Blizzards Fenster frei (Peon_Mover zieht dort), darunter faengt die Flaeche die Maus ab
-    local block = CreateFrame("Frame", nil, f)
-    block:SetPoint("TOPLEFT", 0, -24)
-    block:SetPoint("BOTTOMRIGHT", 0, 0)
-    if block.EnableMouse then block:EnableMouse(true) end
-    if f.EnableMouse then f:EnableMouse(false) end
-    W.block = block
+    -- Titelleiste bleibt fuer Blizzards Fenster frei (Peon_Mover zieht dort), darunter faengt die Flaeche die Maus ab.
+    -- Bis 0.2.0 lag dafuer ein eigener Rahmen auf derselben Ebene wie die Bedienelemente und konnte ihre Klicks
+    -- schlucken. Ab 0.2.1 faengt das Fenster selbst die Maus ab, nur die Titelleiste ist ausgespart.
+    if f.EnableMouse then f:EnableMouse(true) end
+    if f.SetHitRectInsets then f:SetHitRectInsets(0, 0, W.TITLE_H, 0) end
     if f.CloseButton then
         f.CloseButton:SetScript("OnClick", function()
             if Peon.InCombat() then return end
@@ -269,11 +350,15 @@ function W.Create(parent)
         end)
     end
 
+    -- Seite Suchen: alles Folgende liegt auf ihr
+    f = W.NewPage("search")
+
     -- Zeile 1: Kategorie, Aktivitaeten, Suchen, Neu suchen, Blizzard
-    local cat = UI.Dropdown(f, 140, CategoryItems, function() return mod.db.category end, function(v) S.SetCategory(v) end)
+    local cat = UI.Dropdown(f, 140, CategoryItems, function() return mod.db.category end, function(v) S.SetCategory(v); W.Changed() end)
     cat:SetPoint("TOPLEFT", 62, -32)
     W.catDD = cat
-    local act = UI.FilterDropdown(f, ActivityLabel(), BuildActivityMenu)
+    -- Text bleibt "Filter" (ab 0.2.2): Blizzards Vorlage setzt ihn beim Oeffnen ohnehin darauf zurueck
+    local act = UI.FilterDropdown(f, L.FILTER, BuildActivityMenu)
     act:SetPoint("LEFT", cat, "RIGHT", 8, 0)
     if act.SetWidth then act:SetWidth(170) end
     W.actDD = act
@@ -282,7 +367,7 @@ function W.Create(parent)
     W.searchBtn = search
     local refresh = UI.RefreshButton(f, function() S.Search() end, L.REFRESH_TIP)
     refresh:SetPoint("LEFT", search, "RIGHT", 4, 0)
-    local bliz = UI.Button(f, L.BTN_BLIZZARD, 90, function() ns.Overlay.SetShow(false) end)
+    local bliz = UI.Button(f, L.BTN_BLIZZARD, 90, function() ns.Overlay.SetReplace("search", false) end)
     bliz:SetPoint("TOPRIGHT", -10, -34)
     UI.SetTooltip(bliz, { L.BTN_BLIZZARD, L.BTN_BLIZZARD_TIP })
 
@@ -293,7 +378,7 @@ function W.Create(parent)
         local key = def[1]
         local cb = UI.Check(f, A(KEY_ATLAS[key], 16) .. " " .. def[2], false, function(on)
             Filt().roles[key] = on or nil
-            W.Update()
+            W.Changed()
         end)
         if prev then cb:SetPoint("LEFT", prev, "RIGHT", 82, 0) else cb:SetPoint("TOPLEFT", 60, -64) end
         UI.SetTooltip(cb, function() return { def[2], mod.db.tab == "groups" and L.ROLES_GROUP_TIP or L.ROLES_PLAYER_TIP } end)
@@ -312,6 +397,11 @@ function W.Create(parent)
             Filt()[key] = tonumber(self:GetText()) or 0
             W.Update()
         end)
+        -- Stufe: beim Tippen nur filtern, mit Eingabetaste neu suchen
+        e:HookScript("OnEnterPressed", function(self)
+            if self.ClearFocus then self:ClearFocus() end
+            W.Changed()
+        end)
         UI.SetTooltip(e, { L.LEVEL, L.LEVEL_TIP })
         return e
     end
@@ -325,18 +415,15 @@ function W.Create(parent)
     -- Reiter und Listen
     W.panels, W.tables = {}, {}
     for _, kind in ipairs({ "groups", "players" }) do
-        local p = UI.Panel(f, "list", true)
-        p:SetPoint("TOPLEFT", 8, -122)
-        p:SetPoint("BOTTOMRIGHT", -8, 29)
-        W.panels[kind] = p
-        W.tables[kind] = UI.Table(p, {
-            columns = kind == "groups" and W.GroupColumns() or W.PlayerColumns(),
-            sortKey = "age",
-            empty = L.EMPTY_NEVER,
-            loadingText = L.SEARCHING,
-            rowBg = RowBg,
-            onEnter = W.ShowTooltip,
-            onClick = OnRowClick,
+        W.BuildTable(kind, {
+            page = f, top = -122,
+            columns = kind == "groups" and W.GroupColumns or W.PlayerColumns,
+            sortKey = "age", empty = L.EMPTY_NEVER, rowBg = RowBg,
+            onEnter = W.ShowTooltip, onClick = OnRowClick,
+            onBuilt = function(p, t)
+                W.panels[kind], W.tables[kind] = p, t
+                if W.tabs then W.Update() end
+            end,
         })
     end
     W.tabs = UI.TopTabs(f, { { "groups", L.TAB_GROUPS }, { "players", L.TAB_PLAYERS } }, function(key)
@@ -359,14 +446,18 @@ function W.Create(parent)
             if t then t.list:Refresh() end
         end
     end)
-    f:HookScript("OnShow", function() W.Update() end)
+    f:HookScript("OnShow", function()
+        S.EnsureSelection()
+        W.SyncControls()
+        W.Update()
+    end)
 
     S.OnChange(function(what)
         if what == "selection" then W.SyncControls() end
         W.Update()
     end)
     W.tabs:Select(mod.db.tab or "groups")
-    return f
+    return win
 end
 
 -- Bedienelemente an die gespeicherten Werte angleichen (Reiter, Filter, Auswahl)
@@ -376,7 +467,6 @@ function W.SyncControls()
     for key, cb in pairs(W.roleChecks) do cb:SetChecked(f.roles[key] == true) end
     W.lvlMin:SetText(f.levelMin > 0 and tostring(f.levelMin) or "")
     W.lvlMax:SetText(f.levelMax > 0 and tostring(f.levelMax) or "")
-    if W.actDD and W.actDD.Text then W.actDD.Text:SetText(ActivityLabel()) end
     if W.catDD and W.catDD.GenerateMenu then pcall(W.catDD.GenerateMenu, W.catDD) end
 end
 
@@ -425,7 +515,6 @@ function W.Update()
         if tb.SetBadge then tb:SetBadge(counts[tb.key] or 0) end
     end
     W.counts = counts
-    if W.actDD and W.actDD.Text then W.actDD.Text:SetText(ActivityLabel()) end
     if W.searchBtn then
         if Peon.InCombat() then W.searchBtn:Disable() else W.searchBtn:Enable() end
     end

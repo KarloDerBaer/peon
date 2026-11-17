@@ -192,6 +192,15 @@ check(tm.minimapButton.shown == false, "Button wirklich ausgeblendet")
 check(PeonDB.panelHid.test == true and PeonDB.panelHid.peon == nil, "Kern merkt sich nur, was einen Button hatte")
 check(PeonPanelDB.entries.test.bar and PeonPanelDB.entries.test.box and PeonPanelDB.entries.test.text == "gold", "Eintrag mit Standardtext")
 check(PeonPanelDB.entries.peon.text == "none", "Peon ohne Text")
+-- ab Panel 0.4.1: Warhorn beim ersten Mal weder auf der Leiste noch im Panel
+ns.AddStarter({ key = "warhorn", mod = tm, IsMinimapShown = function() return false end, IsAvailable = function() return true end,
+  GetText = function() return "" end, texts = {}, Refresh = function() end })
+check(PeonPanelDB.entries.warhorn.bar == false and PeonPanelDB.entries.warhorn.box == false, "Warhorn anfangs nur zum Anhaken")
+ns.starters.warhorn, PeonPanelDB.entries.warhorn, PeonPanelDB.known.warhorn = nil, nil, nil
+for _, list in ipairs({ PeonPanelDB.barOrder, PeonPanelDB.boxOrder }) do
+  for i = #list, 1, -1 do if list[i] == "warhorn" then table.remove(list, i) end end
+end
+ns.ApplyAll()
 fire("PLAYER_LOGIN")
 check(cats.Peon and cats.Peon.subs[1] == "Panel", "Seite unter Peon > Panel")
 check(#popups == 1 and popups[1] == "PEON_PANEL_HINT" and PeonPanelDB.hintShown, "Hinweis einmalig")
