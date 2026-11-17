@@ -300,6 +300,35 @@ LFGParentFrame.scripts.OnShow()
 check(tab2Clicks == 0 and #searches == openBefore, "Oeffnen auf Eintragen bleibt dort, keine Suche")
 OnBlizzPage("who")
 check(f.shown and Win.page == "who", "Reiter Wer-Liste: Warhorns Wer-Liste")
+-- ab 0.3.4: Warhorn immer eine Schicht ueber Blizzards Fenster
+check(O.Above("MEDIUM") == "HIGH" and O.Above("DIALOG") == "FULLSCREEN" and O.Above("TOOLTIP") == "FULLSCREEN_DIALOG", "Schicht darueber")
+-- Blizzards Teile in HIGH (Suchfeld der Wer-Liste): dort zaehlt die Ebene
+LFGParentFrame.strata, LFGParentFrame.level = "MEDIUM", 1
+LFGListingFrame.strata, LFGListingFrame.level = "HIGH", 501
+LFGParentFrame.GetFrameStrata = function(s) return s.strata end
+LFGListingFrame.GetFrameStrata = function(s) return s.strata end
+f.GetFrameStrata = function(s) return s.strata end
+LFGParentFrame.GetChildren = function() return LFGListingFrame, f, O.buttons.who end
+local refreshedBefore = O.refreshed or 0
+OnBlizzPage("listing")
+check(f.strata == "HIGH" and f.level == 521 and O.refreshed == refreshedBefore, "normal: HIGH ueber Blizzards Teilen, kein Neueinblenden")
+-- ForeverDungeonJournal setzt Blizzards Fenster samt Warhorn in DIALOG
+LFGParentFrame.strata, LFGParentFrame.level = "DIALOG", 51
+LFGListingFrame.strata, f.strata = "DIALOG", "DIALOG"
+O.RaiseSoon()
+advance(1)
+check(f.strata == "FULLSCREEN" and O.strata == "FULLSCREEN", "nach dem Journal: Warhorn in FULLSCREEN")
+check(O.refreshed == refreshedBefore + 1 and f.shown and not O.refreshing, "neue Schicht: einmal neu eingeblendet")
+check(O.buttons.listing.strata == "FULLSCREEN", "Knopf Warhorn geht mit")
+O.Raise()
+check(O.refreshed == refreshedBefore + 1, "ohne Aenderung kein neues Einblenden")
+local ovSrc = io.open("Peon_Warhorn/Overlay.lua"):read("*a")
+check(ovSrc:find("parent:IsShown() then O.RaiseSoon() end", 1, true), "Aufbau bei offenem Fenster stoesst die Pruefungen an")
+LFGParentFrame.strata, LFGListingFrame.strata = nil, nil
+LFGParentFrame.GetFrameStrata, LFGListingFrame.GetFrameStrata, LFGParentFrame.GetChildren, f.GetFrameStrata = nil, nil, nil, nil
+f.strata, f.level = Win.STRATA, Win.LEVEL
+OnBlizzPage("who")
+check(f.strata == "HIGH" and f.level == Win.LEVEL, "ohne Anheben bleibt Warhorn in HIGH auf Ebene 300")
 -- Seite auf Blizzard: Oeffnen springt auf "Suchen"
 O.SetReplace("who", false)
 check(not f.shown and O.buttons.who.shown and not O.buttons.search.shown, "Wer-Liste auf Blizzard: Knopf Warhorn an Blizzards Seite")

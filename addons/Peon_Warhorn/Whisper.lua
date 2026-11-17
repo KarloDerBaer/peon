@@ -178,6 +178,12 @@ function Wh.Open(name, ctx, kind)
     Wh.toText:SetText(L.WHISPER_TO:format(name))
     local w = mod.db.whisper
     Wh.UseTemplate(kind == "group" and w.groupTpl or w.playerTpl)
+    -- ab 0.3.4 immer ueber Warhorn, auch wenn Warhorn nach dem Dungeon-Journal hoeher liegt
+    local O = ns.Overlay
+    if Wh.frame.SetFrameStrata and O and O.strata and O.Above then
+        local s = O.Above(O.strata)
+        Wh.frame:SetFrameStrata((O.STRATA_RANK[s] or 0) > O.STRATA_RANK.DIALOG and s or "DIALOG")
+    end
     Wh.frame:Show()
     if Wh.edit.SetFocus then Wh.edit:SetFocus() end
 end

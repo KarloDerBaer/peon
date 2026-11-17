@@ -63,7 +63,7 @@ function O.Apply()
     O.Layout()
     local page = O.settings and "settings" or O.CurrentPage()
     local visible = O.settings or Shows(page)
-    if visible then ns.Window.ShowPage(page) end
+    if visible then ns.Window.ShowPage(page); O.Raise() end
     O.frame:SetShown(visible and true or false)
     for key, b in pairs(O.buttons) do b:SetShown(not Shows(key)) end
     O.MoveSideTabs(visible and O.frame:IsVisible())
@@ -201,10 +201,14 @@ function O.Build()
     if ns.Who and ns.Who.Create then mod:Call("Wer-Liste", ns.Who.Create, W.NewPage("who")) end
     if ns.Settings and ns.Settings.Create then mod:Call("Einstellungen", ns.Settings.Create, W.NewPage("settings")) end
 
-    f:HookScript("OnShow", function() O.Layout(); O.MoveSideTabs(true); O.UpdateSettingsTab() end)
+    f:HookScript("OnShow", function() O.Layout(); O.Raise(); O.MoveSideTabs(true); O.UpdateSettingsTab() end)
     f:HookScript("OnHide", function() O.MoveSideTabs(false); O.UpdateSettingsTab() end)
     if parent.HookScript then
-        parent:HookScript("OnShow", function() mod:Call("Gruppensuche oeffnen", O.OnParentShow) end)
+        parent:HookScript("OnShow", function()
+            mod:Call("Gruppensuche oeffnen", O.OnParentShow)
+            -- Blizzard hebt sein Fenster teils erst nach dem Zeigen an (Dungeon-Journal), darum noch einmal danach
+            O.RaiseSoon()
+        end)
         parent:HookScript("OnHide", function() O.settings = false; O.once = {} end)
     end
 
@@ -241,6 +245,9 @@ function O.Build()
 
     O.built = true
     O.Apply()
+    -- Beim ersten Oeffnen nach /reload laedt das Spiel die Gruppensuche erst jetzt, Warhorn entsteht dann bei schon
+    -- offenem Fenster und sein OnShow-Haken kommt zu spaet. Die spaeten Pruefungen darum auch hier.
+    if parent.IsShown and parent:IsShown() then O.RaiseSoon() end
     mod:Dbg("Fenster ueber der Gruppensuche angelegt")
     return true
 end
@@ -266,6 +273,78 @@ function O.Layout()
     else
         f:SetPoint("BOTTOMLEFT", _G.LFGParentFrameTab1, "TOPLEFT", -O.TAB_X, -4)
         O.style = "classic"
+    end
+end
+
+-- Ab 0.3.4: Warhorn liegt immer eine Schicht ueber Blizzards Fenster (mindestens HIGH).
+-- ForeverDungeonJournal setzt Blizzards Fenster beim Klick auf sein Auge in die Schicht DIALOG (LFGButton.lua,
+-- PostClick). Warhorn rutschte mit in DIALOG, und in derselben Schicht zeichnete das Spiel Blizzards Seiten ueber
+-- Warhorn, obwohl Warhorn die hoehere Ebene hatte. Bis 0.3.3 lag es dann bis zum /reload darunter.
+-- In einer eigenen Schicht kommt es auf die Ebenen nicht an. Nur in HIGH zaehlt weiter die Ebene: Blizzards
+-- Seiten haben dort selbst Teile (Suchfeld der Wer-Liste).
+O.STRATA_ORDER = { "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP" }
+O.STRATA_RANK = {}
+for i, s in ipairs(O.STRATA_ORDER) do O.STRATA_RANK[s] = i end
+O.LEVEL_GAP = 20
+O.LEVEL_MAX = 9000
+O.SCAN_DEPTH = 3
+
+-- Schicht direkt ueber der genannten (hoechstens FULLSCREEN_DIALOG, TOOLTIP bleibt den Tooltips)
+function O.Above(strata)
+    local r = O.STRATA_RANK[strata] or O.STRATA_RANK.MEDIUM
+    return O.STRATA_ORDER[math.min(r + 1, O.STRATA_RANK.FULLSCREEN_DIALOG)]
+end
+
+-- Das Journal setzt die Schicht erst nach dem Oeffnen, darum kurz danach noch einmal
+O.RAISE_DELAYS = { 0, 0.3, 1 }
+function O.RaiseSoon()
+    if not (C_Timer and C_Timer.After) then return end
+    for _, d in ipairs(O.RAISE_DELAYS) do C_Timer.After(d, function() mod:Call("Ebene", O.Raise) end) end
+end
+
+local function StrataOf(fr)
+    if type(fr) == "table" and type(fr.GetFrameStrata) == "function" then return fr:GetFrameStrata() end
+    return type(fr) == "table" and fr.strata or nil
+end
+
+function O.Raise()
+    local f, parent = O.frame, _G.LFGParentFrame
+    if not (f and parent and f.SetFrameStrata and f.SetFrameLevel) then return end
+    local W, RANK = ns.Window, O.STRATA_RANK
+    local strata = O.Above(StrataOf(parent) or "MEDIUM")
+    if (RANK[strata] or 0) < (RANK[W.STRATA] or 0) then strata = W.STRATA end
+    -- hoechste Ebene von Blizzards Teilen in dieser Schicht (Warhorns eigene Rahmen ausgenommen)
+    local skip = { [f] = true }
+    for _, b in pairs(O.buttons) do skip[b] = true end
+    if O.settingsTab then skip[O.settingsTab] = true end
+    local top = 0
+    local function Look(fr, depth)
+        if type(fr) ~= "table" or skip[fr] then return end
+        if StrataOf(fr) == strata and type(fr.GetFrameLevel) == "function" then
+            local lv = fr:GetFrameLevel()
+            if type(lv) == "number" and lv > top then top = lv end
+        end
+        if depth < O.SCAN_DEPTH and type(fr.GetChildren) == "function" then
+            for _, c in ipairs({ fr:GetChildren() }) do Look(c, depth + 1) end
+        end
+    end
+    Look(parent, 0)
+    local level = math.min(O.LEVEL_MAX, math.max(W.LEVEL, top + O.LEVEL_GAP))
+    local moved = StrataOf(f) ~= strata
+    if moved then f:SetFrameStrata(strata) end
+    if (f:GetFrameLevel() or 0) < level then f:SetFrameLevel(level) end
+    for _, b in pairs(O.buttons) do
+        if b.SetFrameStrata then b:SetFrameStrata(strata) end
+        if b.SetFrameLevel and (b:GetFrameLevel() or 0) < level then b:SetFrameLevel(level) end
+    end
+    O.strata, O.level = strata, level
+    -- Neue Schicht bei offenem Fenster: einmal aus- und wieder einblenden, damit das Spiel sie sicher uebernimmt
+    if moved and not O.refreshing and f:IsShown() then
+        O.refreshing = true
+        f:Hide()
+        f:Show()
+        O.refreshing = false
+        O.refreshed = (O.refreshed or 0) + 1
     end
 end
 

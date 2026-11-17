@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.3.4
+
+Kurz: Öffnet man die Gruppensuche über das Dungeon-Journal, liegt Warhorn jetzt oben. Blizzards Fenster schaut nicht mehr darüber.
+
+- 0.3.4 (17.11.2026, Fehler gemeldet von KarloDerBaer): Nach dem Klick auf das Auge im Addon ForeverDungeonJournal lag Blizzards Seite Eintragen über Warhorn, bis zum `/reload`, egal wie man die Gruppensuche danach öffnete.
+  - **Ursache:** ForeverDungeonJournal setzt Blizzards Fenster nach dem Öffnen in die Schicht DIALOG über sein Journal. Warhorn hängt an diesem Fenster und rutschte mit in DIALOG. In derselben Schicht zeichnete das Spiel Blizzards Seiten über Warhorn, obwohl Warhorn die höhere Ebene hatte.
+  - **Lösung** (`Overlay.lua`, `O.Raise`): Warhorn liegt immer eine Schicht über Blizzards Fenster, normal wie bisher HIGH, nach dem Journal FULLSCREEN. Geprüft beim Öffnen, kurz danach, nach 0,3 und nach 1 Sekunde, auch beim ersten Öffnen nach `/reload` (dann entsteht Warhorn erst bei schon offenem Fenster). Wechselt Warhorn bei offenem Fenster die Schicht, blendet es sich einmal kurz neu ein.
+  - **Flüsterfenster** liegt immer über Warhorn, auch in der höheren Schicht.
+  - **Im Spiel prüfen:** Nach `/reload` über das Auge im Dungeon-Journal öffnen, Warhorn liegt oben. Schließen und normal öffnen, Warhorn liegt oben. Flüsterfenster aus Warhorn heraus öffnen, es liegt über Warhorn.
+
 ## 0.3.3
 
 Kurz: In den Einstellungen steht „Blizzard ersetzen:“ jetzt gut lesbar vor den Haken.

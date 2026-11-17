@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.23.0 / Broker 0.103.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.46.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.0 / Fishing 1.7.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.1 / Profession 0.5.0 / Warhorn 0.3.3.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.23.0 / Broker 0.103.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.46.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.0 / Fishing 1.7.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.1 / Profession 0.5.0 / Warhorn 0.3.4.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.23.0, API 23
@@ -301,7 +301,7 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Normales Release `v2026.11.16.2` (16.11.2026, ohne Vorabversion auf Wunsch von KarloDerBaer), Bau auf GitHub erfolgreich, Manifest nachgelesen. Profession 0.4.0 und 0.4.1 im Spiel noch nicht geprüft.
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.5.0, 0.4.1, 0.4.0, 0.3.1, 0.3.0, 0.2.2, 0.2.1, 0.2.0, 0.1.0
 
-## Peon_Warhorn – 0.3.3 (neu, Gruppen, Dungeons und Raids)
+## Peon_Warhorn – 0.3.4 (neu, Gruppen, Dungeons und Raids)
 
 - Konzept: `docs\konzepte\warhorn\Peon_Warhorn_Konzept.md` (abgestimmt 17.11.2026). Gebaut: Prüfaufbau (0.1.0), Gruppensuche mit Filtern, Umschalten und Aktionen (0.2.0), Seiten Eintragen, Wer-Liste und Einstellungen mit Flüstervorlagen (0.3.0, Abschnitt 13).
 - Dateien: Locales.lua, Warhorn.lua, Search.lua, Filter.lua, Window.lua, Whisper.lua, Listing.lua, Who.lua, Settings.lua, Overlay.lua, Probe.lua, Options.lua, Bindings.xml; Symbol `INV_Misc_Horn_01`.
