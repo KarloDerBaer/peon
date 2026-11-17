@@ -94,6 +94,7 @@ Das Flüstern scheiterte, weil Peon nur den Vornamen nahm. Im Chat stand „nich
 - Wer sie bekommt, antwortet per Flüstern. So prüft dieselbe Begrüßung beide Wege zwischen zwei Spielern.
 - `PeonDB.comm.peers[Prüfwert]` zählt je Nutzer `w` (per Flüstern angekommen) und `c` (über den Kanal angekommen), dazu `chanSent` und `chanRecv`.
 - Auswertung nach dem Release: Stehen bei fremden Nutzern `c`-Werte, erreicht der Kanal andere Mitglieder. Stehen `w`-Werte, geht Flüstern zwischen Spielern.
+- **Erstes Ergebnis (17.11.2026):** Ein anderer Peon-Nutzer kam mit `c` = 2 und `w` = 4 an. Beide Wege gehen zwischen Spielern. Dabei fiel auf: Namen über die Spieler-ID tragen bei anderen Spielern einen Realm, Flüstern daran scheitert. Behoben in 0.23.1.
 
 ### 7.3 Peon_Debug (privat)
 

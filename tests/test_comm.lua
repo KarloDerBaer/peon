@@ -119,7 +119,8 @@ local function NewPlayer(name, opts)
   env.SetSelectedDisplayChannel = function(i) P.requested = i end
   env.GetPlayerInfoByGUID = function(guid)
     local n = guid:match("^Player%-(.+)$")
-    if n then return "Krieger", "WARRIOR", "Mensch", "Human", 2, n, "Stein" end   -- Forever: Nachname an der Stelle des Realms
+    -- Forever: voller Name, bei anderen Spielern mit Realm (beim eigenen Charakter leer)
+    if n then return "Krieger", "WARRIOR", "Mensch", "Human", 2, n .. " Stein", n == name and "" or "Fremdrealm" end
   end
   env.C_ChatInfo = {
     RegisterAddonMessagePrefix = function(p) P.prefix = p end,
@@ -179,7 +180,7 @@ end
 
 -- Netz wie in Forever: Fluestern nur an den vollen Namen ("Vorname Nachname" oder "Vorname-Nachname"),
 -- an den Vornamen allein kommt es nicht an. Absender "Vorname-Nachname". Kanal-Nachrichten verschluckt.
-local delivered, lost = 0, 0
+local delivered, lost, realmLost = 0, 0, 0
 local chanWorks = false   -- Abschnitt 15: Kanal-Nachrichten kommen bei allen Mitgliedern an
 local function Flush()
   while #net > 0 do
@@ -187,9 +188,11 @@ local function Flush()
     if m.kind == "WHISPER" then
       local first, last = m.target:match("^([^%s%-]+)[%s%-](.+)$")
       local to = last == "Stein" and players[first]
+      if m.target:find(" ", 1, true) and m.target:find("-", 1, true) then realmLost = realmLost + 1 end
       if to and not to.offline then
         delivered = delivered + 1
-        to.fire("CHAT_MSG_ADDON", m.prefix, m.text, "WHISPER", m.from .. "-Stein")
+        -- Absender kommt mit Realm-Anhang, wenn es ein anderer Spieler ist
+        to.fire("CHAT_MSG_ADDON", m.prefix, m.text, "WHISPER", m.from .. " Stein" .. (to.name == m.from and "" or "-Fremdrealm"))
       else
         lost = lost + 1
       end
@@ -197,7 +200,7 @@ local function Flush()
       local ch = players[m.from] and players[m.from].C.channel
       for n in pairs(channels[ch] or {}) do
         local to = players[n]
-        if to and not to.offline then to.fire("CHAT_MSG_ADDON", m.prefix, m.text, "CHANNEL", m.from .. "-Stein") end
+        if to and not to.offline then to.fire("CHAT_MSG_ADDON", m.prefix, m.text, "CHANNEL", m.from .. " Stein" .. (to.name == m.from and "" or "-Fremdrealm")) end
       end
     end
   end
@@ -270,7 +273,8 @@ check(C.Encode(deep) == nil, "zu tief verschachtelt abgelehnt")
 ---------------------------------------------------------------------------
 check(#C.Checksum("Arnulf") == 6 and C.Checksum("Arnulf") == C.Checksum("arnulf"), "Pruefwert 6 Zeichen, gross/klein egal")
 check(C.Checksum("Arnulf") ~= C.Checksum("Bertha"), "verschiedene Namen, verschiedene Pruefwerte")
-check(C.BaseName("Arnulf-Stein") == "arnulf stein" and C.BaseName(" Arnulf  Stein") == "arnulf stein" and C.BaseName("Arnulf") == "arnulf", "Vor- und Nachname, beide Schreibweisen gleich")
+check(C.BaseName("Arnulf Stein-Fremdrealm") == "arnulf stein" and C.BaseName(" Arnulf  Stein") == "arnulf stein" and C.BaseName("Arnulf") == "arnulf", "Vor- und Nachname, Realm faellt weg")
+check(C.Plain("Arnulf Stein-Fremdrealm") == "Arnulf Stein" and C.Plain("Arnulf") == "Arnulf" and C.Plain("-x") == nil and C.Plain(SECRET) == nil, "Name zum Anfluestern ohne Realm")
 check(C.MyName() == "Arnulf Stein" and C.MyCode() == C.Checksum("arnulf stein"), "eigener Name mit Nachname")
 local msg = C.Build("hello", "abc123", 2, "d", "1f", 1, 3, "n1;")
 local m = C.Parse(msg)
@@ -301,7 +305,7 @@ A.fire("UPDATE_CHAT_WINDOWS")
 check(#A.removed == 4, "nach Aenderung der Chatfenster erneut versteckt")
 C.ReadRoster()
 check(C.Peers() == 4, "vier andere erreichbar, eigener Name ausgelassen: " .. C.Peers())
-check(C.nameSet["carlo stein"], "Name ueber die Spieler-ID, wenn die Liste ihn nicht zeigt")
+check(C.nameSet["carlo stein"] == "Carlo Stein", "Name ueber die Spieler-ID, wenn die Liste ihn nicht zeigt")
 check(not C.nameSet["arnulf stein"], "sich selbst nicht")
 
 ---------------------------------------------------------------------------
@@ -387,30 +391,30 @@ check(#got == 1 and got[1].who == "Arnulf" and got[1].d == "zurueck" and got[1].
 local bdb = B.Peon.db.comm
 local bad0 = bdb.bad
 got = {}
-B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("test", C.Checksum("dagmar stein"), 0, "", "aa1", 1, 1, C.Encode("falsch")), "WHISPER", "Edwin-Stein")
+B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("test", C.Checksum("dagmar stein"), 0, "", "aa1", 1, 1, C.Encode("falsch")), "WHISPER", "Edwin Stein-Fremdrealm")
 check(bdb.bad == bad0 + 1 and #got == 0, "Urheber passt beim ersten Sprung nicht zum Absender: verworfen")
 local good = B.C.Build("test", C.Checksum("edwin stein"), 0, "", "aa2", 1, 1, C.Encode("echt"))
-B.fire("CHAT_MSG_ADDON", "PEON", good, "WHISPER", "Edwin-Stein")
+B.fire("CHAT_MSG_ADDON", "PEON", good, "WHISPER", "Edwin Stein-Fremdrealm")
 local dup0 = bdb.dup
-B.fire("CHAT_MSG_ADDON", "PEON", good, "WHISPER", "Edwin-Stein")
+B.fire("CHAT_MSG_ADDON", "PEON", good, "WHISPER", "Edwin Stein-Fremdrealm")
 check(#got == 1 and bdb.dup == dup0 + 1, "doppelte Nachricht erkannt")
 local q0 = #B.C.queue
-B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("test", "abcdef", C.MAX_HOPS, "", "aa3", 1, 1, C.Encode(1)), "WHISPER", "Edwin-Stein")
+B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("test", "abcdef", C.MAX_HOPS, "", "aa3", 1, 1, C.Encode(1)), "WHISPER", "Edwin Stein-Fremdrealm")
 check(#B.C.queue == q0 and #got == 2, "nach " .. C.MAX_HOPS .. " Spruengen nicht mehr weitergegeben, aber zugestellt")
-B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("test", "abcdef", 1, "d", "aa4", 1, 1, C.Encode(1)), "WHISPER", "Edwin-Stein")
+B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("test", "abcdef", 1, "d", "aa4", 1, 1, C.Encode(1)), "WHISPER", "Edwin Stein-Fremdrealm")
 check(#B.C.queue == q0, "direkte Nachricht nicht weitergegeben")
-B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("neu", "abcdef", 1, "", "aa5", 1, 1, C.Encode(1)), "WHISPER", "Edwin-Stein")
+B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("neu", "abcdef", 1, "", "aa5", 1, 1, C.Encode(1)), "WHISPER", "Edwin Stein-Fremdrealm")
 check(#B.C.queue > q0 and #got == 3, "unbekannter Dienst wird weitergegeben, nicht zugestellt")
 wipe(B.C.queue)
-B.fire("CHAT_MSG_ADDON", "PEON", "2^test^abcdef^1^^aa6^1^1^n1;", "WHISPER", "Edwin-Stein")
+B.fire("CHAT_MSG_ADDON", "PEON", "2^test^abcdef^1^^aa6^1^1^n1;", "WHISPER", "Edwin Stein-Fremdrealm")
 check(#B.C.queue == 0 and #got == 3, "neueres Format: weder verstanden noch weitergegeben")
 B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("test", "abcdef", 1, "", "aa7", 1, 1, C.Encode(1)), "WHISPER", SECRET)
-B.fire("CHAT_MSG_ADDON", "PEON", SECRET, "WHISPER", "Edwin-Stein")
+B.fire("CHAT_MSG_ADDON", "PEON", SECRET, "WHISPER", "Edwin Stein-Fremdrealm")
 check(#got == 3, "geheime Werte ignoriert")
-B.fire("CHAT_MSG_ADDON", "ANDERS", good, "WHISPER", "Edwin-Stein")
+B.fire("CHAT_MSG_ADDON", "ANDERS", good, "WHISPER", "Edwin Stein-Fremdrealm")
 check(#got == 3, "fremdes Praefix ignoriert")
 B.C.Register("kaputt", { onReceive = function() error("kaputt im Dienst") end })
-B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("kaputt", "abcdef", 1, "", "aa8", 1, 1, C.Encode(1)), "WHISPER", "Edwin-Stein")
+B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("kaputt", "abcdef", 1, "", "aa8", 1, 1, C.Encode(1)), "WHISPER", "Edwin Stein-Fremdrealm")
 local errs = B.Peon.db.errors or {}
 check(#errs == 1 and errs[1].where == "Comm kaputt" and errs[1].msg:find("kaputt im Dienst"), "Fehler im Dienst gespeichert, kein Abbruch")
 wipe(B.C.queue)
@@ -450,7 +454,7 @@ C.queue[1] = { "Dagmar Stein", "y" }
 check(A.filter, "Filter fuer Systemmeldungen angemeldet")
 check(A.filter(nil, "CHAT_MSG_SYSTEM", "Kein Spieler namens 'Dagmar Stein' ist online.") == true, "Offline-Meldung nach eigenem Fluestern ausgeblendet")
 check(not C.nameSet["dagmar stein"] and #C.queue == 0, "Spieler entfernt, Warteschlange bereinigt")
-check(C.AddName("Dagmar-Stein") == false, "fuer eine Weile nicht wieder aufgenommen")
+check(C.AddName("Dagmar Stein-Fremdrealm") == false, "fuer eine Weile nicht wieder aufgenommen")
 check(A.filter(nil, "CHAT_MSG_SYSTEM", "Kein Spieler namens 'Fremder' ist online.") == false, "fremde Offline-Meldung bleibt sichtbar")
 check(A.filter(nil, "CHAT_MSG_SYSTEM", "Etwas anderes") == false, "andere Meldungen bleiben")
 now = now + C.OFFLINE_PAUSE + 1
@@ -492,7 +496,7 @@ check(not A.joined.PeonNet and not channels.PeonNet.Arnulf and #C.queue == 0 and
 check(A.out[#A.out]:find(L.COMM_NOW_OFF, 1, true), "Meldung im Chat")
 check(C.Send("test", 1) == 0, "aus: nichts senden")
 got = {}
-A.fire("CHAT_MSG_ADDON", "PEON", C.Build("test", C.Checksum("bertha stein"), 0, "", "bb1", 1, 1, C.Encode(1)), "WHISPER", "Bertha-Stein")
+A.fire("CHAT_MSG_ADDON", "PEON", C.Build("test", C.Checksum("bertha stein"), 0, "", "bb1", 1, 1, C.Encode(1)), "WHISPER", "Bertha Stein-Fremdrealm")
 check(#got == 0, "aus: nichts annehmen")
 C.Watch()
 check(not A.joined.PeonNet, "aus: Waechter tritt nicht bei")
@@ -577,7 +581,7 @@ Advance(C.PROBE_WAIT + 1)
 local pr = A.Peon.db.comm.probe
 check(pr and pr.joined and pr.channel == "PeonNet" and pr.chanSent and not pr.chanEcho, "Kanal: gesendet, nicht angekommen")
 check(pr.whisperSent and pr.whisperEcho and pr.spaceEcho and pr.hyphenEcho, "Fluestern an sich selbst in beiden Schreibweisen angekommen")
-check(pr.myForm == "a a" and pr.guidForm == "a-a" and pr.rosterForm == "a a" and pr.senderForm == "a-a", "Form der Namen ohne Namen gespeichert: " .. Dump(pr))
+check(pr.myForm == "a a" and pr.guidForm == "a a" and pr.rosterForm == "a a" and pr.senderForm == "a a", "Form der Namen ohne Namen gespeichert: " .. Dump(pr))
 check(pr.roster == 3 and pr.count == 3 and pr.build == 70009 and pr.at ~= nil, "Mitgliederliste und Build gespeichert: " .. Dump(pr))
 local tail = table.concat(A.out, "\n", #A.out - 4)
 check(tail:find(L.COMM_PROBE_SAVED, 1, true) and tail:find("PeonNet"), "Ergebnis im Chat")
@@ -653,7 +657,7 @@ B.C.Listen(function() error("kaputt") end)
 C.Send("test", 1, { to = "Bertha Stein" })
 Pump()
 check(table.concat(heardA, ","):find("outWHISPER", 1, true), "A sieht die eigene Nachricht")
-check(table.concat(heardB, ","):find("inWHISPER:Arnulf-Stein", 1, true), "B sieht die empfangene Nachricht mit Absender")
+check(table.concat(heardB, ","):find("inWHISPER:Arnulf Stein-Fremdrealm", 1, true), "B sieht die empfangene Nachricht mit Absender")
 check(#(B.Peon.db.errors or {}) == errB, "Fehler im Zuhoerer stoert nicht: " .. Dump(B.Peon.db.errors))
 local r = #A.removed
 check(C.SetShow("channel", true) and A.added == "PeonNet", "Kanal wieder ins Chatfenster")
@@ -667,6 +671,9 @@ C.whispered["zora stein"] = now
 check(A.filter(nil, "CHAT_MSG_SYSTEM", "Kein Spieler namens 'Zora Stein' ist online.") == false and not C.nameSet["zora stein"], "Meldung sichtbar, Name trotzdem entfernt")
 C.SetShow("whisper", false)
 check(C.SetShow("anderes", true) == false, "unbekannter Schalter abgelehnt")
+
+check(realmLost == 0, "nie an einen Namen mit Realm gefluestert: " .. realmLost)
+for _, P in pairs(players) do for _, n in ipairs(P.C.names) do check(not n:find("-", 1, true), "gemerkter Name ohne Realm: " .. n) end end
 
 realPrint("Zugestellte Fluesternachrichten im Test: " .. delivered)
 realPrint("ALLE TESTS OK")

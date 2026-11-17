@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.23.1
+
+Kurz: Behebt die Meldung „Kein Spieler mit dem Namen ... online“, die beim Austausch mit anderen Peon-Nutzern erscheinen konnte.
+
+- 0.23.1 (17.11.2026): **Namen ohne Realm** (`Comm.lua`). Peon ergänzte Namen aus der Mitgliederliste über die Spieler-ID. Das Spiel hängt dort bei anderen Spielern den Realm an („Vorname Nachname-Realm“), beim eigenen Charakter nicht. An diesen Namen kommt kein Flüstern an, das Spiel meldete „nicht online“. Jetzt fällt der Realm überall weg (neu `Peon.Comm.Plain`), gemerkt und angeflüstert wird nur „Vorname Nachname“. „Vorname-Nachname“ gilt nicht mehr als derselbe Spieler wie „Vorname Nachname“, das Spiel liefert diese Form nirgends.
+  - Erstes Ergebnis mit zwei Spielern (17.11.2026): Die Begrüßung kam beim anderen Peon-Nutzer über beide Wege an, 2-mal über den Kanal und 4-mal per Flüstern. Kanal-Nachrichten erreichen also andere Mitglieder, und Flüstern geht zwischen Spielern.
+  - Tests: `test_comm.lua` mit Absendern und Spieler-IDs mit Realm, Prüfung, dass nie an einen Namen mit Realm geflüstert wird. `test_uiprobe.lua` Version.
+  - **Im Spiel prüfen:** Mit Peon_Debug und Flüstern sichtbar: keine Meldung „nicht online“ mit Realm mehr.
+
 ## 0.23.0
 
 Kurz: Peon lernt still andere Peon-Nutzer kennen. Das ist die Grundlage, damit Module später Spieldaten wie Sammelstellen teilen können. In den Peon-Einstellungen lässt es sich unter „Daten teilen“ abschalten.

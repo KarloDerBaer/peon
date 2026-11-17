@@ -116,11 +116,20 @@ function C.Checksum(s)
     return ("%06x"):format(h % 16777216)
 end
 
--- Schluessel fuer Namen. Forever-Charaktere haben Vor- und Nachnamen. Je nach Stelle liefert das Spiel
--- "Vorname Nachname" oder "Vorname-Nachname": beides wird zu "vorname nachname".
+-- Name zum Anfluestern: Forever-Charaktere heissen "Vorname Nachname". Einen Realm-Anhang ("-Realm") nimmt der
+-- Server beim Fluestern nicht an ("nicht online", gesehen 17.11.2026), deshalb faellt er hier weg.
+function C.Plain(name)
+    if type(name) ~= "string" or Secret(name) then return nil end
+    local n = name:match("^([^%-]*)") or name
+    n = n:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
+    if n == "" then return nil end
+    return n
+end
+
+-- Schluessel fuer Namen: ohne Realm, klein geschrieben ("Vorname Nachname-Realm" -> "vorname nachname")
 function C.BaseName(name)
-    if type(name) ~= "string" then return nil end
-    return (name:lower():gsub("%-", " "):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""))
+    local n = C.Plain(name)
+    return n and n:lower() or nil
 end
 
 -- Eigener Name mit Nachname (zweiter Wert von UnitName ist in Forever der Nachname, nicht der Realm)
@@ -151,7 +160,9 @@ end
 function C.AddName(name)
     if type(name) ~= "string" or Secret(name) or name == "" or #name > 60 or name:find("[|,%^]") then return false end
     if IsMe(name) then return false end
-    local base = C.BaseName(name)
+    name = C.Plain(name)
+    if not name then return false end
+    local base = name:lower()
     if (C.offline[base] or 0) > Now() then return false end
     if C.nameSet[base] or #C.names >= C.MAX_NAMES then return false end   -- "Name" und "Name-Realm" nur einmal
     C.names[#C.names + 1] = name
@@ -301,6 +312,7 @@ end
 ---------------------------------------------------------------------------
 local function Enqueue(target, text, kind)
     if #C.queue >= C.MAX_QUEUE then return false end
+    if target then target = C.Plain(target); if not target then return false end end
     C.queue[#C.queue + 1] = { target, text, kind }
     return true
 end
@@ -526,8 +538,8 @@ local function NameFromGuid(guid)
     if type(guid) ~= "string" or Secret(guid) or not GetPlayerInfoByGUID then return nil end
     local ok, _, _, _, _, _, name, realm = pcall(GetPlayerInfoByGUID, guid)
     if not ok or type(name) ~= "string" or Secret(name) or name == "" then return nil end
-    if type(realm) == "string" and not Secret(realm) and realm ~= "" then name = name .. "-" .. realm:gsub("[%s']", "") end
-    return name
+    -- Realm nicht anhaengen: Fluestern an "Name-Realm" kommt in Forever nicht an
+    return C.Plain(name)
 end
 
 -- Mitgliederliste lesen. Rueckgabe: Zahl der gelesenen Namen
