@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import Gold from '../components/Gold.vue';
 import MarketChart from '../components/MarketChart.vue';
+import StabilityChart from '../components/StabilityChart.vue';
 import Checklist from '../components/Checklist.vue';
 import { when, num, pct, qualityColor, pl } from '../util.js';
 import { statusLine, LAMP_TITLE } from '../status.js';
@@ -44,12 +45,14 @@ const chartTitle = computed(() => {
 const ch = ref(null);
 const mk = ref(null);
 const buyable = ref([]);   // Einkaufsliste: gerade unter dem Hoechstpreis
+const stab = ref(null);    // ab 0.46.0: Stabilitaet des Markts und ihr Verlauf
 async function load() {
-  if (!props.market) { ch.value = null; mk.value = null; buyable.value = []; return; }
-  const [c, m, b] = await Promise.all([api.chanceView(props.market.key), api.marketOverview(props.market.key), api.shopBuyable(props.market.key)]);
+  if (!props.market) { ch.value = null; mk.value = null; buyable.value = []; stab.value = null; return; }
+  const [c, m, b, s] = await Promise.all([api.chanceView(props.market.key), api.marketOverview(props.market.key), api.shopBuyable(props.market.key), api.stabilitySummary(props.market.key)]);
   ch.value = c;
   mk.value = m;
   buyable.value = b;
+  stab.value = s;
 }
 onMounted(load);
 watch(() => [props.market && props.market.key, props.stamp], load);
@@ -66,6 +69,23 @@ const openChances = computed(() => {
   return [...best.values()].sort((a, b) => b.profit - a.profit);
 });
 const chanceSum = computed(() => openChances.value.reduce((s, x) => s + x.profit, 0));
+const LEVELS = ['sehr stabil', 'stabil', 'mittel', 'unruhig', 'unsicher'];
+const stabAll = computed(() => (stab.value && stab.value.groups && stab.value.groups.all) || null);
+const stabHist = computed(() => (stab.value && stab.value.hist) || []);
+// Aenderung des Index zu einer Rechnung etwa einen Tag vorher
+const stabChange = computed(() => {
+  const h = stabHist.value;
+  if (h.length < 2 || !h[h.length - 1].all) return null;
+  const last = h[h.length - 1];
+  let base = null;
+  for (const x of h) if (x.t <= last.t - 20 * 3600 && x.all) base = x;
+  return base ? last.all.i - base.all.i : null;
+});
+const stabTitle = computed(() => {
+  const h = stabHist.value;
+  const days = h.length > 1 ? Math.round((h[h.length - 1].t - h[0].t) / 86400) : 0;
+  return days >= 2 ? `Stabilität der Preise in den letzten ${days} Tagen` : 'Stabilität der Preise';
+});
 const sold = computed(() => (mk.value ? [...mk.value.worth].sort((a, b) => b.perDay - a.perDay).slice(0, 5) : []));
 </script>
 
@@ -96,6 +116,14 @@ const sold = computed(() => (mk.value ? [...mk.value.worth].sort((a, b) => b.per
         <span class="small muted">Offene Chancen</span><strong>{{ ch ? num(openChances.length) : '–' }}</strong>
         <span class="small muted" v-if="openChances.length">zusammen <Gold :copper="chanceSum" compact /> Gewinn</span>
       </div>
+      <div class="tile click" tabindex="0" title="Zur Marktübersicht, Stabilität" @click="emit('go', 'market:stab')" @keydown.enter="emit('go', 'market:stab')">
+        <span class="small muted">Stabilität des Markts</span>
+        <strong v-if="stabAll"><span :class="'lv' + stabAll.g">{{ LEVELS[stabAll.g] }}</span> <span class="idx">{{ stabAll.i }}</span></strong>
+        <strong v-else>–</strong>
+        <span class="small muted" v-if="stabAll && stabChange != null">{{ stabChange > 0 ? '+' : '' }}{{ stabChange }} Punkte zu gestern</span>
+        <span class="small muted" v-else-if="stabAll">Index von 0 bis 100</span>
+        <span class="small muted" v-else>Noch keine Rechnung</span>
+      </div>
     </section>
 
     <section class="block" v-if="buyable.length" aria-label="Einkaufsliste">
@@ -122,6 +150,16 @@ const sold = computed(() => (mk.value ? [...mk.value.worth].sort((a, b) => b.per
       </div>
       <MarketChart v-if="hist.length > 1" :history="hist" :theme="theme" />
       <p v-else class="muted chart-empty">Ab dem zweiten Stand steht hier, wie sich Angebote und Gegenstände entwickeln.</p>
+    </section>
+
+    <section class="block" v-if="stabAll" aria-label="Stabilität">
+      <div class="block-head">
+        <h2>{{ stabTitle }}</h2>
+        <span class="small muted">Index je Rechnung nach jedem neuen Stand, 100 heißt sehr ruhig</span>
+        <button class="link small" @click="emit('go', 'market:stab')">Mehr zur Stabilität</button>
+      </div>
+      <StabilityChart v-if="stabHist.length > 1" :hist="stabHist" :theme="theme" />
+      <p v-else class="muted chart-empty">Ab der zweiten Rechnung steht hier, wie sich die Stabilität entwickelt.</p>
     </section>
 
     <section class="cols">
@@ -191,10 +229,11 @@ const sold = computed(() => (mk.value ? [...mk.value.worth].sort((a, b) => b.per
 .ok .lamp { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
 .alt .lamp { background: var(--warn); }
 .bad .lamp { background: var(--bad); }
-.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .tile { display: grid; gap: 2px; padding: 12px 16px; background: var(--panel); border: 1px solid var(--line-soft); border-radius: var(--radius-m); align-content: start; }
 .tile strong { font-size: 24px; font-weight: 500; font-family: var(--font-cond); }
 .tile.click { cursor: pointer; }
+.tile .idx { color: var(--muted); font-size: 18px; margin-left: 4px; }
 .tile.click:hover { border-color: var(--line); }
 .block { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; }
 .block-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }

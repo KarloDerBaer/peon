@@ -3,7 +3,6 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick, K
 import Overview from './views/Overview.vue';
 import Sources from './views/Sources.vue';
 import Settings from './views/Settings.vue';
-import Items from './views/Items.vue';
 import Item from './views/Item.vue';
 import Chances from './views/Chances.vue';
 import Market from './views/Market.vue';
@@ -26,11 +25,12 @@ const settings = ref(null);
 const market = ref(null);
 const now = ref(Math.floor(Date.now() / 1000));
 const itemKey = ref(null);
-const origin = ref('items');      // Reiter, an dem der offene Gegenstand haengt
+const origin = ref('market');      // Reiter, an dem der offene Gegenstand haengt
 const stamp = ref(0);   // erhoeht sich bei neuen Daten, damit Listen neu laden
 const updates = ref(null);        // Inhalt des Update-Fensters
 const showUpdates = ref(false);
 const pageEl = ref(null);
+const marketTab = ref('items');   // ab 0.46.0: Unterreiter der Marktuebersicht
 let startChecked = false;
 async function closeUpdates() {
   showUpdates.value = false;
@@ -41,13 +41,13 @@ async function closeUpdates() {
 const ALL = [
   // ab 0.26.0 (Neuaufbau H5): Seiten und Reihenfolge wie im Spiel (Markt, Einkaufen mit Beobachtung, Radar, Mehr)
   { key: 'overview', label: 'Übersicht' },
-  { key: 'items', label: 'Markt' },
+  // ab 0.46.0: Markt ist ein Unterreiter der Marktuebersicht, die dafuer an seine Stelle rueckt
+  { key: 'market', label: 'Marktübersicht' },
   // ab 0.28.0 (KarloDerBaer): Einkaufen, Beobachtung, Radar und Händler muessen ueberarbeitet werden, nur ein Hinweis
   { key: 'shopping', label: 'Einkaufen' },   // ab 0.33.0 neu (A5)
   { key: 'favorites', label: 'Beobachten' },   // ab 0.32.0 neu (A4), Name wie im Spiel
   // ab 0.35.0 (Peon_Manager_Chancen.md): Chancen ersetzen Radar (WIP), dazu Marktuebersicht und Erfolgskontrolle
   { key: 'chances', label: 'Chancen' },
-  { key: 'market', label: 'Marktübersicht' },
   { key: 'success', label: 'Erfolgskontrolle' },
   { key: 'vendors', label: 'Händler (WIP)', wip: true },
   { key: 'sources', label: 'Datenlage' },
@@ -95,6 +95,7 @@ const seenStamp = {};
 function stampOf(v) { if (view.value === v) seenStamp[v] = stamp.value; return seenStamp[v] ?? stamp.value; }
 
 function show(e) {
+  if (e.tab) marketTab.value = e.tab;
   if (pageEl.value) scrolls[view.value] = pageEl.value.scrollTop;
   view.value = e.view;
   itemKey.value = e.view === 'item' || e.view === 'brief' ? e.itemKey : null;
@@ -115,9 +116,14 @@ function push(e) {
 }
 function back() { if (canBack.value) { pos.value--; show(entries.value[pos.value]); } }
 function forward() { if (canForward.value) { pos.value++; show(entries.value[pos.value]); } }
-function go(v) { push({ view: v }); }
+// 'market:stab' oeffnet die Marktuebersicht mit einem Unterreiter. Die fruehere Seite 'items' ist dort der Reiter Markt.
+function go(v) {
+  if (v === 'items') v = 'market:items';
+  const [view, tab] = String(v).split(':');
+  push(tab ? { view, tab } : { view });
+}
 function openItem(key) {
-  const from = view.value === 'item' ? origin.value : ORIGINS.has(view.value) ? view.value : 'items';
+  const from = view.value === 'item' ? origin.value : ORIGINS.has(view.value) ? view.value : 'market';
   push({ view: 'item', itemKey: key, origin: from });
 }
 // Steckbrief (ab 0.35.0): eigene Seite mit Gegenstand, Zurueck fuehrt dorthin, woher man kam
@@ -269,19 +275,18 @@ onMounted(() => {
           <h1>Marktdaten werden geladen</h1>
           <p class="muted">Bei einer großen Datenbank dauert das nach dem Start etwas. Einstellungen, Updates und Rückmeldungen kannst du schon öffnen.</p>
         </section>
-        <KeepAlive v-else :include="['Overview', 'Items', 'Chances', 'Shopping', 'Watch', 'Market']">
+        <KeepAlive v-else :include="['Overview', 'Chances', 'Shopping', 'Watch', 'Market']">
           <Overview v-if="view === 'overview'" :data="data" :market="current" :now="now" :theme="settings.theme" :stamp="stampOf('overview')" :settings="settings" @go="go($event)" @open="openItem" @save="saveSettings" />
           <section v-else-if="wipPage" class="wip">
             <h1>{{ wipPage.label }}</h1>
             <p class="wip-note">Überarbeitung notwendig! Derzeit nur im Spiel verfügbar.</p>
           </section>
-          <Items v-else-if="view === 'items'" key="items" :market="current" :now="now" :stamp="stampOf('items')" :settings="settings" @open="openItem" @save="saveQuiet" />
           <Watch v-else-if="view === 'favorites'" :market="current" :now="now" :stamp="stampOf('favorites')" :settings="settings" :focus="watchFocus" @open="openItem" @save="saveQuiet" @go="go($event)" />
           <Shopping v-else-if="view === 'shopping'" :market="current" :now="now" :stamp="stampOf('shopping')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />
           <Vendors v-else-if="view === 'vendors'" :market="current" :now="now" :stamp="stampOf('vendors')" @open="openItem" />
           <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @loaded="itemLoaded" @go="go($event)" @open="openItem" @brief="openBrief" />
           <Chances v-else-if="view === 'chances'" :market="current" :now="now" :stamp="stampOf('chances')" :settings="settings" @open="openItem" @brief="openBrief" @save="saveQuiet" />
-          <Market v-else-if="view === 'market'" :market="current" :now="now" :stamp="stampOf('market')" @open="openItem" @brief="openBrief" />
+          <Market v-else-if="view === 'market'" :market="current" :now="now" :stamp="stampOf('market')" :settings="settings" :theme="settings.theme" :tab="marketTab" @tab="marketTab = $event" @open="openItem" @brief="openBrief" @save="saveQuiet" />
           <Success v-else-if="view === 'success'" :market="current" :now="now" :stamp="stampOf('success')" @open="openItem" @brief="openBrief" />
           <Brief v-else-if="view === 'brief'" :market="current" :item-key="itemKey" :now="now" :stamp="stamp" :theme="settings.theme" @open="openItem" />
           <Sources v-else-if="view === 'sources'" :data="data" :market="current" :now="now" :stamp="stamp" @go="go($event)" />
@@ -335,5 +340,5 @@ onMounted(() => {
 .top-right { display: flex; align-items: center; gap: 16px; }
 .page { padding: 26px 28px 40px; overflow: auto; flex: 1; display: flex; flex-direction: column; }
 .page > * { flex: none; }
-.page > .items { flex: 1; min-height: 0; }
+.page > .items, .page > .mk.full { flex: 1; min-height: 0; }
 </style>

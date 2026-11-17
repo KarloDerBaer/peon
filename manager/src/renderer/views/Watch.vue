@@ -110,7 +110,7 @@ const bandTip = (b) => (b ? `Üblich ${Math.round(b.low / 100) / 100} bis ${Math
       </div>
     </div>
 
-    <p v-if="!view.rows.length" class="muted">Noch nichts unter Beobachten. Suche oben nach einem Gegenstand, klicke unter <button class="link" @click="emit('go', 'items')">Markt</button> auf den Stern oder speichere im Spiel im Fokus.</p>
+    <p v-if="!view.rows.length" class="muted">Noch nichts unter Beobachten. Suche oben nach einem Gegenstand, klicke unter <button class="link" @click="emit('go', 'market:items')">Marktübersicht, Markt</button> auf den Stern oder speichere im Spiel im Fokus.</p>
     <table v-else class="tbl">
       <thead>
         <tr>

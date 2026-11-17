@@ -8,7 +8,8 @@ import Star from '../components/Star.vue';
 import { ago, num, pct, fold, qualityColor, itemName } from '../util.js';
 import { favorites as favs } from '../store.js';
 
-const props = defineProps({ market: Object, now: Number, stamp: Number, settings: Object, favorites: Boolean });
+// embedded (ab 0.46.0): als Unterreiter der Marktuebersicht, ohne eigene Ueberschrift
+const props = defineProps({ market: Object, now: Number, stamp: Number, settings: Object, favorites: Boolean, embedded: Boolean });
 const emit = defineEmits(['open', 'save', 'go']);
 const api = window.peon;
 
@@ -163,7 +164,7 @@ function sourceText(s) {
 <template>
   <div class="items" v-if="market">
     <div class="head">
-      <h1>{{ favorites ? 'Beobachtung' : 'Markt' }}</h1>
+      <h1 v-if="!embedded">{{ favorites ? 'Beobachtung' : 'Markt' }}</h1>
       <span class="muted" v-if="list">{{ num(rows.length) }} von {{ num(base.length) }}</span>
     </div>
     <div class="filters">
@@ -221,7 +222,7 @@ function sourceText(s) {
             </template>
           </div>
         </div>
-        <p v-if="list && !base.length && favorites" class="muted empty">Noch nichts in der Beobachtung. Klicke unter <button class="link" @click="emit('go', 'items')">Markt</button> oder im Gegenstandsfenster auf den Stern.</p>
+        <p v-if="list && !base.length && favorites" class="muted empty">Noch nichts in der Beobachtung. Klicke unter <button class="link" @click="emit('go', 'market:items')">Marktübersicht, Markt</button> oder im Gegenstandsfenster auf den Stern.</p>
         <p v-else-if="list && !rows.length" class="muted empty">Nichts gefunden. Suche nach einem Teil des Namens oder der Nummer.</p>
       </div>
     </div>

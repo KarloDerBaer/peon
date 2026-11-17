@@ -204,7 +204,12 @@ test('Manager: Rechnung im Hintergrund, Seite, Gegenstand, Liste und Lese-Prozes
   assert.equal(lein.name, 'Leinenstoff');
   assert.equal(lein.g, 0);
   assert.equal(v.hist.length, 1);
-  const d = svc.broker.itemDetail(M, '2592', '7d');
+  const sm = svc.broker.stabilitySummary(M);
+  assert.deepEqual(sm.groups, v.groups);
+  assert.deepEqual(sm.hist, v.hist);
+  assert.equal(sm.items, undefined, 'die Übersicht bekommt keine Liste');
+  assert.equal(svc.broker.stabilitySummary('Gibt es nicht'), null);
+  const d =svc.broker.itemDetail(M, '2592', '7d');
   assert.ok(d.stability && d.stability.g >= 3, JSON.stringify(d.stability));
   assert.equal(d.stability.cat.name, 'Handwerkswaren');
   assert.equal(d.stability.sub.name, 'Stoff');

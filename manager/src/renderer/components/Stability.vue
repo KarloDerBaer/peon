@@ -1,9 +1,10 @@
 <script setup>
 // Stabilitaet der Preise (ab Manager 0.45.0): Markt, Gruppen, Kategorien, Verlauf und Gegenstaende (stability.js)
 import { ref, computed, watch, onMounted } from 'vue';
+import StabilityChart from './StabilityChart.vue';
 import { num, pct, fold, qualityColor, itemName, when } from '../util.js';
 
-const props = defineProps({ market: Object, stamp: Number });
+const props = defineProps({ market: Object, stamp: Number, theme: String });
 const emit = defineEmits(['brief']);
 const d = ref(null);
 const kind = ref('mass');
@@ -75,17 +76,7 @@ function sortBy(k) {
 }
 const arrow = (k) => (sortKey.value === k ? (sortAsc.value ? ' ▲' : ' ▼') : '');
 
-// Verlauf: Index des Markts, der Massenware und der Handwerkswaren je Rechnung
-const W = 640, H = 120;
-const lines = computed(() => {
-  const h = (d.value && d.value.hist) || [];
-  if (h.length < 2) return null;
-  const t0 = h[0].t, t1 = h[h.length - 1].t;
-  const x = (t) => (t1 > t0 ? (t - t0) / (t1 - t0) * W : 0);
-  const y = (i) => H - (i / 100) * H;
-  const path = (k) => h.filter((e) => e[k]).map((e, i) => `${i ? 'L' : 'M'}${x(e.t).toFixed(1)},${y(e[k].i).toFixed(1)}`).join(' ');
-  return { all: path('all'), mass: path('mass'), craft: path('craft'), from: t0, to: t1 };
-});
+const hist = computed(() => (d.value && d.value.hist) || []);
 </script>
 
 <template>
@@ -113,14 +104,10 @@ const lines = computed(() => {
         </div>
       </div>
 
-      <div v-if="lines" class="hist">
-        <svg :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="none" role="img" aria-label="Verlauf des Index">
-          <line v-for="v in [20, 40, 60, 80]" :key="v" x1="0" :x2="W" :y1="H - v / 100 * H" :y2="H - v / 100 * H" class="grid" />
-          <path :d="lines.all" class="l-all" />
-          <path :d="lines.mass" class="l-mass" />
-          <path :d="lines.craft" class="l-craft" />
-        </svg>
-        <div class="small muted legend"><span class="k-all">Ganzer Markt</span><span class="k-mass">Massenware</span><span class="k-craft">Handwerkswaren</span><span>{{ when(lines.from) }} bis {{ when(lines.to) }}</span></div>
+      <div class="hist">
+        <h3>Verlauf des Index</h3>
+        <StabilityChart v-if="hist.length > 1" :hist="hist" :theme="theme" />
+        <p v-else class="small muted">Ab der zweiten Rechnung steht hier der Verlauf. Gerechnet wird nach jedem neuen Stand, gespeichert werden 30 Tage.</p>
       </div>
 
       <h3>Kategorien</h3>
@@ -193,17 +180,7 @@ h3 { margin: 6px 0 0; font-size: 15px; font-weight: 600; }
 .bg2 { background: var(--warn); }
 .bg3 { background: color-mix(in srgb, var(--warn) 50%, var(--bad)); }
 .bg4 { background: var(--bad); }
-.hist svg { width: 100%; height: 120px; display: block; }
-.hist .grid { stroke: var(--line-soft); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.hist path { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; }
-.l-all { stroke: var(--text); }
-.l-mass { stroke: var(--accent); }
-.l-craft { stroke: var(--gold); }
-.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 4px; }
-.k-all::before, .k-mass::before, .k-craft::before { content: ''; display: inline-block; width: 12px; height: 2px; margin-right: 6px; vertical-align: middle; }
-.k-all::before { background: var(--text); }
-.k-mass::before { background: var(--accent); }
-.k-craft::before { background: var(--gold); }
+.hist { display: grid; gap: 6px; }
 .filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .filters input { width: 260px; }
 .seg { display: flex; gap: 4px; }

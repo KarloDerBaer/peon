@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.46.0
+
+Kurz: Die Übersicht zeigt jetzt, wie stabil der Markt ist, mit Verlauf im Diagramm. Der Markt ist jetzt der erste Reiter in der Marktübersicht.
+
+- 0.46.0 (17.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Übersicht:** Kachel „Stabilität des Markts“ mit Stufe, Index und Änderung zu gestern. Klick führt zur Marktübersicht, Reiter Stabilität. Darunter ein Diagramm mit dem Verlauf des Index für den ganzen Markt, Massenware und Handwerkswaren, dahinter die Stufen.
+  - **Geändert, Marktübersicht:** Die bisherige Seite Markt ist der erste Reiter der Marktübersicht. Die Marktübersicht steht in der Leiste dafür an zweiter Stelle. Verweise auf den Markt (Beobachten, leere Beobachtung) führen dorthin.
+  - **Geändert, Stabilität:** Der Verlauf im Reiter Stabilität ist dasselbe Diagramm wie in der Übersicht, mit Achse, Stufen und Werten beim Darüberfahren.
+  - Neuer Aufruf `stabilitySummary` (nur Gruppen und Verlauf, ohne Liste) für die Übersicht.
+  - Tests: `stabilitySummary` im Integrationstest (`stabilitaet.test.js`).
+
 ## 0.45.0
 
 Kurz: Neu in der Marktübersicht: Wie stabil sind die Preise? Für jeden Gegenstand, jede Kategorie und den ganzen Markt, aus Stunden und Tagen.

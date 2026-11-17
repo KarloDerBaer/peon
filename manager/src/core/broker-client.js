@@ -453,6 +453,16 @@ class BrokerClient {
       limits: { hour: stability.HOUR_LIMITS, day: stability.DAY_LIMITS }, levels: stability.LEVELS, few: stability.FEW };
   }
 
+  // ab 0.46.0: nur Gruppen und Verlauf fuer die Uebersicht, ohne die Liste der Gegenstaende
+  stabilitySummary(marketKey) {
+    const mid = this.marketId(marketKey);
+    if (mid == null) return null;
+    const c = this.calcGet(mid, 'stability');
+    if (!c || !c.value) return { market: marketKey, t: null };
+    const h = this.calcGet(mid, 'stabHist');
+    return { market: marketKey, t: c.value.t, groups: c.value.groups, hist: (h && h.value) || [], levels: stability.LEVELS };
+  }
+
   retention(keepDays, hourDays) {
     const k = keepDays == null ? this.settings.keepDays : keepDays;
     const h = hourDays == null ? this.settings.hourDays : hourDays;

@@ -2,6 +2,11 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 17.11.2026: Markt in der Marktübersicht, Stabilität in der Übersicht (Manager 0.46.0)
+
+- **Markt wird Reiter der Marktübersicht** (Wunsch KarloDerBaer). Er ist der erste Reiter und öffnet sich zuerst. Die Marktübersicht rückt in der Leiste an die frühere Stelle des Markts (Claude, beim Bau: der Markt ist die meistgenutzte Seite).
+- **Stabilität des Markts in der Übersicht mit Verlauf** (Wunsch KarloDerBaer). Eigenes Diagramm statt einer dritten Linie im Diagramm der Angebote (Claude, beim Bau: Index 0 bis 100 und Angebotszahlen passen nicht auf dieselben Achsen).
+
 ## 17.11.2026: Stabilität der Preise (Manager 0.45.0)
 
 - **Stabilitätsindex je Gegenstand, Kategorie und Markt** (Wunsch KarloDerBaer). Besonders wichtig: Stundenwerte und Massen- und Handwerksware.

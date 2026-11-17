@@ -43,9 +43,10 @@ Nach jedem neuen Stand im Rechen-Prozess, nachdem Data.lua geschrieben ist (`sta
 
 ## 5. Anzeige
 
-- Marktübersicht, Reiter Stabilität: vier Karten (Markt, Massenware, Handwerkswaren, Einzelgegenstände), Verlauf, Kategorien (aufklappbar, Klick filtert die Liste), Gegenstände mit Auswahl der Art, Suche und Sortierung.
+- Übersicht (ab 0.46.0): Kachel mit Stufe und Index des ganzen Markts, Änderung zu gestern, darunter der Verlauf als Diagramm (Markt, Massenware, Handwerkswaren, Stufen als Bänder).
+- Marktübersicht, Reiter Stabilität: vier Karten (Markt, Massenware, Handwerkswaren, Einzelgegenstände), Verlauf als Diagramm, Kategorien (aufklappbar, Klick filtert die Liste), Gegenstände mit Auswahl der Art, Suche und Sortierung.
 - Gegenstandsseite: Stufe, Index, beide Teile, Richtung, Kategorie und Markt zum Vergleich.
-- Markt-Liste: Spalte Stabilität.
+- Markt-Liste (ab 0.46.0 Reiter Markt der Marktübersicht): Spalte Stabilität.
 
 ## 6. Messung mit echten Daten (17.11.2026, 7 Tage Stundenwerte, 166 Stände je Haus)
 
