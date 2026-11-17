@@ -2,6 +2,13 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 17.11.2026: Neues Modul Peon_Warhorn, Gruppensuche mit Filtern (Warhorn 0.1.0)
+
+- **Eigenes Modul für Gruppen, Dungeons und Raids** (Wunsch KarloDerBaer). Name Peon_Warhorn (Vorschlag Claude, gewählt von KarloDerBaer): das Kriegshorn ruft die Truppe zusammen und der Name deckt Suchen, Dungeons und Raids ab.
+- **Filter nach Klassen und Rollen in beide Richtungen** (KarloDerBaer): Gruppen, denen eine Rolle oder Klasse fehlt, und Einzelspieler nach Klasse und Rolle.
+- **Eigene Liste statt Filter in Blizzards Liste** (Claude, zugestimmt): Ein Filter in Blizzards Liste müsste in Blizzards Tabelle und Sortierung eingreifen (Taint, danach können Knöpfe wie „Einladung anfragen“ gesperrt sein). Wie bei Broker dockt ein eigenes Fenster an.
+- **Erst ein Prüfaufbau** (Claude, zugestimmt): `C_LFGList.Search` ist in Blizzards Code als eingeschränkt markiert (`HasRestrictions`), in Retail heißt das nur nach Klick oder Tastendruck. Ob eine automatische Aktualisierung mit Zeitgeber geht, klärt die Prüfung im Spiel. Namen anderer Spieler und Texte der Einträge speichert die Prüfung nicht.
+
 ## 17.11.2026: Markt in der Marktübersicht, Stabilität in der Übersicht (Manager 0.46.0)
 
 - **Markt wird Reiter der Marktübersicht** (Wunsch KarloDerBaer). Er ist der erste Reiter und öffnet sich zuerst. Die Marktübersicht rückt in der Leiste an die frühere Stelle des Markts (Claude, beim Bau: der Markt ist die meistgenutzte Seite).

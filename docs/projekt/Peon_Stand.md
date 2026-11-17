@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.102.0 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.46.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.4.1.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.102.0 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.46.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.4.1 / Warhorn 0.1.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.22.0, API 22
@@ -296,6 +296,16 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Normales Release `v2026.11.16.2` (16.11.2026, ohne Vorabversion auf Wunsch von KarloDerBaer), Bau auf GitHub erfolgreich, Manifest nachgelesen. Profession 0.4.0 und 0.4.1 im Spiel noch nicht geprüft.
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.4.1, 0.4.0, 0.3.1, 0.3.0, 0.2.2, 0.2.1, 0.2.0, 0.1.0
 
+## Peon_Warhorn – 0.1.0 (neu, Gruppen, Dungeons und Raids)
+
+- Plan: unter „Offene Punkte“ (beschlossen 17.11.2026). Gebaut: Schritt 1, der Prüfaufbau für die Gruppensuche.
+- Dateien: Locales.lua, Warhorn.lua, Probe.lua, Options.lua; Symbol `INV_Misc_Horn_01`.
+- SavedVariables: `PeonWarhornDB` (accountweit): `probe` (Ergebnis der letzten Prüfung, bleibt bei „Standardwerte“).
+- Braucht Peon API 7.
+- Befehle: `/peon warhorn` (Optionen mit Knopf „Prüfung starten“), `/peon warhorn pruefen`, `/peon debug warhorn`.
+- Verlauf der Versionen: `docs/changelog/Peon_Warhorn.md`
+- Nicht veröffentlicht. Im Spiel noch nicht geprüft. Zum Ausprobieren über `scripts\junctions.cmd` auf Entwicklung stellen (neues Addon, WoW dafür neu starten).
+
 ## Projektordner <Repo>
 
 - Git-Repo, Aufbau siehe `docs\projekt\Peon_Ueberblick.md` (Wo alles liegt) und `docs\README.md`.
@@ -307,6 +317,17 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 ## Offene Punkte
 
 Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie beschlossen sind.
+
+### Neues Modul Peon_Warhorn: Gruppensuche mit Filtern (beschlossen 17.11.2026)
+
+Ein Modul für alles rund um Gruppen, Dungeons und Raids. Zuerst die Gruppensuche (in Forever Blizzards Gruppensuche im Vanilla-Stil, `LFGParentFrame` mit Suchseite `LFGBrowseFrame`). Blizzards Fenster bleibt unverändert, weil Eingriffe in Blizzards Liste Taint auslösen.
+
+1. **Prüfaufbau (Warhorn 0.1.0, gebaut):** Fenster, Suche per Code nach Klick und von selbst, lesbare Daten je Eintrag, geheime Werte, Aktualisierungen. KarloDerBaer führt `/peon warhorn pruefen` im Spiel aus, Claude wertet `SavedVariables\Peon_Warhorn.lua` aus.
+2. **Eigene Liste mit Filtern:** eigenes Fenster, das an Blizzards Suchseite andockt. Ansicht „Gruppe suchen“ (Gruppen, denen eine bestimmte Rolle fehlt, mit oder ohne bestimmte Klassen) und „Mitspieler suchen“ (Einzelspieler nach Klasse und Rolle). Kategorie und Aktivität aus Blizzards Auswahl.
+3. **Aktualisierung:** Was das Spiel von selbst nachliefert, sofort zeigen. Neue Suche je nach Ergebnis aus Schritt 1 mit Zeitgeber oder bei Klicks, wenn die letzte Suche älter als X Sekunden ist, dazu Knopf und Taste.
+4. **Aktionen in der Liste:** Anflüstern und Einladung anfragen, nur per Klick. Vorher prüfen, ob das aus einer eigenen Liste ohne Taint geht.
+
+Weitere Ideen zu Dungeons und Raids gibt KarloDerBaer einzeln vor.
 
 ### Neues Modul Peon_ClassBuddy, „Klassenbuddy“ (beschlossen 14.11.2026, Konzept `docs\konzepte\classbuddy\Peon_ClassBuddy_Konzept.md`)
 

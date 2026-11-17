@@ -1,0 +1,15 @@
+## Interface: 16001
+## Title: |cff8ccf4dPeon|r Warhorn
+## Notes: Groups, dungeons and raids. Version 0.1 only contains a test of the group finder.
+## Notes-deDE: Gruppen, Dungeons und Raids. Version 0.1 enthält nur eine Prüfung der Gruppensuche.
+## Author: KarloDerBaer
+## Version: 0.1.0
+## Dependencies: Peon
+## Group: Peon
+## IconTexture: Interface\Icons\INV_Misc_Horn_01
+## SavedVariables: PeonWarhornDB
+
+Locales.lua
+Warhorn.lua
+Probe.lua
+Options.lua
