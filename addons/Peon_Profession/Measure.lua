@@ -204,6 +204,7 @@ function M.ReadAll()
             end
         end
     end
+    if ns.Codex then ns.Codex.Learned(key, list) end   -- ab 0.5.0: fuer den Codex, alle Charaktere
     if skill then mod.char.skills[key] = skill end
     M.key, M.skill = key, skill
     mod:Dbg(("Berufe: %d Rezepte gelesen (%s, Stufe %s, %d fremde verworfen)"):format(n, tostring(key), tostring(skill), M.foreign))
@@ -286,6 +287,7 @@ function M.Forget()
         if type(list) == "table" then for _ in pairs(list) do n = n + 1 end end
     end
     wipe(mod.db.known)
+    if ns.Codex then ns.Codex.ForgetMe() end   -- ab 0.5.0
     mod:Print(L.FORGET_DONE:format(n))
     if ns.Window and ns.Window.IsOpen() then ns.Window.Refresh() end
     return n

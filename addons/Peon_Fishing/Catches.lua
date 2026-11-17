@@ -712,3 +712,49 @@ C_Timer.NewTicker(1, function()
     if list and list:IsShown() and (ActivePool()) ~= shownPool then ns.UpdateCatchList() end
 end)
 table.insert(ns.onLogin, function() ns.UpdateCatchList() end)
+
+---------------------------------------------------------------------------
+-- ab 1.7.0: Schnittstelle fuer Peon_Profession (Codex Farming), nur lesend.
+-- mod:CatchZones() -> { [itemID] = { { zone, sub, count, total }, ... } }, info
+--   je Gegenstand die Gebiete mit Faengen: count = Faenge mit diesem Gegenstand, total = alle Faenge im Gebiet,
+--   sub = Unterzone mit den meisten Faengen dieses Gegenstands. info[itemID] = { name, icon, q } aus der Fangdatenbank.
+---------------------------------------------------------------------------
+function ns.mod:CatchZones()
+    local c = DB()
+    local out = {}
+    if not c then return out, {} end
+    for zone, subs in pairs(c.zones) do
+        if type(subs) == "table" then
+            local total, byItem = 0, {}
+            for sub, e in pairs(subs) do
+                if type(e) == "table" then
+                    total = total + (tonumber(e.n) or 0)
+                    local seen = {}
+                    for _, t in ipairs({ e.items or {}, e.pitems or {} }) do
+                        for id, count in pairs(t) do
+                            local r = byItem[id]
+                            if not r then r = { zone = zone, count = 0, best = 0 }; byItem[id] = r end
+                            r.count = r.count + count
+                            seen[id] = (seen[id] or 0) + count
+                        end
+                    end
+                    for id, count in pairs(seen) do
+                        if count > byItem[id].best then byItem[id].best, byItem[id].sub = count, sub end
+                    end
+                end
+            end
+            for id, r in pairs(byItem) do
+                out[id] = out[id] or {}
+                table.insert(out[id], { zone = zone, sub = r.sub, count = r.count, total = math.max(total, r.count) })
+            end
+        end
+    end
+    for _, list in pairs(out) do
+        table.sort(list, function(a, b)
+            local pa, pb = a.count / a.total, b.count / b.total
+            if pa ~= pb then return pa > pb end
+            return a.zone < b.zone
+        end)
+    end
+    return out, c.info or {}
+end

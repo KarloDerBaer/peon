@@ -2,6 +2,22 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.5.0
+
+Kurz: Neuer Reiter „Codex“: alle Rezepte je Beruf mit Quelle und wer sie kennt. Oben rechts wählst du den Beruf oder „Alle Berufe“.
+Kurz: Im Codex unter „Farming“ stehen alle Erze, Kräuter und Fische mit den Gebieten, in denen du sie gefunden hast.
+Kurz: Peon merkt sich ab jetzt beim Bergbau und Kräutersammeln jede Sammelstelle. Der Guide nennt dazu deine eigenen Fundorte.
+
+- 0.5.0 (17.11.2026, Wunsch KarloDerBaer, Konzept `docs/konzepte/profession/Peon_Profession_Codex.md`): Codex und Sammelstellen. Daten nur aus dem, was Peon schon hat, und aus eigener Sammlung im Spiel. Anregung war das Addon Mastercraft, übernommen sind nur Ideen.
+  - **Sammelstellen (neue Datei `Gather.lua`):** Beim Bergbau und Kräutersammeln merkt Profession Karte, Ort, Name des Vorkommens und die Beute (`nodes`, accountweit). Stellen näher als 25 Meter zählen als dieselbe, höchstens 1500 je Karte. Erkannt wird der Zauber über Nummer oder Namen, gespeichert erst mit der Beute. Ohne Ort (Instanz, geheime Werte) wird nichts gemerkt. `/prof stellen` zählt die Stellen. Eine Anzeige auf Welt- und Minikarte gibt es mit Absicht noch nicht.
+  - **Guide:** Bei Sammelschritten steht unter den Gebieten des Guides „Eigene Sammelstellen: Gebiet (Zahl der Stellen)“.
+  - **Reiter Codex, Seite Rezepte (neue Datei `Codex.lua`):** Rezepte aus der Route, den erlernten Rezepten aller Charaktere (`recipes`), vom Lehrer (`teach`) und vom Händler (`sold`). Spalten Stufe, Quelle, Erlernt (du, Zahl der Twinks). Oben rechts ein Dropdown mit „Alle Berufe“ und jedem Beruf, für den es Rezepte gibt. Die Suche filtert in der Auswahl. Wählt man links einen Beruf, springt das Dropdown mit, wenn es für ihn Rezepte gibt. Tooltip mit Material und Preis, Lehrer und Händler mit Ort, wer es kennt. Klick setzt einen Wegpunkt zum Lehrer oder Händler.
+  - **Lehrer und Händler:** Beim Öffnen des Lehrerfensters merkt Profession die angebotenen Rezepte mit Stufe und Preis, beim Händler die Rezepte zum Kauf mit Preis. Dazu Name und Ort des NPC (`npcs`).
+  - **Reiter Codex, Seite Farming:** Erze und Kräuter aus den Routen und den eigenen Stellen, auch Nebenfunde wie Edelsteine, dazu Fische aus Peon_Fishing (ab Fishing 1.7.0). Auswahl Alle, Bergbau, Kräuterkunde, Angeln und Suche. Links Bergbau, Kräuterkunde oder Angeln gewählt, springt die Auswahl mit. Spalten Stufe, Gebiete, Stellen, Preis. Ein Klick zeigt darunter die Gebiete mit Stellen, Anzahl, Anteil beim Angeln und Quelle (eigene Stellen, eigene Fänge, Guide ab Stufe).
+  - `/prof vergessen` nimmt auch diesen Charakter aus der gemeinsamen Rezeptliste. Neue Einstellungen `codexMode`, `codexGroup`. Bei „Standardwerte“ bleiben alle gesammelten Daten.
+  - Tests: Sammelstelle mit Beute, Zusammenfassen und neue Stelle, Kräuter, fremde Zauber, Zauber über den Namen, ohne Ort, Gebiete und Text für den Guide, `/prof stellen`, gemeinsame Rezeptliste, Lehrer und Händler lesen, Rezepte zusammenstellen, Suche, Wegpunkt, Farming mit Fischen, Gruppen, Gebiete mit Quelle, Reiter im Fenster, vergessen.
+  - **Im Spiel prüfen:** Ein paar Erze und Kräuter sammeln, dann `/prof stellen` und im Codex unter Farming die Gebiete ansehen. Einen Lehrer und einen Rezepthändler öffnen: stehen die Rezepte im Codex mit Quelle, und setzt ein Klick den Wegpunkt? Mit `/peon debug profession` zeigt der Chat jede gemerkte Stelle.
+
 ## 0.4.1
 
 Kurz: Die Guide-Leiste über dem Berufsfenster schlägt keine Rezepte aus anderen Berufen mehr vor, etwa Gifte beim Kochen.

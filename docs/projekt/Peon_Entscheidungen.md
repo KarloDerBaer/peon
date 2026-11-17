@@ -2,6 +2,17 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 17.11.2026: Codex und Sammelstellen in Peon_Profession (Profession 0.5.0, Fishing 1.7.0)
+
+- **Aus Mastercraft nur Ideen, keine Daten und kein Code** (KarloDerBaer, nach Hinweis von Claude): Mastercraft steht unter „alle Rechte vorbehalten“, seine Daten kommen von Wowhead. Große Datenmengen per Skript aus Wowhead zu ziehen verstößt gegen deren Nutzungsbedingungen und den Schutz von Datenbanken. Einzelne Fakten von Hand und eigene Messungen bleiben erlaubt.
+- **Daten nur aus dem, was Peon schon hat, plus eigene Sammlung im Spiel** (KarloDerBaer): Routen, erlernte Rezepte, Lehrer- und Händlerfenster, Sammelstellen, Fänge aus Peon_Fishing.
+- **Codex und Sammelstellen in Peon_Profession, kein eigenes Modul** (KarloDerBaer).
+- **Keine Anzeige auf Welt- und Minikarte vorerst** (KarloDerBaer): Die gelben Punkte der Kräuter- und Erzsuche zeichnet das Spiel selbst, ein Addon kann sie nicht lesen oder einzeln umfärben. Der Vorschlag mit Ring und durchscheinendem Punkt an bekannten Stellen bleibt im Konzept für später.
+- **Sammelstellen ab jetzt mitschreiben, Gebiete im Codex und im Guide** (KarloDerBaer).
+- **Fische bleiben in Peon_Fishing**, Profession liest sie über die neue Schnittstelle `CatchZones` (Claude, im Sinne von „verbinden statt zusammenlegen“).
+- **Rezepte aus Route, Lehrer, Händler und allen Charakteren in einer Zeile, zusammengeführt über den Namen** (Claude, beim Bau): Lehrer und Händler nennen keine Nummer des Rezepts. Bei Händlern wird der Vorsatz wie „Rezept:“ entfernt.
+- **Datenaustausch über Addon-Flüstern im Kern, Bau in eigener Sitzung** (KarloDerBaer): Entwurf `docs\konzepte\kern\Peon_Comm_Konzept.md`. Von Anfang an an und abschaltbar, fremde Daten sofort sichtbar und als fremd erkennbar.
+
 ## 17.11.2026: Gruppensuche mit Filtern gebaut (Warhorn 0.2.0)
 
 - **Alles in einem Zug** statt 0.2 bis 0.4 nacheinander (KarloDerBaer).

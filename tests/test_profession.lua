@@ -672,6 +672,194 @@ end)()
   PlaySound, SOUNDKIT = nil, nil
 end)()
 
+-- 0.5.0: Sammelstellen mitschreiben (Gather.lua)
+;(function()
+  local A = ns.Gather
+  local pos = { map = 1411, x = 0.5, y = 0.5 }
+  C_Map.GetBestMapForUnit = function() return pos.map end
+  C_Map.GetPlayerMapPosition = function() return { GetXY = function() return pos.x, pos.y end } end
+  C_Map.GetMapWorldSize = function() return 1000, 1000 end
+  local loot = { { "item:2770:0", 3 }, { "item:774", 1 } }
+  GetNumLootItems = function() return #loot end
+  GetLootSlotLink = function(i) return loot[i] and ("|cff|H" .. loot[i][1] .. "|h[x]|h|r") end
+  GetLootSlotInfo = function(i) return 1, "x", loot[i][2] end
+  local function Gather(spell, name)
+    fire("UNIT_SPELLCAST_SENT", "player", name, "guid" .. now, spell)
+    fire("UNIT_SPELLCAST_SUCCEEDED", "player", "guid" .. now, spell)
+    fire("LOOT_READY")
+    fire("LOOT_OPENED")   -- kommt danach, darf nicht doppelt zaehlen
+  end
+  Gather(2575, "Kupferader")
+  local list = mod.db.nodes[1411]
+  check(list and #list == 1 and list[1].n == 1 and list[1].items[2770] == 3 and list[1].items[774] == 1
+      and list[1].p == 186 and list[1].names["Kupferader"] == 1, "0.5.0: Sammelstelle mit Beute und Namen gemerkt")
+  pos.x = 0.51   -- 10 Meter weiter: dieselbe Stelle
+  Gather(2575, "Kupferader")
+  check(#list == 1 and list[1].n == 2 and list[1].items[2770] == 6, "0.5.0: nahe Stelle zusammengefasst")
+  pos.x = 0.6    -- 100 Meter weiter: neue Stelle
+  Gather(2575, "Kupferader")
+  check(#list == 2, "0.5.0: entfernte Stelle neu")
+  pos.map, pos.x = 1412, 0.3
+  loot = { { "item:2447", 2 } }
+  Gather(2366, "Friedensblume")
+  check(mod.db.nodes[1412] and mod.db.nodes[1412][1].p == 182, "0.5.0: Kraeutersammeln auf anderer Karte")
+  -- fremder Zauber und Beute ohne Sammeln zaehlen nicht
+  fire("UNIT_SPELLCAST_SENT", "player", "Wolf", "g", 12345)
+  fire("LOOT_READY")
+  check(#mod.db.nodes[1412] == 1 and A.pending == nil, "0.5.0: Beute ohne Sammelzauber nicht gemerkt")
+  -- Zauber unter anderer Nummer, aber mit dem Namen des Bergbaus
+  local keepName = C_Spell.GetSpellName
+  C_Spell.GetSpellName = function(id) if id == 2575 or id == 99999 then return "Bergbau" end return "Zauber " .. id end
+  A.spellNames = nil
+  check(A.ProfOfSpell(99999) == 186, "0.5.0: Sammelzauber auch ueber den Namen")
+  C_Spell.GetSpellName = keepName
+  A.spellNames = nil
+  -- in der Instanz ohne Ort nichts merken
+  local keepPos = C_Map.GetPlayerMapPosition
+  C_Map.GetPlayerMapPosition = function() return nil end
+  local before = A.Count()
+  Gather(2575, "Kupferader")
+  check(A.Count() == before, "0.5.0: ohne Ort nichts gemerkt")
+  C_Map.GetPlayerMapPosition = keepPos
+  local z = A.Zones(2770)
+  check(#z == 1 and z[1].map == 1411 and z[1].spots == 2 and z[1].n == 3, "0.5.0: Gebiete eines Erzes")
+  check(A.ZonesText({ 2770 }):find("Karte 1411 (2)", 1, true), "0.5.0: Text fuer den Guide")
+  check(select(1, A.Count()) == 3 and select(2, A.Count()) == 2, "0.5.0: Zahl der Stellen und Karten")
+  SlashCmdList.PEON("profession stellen")
+  check(out[#out]:find("3 auf 2 Karten", 1, true), "0.5.0: /prof stellen")
+  -- Guide nennt beim Bergbau die eigenen Fundorte
+  ns.Window.Open(186)
+  ns.Window.Select("guide")
+  check(ns.Window.info.text:find("Eigene Sammelstellen: Karte 1411 (2)", 1, true), "0.5.0: Guide nennt eigene Sammelstellen")
+end)()
+
+-- 0.5.0: Codex (Rezepte und Farming)
+;(function()
+  local C = ns.Codex
+  UnitName = function(u) if u == "npc" then return "Lehrerin Ilsa" end return "Testchar" end
+  GetRealmName = function() return "Welt" end
+  local npcGuid = "Creature-0-1-0-1-3347-0001"
+  UnitGUID = function(u) if u == "npc" then return npcGuid end end
+  -- erlernte Rezepte landen in der gemeinsamen Liste
+  fire("TRADE_SKILL_SHOW")
+  local rec = mod.db.recipes[171]
+  check(rec and rec[101] and rec[101].by["Testchar-Welt"] and rec[101].out == 5997, "0.5.0: Rezepte fuer alle Charaktere gemerkt")
+  rec[777] = { out = 7777, name = "Twinktrank", by = { ["Twink-Welt"] = true } }
+  -- Lehrer
+  local services = {
+    { "Elixier der schwachen Verteidigung", "available", 10, 50 },
+    { "Heiltrank", "unavailable", 55, 300 },
+    { "Alchimie", "header" },
+  }
+  GetNumTrainerServices = function() return #services end
+  GetTrainerServiceInfo = function(i) local s = services[i] return s[1], "", s[2] end
+  GetTrainerServiceSkillReq = function(i) return "Alchimie", services[i][3], true end
+  GetTrainerServiceCost = function(i) return services[i][4] end
+  GetTrainerServiceItemLink = function(i) if i == 2 then return "|Hitem:929|h" end end
+  fire("TRAINER_SHOW")
+  local t = mod.db.teach[171]
+  check(t and t["heiltrank"] and t["heiltrank"].skill == 55 and t["heiltrank"].cost == 300 and t["heiltrank"].item == 929
+      and t["heiltrank"].npcs[3347] and t["alchimie"] == nil, "0.5.0: Lehrer gelesen, Ueberschrift uebersprungen")
+  check(mod.db.npcs[3347] and mod.db.npcs[3347].name == "Lehrerin Ilsa" and mod.db.npcs[3347].map == 1412
+      and mod.db.npcs[3347].x == 30, "0.5.0: Ort des Lehrers")
+  -- Haendler mit einem Rezept und einem anderen Gegenstand
+  npcGuid = "Creature-0-1-0-1-4000-0002"
+  UnitName = function(u) if u == "npc" then return "Haendler Bo" end return "Testchar" end
+  local wares = { { 13477, "Rezept: Grosser Manatrank", 5000 }, { 3371, "Leere Phiole", 4 } }
+  GetMerchantNumItems = function() return #wares end
+  GetMerchantItemID = function(i) return wares[i][1] end
+  GetMerchantItemInfo = function(i) return wares[i][2], 1, wares[i][3] end
+  C_Item.GetItemInfoInstant = function(id) if id == 13477 then return id, "", "", "", 1, 9, 6 end return id, "", "", "", 1, 7, 0 end
+  fire("MERCHANT_SHOW")
+  local s = mod.db.sold[171]
+  check(s and s[13477] and s[13477].price == 5000 and s[13477].npcs[4000] and mod.db.sold[0] == nil and s[3371] == nil,
+      "0.5.0: Rezept beim Haendler gesehen, anderes uebersprungen")
+  -- Rezepte zusammenstellen
+  local rows = C.Recipes(171)
+  local by = {}
+  for _, r in ipairs(rows) do by[r.norm] = r end
+  local def = by["elixier der schwachen verteidigung"]
+  check(def and def.route and def.teach and def.mine and def.skill == 10, "0.5.0: Route, Lehrer und erlernt in einer Zeile")
+  check(by["heiltrank"] and by["heiltrank"].teach and not by["heiltrank"].mine, "0.5.0: Rezept nur vom Lehrer")
+  check(by["grosser manatrank"] and by["grosser manatrank"].sold, "0.5.0: Rezept vom Haendler ohne Vorsatz")
+  check(by["twinktrank"] and by["twinktrank"].by["Twink-Welt"] and C.KnownText(by["twinktrank"]):find("1 Twinks"), "0.5.0: Twink kennt ein Rezept")
+  check(C.SourceText(by["heiltrank"]) == "Lehrer" and C.KnownText(def):find("du"), "0.5.0: Texte Quelle und Erlernt")
+  local places = C.Places(by["heiltrank"])
+  check(#places == 1 and places[1].name == "Lehrerin Ilsa", "0.5.0: Ort zur Quelle")
+  local found = C.Search("manatrank")
+  check(#found == 1 and found[1].key == 171, "0.5.0: Suche ueber alle Berufe")
+  -- Fenster: Reiter Codex mit Rezepten
+  mod.db.codexMode = "recipes"
+  ns.Window.Open(171)
+  ns.Window.Select("codex")
+  check(mod.db.windowTab == "codex" and #ns.Window.cxRecipes.items >= 4 and ns.Window.cxRecPanel.shown
+      and not ns.Window.cxFarmPanel.shown, "0.5.0: Reiter Codex zeigt die Rezepte des Berufs")
+  check(ns.Window.target.shown == false and ns.Window.btnTarget.shown == false, "0.5.0: im Codex ohne Ziel und Einkaufsliste")
+  check(ns.Window.cxProfKey == 171 and ns.Window.cxProf.shown and not ns.Window.cxGroup.shown, "0.5.0: Dropdown der Rezepte springt auf den Beruf links")
+  local choices = C.ProfChoices()
+  local hasAlch = false
+  for _, o in ipairs(choices) do if o[1] == 171 then hasAlch = true end end
+  check(choices[1][1] == "all" and choices[1][2] == "Alle Berufe" and hasAlch, "0.5.0: Auswahl Alle Berufe und Berufe mit Rezepten")
+  check(#C.Search("manatrank", 171) == 1 and #C.Search("manatrank", 164) == 0, "0.5.0: Suche nur im gewaehlten Beruf")
+  ns.Window.cxText = "heiltrank"
+  ns.Window.Refresh()
+  check(#ns.Window.cxRecipes.items == 1, "0.5.0: Suche im Fenster")
+  ns.Window.cxProfKey = "all"
+  ns.Window.cxText = "manatrank"
+  ns.Window.Refresh()
+  check(ns.Window.cxProfKey == "all" and #ns.Window.cxRecipes.items == 1, "0.5.0: Alle Berufe bleibt, solange links nichts wechselt")
+  ns.Window.cxText = nil
+  ns.Window.cxProfKey = 171
+  -- Klick setzt den Wegpunkt
+  local wp
+  C_Map.SetUserWaypoint = function(p) wp = p end
+  C_Map.CanSetUserWaypointOnMap = function() return true end
+  UiMapPoint = { CreateFromCoordinates = function(m, x, y) return { m = m, x = x, y = y } end }
+  ns.Window.cxRecipes.o.onClick({ r = by["heiltrank"] }, "LeftButton")
+  check(wp and wp.m == 1412 and math.abs(wp.x - 0.3) < 0.001, "0.5.0: Klick setzt Wegpunkt zum Lehrer")
+  -- Farming mit Angeln aus Peon_Fishing
+  local ff = Peon:NewModule("Peon_FakeFishing", { key = "fishing", title = "Fishing", db = "FakeFishingDB", defaults = {} })
+  function ff:CatchZones()
+    return { [6291] = { { zone = "Durotar", sub = "Klingenhuegel", count = 30, total = 60 } },
+             [6643] = { { zone = "Durotar", count = 1, total = 60 } } },
+           { [6291] = { name = "Roher Bratfisch", q = 1 }, [6643] = { name = "Muell", q = 0 } }
+  end
+  fire("ADDON_LOADED", "Peon_FakeFishing")
+  local farm = C.Farm("all")
+  local f = {}
+  for _, e in ipairs(farm) do f[e.id] = e end
+  check(f[2770] and f[2770].key == 186 and f[2770].spots == 2 and f[2770].zones >= 2, "0.5.0: Erz mit eigenen Stellen und Gebieten des Guides")
+  check(f[774] and f[774].key == 186, "0.5.0: Nebenfund aus der Beute (Edelstein)")
+  check(f[6291] and f[6291].key == 356 and f[6291].name == "Roher Bratfisch" and f[6643] == nil, "0.5.0: Fisch aus Peon_Fishing, Muell nicht")
+  local herbs = C.Farm("herbs")
+  for _, e in ipairs(herbs) do assert(e.key == 182, "nur Kraeuter") end
+  check(#herbs > 0, "0.5.0: Gruppe Kraeuterkunde")
+  check(#C.Farm("all", "kupfer") == 1, "0.5.0: Suche in Farming")
+  local zones = C.ZonesOf(f[2770])
+  check(zones[1].name == "Karte 1411" and zones[1].spots == 2 and zones[1].srcText:find("eigene Stellen", 1, true)
+      and zones[1].srcText:find("Guide ab 1", 1, true), "0.5.0: Gebiete eines Erzes mit Quelle")
+  local fz = C.ZonesOf(f[6291])
+  check(fz[1].name == "Durotar" and fz[1].pct == 0.5 and fz[1].sub == "Klingenhuegel", "0.5.0: Fanggebiet mit Anteil")
+  mod.db.codexMode = "farm"
+  ns.Window.Refresh()
+  check(ns.Window.cxFarmPanel.shown and not ns.Window.cxRecPanel.shown and #ns.Window.cxFarm.items > 0, "0.5.0: Seite Farming")
+  ns.Window.cxFarm.o.onClick({ id = 2770 }, "LeftButton")
+  check(#ns.Window.cxZones.items >= 2, "0.5.0: Klick zeigt die Gebiete")
+  check(ns.Window.status.text.text:find("3 eigene Sammelstellen", 1, true), "0.5.0: Statuszeile Farming")
+  ns.Window.Open(186)
+  check(mod.db.codexGroup == "mining" and ns.Window.cxGroup.shown and not ns.Window.cxProf.shown, "0.5.0: Auswahl Farming springt auf Bergbau")
+  ns.Window.Open(171)
+  check(mod.db.codexGroup == "mining" and ns.Window.cxProfKey == 171, "0.5.0: Beruf ohne Farming laesst die Auswahl stehen")
+  mod.db.codexGroup = "all"
+  -- /prof vergessen nimmt diesen Charakter aus der gemeinsamen Liste
+  SlashCmdList.PEON("profession vergessen")
+  check(mod.db.recipes[171][101] == nil and mod.db.recipes[171][777], "0.5.0: vergessen nimmt nur diesen Charakter heraus")
+  fire("TRADE_SKILL_SHOW")
+  check(mod.db.recipes[171][101].by["Testchar-Welt"], "0.5.0: danach neu gemerkt")
+  mod.db.codexMode = "recipes"
+  ns.Window.Select("guide")
+end)()
+
 -- Starter-Text und Slash
 ns.Window.Open(186)
 check(ns.LauncherText() == "Bergbau 40/75", "Text fuer Peon_Panel: gewaehlter Beruf")

@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.103.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.46.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.4.1 / Warhorn 0.2.0.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.103.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.46.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.0 / Fishing 1.7.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.5.0 / Warhorn 0.2.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.22.0, API 22
@@ -52,7 +52,7 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Konzept: `docs\konzepte\classbuddy\Peon_ClassBuddy_Konzept.md`, Verlauf: `docs/changelog/Peon_ClassBuddy.md`
 - Im Spiel prüfen: Hexenmeister mit voller Seelentasche Zauber wirken (auch im Kampf), Makro, Tastenbelegung, Panel. Schurke: Combo-Punkte wie bisher, Einstellungen übernommen. Vorabversion `v2026.11.14.5-test` (14.11.2026, nur Kanal Test), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen. Normales Release `v2026.11.14.6` (14.11.2026), Bau auf GitHub erfolgreich, Manifest und `latest.yml` nachgelesen.
 
-## Peon_Fishing – 1.6.0 (früher FishingPlus)
+## Peon_Fishing – 1.7.0 (früher FishingPlus)
 
 - Dateien: Locales.lua, Fishing.lua, Sets.lua, Click.lua, Lure.lua, Keys.lua, Combat.lua, Sound.lua, Minimap.lua, Catches.lua, Options.lua, Bindings.xml
 - SavedVariables: `PeonFishingDB` (accountweit), `PeonFishingCharDB` (pro Charakter, z. B. Mirel-Dorna); `dbVersion` = 3
@@ -64,7 +64,8 @@ Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch z
 - Wertebereiche (`ranges`): Reichweite 10–100 m (5er), Musik/Umgebung/Effekte 0–100 % (5er), Nachlaufzeit 0–15 s.
 - Neues Angel-Set: nur Haupt- und Nebenhand aktiv (ab 1.5.2).
 - Verlauf der Versionen: `docs/changelog/Peon_Fishing.md`
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
+- Schnittstelle für Peon_Profession (ab 1.7.0): `mod:CatchZones()` liefert je Gegenstand die Gebiete mit Fängen (nur lesend).
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 1.7.0, 1.6.0, 1.5.2 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
 ## Peon_Broker – 0.103.1 (neu, Auktionshaus-Helfer)
 
@@ -284,19 +285,20 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Normales Release `v2026.11.16.2` (16.11.2026, ohne Vorabversion auf Wunsch von KarloDerBaer), Bau auf GitHub erfolgreich, Manifest nachgelesen. Layout im Spiel von KarloDerBaer geprüft (Entwicklung), Hinweis beim ersten Start noch nicht gesehen.
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.7.0, 0.3.0, 0.2.2, 0.2.0 (zusammen mit der Prüfliste erster Spieltag unter „Offene Punkte“ durchgehen)
 
-## Peon_Profession – 0.4.1 (neu, Berufe)
+## Peon_Profession – 0.5.0 (neu, Berufe)
 
 - Konzept: `docs\konzepte\profession\Peon_Profession_Konzept.md` (freigegeben 14.11.2026). Gebaut: S1 bis S5 (0.1.0), S6 und Wünsche nach dem ersten Test (0.2.0, Abschnitt 11 des Konzepts). 0.2.2 in der Vorabversion `v2026.11.14.2-test`, 0.3.0 in `v2026.11.14.4-test` (nur Kanal Test). 0.3.1 (15.11.2026): selbst herstellbare Zwischenprodukte wie Wollstoffballen werden in ihr Material aufgelöst, nicht veröffentlicht.
 - **Verhütten und Reiter Verlauf (0.4.0, 16.11.2026, Wunsch KarloDerBaer):** Bergbau zeigt das Verhütten als eigene Schritte (`ns.Smelt[186]`, Werte wie in Classic, für Forever noch nicht gemessen). Neuer Reiter Verlauf mit den Kosten bis zum Ziel je Tag nach Brokers AH-Verlauf und je Material Preis vorher, heute und Mehrkosten. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Fremde Rezepte und Ton bei Meilensteinen (0.4.1, 16.11.2026, Fehler und Wunsch KarloDerBaer):** Beim Kochen schlug die Leiste ein Gift vor, weil beim Wechsel im Berufsfenster Gifte unter Kochkunst gemerkt wurden. Jetzt Prüfung je Rezept (`Measure.Belongs`, falls das Spiel die Schnittstelle hat), Lesen erst nach 0,4 Sekunden Ruhe, `/prof vergessen`. Ton und Chatzeile, wenn das Rezept des Guides wechselt oder der Höchstwert erreicht ist. Offen: Gibt es in Forever `GetProfessionInfoByRecipeID` oder `GetTradeSkillLineForRecipe` (`/prof pruefen`)? Nicht veröffentlicht, im Spiel noch nicht geprüft.
-- Dateien: Locales.lua, LocalesCraft.lua (ab 0.2), Profession.lua, Routes.lua (aus `tools\plg_convert.lua`, danach von Hand gepflegt, MIT-Hinweis von Profession Leveling Guide im Kopf, ab 0.4 mit Verhütten), Guide.lua, Prices.lua, Books.lua (ab 0.3, Buchhändler für Experte mit Wegpunkt), Measure.lua, Craft.lua (ab 0.2, Kosten und Gewinn im Berufsfenster, vorher Broker), Window.lua, History.lua (ab 0.4, Reiter Verlauf), CraftBar.lua, Options.lua, Media\guide_arrow.tga (ab 0.2, erzeugt mit `scripts\profession_media.js`); Symbol: Hammer und Spitzhacke, Datei-Nummer 8197101 (ab 0.2.2, vorher `INV_Misc_Note_01`).
-- SavedVariables: `PeonProfessionDB` (accountweit): `minimapShow`, `minimapAngle` (215), `windowPos`, `windowTab` (guide/route/mats, ab 0.4 auch history, ab 0.2), `histDays` (30, ab 0.4), `stepSound` (an, ab 0.4.1), `stepSoundKey` (ready/raid/tell/levelup, ab 0.4.1), `showAll` (aus, ab 0.2), `craftBar` (an), `titleButton` (an, ab 0.2), Berufsfenster ab 0.2 (vorher Broker, einmal übernommen, Merker `craftMigrated`): `craftGuideMark`, `craftList`, `craftListWhich`, `craftListMode`, `craftListBest`, `craftListLoss`, `craftListUnknown`, `craftBlock`, `craftSummary`, `craftColSrc`, `craftColCost`, `craftColSell`, `craftHint`, `craftTwinks` (aus Brokers `keepAllChars`), `colors[recipeID][0..3] = { von, bis }` (gemessene Farben), `ups[recipeID] = { von, bis }` (Stufen, bei denen das Rezept Punkte gab). `PeonProfessionCharDB` (je Charakter): `sel` (gewählter Beruf, Skill-Linie), `known[Beruf][recipeID] = { out, n, m = { itemID, Menge, … }, c, name }` (aus dem Berufsfenster), `skills[Beruf]` (letzte Stufe), `target[Beruf]` (Zielstufe, ab 0.2). Bei „Standardwerte“ bleiben Position, Messungen und Rezepte.
+- **Codex und Sammelstellen (0.5.0, 17.11.2026, Wunsch KarloDerBaer, Konzept `docs\konzepte\profession\Peon_Profession_Codex.md`):** Peon merkt sich beim Bergbau und Kräutersammeln jede Sammelstelle mit Beute (`Gather.lua`), der Guide nennt die eigenen Fundorte. Neuer Reiter Codex mit Rezepten je Beruf oder alle über ein Dropdown, das der Auswahl links folgt (Quelle Route, Lehrer, Händler, erlernt von welchen Charakteren, Wegpunkt) und Farming (Erze, Kräuter, Fische mit Gebieten aus eigenen Stellen, Guide und Peon_Fishing 1.7.0). Anzeige auf Welt- und Minikarte zurückgestellt (KarloDerBaer). Daten nur aus eigenem Bestand und eigener Sammlung, nichts aus Mastercraft. Nicht veröffentlicht, im Spiel noch nicht geprüft.
+- Dateien: Locales.lua, LocalesCraft.lua (ab 0.2), Profession.lua, Routes.lua (aus `tools\plg_convert.lua`, danach von Hand gepflegt, MIT-Hinweis von Profession Leveling Guide im Kopf, ab 0.4 mit Verhütten), Guide.lua, Prices.lua, Books.lua (ab 0.3, Buchhändler für Experte mit Wegpunkt), Measure.lua, Craft.lua (ab 0.2, Kosten und Gewinn im Berufsfenster, vorher Broker), Window.lua, History.lua (ab 0.4, Reiter Verlauf), LocalesCodex.lua, Gather.lua und Codex.lua (ab 0.5, Sammelstellen und Codex), CraftBar.lua, Options.lua, Media\guide_arrow.tga (ab 0.2, erzeugt mit `scripts\profession_media.js`); Symbol: Hammer und Spitzhacke, Datei-Nummer 8197101 (ab 0.2.2, vorher `INV_Misc_Note_01`).
+- SavedVariables: `PeonProfessionDB` (accountweit): `minimapShow`, `minimapAngle` (215), `windowPos`, `windowTab` (guide/route/mats, ab 0.4 auch history, ab 0.2), `histDays` (30, ab 0.4), `stepSound` (an, ab 0.4.1), `stepSoundKey` (ready/raid/tell/levelup, ab 0.4.1), `showAll` (aus, ab 0.2), `craftBar` (an), `titleButton` (an, ab 0.2), Berufsfenster ab 0.2 (vorher Broker, einmal übernommen, Merker `craftMigrated`): `craftGuideMark`, `craftList`, `craftListWhich`, `craftListMode`, `craftListBest`, `craftListLoss`, `craftListUnknown`, `craftBlock`, `craftSummary`, `craftColSrc`, `craftColCost`, `craftColSell`, `craftHint`, `craftTwinks` (aus Brokers `keepAllChars`), `colors[recipeID][0..3] = { von, bis }` (gemessene Farben), `ups[recipeID] = { von, bis }` (Stufen, bei denen das Rezept Punkte gab). Ab 0.5: `codexMode` (recipes/farm), `codexGroup` (all/mining/herbs/fish), `nodes[uiMapID] = { { x, y, p, n, t, names, items } }` (Sammelstellen), `recipes[Beruf][recipeID] = { out, n, m, name, by }` (erlernte Rezepte aller Charaktere), `teach[Beruf][Name]` und `sold[Beruf][itemID]` (bei Lehrer und Händler gesehen), `npcs[npcID] = { name, map, x, y, f, kind }`. `PeonProfessionCharDB` (je Charakter): `sel` (gewählter Beruf, Skill-Linie), `known[Beruf][recipeID] = { out, n, m = { itemID, Menge, … }, c, name }` (aus dem Berufsfenster), `skills[Beruf]` (letzte Stufe), `target[Beruf]` (Zielstufe, ab 0.2). Bei „Standardwerte“ bleiben Position, Messungen, Rezepte und ab 0.5 alle gesammelten Daten des Codex.
 - Berufe als Skill-Linie: 171 Alchimie, 164 Schmiedekunst, 333 Verzauberkunst, 202 Ingenieurskunst, 165 Lederverarbeitung, 197 Schneiderei, 185 Kochkunst, 129 Erste Hilfe, 186 Bergbau, 182 Kräuterkunde, 393 Kürschnerei, 356 Angeln.
-- Braucht Peon API 18. Preise und Einkaufsliste über Broker 0.95 (`BuyPrice`, `AhPrice`, `ItemValue`, `AddToList`), Vorrat der Twinks über Ledger (`StockOthers`). Starter für Peon_Panel mit Text „Beruf Stufe/Höchstwert“.
-- Befehle: `/prof` (Fenster), `/prof optionen`, `/prof messungen`, `/prof pruefen` (Berufsfenster, ab 0.2), `/prof vergessen` (gemerkte Rezepte neu lesen, ab 0.4.1), `/peon profession`, `/peon debug profession`.
+- Braucht Peon API 18. Preise und Einkaufsliste über Broker 0.95 (`BuyPrice`, `AhPrice`, `ItemValue`, `AddToList`), Vorrat der Twinks über Ledger (`StockOthers`), Fänge über Fishing 1.7 (`CatchZones`, ab 0.5). Starter für Peon_Panel mit Text „Beruf Stufe/Höchstwert“.
+- Befehle: `/prof` (Fenster), `/prof optionen`, `/prof messungen`, `/prof pruefen` (Berufsfenster, ab 0.2), `/prof vergessen` (gemerkte Rezepte neu lesen, ab 0.4.1), `/prof stellen` (Sammelstellen zählen, ab 0.5), `/peon profession`, `/peon debug profession`.
 - Verlauf der Versionen: `docs/changelog/Peon_Profession.md`
 - Normales Release `v2026.11.16.2` (16.11.2026, ohne Vorabversion auf Wunsch von KarloDerBaer), Bau auf GitHub erfolgreich, Manifest nachgelesen. Profession 0.4.0 und 0.4.1 im Spiel noch nicht geprüft.
-- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.4.1, 0.4.0, 0.3.1, 0.3.0, 0.2.2, 0.2.1, 0.2.0, 0.1.0
+- Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.5.0, 0.4.1, 0.4.0, 0.3.1, 0.3.0, 0.2.2, 0.2.1, 0.2.0, 0.1.0
 
 ## Peon_Warhorn – 0.2.0 (neu, Gruppen, Dungeons und Raids)
 
@@ -319,6 +321,12 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 ## Offene Punkte
 
 Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie beschlossen sind.
+
+### Datenaustausch zwischen Peon-Nutzern im Kern (beschlossen 17.11.2026, Bau in eigener Sitzung)
+
+- Stiller Austausch über unsichtbares Addon-Flüstern als Kern-Schnittstelle `Peon.Comm`, nur aktiv, wenn ein Modul sie braucht. Von Anfang an an, abschaltbar. Fremde Daten sofort sichtbar, aber als fremd erkennbar, bis zwei Spieler sie melden. Soll für mehr als die Sammelstellen taugen (KarloDerBaer).
+- Entwurf mit dem Fund aus PLG (Kanal-Nachrichten kommen in Forever nicht an, Flüstern schon): `docs\konzepte\kern\Peon_Comm_Konzept.md`. Offene Fragen dort in Abschnitt 6.
+- Danach in Profession: Sammelstellen austauschen. Anzeige der Stellen auf Welt- und Minikarte ist zurückgestellt (KarloDerBaer, 17.11.2026), weil sich die gelben Punkte des Spiels nicht direkt lesen lassen.
 
 ### Neues Modul Peon_Warhorn: Gruppensuche mit Filtern (beschlossen 17.11.2026)
 

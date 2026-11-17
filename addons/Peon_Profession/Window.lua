@@ -20,7 +20,8 @@ local function UI() return Peon.UI end
 local function G() return ns.Guide end
 local function P() return ns.Prices end
 
-W.TABS = { { "guide", "TAB_GUIDE" }, { "route", "TAB_ROUTE" }, { "mats", "TAB_MATS" }, { "history", "TAB_HISTORY" } }
+W.TABS = { { "guide", "TAB_GUIDE" }, { "route", "TAB_ROUTE" }, { "mats", "TAB_MATS" }, { "history", "TAB_HISTORY" },
+    { "codex", "TAB_CODEX" } }   -- codex ab 0.5.0 (Codex.lua)
 W.contents = {}
 
 function W.IsTab(key)
@@ -120,7 +121,8 @@ function W.Content(key)
     c:SetAllPoints()
     W.contents[key] = c
     if key == "guide" then W.BuildGuide(c) elseif key == "route" then W.BuildRoute(c)
-    elseif key == "history" then W.BuildHistory(c) else W.BuildMats(c) end
+    elseif key == "history" then W.BuildHistory(c)
+    elseif key == "codex" then W.BuildCodex(c) else W.BuildMats(c) end
     return c
 end
 
@@ -326,6 +328,9 @@ function W.InfoText(key, v, prof)
     local t = {}
     if v.gather then
         t[#t + 1] = Zones(v.step)
+        -- ab 0.5.0: Gebiete aus den eigenen Sammelstellen
+        local own = ns.Gather and ns.Gather.ZonesText(v.gather)
+        if own then t[#t + 1] = own end
         -- ab 0.4.0: Verhuetten gibt beim Bergbau auch Punkte
         local s = G().SmeltAt(key, math.max(v.from or 0, prof and prof.skill or 0))
         if s then t[#t + 1] = L.SMELT_TOO:format(G().RecipeName(s.item, s.spell), s.to) end
@@ -379,13 +384,15 @@ function W.Refresh()
     W.prof, W.view = prof, nil
     local craft = prof and ns.PROFS[prof.key] and (ns.PROFS[prof.key].craft or (ns.Smelt and ns.Smelt[prof.key])) and true
     local hasBroker = P().Broker() ~= nil
+    local codex = W.current == "codex"   -- ab 0.5.0: ohne Ziel und Einkaufsliste
     W.btnStep:SetShown(craft and hasBroker and W.current == "guide")
-    W.btnTarget:SetShown(craft and hasBroker)
-    W.target:SetShown(prof ~= nil)
-    W.targetLabel:SetShown(prof ~= nil)
+    W.btnTarget:SetShown(craft and hasBroker and not codex)
+    W.target:SetShown(prof ~= nil and not codex)
+    W.targetLabel:SetShown(prof ~= nil and not codex)
     if not prof then
         W.title:SetText(L.NO_PROFS)
         W.progress:Set(0, "")
+        if codex then W.FillCodex(nil); return end
         W.Empty(L.NO_PROFS)
         return
     end
@@ -400,6 +407,7 @@ function W.Refresh()
         W.title:SetText(prof.name .. "  " .. GREY .. L.NOT_LEARNED_P .. "|r")
         W.progress:Set(0, "")
     end
+    if codex then W.FillCodex(prof); return end
     W.goal = G().Target(prof.key, prof.skill, prof.max)
     if not (W.target.HasFocus and W.target:HasFocus()) then W.target:SetText(tostring(W.goal)) end
     W.btnTarget:SetText(L.TO_LIST_TARGET:format(W.goal))

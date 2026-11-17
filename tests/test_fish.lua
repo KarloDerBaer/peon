@@ -213,6 +213,21 @@ do
   check(tex.grey == true, "1.6: Symbol sonst grau")
   mod.db.mode = keepMode
 end
+-- 1.7.0: Schnittstelle fuer Peon_Profession (Codex Farming)
+do
+  local keep = PeonFishingDB.catches.zones
+  PeonFishingDB.catches.zones = {
+    Durotar = { Klingenhuegel = { n = 10, items = { [6291] = 6 } }, Tiragarde = { n = 10, items = { [6291] = 2, [6303] = 5 }, pitems = { [6291] = 1 } } },
+    Brachland = { Ratchet = { n = 4, items = { [6291] = 1 } } },
+  }
+  local zones = mod:CatchZones()
+  local f = zones[6291]
+  check(f and #f == 2 and f[1].zone == "Durotar" and f[1].count == 9 and f[1].total == 20 and f[1].sub == "Klingenhuegel",
+      "1.7: Fanggebiete je Gegenstand mit Unterzone")
+  check(f[2].zone == "Brachland" and f[2].count == 1 and f[2].total == 4, "1.7: zweites Gebiet")
+  check(zones[6303] and zones[6303][1].count == 5, "1.7: anderer Fisch")
+  PeonFishingDB.catches.zones = keep
+end
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler in") then n = n + 1; io.write("!! ", l, "\n") end end
 check(n == 0, "keine Fehlermeldungen")
 print("ALLE TESTS OK")

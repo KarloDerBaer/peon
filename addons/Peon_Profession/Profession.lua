@@ -2,6 +2,8 @@
 -- Berufe: Guide zum Leveln mit Preisen und Einkaufsliste von Peon Broker (Konzept
 -- docs/konzepte/profession/Peon_Profession_Konzept.md). Anmeldung beim Kern, Einstellungen, Berufe des Charakters.
 --
+-- Ab 0.5.0 Reiter Codex (Codex.lua) und Sammelstellen (Gather.lua), Konzept docs/konzepte/profession/Peon_Profession_Codex.md.
+--
 -- Schnittstelle fuer andere Module (nur lesend):
 --   mod:Professions()      -> { { key, name, icon, skill, max } } Berufe des eingeloggten Charakters
 --   mod:Step(key, skill)   -> Schritt der Route fuer diese Stufe (Tabelle aus Routes.lua) oder nil
@@ -34,6 +36,13 @@ local mod = Peon:NewModule(ADDON_NAME, {
         histDays     = 30,       -- ab 0.4.0: Zeitraum im Reiter Verlauf (7, 14, 30, 90)
         stepSound    = true,     -- ab 0.4.1: Ton und Chatzeile, wenn das Rezept des Guides wechselt
         stepSoundKey = "ready",  -- ab 0.4.1: ready, raid, tell, levelup
+        codexMode    = "recipes", -- ab 0.5.0: Reiter Codex, Seite recipes oder farm
+        codexGroup   = "all",     -- ab 0.5.0: Farming, Gruppe all, mining, herbs, fish
+        nodes        = {},   -- ab 0.5.0: [uiMapID] = { Sammelstellen } (Gather.lua)
+        recipes      = {},   -- ab 0.5.0: [Beruf][recipeID] = erlernte Rezepte aller Charaktere (Codex.lua)
+        teach        = {},   -- ab 0.5.0: [Beruf][Name] = beim Lehrer gesehen
+        sold         = {},   -- ab 0.5.0: [Beruf][itemID] = Rezepte beim Haendler gesehen
+        npcs         = {},   -- ab 0.5.0: [npcID] = Ort von Lehrern und Haendlern
         colors       = {},   -- [recipeID] = { [0..3] = { von, bis } }  gemessene Farben (Measure.lua)
         ups          = {},   -- [recipeID] = { von, bis }               Stufen, bei denen dieses Rezept Punkte gab
         sel          = 0,    -- je Charakter: zuletzt gewaehlter Beruf (Skill-Linie)
@@ -58,7 +67,9 @@ local mod = Peon:NewModule(ADDON_NAME, {
         craftMigrated = false,   -- Einstellungen einmal von Broker uebernommen
     },
     ranges   = { minimapAngle = { 0, 359, 1 } },
-    choices  = { windowTab = { guide = true, route = true, mats = true, history = true },   -- history ab 0.4.1
+    choices  = { windowTab = { guide = true, route = true, mats = true, history = true, codex = true },   -- history ab 0.4.1, codex ab 0.5.0
+                 codexMode = { recipes = true, farm = true },
+                 codexGroup = { all = true, mining = true, herbs = true, fish = true },
                  histDays = { [7] = true, [14] = true, [30] = true, [90] = true },
                  stepSoundKey = { ready = true, raid = true, tell = true, levelup = true },
                  craftListWhich = { all = true, profit = true, top3 = true, top5 = true, top10 = true },
@@ -76,7 +87,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         acc.craftMigrated = true
     end,
     keepOnReset = { windowPos = true, colors = true, ups = true, sel = true, known = true, skills = true, target = true,
-                    craftMigrated = true },
+                    craftMigrated = true, nodes = true, recipes = true, teach = true, sold = true, npcs = true },
     slash    = { "/prof" },
     onSlash  = function(m, cmd, rest)
         cmd = (cmd or ""):lower()
@@ -88,6 +99,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
             ns.Craft.Probe()
         elseif cmd == "vergessen" or cmd == "forget" then   -- ab 0.4.1
             ns.Measure.Forget()
+        elseif cmd == "stellen" or cmd == "nodes" then      -- ab 0.5.0
+            ns.Gather.Report()
         else
             ns.Window.Toggle()
         end
@@ -236,6 +249,8 @@ mod:On("LOGIN", function()
     if ns.Measure then mod:Call("Messung", ns.Measure.Init) end
     if ns.CraftBar then mod:Call("Berufsfenster", ns.CraftBar.Init) end
     if ns.Craft then mod:Call("Berufsfenster Kosten", ns.Craft.Init) end
+    if ns.Gather then mod:Call("Sammelstellen", ns.Gather.Init) end   -- ab 0.5.0
+    if ns.Codex then mod:Call("Codex", ns.Codex.Init) end
     if mod.NewMinimapButton then
         mod:Call("Minimap", mod.NewMinimapButton, mod, {
             icon = ns.ICON,
