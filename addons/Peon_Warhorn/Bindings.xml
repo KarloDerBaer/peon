@@ -1,0 +1,6 @@
+<Bindings>
+    <!-- Gruppensuche: Suchen (ab Warhorn 0.2). Ein Tastendruck zaehlt fuer das Spiel wie ein Klick. -->
+    <Binding name="PEON_WARHORN_SEARCH" header="PEON_WARHORN" category="ADDONS">
+        PeonWarhorn_Search()
+    </Binding>
+</Bindings>

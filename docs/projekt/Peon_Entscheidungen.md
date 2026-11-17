@@ -2,6 +2,23 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 17.11.2026: Gruppensuche mit Filtern gebaut (Warhorn 0.2.0)
+
+- **Alles in einem Zug** statt 0.2 bis 0.4 nacheinander (KarloDerBaer).
+- Die Fläche hängt an Blizzards Suchseite `LFGBrowseFrame`, nicht an `LFGParentFrame` (Claude, beim Bau): Blizzard zeigt die Suchseite nur auf dem Reiter „Suchen“, Warhorn verschwindet so auf den Reitern zum Eintragen und der Wer-Liste von selbst.
+- Unterkante an Blizzards Reiter `LFGParentFrameTab1` gehängt, damit die Reiter bedienbar bleiben. Die Titelleiste lässt Klicks durch, damit Peon_Mover das Fenster weiter verschieben kann (Claude).
+- Gruppengröße als Auswahl „höchstens 2, 3 oder 4“ im Filtermenü statt zweier Zahlenfelder (Claude, weniger Felder in der Leiste).
+- Sortierung zu Beginn nach Alter statt nach freiem Platz (Claude): Der Rollenfilter zeigt schon nur passende Gruppen. Nach freiem Platz sortiert ein Klick auf „Rollen“.
+- `/warhorn` öffnet die Gruppensuche über Blizzards `LFGVanilla_ToggleFrame` (Claude). Ob das im Spiel ohne Fehlermeldung geht, wird geprüft.
+
+## 17.11.2026: Konzept Gruppensuche mit Filtern (Peon_Warhorn, Konzept `Peon_Warhorn_Konzept.md`)
+
+- **Fläche über Blizzards Suchseite wie bei Broker** (KarloDerBaer) statt eines angedockten Fensters (Vorschlag Claude). Knopf zum Umschalten auf Blizzards Original (KarloDerBaer). Sofort ohne Neuladen, weil Warhorn nichts in Blizzards Tabellen schreibt (Claude).
+- **Eigene Auswahl der Dungeons in Warhorn**, zu Beginn aus Blizzards Auswahl (KarloDerBaer).
+- **Klassenfilter „nur mit“ und „nur ohne“** bei Gruppen, dazu „Ohne meine Klasse“ (KarloDerBaer).
+- **Suchen nie automatisch**, nur über Knopf und Taste (KarloDerBaer). Das Mitsuchen bei Klicks entfällt.
+- Ein Eintrag mit einem Mitglied gilt als Einzelspieler, wie bei Blizzard (Claude, nach den Messdaten: Titel und Kommentar waren immer leer).
+
 ## 17.11.2026: Neues Modul Peon_Warhorn, Gruppensuche mit Filtern (Warhorn 0.1.0)
 
 - **Eigenes Modul für Gruppen, Dungeons und Raids** (Wunsch KarloDerBaer). Name Peon_Warhorn (Vorschlag Claude, gewählt von KarloDerBaer): das Kriegshorn ruft die Truppe zusammen und der Name deckt Suchen, Dungeons und Raids ab.

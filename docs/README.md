@@ -37,6 +37,7 @@
 | Bags | [Peon_Bags_Bereiche.md](konzepte/bags/Peon_Bags_Bereiche.md) | Eigene Bereiche in Taschen und Bank |
 | Panel | [Peon_Panel_Konzept.md](konzepte/panel/Peon_Panel_Konzept.md) | Leiste und Panel für Symbole und kurze Texte |
 | Profession | [Peon_Profession_Konzept.md](konzepte/profession/Peon_Profession_Konzept.md) | Berufe: Guide zum Leveln, später auch Brokers Teil im Berufsfenster |
+| Warhorn | [Peon_Warhorn_Konzept.md](konzepte/warhorn/Peon_Warhorn_Konzept.md) | Gruppensuche mit Filtern nach Rolle, Klasse und Stufe |
 
 ## Verlauf der Versionen (`changelog/`)
 

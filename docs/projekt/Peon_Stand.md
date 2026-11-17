@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.102.0 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.46.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.4.1 / Warhorn 0.1.0.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.22.0 / Broker 0.102.0 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.46.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.0 / Fishing 1.6.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.0 / Profession 0.4.1 / Warhorn 0.2.0.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.22.0, API 22
@@ -296,15 +296,15 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Normales Release `v2026.11.16.2` (16.11.2026, ohne Vorabversion auf Wunsch von KarloDerBaer), Bau auf GitHub erfolgreich, Manifest nachgelesen. Profession 0.4.0 und 0.4.1 im Spiel noch nicht geprüft.
 - Hinweise „Im Spiel prüfen“ im Verlauf bei: 0.4.1, 0.4.0, 0.3.1, 0.3.0, 0.2.2, 0.2.1, 0.2.0, 0.1.0
 
-## Peon_Warhorn – 0.1.0 (neu, Gruppen, Dungeons und Raids)
+## Peon_Warhorn – 0.2.0 (neu, Gruppen, Dungeons und Raids)
 
-- Plan: unter „Offene Punkte“ (beschlossen 17.11.2026). Gebaut: Schritt 1, der Prüfaufbau für die Gruppensuche.
-- Dateien: Locales.lua, Warhorn.lua, Probe.lua, Options.lua; Symbol `INV_Misc_Horn_01`.
-- SavedVariables: `PeonWarhornDB` (accountweit): `probe` (Ergebnis der letzten Prüfung, bleibt bei „Standardwerte“).
-- Braucht Peon API 7.
-- Befehle: `/peon warhorn` (Optionen mit Knopf „Prüfung starten“), `/peon warhorn pruefen`, `/peon debug warhorn`.
+- Konzept: `docs\konzepte\warhorn\Peon_Warhorn_Konzept.md` (abgestimmt 17.11.2026). Gebaut: Prüfaufbau (0.1.0), Gruppensuche mit Filtern, Umschalten und Aktionen (0.2.0).
+- Dateien: Locales.lua, Warhorn.lua, Search.lua, Filter.lua, Window.lua, Overlay.lua, Probe.lua, Options.lua, Bindings.xml; Symbol `INV_Misc_Horn_01`.
+- SavedVariables: `PeonWarhornDB` (accountweit): `show` (Warhorn über Blizzards Suchseite, an), `probe` (Ergebnis der letzten Prüfung). `PeonWarhornCharDB` (je Charakter): `category`, `activities`, `tab` (`groups`/`players`), `gFilter` und `pFilter` (`roles`, `classes`, `mode` `with`/`without`, `noMyClass`, `levelMin`, `levelMax`, `sizeMax`, `init`). Bei „Standardwerte“ bleiben `probe`, `category`, `activities`, `tab`, die Filter starten neu.
+- Braucht Peon API 18 (`Peon.UI`). Starter für Peon_Panel. Taste „Gruppensuche: Suchen“.
+- Befehle: `/warhorn` (Gruppensuche öffnen), `/warhorn suchen`, `/warhorn optionen`, `/peon warhorn` (Optionen), `/peon warhorn pruefen`, `/peon debug warhorn`.
 - Verlauf der Versionen: `docs/changelog/Peon_Warhorn.md`
-- Nicht veröffentlicht. Im Spiel noch nicht geprüft. Zum Ausprobieren über `scripts\junctions.cmd` auf Entwicklung stellen (neues Addon, WoW dafür neu starten).
+- Nicht veröffentlicht. 0.2.0 im Spiel noch nicht geprüft (Punkte im Verlauf bei 0.2.0).
 
 ## Projektordner <Repo>
 
@@ -322,10 +322,15 @@ Ideen gibt KarloDerBaer einzeln vor; sie werden hier erst eingetragen, wenn sie 
 
 Ein Modul für alles rund um Gruppen, Dungeons und Raids. Zuerst die Gruppensuche (in Forever Blizzards Gruppensuche im Vanilla-Stil, `LFGParentFrame` mit Suchseite `LFGBrowseFrame`). Blizzards Fenster bleibt unverändert, weil Eingriffe in Blizzards Liste Taint auslösen.
 
-1. **Prüfaufbau (Warhorn 0.1.0, gebaut):** Fenster, Suche per Code nach Klick und von selbst, lesbare Daten je Eintrag, geheime Werte, Aktualisierungen. KarloDerBaer führt `/peon warhorn pruefen` im Spiel aus, Claude wertet `SavedVariables\Peon_Warhorn.lua` aus.
-2. **Eigene Liste mit Filtern:** eigenes Fenster, das an Blizzards Suchseite andockt. Ansicht „Gruppe suchen“ (Gruppen, denen eine bestimmte Rolle fehlt, mit oder ohne bestimmte Klassen) und „Mitspieler suchen“ (Einzelspieler nach Klasse und Rolle). Kategorie und Aktivität aus Blizzards Auswahl.
-3. **Aktualisierung:** Was das Spiel von selbst nachliefert, sofort zeigen. Neue Suche je nach Ergebnis aus Schritt 1 mit Zeitgeber oder bei Klicks, wenn die letzte Suche älter als X Sekunden ist, dazu Knopf und Taste.
-4. **Aktionen in der Liste:** Anflüstern und Einladung anfragen, nur per Klick. Vorher prüfen, ob das aus einer eigenen Liste ohne Taint geht.
+1. **Prüfaufbau (Warhorn 0.1.0, erledigt 17.11.2026):** Von KarloDerBaer im Spiel ausgeführt, von Claude ausgewertet. Zwei Läufe: mit Knopf bei geschlossener Gruppensuche und mit Taste bei offener Gruppensuche auf dem Reiter zum Eintragen. Das Fenster spielt für die Suche keine Rolle, ohne Auswahl im Fenster nimmt die Prüfung die erste Kategorie (Dungeons).
+   - Suche nach Klick und nach Tastendruck geht (Antwort nach 0,3 Sekunden, 30 und 37 Einträge). Suche von selbst über einen Zeitgeber blockiert das Spiel (`ADDON_ACTION_BLOCKED`, ohne Fenster für den Spieler). Eine Suche ganz ohne Zutun des Spielers geht also nicht.
+   - Ohne neue Suche liefert das Spiel Änderungen an gefundenen Einträgen von selbst (10 Mal in 60 Sekunden).
+   - Je Eintrag lesbar: Mitglieder mit Klasse, Stufe, zugewiesener Rolle und möglichen Rollen, Anführer, Anzahl je Rolle, freie Plätze je Rolle (`TANK_REMAINING` usw.), Anzahl je Klasse und je Rolle und Klasse (`classesByRole`). Einzelspieler sind Einträge mit einem Mitglied. Damit gehen beide Filter.
+   - Keine geheimen Werte (außerhalb von Kampf und Instanz geprüft).
+   - Vorhanden: `C_LFGList.ApplyToGroup`, `C_PartyInfo.InviteUnit`. Es gibt nur die Gruppensuche im Vanilla-Stil, kein `PVEFrame`.
+2. **Eigene Liste mit Filtern, gebaut in Warhorn 0.2.0** (Konzept `docs\konzepte\warhorn\Peon_Warhorn_Konzept.md`, abgestimmt 17.11.2026): eigene Fläche über Blizzards Suchseite wie bei Broker, Knopf zum Umschalten auf Blizzards Original. Reiter „Gruppen“ (freie Plätze je Rolle, Klassen „nur mit“ und „nur ohne“, ohne meine Klasse, Stufe) und „Mitspieler“ (Einzelspieler nach Rolle, Klasse und Stufe). Eigene Auswahl der Dungeons, zu Beginn aus Blizzards Auswahl.
+3. **Aktualisierung, gebaut in 0.2.0:** Was das Spiel von selbst nachliefert, sofort zeigen. Neue Suche nie automatisch, nur über Knopf und Taste (KarloDerBaer).
+4. **Aktionen in der Liste, gebaut in 0.2.0:** Anflüstern (Doppelklick, Menü) und Einladen (Menü, nur Einzelspieler, wie bei Blizzard). Eine Anfrage an Gruppen gibt es in dieser Gruppensuche nicht. Offen: im Spiel prüfen, ob Einladen aus Warhorn ohne Blockade geht.
 
 Weitere Ideen zu Dungeons und Raids gibt KarloDerBaer einzeln vor.
 
