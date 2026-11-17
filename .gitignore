@@ -32,3 +32,6 @@ desktop.ini
 # Nur auf diesem Rechner: echte Pfade (CLAUDE.local.md, scripts/local.json)
 CLAUDE.local.md
 scripts/local.json
+
+# Private Addons von KarloDerBaer (z. B. Peon_Debug): nie im Repo, nie im Release
+/privat/

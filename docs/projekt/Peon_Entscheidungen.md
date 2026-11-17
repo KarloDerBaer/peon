@@ -2,6 +2,23 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 17.11.2026: Kanal mittesten und privates Peon_Debug (Peon 0.23.0)
+
+- **Begrüßung im Release zusätzlich über den Kanal** (KarloDerBaer): Die Prüfung allein zeigte, dass die eigene Kanal-Nachricht zurückkommt. Ob andere sie bekommen, zeigt das Release. Höchstens alle 30 Minuten eine, ohne Weitergabe, Antwort per Flüstern. Der Weg steht je Nutzer in `PeonDB.comm.peers`.
+- **Mitgliederliste gebremst** (Claude, nach einer Trennung vom Chatserver im Test): höchstens eine Anfrage je Minute, keine Anfrage als Antwort auf eine angekommene Liste. Ob die Schleife die Trennung ausgelöst hat, ist nicht sicher, sie war aber ein Fehler.
+- **Namen immer mit Nachnamen** (Claude, nach der Prüfung): Flüstern an den Vornamen allein scheitert in Forever. „Vorname Nachname“ und „Vorname-Nachname“ gelten als derselbe Spieler.
+- **Peon_Debug nur für KarloDerBaer** (KarloDerBaer): Zeigt die Nachrichten von Peon, Kanal und Flüstern getrennt schaltbar. Liegt in `privat/` (in `.gitignore`), nicht in `addons/`, weil der Release-Bau jeden Ordner in `addons/` erwartet. Ins Spiel kommt es über eine von Hand angelegte Junction. Der Kern bekommt dafür `Peon.Comm.Listen` und `Peon.Comm.SetShow`. Der Peon Manager fasst Addons, die nicht in seiner Liste stehen, nicht an.
+
+## 17.11.2026: Datenaustausch im Kern, erster Schritt nur Kennenlernen (Peon 0.23.0, API 23)
+
+- **Noch keine Dienste der Module** (KarloDerBaer): Über das nächste Release erst testen, ob der Austausch funktioniert. Dafür reicht ein unsichtbares Kennenlernen, das sich danach ansehen lässt. Der Kern meldet dafür selbst den Dienst `hello` an (Version und Kern-API), das Ergebnis steht in `PeonDB.comm`. Die Sammelstellen von Peon_Profession folgen danach.
+- **Kanal `PeonNet`**, Ausweichnamen `PeonNet2` und `PeonNet3` (KarloDerBaer).
+- **Stand in den Kern-Optionen** unter dem Schalter „Daten mit anderen Peon-Nutzern teilen“, dazu `/peon teilen` (KarloDerBaer). Keine Anzeige in Peon_Panel.
+- **Prüfung im Spiel an sich selbst** (KarloDerBaer): `/peon teilen pruefen` schickt eine Addon-Nachricht in den Kanal und ein Addon-Flüstern an den eigenen Charakter und liest die Mitgliederliste.
+- **Alle Nachrichten per Flüstern, der Kanal nur als Treffpunkt** (Claude, nach dem Fund aus PLG). Eigene Nachricht an 3, weitergegeben an 2, höchstens 3 Sprünge, Takt 1,25 Sekunden, nicht im Kampf und nicht in Instanzen. Beim ersten Sprung muss der Prüfwert zum Absender passen.
+- **Eigenes Verpackungsformat ohne Ausführen von Lua-Code** (Claude): Daten aus dem Netz sind fremd, deshalb kein `loadstring`. Unbekannte Dienste werden weitergegeben, aber nicht zugestellt, damit neuere Module ihre Daten auch über ältere Peon-Versionen verbreiten. Ein neueres Nachrichtenformat wird weder verstanden noch weitergegeben.
+- **Keine Namen in PeonDB** (Konzept): Namen liegen nur im Speicher zum Zustellen, gemerkt wird der Prüfwert. Module bekommen statt des Namens eine Funktion `info.reply` für Antworten.
+
 ## 17.11.2026: Codex und Sammelstellen in Peon_Profession (Profession 0.5.0, Fishing 1.7.0)
 
 - **Aus Mastercraft nur Ideen, keine Daten und kein Code** (KarloDerBaer, nach Hinweis von Claude): Mastercraft steht unter „alle Rechte vorbehalten“, seine Daten kommen von Wowhead. Große Datenmengen per Skript aus Wowhead zu ziehen verstößt gegen deren Nutzungsbedingungen und den Schutz von Datenbanken. Einzelne Fakten von Hand und eigene Messungen bleiben erlaubt.

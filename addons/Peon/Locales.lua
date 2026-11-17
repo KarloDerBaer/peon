@@ -36,6 +36,7 @@ L.HELP = {
     "/peon debug <module> - debug output of a module on/off",
     "/peon errors [clear] - show or delete saved errors",
     "/peon news - show the notices of the modules again",
+    "/peon share [on | off | check] - share data with other Peon users",
     "/peon ui - sample window of the UI design",
     "/peon ui check [mouse | <frame> | clear] - read Blizzard's window art for the UI design",
 }
@@ -55,6 +56,28 @@ L.UIPROBE_FRAME     = "UI check: %s saved (%d lines)."
 L.UIPROBE_NOT_FOUND = "UI check: frame \"%s\" not found."
 L.UIPROBE_NO_MOUSE  = "UI check: no frame under the mouse."
 L.UIPROBE_CLEARED   = "UI check: results deleted."
+-- Share data (Comm.lua, API 23)
+L.COMM_OPT          = "Share data"
+L.COMM_OPT_SHARE    = "Share data with other Peon users"
+L.COMM_OPT_HINT     = "Peon quietly gets to know other Peon users through a hidden channel and invisible addon whispers. Nothing shows up in the chat, no character names are stored. For now only the version is exchanged, later the modules share game data such as gathering spots."
+L.COMM_STATUS       = "Channel %s, %d Peon users reachable, %d met so far. Messages: %d sent, %d received, %d passed on."
+L.COMM_STATUS_OFF   = "Sharing is off."
+L.COMM_OFF_HINT     = "Sharing is off. /peon share on switches it on."
+L.COMM_NOW_ON       = "Sharing data with other Peon users is on."
+L.COMM_NOW_OFF      = "Sharing data with other Peon users is off. Peon left the channel."
+L.COMM_HELP = {
+    "/peon share on | off - switch sharing on or off",
+    "/peon share check - test in the game: channel message, addon whisper, member list",
+}
+L.COMM_PROBE_START  = "Share check is running (about 10 seconds) ..."
+L.COMM_PROBE_COMBAT = "The share check does not run in combat."
+L.COMM_PROBE_CHANNEL   = "Channel: %s, joined: %s"
+L.COMM_PROBE_CHAN_ECHO = "Addon message in the channel: sent %s, arrived %s"
+L.COMM_PROBE_WHISPER   = "Addon whisper to yourself: sent %s, arrived as \"First Last\" %s, as \"First-Last\" %s"
+L.COMM_PROBE_ROSTER    = "Member list: %d names read (the game reports %d members)"
+L.COMM_PROBE_SAVED  = "Saved in PeonDB.comm.probe. /reload writes it to WTF."
+L.COMM_YES = "yes"
+L.COMM_NO  = "no"
 L.OPT_DESC     = "Shared core of the Peon addon collection. The modules have their own pages below this entry."
 L.OPT_MODULES  = "Modules"
 L.OPT_VERSION  = "Version %s"
@@ -114,6 +137,7 @@ if GetLocale() == "deDE" then
         "/peon debug <Modul> - Debug-Ausgaben eines Moduls an/aus",
         "/peon fehler [leeren] - gespeicherte Fehler zeigen oder löschen",
         "/peon neu - Hinweise der Module wieder zeigen",
+        "/peon teilen [an | aus | pruefen] - Daten mit anderen Peon-Nutzern teilen",
         "/peon ui - Beispielfenster zum UI-Design",
         "/peon ui pruefen [maus | <Fenster> | leeren] - Grafiken von Blizzards Fenstern auslesen (UI-Design)",
     }
@@ -156,6 +180,28 @@ if GetLocale() == "deDE" then
     L.ITEMMENU_CTRL_MIDDLE = "Strg+Mittelklick"
     L.ITEMMENU_MIDDLE     = "Mittelklick"
     L.ITEMMENU_OFF        = "Aus"
+    -- Daten teilen (Comm.lua, API 23)
+    L.COMM_OPT          = "Daten teilen"
+    L.COMM_OPT_SHARE    = "Daten mit anderen Peon-Nutzern teilen"
+    L.COMM_OPT_HINT     = "Peon lernt über einen versteckten Kanal und unsichtbares Addon-Flüstern still andere Peon-Nutzer kennen. Im Chat erscheint nichts, Charakternamen werden nicht gespeichert. Vorerst geht nur die Version hin und her, später teilen die Module Spieldaten wie Sammelstellen."
+    L.COMM_STATUS       = "Kanal %s, %d Peon-Nutzer erreichbar, %d bisher kennengelernt. Nachrichten: %d gesendet, %d empfangen, %d weitergegeben."
+    L.COMM_STATUS_OFF   = "Teilen ist aus."
+    L.COMM_OFF_HINT     = "Teilen ist aus. /peon teilen an schaltet es ein."
+    L.COMM_NOW_ON       = "Daten mit anderen Peon-Nutzern teilen ist an."
+    L.COMM_NOW_OFF      = "Daten mit anderen Peon-Nutzern teilen ist aus. Peon hat den Kanal verlassen."
+    L.COMM_HELP = {
+        "/peon teilen an | aus - Teilen ein- oder ausschalten",
+        "/peon teilen pruefen - Prüfung im Spiel: Kanal-Nachricht, Addon-Flüstern, Mitgliederliste",
+    }
+    L.COMM_PROBE_START  = "Prüfung läuft (etwa 10 Sekunden) ..."
+    L.COMM_PROBE_COMBAT = "Die Prüfung läuft nicht im Kampf."
+    L.COMM_PROBE_CHANNEL   = "Kanal: %s, beigetreten: %s"
+    L.COMM_PROBE_CHAN_ECHO = "Addon-Nachricht im Kanal: gesendet %s, angekommen %s"
+    L.COMM_PROBE_WHISPER   = "Addon-Flüstern an sich selbst: gesendet %s, angekommen als „Vorname Nachname“ %s, als „Vorname-Nachname“ %s"
+    L.COMM_PROBE_ROSTER    = "Mitgliederliste: %d Namen gelesen (das Spiel meldet %d Mitglieder)"
+    L.COMM_PROBE_SAVED  = "Gespeichert in PeonDB.comm.probe. /reload schreibt es in WTF."
+    L.COMM_YES = "ja"
+    L.COMM_NO  = "nein"
     L.NOTICE_TITLE  = "Peon: Wichtige Hinweise"
     L.NOTICE_OK     = "Verstanden"
     L.NOTICE_AGAIN  = "/peon neu zeigt diese Hinweise wieder."

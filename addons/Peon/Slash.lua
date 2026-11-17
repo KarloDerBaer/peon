@@ -4,6 +4,7 @@
 -- /peon debug <m>   Debug-Ausgaben eines Moduls an/aus
 -- /peon fehler      gespeicherte Fehler zeigen, mit "leeren" loeschen
 -- /peon neu        einmalige Hinweise der Module wieder zeigen (ab 0.20.0, Notice.lua)
+-- /peon teilen     Datenaustausch mit anderen Peon-Nutzern: Stand, an, aus, pruefen (ab 0.23.0, Comm.lua)
 -- /peon ui pruefen  Grafiken von Blizzards Fenstern auslesen (ab 0.18.0, UIProbe.lua)
 -- /peon <m> [...]   Befehl an ein Modul weiterreichen
 
@@ -53,6 +54,8 @@ SlashCmdList.PEON = function(msg)
         end
     elseif (cmd == "neu" or cmd == "news" or cmd == "hinweise") and ns.Notice then
         ns.Notice.Slash()
+    elseif (cmd == "teilen" or cmd == "share") and ns.Comm then
+        ns.Comm.Slash(rest)
     elseif cmd == "ui" and ns.UIProbe then
         ns.UIProbe.Slash(rest)
     elseif cmd == "help" or cmd == "hilfe" or cmd == "?" then

@@ -129,7 +129,9 @@ check(true, "Seite anzeigen (Refresh + Neuanordnung) ohne Fehler")
 local modeCalls = 0
 table.insert(ns.onModeChanged, function() modeCalls = modeCalls + 1 end)
 local checks = {}
-for _, f in ipairs(frames) do if f.kind == "CheckButton" then checks[#checks + 1] = f end end
+-- ohne den Schalter "Daten teilen" der Kern-Seite (Peon 0.23.0)
+local commCheck = Peon.Comm and Peon.Comm.option and Peon.Comm.option.check
+for _, f in ipairs(frames) do if f.kind == "CheckButton" and f ~= commCheck then checks[#checks + 1] = f end end
 check(#checks == 11, "11 Haekchen (" .. #checks .. ")")
 PeonFishingDB.clickMode = "double"
 checks[1].GetChecked = function() return false end

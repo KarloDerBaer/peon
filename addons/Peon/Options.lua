@@ -92,6 +92,13 @@ function ns.CreateOptions()
         if not ok then Peon.ReportCoreError("Options", err) end
     end
 
+    -- API 23: Daten mit anderen Peon-Nutzern teilen (Comm.lua), unter dem Gegenstandsmenue
+    if ns.Comm and ns.Comm.AddOption then
+        local anchor = (ns.ItemMenu and ns.ItemMenu.option and ns.ItemMenu.option.hint) or list
+        local ok, err = pcall(ns.Comm.AddOption, panel, anchor)
+        if not ok then Peon.ReportCoreError("Options", err) end
+    end
+
     if HasSettings then
         category = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
         Peon.category = category

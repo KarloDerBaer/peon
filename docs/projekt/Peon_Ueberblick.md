@@ -31,7 +31,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 | Addon | Version | SavedVariables | Befehl |
 |---|---|---|---|
-| Peon | 0.19.0 | `PeonDB` | /peon |
+| Peon | 0.23.0 | `PeonDB` | /peon |
 | Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
 | Peon_Fishing (früher FishingPlus) | 1.6.0 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
@@ -46,7 +46,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
-## Kern-API (Peon.API = 20)
+## Kern-API (Peon.API = 23)
 
 Die API wird nur erweitert, nie geändert (sonst brechen alle Module). Bei neuen Funktionen `Peon.API` erhöhen.
 
@@ -151,6 +151,21 @@ if mod.AddNotice then mod:AddNotice({
     text  = { "Erster Absatz.", "Zweiter Absatz." },   -- Text oder Liste von Absaetzen
 }) end
 ```
+- **Datenaustausch zwischen Peon-Nutzern (API 23, Comm.lua):** Stiller Austausch über unsichtbares Addon-Flüstern. Der versteckte Kanal `PeonNet` ist nur der Treffpunkt (wer drin ist, hat Peon). Der Kern kümmert sich um Kanal, Mitgliederliste, Takt, Teilen langer Daten, Weitergabe, doppelte Nachrichten und Prüfwert, nie im Kampf und nicht in Instanzen. Abschaltbar in den Peon-Einstellungen und mit `/peon teilen aus`. Module speichern fremde Daten getrennt von den eigenen und nie mit Namen. Im ersten Schritt nutzt nur der Kern selbst den Austausch (Dienst `hello`, Kennenlernen).
+```lua
+if Peon.Comm then
+    Peon.Comm.Register("nodes", { version = 1, onReceive = function(daten, info)
+        -- info.origin = Prüfwert des Urhebers (kein Name), info.hops, info.direct, info.reply(antwort)
+    end })
+    Peon.Comm.Send("nodes", { map = 1411, x = 0.4512, y = 0.3301 })   -- Rückgabe: Zahl der eingereihten Flüsternachrichten
+    Peon.Comm.Send("nodes", daten, { to = name })                     -- nur an einen, ohne Weitergabe
+end
+Peon.Comm.IsOn(); Peon.Comm.Peers(); Peon.Comm.Known(); Peon.Comm.Status()
+Peon.Comm.SendChannel("nodes", daten)   -- einmal an alle im Kanal, ohne Weitergabe (beim Empfänger info.via = "c")
+Peon.Comm.Listen(function(richtung, art, wer, text) end)   -- jede Nachricht sehen (Peon_Debug)
+Peon.Comm.SetShow("channel", true); Peon.Comm.SetShow("whisper", true)   -- Kanal und „nicht online“ zeigen (Peon_Debug)
+```
+  Dienstnamen: Buchstaben, Ziffern und `_`, höchstens 12 Zeichen. Daten: Tabellen, Texte, Zahlen, Wahrheitswerte, nach dem Verpacken höchstens acht Teile (rund 1.600 Zeichen).
 - **Fehlerspeicher (API 12, Core.lua):** `mod:ReportError(where, err)` und `mod:Call` speichern abgefangene Fehler automatisch in `PeonDB.errors` und nennen sie einmal pro Sitzung kurz im Chat. Den Text zeigen `/peon fehler` und der Reiter Rückmeldungen im Peon Manager, der sie einliest und im Spiel löschen lässt.
 ```lua
 Peon.RecordError(addonName, where, err, version)   -- speichern ohne Chat-Ausgabe, gleiche Fehler zaehlen hoch
@@ -229,6 +244,7 @@ UI.BottomTabs(win, { { "a", "Übersicht" } }, fn):Select("a"); UI.StatusBar(win)
 - **Verankerte Menüs:** `MenuUtil.CreateContextMenu` öffnet immer am Mauszeiger. Für eine feste Stelle: `MenuUtil.CreateRootMenuDescription(MenuVariants.GetDefaultContextMenuMixin())`, `Menu.PopulateDescription(generator, owner, desc)`, `Menu.GetManager():OpenMenu(owner, desc, AnchorUtil.CreateAnchor(...))`. Nachgelesen in `Blizzard_Menu`, im Spiel mit Peon_Panel 0.1.0 noch zu bestätigen. Blizzard klappt das Menü bei Platzmangel um und hält es im Bild.
 
 - **Gruppensuche (geprüft mit Warhorn 0.1.0, 17.11.2026):** Forever hat nur die Gruppensuche im Vanilla-Stil (`Blizzard_GroupFinder_VanillaStyle`, `LFGParentFrame` mit `LFGBrowseFrame` und `LFGListingFrame`), kein `PVEFrame`. `C_LFGList.Search` geht aus einem Addon nur nach Klick oder Tastendruck des Spielers. Aus einem Zeitgeber meldet das Spiel `ADDON_ACTION_BLOCKED`. Änderungen an gefundenen Einträgen kommen ohne neue Suche (`LFG_LIST_SEARCH_RESULT_UPDATED`). `GetSearchResultMemberCounts` liefert Anzahl je Rolle, freie Plätze je Rolle (`TANK_REMAINING`, `HEALER_REMAINING`, `DAMAGER_REMAINING`), Anzahl je Klasse und `classesByRole`. `GetSearchResultPlayerInfo` liefert je Mitglied Klasse, Stufe, Rolle und `lfgRoles`. Außerhalb von Kampf und Instanz ist nichts davon geheim.
+- **Addon-Nachrichten zwischen Spielern (Fund aus Profession Leveling Guide 2.6.8, MIT, `Module\Netz.lua`):** Über einen Chat-Kanal (`CHANNEL`) kommen Addon-Nachrichten in Forever nicht an, auch die eigenen nicht, Senden meldet keinen Fehler. Unsichtbares Addon-Flüstern (`WHISPER`) geht. Die Mitgliederliste eines Kanals liefert `C_ChatInfo.GetChannelRosterInfo(Nummer aus GetChannelDisplayInfo, i)`. Die gemeldete Anzahl ist oft 0, bis die Liste geladen ist (`SetSelectedDisplayChannel` fordert sie an), Namen fehlen teils und kommen dann über `GetPlayerInfoByGUID`. Blizzard drosselt Flüstern bei etwa einer Nachricht je Sekunde, höchstens 255 Zeichen. Den Kanal erst rund 15 Sekunden nach dem Einloggen betreten, sonst verschieben sich die Nummern der Standardkanäle. **Eigene Prüfung mit Peon 0.23.0 (17.11.2026, Build 70938, `/peon teilen pruefen`, nur ein Spieler im Kanal):** Kanal `PeonNet` betreten und versteckt. Die eigene Addon-Nachricht im Kanal kam zurück, der Fund aus dem Guide stimmt hier also nicht oder nicht mehr. Addon-Flüstern an den eigenen Charakter kam dagegen nicht zurück, weil Peon an den Vornamen allein flüsterte (Meldung „nicht online“ mit dem Vornamen). Flüstern braucht in Forever den vollen Namen mit Nachnamen. Zweite Prüfung mit vollem Namen (17.11.2026): Flüstern an sich selbst kommt in beiden Schreibweisen an („Vorname Nachname“ und „Vorname-Nachname“). Mitgliederliste, `GetPlayerInfoByGUID` und Absender von Addon-Nachrichten liefern Namen als „Vorname Nachname“ mit Leerzeichen, ohne Realm. **Vorsicht:** `SetSelectedDisplayChannel` nie aus `CHANNEL_ROSTER_UPDATE` heraus aufrufen. Jede Antwort fordert sonst die nächste an, im Test trennte der Chatserver danach kurz die Verbindung (Peon 0.23.0 fordert höchstens einmal je Minute an). Ob Flüstern zwischen zwei Spielern ankommt und ob Kanal-Nachrichten andere Mitglieder erreichen, lässt sich allein nicht klären. Die Mitgliederliste war lesbar (1 Eintrag, der eigene), die gemeldete Anzahl war 0.
 - **Blizzard-Code der Forever-Version** liegt öffentlich auf GitHub: `Gethe/wow-ui-source`, Zweig **`forever`** (Stand 1.60.1.70888, 10.11.2026). Damit lassen sich Abläufe nachlesen statt raten (z. B. `TooltipComparisonManager.lua`, `ContainerFrame.lua`, `SharedUIPanelTemplates.xml`). Mainline-Dateien (`…/Mainline/…`) sind die, die Forever nutzt.
 - **Forever heißt in Blizzards Code „camelot“** (Spieltyp in den TOC-Dateien, Ordner `…/Camelot/…`). Geladen wird die Mainline-Fassung (`[Family]`), dazu Camelot-Dateien, die einzelne Teile ersetzen (z. B. `Blizzard_SharedXML/Camelot/NineSliceLayoutOverrides.lua`, `SharedUIPanelTemplates.lua` mit Schließen-Knopf 28×28, `Blizzard_Professions/Camelot`). **Wichtig für das Aussehen:** Laut Blizzards Kommentar gibt es eigene Grafiken für Camelot unter denselben Atlas-Namen wie in Retail. Wie ein Atlas aussieht, lässt sich deshalb nicht aus dem Code ablesen, nur im Spiel (`/peon ui pruefen`, ab Peon 0.18.0). Die Ordner `…/Classic/…` (z. B. Marmor-Hintergründe im Auktionshaus) gelten nicht für Forever. Im Spiel bestätigt (11.11.2026): Metallrahmen, Reiter, Schließen-Knopf, Bildlaufleiste und Auswahllisten kommen aus eigenen Forever-Dateien, die Hintergründe des Auktionshauses aus Blizzards gewohnter Datei. Maße, Grafiken und Schriften für Peon-Fenster: `docs\konzepte\Peon_UI_Design.md`.
 - **Hintergründe im Auktionshaus** (`AuctionHouseBackgroundTemplate`): `Background:SetAtlas(atlas, true)` in Originalgröße, nur oben links verankert und nicht gestreckt. Wer die Grafik auf einen anders großen Rahmen zieht, verzerrt sie (Broker 0.56 bis 0.58).
