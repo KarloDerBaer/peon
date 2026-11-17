@@ -502,7 +502,7 @@ function B.FinishKey(job, found)
     end
     KeyLog(("%s %s%s: %s"):format(tostring(job.itemID), job.name, std, best and table.concat(parts, ", ") or "nichts gefunden"))
     local ok = best ~= nil
-    if ns.Data.HasVariants(job.itemID) then
+    if ns.Data.HasVariants(job.itemID) or ns.Data.IsVariantKey(job.key) then   -- ab 0.102.0 auch fuer Chancen mit Varianten-Schluessel
         -- ab 0.28: Varianten - Name je Schluessel vom Spiel (GetItemKeyInfo), so lernt Broker alle auf einmal
         local ah2 = AHApi()
         for _, f in ipairs(found or {}) do

@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.102.0
+
+Kurz: „Alle prüfen“ bei den Chancen erkennt jetzt auch Ausrüstung mit Zusatz wie „der Beweglichkeit“, die schon weg ist. Vorher blieb sie „ungeprüft“, bis man sie im Fokus geöffnet hat.
+
+- 0.102.0 (17.11.2026, Rückmeldung KarloDerBaer):
+  - **Behoben, Chancen:** Chancen mit Varianten (Zusatz im Namen) konnte Broker ohne gelernten Suchschlüssel nicht gezielt abfragen, sie blieben „ungeprüft“. Jetzt sucht Broker auf der Seite Chancen zuerst über die Namenssuche des Auktionshauses nach allen Varianten (`R.LearnChance`, `C.NextLearn`). Ist die Variante dabei, ist der Schlüssel gelernt und die Chance wird normal geprüft. Fehlt sie oder gibt es gar keine Angebote, steht sie auf „weg“. Hat das Spiel die Namen der Varianten noch nicht geladen, versucht Broker es nach 30 Sekunden erneut, höchstens dreimal.
+  - **Behoben, Chancen:** „Alle prüfen“ hielt auf der Seite Chancen gleich nach dem Start wieder an, weil der Radar-Scan nur auf der Seite Radar laufen durfte. Geprüft hat bis dahin nur das Erneuern nacheinander.
+  - `B.FinishKey` lernt die Schlüssel auch, wenn der Markt den Gegenstand noch nicht als Gegenstand mit Varianten kennt.
+  - Tests: lernen, weg bei fehlender Variante, später nochmal bei fehlenden Namen, weg ohne Angebote (`test_broker.lua`).
+
 ## 0.101.0
 
 Kurz: Chancen, die beim Prüfen weg waren, kommen nach einem Reload nicht mehr wieder. Erst wenn der Peon Manager sie mit neuen Daten wieder findet, stehen sie erneut in der Liste.

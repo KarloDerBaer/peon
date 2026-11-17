@@ -12,6 +12,8 @@
 -- Ab 0.101 (Wunsch KarloDerBaer 17.11.2026): Was beim Pruefen weg war, merkt sich Broker mit dem Stand des Managers, aus
 -- dem die Chance kam (C.Forget). Bis ein neuerer Stand sie wieder bringt, steht sie nicht mehr in der Liste. Der Manager
 -- liest die Liste aus Peon_Broker.lua und blendet sie ebenfalls aus.
+-- Ab 0.102 (Rueckmeldung KarloDerBaer 17.11.2026): Chancen mit Varianten ohne gelernten Suchschluessel lernt Broker
+-- zuerst ueber die Browse-Suche (C.NextLearn, Radar.lua R.LearnChance), sonst blieben sie "ungeprueft".
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -146,6 +148,39 @@ function C.Keys()
     end
     table.sort(keys, function(a, b) return (all[a].gain or 0) > (all[b].gain or 0) end)
     return keys
+end
+
+-- ab 0.102.0: Chancen mit Varianten, deren Suchschluessel Broker noch nicht kennt (Radar.lua R.LearnChance).
+-- Hoechster Gewinn zuerst, je Chance hoechstens LEARN_TRIES Versuche im Abstand von LEARN_AGAIN Sekunden.
+C.LEARN_TRIES = 3
+C.LEARN_AGAIN = 30
+C.learnAt, C.learnTries = {}, {}
+
+function C.NextLearn()
+    local Sp = ns.Spec
+    if not Sp then return nil end
+    local now, best, bestGain = Now(), nil, nil
+    for key, x in pairs(Sp.All()) do
+        if C.KindOn(x.mk) and not C.Hidden(key, x) and ns.Data.IsVariantKey(key) and not ns.Buy.KnownKey(key)
+            and not C.checked[key] and (C.learnTries[key] or 0) < C.LEARN_TRIES
+            and now - (C.learnAt[key] or -1e9) >= C.LEARN_AGAIN then
+            local g = x.gain or 0
+            if bestGain == nil or g > bestGain then best, bestGain = key, g end
+        end
+    end
+    return best
+end
+
+-- Haben alle gefundenen Varianten einen Namen vom Spiel? Erst dann heisst "nicht dabei" auch "weg".
+function C.AllNamed(found)
+    local ah = rawget(_G, "C_AuctionHouse")
+    if not (ah and ah.GetItemKeyInfo) then return false end
+    for _, f in ipairs(found) do
+        local ok, info = pcall(ah.GetItemKeyInfo, f.itemKey)
+        local name = ok and type(info) == "table" and info.itemName
+        if type(name) ~= "string" or name == "" or Peon.IsSecret(name) then return false end
+    end
+    return true
 end
 
 -- Antwort einer Live-Abfrage (Radar.lua R.Apply): Zustand merken, wenn der Gegenstand eine Chance des Managers ist

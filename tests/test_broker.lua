@@ -4258,6 +4258,69 @@ end)()
   Sp.cache = nil
 end)()
 
+-- ===== 0.102.0: Chancen mit Varianten ohne gelernten Schluessel (Rueckmeldung KarloDerBaer 17.11.2026) =====
+;(function()
+  local Sp, C, R = ns.Spec, ns.Chances, ns.Radar
+  local now = time()
+  local kA, kB, kC = "2780:Kette der Beweglichkeit", "2781:Ring des Adlers", "2782:Umhang des Affen"
+  local fake = { Chances = function()
+    return now - 600, { [kA] = "s:500:900:" .. (now + 3600) .. ":3000:1", [kB] = "s:500:900:" .. (now + 3600) .. ":2000:1",
+                        [kC] = "s:500:900:" .. (now + 3600) .. ":1000:1" }, {}
+  end }
+  local orig = Peon.GetModule
+  Peon.GetModule = function(self, k) if k == "bridge" then return fake end return orig(self, k) end
+  Sp.cache = nil
+  local savedAH, savedOpen, savedKeys = rawget(_G, "C_AuctionHouse"), ns.Scan.ahOpen, PeonBrokerDB.itemKeys
+  local ah = savedAH or {}
+  C_AuctionHouse = ah
+  local sBQ, sGBR, sGIKI = ah.SendBrowseQuery, ah.GetBrowseResults, ah.GetItemKeyInfo
+  ns.Scan.ahOpen = true
+  PeonBrokerDB.itemKeys = nil
+  C.checked, C.goneNow, C.learnAt, C.learnTries, PeonBrokerDB.chancesGone = {}, {}, {}, {}, nil
+  local function inKeys(k) for _, x in ipairs(C.Keys()) do if x == k then return true end end return false end
+  check(not inKeys(kA) and C.NextLearn() == kA, "0.102: Variante ohne Schluessel nicht abfragbar, zuerst lernen (hoechster Gewinn)")
+  -- gefunden: Schluessel gelernt, ab jetzt normal pruefen
+  local browsed
+  local names = { [5] = "Kette der Beweglichkeit", [6] = "Kette des Baeren", [7] = "Ring des Baeren" }
+  ah.SendBrowseQuery = function(q) browsed = q end
+  ah.GetItemKeyInfo = function(k) return names[k.itemSuffix] and { itemName = names[k.itemSuffix] } or nil end
+  ah.GetBrowseResults = function() return { { itemKey = { itemID = 2780, itemLevel = 30, itemSuffix = 5 }, minPrice = 400, totalQuantity = 1 },
+      { itemKey = { itemID = 2780, itemLevel = 30, itemSuffix = 6 }, minPrice = 700, totalQuantity = 1 } } end
+  R.pending = nil
+  check(R.LearnChance(kA) and R.pending and R.pending.browse and browsed, "0.102: Browse-Suche gestartet")
+  fire("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED")
+  check(R.pending == nil and PeonBrokerDB.itemKeys[kA] == "30:5" and inKeys(kA) and C.checked[kA] == nil,
+      "0.102: Schluessel gelernt, Chance steht zum Pruefen an")
+  check(C.NextLearn() == kB, "0.102: danach die naechste Variante")
+  -- andere Varianten mit Namen da, diese nicht: weg
+  ah.GetBrowseResults = function() return { { itemKey = { itemID = 2781, itemLevel = 30, itemSuffix = 7 }, minPrice = 400, totalQuantity = 1 } } end
+  R.LearnChance(kB)
+  fire("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED")
+  local rows = {}
+  for _, r in ipairs(C.Rows()) do rows[r.key] = r end
+  check(rows[kB] and rows[kB].state == "gone" and C.NextLearn() == kC, "0.102: Variante nicht dabei: weg")
+  -- Namen noch nicht geladen: nicht weg, spaeter nochmal
+  names[8] = nil
+  ah.GetBrowseResults = function() return { { itemKey = { itemID = 2782, itemLevel = 30, itemSuffix = 8 }, minPrice = 400, totalQuantity = 1 } } end
+  R.LearnChance(kC)
+  fire("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED")
+  check(C.checked[kC] == nil and C.learnTries[kC] == 1 and C.NextLearn() == nil, "0.102: Namen fehlen: nicht weg, erst spaeter nochmal")
+  C.learnAt[kC] = C.learnAt[kC] - C.LEARN_AGAIN
+  check(C.NextLearn() == kC, "0.102: nach der Pause neuer Versuch")
+  -- gar nichts gefunden: nach der Wartezeit weg
+  ah.GetBrowseResults = function() return {} end
+  R.LearnChance(kC)
+  fire("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED")
+  timers[#timers]()
+  check(C.checked[kC] and C.checked[kC].ok == false and R.pending == nil, "0.102: keine Angebote: weg")
+  ah.SendBrowseQuery, ah.GetBrowseResults, ah.GetItemKeyInfo = sBQ, sGBR, sGIKI
+  C_AuctionHouse, ns.Scan.ahOpen, PeonBrokerDB.itemKeys = savedAH, savedOpen, savedKeys
+  C.checked, C.goneNow, C.learnAt, C.learnTries, PeonBrokerDB.chancesGone = {}, {}, {}, {}, nil
+  R.pending = nil
+  Peon.GetModule = orig
+  Sp.cache = nil
+end)()
+
 -- 0.94: Schnittstelle fuer Peon_Profession (Kaufpreis, Einkaufsliste mit festem Namen)
 ;(function()
   local p, src = mod:BuyPrice(123456789)

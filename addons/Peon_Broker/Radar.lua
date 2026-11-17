@@ -667,7 +667,8 @@ function R.Tick()
     if not R.loop then return end
     if ns.Buying() and not R.job then R.Schedule(); return end   -- ab 0.74: fremder Kauf laeuft, warten
     if not (AHOpen() and R.Active()) then R.Halt(); return end
-    if R.running and not R.Shown() then R.running = false end   -- der Radar-Scan laeuft nur auf der Seite Radar
+    -- der Radar-Scan laeuft nur auf der Seite Radar, "Alle pruefen" (ab 0.102.0) auch auf der Seite Chancen
+    if R.running and not (R.Shown() or (R.forceMode == "mgronly" and R.ChancesShown())) then R.running = false end
     if ns.Scan.state then R.OnFullScan(); return end
     local ah = AHApi()
     local st = R.stats
@@ -705,7 +706,14 @@ function R.Tick()
     if not busy and due and ready and not R.job and R.focus and now >= R.focus.at and R.ItemReady(R.focus.key) then
         R.SendFocus()
     elseif not busy and due and ready and not R.job then
-        local key = R.NextKey()
+        -- ab 0.102.0: Chance mit Varianten ohne gelernten Schluessel: zuerst ueber die Browse-Suche lernen
+        local lk = R.ChancesShown() and ns.Chances.NextLearn() or nil
+        local key
+        if lk ~= nil and R.ItemReady(lk) and R.LearnChance(lk) then
+            R.Schedule()
+            return
+        end
+        key = R.NextKey()
         if key ~= nil and not R.ItemReady(key) then
             -- Daten erst laden (Treffer: hoechstens ~3 s lang, dann uebersprungen)
             local d = R.entries[key]
@@ -895,6 +903,34 @@ function R.TryOtherKey(p, old, rows)
         return false
     end
     return true
+end
+
+-- Chance mit Varianten ohne gelernten Suchschluessel (ab 0.102.0, Rueckmeldung KarloDerBaer 17.11.2026): Solche
+-- Chancen konnte Broker nicht gezielt abfragen, sie blieben "ungeprueft", auch wenn sie laengst weg waren.
+-- Die Browse-Suche nach dem Grundnamen liefert alle Varianten mit ihren Schluesseln:
+--   Variante dabei   Schluessel gelernt, ab jetzt pruefen Erneuern und "Alle pruefen" sie wie jede andere Chance
+--   nichts gefunden  oder alle Varianten mit Namen und diese nicht dabei: weg
+--   sonst            (Namen vom Spiel noch nicht geladen) spaeter nochmal (Chances.lua C.NextLearn)
+function R.LearnChance(key)
+    local C = ns.Chances
+    C.learnAt[key] = Now()
+    C.learnTries[key] = (C.learnTries[key] or 0) + 1
+    local job = { key = key, itemID = ns.Data.ItemID(key), sent = Now(), ev = {}, browse = true }
+    R.pending = job
+    R.lastSend = Now()
+    local started = ns.Buy.FindKey(key, function(_, found)
+        if R.pending == job then R.pending = nil end
+        if ns.Buy.KnownKey(key) then
+            C.learnTries[key] = nil
+            mod:Dbg("Chancen: Schluessel gelernt " .. tostring(key))
+        elseif #(found or {}) == 0 or C.AllNamed(found) then
+            C.learnTries[key] = C.LEARN_TRIES   -- weg, nicht nochmal suchen
+            C.Note(key, nil, {})
+        end
+        if C.Shown() then C.Refresh() end
+    end)
+    if not started and R.pending == job then R.pending = nil end
+    return started
 end
 
 -- Warnton (ab 0.19 waehlbar, Kanal "Master" - hoerbar auch bei "Nur Warnton")
