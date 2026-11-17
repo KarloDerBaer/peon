@@ -251,6 +251,23 @@ function C.Recipes(key)
         r.mine = true
         if me then r.by[me] = true end
     end
+    -- ab 0.6.0: Rezepte von Freunden und Gilde (Friends.lua), Zeile ueber die Rezeptnummer finden
+    local fr = ns.Friends and ns.Friends.ByRecipe(key) or {}
+    if next(fr) then
+        local bySpell = {}
+        for _, r in ipairs(rows) do if r.spell then bySpell[r.spell] = r end end
+        for id, names in pairs(fr) do
+            local r = bySpell[id]
+            if not r then
+                local e = type(all) == "table" and all[id]
+                local out = type(e) == "table" and e.out or nil
+                r = Row((type(e) == "table" and e.name) or G().RecipeName(out, id), out, id)
+                bySpell[id] = r
+            end
+            r.friends = r.friends or {}
+            for _, n in ipairs(names) do r.friends[#r.friends + 1] = n end
+        end
+    end
     -- Lehrer
     local teach = DB("teach")[key]
     for _, e in pairs(type(teach) == "table" and teach or {}) do
@@ -293,12 +310,18 @@ function C.SourceText(r)
     return table.concat(t, ", ")
 end
 
+local BLUE = "|cff66bbff"
 function C.KnownText(r)
-    if r.mine then return GREEN .. L.CX_ME .. "|r" end
+    local t = {}
+    if r.mine then t[#t + 1] = GREEN .. L.CX_ME .. "|r" end
     local n = 0
     for _ in pairs(r.by) do n = n + 1 end
-    if n > 0 then return L.CX_ALTS:format(n) end
-    return GREY .. "–|r"
+    if r.mine then n = n - 1 end
+    if n > 0 then t[#t + 1] = L.CX_ALTS:format(n) end
+    local f = r.friends and #r.friends or 0   -- ab 0.6.0
+    if f > 0 then t[#t + 1] = BLUE .. (f == 1 and L.CX_FRIEND or L.CX_FRIENDS:format(f)) .. "|r" end
+    if #t == 0 then return GREY .. "–|r" end
+    return table.concat(t, ", ")
 end
 
 -- Orte der NPCs einer Quelle (eigene Fraktion zuerst): { { name, map, x, y, kind, price } }
@@ -605,6 +628,9 @@ function W.CodexRecipeTip(row, item)
     for name in pairs(r.by) do who[#who + 1] = name end
     table.sort(who)
     if #who > 0 then GameTooltip:AddLine(L.CX_TIP_KNOWN:format(table.concat(who, ", ")), 0.6, 0.9, 0.6, true) end
+    if r.friends and #r.friends > 0 then   -- ab 0.6.0
+        GameTooltip:AddLine(L.CX_TIP_FRIENDS:format(table.concat(r.friends, ", ")), 0.4, 0.73, 1, true)
+    end
     if #C.Places(r) > 0 then GameTooltip:AddLine(L.CX_TIP_CLICK, 0.6, 0.6, 0.6) end
     GameTooltip:Show()
 end

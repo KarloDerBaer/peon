@@ -43,6 +43,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         teach        = {},   -- ab 0.5.0: [Beruf][Name] = beim Lehrer gesehen
         sold         = {},   -- ab 0.5.0: [Beruf][itemID] = Rezepte beim Haendler gesehen
         npcs         = {},   -- ab 0.5.0: [npcID] = Ort von Lehrern und Haendlern
+        friends      = {},   -- ab 0.6.0: [Name klein] = Rezepte von Freunden und Gilde (Friends.lua)
         colors       = {},   -- [recipeID] = { [0..3] = { von, bis } }  gemessene Farben (Measure.lua)
         ups          = {},   -- [recipeID] = { von, bis }               Stufen, bei denen dieses Rezept Punkte gab
         sel          = 0,    -- je Charakter: zuletzt gewaehlter Beruf (Skill-Linie)
@@ -87,7 +88,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         acc.craftMigrated = true
     end,
     keepOnReset = { windowPos = true, colors = true, ups = true, sel = true, known = true, skills = true, target = true,
-                    craftMigrated = true, nodes = true, recipes = true, teach = true, sold = true, npcs = true },
+                    craftMigrated = true, nodes = true, recipes = true, teach = true, sold = true, npcs = true, friends = true },
     slash    = { "/prof" },
     onSlash  = function(m, cmd, rest)
         cmd = (cmd or ""):lower()
@@ -101,6 +102,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
             ns.Measure.Forget()
         elseif cmd == "stellen" or cmd == "nodes" then      -- ab 0.5.0
             ns.Gather.Report()
+        elseif cmd == "freunde" or cmd == "friends" then    -- ab 0.6.0
+            ns.Friends.Report()
         else
             ns.Window.Toggle()
         end
@@ -251,6 +254,7 @@ mod:On("LOGIN", function()
     if ns.Craft then mod:Call("Berufsfenster Kosten", ns.Craft.Init) end
     if ns.Gather then mod:Call("Sammelstellen", ns.Gather.Init) end   -- ab 0.5.0
     if ns.Codex then mod:Call("Codex", ns.Codex.Init) end
+    if ns.Friends then mod:Call("Rezepte der Freunde", ns.Friends.Init) end   -- ab 0.6.0
     if mod.NewMinimapButton then
         mod:Call("Minimap", mod.NewMinimapButton, mod, {
             icon = ns.ICON,

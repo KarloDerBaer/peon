@@ -6,6 +6,23 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 
 - **Haken ausgrauen statt Umweg** (KarloDerBaer): Nachnahme scheitert auf dem Forever-Server bei jedem Weg, auch mit Mausklick in Blizzards eigenem Fenster. Peon Post graut den Haken mit Hinweis aus, bis Blizzard den Serverfehler behebt. Der vorher gebaute sichere Knopf, der Blizzards Knopf „Senden“ drückt, ist verworfen, er half nicht.
 
+## 18.11.2026: Rezepte der Freunde (Profession 0.6.0, Peon 0.24.0 mit API 24)
+
+- **Nur Freunde und Gilde** (KarloDerBaer): Gespeichert und gezeigt werden nur Peon-Nutzer aus Freundesliste (auch Battle.net) und Gilde. Namen Unbekannter landen nicht beim Nutzer.
+- **Nur der eingeloggte Charakter wird geteilt** (KarloDerBaer): Twinks bleiben unsichtbar.
+- **30 Tage speichern** (KarloDerBaer), ab dem letzten Mal gesehen.
+- **Anzeige in Spalte und Tooltip** (KarloDerBaer): Zahl der Freunde in „Erlernt“, Namen im Tooltip, hellblau.
+- **Stand an alle, Listen nur auf Frage** (Claude, nach Konzept Abschnitt 8.3): Der Stand ist klein, die Listen gehen nur an Freunde, die sie wirklich brauchen. Fragen beantwortet Peon jedem, die Rezepte sind nicht privat.
+- **`info.name` im Kern** (Claude): Für Namen in der Anzeige braucht der Dienst den Absender. Erweiterung als API 24, nur für Dienste mit erlaubter Namensanzeige.
+
+## 18.11.2026: Wege für den Datenaustausch und erster Dienst (Peon 0.24.0)
+
+- **An alle über den Kanal, an einen per Flüstern** (KarloDerBaer): Mit zwei Spielern geprüft, Kanal-Nachrichten erreichen alle Mitglieder. Eine Rundsendung ist eine Nachricht statt drei plus Weitergaben und erreicht alle, die online sind, sofort. Mitlesen kann jedes Addon im Kanal, die Daten sind aber nicht privat. Antworten und Nachholen per Flüstern. Nachrichten von 0.23.0 werden weiter weitergegeben.
+- **Antwort nur auf die erste Begrüßung** (Claude): Sonst würde jede Begrüßung im Kanal eine Antwort von allen auslösen.
+- **Prüfbefehl bleibt** (KarloDerBaer): `/peon teilen pruefen` hilft bei Problemen anderer Nutzer. Nur der überholte Test mit „Vorname-Nachname“ ist entfernt.
+- **Regeln für Module** im Konzept Abschnitt 8 (Claude, mit KarloDerBaer abgestimmt): sparsam senden, Nachholen beim Einloggen, Daten prüfen, fremde Daten getrennt und als fremd erkennbar.
+- **Erster Dienst: Rezepte der Freunde** (KarloDerBaer): Der Codex zeigt, welche Rezepte andere Peon-Nutzer kennen, weil Blizzards Berufslinks in Forever derzeit nicht beim anderen aufgehen. Erste Ausnahme von „keine Namen“. Einzelheiten werden vor dem Bau im Konzept von Peon_Profession geklärt.
+
 ## 17.11.2026: Kanal mittesten und privates Peon_Debug (Peon 0.23.0)
 
 - **Begrüßung im Release zusätzlich über den Kanal** (KarloDerBaer): Die Prüfung allein zeigte, dass die eigene Kanal-Nachricht zurückkommt. Ob andere sie bekommen, zeigt das Release. Höchstens alle 30 Minuten eine, ohne Weitergabe, Antwort per Flüstern. Der Weg steht je Nutzer in `PeonDB.comm.peers`.

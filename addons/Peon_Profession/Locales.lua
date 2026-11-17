@@ -13,7 +13,7 @@ L.MINIMAP        = "Show minimap button"
 L.CRAFT_BAR      = "Guide bar on the profession window"
 L.CRAFT_BAR_HINT = "A small bar above the profession window shows the next recipe of the guide."
 L.OPEN           = "Open window"
-L.SLASH_HINT     = "Chat: /prof opens the window, /prof optionen this page, /prof messungen compares measurements with the routes, /prof vergessen reads the recipes again, /prof stellen counts the gathering spots."
+L.SLASH_HINT     = "Chat: /prof opens the window, /prof optionen this page, /prof messungen compares measurements with the routes, /prof vergessen reads the recipes again, /prof stellen counts the gathering spots, /prof freunde lists the recipes of friends and guild."
 L.TOO_OLD        = "Peon is too old. Peon_Profession needs Peon 0.18 or newer."
 L.MSG_COMBAT     = "Not during combat."
 
@@ -94,7 +94,7 @@ if GetLocale() == "deDE" then
     L.CRAFT_BAR      = "Guide-Leiste am Berufsfenster"
     L.CRAFT_BAR_HINT = "Eine schmale Leiste über dem Berufsfenster zeigt das nächste Rezept des Guides."
     L.OPEN           = "Fenster öffnen"
-    L.SLASH_HINT     = "Chat: /prof öffnet das Fenster, /prof optionen diese Seite, /prof messungen vergleicht Messungen mit den Routen, /prof vergessen liest die Rezepte neu, /prof stellen zählt die Sammelstellen."
+    L.SLASH_HINT     = "Chat: /prof öffnet das Fenster, /prof optionen diese Seite, /prof messungen vergleicht Messungen mit den Routen, /prof vergessen liest die Rezepte neu, /prof stellen zählt die Sammelstellen, /prof freunde zeigt die Rezepte von Freunden und Gilde."
     L.TOO_OLD        = "Peon ist zu alt. Peon_Profession braucht Peon 0.18 oder neuer."
     L.MSG_COMBAT     = "Nicht im Kampf."
 

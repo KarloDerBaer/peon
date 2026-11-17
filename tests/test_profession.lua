@@ -860,6 +860,105 @@ end)()
   ns.Window.Select("guide")
 end)()
 
+-- 0.6.0: Rezepte der Freunde (Friends.lua) ueber ein nachgebautes Peon.Comm
+;(function()
+  local F, Cx, PC = ns.Friends, ns.Codex, Peon.Comm
+  local clock = 1800000000
+  GetServerTime = function() return clock end
+  check(F and Peon.API >= 24 and PC, "0.6.0: Rezepte der Freunde geladen, Kern-API 24")
+  -- Senden abfangen
+  local sent = {}
+  local realSend = PC.Send
+  PC.Send = function(svc, data, opts) sent[#sent + 1] = { svc = svc, d = data, to = opts and opts.to } return 1 end
+  PC.channel = "PeonNet"
+  -- Freundesliste, Battle.net und Gilde
+  C_FriendList = { GetNumFriends = function() return 1 end, GetFriendInfoByIndex = function() return { name = "Bertha Stein" } end }
+  BNGetNumFriends = function() return 1 end
+  C_BattleNet = { GetFriendNumGameAccounts = function() return 1 end, GetFriendGameAccountInfo = function() return { characterName = "Bodo Netz" } end }
+  IsInGuild = function() return true end
+  GetNumGuildMembers = function() return 1 end
+  GetGuildRosterInfo = function() return "Gildo Gast-Fremdrealm" end
+  check(F.InCircle("Bertha Stein") and F.InCircle("Bodo Netz") and F.InCircle("Gildo Gast") and not F.InCircle("Fremd Ling"),
+      "0.6.0: Freunde, Battle.net und Gilde erkannt, Fremde nicht")
+  -- Eigener Stand: nur der eingeloggte Charakter
+  local own = F.Own()
+  check(own[171] and #own[171].ids >= 2 and own[171].ids[1] < own[171].ids[2] and #own[171].h == 6, "0.6.0: eigene Rezepte sortiert mit Pruefwert")
+  check(F.Announce(true) and #sent == 1 and sent[1].svc == "recipes" and sent[1].to == nil and sent[1].d.k == "s"
+      and sent[1].d.f == true and sent[1].d.p[171].c == #own[171].ids, "0.6.0: Stand an alle, erster mit f")
+  check(F.Announce(true) == false and #sent == 1, "0.6.0: hoechstens einmal pro Minute")
+  clock = clock + 61
+  check(F.Announce(false) == false, "0.6.0: ohne Aenderung kein neuer Stand")
+  check(F.Announce(true) and sent[2].d.f == nil, "0.6.0: spaeterer Stand ohne f")
+  -- Stand eines Freundes: nachfragen und eigenen Stand zurueck
+  local replies = {}
+  local function Info(name) return { name = name, origin = "abc123", hops = 0, via = "c", reply = function(d) replies[#replies + 1] = d end } end
+  F.OnReceive({ v = 1, k = "s", f = true, p = { [171] = { s = 120, c = 3, h = "f00f00" } } }, Info("Bertha Stein"))
+  check(#replies == 2 and replies[1].k == "q" and replies[1].p[1] == 171 and replies[2].k == "s", "0.6.0: Freund gefragt und eigenen Stand zurueckgeschickt")
+  check(mod.db.friends["bertha stein"] and mod.db.friends["bertha stein"].name == "Bertha Stein", "0.6.0: Freund gemerkt")
+  F.OnReceive({ v = 1, k = "s", f = true, p = { [171] = { s = 120, c = 3, h = "f00f00" } } }, Info("Bertha Stein"))
+  check(#replies == 2, "0.6.0: innerhalb von 10 Minuten nicht noch einmal")
+  F.OnReceive({ v = 1, k = "s", f = true, p = { [171] = { s = 1, c = 1, h = "aaaaaa" } } }, Info("Fremd Ling"))
+  check(#replies == 2 and mod.db.friends["fremd ling"] == nil, "0.6.0: Fremde werden nicht gefragt und nicht gemerkt")
+  -- Liste in zwei Teilen (Basis 36)
+  local function B36(n) local d, s = "0123456789abcdefghijklmnopqrstuvwxyz", "" repeat local r = n % 36 s = d:sub(r + 1, r + 1) .. s n = math.floor(n / 36) until n == 0 return s end
+  F.OnReceive({ v = 1, k = "l", p = 171, s = 120, h = "f00f00", i = 1, n = 2, ids = B36(101) .. "," .. B36(999) }, Info("Bertha Stein"))
+  check(mod.db.friends["bertha stein"].p[171] == nil, "0.6.0: erst nach allen Teilen gespeichert")
+  F.OnReceive({ v = 1, k = "l", p = 171, s = 120, h = "f00f00", i = 2, n = 2, ids = B36(777) }, Info("Bertha Stein"))
+  local fp = mod.db.friends["bertha stein"].p[171]
+  check(fp and fp.ids[101] and fp.ids[999] and fp.ids[777] and fp.h == "f00f00" and fp.s == 120, "0.6.0: Liste vollstaendig gespeichert")
+  -- Ungueltiges wird verworfen
+  F.OnReceive({ v = 1, k = "l", p = 99999, s = 1, h = "x", i = 1, n = 1, ids = "1" }, Info("Bertha Stein"))
+  F.OnReceive({ v = 1, k = "l", p = 171, s = 1, h = "x", i = 3, n = 2, ids = "1" }, Info("Bertha Stein"))
+  F.OnReceive({ v = 1, k = "l", p = 171, s = 1, h = "y", i = 1, n = 1, ids = B36(5) }, Info("Fremd Ling"))
+  F.OnReceive("kaputt", Info("Bertha Stein"))
+  F.OnReceive({ v = 1, k = "l", p = 171 }, { name = nil })
+  check(mod.db.friends["bertha stein"].p[99999] == nil and mod.db.friends["fremd ling"] == nil and fp.h == "f00f00", "0.6.0: ungueltige Daten verworfen")
+  -- Codex: Freunde in Spalte und Tooltip, unbekanntes Rezept als eigene Zeile
+  SpellNames = SpellNames or {}
+  local rows = Cx.Recipes(171)
+  local bySpell = {}
+  for _, r in ipairs(rows) do if r.spell then bySpell[r.spell] = r end end
+  check(bySpell[101] and bySpell[101].friends and bySpell[101].friends[1] == "Bertha Stein" and bySpell[101].mine, "0.6.0: eigenes Rezept, das auch der Freund kennt")
+  check(bySpell[999] and bySpell[999].friends and not bySpell[999].mine, "0.6.0: Rezept nur vom Freund als eigene Zeile")
+  check(Cx.KnownText(bySpell[101]):find("du") and Cx.KnownText(bySpell[101]):find("1 Freund"), "0.6.0: Spalte Erlernt mit Freund: " .. Cx.KnownText(bySpell[101]))
+  check(Cx.KnownText(bySpell[777]):find("1 Twinks") and Cx.KnownText(bySpell[777]):find("1 Freund"), "0.6.0: Twink und Freund: " .. Cx.KnownText(bySpell[777]))
+  local tip = {}
+  GameTooltip = setmetatable({ AddLine = function(_, t) tip[#tip + 1] = t end, AddDoubleLine = function(_, t) tip[#tip + 1] = t end }, { __index = function() return function() end end })
+  ns.Window.CodexRecipeTip({}, { r = bySpell[101] })
+  check(table.concat(tip, "\n"):find("Freunde: Bertha Stein", 1, true), "0.6.0: Tooltip nennt den Freund")
+  -- Frage eines anderen: Liste in Teilen, Rezeptnummern in Basis 36
+  replies = {}
+  F.PER_PART = 1
+  F.OnReceive({ v = 1, k = "q", p = { 171, 99999 } }, Info("Fremd Ling"))
+  check(#replies == #own[171].ids and replies[1].k == "l" and replies[1].p == 171 and replies[1].n == #own[171].ids
+      and tonumber(replies[1].ids, 36) == own[171].ids[1], "0.6.0: Antwort mit Liste in Teilen")
+  F.OnReceive({ v = 1, k = "q", p = { 171 } }, Info("Fremd Ling"))
+  check(#replies == #own[171].ids, "0.6.0: auf Fragen hoechstens alle 10 Minuten")
+  F.PER_PART = 150
+  -- Anmelden beim Kern
+  local reg
+  local realReg = PC.Register
+  PC.Register = function(name, o) reg = { name = name, o = o } return true end
+  F.Init()
+  check(reg and reg.name == "recipes" and type(reg.o.onReceive) == "function", "0.6.0: Dienst beim Kern angemeldet")
+  PC.Register = realReg
+  -- /prof freunde
+  local before = #out
+  SlashCmdList.PEON_PROFESSION("freunde")
+  check(#out > before and table.concat(out, "\n", before + 1):find("Bertha Stein", 1, true), "0.6.0: /prof freunde zeigt den Freund")
+  -- Nach 30 Tagen faellt der Freund weg
+  clock = clock + 31 * 86400
+  F.Purge()
+  check(mod.db.friends["bertha stein"] == nil, "0.6.0: nach 30 Tagen entfernt")
+  -- Kern zu alt: nichts tun
+  local api = Peon.API
+  Peon.API = 23
+  check(F.Announce(true) == false, "0.6.0: ohne Kern-API 24 kein Austausch")
+  Peon.API = api
+  PC.Send = realSend
+  PC.channel = nil
+end)()
+
 -- Starter-Text und Slash
 ns.Window.Open(186)
 check(ns.LauncherText() == "Bergbau 40/75", "Text fuer Peon_Panel: gewaehlter Beruf")

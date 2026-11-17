@@ -178,10 +178,10 @@ local function Advance(sec)
   end
 end
 
--- Netz wie in Forever: Fluestern nur an den vollen Namen ("Vorname Nachname" oder "Vorname-Nachname"),
--- an den Vornamen allein kommt es nicht an. Absender "Vorname-Nachname". Kanal-Nachrichten verschluckt.
+-- Netz wie in Forever: Fluestern nur an den vollen Namen ("Vorname Nachname"), nicht an den Vornamen allein
+-- und nicht mit Realm-Anhang. Absender anderer Spieler mit Realm. Kanal-Nachrichten erreichen alle Mitglieder.
 local delivered, lost, realmLost = 0, 0, 0
-local chanWorks = false   -- Abschnitt 15: Kanal-Nachrichten kommen bei allen Mitgliedern an
+local chanWorks = true    -- wie in Forever (gepruefte mit zwei Spielern): Kanal-Nachrichten kommen bei allen an
 local function Flush()
   while #net > 0 do
     local m = table.remove(net, 1)
@@ -238,7 +238,7 @@ end
 math.randomseed(7)
 local A = NewPlayer("Arnulf")
 local C, Peon, L = A.C, A.Peon, A.ns.L
-check(Peon.API >= 23 and Peon.Comm == C, "Kern-API 23, Peon.Comm")
+check(Peon.API >= 24 and Peon.Comm == C, "Kern-API 24, Peon.Comm")
 local toc = io.open("Peon/Peon.toc"):read("*a")
 check(toc:find("Notice.lua%s+Comm.lua%s+Slash.lua"), "Comm.lua in der TOC nach Notice und vor Slash")
 local src = io.open("Peon/Comm.lua"):read("*a")
@@ -309,15 +309,17 @@ check(C.nameSet["carlo stein"] == "Carlo Stein", "Name ueber die Spieler-ID, wen
 check(not C.nameSet["arnulf stein"], "sich selbst nicht")
 
 ---------------------------------------------------------------------------
--- 5. Kennenlernen: Begruessung, Antwort, Weitergabe
+-- 5. Kennenlernen: Begruessung im Kanal, Antwort per Fluestern
 ---------------------------------------------------------------------------
 Advance(C.HELLO_FIRST)
 Pump()
 local function Known(P) return P.C.Known() end
-check(Known(A) >= 3, "A kennt die, die geantwortet haben: " .. Known(A))
+check(Known(A) == 4, "A kennt alle vier (Begruessungen im Kanal und Antworten): " .. Known(A))
 local reached = 0
 for _, P in ipairs({ B, Cc, D, E }) do if P.Peon.db.comm.peers[C.MyCode()] then reached = reached + 1 end end
-check(reached == 4, "alle vier kennen A (direkt oder weitergegeben): " .. reached)
+check(reached == 4, "alle vier kennen A ueber den Kanal: " .. reached)
+check((B.Peon.db.comm.peers[C.MyCode()].c or 0) >= 1, "Begruessung kam ueber den Kanal")
+check((A.Peon.db.comm.peers[B.C.MyCode()].w or 0) >= 1 or (A.Peon.db.comm.peers[B.C.MyCode()].c or 0) >= 1, "B bei A bekannt")
 local pa = B.Peon.db.comm.peers[C.MyCode()]
 check(pa.v == Peon.version and pa.a == Peon.API and pa.n >= 1 and pa.first and pa.last, "Version, API, Anzahl und Zeit gemerkt")
 for _, P in ipairs({ A, B, Cc, D, E }) do
@@ -325,10 +327,10 @@ for _, P in ipairs({ A, B, Cc, D, E }) do
   for n in pairs(players) do check(not s:find(n), "kein Charaktername in PeonDB von " .. P.name .. ": " .. n) end
 end
 local cdb = A.Peon.db.comm
-check(cdb.sent > 0 and cdb.recv > 0, "Zaehler gesendet und empfangen")
+check(cdb.chanSent > 0 and cdb.recv > 0 and cdb.chanRecv > 0, "Zaehler gesendet und empfangen")
 local relayedAll = 0
 for _, P in ipairs({ A, B, Cc, D, E }) do relayedAll = relayedAll + P.Peon.db.comm.relayed end
-check(relayedAll > 0, "Nachrichten weitergegeben")
+check(relayedAll == 0, "ab 0.24.0 nichts weitergegeben")
 local st = C.Status()
 check(st.on and st.running and st.channel == "PeonNet" and st.peers == 4 and st.known == Known(A), "Stand: " .. Dump(st))
 check(C.StatusText():find("PeonNet") and C.StatusText():find(tostring(st.known)), "Stand als Text")
@@ -345,6 +347,17 @@ check(not replied, "auf eine Antwort wird nicht geantwortet")
 -- Weitergegebene Begruessung: keine Antwort (Urheber unbekannt)
 B.C.OnHello({ v = "x", a = 1 }, { origin = "abcdef", hops = 1, reply = function() replied = true end })
 check(not replied, "auf weitergegebene Begruessung keine Antwort")
+-- Erste Begruessung: jeder antwortet einmal. Spaetere Begruessungen im Kanal: keine Antworten mehr
+check(C.helloAt and C.SayHello() == 0, "Begruessung hoechstens alle 30 Minuten")
+local sentBefore = 0
+for _, P in ipairs({ B, Cc, D, E }) do sentBefore = sentBefore + P.Peon.db.comm.sent end
+C.helloAt = now - C.HELLO_EVERY
+check(C.SayHello() == 1, "naechste Begruessung: eine Nachricht im Kanal")
+for _, P in ipairs({ B, Cc, D, E }) do wipe(P.C.replied) end
+Pump()
+local sentAfter = 0
+for _, P in ipairs({ B, Cc, D, E }) do sentAfter = sentAfter + P.Peon.db.comm.sent end
+check(sentAfter == sentBefore, "auf spaetere Begruessung im Kanal antwortet niemand")
 
 ---------------------------------------------------------------------------
 -- 6. Eigener Dienst: Senden, Empfangen, Teile, Weitergabe-Grenzen
@@ -357,29 +370,35 @@ check(C.Register("test", {}) == false and C.Register("mit leer", {}) == false an
 check(C.Send("unbekannt", 1) == 0, "unbekannter Dienst sendet nicht")
 check(C.Send("test", function() end) == 0, "nicht verpackbare Daten senden nicht")
 local n = C.Send("test", { gruss = "hallo" })
-check(n == 3, "eigene Nachricht an drei Mitspieler: " .. n)
+check(n == 1 and C.queue[#C.queue][3] == "CHANNEL", "an alle: eine Nachricht in den Kanal: " .. n)
 Pump()
 local whoGot = {}
 for _, g in ipairs(got) do whoGot[g.who] = (whoGot[g.who] or 0) + 1 end
 local reachedN, twice = 0, false
 for _, c in pairs(whoGot) do reachedN = reachedN + 1; if c > 1 then twice = true end end
-check(reachedN >= 3 and not twice and not whoGot.Arnulf, "mindestens die drei direkten Empfaenger, keiner doppelt, der Urheber nicht: " .. Dump(whoGot))
-check(got[1].d.gruss == "hallo" and got[1].info.origin == C.MyCode(), "Daten und Urheber")
-for _, g in ipairs(got) do check(g.info.hops <= C.MAX_HOPS, "hoechstens " .. C.MAX_HOPS .. " Spruenge") end
+check(reachedN == 4 and not twice and not whoGot.Arnulf, "alle vier, keiner doppelt, der Urheber nicht: " .. Dump(whoGot))
+check(got[1].d.gruss == "hallo" and got[1].info.origin == C.MyCode() and got[1].info.via == "c", "Daten, Urheber, Weg Kanal")
+for _, g in ipairs(got) do check(g.info.hops == 0, "keine Weitergabe") end
+-- Ohne Kanal kann nicht an alle gesendet werden
+local chSave = C.channel
+C.channel = nil
+check(C.Send("test", 1) == 0 and C.SendChannel("test", 1) == 0, "ohne Kanal nichts an alle")
+C.channel = chSave
 -- Lange Daten in Teilen
 got = {}
 local long = ("Erzader am Hang "):rep(60)
 n = C.Send("test", { t = long })
-check(n > 3, "lange Daten in mehreren Teilen: " .. n)
+check(n > 1, "lange Daten in mehreren Teilen: " .. n)
 Pump()
-check(#got >= 3 and got[1].d.t == long and got[#got].d.t == long, "lange Daten vollstaendig zusammengesetzt")
+check(#got == 4 and got[1].d.t == long and got[#got].d.t == long, "lange Daten bei allen vollstaendig zusammengesetzt")
 check(C.Send("test", ("y"):rep(5000)) == 0, "zu lange Daten abgelehnt")
 -- Direkt an einen Spieler: keine Weitergabe, Antwort ueber info.reply
 got = {}
 n = C.Send("test", "nur fuer dich", { to = "Bertha Stein" })
 check(n == 1, "direkt an einen")
 Pump()
-check(#got == 1 and got[1].who == "Bertha" and got[1].info.direct, "nur Bertha, als direkt markiert")
+check(#got == 1 and got[1].who == "Bertha" and got[1].info.direct and got[1].info.via == "w", "nur Bertha, per Fluestern")
+check(got[1].info.name == "Arnulf Stein", "Name des Absenders ohne Realm (API 24)")
 got[1].info.reply("zurueck")
 got = {}
 Pump()
@@ -555,16 +574,19 @@ local I = NewPlayer("Ingo")
 channels.PeonNet = {}
 Login(I)
 Advance(C.HELLO_FIRST + 1)
-check(not I.C.helloAt, "niemand da: noch nicht begruesst")
-check(I.C.chanHelloAt ~= nil, "allein: Begruessung trotzdem einmal in den Kanal")
-channels.PeonNet.Bertha = true
+check(I.C.helloAt ~= nil, "allein: Begruessung trotzdem in den Kanal")
+-- War der Kanal bei der ersten Begruessung noch nicht da, holt der Waechter sie nach
+I.C.helloAt = nil; wipe(I.C.queue)
+local chI = I.C.channel
+I.C.channel = nil
+check(I.C.SayHello() == 0 and not I.C.helloAt, "ohne Kanal keine Begruessung")
+I.C.channel = chI
 I.C.Watch()
 check(I.C.helloAt and #I.C.queue > 0, "Waechter holt die Begruessung nach")
 
 ---------------------------------------------------------------------------
--- 13. Pruefbefehl: Kanal-Nachricht kommt nicht an, Fluestern schon, Liste lesbar
+-- 13. Pruefbefehl: Kanal-Nachricht und Fluestern an sich selbst, Liste lesbar
 ---------------------------------------------------------------------------
--- Im Nachbau wie in Forever: Kanal verschluckt, Fluestern an sich selbst kommt an
 channels.PeonNet = { Arnulf = true, Bertha = true, Carlo = true }
 A.env.SlashCmdList.PEON("teilen pruefen")
 check(A.out[#A.out]:find(L.COMM_PROBE_START, 1, true), "Pruefung startet")
@@ -572,15 +594,15 @@ check(C.probe.busy, "laeuft")
 check(C.Probe() == false, "kein zweiter Lauf gleichzeitig")
 local kinds = {}
 for _, x in ipairs(net) do kinds[x.kind] = (kinds[x.kind] or 0) + 1 end
-check(kinds.CHANNEL == 1 and kinds.WHISPER == 2, "eine Kanal-Nachricht und zwei Fluestern an sich selbst")
+check(kinds.CHANNEL == 1 and kinds.WHISPER == 1, "eine Kanal-Nachricht und ein Fluestern an sich selbst")
 local targets = {}
 for _, x in ipairs(net) do if x.kind == "WHISPER" then targets[x.target] = true end end
-check(targets["Arnulf Stein"] and targets["Arnulf-Stein"], "an den vollen Namen in beiden Schreibweisen")
+check(targets["Arnulf Stein"], "an den vollen Namen")
 Flush()
 Advance(C.PROBE_WAIT + 1)
 local pr = A.Peon.db.comm.probe
-check(pr and pr.joined and pr.channel == "PeonNet" and pr.chanSent and not pr.chanEcho, "Kanal: gesendet, nicht angekommen")
-check(pr.whisperSent and pr.whisperEcho and pr.spaceEcho and pr.hyphenEcho, "Fluestern an sich selbst in beiden Schreibweisen angekommen")
+check(pr and pr.joined and pr.channel == "PeonNet" and pr.chanSent and pr.chanEcho, "Kanal: gesendet und angekommen")
+check(pr.whisperSent and pr.whisperEcho and pr.spaceEcho == nil and pr.hyphenEcho == nil, "Fluestern an sich selbst angekommen")
 check(pr.myForm == "a a" and pr.guidForm == "a a" and pr.rosterForm == "a a" and pr.senderForm == "a a", "Form der Namen ohne Namen gespeichert: " .. Dump(pr))
 check(pr.roster == 3 and pr.count == 3 and pr.build == 70009 and pr.at ~= nil, "Mitgliederliste und Build gespeichert: " .. Dump(pr))
 local tail = table.concat(A.out, "\n", #A.out - 4)
@@ -622,14 +644,13 @@ check(type(L.COMM_HELP) == "table" and #L.COMM_HELP == 2, "Hilfe")
 check(not (A.Peon.db.errors and #A.Peon.db.errors > 0), "keine Fehler bei A: " .. Dump(A.Peon.db.errors))
 
 ---------------------------------------------------------------------------
--- 15. Begruessung zum Test auch ueber den Kanal, Weg je Peon-Nutzer
+-- 15. Erste Begruessung mit Antwort, Weg je Peon-Nutzer, Nachrichten von Peon 0.23.0
 ---------------------------------------------------------------------------
 Advance(C.JOIN_DELAY + 5)
 channels.PeonNet = { Arnulf = true, Bertha = true, Dagmar = true }
 check(C.channel == "PeonNet" and B.C.channel == "PeonNet", "A und B im Kanal")
-chanWorks = true
 C.ReadRoster()
-wipe(C.queue); C.chanHelloAt = nil; wipe(B.C.replied)
+wipe(C.queue); C.helloAt = nil; wipe(B.C.replied)
 local chanBefore = A.Peon.db.comm.chanSent
 local function ChanQueued() local k = 0 for _, q in ipairs(C.queue) do if q[3] == "CHANNEL" then k = k + 1 end end return k end
 C.SayHello()
@@ -644,7 +665,11 @@ check(pB and (pB.c or 0) >= 1 and B.Peon.db.comm.chanRecv >= 1, "B kennt A ueber
 local pA = A.Peon.db.comm.peers[B.C.MyCode()]
 check(pA and (pA.w or 0) >= 1, "Antwort von B kam per Fluestern: " .. Dump(pA))
 check(A.Peon.db.comm.peers[C.MyCode()] == nil, "eigene Kanal-Nachricht nicht als fremder Nutzer gezaehlt")
-chanWorks = false
+-- Peon 0.23.0 schickt Fluestern ohne Flag d: wird weiter verstanden und weitergegeben
+local relB = B.Peon.db.comm.relayed
+local gotOld = #got
+B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("test", C.Checksum("edwin stein"), 0, "", "alt1", 1, 1, C.Encode("alt")), "WHISPER", "Edwin Stein-Fremdrealm")
+check(B.Peon.db.comm.relayed == relB + 1 and #got == gotOld + 1, "Nachricht von 0.23.0 zugestellt und weitergegeben")
 
 ---------------------------------------------------------------------------
 -- 16. Schalter fuer Peon_Debug

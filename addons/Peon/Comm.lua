@@ -2,21 +2,24 @@
 -- Ab 0.23.0 (Kern-API 23): stiller Datenaustausch zwischen Peon-Nutzern (Peon.Comm).
 -- Konzept: docs/konzepte/kern/Peon_Comm_Konzept.md (KarloDerBaer, 17.11.2026).
 --
--- Was auf WoW Forever geht (Fund aus Profession Leveling Guide, MIT, Module/Netz.lua, und eigene Pruefung):
---   Laut Guide kommen Addon-Nachrichten ueber einen Kanal nicht an. Eigene Pruefung (17.11.2026): Die eigene
---   kommt zurueck, ob andere sie bekommen, ist offen. Unsichtbares Addon-Fluestern geht, aber nur an den
---   vollen Namen "Vorname Nachname". Der versteckte Kanal "PeonNet" ist der Treffpunkt: Wer drin ist, hat Peon.
---   Zum Test geht die Begruessung zusaetzlich einmal in den Kanal, PeonDB.comm.peers zeigt den Weg (w, c).
---   Nachrichten gehen per Addon-Fluestern an wenige zufaellige Mitglieder, die sie hoechstens
---   MAX_HOPS Mal weitergeben. So verbreiten sie sich auch zwischen Spielern, die sich nie direkt sehen.
+-- Was auf WoW Forever geht (eigene Pruefung mit zwei Spielern, 17.11.2026):
+--   Addon-Nachrichten im versteckten Kanal "PeonNet" erreichen alle Mitglieder. Unsichtbares Addon-Fluestern
+--   geht zwischen Spielern, aber nur an "Vorname Nachname" (ohne Realm-Anhang).
+--   Ab 0.24.0 (KarloDerBaer): an alle einmal in den Kanal, an einen per Fluestern, beides ohne Weitergabe.
+--   Nachrichten von Peon 0.23.0 (Fluestern mit Weitergabe, hoechstens MAX_HOPS Spruenge) werden weiter
+--   verstanden und weitergegeben.
 --
 -- Schnittstelle fuer Module (API 23, nur Erweiterung):
 --   Peon.Comm.Register("dienst", { version = 1, onReceive = function(daten, info) end })
 --       info.origin = Pruefwert des Urhebers (6 Zeichen, kein Name), info.hops = Spruenge,
---       info.direct = direkt an uns, info.reply(daten) = Antwort nur an den Absender
---   Peon.Comm.Send("dienst", daten [, { to = name }])   Tabelle, Text, Zahl oder Wahrheitswert
+--       info.via = "c" (Kanal) oder "w" (Fluestern), info.reply(daten) = Antwort per Fluestern an den Absender,
+--       ab API 24 info.name = Absender "Vorname Nachname" (nur fuer Dienste mit erlaubter Namensanzeige)
+--   Peon.Comm.Send("dienst", daten)                 an alle: einmal in den Kanal
+--   Peon.Comm.Send("dienst", daten, { to = name })  an einen: per Fluestern
+--       daten: Tabelle, Text, Zahl oder Wahrheitswert. Rueckgabe: Zahl der eingereihten Nachrichten (0 = nichts)
 --   Peon.Comm.IsOn(), Peon.Comm.SetOn(an), Peon.Comm.Peers(), Peon.Comm.Known(), Peon.Comm.Status()
---   Peon.Comm.SendChannel("dienst", daten)   einmal an alle im Kanal, ohne Weitergabe (info.via = "c")
+--   Peon.Comm.SendChannel("dienst", daten)   seit 0.24.0 dasselbe wie Send ohne Ziel
+--   Regeln fuer Module: Konzept Abschnitt 8
 --   Fuer Peon_Debug: Peon.Comm.Listen(fn(richtung, art, wer, text)), Peon.Comm.SetShow("channel"|"whisper", an)
 --
 -- Der Kern kuemmert sich um Kanal, Mitgliederliste, Warteschlange, Takt, Teilen langer Nachrichten,
@@ -347,16 +350,9 @@ function C.Tick()
 end
 
 -- Eine Nachricht an alle im Kanal (nur ein Teil, wird nicht weitergegeben). Rueckgabe: 1 oder 0
+-- Seit 0.24.0 dasselbe wie Send ohne Ziel (bleibt fuer API 23)
 function C.SendChannel(svc, data)
-    if not C.services[svc] or not C.IsOn() or not C.channel then return 0 end
-    local payload = C.Encode(data)
-    local origin = C.MyCode()
-    if not payload or not origin then return 0 end
-    local mid = NextId()
-    local text = C.Build(svc, origin, 0, "d", mid, 1, 1, payload)
-    if #text > C.MAX_LEN then return 0 end
-    C.seen[origin .. ":" .. mid .. ":1"] = Now()
-    return Enqueue(false, text, "CHANNEL") and 1 or 0
+    return C.Send(svc, data)
 end
 
 function C.Register(name, o)
@@ -375,7 +371,9 @@ function C.Send(svc, data, opts)
     opts = type(opts) == "table" and opts or {}
     local origin = C.MyCode()
     if not origin then return 0 end
-    local flags = opts.to and "d" or ""
+    -- Ab 0.24.0: an alle einmal in den Kanal, an einen per Fluestern. Beides ohne Weitergabe (Flag d).
+    if not opts.to and not C.channel then return 0 end
+    local flags = "d"
     local mid = NextId()
     local room = C.MAX_LEN - #C.Build(svc, origin, 0, flags, mid, C.MAX_PARTS, C.MAX_PARTS, "")
     local chunks = {}
@@ -388,12 +386,15 @@ function C.Send(svc, data, opts)
         pos = stop + 1
     until pos > #payload
     if #chunks > C.MAX_PARTS then return 0 end
-    local targets = opts.to and { opts.to } or C.RandomNames(C.FANOUT)
     local n = 0
     for i, chunk in ipairs(chunks) do
         C.seen[origin .. ":" .. mid .. ":" .. i] = Now()
         local text = C.Build(svc, origin, 0, flags, mid, i, #chunks, chunk)
-        for _, t in ipairs(targets) do if Enqueue(t, text) then n = n + 1 end end
+        if opts.to then
+            if Enqueue(opts.to, text) then n = n + 1 end
+        elseif Enqueue(false, text, "CHANNEL") then
+            n = n + 1
+        end
     end
     return n
 end
@@ -407,7 +408,9 @@ local function Deliver(m, payload, sender, via)
     local data = C.Decode(payload)
     if data == nil then Count("bad"); return end
     local direct = m.flags:find("d", 1, true) ~= nil
-    local info = { origin = m.origin, hops = m.hops, direct = direct, via = via or "w",
+    -- ab API 24: info.name = Name des Absenders ("Vorname Nachname", ohne Realm). Nur fuer Dienste, die Namen
+    -- zeigen duerfen (Ausnahme je Dienst, Konzept 8.5), nie ungefragt speichern.
+    local info = { origin = m.origin, hops = m.hops, direct = direct, via = via or "w", name = C.Plain(sender),
         reply = function(d) return C.Send(m.svc, d, { to = sender }) end }
     local ok, err = pcall(s.onReceive, data, info)
     if not ok then Peon.RecordError(ADDON_NAME, "Comm " .. m.svc, err, Peon.version) end
@@ -623,8 +626,8 @@ function C.Watch()
     C.Purge()
     if not C.running then return end
     if C.ChannelId() == 0 then C.Join(1) else C.ReadRoster() end
-    -- Noch niemanden begruesst (Liste war beim ersten Versuch leer): jetzt nachholen
-    if not C.helloAt and #C.names > 0 then C.SayHello() end
+    -- Noch nicht begruesst (Kanal war beim ersten Versuch noch nicht da): jetzt nachholen
+    if not C.helloAt then C.SayHello() end
 end
 
 -- Erst wenn ein Dienst angemeldet ist, eingeloggt und eingeschaltet
@@ -641,6 +644,7 @@ end
 
 function C.Stop()
     C.running = false
+    C.helloAt = nil   -- nach dem Wiedereinschalten wieder als erste Begruessung
     wipe(C.queue)
     wipe(C.names); wipe(C.nameSet)
     C.Leave()
@@ -670,19 +674,18 @@ end
 ---------------------------------------------------------------------------
 -- Dienst "hello": gegenseitig kennenlernen (erster Schritt, keine Spieldaten)
 ---------------------------------------------------------------------------
-local function HelloData(reply)
-    return { v = tostring(Peon.version), a = Peon.API, r = reply and true or nil }
+-- r = Antwort, f = erste Begruessung nach dem Einloggen (nur darauf antworten die anderen)
+local function HelloData(reply, first)
+    return { v = tostring(Peon.version), a = Peon.API, r = reply and true or nil, f = first and true or nil }
 end
 
+-- Begruessung: ohne Ziel einmal an alle im Kanal (hoechstens alle 30 Minuten), mit Ziel per Fluestern
 function C.SayHello(to)
     if not C.running then return 0 end
-    local n = C.Send("hello", HelloData(false), to and { to = to } or nil)
-    if n > 0 and not to then C.helloAt = Now() end
-    -- Zum Test zusaetzlich einmal an alle im Kanal (hoechstens alle 30 Minuten), auch wenn sonst niemand
-    -- bekannt ist: Die Mitgliederliste kann unvollstaendig sein, und die eigene kommt zurueck (Peon_Debug)
-    if not to and Now() - (C.chanHelloAt or -C.HELLO_EVERY) >= C.HELLO_EVERY - 60 then
-        if C.SendChannel("hello", HelloData(false)) > 0 then C.chanHelloAt = Now() end
-    end
+    if to then return C.Send("hello", HelloData(false), { to = to }) end
+    if C.helloAt and Now() - C.helloAt < C.HELLO_EVERY - 60 then return 0 end
+    local n = C.Send("hello", HelloData(false, not C.helloAt))
+    if n > 0 then C.helloAt = Now() end
     return n
 end
 
@@ -710,7 +713,8 @@ function C.OnHello(data, info)
     end
     if n > C.MAX_PEERS and oldKey then c.peers[oldKey] = nil end
     -- Direkt erhalten und keine Antwort: einmal antworten, damit sich beide kennen
-    if info.hops == 0 and not data.r and now - (C.replied[info.origin] or 0) > C.REPLY_PAUSE then
+    -- (nur auf die erste Begruessung nach dem Einloggen oder eine direkte, sonst antworten alle auf jede)
+    if info.hops == 0 and not data.r and (data.f or info.via == "w") and now - (C.replied[info.origin] or 0) > C.REPLY_PAUSE then
         C.replied[info.origin] = now
         info.reply(HelloData(true))
     end
@@ -730,7 +734,7 @@ function C.Probe()
     if not me then return false end
     local reg = (C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix) or rawget(_G, "RegisterAddonMessagePrefix")
     if reg then pcall(reg, C.PREFIX) end
-    local pr = { busy = true, mid = "p" .. NextId(), spaceEcho = false, hyphenEcho = false }
+    local pr = { busy = true, mid = "p" .. NextId() }
     C.probe = pr
     Peon.Print(L.COMM_PROBE_START)
     C.Join(1, 1, function(joined)
@@ -740,13 +744,9 @@ function C.Probe()
         local text = C.Build("probe", code, 0, "d", pr.mid, 1, 1, "")
         pr.joined = joined and id > 0
         if send and id > 0 then pr.chanSent = pcall(send, C.PREFIX, text, "CHANNEL", id) end
-        -- Fluestern an sich selbst in beiden Schreibweisen: "Vorname Nachname" und "Vorname-Nachname"
-        local hy = me:gsub(" ", "-")
+        -- Fluestern an sich selbst ("Vorname Nachname")
         C.whispered[C.BaseName(me)] = Now()   -- Meldung "nicht online" ausblenden
-        if send then
-            pr.whisperSent = pcall(send, C.PREFIX, C.Build("probe", code, 0, "d", pr.mid .. "s", 1, 1, ""), "WHISPER", me)
-            if hy ~= me then pcall(send, C.PREFIX, C.Build("probe", code, 0, "d", pr.mid .. "h", 1, 1, ""), "WHISPER", hy) end
-        end
+        if send then pr.whisperSent = pcall(send, C.PREFIX, C.Build("probe", code, 0, "d", pr.mid .. "s", 1, 1, ""), "WHISPER", me) end
         pr.myForm = NameForm(me)
         pr.guidForm = (UnitGUID and NameForm(NameFromGuid(UnitGUID("player")))) or false
         pr.roster = C.ReadRoster()
@@ -768,7 +768,6 @@ function C.ProbeDone()
     local res = { at = Now(), build = build, channel = C.channel or false, joined = pr.joined == true,
         chanSent = pr.chanSent == true, chanEcho = pr.chanEcho == true,
         whisperSent = pr.whisperSent == true, whisperEcho = pr.whisperEcho == true,
-        spaceEcho = pr.spaceEcho == true, hyphenEcho = pr.hyphenEcho == true,
         myForm = pr.myForm or false, guidForm = pr.guidForm or false, rosterForm = pr.rosterForm or false,
         senderForm = pr.senderForm or false,
         roster = pr.roster or 0, count = pr.count or 0, peers = #C.names }
@@ -776,7 +775,7 @@ function C.ProbeDone()
     local function YesNo(v) return v and L.COMM_YES or L.COMM_NO end
     Peon.Print(L.COMM_PROBE_CHANNEL:format(res.channel or "-", YesNo(res.joined)))
     Peon.Print(L.COMM_PROBE_CHAN_ECHO:format(YesNo(res.chanSent), YesNo(res.chanEcho)))
-    Peon.Print(L.COMM_PROBE_WHISPER:format(YesNo(res.whisperSent), YesNo(res.spaceEcho), YesNo(res.hyphenEcho)))
+    Peon.Print(L.COMM_PROBE_WHISPER:format(YesNo(res.whisperSent), YesNo(res.whisperEcho)))
     Peon.Print(L.COMM_PROBE_ROSTER:format(res.roster, res.count))
     Peon.Print(L.COMM_PROBE_SAVED)
     return res
@@ -789,8 +788,7 @@ local function ProbeEcho(text, channel, sender)
     local m = C.Parse(text)
     if not m or m.svc ~= "probe" then return false end
     if m.mid == pr.mid and channel ~= "WHISPER" then pr.chanEcho = true
-    elseif m.mid == pr.mid .. "s" and channel == "WHISPER" then pr.spaceEcho, pr.whisperEcho = true, true
-    elseif m.mid == pr.mid .. "h" and channel == "WHISPER" then pr.hyphenEcho, pr.whisperEcho = true, true
+    elseif m.mid == pr.mid .. "s" and channel == "WHISPER" then pr.whisperEcho = true
     else return false end
     pr.senderForm = pr.senderForm or NameForm(sender)
     return true

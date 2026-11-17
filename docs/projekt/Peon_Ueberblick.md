@@ -31,7 +31,7 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 
 | Addon | Version | SavedVariables | Befehl |
 |---|---|---|---|
-| Peon | 0.23.0 | `PeonDB` | /peon |
+| Peon | 0.24.0 | `PeonDB` | /peon |
 | Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
 | Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
 | Peon_Fishing (früher FishingPlus) | 1.6.0 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
@@ -42,11 +42,11 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 | Peon_Ledger (Bestand, Buch, Postfenster) | 0.14.7 | `PeonLedgerDB` | /ledger |
 | Peon_Bags (neu, Taschen, Bank, Gildenbank) | 0.4.0 | `PeonBagsDB` | /peon bags |
 | Peon_Panel (neu, Leiste und Panel) | 0.4.0 | `PeonPanelDB` | /peon panel |
-| Peon_Profession (neu, Berufe) | 0.3.0 | `PeonProfessionDB`, `PeonProfessionCharDB` (pro Charakter) | /prof |
+| Peon_Profession (neu, Berufe) | 0.6.0 | `PeonProfessionDB`, `PeonProfessionCharDB` (pro Charakter) | /prof |
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
-## Kern-API (Peon.API = 23)
+## Kern-API (Peon.API = 24)
 
 Die API wird nur erweitert, nie geändert (sonst brechen alle Module). Bei neuen Funktionen `Peon.API` erhöhen.
 
@@ -151,17 +151,17 @@ if mod.AddNotice then mod:AddNotice({
     text  = { "Erster Absatz.", "Zweiter Absatz." },   -- Text oder Liste von Absaetzen
 }) end
 ```
-- **Datenaustausch zwischen Peon-Nutzern (API 23, Comm.lua):** Stiller Austausch über unsichtbares Addon-Flüstern. Der versteckte Kanal `PeonNet` ist nur der Treffpunkt (wer drin ist, hat Peon). Der Kern kümmert sich um Kanal, Mitgliederliste, Takt, Teilen langer Daten, Weitergabe, doppelte Nachrichten und Prüfwert, nie im Kampf und nicht in Instanzen. Abschaltbar in den Peon-Einstellungen und mit `/peon teilen aus`. Module speichern fremde Daten getrennt von den eigenen und nie mit Namen. Im ersten Schritt nutzt nur der Kern selbst den Austausch (Dienst `hello`, Kennenlernen).
+- **Datenaustausch zwischen Peon-Nutzern (API 23, Comm.lua):** Stiller Austausch über den versteckten Kanal `PeonNet` (wer drin ist, hat Peon). Ab 0.24.0 geht eine Nachricht an alle einmal als Addon-Nachricht in den Kanal, an einen per Addon-Flüstern, beides ohne Weitergabe. Der Kern kümmert sich um Kanal, Mitgliederliste, Takt, Teilen langer Daten, doppelte Nachrichten und Prüfwert, nie im Kampf und nicht in Instanzen. **Regeln für Module:** Konzept `docs\konzepte\kern\Peon_Comm_Konzept.md`, Abschnitt 8. Abschaltbar in den Peon-Einstellungen und mit `/peon teilen aus`. Module speichern fremde Daten getrennt von den eigenen und grundsätzlich ohne Namen. Ab API 24 liefert `info.name` den Absender für Dienste mit erlaubter Namensanzeige. Dienste: `hello` (Kern, Kennenlernen), `recipes` (Profession 0.6.0, Rezepte der Freunde).
 ```lua
 if Peon.Comm then
     Peon.Comm.Register("nodes", { version = 1, onReceive = function(daten, info)
-        -- info.origin = Prüfwert des Urhebers (kein Name), info.hops, info.direct, info.reply(antwort)
+        -- info.origin = Prüfwert des Urhebers (kein Name), info.via ("c" Kanal, "w" Flüstern), info.reply(antwort)
     end })
-    Peon.Comm.Send("nodes", { map = 1411, x = 0.4512, y = 0.3301 })   -- Rückgabe: Zahl der eingereihten Flüsternachrichten
-    Peon.Comm.Send("nodes", daten, { to = name })                     -- nur an einen, ohne Weitergabe
+    Peon.Comm.Send("nodes", { map = 1411, x = 0.4512, y = 0.3301 })   -- an alle: einmal in den Kanal. Rückgabe: Zahl der eingereihten Nachrichten
+    Peon.Comm.Send("nodes", daten, { to = name })                     -- an einen: per Flüstern
 end
 Peon.Comm.IsOn(); Peon.Comm.Peers(); Peon.Comm.Known(); Peon.Comm.Status()
-Peon.Comm.SendChannel("nodes", daten)   -- einmal an alle im Kanal, ohne Weitergabe (beim Empfänger info.via = "c")
+Peon.Comm.SendChannel("nodes", daten)   -- seit 0.24.0 dasselbe wie Send ohne Ziel
 Peon.Comm.Listen(function(richtung, art, wer, text) end)   -- jede Nachricht sehen (Peon_Debug)
 Peon.Comm.SetShow("channel", true); Peon.Comm.SetShow("whisper", true)   -- Kanal und „nicht online“ zeigen (Peon_Debug)
 ```

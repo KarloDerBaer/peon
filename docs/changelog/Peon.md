@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.24.0
+
+Kurz: Peon-Nutzer erreichen sich jetzt direkt über den versteckten Kanal. Das ist schneller und braucht weniger Nachrichten.
+
+- 0.24.0 (18.11.2026): **Kern-API 24:** `info.name` gibt Diensten den Namen des Absenders („Vorname Nachname“, ohne Realm). Nur für Dienste mit erlaubter Namensanzeige, zuerst die Rezepte der Freunde in Peon_Profession 0.6.0.
+- 0.24.0 (18.11.2026): **An alle über den Kanal, an einen per Flüstern** (`Comm.lua`, Regeln für Module im Konzept Abschnitt 8, KarloDerBaer). Die Prüfung mit zwei Spielern hat gezeigt, dass Addon-Nachrichten im Kanal alle Mitglieder erreichen. `Peon.Comm.Send(dienst, daten)` geht deshalb jetzt einmal in den Kanal statt per Flüstern an drei Mitglieder mit Weitergabe. `Send` mit `{ to = name }` und `info.reply` bleiben Flüstern. Beides ohne Weitergabe (Flag `d`). `SendChannel` ist jetzt dasselbe wie `Send` ohne Ziel. Nachrichten von Peon 0.23.0 werden weiter verstanden und weitergegeben.
+  - Begrüßung nur noch im Kanal, höchstens alle 30 Minuten. Geantwortet wird nur auf die erste Begrüßung nach dem Einloggen (`f`) und auf direkte Begrüßungen, sonst würde jede Begrüßung eine Antwort von allen auslösen.
+  - Aufgeräumt: Die Prüfung `/peon teilen pruefen` flüstert sich nur noch als „Vorname Nachname“ an (`spaceEcho` und `hyphenEcho` entfallen).
+  - Tests: `test_comm.lua` mit Kanal wie in Forever, `info.name`, Rundsendung an alle, lange Daten über den Kanal, ohne Kanal nichts an alle, keine Antwort auf spätere Begrüßungen, Nachrichten von 0.23.0. `test_uiprobe.lua` Version, Release-Test API 24.
+  - **Im Spiel prüfen:** Mit Peon_Debug (Kanal und Flüstern sichtbar) nach dem Einloggen: eine Begrüßung im Kanal, Antworten anderer Peon-Nutzer per Flüstern.
+
 ## 0.23.1
 
 Kurz: Behebt die Meldung „Kein Spieler mit dem Namen ... online“, die beim Austausch mit anderen Peon-Nutzern erscheinen konnte.

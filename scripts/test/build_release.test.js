@@ -226,7 +226,7 @@ test('Echtes Repo: alle Addons, Bridge nur fuer den Manager, ohne Data.lua', () 
   assert.ok(m.addons.every((a) => a.notes === ''), 'erstes Release ohne Was ist neu');
   const spaeter = R.build({ out: tmp('echt2'), tag: 'v2026.11.04', dirty: true, prev: { addons: [] } }).manifest;
   assert.ok(spaeter.addons.every((a) => a.notes.startsWith(`### ${a.version}`)), 'jede Version hat einen Changelog-Abschnitt');
-  assert.equal(m.addons.find((a) => a.name === 'Peon').api, 23);
+  assert.equal(m.addons.find((a) => a.name === 'Peon').api, 24);
   // ab Manager 0.38.0: Peon_ComboPoints wird durch den Klassenbuddy ersetzt
   assert.deepEqual(m.addons.find((a) => a.name === 'Peon_ComboPoints').replacedBy, { by: 'Peon_ClassBuddy', db: 'PeonClassBuddyDB', key: 'cpImported' });
   assert.ok(!('replacedBy' in m.addons.find((a) => a.name === 'Peon_ClassBuddy')));

@@ -205,6 +205,7 @@ function M.ReadAll()
         end
     end
     if ns.Codex then ns.Codex.Learned(key, list) end   -- ab 0.5.0: fuer den Codex, alle Charaktere
+    if ns.Friends then ns.Friends.OwnChanged() end      -- ab 0.6.0: neuer Stand fuer Freunde
     if skill then mod.char.skills[key] = skill end
     M.key, M.skill = key, skill
     mod:Dbg(("Berufe: %d Rezepte gelesen (%s, Stufe %s, %d fremde verworfen)"):format(n, tostring(key), tostring(skill), M.foreign))

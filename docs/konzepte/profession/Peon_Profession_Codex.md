@@ -54,7 +54,7 @@ Neuer Reiter „Codex“ im Fenster von Peon Berufe. Oben die Knöpfe Rezepte un
 ## 5. Für später
 
 - **Anzeige auf Welt- und Minikarte** (zurückgestellt, KarloDerBaer). Die gelben Punkte der Kräuter- und Erzsuche zeichnet das Spiel selbst, ein Addon kann sie nicht lesen und nicht einzeln umfärben. Möglicher Weg: an bekannten Stellen ein Ring mit Symbol des Krauts, dessen Mitte frei bleibt. Ein gelber Punkt im Ring heißt „da“, ein leerer Ring „gerade nichts“.
-- **Austausch der Sammelstellen** mit anderen Peon-Nutzern, sobald `Peon.Comm` im Kern steht.
+- **Austausch der Sammelstellen** mit anderen Peon-Nutzern (Dienst `nodes`), nach den Rezepten der Freunde (Abschnitt 8).
 - **Fischschwärme auf der Karte** und die **Rezepthändler aus PLG** (MIT, 146 Händler): noch nicht entschieden.
 
 ## 6. Speicher
@@ -72,3 +72,41 @@ Neuer Reiter „Codex“ im Fenster von Peon Berufe. Oben die Knöpfe Rezepte un
 1. Codex und Sammelstellen in Peon_Profession, kein eigenes Modul.
 2. Anzeige auf Karte und Minikarte vorerst weglassen, weil sich die gelben Punkte nicht direkt erkennen lassen. Sammelstellen ab jetzt mitschreiben und im Codex die Gebiete nennen.
 3. Datenaustausch über Addon-Flüstern im Kern, von Anfang an an und abschaltbar, fremde Daten sofort sichtbar und anders gefärbt. Bau in einer eigenen Sitzung, für mehr als nur Sammelstellen.
+
+## 8. Rezepte der Freunde (Profession 0.6.0, KarloDerBaer, 18.11.2026)
+
+Anlass: Blizzards Berufslinks lassen sich in Forever seit dem 8.11.2026 nicht beim anderen öffnen. Der Codex zeigt deshalb, welche Rezepte Freunde und Gildenmitglieder mit Peon kennen. Grundlage sind die Regeln für Module im Konzept `docs/konzepte/kern/Peon_Comm_Konzept.md`, Abschnitt 8. Das ist die erste Ausnahme von „keine Namen“.
+
+### 8.1 Entscheidungen von KarloDerBaer
+
+1. **Von wem:** nur Peon-Nutzer in der eigenen Freundesliste (auch Battle.net-Freunde) oder der eigenen Gilde.
+2. **Was ich teile:** nur die Rezepte des eingeloggten Charakters. Twinks bleiben unsichtbar.
+3. **Speichern:** 30 Tage ab dem letzten Mal, dass der Spieler gesehen wurde. Danach fallen Name und Rezepte weg.
+4. **Anzeige:** In der Spalte „Erlernt“ zusätzlich die Zahl der Freunde, im Tooltip ihre Namen in eigener Farbe.
+
+### 8.2 Ablauf (Dienst `recipes`, Version 1)
+
+| Nachricht | Weg | Inhalt |
+|---|---|---|
+| Stand `k = "s"` | an alle (Kanal) | je Beruf Stufe, Zahl der Rezepte, Prüfwert der Rezeptliste. `f` bei der ersten nach dem Einloggen |
+| Frage `k = "q"` | per Flüstern an den Absender des Stands | Berufe, deren Liste fehlt oder veraltet ist |
+| Liste `k = "l"` | per Flüstern als Antwort | ein Beruf: Stufe, Prüfwert, Rezeptnummern (Basis 36, bis 150 je Nachricht, in Teilen) |
+
+- Den Stand schickt Peon nach dem Einloggen, sobald der Kanal da ist, und nach dem Lesen eines Berufsfensters, wenn sich etwas geändert hat. Höchstens einmal pro Minute.
+- Gefragt wird nur, wenn der Absender Freund oder Gildenmitglied ist und sein gespeicherter Prüfwert nicht passt. Höchstens einmal je Spieler in 10 Minuten.
+- Bekommt man den ersten Stand eines Freundes oder Gildenmitglieds nach dessen Einloggen, schickt man ihm seinen eigenen Stand per Flüstern zurück. So erfährt auch er, dass es neue Listen gibt.
+- Auf eine Frage antwortet Peon jedem, höchstens einmal je Spieler in 10 Minuten. Die Rezepte des eingeloggten Charakters sind nicht privat.
+- Alles läuft nur, wenn „Daten mit anderen Peon-Nutzern teilen“ an ist und der Kern API 24 hat.
+
+### 8.3 Prüfen und Speichern
+
+- Beruf muss einer der bekannten Berufe sein, Stufe 0 bis 1000, höchstens 1000 Rezepte je Beruf, Nummern ganze Zahlen bis 10 Millionen, Name höchstens 60 Zeichen.
+- `PeonProfessionDB.friends[name klein] = { name, at, p = { [Beruf] = { s, h, ids = { [recipeID] = true } } } }`, höchstens 200 Spieler. Älter als 30 Tage fällt beim Einloggen weg, bei voller Liste der am längsten nicht gesehene.
+- Ist jemand nicht mehr Freund oder Gildenmitglied, bleibt sein Eintrag bis zum Ablauf, wird aber nicht mehr erneuert.
+
+### 8.4 Anzeige
+
+- Codex, Rezepte: Kennt ein Freund ein Rezept, das man selbst noch nicht in der Liste hat, kommt es als eigene Zeile dazu.
+- Spalte „Erlernt“: zum Beispiel „du, 2 Freunde“ oder „1 Twink, 1 Freund“, die Freunde hellblau.
+- Tooltip: Zeile „Freunde:“ mit den Namen, hellblau.
+- `/prof freunde` zeigt im Chat, von wem Rezepte gespeichert sind (Name, Berufe, zuletzt gesehen).

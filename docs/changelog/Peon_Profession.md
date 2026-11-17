@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.6.0
+
+Kurz: Der Codex zeigt jetzt auch, welche Rezepte deine Freunde und Gildenmitglieder kennen, wenn sie Peon nutzen. Ihre Namen stehen im Tooltip.
+Kurz: Peon teilt dafür still die Rezepte deines eingeloggten Charakters. Abschalten lässt es sich in den Peon-Einstellungen unter „Daten teilen“.
+
+- 0.6.0 (18.11.2026, KarloDerBaer, Konzept `docs/konzepte/profession/Peon_Profession_Codex.md` Abschnitt 8): **Rezepte der Freunde** (neue Datei `Friends.lua`, Dienst `recipes` über `Peon.Comm`, braucht Kern-API 24). Anlass: Blizzards Berufslinks lassen sich in Forever derzeit nicht beim anderen öffnen.
+  - Nach dem Einloggen und nach dem Lesen eines Berufsfensters (bei Änderung, höchstens einmal pro Minute) geht ein kurzer Stand an alle im Kanal: je Beruf Stufe, Zahl der Rezepte und Prüfwert. Nur der eingeloggte Charakter, Twinks bleiben unsichtbar.
+  - Wer den Stand eines Freundes (Freundesliste, Battle.net) oder Gildenmitglieds bekommt und dessen Liste noch nicht oder veraltet hat, fragt per Flüstern nach. Die Antwort kommt per Flüstern in Teilen (bis 150 Rezeptnummern je Nachricht). Auf den ersten Stand nach dem Einloggen schickt man seinen eigenen Stand zurück. Fragen und Antworten je Spieler höchstens alle 10 Minuten.
+  - Gespeichert in `friends` (accountweit) mit Name, höchstens 200 Spieler, 30 Tage ab dem letzten Mal gesehen. Ungültige Daten (unbekannter Beruf, zu viele Rezepte, fehlende Teile) werden verworfen.
+  - Codex: Spalte „Erlernt“ zeigt zusätzlich die Zahl der Freunde (hellblau), der Tooltip ihre Namen. Rezepte, die nur ein Freund kennt, kommen als eigene Zeile dazu. Kennen Twinks ein Rezept, das man selbst kann, steht jetzt auch ihre Zahl neben „du“.
+  - Neu: `/prof freunde` zeigt, von wem Rezepte gespeichert sind.
+  - Tests: `test_profession.lua` mit nachgebautem `Peon.Comm` (Stand, Freunde und Gilde, Fragen, Listen in Teilen, ungültige Daten, Codex, Tooltip, 30 Tage, ohne API 24).
+  - **Im Spiel prüfen:** Mit einem Freund, der Peon 0.24.0 und Profession 0.6.0 hat, beide einloggen, Berufsfenster einmal öffnen. Nach etwa einer Minute `/prof freunde`, dann im Codex die Spalte „Erlernt“ und den Tooltip ansehen. Mit Peon_Debug sieht man Stand, Frage und Liste.
+
 ## 0.5.0
 
 Kurz: Neuer Reiter „Codex“: alle Rezepte je Beruf mit Quelle und wer sie kennt. Oben rechts wählst du den Beruf oder „Alle Berufe“.
