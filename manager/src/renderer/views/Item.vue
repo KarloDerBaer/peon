@@ -82,6 +82,14 @@ const lt = computed(() => {
   return { ...l, low: Math.floor(l.lang * (1 - l.schw)), high: Math.floor(l.lang * (1 + l.schw)), pct: Math.round(l.schw * 100), from: LT_SRC[l.src] || 'Tageswerten' };
 });
 const say = computed(() => verdict(d.value));
+// ab 0.45.0: Stabilitaet (stability.js), Stufe je Teil aus dessen Index
+const STAB = ['sehr stabil', 'stabil', 'mittel', 'unruhig', 'unsicher'];
+const stufe = (idx) => (idx == null ? null : idx >= 80 ? 0 : idx >= 60 ? 1 : idx >= 40 ? 2 : idx >= 20 ? 3 : 4);
+const sb = computed(() => {
+  const s = d.value && d.value.stability;
+  return s ? { ...s, hg: stufe(s.ih), dg: stufe(s.id) } : null;
+});
+const p1 = (x) => (x * 100).toLocaleString('de-DE', { maximumFractionDigits: 1, minimumFractionDigits: 1 }) + ' %';
 function hoursText(min) {
   if (min < 60) return `${Math.round(min)} Min.`;
   const h = min / 60;
@@ -196,6 +204,11 @@ const levelsTop = computed(() => (d.value && d.value.levels ? d.value.levels.lis
         <span class="muted">Aus {{ pl(lt.days, 'Tag', 'Tagen') }} mit {{ lt.from }}, Mitte <Gold :copper="lt.mitte" compact />. Broker rechnet den heutigen Tag und den aktuellen Preis selbst dazu.</span>
       </p>
       <p v-else class="muted">Üblicher Bereich: noch zu wenig Tage. Ab 3 Tagen mit Daten in den letzten 14 Tagen bekommt Broker hier einen Bereich, bis dahin rechnet Broker selbst.</p>
+      <p v-if="sb">
+        Stabilität <b :class="'lv' + sb.g">{{ STAB[sb.g] }}</b> (Index {{ sb.i }}).
+        Stunden {{ sb.h == null ? 'noch zu wenig Stände' : `${p1(sb.h)} je Stand (${STAB[sb.hg]})` }}, Tage {{ sb.d == null ? 'noch zu wenig Tage' : `${p1(sb.d)} Schwankung (${STAB[sb.dg]})` }}<template v-if="sb.dir != null">, {{ sb.dir < 0 ? 'gefallen' : 'gestiegen' }} um {{ p1(Math.abs(sb.dir)) }} in {{ pl(sb.span, 'Tag', 'Tagen') }}</template>.
+        <span class="muted"><template v-if="sb.f">Wenig Angebote, zählt nicht für Kategorie und Markt. </template><template v-if="sb.sub">{{ sb.sub.name }}: {{ STAB[sb.sub.g] }} ({{ sb.sub.i }}). </template><template v-else-if="sb.cat">{{ sb.cat.name }}: {{ STAB[sb.cat.g] }} ({{ sb.cat.i }}). </template><template v-if="sb.market">Ganzer Markt: {{ STAB[sb.market.g] }} ({{ sb.market.i }}).</template></span>
+      </p>
       <p class="muted" v-if="d.sales">Den Absatz nimmt Broker, wenn er selbst in den letzten 6 Std. weniger als 1 Std. beobachtet hat.</p>
       <p class="small muted">Die Spanne ist der tiefste und höchste Tagesmedian. Broker-Werte sind Mittel aller Scans eines Tages und gelten nur für Tage ohne eigenen Stand.</p>
     </section>

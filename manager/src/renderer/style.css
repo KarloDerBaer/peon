@@ -103,3 +103,10 @@ input[type="text"], input[type="password"] { width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* ab Manager 0.45.0: Stufen der Stabilitaet (sehr stabil bis unsicher) */
+.lv0 { color: var(--up); }
+.lv1 { color: color-mix(in srgb, var(--up) 60%, var(--warn)); }
+.lv2 { color: var(--warn); }
+.lv3 { color: color-mix(in srgb, var(--warn) 50%, var(--bad)); }
+.lv4 { color: var(--bad); }

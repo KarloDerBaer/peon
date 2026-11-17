@@ -51,10 +51,12 @@ const COLS = [
   { key: 'sales', label: 'Absatz', num: true, w: '76px', tip: 'Absatz je Tag (14 Tage), Zeichen = Sicherheit' },
   { key: 'band', label: 'Üblicher Bereich', num: true, w: 'minmax(130px, 1.5fr)', tip: 'Untergrenze bis Obergrenze, wie Broker ihn vom Manager bekommt' },
   { key: 'trend', label: 'Trend', num: true, w: '66px' },
+  { key: 'stab', label: 'Stabilität', num: true, w: '96px', tip: 'Stunden und Tage zusammen, der schlechtere Teil zählt (Marktübersicht, Stabilität)' },
   { key: 'seen', label: 'Gesehen', num: true, w: '92px' },
   { key: 'src', label: 'Quellen', w: '74px', tip: 'S = Komplettscans und Blizzard-API, L = Live-Abfragen, B = Broker-Verlauf' },
 ];
-const DEFAULT_COLS = ['min', 'median', 'vs', 'qty', 'auctions', 'avg7', 'sales', 'band', 'trend'];
+const DEFAULT_COLS = ['min', 'median', 'vs', 'qty', 'auctions', 'avg7', 'sales', 'band', 'trend', 'stab'];
+const STAB = ['sehr stabil', 'stabil', 'mittel', 'unruhig', 'unsicher'];
 const chosen = computed(() => {
   const c = props.settings && props.settings.itemColumns;
   return new Set(c && c.length ? c : DEFAULT_COLS);
@@ -83,7 +85,7 @@ const rows = computed(() => {
   if (kind.value === 'mass') r = r.filter((x) => x.commodity === 1);
   else if (kind.value === 'single') r = r.filter((x) => x.commodity === 0);
   const k = sortKey.value, dir = sortDesc.value ? -1 : 1;
-  const val = (x) => (k === 'name' ? x.folded : k === 'sales' ? (x.sales ? x.sales.perDay : null) : k === 'band' ? (x.band ? x.band.lang : null) : k === 'src' ? srcKey(x.sources) : (k === 'qty' || k === 'auctions') && !x.inLast ? null : x[k]);
+  const val = (x) => (k === 'name' ? x.folded : k === 'sales' ? (x.sales ? x.sales.perDay : null) : k === 'band' ? (x.band ? x.band.lang : null) : k === 'src' ? srcKey(x.sources) : k === 'stab' ? (x.stab ? x.stab.i : null) : (k === 'qty' || k === 'auctions') && !x.inLast ? null : x[k]);
   return [...r].sort((a, b) => {
     const va = val(a), vb = val(b);
     if (va == null && vb == null) return 0;
@@ -213,6 +215,7 @@ function sourceText(s) {
               <span v-else-if="c.key === 'sales'" class="cell num"><Sales :s="it.sales" /></span>
               <span v-else-if="c.key === 'band'" class="cell num small muted"><template v-if="it.band"><Gold :copper="it.band.low" compact /> – <Gold :copper="it.band.high" compact /></template><span v-else class="faint">–</span></span>
               <span v-else-if="c.key === 'trend'" class="cell num" :class="it.trend > 0.05 ? 'up' : it.trend < -0.05 ? 'down' : 'muted'">{{ pct(it.trend) }}</span>
+              <span v-else-if="c.key === 'stab'" class="cell num small" :class="it.stab ? 'lv' + it.stab.g : 'faint'" :title="it.stab ? `Index ${it.stab.i}${it.stab.f ? ', wenig Angebote' : ''}` : 'Noch keine Rechnung'">{{ it.stab ? STAB[it.stab.g] : '–' }}</span>
               <span v-else-if="c.key === 'seen'" class="cell num muted small">{{ it.seen ? ago(it.seen, now) : '' }}</span>
               <span v-else-if="c.key === 'src'" class="cell muted small src" :title="sourceText(it.sources)">{{ srcLetters(it.sources) }}</span>
             </template>

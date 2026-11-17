@@ -409,3 +409,24 @@ test('Rueckgabe an Broker: aktuelle Preise des neuesten Stands mit Zeit und Herk
   assert.equal(cur.items['6611'], undefined, 'nur Gebot: kein Preis');
   svc.close();
 });
+
+test('0.45.0: Einleser merkt Klasse, Unterklasse und Stapelbarkeit, auch fuer schon bekannte Gegenstaende', async () => {
+  const dir = tmp();
+  const { world, fetchImpl } = fakeBlizzard();
+  world.items[2589].item_class = { id: 7, name: 'Handwerkswaren' };
+  world.items[2589].item_subclass = { id: 5, name: 'Stoff' };
+  world.items[2589].is_stackable = true;
+  const svc = new Service({ enable: ['broker-client'], dbDir: dir, fetchImpl, now: () => T0 });
+  const client = new BlizzardClient({ clientId: 'a', clientSecret: 'b', region: 'eu' }, { fetchImpl, now: () => T0 });
+  const db = svc.broker.db;
+  // Name schon bekannt (aus dem Spiel), Klasse fehlt: wird trotzdem einmal geholt
+  db.prepare("INSERT INTO items(key, item_id, name, updated) VALUES ('2589', 2589, 'Leinenstoff', 0)").run();
+  db.prepare("INSERT INTO items(key, item_id, name, updated) VALUES ('6611', 6611, 'Klinge', 0)").run();
+  await svc.broker.api.fetchItems(client, new Set([2589, 6611]), new Set());
+  assert.deepEqual({ ...db.prepare("SELECT cls, sub, cls_name, sub_name, stack FROM items WHERE key = '2589'").get() },
+    { cls: 7, sub: 5, cls_name: 'Handwerkswaren', sub_name: 'Stoff', stack: 1 });
+  assert.equal(db.prepare("SELECT cls FROM items WHERE key = '6611'").get().cls, -1, 'ohne Klasse: nicht erneut fragen');
+  const calls = world.calls.length;
+  await svc.broker.api.fetchItems(client, new Set([2589, 6611]), new Set());
+  assert.equal(world.calls.length, calls, 'beim naechsten Stand keine Abfrage mehr');
+});

@@ -2,6 +2,17 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 17.11.2026: Stabilität der Preise (Manager 0.45.0)
+
+- **Stabilitätsindex je Gegenstand, Kategorie und Markt** (Wunsch KarloDerBaer). Besonders wichtig: Stundenwerte und Massen- und Handwerksware.
+- **Preis:** Massenware die günstigsten 25 %, sonst das günstigste Angebot (KarloDerBaer).
+- **Stunden und Tage zusammen, der schlechtere Teil zählt** (Vorschlag Claude nach Messung mit echten Daten, KarloDerBaer zugestimmt). Grund: Beide Sichten hängen nur schwach zusammen. Je Stunde ruhig kann über Tage stark fallen (Teufelsleder), je Stunde unruhig kann über Tage fest sein (Aquamarin).
+- **Bewegung je Stunde als Mittel ohne die größten 5 %**, nicht der Median (Claude): Der Median ist fast überall 0 %, weil sich der Preis meist nicht bewegt.
+- **Grenzen** Stunden 1/3/6/10 %, Tage 8/15/25/40 % (Claude, nach der Messung, KarloDerBaer zugestimmt). Index so, dass die Grenzen bei 80/60/40/20 liegen (Claude, beim Bau: Stufe und Index passen so immer zusammen).
+- **Richtung zählt nicht in den Index**, sie steht daneben (Vorschlag Claude, zugestimmt).
+- **Gegenstände mit weniger als 20 Angeboten im Schnitt zählen nicht** für Kategorie und Markt, auch Massenware (Claude, beim Bau: dünne Märkte springen stark).
+- **Kategorien aus der Blizzard-API** statt aus Broker (Claude, beim Bau): Die Spieldaten jedes Gegenstands enthalten Klasse und Unterklasse schon, so braucht es keine Änderung an Broker.
+
 ## 17.11.2026: Verworfene Chancen merken und an den Manager melden (Broker 0.101.0, Manager 0.44.0)
 
 - **Weg gilt bis zum nächsten Stand** (Wunsch KarloDerBaer): Eine Chance, die beim Prüfen weg ist, kommt erst wieder, wenn der Manager sie mit einem neueren Stand erneut als Chance bewertet. Grund: Nach jedem Reload musste man dieselben Chancen wieder prüfen.

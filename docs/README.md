@@ -30,6 +30,7 @@
 | Manager | [Peon_Blizzard_API.md](konzepte/manager/Peon_Blizzard_API.md) | Blizzard-API für Forever: Aufbau, Häuser, offene Fragen, Beobachter |
 | Manager | [Peon_Manager_Angleichung.md](konzepte/manager/Peon_Manager_Angleichung.md) | Angleichung nach dem Neuaufbau: Einkaufslisten und Beobachten (Teil 1) |
 | Manager | [Peon_Manager_Chancen.md](konzepte/manager/Peon_Manager_Chancen.md) | Chancen und Prognosen, Übergabe an Broker (Angleichung Teil 2 und 3, Entwurf) |
+| Manager | [Peon_Manager_Stabilitaet.md](konzepte/manager/Peon_Manager_Stabilitaet.md) | Stabilität der Preise je Gegenstand, Kategorie und Markt, Messung und Grenzen |
 | Tooltip | [Peon_Tooltip_Konzept.md](konzepte/tooltip/Peon_Tooltip_Konzept.md) | Teile im Gegenstands-Tooltip |
 | Mover | [Peon_Mover_Konzept.md](konzepte/mover/Peon_Mover_Konzept.md) | Fenster verschieben |
 | Bags | [Peon_Bags_Konzept.md](konzepte/bags/Peon_Bags_Konzept.md) | Taschen, Bank, Gildenbank |

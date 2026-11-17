@@ -5,6 +5,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import Gold from '../components/Gold.vue';
 import Sales from '../components/Sales.vue';
 import Spark from '../components/Spark.vue';
+import Stability from '../components/Stability.vue';
 import { num, pct, fold, qualityColor, itemName, when } from '../util.js';
 
 const props = defineProps({ market: Object, now: Number, stamp: Number });
@@ -17,6 +18,7 @@ const TABS = [
   { key: 'biggest', label: 'Größte Änderungen' },
   { key: 'index', label: 'Stufenbereiche' },
   { key: 'fests', label: 'Feste' },
+  { key: 'stab', label: 'Stabilität' },
 ];
 const tab = ref('forecasts');
 const d = ref(null);
@@ -49,8 +51,10 @@ const intro = computed(() => ({
     <div class="tabs" role="tablist">
       <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key">{{ t.label }}</button>
     </div>
-    <div class="filters" v-if="!['index', 'fests'].includes(tab)"><input type="text" v-model="search" placeholder="Name suchen" aria-label="Suchen" spellcheck="false" /></div>
-    <p class="small muted intro">{{ intro }}</p>
+    <div class="filters" v-if="!['index', 'fests', 'stab'].includes(tab)"><input type="text" v-model="search" placeholder="Name suchen" aria-label="Suchen" spellcheck="false" /></div>
+    <p class="small muted intro" v-if="intro">{{ intro }}</p>
+
+    <Stability v-if="tab === 'stab'" :market="market" :stamp="stamp" @brief="(k) => emit('brief', k)" />
 
     <template v-if="d && tab === 'forecasts'">
       <p class="small">

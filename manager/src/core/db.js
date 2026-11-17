@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
 const { sameMarket } = require('./markets');
 
-const SCHEMA = 14;   // 14: Kennzahlen kompakt (item_snap ohne rowid mit Zahl sid, item_hour als 3-Stunden-Werte mit med_lo/med_hi), Zwischenspeicher snap_cache; 13: Haendler-Vorschlaege entfernt (meta vendorKindGone), Muster in meta patterns:<Markt>; 12: Umstellungen bei Einzelgegenstaenden, Vergleiche neu (meta singlesRecheck, apiRedoMax); 11: Haendlerpreise neu aus dem Spiel (meta vendorRecheck); 10: Herkunft des Haendlerpreises (items.vendor_src); 9: Chancen und Prognosen (sale_px, sale_life, auc_first, item_level, chance_log, chance_rate, forecast_log); 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
+const SCHEMA = 15;   // 15: Klasse, Unterklasse und Stapelbarkeit je Gegenstand (items.cls, sub, cls_name, sub_name, stack) fuer die Stabilitaet; 14: Kennzahlen kompakt (item_snap ohne rowid mit Zahl sid, item_hour als 3-Stunden-Werte mit med_lo/med_hi), Zwischenspeicher snap_cache; 13: Haendler-Vorschlaege entfernt (meta vendorKindGone), Muster in meta patterns:<Markt>; 12: Umstellungen bei Einzelgegenstaenden, Vergleiche neu (meta singlesRecheck, apiRedoMax); 11: Haendlerpreise neu aus dem Spiel (meta vendorRecheck); 10: Herkunft des Haendlerpreises (items.vendor_src); 9: Chancen und Prognosen (sale_px, sale_life, auc_first, item_level, chance_log, chance_rate, forecast_log); 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -151,6 +151,9 @@ function openDb(dir, { now = Math.floor(Date.now() / 1000) } = {}) {
   const cols = new Set(db.prepare('PRAGMA table_info(items)').all().map((c) => c.name));
   if (!cols.has('vendor')) db.exec('ALTER TABLE items ADD COLUMN vendor INTEGER');
   if (!cols.has('commodity')) db.exec('ALTER TABLE items ADD COLUMN commodity INTEGER');
+  // Schema 15 (Manager 0.45.0): Klasse und Unterklasse aus der Blizzard-API (Kategorien wie im Auktionshaus) und ob der
+  // Gegenstand stapelbar ist. cls = -1: Blizzard kennt ihn nicht, nicht erneut fragen.
+  if (!cols.has('cls')) db.exec('ALTER TABLE items ADD COLUMN cls INTEGER; ALTER TABLE items ADD COLUMN sub INTEGER; ALTER TABLE items ADD COLUMN cls_name TEXT; ALTER TABLE items ADD COLUMN sub_name TEXT; ALTER TABLE items ADD COLUMN stack INTEGER;');
   // Schema 10 (Manager 0.35.1): Herkunft des Haendlerpreises, 'game' (aus dem Spiel, stimmt) oder 'api' (Blizzard-API, fuer
   // Forever oft Classic-Daten). Bisherige Werte gelten als aus dem Spiel, wenn der Gegenstand in einem eigenen Scan vorkam
   // (Kennzahlen eigener Scans oder Verlauf aus Broker): Nur dann kann die Bridge den Preis geschickt haben, und der Wert aus

@@ -438,6 +438,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('chanceItem', (_e, market, key) => (svc.broker ? svc.broker.chanceItem(String(market), String(key)) : null));
     ipcMain.handle('brief', (_e, market, key, days) => (svc.broker ? svc.broker.brief(String(market), String(key), Number(days) || 14) : null));
     ipcMain.handle('marketOverview', (_e, market) => (svc.broker ? rd('marketOverview', String(market)) : null));
+    ipcMain.handle('stabilityView', (_e, market) => (svc.broker ? rd('stabilityView', String(market)) : null));   // ab 0.45.0
     ipcMain.handle('successView', (_e, market) => (svc.broker ? svc.broker.successView(String(market)) : null));
     ipcMain.handle('setOwnUse', (_e, key, t, on) => (svc.broker ? svc.broker.setOwnUse(String(key), Number(t), !!on) : false));
     ipcMain.handle('chanceRules', () => (svc.broker ? svc.broker.chanceRules() : null));

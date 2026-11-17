@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { openDb, openReadDb, openWorkDb, log, dbSize, pruneLogs, tx } = require('./db');
 const pattern = require('./pattern');
+const stability = require('./stability');
 const game = require('./game');
 const { writeData, dataMatches, addonDir } = require('./datalua');
 const broker = require('./broker');
@@ -390,6 +391,68 @@ class BrokerClient {
     }
   }
 
+  // ab 0.45.0: Stabilitaet je Gegenstand, Kategorie und Markt (stability.js), nach jedem neuen Stand im Hintergrund
+  // (mit echten Daten etwa 13 Sek. fuer den grossen Markt). In calc_cache 'stability', dsig = letzter Stand,
+  // dazu der Verlauf des Markts in calc_cache 'stabHist'.
+  * stabilitySteps(res = {}) {
+    for (const m of this.db.prepare('SELECT id FROM markets').all()) {
+      const last = this.db.prepare("SELECT MAX(t) AS t FROM snapshots WHERE market_id = ? AND source = 'scan'").get(m.id).t;
+      if (last == null) continue;
+      const c = this.calcGet(m.id, 'stability');
+      if (c && c.dsig === String(last)) continue;
+      const out = {};
+      yield* stability.marketSteps(this.db, m.id, this.now(), out);
+      if (this.closed) return;
+      const h = this.calcGet(m.id, 'stabHist');
+      this.calcPut(m.id, 'stability', String(last), '', out.value);
+      this.calcPut(m.id, 'stabHist', String(last), '', stability.addHistory(h && h.value, out.value));
+      res.stability = (res.stability || 0) + Object.keys(out.value.items).length;
+      yield;
+    }
+  }
+
+  async stabilityInBackground() {
+    if (this.readOnly || this.stabBusy) return null;
+    this.stabBusy = true;
+    const res = {};
+    try {
+      for (const _ of this.stabilitySteps(res)) {
+        await new Promise((done) => setImmediate(done));
+        if (this.closed) return res;
+      }
+      return res;
+    } catch (e) {
+      if (!this.closed) log(this.db, 'stabilitaet', false, e.message);
+      return null;
+    } finally { this.stabBusy = false; }
+  }
+
+  // Stabilitaet eines Gegenstands (oder null) aus der letzten Rechnung
+  stabilityOf(mid, key) {
+    const c = this.calcGet(mid, 'stability');
+    return c && c.value && c.value.items ? stability.unpack(c.value.items[key]) : null;
+  }
+
+  // Seite Stabilitaet in der Marktuebersicht: Markt, Gruppen, Kategorien, Verlauf und die Gegenstaende mit Namen
+  stabilityView(marketKey) {
+    const mid = this.marketId(marketKey);
+    if (mid == null) return null;
+    const c = this.calcGet(mid, 'stability');
+    if (!c || !c.value) return { market: marketKey, t: null };
+    const v = c.value;
+    const names = new Map(this.db.prepare('SELECT key, name, quality, item_id FROM items').all().map((x) => [x.key, x]));
+    const items = [];
+    for (const [key, a] of Object.entries(v.items)) {
+      const x = stability.unpack(a);
+      if (x.f) continue;   // wenig Angebote: nur auf der Seite des Gegenstands
+      const i = names.get(key) || {};
+      items.push({ key, name: i.name || null, quality: i.quality ?? null, item: i.item_id ?? Number(String(key).split(':')[0]), ...x });
+    }
+    const h = this.calcGet(mid, 'stabHist');
+    return { market: marketKey, t: v.t, apiStands: v.apiStands, groups: v.groups, cats: v.cats, items, hist: (h && h.value) || [],
+      limits: { hour: stability.HOUR_LIMITS, day: stability.DAY_LIMITS }, levels: stability.LEVELS, few: stability.FEW };
+  }
+
   retention(keepDays, hourDays) {
     const k = keepDays == null ? this.settings.keepDays : keepDays;
     const h = hourDays == null ? this.settings.hourDays : hourDays;
@@ -501,7 +564,15 @@ class BrokerClient {
   itemList(marketKey) {
     const mid = this.marketId(marketKey);
     if (mid == null) return { market: marketKey, items: [], lastScan: null };
-    return this.listOf(mid, marketKey);
+    const list = this.listOf(mid, marketKey);
+    // ab 0.45.0: Stabilitaet aus der eigenen Rechnung dazu (laeuft nach der Liste, darum erst hier)
+    const c = this.calcGet(mid, 'stability');
+    const st = c && c.value && c.value.items;
+    if (!st) return list;
+    return { ...list, items: list.items.map((x) => {
+      const a = st[x.key];
+      return a ? { ...x, stab: { i: a[2], g: a[3], f: a[11] } } : x;
+    }) };
   }
 
   itemDetail(marketKey, key, range) {
@@ -526,6 +597,14 @@ class BrokerClient {
       d.vendor = v ? v.vendor : null;
       d.commodity = v ? v.commodity : null;
       d.others = this.otherMarkets(mid, key);
+      // ab 0.45.0: Stabilitaet, dazu der Markt und die Kategorie zum Vergleich
+      const sb = this.stabilityOf(mid, key);
+      if (sb) {
+        const c = this.calcGet(mid, 'stability').value;
+        const cat = (k) => (k ? (c.cats || []).find((x) => x.key === k) || null : null);
+        d.stability = { ...sb, t: c.t, levels: stability.LEVELS, limits: { hour: stability.HOUR_LIMITS, day: stability.DAY_LIMITS },
+          market: c.groups.all, mass: c.groups.mass, cat: cat(sb.c != null ? `c${sb.c}` : null), sub: cat(sb.c != null && sb.s != null ? `c${sb.c}/s${sb.s}` : null) };
+      } else d.stability = null;
     }
     return d;
   }

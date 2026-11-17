@@ -57,6 +57,17 @@ function toTip(json, source) {
   return { name: json.name || p.name || null, quality: QUALITY[quality] ?? null, sell: sell > 0 ? sell : null, source, lines };
 }
 
+// ab Manager 0.45.0: Klasse und Unterklasse (Kategorien wie im Auktionshaus) und Stapelbarkeit aus /data/wow/item/{id}.
+// null, wenn die Antwort keine Klasse hat
+function classOf(json) {
+  const c = json && json.item_class;
+  if (!c || !Number.isInteger(c.id)) return null;
+  const s = json.item_subclass;
+  const sub = s && Number.isInteger(s.id) ? s.id : null;
+  const stack = json.is_stackable === true ? 1 : json.is_stackable === false ? 0 : null;
+  return { cls: c.id, sub, clsName: typeof c.name === 'string' ? c.name : null, subName: s && typeof s.name === 'string' ? s.name : null, stack };
+}
+
 // Eine Abfrage, bei 404 die Classic-Daten. waitMs: Pause je Abfrage, damit Blizzards Grenze haelt
 async function fetchItem(client, id, wait = async () => {}) {
   let r = await client.get(`/data/wow/item/${id}`, { kind: 'static' });
@@ -108,4 +119,4 @@ class ItemInfo {
   }
 }
 
-module.exports = { ItemInfo, toTip, fetchItem, QUALITY, FRESH, NONE_RETRY };
+module.exports = { classOf, ItemInfo, toTip, fetchItem, QUALITY, FRESH, NONE_RETRY };

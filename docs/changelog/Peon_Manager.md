@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.45.0
+
+Kurz: Neu in der Marktübersicht: Wie stabil sind die Preise? Für jeden Gegenstand, jede Kategorie und den ganzen Markt, aus Stunden und Tagen.
+
+- 0.45.0 (17.11.2026, Wunsch KarloDerBaer, Konzept `docs/konzepte/manager/Peon_Manager_Stabilitaet.md`):
+  - **Neu, Stabilität** (`stability.js`): zwei Teile. Stunden: mittlere Bewegung von Stand zu Stand der Blizzard-API über 7 Tage. Tage: Schwankung der Tageswerte über 14 Tage wie F36. Preis bei Massenware die günstigsten 25 %, sonst das günstigste Angebot. Es zählt der schlechtere Teil, Stufen von „sehr stabil“ bis „unsicher“ und Index 0 bis 100. Die Richtung über die Tage steht daneben.
+  - **Neu, Kategorien und Markt:** Median der Gegenstände je Klasse und Unterklasse, dazu ganzer Markt, Massenware, Handwerkswaren und Einzelgegenstände. Gegenstände mit weniger als 20 Angeboten im Schnitt zählen nicht. Verlauf über 30 Tage.
+  - **Neu, Anzeige:** Reiter Stabilität in der Marktübersicht, Zeile auf der Gegenstandsseite (Reiter mit dem üblichen Bereich), Spalte Stabilität in der Markt-Liste.
+  - **Schema 15:** Klasse, Unterklasse und Stapelbarkeit je Gegenstand aus der Blizzard-API (`items.cls`, `sub`, `cls_name`, `sub_name`, `stack`). Bekannte Gegenstände holt der Manager einmal nach, bis zu 1000 je Stand.
+  - Gerechnet wird nach jedem neuen Stand im Hintergrund, nachdem Data.lua geschrieben ist (`stabilityInBackground`, `calc_cache` `stability` und `stabHist`). Mit echten Daten etwa 13 Sek. für den großen Markt.
+  - Tests: Index und Stufen, beide Teile, Markt mit Kategorien und Gruppen, Tage aus 3-Stunden-Werten, Rechnung im Hintergrund, Lese-Prozess (`stabilitaet.test.js`), Klasse aus der Blizzard-API (`blizzard-import.test.js`).
+
 ## 0.44.0
 
 Kurz: Chancen, die Broker im Spiel beim Prüfen nicht mehr gefunden hat, blendet der Manager aus, bis neue Daten sie wieder bewerten.

@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('peon', {
   chanceItem: (market, key) => ipcRenderer.invoke('chanceItem', market, key),
   brief: (market, key, days) => ipcRenderer.invoke('brief', market, key, days),
   marketOverview: (market) => ipcRenderer.invoke('marketOverview', market),
+  stabilityView: (market) => ipcRenderer.invoke('stabilityView', market),
   successView: (market) => ipcRenderer.invoke('successView', market),
   setOwnUse: (key, t, on) => ipcRenderer.invoke('setOwnUse', key, t, on),
   chanceRules: () => ipcRenderer.invoke('chanceRules'),

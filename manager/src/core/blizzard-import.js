@@ -13,7 +13,7 @@ const { parseRows } = require('./stats');
 const { tx, log } = require('./db');
 const game = require('./game');
 const { GROUPS, FACTIONS, FACTION_LABEL, groupOf, regionOfRealm, rulesetOf, marketLabel } = require('./markets');
-const { fetchItem, QUALITY } = require('./item-info');
+const { fetchItem, QUALITY, classOf } = require('./item-info');
 
 const HOUR = 3600;
 const GRACE = 120;          // so lange nach der vollen Stunde warten, Blizzard braucht etwas
@@ -251,14 +251,17 @@ class BlizzardImport {
 
   // Spieldaten fuer unbekannte Gegenstaende. Gegenstaende mit Zusatz zuerst, weil ihr Schluessel den Namen braucht.
   async fetchItems(client, ids, needFirst) {
-    const has = this.db.prepare('SELECT name FROM items WHERE key = ?');
-    const missing = [...ids].filter((id) => { const r = has.get(String(id)); return !r || !r.name; })
+    // ab Manager 0.45.0 auch Gegenstaende ohne Klasse (Kategorien fuer die Stabilitaet), bekannte kommen so einmal nach
+    const has = this.db.prepare('SELECT name, cls FROM items WHERE key = ?');
+    const missing = [...ids].filter((id) => { const r = has.get(String(id)); return !r || !r.name || r.cls == null; })
       .sort((a, b) => Number(needFirst.has(b)) - Number(needFirst.has(a))).slice(0, STATIC_MAX);
     // ab Manager 0.35.1: Haendlerpreis aus der API nur mit Herkunft 'api' (nicht bestaetigt), ein Wert aus dem Spiel bleibt
     const up = this.db.prepare(`INSERT INTO items(key, item_id, variant, name, quality, vendor, vendor_src, commodity, updated) VALUES (?, ?, NULL, ?, ?, ?, CASE WHEN ?5 IS NULL THEN NULL ELSE 'api' END, NULL, ?)
         ON CONFLICT(key) DO UPDATE SET name = COALESCE(items.name, excluded.name), quality = COALESCE(items.quality, excluded.quality),
           vendor_src = CASE WHEN items.vendor IS NULL AND excluded.vendor IS NOT NULL THEN 'api' ELSE items.vendor_src END,
           vendor = COALESCE(items.vendor, excluded.vendor), updated = excluded.updated`);
+    const cls = this.db.prepare('UPDATE items SET cls = ?, sub = ?, cls_name = ?, sub_name = ?, stack = ? WHERE key = ?');
+    const unknown = this.db.prepare('UPDATE items SET cls = -1 WHERE key = ? AND cls IS NULL');
     // Blizzard erlaubt 100 Abfragen je Sekunde und antwortet darueber mit 429. Abgelehnte kommen in die naechste Runde.
     let queue = missing, unanswered = [];
     for (let round = 0; round < STATIC_ROUNDS && queue.length; round++) {
@@ -273,6 +276,9 @@ class BlizzardImport {
           const r = await fetchItem(client, id, () => this.wait(STATIC_PAUSE_MS));
           if (failed(r.status)) { unanswered.push(id); continue; }
           if (r.json && r.json.name) up.run(String(id), id, r.json.name, QUALITY[r.json.quality && r.json.quality.type] ?? null, r.json.sell_price ?? null, this.now());
+          const c = classOf(r.json);
+          if (c) cls.run(c.cls, c.sub, c.clsName, c.subName, c.stack, String(id));
+          else unknown.run(String(id));
           this.broker.info.save(id, r);   // gleich fuer den Tooltip behalten, das spart spaeter eine Abfrage
         }
       };

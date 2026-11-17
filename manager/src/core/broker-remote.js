@@ -223,6 +223,7 @@ class BrokerRemote {
   async importGame() {
     const sum = await this.call('importGame');
     if (this.useCalc) await this.recalc();
+    else await this.call('stabilityInBackground');   // ab 0.45.0, ohne Rechen-Prozess im Arbeitsprozess
     return sum;
   }
 
@@ -246,6 +247,8 @@ class BrokerRemote {
           await this.calcCall('calcMarkets');
           if (this.closed) return;
           await this.call('bridgeFromCalc');
+          // ab 0.45.0: Stabilitaet nach Data.lua, Broker wartet so nicht darauf. Fehler dort halten die Rechnung nicht auf.
+          if (!this.closed) await this.calcCall('stabilityInBackground').catch(() => null);
         } while (this.calcAgain && !this.closed);
       } catch (e) {
         if (!this.closed) this.onError(new Error(`Rechnen: ${(e && e.message) || e}`));
