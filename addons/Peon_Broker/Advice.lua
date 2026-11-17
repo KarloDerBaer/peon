@@ -347,9 +347,24 @@ function A.Update(sf, commodity)
     r.key = it.key
     A.CheckVariant(r, it, e)
     A.CheckNoOffers(r, it, e, hp)
+    if A.AutoVariant(sf, r, it) then return A.Update(sf, commodity) end   -- mit dem neuen Preis neu rechnen
     A.lot = ns.Lots and ns.Lots.ForKey(it.key) or nil
     A.Show(sf, r, ns.AtNeutralAH and ns.AtNeutralAH())
     if ns.SellVariant then ns.SellVariant.Refresh() end
+end
+
+-- Ab 0.103.1 (Wunsch KarloDerBaer 17.11.2026): Steht im Feld der Preis einer anderen Variante und kennt Broker das
+-- guenstigste Angebot genau dieser Variante aus der Live-Abfrage, traegt er den Vorschlag selbst ein (wie der Knopf
+-- "Vorschlag"). Einmal je Gegenstand, solange das Fenster offen ist: Eine eigene Aenderung danach bleibt stehen.
+function A.AutoVariant(sf, r, it)
+    if r.title ~= L.ADV_VARIANT or not Num(r.fillPrice) then return false end
+    local v = A.var
+    if not (v and v.key == it.key and Num(v.best)) then return false end
+    if A.autoFilled == it.key or not (ns.Lots and ns.Lots.CanFill()) then return false end
+    A.autoFilled = it.key
+    local ok = ns.Lots.FillTarget(sf, { target = r.fillPrice })
+    if ok then mod:Dbg("Variante: Preis selbst eingetragen " .. tostring(r.fillPrice)) end
+    return ok and true or false
 end
 
 ---------------------------------------------------------------------------
@@ -519,7 +534,7 @@ function A.Hook()
                 hooksecurefunc(sf, "Layout", function() mod:Call("Rat beim Verkaufen", A.Compact, sf) end)
                 mod:Call("Rat beim Verkaufen", A.Compact, sf)
             end
-            if sf.HookScript then sf:HookScript("OnHide", function() A.current, A.var = nil, nil end) end
+            if sf.HookScript then sf:HookScript("OnHide", function() A.current, A.var, A.autoFilled = nil, nil, nil end) end
             done = done + 1
         end
     end

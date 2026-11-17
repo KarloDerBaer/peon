@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.103.1
+
+Kurz: „Im Markt zeigen“ springt bei Ausrüstung mit Zusatz wie „des Banditen“ jetzt zur richtigen Variante.
+Kurz: Beim Verkaufen trägt Broker den Preis deiner Variante selbst ein, wenn Blizzard den Preis einer anderen Variante vorschlägt.
+
+- 0.103.1 (17.11.2026, Rückmeldung KarloDerBaer):
+  - **Behoben, Im Markt zeigen:** Der Knopf suchte in Blizzards Ergebnisliste nur nach der Nummer des Gegenstands. Alle Varianten haben dieselbe, darum ging die erste Zeile auf (zum Beispiel „der Beweglichkeit“ statt „des Banditen“). Jetzt vergleicht `Go.RowMatches` bei Varianten den Namen vom Spiel (`GetItemKeyInfo`), sonst den gelernten Zusatz. Passt keine Zeile, geht der Klick wie bisher auf den Reiter Markt mit Suche.
+  - **Neu, Rat beim Verkaufen:** Steht im Preisfeld der Preis einer anderen Variante („Andere Variante“) und kennt Broker das günstigste Live-Angebot genau dieser Variante, trägt er den Vorschlag selbst ein (`A.AutoVariant`, über `Lots.FillTarget` wie der Knopf „Vorschlag“). Einmal je Gegenstand, solange das Fenster offen ist, eine eigene Änderung danach bleibt stehen. Nicht nach einer Blockade (`targetBlocked`) und nicht, wenn nur der letzte Marktpreis bekannt ist.
+  - Tests: Variante findet ihre Zeile, fehlende Variante keine fremde, ohne Namen über den gelernten Zusatz, Preis selbst eintragen nur einmal, nur mit Live-Angebot, nicht nach Blockade (`test_broker.lua`).
+
 ## 0.103.0
 
 Kurz: Steht von deiner Variante gerade nichts im Auktionshaus, rät Broker beim Verkaufen nicht mehr vorschnell zum Händler. Er schlägt den Preis vor, zu dem sie zuletzt vermutlich verkauft wurde, sonst den oberen Rand des üblichen Bereichs.

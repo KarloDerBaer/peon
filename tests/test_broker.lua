@@ -2656,6 +2656,28 @@ end)()
     check(ns.Go.Market({}) == false and shown == nil and said(ns.L.GO_NONE), "N1: ohne Gegenstand kein Sprung")
     ns.Buy.ShowInAH = oldShow
   end
+  -- 0.103.1: "Im Markt zeigen" bei Varianten trifft genau die Zeile dieser Variante, nicht die erste mit derselben Nummer
+  do
+    local oldCAH = C_AuctionHouse
+    local names = { [101] = "Pfadfinderhut der Beweglichkeit", [102] = "Pfadfinderhut des Banditen" }
+    C_AuctionHouse = setmetatable({ GetItemKeyInfo = function(k) return { itemName = names[k.itemSuffix] } end },
+      { __index = oldCAH })
+    local rows = {}
+    for _, suf in ipairs({ 101, 102 }) do rows[#rows + 1] = { rowData = { itemKey = { itemID = 9999, itemLevel = 29, itemSuffix = suf } } } end
+    local box = { ForEachFrame = function(self, fn) for _, r in ipairs(rows) do fn(r) end end }
+    local oldAHF = rawget(_G, "AuctionHouseFrame")
+    AuctionHouseFrame = { BrowseResultsFrame = { ItemList = { ScrollBox = box } } }
+    check(ns.Go.BrowseRow("9999:Pfadfinderhut des Banditen") == rows[2], "0.103.1: Variante findet ihre eigene Zeile")
+    check(ns.Go.BrowseRow("9999:Pfadfinderhut des Baeren") == nil, "0.103.1: fehlende Variante trifft keine fremde Zeile")
+    check(ns.Go.BrowseRow(9999) == rows[1], "0.103.1: ohne Variante zaehlt weiter die Nummer")
+    C_AuctionHouse = setmetatable({ GetItemKeyInfo = function() return nil end }, { __index = oldCAH })
+    check(ns.Go.BrowseRow("9999:Pfadfinderhut des Banditen") == nil, "0.103.1: ohne Namen und ohne gelernten Zusatz keine Zeile")
+    ns.Buy.LearnKey("9999:Pfadfinderhut des Banditen", { itemLevel = 29, itemSuffix = 102 })
+    check(ns.Go.BrowseRow("9999:Pfadfinderhut des Banditen") == rows[2], "0.103.1: ohne Namen hilft der gelernte Zusatz")
+    ns.Buy.ForgetKey("9999:Pfadfinderhut des Banditen")
+    AuctionHouseFrame = oldAHF
+    C_AuctionHouse = oldCAH
+  end
   T.tabs.radar.scripts.OnClick(T.tabs.radar)
   check(c.shown and not Win.contents.buy.shown, "0.54: zurueck zum Radar, Einkaufen versteckt")
   check(ns.Buy.ShowInAH({ key = 2770 }) == false and display == 0, "U7: im Reiter schaltet Broker Blizzards Ansicht nicht um")
@@ -3125,6 +3147,22 @@ end)()
     local r4 = { kind = "wait", title = "x" }
     A.CheckVariant(r4, { key = vk, price = 6050 }, { m = 40000 })
     check(r4.title == L.ADV_VARIANT and r4.why == L.ADV_VARIANT_WHY_MKT:format(ns.Tooltip.Money(40000)), "0.97.1: ohne Angebot in der Liste der letzte Marktpreis")
+    -- ab 0.103.1: Preis der Variante selbst eintragen, einmal je Gegenstand, nur mit Live-Angebot
+    local set = {}
+    local sfv = { PriceInput = { SetAmount = function(_, v) set[#set + 1] = v end } }
+    local oldBlocked = mod.acc.targetBlocked
+    mod.acc.targetBlocked = nil
+    A.autoFilled = nil
+    check(A.AutoVariant(sfv, r4, { key = vk }) == false and #set == 0, "0.103.1: nur Marktpreis der Variante: nichts selbst eintragen")
+    A.var = { key = vk, other = 5, best = 38400 }
+    check(A.AutoVariant(sfv, r, { key = vk }) == true and set[1] == r.fillPrice, "0.103.1: Preis der Variante selbst eingetragen")
+    check(A.AutoVariant(sfv, r, { key = vk }) == false and #set == 1, "0.103.1: nur einmal, eigene Aenderung danach bleibt")
+    A.autoFilled = nil
+    check(A.AutoVariant(sfv, r2, { key = vk }) == false and #set == 1, "0.103.1: ohne Hinweis andere Variante nichts eintragen")
+    mod.acc.targetBlocked = { t = 1 }
+    check(A.AutoVariant(sfv, r, { key = vk }) == false and #set == 1, "0.103.1: nach einer Blockade nichts selbst eintragen")
+    mod.acc.targetBlocked = oldBlocked
+    A.autoFilled = nil
     A.var = nil
   end
   -- ab 0.103: gerade kein Angebot dieser Variante, Blizzard traegt den billigen Preis einer anderen ein

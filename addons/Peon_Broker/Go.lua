@@ -189,6 +189,28 @@ function Go.Acts(down)
     return (down and true or false) == (cv and true or false)
 end
 
+-- Passt Blizzards Zeile (itemKey) zu diesem Schluessel? Bei Varianten ("itemID:voller Name") reicht die Nummer
+-- nicht, alle Varianten haben dieselbe (ab 0.103.1). Dann zaehlt der Name vom Spiel, sonst der gelernte Zusatz.
+-- Ist beides unbekannt, passt die Zeile nicht (dann sucht Broker ueber den Reiter Markt).
+function Go.RowMatches(key, ik)
+    local D = ns.Data
+    if type(ik) ~= "table" or ik.itemID ~= D.ItemID(key) then return false end
+    if not D.IsVariantKey(key) then return true end
+    local want = tostring(key):match("^%d+:(.+)$")
+    local ah = rawget(_G, "C_AuctionHouse")
+    if type(ah) == "table" and type(ah.GetItemKeyInfo) == "function" then
+        local ok, info = pcall(ah.GetItemKeyInfo, ik)
+        local name = ok and type(info) == "table" and info.itemName
+        if type(name) == "string" and name ~= "" and not Peon.IsSecret(name) then return name == want end
+    end
+    local B = ns.Buy
+    if B and B.KnownKey and B.KnownKey(key) then
+        local k = B.ItemKeyFor(key)
+        return tonumber(ik.itemSuffix) == tonumber(k.itemSuffix)
+    end
+    return false
+end
+
 -- Zeile in Blizzards Ergebnisliste des Markts fuer diesen Gegenstand (oder nil). Nur lesen.
 function Go.BrowseRow(key)
     local f = AHF()
@@ -203,7 +225,7 @@ function Go.BrowseRow(key)
         local d = rawget(row, "rowData")
         if d == nil and type(row.GetRowData) == "function" then local ok, x = pcall(row.GetRowData, row); if ok then d = x end end
         local ik = type(d) == "table" and d.itemKey
-        if type(ik) == "table" and ik.itemID == id then found = row end
+        if Go.RowMatches(key, ik) then found = row end
     end)
     return found
 end
