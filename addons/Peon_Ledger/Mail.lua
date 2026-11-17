@@ -706,6 +706,19 @@ function MA.Recipients()
     return items
 end
 
+-- Nachnahme abgeschaltet (ab 0.16.1, 18.11.2026): Der Forever-Server lehnt jeden Brief mit Nachnahme ab
+-- ("Interner Nachrichten-Datenbankfehler"), auch aus Blizzards eigenem Postfenster, mit jedem Betrag und an jeden
+-- Empfaenger. Bekannter Serverfehler seit etwa 12.11.2026. Wenn Blizzard ihn behebt, COD_OFF auf false setzen.
+MA.COD_OFF = true
+
+function MA.CodOff(cb)
+    cb:SetChecked(false)
+    cb:Disable()
+    if cb.SetMotionScriptsWhileDisabled then pcall(cb.SetMotionScriptsWhileDisabled, cb, true) end
+    if cb.label then cb.label:SetText(L.MAIL_COD .. GREY .. "  " .. L.MAIL_COD_OFF_SHORT .. "|r") end
+    Peon.UI.SetTooltip(cb, { L.MAIL_COD, L.MAIL_COD_OFF })
+end
+
 function MA.BuildSend()
     local U = Peon.UI
     local a = W.Area()
@@ -733,6 +746,7 @@ function MA.BuildSend()
     U.FormRow(left, L.MAIL_MONEY, S.money, 4, -14 - 3 * (U.FORM_STEP + 14))
     S.cod = U.Check(left, L.MAIL_COD, false, function() MA.RefreshSend() end, { L.MAIL_COD, L.MAIL_COD_TIP })
     S.cod:SetPoint("TOPLEFT", U.LABEL_W + 18, -14 - 4 * (U.FORM_STEP + 14) + 4)
+    if MA.COD_OFF then MA.CodOff(S.cod) end
     S.cost = U.Text(left, "small", "", U.LEFT_W - 40)
     S.cost:SetPoint("TOPLEFT", 20, -14 - 5 * (U.FORM_STEP + 14) - 4)
     S.sendBtn = U.Button(left, L.MAIL_SEND_BTN, 160, function() MA.Send() end, "gold")
@@ -855,7 +869,7 @@ function MA.Send()
         if items[1] and (items[1].n or 1) > 1 then subject = subject .. " (" .. items[1].n .. ")" end
     end
     local amount = S.money:GetAmount()
-    local cod = S.cod:GetChecked() and amount > 0
+    local cod = not MA.COD_OFF and S.cod:GetChecked() and amount > 0
     if cod and #items == 0 then mod:Print(L.MAIL_COD_NEEDS_ITEM); return end
     local setMoney, setCod = G("SetSendMailMoney"), G("SetSendMailCOD")
     if type(setCod) == "function" then pcall(setCod, cod and amount or 0) end

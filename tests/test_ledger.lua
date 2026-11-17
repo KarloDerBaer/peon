@@ -1619,6 +1619,18 @@ MA.Send()
 check(sent and sent[1] == "Borin" and sent[2] == "Leinenstoff (20)" and setM == 0, "Abschicken: Betreff aus dem Anhang")
 fire("MAIL_SEND_SUCCESS")
 check(mod.db.mailRecent[1] == "Borin" and said("Brief an Borin abgeschickt"), "zuletzt angeschrieben gemerkt")
+-- 0.16.1: Nachnahme abgeschaltet (Serverfehler), auch ein gesetzter Haken schickt keine Nachnahme
+do
+  local S = MA.send
+  check(MA.COD_OFF and not S.cod:GetChecked() and (S.cod.label.text or ""):find("Serverfehler", 1, true), "Nachnahme ausgegraut mit Hinweis")
+  local cod
+  SetSendMailCOD = function(v) cod = v end
+  S.cod:SetChecked(true); S.money:SetAmount(500)
+  MA.Send()
+  check(cod == 0 and setM == 500, "Nachnahme aus: Betrag geht als Gold")
+  S.cod:SetChecked(false); S.money:SetAmount(0)
+  SetSendMailCOD = function() end
+end
 SendMail = oS
 MA.tabs:Select("inbox")
 check(showing == false, "zurueck im Eingang: Senden aus")

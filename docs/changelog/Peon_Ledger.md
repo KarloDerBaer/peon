@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.16.1
+
+Kurz: Nachnahme ist in Peon Post vorerst ausgegraut. Der Server von WoW Forever lehnt zurzeit jeden Brief mit Nachnahme ab, auch aus Blizzards eigenem Postfenster.
+
+- 0.16.1 (18.11.2026, Fehlermeldung KarloDerBaer): **Nachnahme abgeschaltet.** Briefe mit Nachnahme scheitern mit „Interner Nachrichten-Datenbankfehler“. Von KarloDerBaer nachgeprüft: auch über Blizzards Postfenster mit Mausklick, mit 1 Kupfer, 1 Silber und 1 Gold, an eigene und fremde Charaktere. Im offiziellen Forum gibt es dazu Berichte anderer Spieler seit dem 12.11.2026, ohne Antwort von Blizzard. Peon Post ist also nicht die Ursache.
+  - **Geändert:** Der Haken „Als Nachnahme“ ist ausgegraut, daneben steht „(Serverfehler)“, der Tooltip erklärt es. Ein Schalter im Code (`MA.COD_OFF`) schaltet die Nachnahme wieder frei, sobald Blizzard den Fehler behebt.
+  - Tests: Haken ausgegraut mit Hinweis, Betrag geht als Gold (`test_ledger.lua`). Im Spiel noch nicht geprüft.
+
 ## 0.16.0
 
 Kurz: Einstellgebühren von Auktionen, die nicht verkauft wurden, zeigt der Tooltip jetzt unter den Kosten als „Offene Gebühren“, gesamt und je Stück.

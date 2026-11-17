@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.23.1 / Broker 0.103.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.46.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.0 / Fishing 1.7.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.1 / Profession 0.5.0 / Warhorn 0.5.2.
+Stand: 14.11.2026, **umgezogen ins Git-Repo** (Addon-Code in `addons\`), nach Peon 0.23.1 / Broker 0.103.1 / Bridge 0.12.0 (bis 0.3.0 Peon_Client) / Peon Manager 0.46.0 (bis 0.5.0 Programm Peon Client) / Ledger 0.16.1 / Fishing 1.7.0 / Tooltip 0.7.5 / ComboPoints 3.6.0 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.1 / Profession 0.5.0 / Warhorn 0.5.2.
 Je Modul stehen hier nur Version, Dateien, Einstellungen, Befehle und was noch zu prüfen ist. Der Verlauf der Versionen steht in `docs\changelog\<Modul>.md` (neueste oben). Bei jeder Änderung an einem Modul diesen Abschnitt und den Changelog aktualisieren.
 
 ## Peon (Kern) – 0.23.1, API 23
@@ -195,8 +195,9 @@ etention.js`): `keepDays` (Standard 14) und `hourDays` (Standard 60, mindestens 
 - Verlauf der Versionen: `docs/changelog/Peon_Bridge.md`
 - Im Spiel prüfen (nach dem Start): Optionsseite zeigt „Kanal broker freigeschaltet“ und „Peon Manager: Werte vom … (Version 0.6.0)“.
 
-## Peon_Ledger – 0.16.0 (Bestand, Buch und Postfenster)
+## Peon_Ledger – 0.16.1 (Bestand, Buch und Postfenster)
 
+- **Nachnahme ausgegraut (ab 0.16.1, 18.11.2026):** Der Forever-Server lehnt zurzeit jeden Brief mit Nachnahme ab („Interner Nachrichten-Datenbankfehler“, auch aus Blizzards Fenster, bekannter Serverfehler seit etwa 12.11.2026). Haken „Als Nachnahme“ ausgegraut mit Hinweis. Offen: `MA.COD_OFF` in `Mail.lua` wieder auf `false`, sobald Blizzard es behebt. Im Spiel noch nicht geprüft.
 - **Offene Gebühren (ab 0.16.0, 16.11.2026):** Einstellgebühren abgelaufener oder abgebrochener Auktionen stehen im Tooltip unter den Kosten als „Offene Gebühren“ (gesamt und je Stück). Neue Abfrage `mod:OpenFee(id, char)` für Broker. Die Kosten je Stück bleiben ohne Gebühren, Ledger zieht sie wie bisher beim nächsten Verkauf vom Gewinn ab. In Vorabversion `v2026.11.17-test` (17.11.2026, nur Kanal Test). Im Spiel noch nicht geprüft.
 - **Bestand 0 im Tooltip (ab 0.15.2, 16.11.2026):** Bei Handwerksmaterial (Klasse 7 oder Kennzeichen „Handwerksmaterial“ des Spiels) zeigt der Tooltip auch dann „Ledger · Bestand 0“, wenn kein Charakter etwas davon hat. Andere Gegenstände ohne Bestand bleiben ohne Ledger-Zeile. Nicht veröffentlicht, im Spiel noch nicht geprüft.
 - **Eingestellte Ware unter Auktionen (ab 0.15.1):** Ware kommt beim Einstellen gleich unter Auktionen, danach Neuabfrage der eigenen Auktionen. Alte Abweichungen durch Einstellen werden bei jedem Login gepaart (`aucfix`, „Auktion (korrigiert)“). Einmaliger Nachtrag vorher eingestellter Ware (`fixListed`), Auflösen offener Abweichungen bei neuer Auktion in der Liste. Buch mit „davon in Auktionen“, Charakter links und Zeitraum rechts, Überlagerungen in Buch und Übersicht behoben. Neues Feld an Bewegungen: `pl` (Einstellung schon unter Auktionen). Nicht veröffentlicht, im Spiel noch nicht geprüft.

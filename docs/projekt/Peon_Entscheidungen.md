@@ -2,6 +2,10 @@
 
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 
+## 18.11.2026: Nachnahme in Peon Post ausgegraut (Ledger 0.16.1)
+
+- **Haken ausgrauen statt Umweg** (KarloDerBaer): Nachnahme scheitert auf dem Forever-Server bei jedem Weg, auch mit Mausklick in Blizzards eigenem Fenster. Peon Post graut den Haken mit Hinweis aus, bis Blizzard den Serverfehler behebt. Der vorher gebaute sichere Knopf, der Blizzards Knopf „Senden“ drückt, ist verworfen, er half nicht.
+
 ## 17.11.2026: Kanal mittesten und privates Peon_Debug (Peon 0.23.0)
 
 - **Begrüßung im Release zusätzlich über den Kanal** (KarloDerBaer): Die Prüfung allein zeigte, dass die eigene Kanal-Nachricht zurückkommt. Ob andere sie bekommen, zeigt das Release. Höchstens alle 30 Minuten eine, ohne Weitergabe, Antwort per Flüstern. Der Weg steht je Nutzer in `PeonDB.comm.peers`.
