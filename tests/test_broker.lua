@@ -2045,6 +2045,16 @@ end)()
   check(so == 30 and ca == 40, "Scan: Teilkauf 30, 40 oberhalb des stehenden Angebots = abgebrochen")
   so, ex, ca = Sa.Compare({ off(0, 100, 10), off(0, 30, 12) }, { off(0, 30, 12) }, t0, t0 + 3 * 3600, 0, true, false, 0.1)
   check(so == 0 and ca == 0, "Scan ohne Restzeit, Abstand 3 Std.: unklar")
+  -- ab 0.103: hoechster vermutlich verkaufter Preis, auch wenn das einzige Angebot ganz verschwindet
+  local sp
+  so, ex, ca, sp = Sa.Compare({ off(1, 1, 6925, t0 + 43200, t0 + 172800) }, {}, t0, t0 + 3600, 0, false, true, 0.1)
+  check(sp == 6925 and so > 0, "0.103: Einzelstueck verschwunden, Verkaufspreis gemerkt")
+  so, ex, ca, sp = Sa.Compare({ off(1, 1, 500, t0 + 1000, t0 + 1000) }, {}, t0, t0 + 3600, 0, false, true, 0.1)
+  check(sp == nil and ex == 1, "0.103: abgelaufen ergibt keinen Verkaufspreis")
+  local es = { as = { t = t0, cap = 0, s = Sa.Encode({ off(1, 1, 6925, t0 + 43200, t0 + 172800) }, t0, true) } }
+  Sa.Observe(es, "as", Sa.Snapshot(t0 + 3600, {}, false, true), {}, false, true)
+  local lp, lt = Sa.LastSold(es)
+  check(lp == 6925 and lt == t0 + 3600, "0.103: e.sp nach dem Vergleich gesetzt")
   -- Restzeit-Stufen wie in Forever (1-4)
   check(Sa.BANDS[4] and Sa.BANDS[4][1] == 43200 and Sa.BANDS[1][2] == 1800, "Restzeit-Stufen 1-4 (Forever)")
   -- Ablauf ueber den Gegenstand: Live-Abfragen ueber Data.ApplyLive
@@ -3115,6 +3125,53 @@ end)()
     local r4 = { kind = "wait", title = "x" }
     A.CheckVariant(r4, { key = vk, price = 6050 }, { m = 40000 })
     check(r4.title == L.ADV_VARIANT and r4.why == L.ADV_VARIANT_WHY_MKT:format(ns.Tooltip.Money(40000)), "0.97.1: ohne Angebot in der Liste der letzte Marktpreis")
+    A.var = nil
+  end
+  -- ab 0.103: gerade kein Angebot dieser Variante, Blizzard traegt den billigen Preis einer anderen ein
+  do
+    local vk = "28000:Stiefel des Kanalisierers"
+    local now = time()
+    local oldBand, oldClient = ns.Data.Band, ns.Sales.ClientStats
+    ns.Sales.ClientStats = function() return nil end
+    ns.Data.Band = function() return nil end
+    A.var = { key = vk, other = 24 }
+    local ev = { m = 6925, md = 6925, gone = now - 600, t = now - 2 * 86400, sp = ("%d:%d"):format(6925, now - 3 * 86400) }
+    local r = A.Judge(ev, vk, 1560, 1, 1541, mod.db)
+    check(r.kind == "vendor", "0.103: vorher Lieber zum Haendler")
+    A.CheckVariant(r, { key = vk, price = 1560 }, ev)
+    A.CheckNoOffers(r, { key = vk, price = 1560 }, ev, 1541, now)
+    check(r.title == L.ADV_HIGHER and r.fillPrice == 6925 and r.why == L.ADV_HIGHER_SOLD:format(ns.Tooltip.Money(6925), L.ADV_AGO_D:format(3))
+      and r.extra == nil, "0.103: zuletzt verkaufter Preis -> Hoeher ansetzen: " .. plain(tostring(r.why)))
+    check(A.Prices(vk, ev, nil, r).suggest == 6925, "0.103: Vorschlag = zuletzt verkaufter Preis")
+    -- Verkauf zu alt: oberer Rand des ueblichen Bereichs, Hinweis kein Verkauf erkannt
+    ev.sp = ("%d:%d"):format(6925, now - 10 * 86400)
+    ns.Data.Band = function() return { low = 5000, high = 7000, trend = "calm" } end
+    local r2 = A.Judge(ev, vk, 1560, 1, 1541, mod.db)
+    A.CheckNoOffers(r2, { key = vk, price = 1560 }, ev, 1541, now)
+    check(r2.title == L.ADV_HIGHER and r2.fillPrice == 7000 and r2.extra == L.ADV_HINT_NOSALE:format(7) and r2.band,
+      "0.103: oberer Rand des Bereichs, Hinweis ohne Verkauf")
+    -- lange nicht gesehen: selten
+    ev.t = now - 12 * 86400
+    local r3 = A.Judge(ev, vk, 1560, 1, 1541, mod.db)
+    A.CheckNoOffers(r3, { key = vk, price = 1560 }, ev, 1541, now)
+    check(r3.extra == L.ADV_HINT_RARE:format(L.ADV_AGO_D:format(12)), "0.103: selten im Markt: " .. tostring(r3.extra))
+    -- auch der Vergleichspreis bringt weniger als der Haendler: bleibt beim Haendler, mit Hinweis
+    ns.Data.Band = function() return { low = 1000, high = 1500, trend = "calm" } end
+    local r4 = A.Judge(ev, vk, 1200, 1, 1541, mod.db)
+    A.CheckNoOffers(r4, { key = vk, price = 1200 }, ev, 1541, now)
+    check(r4.kind == "vendor" and r4.fillPrice == nil and r4.extra, "0.103: Vergleichspreis unter Haendler -> Haendler bleibt")
+    -- Angebot dieser Variante vorhanden: nichts aendern
+    A.var = { key = vk, other = 3, best = 6000 }
+    local r5 = { kind = "sell", title = "x" }
+    A.CheckNoOffers(r5, { key = vk, price = 1560 }, ev, 1541, now)
+    check(r5.title == "x" and r5.ref == nil, "0.103: mit Angebot dieser Variante kein Eingriff")
+    -- nie gesehen
+    A.var = { key = vk, other = 3 }
+    local r6 = { kind = "none", title = "x" }
+    ns.Data.Band = function() return nil end
+    A.CheckNoOffers(r6, { key = vk, price = 1560 }, nil, 1541, now)
+    check(r6.extra == L.ADV_HINT_NEVER and r6.title == "x", "0.103: nie gesehen")
+    ns.Data.Band, ns.Sales.ClientStats = oldBand, oldClient
     A.var = nil
   end
   check(A.Judge(e, 2770, 0, 1, 5, mod.db).why == L.ADV_NO_PRICE, "U3: ohne Preis")

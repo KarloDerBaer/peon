@@ -170,13 +170,15 @@ function A.LastPost(key)
 end
 
 -- Rueckgabe { cheap, suggest, last, target, targetSrc = "lot" oder "watch" }, fehlende Preise nil
-function A.Prices(key, e, lot)
+-- r (ab 0.103): Rat mit Vergleichspreis r.ref, wenn gerade kein Angebot im Markt steht -> "Vorschlag"
+function A.Prices(key, e, lot, r)
     local p = {}
     if key == nil then return p end
+    if type(r) == "table" and type(r.ref) == "table" and Num(r.ref.price) then p.suggest = r.ref.price end
     local v = A.var
     if v and v.key == key and Num(v.best) then p.cheap = v.best
     elseif type(e) == "table" and not e.gone and Num(e.m) then p.cheap = e.m end
-    if p.cheap then
+    if p.cheap and not p.suggest then
         local te = type(e) == "table" and e or nil
         local ok, vp = pcall(ns.Data.Suggest, p.cheap, te and te.md, key, mod.db, te, te and te.pmd)
         if ok and Num(vp) then p.suggest = vp end
@@ -323,7 +325,7 @@ function A.Show(sf, r, isNeutral)
         end
         table.insert(parts, 1, line)
     end
-    A.ShowButtons(b, A.Prices(r.key, r.key ~= nil and ns.Data.Lookup(r.key) or nil, lot))
+    A.ShowButtons(b, A.Prices(r.key, r.key ~= nil and ns.Data.Lookup(r.key) or nil, lot, r))
     b.lines:SetText(table.concat(parts, "\n"))
     b:Show()
     A.last = r
@@ -344,6 +346,7 @@ function A.Update(sf, commodity)
     local r = A.Judge(e, it.key, it.price, it.qty, hp, mod.db)
     r.key = it.key
     A.CheckVariant(r, it, e)
+    A.CheckNoOffers(r, it, e, hp)
     A.lot = ns.Lots and ns.Lots.ForKey(it.key) or nil
     A.Show(sf, r, ns.AtNeutralAH and ns.AtNeutralAH())
     if ns.SellVariant then ns.SellVariant.Refresh() end
@@ -368,6 +371,86 @@ function A.CheckVariant(r, it, e)
     r.why = v.best and L.ADV_VARIANT_WHY:format(Money(best)) or L.ADV_VARIANT_WHY_MKT:format(Money(best))
     r.extra = nil
     r.fillPrice = fill
+end
+
+---------------------------------------------------------------------------
+-- Kein Angebot dieses Gegenstands im Markt (ab 0.103, Wunsch KarloDerBaer 17.11.2026). Bisher sagte der Rat
+-- "Lieber zum Haendler", wenn Blizzard den billigen Preis einer anderen Variante eintrug und von dieser Variante
+-- gerade nichts im Haus stand. Jetzt gilt als Vergleichspreis:
+--   1. der Preis, zu dem zuletzt vermutlich verkauft wurde (Sales.LastSold), wenn hoechstens A.SOLD_DAYS alt
+--   2. sonst der obere Rand des ueblichen Bereichs (ohne Konkurrenz darf man oben ansetzen)
+-- Liegt der Preis im Feld darunter und lohnt der Vergleichspreis mehr als der Haendler, heisst der Rat
+-- "Hoeher ansetzen", der Knopf "Vorschlag" traegt den Vergleichspreis ein. Dazu ein Hinweis zum Markt:
+--   lange nicht gesehen (selten) oder angeboten, aber kein Verkauf erkannt.
+---------------------------------------------------------------------------
+A.SOLD_DAYS = 7      -- so alt darf der zuletzt verkaufte Preis sein
+A.SEEN_DAYS = 7      -- laenger nicht im Markt gesehen -> "selten"
+
+local function Ago(secs)
+    if secs < 3600 then return L.ADV_AGO_NOW end
+    if secs < 48 * 3600 then return L.ADV_AGO_H:format(math.floor(secs / 3600)) end
+    return L.ADV_AGO_D:format(math.floor(secs / 86400))
+end
+A.Ago = Ago
+
+-- Gerade kein Angebot genau dieses Gegenstands (bei Varianten: dieser Variante)?
+function A.NoOffers(it, e)
+    local v = A.var
+    if v and v.key == it.key then
+        if Num(v.best) then return false end
+        if not v.partial then return true end
+    end
+    return type(e) ~= "table" or e.gone ~= nil
+end
+
+-- Vergleichspreis: { price, src = "sold" oder "range", t, band } oder nil
+function A.Reference(e, key, now)
+    now = now or time()
+    local sp, st
+    if ns.Sales then sp, st = ns.Sales.LastSold(e) end
+    if Num(sp) and Num(st) and now - st <= A.SOLD_DAYS * 86400 then
+        return { price = sp, src = "sold", t = st }
+    end
+    local band = type(e) == "table" and ns.Data.Band(e, nil, nil, nil, key) or nil
+    if band and Num(band.high) and band.high > 0 then return { price = band.high, src = "range", band = band } end
+    return nil
+end
+
+-- Hinweis zum Markt: selten im Markt oder kein Verkauf erkannt, sonst nil
+function A.MarketHint(e, key, now)
+    now = now or time()
+    local seen = ns.Data.Seen(e)
+    if not seen then return L.ADV_HINT_NEVER end
+    if now - seen > A.SEEN_DAYS * 86400 then return L.ADV_HINT_RARE:format(Ago(now - seen)) end
+    local sp, st
+    if ns.Sales then sp, st = ns.Sales.LastSold(e) end
+    if Num(st) and now - st <= A.SEEN_DAYS * 86400 then return nil end
+    local so = ns.Sales and ns.Sales.RecentDays(e, A.SEEN_DAYS) or 0
+    if so > 0 then return nil end
+    local c = ns.Sales and ns.Sales.ClientStats(e, key)
+    if c and Num(c.perHour) and c.perHour > 0 then return nil end
+    return L.ADV_HINT_NOSALE:format(A.SEEN_DAYS)
+end
+
+function A.CheckNoOffers(r, it, e, hp, now)
+    if not A.NoOffers(it, e) then return end
+    local hint = A.MarketHint(e, it.key, now)
+    local ref = A.Reference(e, it.key, now)
+    r.ref = ref
+    if ref and not r.band then r.band = ref.band end
+    if ref and Num(it.price) and it.price < ref.price
+        and not (Num(hp) and hp > 0 and ref.price * (1 - ns.Data.Cut()) < hp) then
+        r.kind, r.title = "wait", L.ADV_HIGHER
+        if ref.src == "sold" then
+            r.why = L.ADV_HIGHER_SOLD:format(Money(ref.price), Ago((now or time()) - ref.t))
+        else
+            r.why = L.ADV_HIGHER_RANGE:format(Money(ref.price))
+        end
+        r.fillPrice = ref.price
+        r.extra = hint
+        return
+    end
+    if hint then r.extra = r.extra and (r.extra .. " " .. hint) or hint end
 end
 
 -- Blizzards Angebote fuer den Gegenstand im Fenster sind da: als Live-Stand uebernehmen, dann neu rechnen

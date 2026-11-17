@@ -125,9 +125,12 @@ local function EndState(o, tA, tB, scan)
     return nil
 end
 
--- A, B = Listen; withIds = Live (Nummern), sonst Scan. Rueckgabe sold, expired, cancelled
+-- A, B = Listen; withIds = Live (Nummern), sonst Scan. Rueckgabe sold, expired, cancelled, soldPrice
+-- soldPrice (ab 0.103): hoechster Preis je Stueck, zu dem in diesem Vergleich vermutlich verkauft wurde, sonst nil
 function S.Compare(A, B, tA, tB, cap, commodity, withIds, cancelPct)
     local sold, expired, cancelled = 0, 0, 0
+    local soldPrice
+    local function Sold(p) if not soldPrice or p > soldPrice then soldPrice = p end end
     local function In(o) return cap == 0 or o.p < cap end
     local matchedB, gone, newB = {}, {}, {}
     local anchor   -- guenstigstes Angebot, das in beiden unveraendert stand
@@ -140,7 +143,7 @@ function S.Compare(A, B, tA, tB, cap, commodity, withIds, cancelPct)
                 if i then
                     matchedB[i] = true
                     local b = B[i]
-                    if b.q < a.q then sold = sold + (a.q - b.q) end
+                    if b.q < a.q then sold = sold + (a.q - b.q); Sold(a.p) end
                     -- stand in beiden (auch teilweise gekauft): alles Teurere konnte nicht gekauft werden
                     if b.q > 0 and (not anchor or a.p < anchor) then anchor = a.p end
                 else
@@ -175,7 +178,7 @@ function S.Compare(A, B, tA, tB, cap, commodity, withIds, cancelPct)
                     if not used[i] and b.p == a.p and b.q < a.q then hit = i; break end
                 end
                 if hit then
-                    used[hit] = true; sold = sold + (a.q - B[hit].q)
+                    used[hit] = true; sold = sold + (a.q - B[hit].q); Sold(a.p)
                     if not anchor or a.p < anchor then anchor = a.p end
                 else
                     still[#still + 1] = a
@@ -196,15 +199,16 @@ function S.Compare(A, B, tA, tB, cap, commodity, withIds, cancelPct)
                     if b.q == a.q and b.p < a.p then repost = true; table.remove(newB, j); break end
                 end
                 if repost or (anchor and a.p > anchor) then cancelled = cancelled + a.q
-                else sold = sold + a.q end
+                else sold = sold + a.q; Sold(a.p) end
             else
                 local c = a.q * (cancelPct or 0)
                 cancelled = cancelled + c
                 sold = sold + (a.q - c)
+                Sold(a.p)
             end
         end
     end
-    return sold, expired, cancelled
+    return sold, expired, cancelled, soldPrice
 end
 
 ---------------------------------------------------------------------------
@@ -330,8 +334,9 @@ function S.Observe(e, field, snap, offers, commodity, withIds)
             local cap = old.cap or 0
             if (snap.cap or 0) > 0 then cap = (cap > 0) and math.min(cap, snap.cap) or snap.cap end
             local pct = (tonumber(mod.db.salesCancelPct) or 10) / 100
-            local so, ex, ca = S.Compare(S.Decode(old.s, old.t, withIds), offers, old.t, snap.t, cap, commodity, withIds, pct)
+            local so, ex, ca, sp = S.Compare(S.Decode(old.s, old.t, withIds), offers, old.t, snap.t, cap, commodity, withIds, pct)
             S.AddDay(e, snap.t, so, ex, ca, gap)
+            if so > 0 and Num(sp) and sp > 0 then e.sp = ("%.0f:%d"):format(sp, snap.t) end   -- ab 0.103
             S.AddRecent(e, snap.t, gap, so, ex, ca)
             e.acov = snap.t
         end
@@ -432,6 +437,26 @@ function S.Stats14(e, today)
     local r = { sold = so, expired = ex, cancelled = ca, hours = sec / 3600, cmp = n, perHour = so / sec * 3600 }
     if so + ex > 0 then r.rate = so / (so + ex) end
     return r
+end
+
+-- Ab 0.103 (Wunsch KarloDerBaer 17.11.2026, Rat im Verkaufen ohne Angebot): zuletzt vermutlich verkaufter Preis.
+-- e.sp = "Preis:Zeit" (hoechster Preis des letzten Vergleichs mit Verkauf). Rueckgabe Preis, Zeit oder nil
+function S.LastSold(e)
+    if type(e) ~= "table" or type(e.sp) ~= "string" then return nil end
+    local p, t = e.sp:match("^(%d+):(%d+)$")
+    if not p then return nil end
+    return tonumber(p), tonumber(t)
+end
+
+-- Verkauft und verglichen in den letzten `days` Tagen (heute eingeschlossen): sold, Zahl der Vergleiche
+function S.RecentDays(e, days, today)
+    if type(e) ~= "table" or not e.ab then return 0, 0 end
+    today = today or ns.Data.Day()
+    local so, n = 0, 0
+    for _, x in ipairs(S.ParseDays(e.ab)) do
+        if x[1] > today - days then so, n = so + x[2], n + x[6] end
+    end
+    return so, n
 end
 
 -- Zeichen fuer die Sicherheit: immer da ("ganz exakt ist es nie"), rot schlecht, gelb besser, gruen gut

@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.103.0
+
+Kurz: Steht von deiner Variante gerade nichts im Auktionshaus, rät Broker beim Verkaufen nicht mehr vorschnell zum Händler. Er schlägt den Preis vor, zu dem sie zuletzt vermutlich verkauft wurde, sonst den oberen Rand des üblichen Bereichs.
+Kurz: Dazu ein Hinweis, wenn sie selten im Markt ist oder zuletzt angeboten, aber nicht verkauft wurde.
+
+- 0.103.0 (17.11.2026, Rückmeldung KarloDerBaer):
+  - **Behoben, Rat beim Verkaufen:** Blizzard trägt bei Gegenständen mit Zusatz den billigsten Preis irgendeiner Variante ein. Stand von der eigenen Variante gerade kein Angebot im Haus, verglich der Rat nur diesen Preis mit dem Händler und sagte „Lieber zum Händler“. Der letzte Preis der Variante zählte nicht, weil er als „weg“ galt.
+  - **Neu, Rat beim Verkaufen:** Ohne Angebot genau dieses Gegenstands (`A.NoOffers`) gilt als Vergleichspreis der Preis, zu dem zuletzt vermutlich verkauft wurde, wenn höchstens 7 Tage alt (`A.SOLD_DAYS`), sonst der obere Rand des üblichen Bereichs (`A.Reference`). Liegt der Preis im Feld darunter und bringt der Vergleichspreis nach Abzug mehr als der Händler, heißt der Rat „Höher ansetzen“ und der Knopf „Vorschlag“ trägt den Vergleichspreis ein (`A.CheckNoOffers`).
+  - **Neu, Rat beim Verkaufen:** Hinweis zum Markt (`A.MarketHint`): bisher nie gesehen, selten (länger als 7 Tage nicht im Markt, `A.SEEN_DAYS`) oder in den letzten 7 Tagen angeboten, aber kein Verkauf erkannt (eigene Vergleiche, Verkaufspreis und Absatz vom Manager).
+  - **Neu, Absatz:** Broker merkt sich den höchsten Preis, zu dem bei einem Vergleich vermutlich verkauft wurde, in `e.sp = "Preis:Zeit"` (`Sales.Compare` gibt ihn als vierten Wert zurück, `Sales.LastSold`, `Sales.RecentDays`). Werte gibt es erst ab dieser Version.
+  - **Behoben, Absatz:** Verschwand ein Gegenstand beim Komplettscan ganz, wurde er nicht verglichen. Einzelstücke ohne Konkurrenz galten so nie als verkauft. Jetzt vergleicht der Scan auch diese (`Scan.lua` nach `D.MarkGone`).
+  - Tests: Verkaufspreis beim Vergleich, Höher ansetzen mit Verkaufspreis und mit üblichem Bereich, Hinweise selten, nie gesehen und ohne Verkauf, Händler bleibt bei niedrigem Vergleichspreis (`test_broker.lua`).
+
 ## 0.102.0
 
 Kurz: „Alle prüfen“ bei den Chancen erkennt jetzt auch Ausrüstung mit Zusatz wie „der Beweglichkeit“, die schon weg ist. Vorher blieb sie „ungeprüft“, bis man sie im Fokus geöffnet hat.

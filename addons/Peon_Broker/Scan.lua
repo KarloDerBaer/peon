@@ -271,6 +271,13 @@ local function SumChunk(st)
     st.sumIndex = last
     if st.sumIndex >= #keys then
         local gone = D.MarkGone(market, market.lastScan, st.now)
+        -- ab 0.103: ganz verschwundene Gegenstaende auch fuer den Absatz vergleichen (bisher nur solche, die noch
+        -- Angebote hatten). Wichtig fuer Einzelstuecke ohne Konkurrenz: Ihr Verkauf faellt sonst nie auf.
+        if gone > 0 and ns.Sales then
+            for key, e in pairs(market.items) do
+                if type(e) == "table" and e.gone == st.now and type(e.ss) == "table" then ns.Sales.OnScan(e, key, {}, st.now) end
+            end
+        end
         market.prevScan = market.lastScan
         market.lastScan = st.now
         market.scans = (tonumber(market.scans) or 0) + 1
