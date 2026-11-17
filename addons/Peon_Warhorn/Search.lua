@@ -83,6 +83,25 @@ function S.ActivityName(id)
     return name
 end
 
+-- ab 0.5.1: Namen mehrerer Aktivitaeten als Aufzaehlung ("A, B und C"), ab S.LIST_MAX Namen "und n weitere"
+S.LIST_MAX = 4
+function S.ActivityList(ids)
+    if type(ids) ~= "table" or Secret(ids) then return "" end
+    local names = {}
+    for _, id in ipairs(ids) do
+        if type(id) == "number" and not Secret(id) then names[#names + 1] = S.ActivityName(id) end
+    end
+    local n = #names
+    if n == 0 then return "" end
+    if n == 1 then return names[1] end
+    if n > S.LIST_MAX then
+        local first = {}
+        for i = 1, S.LIST_MAX - 1 do first[i] = names[i] end
+        return table.concat(first, ", ") .. L.LIST_AND .. L.LIST_MORE:format(n - (S.LIST_MAX - 1))
+    end
+    return table.concat(names, ", ", 1, n - 1) .. L.LIST_AND .. names[n]
+end
+
 -- Gewaehlte Kategorie und Aktivitaeten; beim ersten Mal aus Blizzards Auswahl, sonst die erste Kategorie
 function S.EnsureSelection()
     local db = mod.db

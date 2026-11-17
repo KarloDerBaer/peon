@@ -115,6 +115,15 @@ function Lst.ActivityText()
     return L.ACT_SOME:format(#acts)
 end
 
+-- ab 0.5.1: fuer Platzhalter alle Namen als Aufzaehlung
+function Lst.ActivityListText()
+    local info = Lst.Active()
+    local acts
+    if info and type(info.activityIDs) == "table" and not Secret(info.activityIDs) then acts = info.activityIDs
+    else acts = mod.db and mod.db.lActivities or {} end
+    return S.ActivityList(acts)
+end
+
 -- Spielstile wie in Blizzards Auswahl
 function Lst.Playstyles()
     local e = Enum and Enum.LFGEntryGeneralPlaystyle

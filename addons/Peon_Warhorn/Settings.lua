@@ -4,6 +4,7 @@
 --   * Spalten: sichtbare Spalten je Liste (die erste Spalte bleibt immer)
 --   * Farben: neue Eintraege und der eigene Eintrag
 --   * Fluestervorlagen: anlegen, aendern, loeschen, Standard fuer Gruppen und fuer Mitspieler
+--   * ab 0.5.0: Knopf Platzhalter (Placeholders.lua) und "Anfragen merken" (Dauer, Contacts.lua)
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -210,6 +211,19 @@ function St.Create(page)
     local cr = UI.Button(page, L.SET_COLOR_RESET, 120, St.ResetColors)
     cr:SetPoint("TOPLEFT", X4, -182)
 
+    -- ab 0.5.0: Anfragen merken
+    local kl = UI.Text(page, "label", L.SET_CONTACTS)
+    kl:SetPoint("TOPLEFT", X4, -214)
+    local C = ns.Contacts
+    local kdd = UI.Dropdown(page, 140, function()
+        local out = {}
+        for _, m in ipairs(C.KEEP_CHOICES) do out[#out + 1] = { m, C.KeepText(m) } end
+        return out
+    end, function() return C.KeepMinutes() end, function(v) C.SetKeep(v) end)
+    kdd:SetPoint("TOPLEFT", X4, -230)
+    UI.SetTooltip(kdd, { L.SET_CONTACTS, L.SET_CONTACTS_TIP })
+    St.keepDD = kdd
+
     -- Fluestervorlagen
     local h4 = UI.Text(page, "heading", L.SET_WHISPER)
     h4:SetPoint("TOPLEFT", X1, -262)
@@ -221,6 +235,11 @@ function St.Create(page)
     local del = UI.Button(page, L.SET_TPL_DELETE, 90, St.DeleteTemplate)
     del:SetPoint("LEFT", new, "RIGHT", 4, 0)
     St.delBtn = del
+    -- ab 0.5.0: Platzhalter bearbeiten (eigenes Fenster)
+    local ph = UI.Button(page, L.SET_PLACEHOLDERS, 110, function() ns.Placeholders.Open() end)
+    ph:SetPoint("LEFT", del, "RIGHT", 16, 0)
+    UI.SetTooltip(ph, { L.SET_PLACEHOLDERS, L.SET_PLACEHOLDERS_TIP })
+    St.phBtn = ph
 
     local nl = UI.Text(page, "label", L.SET_TPL_NAME)
     nl:SetPoint("TOPLEFT", X1, -320)
@@ -269,5 +288,6 @@ function St.Update()
         for key, cb in pairs(checks) do cb:SetChecked(not St.IsHidden(kind, key)) end
     end
     St.UpdateSwatches()
+    if St.keepDD and St.keepDD.GenerateMenu then pcall(St.keepDD.GenerateMenu, St.keepDD) end
     St.SelectTemplate(St.tpl or 1)
 end

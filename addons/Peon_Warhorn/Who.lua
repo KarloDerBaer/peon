@@ -117,12 +117,19 @@ function Who.Invite(e)
     if C_PartyInfo and C_PartyInfo.InviteUnit then
         local ok, err = pcall(C_PartyInfo.InviteUnit, e.name)
         if not ok then mod:Dbg("Einladen Fehler: " .. tostring(err)) end
+        if ok and ns.Contacts then ns.Contacts.Record(e.name, "invite") end
     end
 end
 
 function Who.Whisper(e)
     if not (e and e.name) then return end
-    ns.Whisper.Open(e.name, { activity = ns.Listing.ActivityText() }, "player")
+    ns.Whisper.Open(e.name, { activity = ns.Listing.ActivityListText() }, "player")
+end
+
+-- ab 0.5.0: Standardvorlage fuer Spieler sofort senden oder eine Vorlage aus dem Untermenue
+function Who.QuickWhisper(e, tpl)
+    if not (e and e.name) or IsMe(e) then return false end
+    return ns.Whisper.QuickSend(e.name, { activity = ns.Listing.ActivityListText() }, "player", tpl)
 end
 
 function Who.Menu(e)
@@ -131,6 +138,7 @@ function Who.Menu(e)
         root:CreateTitle(e.name or "?")
         local w = root:CreateButton(L.MENU_WHISPER, function() Who.Whisper(e) end)
         if w.SetEnabled then w:SetEnabled(e.name ~= nil and not IsMe(e)) end
+        ns.Whisper.AddQuickMenu(root, e.name, { activity = ns.Listing.ActivityListText() }, "player", e.name ~= nil and not IsMe(e))
         local i = root:CreateButton(L.MENU_INVITE, function() Who.Invite(e) end)
         if i.SetEnabled then i:SetEnabled(e.name ~= nil and not IsMe(e) and ns.Window.CanInvite()) end
     end)
@@ -143,7 +151,13 @@ function Who.OnRowClick(e, button)
     elseif button == "LeftButton" then
         if last.e == e and Now() - last.t <= ns.Window.DOUBLE then
             last.e = nil
-            if not IsMe(e) then Who.Whisper(e) end
+            if IsMe(e) then
+                -- nichts
+            elseif IsShiftKeyDown and IsShiftKeyDown() then
+                Who.QuickWhisper(e)
+            else
+                Who.Whisper(e)
+            end
         else
             last.e, last.t = e, Now()
         end
@@ -157,6 +171,7 @@ function Who.ShowTooltip(row, e)
     GameTooltip:AddLine(L.WHO_TIP_LINE:format(e.level or "?", e.race or "", e.className or ""), 1, 1, 1)
     if e.guild ~= "" then GameTooltip:AddLine("<" .. e.guild .. ">", 0.25, 1, 0.25) end
     if e.area ~= "" then GameTooltip:AddLine(e.area, 0.8, 0.8, 0.8) end
+    if ns.Contacts then ns.Contacts.AddTooltip(GameTooltip, e.name) end
     GameTooltip:AddLine(L.TIP_ACTIONS, 0.5, 0.8, 1, true)
     GameTooltip:Show()
 end
@@ -167,7 +182,7 @@ end
 function Who.Columns()
     local W = ns.Window
     return {
-        { key = "name", title = L.COL_NAME, width = 150, format = function(_, e) return W.Colored(e.name or "?", e.class) end, sort = function(e) return e.name end },
+        { key = "name", title = L.COL_NAME, width = 150, format = function(_, e) return W.Marked(e.name, W.Colored(e.name or "?", e.class)) end, sort = function(e) return e.name end },
         { key = "level", title = L.COL_LEVEL, width = 56, align = "CENTER", format = function(_, e) return e.level and tostring(e.level) or "" end, sort = function(e) return e.level end },
         { key = "class", title = L.COL_CLASS, width = 104, format = function(_, e) return e.className or W.ClassName(e.class) end, sort = function(e) return e.className end },
         { key = "guild", title = L.COL_GUILD, width = 150, format = function(_, e) return e.guild end, sort = function(e) return e.guild end },

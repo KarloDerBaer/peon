@@ -302,6 +302,13 @@ function O.RaiseSoon()
     for _, d in ipairs(O.RAISE_DELAYS) do C_Timer.After(d, function() mod:Call("Ebene", O.Raise) end) end
 end
 
+-- Eigene Fenster (Fluestern, Platzhalter) ueber Warhorn: mindestens DIALOG, sonst eine Schicht ueber Warhorn
+function O.AboveWarhorn(frame)
+    if not (frame and frame.SetFrameStrata) then return end
+    local s = O.Above(O.strata or ns.Window.STRATA)
+    frame:SetFrameStrata((O.STRATA_RANK[s] or 0) > O.STRATA_RANK.DIALOG and s or "DIALOG")
+end
+
 local function StrataOf(fr)
     if type(fr) == "table" and type(fr.GetFrameStrata) == "function" then return fr:GetFrameStrata() end
     return type(fr) == "table" and fr.strata or nil
@@ -378,13 +385,21 @@ end
 -- zaehlt fuer das Spiel. Nur auf der Seite Suchen, so oeffnet Blizzards Wer-Antwort (Reiter 3, kein Klick) nie
 -- eine Suche. Hoechstens alle O.OPEN_GAP Sekunden.
 O.OPEN_GAP = 5
+
+-- Blizzards Reiter Suchen waehlen, wenn Warhorn dort eingeschaltet ist (ab 0.4.0 auch fuer das Dungeon-Journal)
+function O.ShowSearchTab()
+    if not (mod.db and mod.db.show ~= false) or Peon.InCombat() then return false end
+    local parent = _G.LFGParentFrame
+    if not (parent and Shows("search")) or parent.selectedTab == 2 then return false end
+    local fn = rawget(_G, "LFGParentFrameTab2_OnClick")
+    if type(fn) ~= "function" then return false end
+    fn()
+    return true
+end
+
 function O.OnParentShow()
     if not (mod.db and mod.db.show ~= false) or Peon.InCombat() then return end
-    local parent = _G.LFGParentFrame
-    if not Shows(O.CurrentPage()) and Shows("search") and parent.selectedTab ~= 2 then
-        local fn = rawget(_G, "LFGParentFrameTab2_OnClick")
-        if type(fn) == "function" then fn() end
-    end
+    if not Shows(O.CurrentPage()) then O.ShowSearchTab() end
     if O.CurrentPage() == "search" and Shows("search") then
         local S = ns.Search
         local now = GetTime and GetTime() or 0

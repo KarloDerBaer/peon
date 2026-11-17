@@ -2,6 +2,50 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.5.2
+
+Kurz: Beim schnellen Anflüstern wählst du die gesuchte Rolle direkt im Menü. Angegebene Rollen des Spielers sind wählbar, die anderen grau.
+
+- 0.5.2 (18.11.2026, Wunsch KarloDerBaer):
+  - **Rolle im Untermenü:** Im Rechtsklick-Menü unter „Schnell anflüstern“ bekommt jede Vorlage mit `{suchrolle}` beim Anflüstern von Spielern eine weitere Ebene mit Tank, Heiler und DD (eigene Wörter aus den Platzhaltern). Ein Klick sendet sofort mit dieser Rolle. Hat der Spieler Rollen angegeben, sind nur diese wählbar, die anderen grau. Ohne Angabe (auch in der Wer-Liste) sind alle wählbar. Vorlagen ohne `{suchrolle}` und Anfragen an Gruppen bleiben wie bisher.
+  - **Im Spiel prüfen:** Mitspieler mit einer, mit mehreren und ohne Rolle, dazu die Wer-Liste.
+
+## 0.5.1
+
+Kurz: Mehrere Dungeons stehen beim Anflüstern jetzt mit Namen in der Nachricht statt „2 Aktivitäten“.
+Kurz: Neuer Platzhalter {suchrolle} für die Rolle, die du suchst. Hat der Spieler genau eine Rolle angegeben, steht sie von selbst da, sonst wählst du sie im Flüsterfenster.
+Kurz: Für Schaden steht beim Platzhalter {rolle} jetzt von selbst DD.
+
+- 0.5.1 (17.11.2026, nach dem Test von 0.5.0 durch KarloDerBaer):
+  - **{aktivitaet} als Aufzählung:** Bei mehreren Aktivitäten setzt Warhorn die Namen ein („Kloster, Uldaman und Geschmolzener Kern“), ab fünf gekürzt („… und 2 weitere“). Bisher stand dort „2 Aktivitäten“ (`Search.ActivityList`, auch für die Wer-Liste über die Aktivitäten beim Eintragen).
+  - **Neuer Platzhalter {suchrolle}:** die gesuchte Rolle des anderen Spielers, `{rolle}` bleibt die eigene. Hat ein Mitspieler genau eine Rolle angegeben, setzt Warhorn sie ein. Bei keiner oder mehreren Rollen (und in der Wer-Liste) steht oben rechts im Flüsterfenster eine Auswahl „Rolle“, bis dahin ist Senden gesperrt. Schnell anflüstern öffnet in diesem Fall das Fenster, statt zu senden. Die Standardvorlage für Spieler nutzt jetzt `{suchrolle}` (nur bei neuen Vorlagen, vorhandene bleiben).
+  - **DD als Vorgabe:** Ohne eigenes Wort setzt `{rolle}` und `{suchrolle}` bei Schaden „DD“ ein (englisch „DPS“). Die Beschriftungen in den Listen bleiben „Schaden“.
+  - **Im Spiel prüfen:** Anfrage an eine Gruppe mit mehreren Dungeons, Mitspieler mit einer und mit mehreren Rollen anflüstern (Fenster und schnell), eigene Vorlage mit `{suchrolle}`.
+
+## 0.5.0
+
+Kurz: Platzhalter lassen sich jetzt anpassen, zum Beispiel DD statt Schaden, und du kannst eigene anlegen.
+Kurz: Schnell anflüstern schickt eine Vorlage sofort ab, über das Rechtsklick-Menü oder mit Shift und Doppelklick.
+Kurz: Spieler und Gruppen, die du schon angeflüstert oder eingeladen hast, bekommen ein kleines Symbol.
+
+- 0.5.0 (17.11.2026, Wunsch KarloDerBaer, Einzelheiten mit ihm abgestimmt):
+  - **Platzhalter bearbeiten** (`Placeholders.lua`, neu): Knopf „Platzhalter“ auf der Seite Einstellungen öffnet ein kleines Fenster. Dort je Rolle ein eigenes Wort für `{rolle}` (leer = Wort des Spiels) und eigene Platzhalter mit Name und Text (anlegen, ändern, löschen). Namen nur aus Buchstaben a bis z und Ziffern, nicht wie ein fester Platzhalter. Im Text eigener Platzhalter gehen die festen. Gespeichert in `whisper.roleWords` und `whisper.vars`.
+  - **Platzhalter einfügen:** Im Flüsterfenster ein Menü „Platzhalter“, das den gewählten Platzhalter an der Schreibmarke einsetzt.
+  - **Schnell anflüstern:** Im Rechtsklick-Menü der Listen (Gruppen, Mitspieler, Wer-Liste) ein Untermenü „Schnell anflüstern“ mit allen Vorlagen, ein Klick schickt sofort ab. Shift und Doppelklick schickt die Standardvorlage (für Gruppen oder für Spieler) sofort ab. Ohne Standardvorlage öffnet sich das Fenster wie bisher.
+  - **Anfragen merken** (`Contacts.lua`, neu): Jedes Flüstern an einen Spieler, auch aus dem normalen Chat, und jede Einladung aus Warhorn wird je Charakter gemerkt (`contacts`). In den Listen steht dann ein Sprechblasen-Symbol vor dem Namen, im Tooltip „Angeflüstert vor …“ und „Eingeladen vor …“. Gruppen zählen über ihren Anführer. Dauer in den Einstellungen unter „Anfragen merken“: 30 Minuten bis 1 Tag, Vorgabe 2 Stunden (`contactKeep`).
+  - **Im Spiel prüfen:** Platzhalter-Fenster (Rollenwort DD, eigener Platzhalter in einer Vorlage), Menü „Platzhalter“ im Flüsterfenster, Untermenü „Schnell anflüstern“, Shift und Doppelklick, Symbol und Tooltip nach dem Anflüstern, auch nach `/reload`.
+
+## 0.4.0
+
+Kurz: Klickt man im Addon ForeverDungeonJournal auf das Auge eines Dungeons, stellt Warhorn seine Suche gleich auf diesen Dungeon und zeigt die Seite Suchen.
+
+- 0.4.0 (17.11.2026, Wunsch KarloDerBaer):
+  - **Dungeon aus dem Journal übernehmen** (`Journal.lua`, neu): Warhorn hängt sich an die Suchfunktion des Journals (`SearchDungeonDirect`), nicht an Blizzards Fenster. Nach der Suche des Journals liest Warhorn die gesuchte Aktivität aus dessen Daten (`ForeverDungeonJournalDB.lfgClick`) und stellt Kategorie und Auswahl auf genau diesen Dungeon. Die Auswahl ersetzt die gespeicherte, so abgestimmt mit KarloDerBaer.
+  - **Seite Suchen:** Warhorn springt auf die Seite Suchen. Der Hinweis „Zum Gruppenbrowser wechseln“ des Journals erscheint dann nicht mehr.
+  - **Keine zweite Suche:** Warhorn sucht nicht selbst, die Ergebnisse der Suche des Journals kommen ohnehin bei Warhorn an.
+  - Ohne das Journal, bei fehlgeschlagener Suche oder mit ausgeschaltetem Warhorn passiert nichts. TOC: `OptionalDeps: ForeverDungeonJournal`.
+  - **Im Spiel prüfen:** Auge im Journal bei geschlossener Gruppensuche und bei offener Gruppensuche, einmal von der Seite Eintragen aus. Warhorn zeigt Suchen mit dem Dungeon oben in der Auswahl und die passenden Gruppen. Keine Meldung „blockiert“ und keine Suche, die hängen bleibt.
+
 ## 0.3.4
 
 Kurz: Öffnet man die Gruppensuche über das Dungeon-Journal, liegt Warhorn jetzt oben. Blizzards Fenster schaut nicht mehr darüber.

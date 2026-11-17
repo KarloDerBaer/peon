@@ -3,11 +3,14 @@
 --   Search.lua  Suche, Ergebnisse, Ereignisse
 --   Filter.lua  Filter nach Rolle, Klasse, Stufe, Groesse (ohne Fenster)
 --   Window.lua  Fenster mit Seiten, Seite Suchen mit Reitern Gruppen und Mitspieler, Liste, Menue
---   Whisper.lua Fluesterfenster mit Vorlagen (ab 0.3.0)
+--   Whisper.lua Fluesterfenster mit Vorlagen (ab 0.3.0), schnell anfluestern und eigene Platzhalter (ab 0.5.0)
+--   Placeholders.lua Fenster zum Bearbeiten der Platzhalter (ab 0.5.0)
+--   Contacts.lua Anfragen merken und markieren (ab 0.5.0)
 --   Listing.lua Seite Eintragen (ab 0.3.0)
 --   Who.lua     Seite Wer-Liste (ab 0.3.0)
 --   Settings.lua Seite Einstellungen (ab 0.3.0)
 --   Overlay.lua ueber Blizzards Gruppensuche legen, Seiten nach Blizzards Reiter, Reiter Einstellungen
+--   Journal.lua Dungeon aus ForeverDungeonJournal uebernehmen (ab 0.4.0)
 --   Probe.lua   Pruefaufbau aus 0.1.0 (/peon warhorn pruefen)
 -- Einstellungen in PeonWarhornDB (accountweit) und PeonWarhornCharDB (je Charakter).
 
@@ -20,7 +23,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
     db       = "PeonWarhornDB",
     charDB   = "PeonWarhornCharDB",
     charKeys = { category = true, activities = true, tab = true, gFilter = true, pFilter = true,
-                 lCategory = true, lActivities = true, lNewPlayer = true, lPlaystyle = true, wFilter = true, wText = true },
+                 lCategory = true, lActivities = true, lNewPlayer = true, lPlaystyle = true, wFilter = true, wText = true,
+                 contacts = true },
     defaults = {
         show       = true,          -- Hauptschalter: Warhorn ueber Blizzards Gruppensuche (aus = ueberall Blizzard)
         replace    = { search = true, listing = true, who = true },   -- ab 0.3.0: je Seite Warhorn oder Blizzard
@@ -39,9 +43,11 @@ local mod = Peon:NewModule(ADDON_NAME, {
         lPlaystyle = 0,             -- je Charakter: Spielstil beim Eintragen (0 = Vorgabe Entspannt), ab 0.3.1
         wFilter    = {},            -- je Charakter: Filter der Wer-Liste
         wText      = "",            -- je Charakter: letzte Wer-Suche
+        contacts   = {},            -- je Charakter, ab 0.5.0: angefluesterte und eingeladene Spieler (Contacts.lua)
+        contactKeep = 120,          -- ab 0.5.0: so viele Minuten werden Anfragen gemerkt
     },
     choices  = { tab = { groups = true, players = true } },
-    keepOnReset = { probe = true, category = true, activities = true, tab = true, whisper = true,
+    keepOnReset = { probe = true, category = true, activities = true, tab = true, whisper = true, contacts = true,
                     lCategory = true, lActivities = true, wText = true },
     slash    = { "/warhorn" },
     onSlash  = function(m, cmd)

@@ -3,8 +3,9 @@
 ## Notes: Groups, dungeons and raids. Group finder with filters, listing, who list and whisper templates.
 ## Notes-deDE: Gruppen, Dungeons und Raids. Gruppensuche mit Filtern, Eintragen, Wer-Liste und Flüstervorlagen.
 ## Author: KarloDerBaer
-## Version: 0.3.4
+## Version: 0.5.2
 ## Dependencies: Peon
+## OptionalDeps: ForeverDungeonJournal
 ## Group: Peon
 ## IconTexture: Interface\Icons\INV_Misc_Horn_01
 ## SavedVariables: PeonWarhornDB
@@ -16,9 +17,12 @@ Search.lua
 Filter.lua
 Window.lua
 Whisper.lua
+Placeholders.lua
+Contacts.lua
 Listing.lua
 Who.lua
 Settings.lua
 Overlay.lua
+Journal.lua
 Probe.lua
 Options.lua

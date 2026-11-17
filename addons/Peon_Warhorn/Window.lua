@@ -96,21 +96,36 @@ function W.CanInvite()
     return (UnitIsGroupLeader and UnitIsGroupLeader("player")) or (UnitIsGroupAssistant and UnitIsGroupAssistant("player")) or false
 end
 
+-- Werte fuer die Platzhalter (ab 0.5.1: alle Aktivitaeten als Aufzaehlung, Rollen des Mitspielers)
+function W.WhisperCtx(e)
+    local acts = S.ActivityList(e.activityIDs)
+    return { activity = acts ~= "" and acts or e.activityText, searchRoles = e.isSolo and e.playerRoles or nil }
+end
+
 -- ab 0.3.0: eigenes Fenster mit Vorlage (Whisper.lua)
 function W.Whisper(e)
     local name = e and e.leaderName
     if not name then return end
-    ns.Whisper.Open(name, { activity = e.activityText }, e.isSolo and "player" or "group")
+    ns.Whisper.Open(name, W.WhisperCtx(e), e.isSolo and "player" or "group")
+end
+
+-- ab 0.5.0: Standardvorlage sofort senden (Shift+Doppelklick) oder eine Vorlage aus dem Untermenue
+function W.QuickWhisper(e, tpl)
+    local name = e and e.leaderName
+    if not name then return false end
+    return ns.Whisper.QuickSend(name, W.WhisperCtx(e), e.isSolo and "player" or "group", tpl)
 end
 
 function W.Invite(e)
     if not (e and e.isSolo and e.leaderName and W.CanInvite()) then return end
+    local ok, err = false, nil
     if C_PartyInfo and C_PartyInfo.InviteUnit then
-        local ok, err = pcall(C_PartyInfo.InviteUnit, e.leaderName)
+        ok, err = pcall(C_PartyInfo.InviteUnit, e.leaderName)
         if not ok then mod:Dbg("Einladen Fehler: " .. tostring(err)) end
     elseif InviteUnit then
-        pcall(InviteUnit, e.leaderName)
+        ok = pcall(InviteUnit, e.leaderName)
     end
+    if ok and ns.Contacts then ns.Contacts.Record(e.leaderName, "invite") end
 end
 
 function W.Menu(e)
@@ -119,6 +134,7 @@ function W.Menu(e)
         root:CreateTitle(e.leaderName or "?")
         local w = root:CreateButton(L.MENU_WHISPER, function() W.Whisper(e) end)
         if w.SetEnabled then w:SetEnabled(e.leaderName ~= nil) end
+        ns.Whisper.AddQuickMenu(root, e.leaderName, W.WhisperCtx(e), e.isSolo and "player" or "group", e.leaderName ~= nil)
         local i = root:CreateButton(L.MENU_INVITE, function() W.Invite(e) end)
         if i.SetEnabled then i:SetEnabled(e.isSolo and e.leaderName ~= nil and W.CanInvite()) end
     end)
@@ -131,7 +147,7 @@ local function OnRowClick(e, button)
     elseif button == "LeftButton" then
         if lastClick.e == e and Now() - lastClick.t <= W.DOUBLE then
             lastClick.e = nil
-            W.Whisper(e)
+            if IsShiftKeyDown and IsShiftKeyDown() then W.QuickWhisper(e) else W.Whisper(e) end
         else
             lastClick.e, lastClick.t = e, Now()
         end
@@ -149,6 +165,7 @@ function W.ShowTooltip(row, e)
         GameTooltip:SetText(e.activityText or "?", 1, 0.82, 0)
     end
     if e.leaderName then GameTooltip:AddLine(L.TIP_LEADER:format(W.Colored(e.leaderName, e.leaderClass)), 1, 1, 1) end
+    if ns.Contacts then ns.Contacts.AddTooltip(GameTooltip, e.leaderName) end
     if e.comment and e.comment ~= "" then GameTooltip:AddLine(e.comment, 0.8, 0.8, 0.8, true) end
     if #e.members > 0 then
         GameTooltip:AddLine(" ")
@@ -187,10 +204,16 @@ local function RowBg(e)
 end
 W.RowBg = RowBg
 
+-- ab 0.5.0: Symbol vor dem Namen, wenn schon angefluestert oder eingeladen (Contacts.lua)
+function W.Marked(name, text)
+    if ns.Contacts then return ns.Contacts.Mark(name, text) end
+    return text
+end
+
 function W.GroupColumns()
     return {
         { key = "activity", title = L.COL_ACTIVITY, format = function(_, e) return e.activityText end, sort = function(e) return e.activityText end, color = Gray },
-        { key = "leader", title = L.COL_LEADER, width = 110, format = function(_, e) return W.Colored(e.leaderName or "?", e.leaderClass) end, sort = function(e) return e.leaderName end },
+        { key = "leader", title = L.COL_LEADER, width = 110, format = function(_, e) return W.Marked(e.leaderName, W.Colored(e.leaderName or "?", e.leaderClass)) end, sort = function(e) return e.leaderName end },
         { key = "level", title = L.COL_LEVEL, width = 58, align = "CENTER", format = function(_, e) return W.LevelText(e) end, sort = function(e) return e.levelMin end, color = Gray },
         { key = "roles", title = L.COL_ROLES, width = 128, format = function(_, e) return W.RolesText(e) end,
           sort = function(e) return -F.FreeFor(e, mod.db.gFilter.roles) end },
@@ -201,7 +224,7 @@ end
 
 function W.PlayerColumns()
     return {
-        { key = "name", title = L.COL_NAME, width = 120, format = function(_, e) return W.Colored(e.leaderName or "?", e.leaderClass) end, sort = function(e) return e.leaderName end },
+        { key = "name", title = L.COL_NAME, width = 120, format = function(_, e) return W.Marked(e.leaderName, W.Colored(e.leaderName or "?", e.leaderClass)) end, sort = function(e) return e.leaderName end },
         { key = "class", title = L.COL_CLASS, width = 92, format = function(_, e) return W.ClassName(e.leaderClass) end, sort = function(e) return W.ClassName(e.leaderClass) end, color = Gray },
         { key = "level", title = L.COL_LEVEL, width = 52, align = "CENTER", format = function(_, e) return e.leaderLevel and tostring(e.leaderLevel) or "" end, sort = function(e) return e.leaderLevel end, color = Gray },
         { key = "roles", title = L.COL_ROLES, width = 72, nosort = true, format = function(_, e) return W.PlayerRolesText(e) end },

@@ -502,7 +502,7 @@ Win.OnRowClick(e21, "LeftButton")
 now = now + 0.2
 Win.OnRowClick(e21, "LeftButton")
 check(Wh.frame and Wh.frame.shown and Wh.target == "Tyrande", "Doppelklick oeffnet das Fluesterfenster")
-check(Wh.edit:GetText() == "Hallo Tyrande, wir suchen noch Mitspieler für Kloster. Lust mitzukommen?", "Vorlage fuer Mitspieler mit Platzhaltern")
+check(Wh.edit:GetText() == "Hallo Tyrande, wir suchen noch einen Heiler für Kloster. Lust mitzukommen?", "Vorlage fuer Mitspieler, eine Rolle angegeben: {suchrolle} von selbst")
 check(#chat == 0, "nichts von selbst gesendet")
 Wh.sendBtn.scripts.OnClick(Wh.sendBtn)
 check(#chat == 1 and chat[1].kind == "WHISPER" and chat[1].to == "Tyrande" and chat[1].text:find("Kloster"), "Senden fluestert an")
@@ -522,26 +522,37 @@ Win.OnRowClick(e11, "LeftButton")
 now = now + 1
 Win.OnRowClick(e11, "LeftButton")
 check(Wh.target == nil, "zwei langsame Klicks sind kein Doppelklick")
+-- Menue-Nachbau mit Untermenues (ab 0.5.0: Schnell anfluestern)
+local function MockMenu(items)
+  local function Btn(list, t, fn)
+    local b = { text = t, fn = fn, enabled = true, children = {} }
+    b.SetEnabled = function(s, v) s.enabled = v end
+    b.CreateButton = function(s, t2, fn2) return Btn(s.children, t2, fn2) end
+    list[#list + 1] = b
+    return b
+  end
+  return { CreateTitle = function(_, t) items.title = t end, CreateButton = function(_, t, fn) return Btn(items, t, fn) end }
+end
 local function Menu(e)
   Win.OnRowClick(e, "RightButton")
   local items = {}
-  local root = { CreateTitle = function(_, t) items.title = t end,
-    CreateButton = function(_, t, fn) local b = { text = t, fn = fn, enabled = true } b.SetEnabled = function(s, v) s.enabled = v end items[#items+1] = b return b end }
-  menus[#menus](nil, root)
+  menus[#menus](nil, MockMenu(items))
   return items
 end
 local items = Menu(e21)
-check(items.title == "Tyrande" and items[2].enabled, "Menue: Einladen fuer Einzelspieler")
-items[2].fn()
+check(items.title == "Tyrande" and items[3].enabled, "Menue: Einladen fuer Einzelspieler")
+check(items[2].text == ns.L.MENU_QUICK and #items[2].children == #Wh.Templates(), "Menue: Untermenue Schnell anfluestern mit allen Vorlagen")
+items[3].fn()
 check(invited[1] == "Tyrande", "Einladen")
+check(ns.Contacts.Get("Tyrande") and ns.Contacts.Get("Tyrande").invite, "Einladung gemerkt")
 items = Menu(e11)
-check(not items[2].enabled, "Gruppen kann man nicht einladen")
+check(not items[3].enabled, "Gruppen kann man nicht einladen")
 inGroup = true
 items = Menu(e21)
-check(not items[2].enabled, "in einer Gruppe ohne Anfuehrer kein Einladen")
+check(not items[3].enabled, "in einer Gruppe ohne Anfuehrer kein Einladen")
 inGroup = false
 items = Menu(e31)
-check(not items[1].enabled, "geheimer Name: kein Anfluestern")
+check(not items[1].enabled and not items[2].enabled, "geheimer Name: kein Anfluestern, auch nicht schnell")
 
 -- ===== Aktualisierung und neue Eintraege =====
 results[11].members[3] = P("Malfurion", "DRUID", 30, "HEALER", { healer = true })
@@ -695,13 +706,16 @@ check(Wh.target == "Arthas" and Wh.frame.shown, "Doppelklick in der Wer-Liste oe
 Wh.frame.shown = false
 Who.OnRowClick(Who.list[2], "RightButton")
 local wi = {}
-menus[#menus](nil, { CreateTitle = function() end, CreateButton = function(_, t, fn) local b = { text = t, fn = fn, enabled = true } b.SetEnabled = function(s, v) s.enabled = v end wi[#wi+1] = b return b end })
-check(not wi[1].enabled and not wi[2].enabled, "sich selbst weder anfluestern noch einladen")
+menus[#menus](nil, MockMenu(wi))
+check(not wi[1].enabled and not wi[2].enabled and not wi[3].enabled, "sich selbst weder anfluestern noch einladen")
 Who.OnRowClick(Who.list[1], "RightButton")
 wi = {}
-menus[#menus](nil, { CreateTitle = function() end, CreateButton = function(_, t, fn) local b = { text = t, fn = fn, enabled = true } b.SetEnabled = function(s, v) s.enabled = v end wi[#wi+1] = b return b end })
-wi[2].fn()
+menus[#menus](nil, MockMenu(wi))
+wi[3].fn()
 check(invited[#invited] == "Arthas", "Einladen aus der Wer-Liste")
+check(ns.Contacts.Get("arthas").invite and Who.Columns()[1].format(nil, Who.list[1]):find("GossipGossipIcon", 1, true), "Wer-Liste: Einladung gemerkt und markiert")
+wi[2].children[1].fn()
+check(chat[#chat].to == "Arthas" and chat[#chat].kind == "WHISPER", "Wer-Liste: schnell anfluestern aus dem Untermenue")
 
 -- ===== Seite Einstellungen (ab 0.3.0) =====
 st.scripts.OnMouseUp(st, "LeftButton")
@@ -791,6 +805,180 @@ combat = true
 ns.Probe.Start("click")
 check(said("Im Kampf"), "Pruefung: nicht im Kampf")
 combat = false
+
+-- ===== ab 0.4.0: Dungeon aus ForeverDungeonJournal uebernehmen =====
+local J = ns.Journal
+check(not J.hooked, "ohne Dungeon-Journal kein Haken")
+local fdjSearches = 0
+ForeverDungeonJournalDB = {}
+ForeverDungeonJournal_NS = { SearchDungeonDirect = function(name)
+  fdjSearches = fdjSearches + 1
+  ForeverDungeonJournalDB.lfgClick = { mode = "direct", dungeon = name, activity = ({ Uldaman = 802, Kaputt = 999 })[name], ok = name ~= "Fehlt" }
+end }
+fire("ADDON_LOADED", "ForeverDungeonJournal")
+check(J.hooked, "Haken am Dungeon-Journal nach dessen Laden")
+local keepInfo = C_LFGList.GetActivityInfoTable
+C_LFGList.GetActivityInfoTable = function(id) if id == 802 then return { fullName = "Uldaman", categoryID = 2 } end end
+mod.db.show = true
+mod.db.replace.search = true
+mod.db.category, mod.db.activities = 7, { 801, 901 }
+LFGParentFrame.selectedTab = 1
+local clicksBefore, searchesBefore = tab2Clicks, #searches
+ForeverDungeonJournal_NS.SearchDungeonDirect("Uldaman")
+check(fdjSearches == 1, "Suche des Journals laeuft wie bisher")
+check(mod.db.category == 2 and #mod.db.activities == 1 and mod.db.activities[1] == 802, "Auswahl auf den Dungeon des Journals")
+check(tab2Clicks == clicksBefore + 1 and LFGParentFrame.selectedTab == 2, "springt auf die Seite Suchen")
+check(#searches == searchesBefore and S.searching, "Warhorn sucht nicht selbst, wartet auf die Suche des Journals")
+fire("LFG_LIST_SEARCH_RESULTS_RECEIVED")
+check(not S.searching, "Ergebnisse der Journal-Suche kommen an")
+-- keine Uebernahme: Suche fehlgeschlagen, unbekannte Aktivitaet, Warhorn aus
+ForeverDungeonJournal_NS.SearchDungeonDirect("Fehlt")
+ForeverDungeonJournal_NS.SearchDungeonDirect("Kaputt")
+check(mod.db.activities[1] == 802, "fehlgeschlagene oder unbekannte Suche aendert nichts")
+mod.db.show = false
+mod.db.activities = { 801 }
+ForeverDungeonJournal_NS.SearchDungeonDirect("Uldaman")
+check(mod.db.activities[1] == 801, "Warhorn aus: keine Uebernahme")
+mod.db.show = true
+C_LFGList.GetActivityInfoTable = keepInfo
+ForeverDungeonJournal_NS, ForeverDungeonJournalDB = nil, nil
+
+-- ===== ab 0.5.0: Platzhalter, schnell anfluestern, Anfragen merken =====
+local Ph, Ct = ns.Placeholders, ns.Contacts
+mod.db.whisper.vars = { { name = "Gruss", text = "Hallo {name}" }, { name = "rolle", text = "fest" }, { name = "gruss", text = "doppelt" }, "kaputt" }
+Wh.InitDefaults()
+check(#Wh.Vars() == 1 and Wh.Vars()[1].name == "gruss", "eigene Platzhalter bereinigt: klein, keine festen, keine doppelten")
+check(Wh.Fill("{gruss}! {Gruss}", { name = "Bob-Realm" }) == "Hallo Bob! Hallo Bob", "eigener Platzhalter mit festem Platzhalter im Text")
+Ph.SetRoleWord("dps", "  DD ")
+check(Wh.RoleWord("dps") == "DD" and Wh.RoleWord("tank") == ns.L.ROLE_TANK, "eigenes Wort fuer Schaden, Tank wie im Spiel")
+Ph.SetRoleWord("dps", "")
+check(Wh.RoleWord("dps") == "DD", "leeres Feld: wieder die Vorgabe DD")
+Ph.SetRoleWord("dps", "DD")
+Ph.Open()
+check(Ph.frame.shown and Ph.sel == 1 and Ph.nameInput:GetText() == "gruss" and Ph.roleInputs.dps:GetText() == "DD", "Fenster Platzhalter zeigt Rollenwoerter und eigene")
+Ph.NewVar()
+check(#Wh.Vars() == 2 and Wh.Vars()[2].name == "eigen2" and Ph.sel == 2, "neuer Platzhalter")
+check(Ph.RenameVar(2, "Grüße!") == "gre", "Name nur aus Buchstaben a-z und Ziffern")
+check(Ph.RenameVar(2, "name") == "gre" and Ph.RenameVar(2, "gruss") == "gre", "feste und doppelte Namen abgelehnt")
+Ph.SetVarText(2, "Viel Spass")
+check(Wh.Fill("{gre}") == "Viel Spass", "Text des neuen Platzhalters")
+Ph.DeleteVar()
+check(#Wh.Vars() == 1 and Ph.sel == 1, "Platzhalter geloescht")
+local phItems = Wh.PlaceholderItems()
+check(#phItems == 7 and phItems[1][1] == "{name}" and phItems[3][1] == "{suchrolle}" and phItems[7][1] == "{gruss}", "Menue Platzhalter im Fluesterfenster")
+Wh.Open("Bob", {}, "player")
+Wh.edit:SetText("")
+Wh.edit.Insert = function(s, t) s.txt = (s.txt or "") .. t end
+Wh.InsertPlaceholder("{gruss}")
+check(Wh.edit:GetText() == "{gruss}", "Platzhalter einfuegen")
+Wh.frame.shown = false
+-- schnell anfluestern
+local chatBefore = #chat
+check(Wh.QuickSend("Bob-Realm", { activity = "Uldaman", searchRoles = { dps = true } }, "player") and #chat == chatBefore + 1 and chat[#chat].to == "Bob-Realm", "schnell anfluestern sendet sofort")
+check(not Wh.frame.shown and not chat[#chat].text:find("{", 1, true), "ohne Fenster, Platzhalter eingesetzt")
+check(Ct.Get("bob") and Ct.Get("BOB-Andere").whisper, "Anfrage gemerkt (ohne Realm, gross und klein egal)")
+local keepPlayer = mod.db.whisper.playerTpl
+mod.db.whisper.playerTpl = 0
+check(not Wh.QuickSend("Carl", {}, "player") and Wh.frame.shown and Wh.target == "Carl" and #chat == chatBefore + 1, "ohne Standardvorlage oeffnet sich das Fenster")
+Wh.frame.shown = false
+mod.db.whisper.playerTpl = keepPlayer
+-- Shift + Doppelklick
+local shift = true
+IsShiftKeyDown = function() return shift end
+lastSent = #chat
+Win.OnRowClick(e21, "LeftButton")
+now = now + 0.2
+Win.OnRowClick(e21, "LeftButton")
+check(#chat == lastSent + 1 and chat[#chat].to == "Tyrande" and not Wh.frame.shown, "Shift + Doppelklick sendet die Standardvorlage")
+shift = false
+IsShiftKeyDown = nil
+-- Markierung und Tooltip
+check(Win.PlayerColumns()[1].format(nil, e21):find("GossipGossipIcon", 1, true), "Mitspieler: Symbol vor dem Namen")
+check(not Win.GroupColumns()[2].format(nil, e11):find("GossipGossipIcon", 1, true), "nicht angefragte Gruppe ohne Symbol")
+fire("CHAT_MSG_WHISPER_INFORM", "hallo", e11.leaderName)
+check(Win.GroupColumns()[2].format(nil, e11):find("GossipGossipIcon", 1, true), "Fluestern aus dem Chat zaehlt auch, Gruppe ueber ihren Anfuehrer")
+tipLines = {}
+Win.ShowTooltip(UIParent, e11)
+local tipHit = false
+for _, l in ipairs(tipLines) do if l:find(ns.L.TIP_WHISPERED:format(""), 1, true) then tipHit = true end end
+check(tipHit, "Tooltip: angefluestert vor ...")
+-- Dauer
+local realTime = time
+local fake = realTime()
+time = function() return fake end
+Ct.SetKeep(30)
+check(mod.db.contactKeep == 30 and Ct.KeepMinutes() == 30, "Dauer einstellbar")
+fake = fake + 31 * 60
+check(Ct.Get("bob") == nil, "nach Ablauf nicht mehr markiert")
+Ct.Prune()
+check(mod.db.contacts.bob == nil, "alte Eintraege entfernt")
+mod.db.contactKeep = 999
+check(Ct.KeepMinutes() == Ct.KEEP_DEFAULT, "unbekannte Dauer: Vorgabe 2 Stunden")
+mod.db.contactKeep = 120
+time = realTime
+check(Ct.KeepText(30) and Ct.KeepText(60) == ns.L.KEEP_HOUR and Ct.KeepText(1440) == ns.L.KEEP_DAY, "Texte der Dauer")
+
+-- ===== ab 0.5.1: Aktivitaeten als Aufzaehlung, gesuchte Rolle, DD als Vorgabe =====
+check(S.ActivityList({ 801 }) == "Kloster", "eine Aktivitaet: nur der Name")
+check(S.ActivityList({ 801, 802 }) == "Kloster und Uldaman", "zwei Aktivitaeten: A und B")
+check(S.ActivityList({ 801, 802, 901 }) == "Kloster, Uldaman und Geschmolzener Kern", "drei Aktivitaeten: A, B und C")
+check(S.ActivityList({ 801, 802, 901, 801, 802 }) == "Kloster, Uldaman, Geschmolzener Kern und 2 weitere", "viele Aktivitaeten gekuerzt")
+check(Win.WhisperCtx({ activityIDs = { 801, 802 }, activityText = "2 Aktivitäten" }).activity == "Kloster und Uldaman", "Platzhalter {aktivitaet} mit allen Namen")
+mod.db.whisper.roleWords = {}
+check(Wh.RoleWord("dps") == "DD" and Wh.RoleWord("healer") == "Heiler", "Vorgabe fuer Schaden ist DD")
+check(Wh.AutoSearchRole({ healer = true }) == "healer" and Wh.AutoSearchRole({ tank = true, dps = true }) == nil and Wh.AutoSearchRole(nil) == nil, "Rolle von selbst nur bei genau einer")
+local tplRole = #Wh.Templates() + 1
+Wh.Templates()[tplRole] = { name = "Rolle", text = "Wir suchen einen {suchrolle} für {aktivitaet}" }
+-- mehrere Rollen: Fenster fragt, Senden gesperrt
+Wh.Open("Varian", { activity = "Uldaman", searchRoles = { tank = true, dps = true } }, "player", tplRole)
+check(Wh.roleDD.shown and Wh.edit:GetText() == "Wir suchen einen {suchrolle} für Uldaman", "mehrere Rollen: {suchrolle} bleibt offen")
+check(not Wh.sendBtn.enabled and Wh.hint.txt == ns.L.WHISPER_PICK_ROLE and not Wh.Send(), "Senden gesperrt, Hinweis auf die Auswahl")
+Wh.SetSearchRole("dps")
+check(Wh.edit:GetText() == "Wir suchen einen DD für Uldaman" and Wh.sendBtn.enabled and Wh.hint.txt == ns.L.WHISPER_HINT, "Rolle gewaehlt: eingesetzt, Senden frei")
+Wh.SetSearchRole("tank")
+check(Wh.edit:GetText() == "Wir suchen einen Tank für Uldaman", "Rolle umgewaehlt")
+Wh.frame.shown = false
+-- ohne Vorlage: nur {suchrolle} im eigenen Text ersetzen
+Wh.Open("Varian", { searchRoles = {} }, "player")
+Wh.UseTemplate(0)
+Wh.edit:SetText("Brauchen {suchrolle}!")
+Wh.UpdateCount()
+check(not Wh.sendBtn.enabled, "eigener Text mit offener Rolle gesperrt")
+Wh.SetSearchRole("healer")
+check(Wh.edit:GetText() == "Brauchen Heiler!", "eigener Text: Rolle ersetzt")
+Wh.frame.shown = false
+-- Gruppen: keine Auswahl der Rolle
+Wh.Open("Thrall", { activity = "Kloster" }, "group")
+check(not Wh.roleDD.shown, "Anfrage an Gruppen ohne Auswahl der Rolle")
+Wh.frame.shown = false
+-- schnell anfluestern: offene Rolle oeffnet das Fenster, eine Rolle geht sofort
+local cBefore = #chat
+check(not Wh.QuickSend("Varian", { activity = "Uldaman", searchRoles = { tank = true, healer = true } }, "player", tplRole) and #chat == cBefore and Wh.frame.shown and Wh.tpl == tplRole, "schnell: offene Rolle oeffnet das Fenster mit der Vorlage")
+Wh.frame.shown = false
+check(Wh.QuickSend("Varian", { activity = "Uldaman", searchRoles = { tank = true } }, "player", tplRole) and chat[#chat].text == "Wir suchen einen Tank für Uldaman", "schnell: eine Rolle, sofort gesendet")
+-- ab 0.5.2: Rollen im Untermenue Schnell anfluestern
+local function QuickMenu(ctx, kind)
+  local items = {}
+  local root = MockMenu(items)
+  Wh.AddQuickMenu(root, "Varian", ctx, kind, true)
+  return items[1].children
+end
+local qm = QuickMenu({ activity = "Uldaman", searchRoles = { tank = true, dps = true } }, "player")
+local roleEntry = qm[tplRole]
+check(roleEntry and roleEntry.fn == nil and #roleEntry.children == 3, "Vorlage mit {suchrolle}: Ebene mit drei Rollen")
+check(roleEntry.children[1].text == "Tank" and roleEntry.children[3].text == "DD", "Rollen mit eigenen Woertern")
+check(roleEntry.children[1].enabled and not roleEntry.children[2].enabled and roleEntry.children[3].enabled, "nur angegebene Rollen waehlbar, Heiler grau")
+check(qm[1].fn ~= nil and #qm[1].children == 0, "Vorlage ohne {suchrolle}: direkt senden")
+cBefore = #chat
+roleEntry.children[3].fn()
+check(#chat == cBefore + 1 and chat[#chat].text == "Wir suchen einen DD für Uldaman" and not Wh.frame.shown, "Rolle im Menue gewaehlt: sofort gesendet")
+roleEntry.children[1].fn()
+check(chat[#chat].text == "Wir suchen einen Tank für Uldaman", "Menue-Kontext nicht veraendert, andere Rolle geht auch")
+qm = QuickMenu({ activity = "Uldaman" }, "player")
+check(qm[tplRole].children[1].enabled and qm[tplRole].children[2].enabled and qm[tplRole].children[3].enabled, "keine Rolle angegeben: alle waehlbar")
+qm = QuickMenu({ activity = "Uldaman" }, "group")
+check(qm[tplRole].fn ~= nil and #qm[tplRole].children == 0, "Anfrage an Gruppen: keine Ebene mit Rollen")
+table.remove(Wh.Templates(), tplRole)
 
 -- ===== Ohne Gruppensuche =====
 local saved = LFGVanilla_ToggleFrame
