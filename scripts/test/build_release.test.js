@@ -245,7 +245,9 @@ test('Echtes Repo: alle Addons, Bridge nur fuer den Manager, ohne Data.lua', () 
   assert.ok(m.addons.every((a) => a.notes === ''), 'erstes Release ohne Was ist neu');
   const spaeter = R.build({ out: tmp('echt2'), tag: 'v2026.11.04', dirty: true, prev: { addons: [] } }).manifest;
   assert.ok(spaeter.addons.every((a) => a.notes.startsWith(`### ${a.version}`)), 'jede Version hat einen Changelog-Abschnitt');
-  assert.equal(m.addons.find((a) => a.name === 'Peon').api, 25);
+  const coreApi = Number(/^Peon\.API\s*=\s*(\d+)/m.exec(fs.readFileSync(path.join(__dirname, '..', '..', 'addons', 'Peon', 'Core.lua'), 'utf8'))[1]);
+  assert.ok(coreApi >= 26);
+  assert.equal(m.addons.find((a) => a.name === 'Peon').api, coreApi, 'api des Kerns aus Core.lua');
   // ab 18.11.2026: Peon_ComboPoints ist abgeloest (retired), kein Zip mehr, der Manager entfernt es nach der Uebernahme
   assert.ok(!names.includes('Peon_ComboPoints'));
   assert.deepEqual(m.retired, [{ name: 'Peon_ComboPoints', by: 'Peon_ClassBuddy', db: 'PeonClassBuddyDB', key: 'cpImported' }]);

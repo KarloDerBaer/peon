@@ -37,7 +37,7 @@ L.HELP = {
     "/peon errors [clear] - show or delete saved errors",
     "/peon news - show the notices of the modules again",
     "/peon share [on | off | check] - share data with other Peon users",
-    "/peon profile [save | load | delete <name>] - profiles with the settings of all Peon modules",
+    "/peon profile [use | empty | copy | delete <name>] - profiles for the settings of all Peon modules",
 }
 -- Share data (Comm.lua, API 23)
 L.COMM_OPT          = "Share data"
@@ -103,54 +103,72 @@ L.NOTICE_COMBAT = "The notes cannot be shown in combat."
 BINDING_HEADER_PEON   = "Peon"
 BINDING_NAME_PEON_ITEM_MENU = "Item menu for the item under the mouse"
 
--- Profiles (Profiles.lua, API 25)
+-- Profiles (Profiles.lua, API 25/26)
 L.PROFILE_PAGE       = "Profiles"
-L.PROFILE_TITLE      = "Saved profiles"
-L.PROFILE_HINT       = "A profile keeps the settings of all loaded Peon modules, also the ones of this character. Load it on another character to take them over. Window positions and the data of the modules (prices, book, catches ...) stay as they are. After loading, /reload is the safest way to apply everything."
+L.PROFILE_TITLE      = "Profiles"
+L.PROFILE_HINT       = "All characters use the profile \"Standard\". Pick another profile for this character to give it its own settings. Changes apply right away to all characters with the same profile. Window positions and the data of the modules (prices, book, catches ...) stay the same for all."
+L.PROFILE_STATUS     = "This character uses: %s"
 L.PROFILE_NAME       = "Name"
-L.PROFILE_BTN_SAVE   = "Save"
-L.PROFILE_BTN_LOAD   = "Load"
+L.PROFILE_BTN_USE    = "Use"
+L.PROFILE_BTN_EMPTY  = "New, empty"
+L.PROFILE_BTN_COPY   = "Copy from"
 L.PROFILE_BTN_DELETE = "Delete"
-L.PROFILE_NONE       = "No profile saved yet."
-L.PROFILE_ITEM       = "%s (%s, %d modules)"
+L.PROFILE_BTN_DEFAULT = "Back to Standard"
+L.PROFILE_FOOT       = "Use: switch this character to the profile, a new name starts as a copy of the current settings. New, empty: starts with default values. Copy from: takes the settings of that profile into the current one. After switching, /reload is the safest way to apply everything."
+L.PROFILE_ITEM       = "%s (%d characters)"
+L.PROFILE_THIS       = "< this character"
+L.PROFILE_USED       = "This character now uses the profile \"%s\". /reload applies everything safely."
 L.PROFILE_SAVED      = "Profile \"%s\" saved (%d modules)."
-L.PROFILE_LOADED     = "Profile \"%s\" loaded: %d modules, %d settings. /reload applies everything safely."
-L.PROFILE_DELETED    = "Profile \"%s\" deleted."
+L.PROFILE_LOADED     = "Settings of \"%s\" copied into \"%s\": %d modules, %d settings. /reload applies everything safely."
+L.PROFILE_DELETED    = "Profile \"%s\" deleted. Characters with this profile use \"Standard\" again."
+L.PROFILE_KEEP_DEFAULT = "The profile \"Standard\" cannot be deleted."
 L.PROFILE_MISSING    = "There is no profile with this name."
+L.PROFILE_EXISTS     = "A profile with this name already exists."
 L.PROFILE_BAD_NAME   = "Please enter a name (1 to %d characters)."
 L.PROFILE_FULL       = "There are already %d profiles. Please delete one first."
 L.PROFILE_EMPTY      = "No Peon module with settings is loaded."
 L.PROFILE_NO_DB      = "Peon is not ready yet."
-L.PROFILE_COMBAT     = "Profiles cannot be loaded in combat."
+L.PROFILE_COMBAT     = "Profiles cannot be changed in combat."
 L.PROFILE_HELP = {
-    "/peon profile save <name> - save the settings of all modules",
-    "/peon profile load <name> - load a profile (then /reload)",
+    "/peon profile use <name> - this character uses the profile (new name: copy of the current settings)",
+    "/peon profile empty <name> - new profile with default values",
+    "/peon profile copy <name> - copy the settings of a profile into the current one",
     "/peon profile delete <name> - delete a profile",
+    "/peon profile default - back to \"Standard\"",
 }
 
 if GetLocale() == "deDE" then
     L.PROFILE_PAGE       = "Profile"
-    L.PROFILE_TITLE      = "Gespeicherte Profile"
-    L.PROFILE_HINT       = "Ein Profil merkt sich die Einstellungen aller geladenen Peon-Module, auch die dieses Charakters. Lade es auf einem anderen Charakter, um sie zu übernehmen. Fensterpositionen und die Daten der Module (Preise, Buch, Fänge ...) bleiben, wie sie sind. Nach dem Laden übernimmt /reload alles sicher."
+    L.PROFILE_TITLE      = "Profile"
+    L.PROFILE_HINT       = "Alle Charaktere nutzen das Profil „Standard“. Wähle für diesen Charakter ein anderes Profil, wenn er eigene Einstellungen haben soll. Änderungen gelten sofort für alle Charaktere mit demselben Profil. Fensterpositionen und die Daten der Module (Preise, Buch, Fänge ...) bleiben für alle gleich."
+    L.PROFILE_STATUS     = "Dieser Charakter nutzt: %s"
     L.PROFILE_NAME       = "Name"
-    L.PROFILE_BTN_SAVE   = "Speichern"
-    L.PROFILE_BTN_LOAD   = "Laden"
+    L.PROFILE_BTN_USE    = "Benutzen"
+    L.PROFILE_BTN_EMPTY  = "Neu, leer"
+    L.PROFILE_BTN_COPY   = "Kopieren von"
     L.PROFILE_BTN_DELETE = "Löschen"
-    L.PROFILE_NONE       = "Noch kein Profil gespeichert."
-    L.PROFILE_ITEM       = "%s (%s, %d Module)"
+    L.PROFILE_BTN_DEFAULT = "Zurück zu Standard"
+    L.PROFILE_FOOT       = "Benutzen: Dieser Charakter wechselt zum Profil, ein neuer Name beginnt als Kopie der jetzigen Einstellungen. Neu, leer: beginnt mit den Standardwerten. Kopieren von: übernimmt die Einstellungen dieses Profils ins aktuelle. Nach einem Wechsel übernimmt /reload alles sicher."
+    L.PROFILE_ITEM       = "%s (%d Charaktere)"
+    L.PROFILE_THIS       = "< dieser Charakter"
+    L.PROFILE_USED       = "Dieser Charakter nutzt jetzt das Profil „%s“. /reload übernimmt alles sicher."
     L.PROFILE_SAVED      = "Profil „%s“ gespeichert (%d Module)."
-    L.PROFILE_LOADED     = "Profil „%s“ geladen: %d Module, %d Einstellungen. /reload übernimmt alles sicher."
-    L.PROFILE_DELETED    = "Profil „%s“ gelöscht."
+    L.PROFILE_LOADED     = "Einstellungen von „%s“ nach „%s“ kopiert: %d Module, %d Einstellungen. /reload übernimmt alles sicher."
+    L.PROFILE_DELETED    = "Profil „%s“ gelöscht. Charaktere mit diesem Profil nutzen wieder „Standard“."
+    L.PROFILE_KEEP_DEFAULT = "Das Profil „Standard“ lässt sich nicht löschen."
     L.PROFILE_MISSING    = "Ein Profil mit diesem Namen gibt es nicht."
+    L.PROFILE_EXISTS     = "Ein Profil mit diesem Namen gibt es schon."
     L.PROFILE_BAD_NAME   = "Bitte einen Namen eingeben (1 bis %d Zeichen)."
     L.PROFILE_FULL       = "Es gibt schon %d Profile. Bitte zuerst eins löschen."
     L.PROFILE_EMPTY      = "Kein Peon-Modul mit Einstellungen geladen."
     L.PROFILE_NO_DB      = "Peon ist noch nicht bereit."
-    L.PROFILE_COMBAT     = "Profile lassen sich im Kampf nicht laden."
+    L.PROFILE_COMBAT     = "Profile lassen sich im Kampf nicht wechseln."
     L.PROFILE_HELP = {
-        "/peon profil speichern <Name> - Einstellungen aller Module speichern",
-        "/peon profil laden <Name> - Profil laden (danach /reload)",
+        "/peon profil benutzen <Name> - dieser Charakter nutzt das Profil (neuer Name: Kopie der jetzigen Einstellungen)",
+        "/peon profil leer <Name> - neues Profil mit Standardwerten",
+        "/peon profil kopieren <Name> - Einstellungen eines Profils ins aktuelle übernehmen",
         "/peon profil loeschen <Name> - Profil löschen",
+        "/peon profil standard - zurück zu „Standard“",
     }
     L.MSG_ERROR          = "Fehler in %s: %s"
     L.MSG_ERROR_SAVED    = "Fehler in %s (gespeichert, /peon fehler zeigt den Text)."
@@ -175,7 +193,7 @@ if GetLocale() == "deDE" then
         "/peon fehler [leeren] - gespeicherte Fehler zeigen oder löschen",
         "/peon neu - Hinweise der Module wieder zeigen",
         "/peon teilen [an | aus | pruefen] - Daten mit anderen Peon-Nutzern teilen",
-        "/peon profil [speichern | laden | loeschen <Name>] - Profile mit den Einstellungen aller Peon-Module",
+        "/peon profil [benutzen | leer | kopieren | loeschen <Name>] - Profile für die Einstellungen aller Peon-Module",
     }
     L.OPT_DESC    = "Gemeinsamer Kern der Peon-Addonsammlung. Die Module haben eigene Seiten unter diesem Eintrag."
     L.OPT_MODULES = "Module"

@@ -49,7 +49,7 @@ Versionen stehen in den TOC-Dateien und in `Peon_Stand.md` (hier nicht, damit ni
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
-## Kern-API (Peon.API = 25)
+## Kern-API (Peon.API = 26)
 
 Die API wird nur erweitert, nie geändert (sonst brechen alle Module). Bei neuen Funktionen `Peon.API` erhöhen.
 
@@ -168,11 +168,13 @@ Peon.Comm.SendChannel("nodes", daten)   -- seit 0.24.0 dasselbe wie Send ohne Zi
 Peon.Comm.Listen(function(richtung, art, wer, text) end)   -- jede Nachricht sehen (Peon_Debug)
 Peon.Comm.SetShow("channel", true); Peon.Comm.SetShow("whisper", true)   -- Kanal und „nicht online“ zeigen (Peon_Debug)
 ```
-- **Profile (API 25, Profiles.lua):** Ein Profil speichert je Modul alle Schlüssel aus `defaults` außer `keepOnReset` und `debug`, auch Charakterwerte, und spielt sie auf Wunsch wieder ein (Prüfung wie beim Laden, Zahlen begrenzt, danach `RESET`). Ein Modul ohne Profil setzt `noProfile = true` in den Optionen. Gespeichert in `PeonDB.profiles`, höchstens 20. `/peon profil`, Unterseite Peon > Profile.
+- **Profile (API 25/26, Profiles.lua):** Ab API 26 laufende Profile. Es gibt immer „Standard“, jeder Charakter nutzt ein Profil (`PeonCharDB.profile`). Zum Profil gehören je Modul die Schlüssel aus `defaults` ohne `keepOnReset`, `charKeys` und `debug`. Die Werte des aktiven Profils liegen wie immer direkt in der Kontotabelle des Moduls, die anderen unter `acc._profiles`. Beim Einloggen und beim Wechsel tauscht der Kern sie aus (`Module:_SwitchProfile`), danach `RESET`. Module brauchen dafür nichts zu tun. Wer Merker oder Zustand in `defaults` hat, nimmt sie in `keepOnReset` auf, sonst wandern sie mit dem Profil. Ein Modul ohne Profil setzt `noProfile = true`.
 ```lua
-Peon.Profiles.Save("Hexer")          -- true, Anzahl Module
-Peon.Profiles.Load("Hexer")          -- true, Module, Werte (danach /reload empfehlen)
-Peon.Profiles.List(); Peon.Profiles.Delete("Hexer")
+Peon.Profiles.Current()               -- Profil dieses Charakters
+Peon.Profiles.Use("Hexer")            -- wechseln (fehlt es, entsteht es als Kopie), danach /reload empfehlen
+Peon.Profiles.Create("Leer", true)    -- neues Profil mit Standardwerten
+Peon.Profiles.Load("Hexer")           -- Werte von Hexer ins aktuelle Profil kopieren (API 25)
+Peon.Profiles.Save("Abend"); Peon.Profiles.List(); Peon.Profiles.Delete("Hexer")
 ```
   Dienstnamen: Buchstaben, Ziffern und `_`, höchstens 12 Zeichen. Daten: Tabellen, Texte, Zahlen, Wahrheitswerte, nach dem Verpacken höchstens acht Teile (rund 1.600 Zeichen).
 - **Fehlerspeicher (API 12, Core.lua):** `mod:ReportError(where, err)` und `mod:Call` speichern abgefangene Fehler automatisch in `PeonDB.errors` und nennen sie einmal pro Sitzung kurz im Chat. Den Text zeigen `/peon fehler` und der Reiter Rückmeldungen im Peon Manager, der sie einliest und im Spiel löschen lässt.

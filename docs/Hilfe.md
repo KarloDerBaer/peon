@@ -13,7 +13,7 @@ Der gemeinsame Kern. Ohne ihn läuft kein anderes Peon-Addon.
 - `/peon neu` zeigt die Hinweise der Addons noch einmal.
 - **Gegenstandsmenü:** Strg und Rechtsklick auf einen Gegenstand öffnet ein Menü der Peon-Addons (einstellbar).
 - **Daten teilen:** Peon tauscht still kleine Datenpakete mit anderen Peon-Nutzern aus, zum Beispiel für die Rezepte deiner Freunde. Im Chat erscheint nichts. `/peon teilen aus` schaltet es ab, `/peon teilen an` wieder ein.
-- **Profile:** Unter **Peon > Profile** oder mit `/peon profil speichern <Name>` merkst du dir die Einstellungen aller Peon-Addons. Mit `/peon profil laden <Name>` übernimmst du sie, zum Beispiel auf einem anderen Charakter. Danach `/reload`. Fensterpositionen und die Daten der Addons bleiben dabei, wie sie sind.
+- **Profile:** Alle Charaktere nutzen das Profil „Standard“. Unter **Peon > Profile** oder mit `/peon profil benutzen <Name>` bekommt ein Charakter ein eigenes Profil (ein neuer Name startet als Kopie der jetzigen Einstellungen). Was du einstellst, gilt dann für alle Charaktere mit diesem Profil. `/peon profil standard` wechselt zurück. Fensterpositionen und die Daten der Addons gelten immer für alle.
 
 ## Peon_Broker
 

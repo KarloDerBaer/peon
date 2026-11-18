@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.26.0
+
+Kurz: Profile laufen jetzt mit. Alle Charaktere nutzen das Profil „Standard“, für einzelne Charaktere wählst du unter Peon > Profile ein eigenes.
+
+- 0.26.0 (18.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Kern-API 26: laufende Profile.** Es gibt immer „Standard“, alle Charaktere nutzen es, bis man für einen Charakter ein anderes wählt (`Peon.Profiles.Use`, `Create`, `Current`). Änderungen gelten sofort für alle Charaktere mit demselben Profil. Die bisherigen Einstellungen werden beim Update zu „Standard“.
+  - Technik: Die Werte des aktiven Profils liegen wie bisher direkt in der Kontotabelle des Moduls, die anderen unter `_profiles`, der Name unter `_profile`. Beim Einloggen setzt der Kern das Profil des Charakters ein (`Module:_SwitchProfile`). So lesen und schreiben die Module ihre Einstellungen unverändert. Neu: `PeonCharDB` je Charakter mit dem gewählten Profil, `PeonDB.profileList`, `PeonDB.profileUsers`.
+  - Zum Profil gehören weiter nur die Schlüssel aus `defaults` ohne `keepOnReset`, `charKeys` und `debug`. Fensterpositionen, Merker und Daten bleiben für das ganze Konto gleich.
+  - **Geändert:** Die gespeicherten Stände aus 0.25.0 werden zu Profilen. `Save`, `Load`, `Delete` und `List` aus API 25 bleiben mit gleicher Bedeutung. Befehle: `/peon profil benutzen | neu | leer | kopieren | loeschen <Name>`, `/peon profil standard`. Die Seite Peon > Profile zeigt, welches Profil dieser Charakter nutzt und wie viele Charaktere jedes Profil haben.
+
 ## 0.25.0
 
 Kurz: Neu sind Profile. Speichere die Einstellungen aller Peon-Addons unter einem Namen und lade sie auf einem anderen Charakter mit /peon profil.

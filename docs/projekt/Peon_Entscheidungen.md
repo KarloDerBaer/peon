@@ -3,6 +3,12 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 18.11.2026: Laufende Profile mit Standard (Peon 0.26.0, Kern-API 26)
+
+- **Standard für alle, eigenes Profil je Charakter** (KarloDerBaer): Es gibt immer „Standard“. Jeder Charakter nutzt es, bis man ein anderes wählt. Änderungen gelten sofort für alle Charaktere mit demselben Profil. Die Stände aus 0.25.0 werden zu Profilen.
+- **Werte des aktiven Profils bleiben direkt in der Kontotabelle** (Claude): Beim Einloggen und Wechseln tauscht der Kern die Werte aus. So lesen und schreiben die Module ihre Einstellungen wie bisher, auch über `mod.acc`, und die Tests der Module laufen unverändert. Eine Umleitung von `mod.db` hätte jedes Modul und jeden Test berührt.
+- **Nicht im Profil:** Fensterpositionen, Merker und Daten (alles in `keepOnReset` oder außerhalb von `defaults`) sowie Charakterwerte (`charKeys`). Geprüft am 18.11.2026: Alle Merker der Module stehen in `keepOnReset`.
+
 ## 18.11.2026: Zweite Runde nach dem Review (Peon 0.25.0, Fishing 1.7.1, Manager 0.48.0)
 
 - **Gewählt von KarloDerBaer:** Sicherung der Spieldaten, Hilfe für Nutzer im Manager, Profile im Kern. Nicht gewählt: Gildenbank im Ledger.

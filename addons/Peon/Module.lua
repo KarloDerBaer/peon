@@ -177,6 +177,8 @@ function Module:_InitDB()
     local defaults = o.defaults or {}
     if defaults.debug == nil then defaults.debug = false end
     o.defaults = defaults
+    -- ab API 26 (Profiles.lua): Werte des Profils dieses Charakters einsetzen, bevor die Standardwerte pruefen
+    if Peon.Profiles and Peon.Profiles._Attach then self:Call("Profil", Peon.Profiles._Attach, self) end
     for k, v in pairs(defaults) do
         local cur = view[k]
         if not IsValid(o, k, cur, v) then
@@ -216,6 +218,66 @@ function Module:_ApplyProfile(vals)
     end
     if n > 0 then self:Fire("RESET") end
     return n
+end
+
+-- Ab API 26 (Profiles.lua): Schluessel, die zu einem Profil gehoeren. Alle aus defaults ausser keepOnReset,
+-- charKeys und debug. Leer bei opts.noProfile oder ohne db.
+function Module:_ProfileKeys()
+    local o = self.opts
+    local out = {}
+    if o.noProfile or not self.acc or type(o.defaults) ~= "table" then return out end
+    local keep, charKeys = o.keepOnReset or {}, (self.char and o.charKeys) or {}
+    for k in pairs(o.defaults) do
+        if k ~= "debug" and not keep[k] and not charKeys[k] then out[#out + 1] = k end
+    end
+    table.sort(out)
+    return out
+end
+
+-- Ab API 26: Werte eines Profils als Kopie. Das aktive Profil liegt direkt in acc, die anderen in acc._profiles.
+-- Rueckgabe: Tabelle oder nil (Profil fuer dieses Modul noch nicht gespeichert)
+function Module:_ProfileValues(name)
+    local acc = self.acc
+    if not acc then return nil end
+    local keys = self:_ProfileKeys()
+    if #keys == 0 then return nil end
+    local src
+    if name == (acc._profile or "Standard") then src = acc
+    elseif type(acc._profiles) == "table" and type(acc._profiles[name]) == "table" then src = acc._profiles[name]
+    else return nil end
+    local out = {}
+    for _, k in ipairs(keys) do if src[k] ~= nil then out[k] = Peon.CopyTable(src[k]) end end
+    return out
+end
+
+-- Ab API 26: auf ein anderes Profil wechseln. Die jetzigen Werte wandern unter dem alten Namen nach acc._profiles,
+-- die des neuen Profils nach acc. Fehlt das Profil fuer dieses Modul, gilt eine Kopie von "Standard", ein leeres
+-- Profil ({}) bedeutet Standardwerte. Ungueltige Werte werden zu Standardwerten. Rueckgabe: true bei einem Wechsel
+function Module:_SwitchProfile(name, fire)
+    local acc, o = self.acc, self.opts
+    local keys = self:_ProfileKeys()
+    if not acc or #keys == 0 or type(name) ~= "string" then return false end
+    if type(acc._profiles) ~= "table" then acc._profiles = {} end
+    local store = acc._profiles
+    local cur = acc._profile or "Standard"
+    if cur == name then return false end
+    store[cur] = self:_ProfileValues(cur)
+    local vals = store[name]
+    if type(vals) ~= "table" then vals = store.Standard end
+    for _, k in ipairs(keys) do
+        local def = o.defaults[k]
+        local v = vals and vals[k]
+        if v ~= nil and IsValid(o, k, v, def) then
+            if o.ranges and o.ranges[k] then v = Peon.Clamp(v, o.ranges[k]) or def end
+            acc[k] = Peon.CopyTable(v)
+        else
+            acc[k] = Peon.CopyTable(def)
+        end
+    end
+    store[name] = nil   -- das aktive Profil liegt jetzt in acc
+    acc._profile = name
+    if fire then self:Fire("RESET") end
+    return true
 end
 
 function Module:_Init()

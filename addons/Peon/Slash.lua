@@ -5,7 +5,7 @@
 -- /peon fehler      gespeicherte Fehler zeigen, mit "leeren" loeschen
 -- /peon neu        einmalige Hinweise der Module wieder zeigen (ab 0.20.0, Notice.lua)
 -- /peon teilen     Datenaustausch mit anderen Peon-Nutzern: Stand, an, aus, pruefen (ab 0.23.0, Comm.lua)
--- /peon profil     Profile: Liste, speichern, laden, loeschen (ab 0.25.0, Profiles.lua)
+-- /peon profil     Profile: Stand, benutzen, neu, leer, kopieren, loeschen, standard (ab 0.25.0, Profiles.lua)
 -- /peon ui und /peon ui pruefen gibt es ab 0.25.0 nur noch im privaten Peon_Debug (/pdebug ui)
 -- /peon <m> [...]   Befehl an ein Modul weiterreichen
 

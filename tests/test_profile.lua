@@ -1,7 +1,7 @@
--- Peon-Kern: Profile (Profiles.lua, API 25, ab 0.25.0).
--- Prueft: Speichern ohne keepOnReset, debug und Daten, Charakterwerte, Kopien, noProfile, Laden mit Pruefung und Grenzen,
--- RESET, Fehlerfaelle, hoechstens 20 Profile, Befehle, Hilfe, Optionsseite.
--- Ausfuehren aus dem AddOns-Ordner (siehe tests/README.md).
+-- Peon-Kern: Profile (Profiles.lua, API 25 Staende, ab API 26 laufende Profile mit Standard).
+-- Prueft: Start mit Standard, Uebernahme der Staende aus 0.25.0, Benutzen mit Kopie, mehrere Charaktere nacheinander,
+-- Charakterwerte und keepOnReset unberuehrt, noProfile, leer, Kopieren von, ungueltige Werte, Speichern, Loeschen,
+-- Grenzen, Befehle, Hilfe, Optionsseite. Ausfuehren aus dem AddOns-Ordner (siehe tests/README.md).
 local out = {}
 print = function(...) local t = {} for i = 1, select("#", ...) do t[#t+1] = tostring((select(i, ...))) end out[#out+1] = table.concat(t, " "); io.write("  > ", out[#out], "\n") end
 function strtrim(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
@@ -100,112 +100,155 @@ local function load(dir, files)
   end
   return ns
 end
+function UnitName() return CHAR end
+function GetRealmName() return "Forever" end
+CHAR = "Arnulf Stein"
+-- Staende aus 0.25.0, die zu Profilen werden
+PeonDB = { profiles = { Alt = { t = 1, mods = { testa = { size = 5, corner = "TOPRIGHT" } } }, ["|cffff0000Kaputt"] = 7 } }
+PeonCharDB = nil
 local ns = load("Peon", { "Locales.lua", "Core.lua", "Module.lua", "Options.lua", "UIKit.lua", "Notice.lua", "Profiles.lua", "Slash.lua" })
-PeonDB = {}
-PeonDB = {}
 Peon.db = PeonDB
 local reported = {}
 Peon.ReportCoreError = function(where, err) reported[#reported + 1] = where .. ": " .. tostring(err) end
 local P = ns.Profiles
-check(P and Peon.Profiles == P, "Profiles.lua geladen, Peon.Profiles")
-check(Peon.API >= 25, "Kern-API 25")
+check(P and Peon.Profiles == P and Peon.API >= 26, "Profiles.lua geladen, Kern-API 26")
 local toc = io.open("Peon/Peon.toc"):read("*a")
+check(toc:find("## SavedVariablesPerCharacter: PeonCharDB", 1, true), "PeonCharDB je Charakter in der TOC")
 check(toc:find("Comm.lua\r?\nProfiles.lua\r?\nSlash.lua"), "Profiles.lua in der TOC nach Comm und vor Slash")
+P.Init()
+check(type(PeonCharDB) == "table" and P.Current() == "Standard", "ohne Wahl: Standard")
+check(PeonDB.profileList.Standard and PeonDB.profileList.Alt and PeonDB.profiles == nil, "Staende aus 0.25.0 werden zu Profilen, ungueltige weg")
+check(PeonDB.profileUsers["Arnulf Stein-Forever"] == "Standard", "Charakter mit Profil gemerkt")
 
--- Zwei Testmodule: eines mit Charakterwert, Bereich, Auswahl und Daten, eines ohne Profil
-TestADB, TestACharDB = { pos = { x = 5 }, data = { 1, 2, 3 } }, {}
+-- Module: A mit Charakterwert und keepOnReset, B ohne Profil, C ohne Charakterfach
+TestADB, TestACharDB = { size = 12, pos = { x = 5 }, data = { 1, 2 } }, {}
 local A = Peon:NewModule("Peon_TestA", {
-  key = "testa", title = "Test A", db = "TestADB", charDB = "TestACharDB",
-  charKeys = { mode = true },
+  key = "testa", title = "Test A", db = "TestADB", charDB = "TestACharDB", charKeys = { mode = true },
   defaults = { size = 10, color = { 1, 0, 0 }, mode = "normal", corner = "TOPLEFT", pos = { x = 0 } },
-  ranges = { size = { 1, 50, 1 } },
-  choices = { corner = { TOPLEFT = true, TOPRIGHT = true } },
-  keepOnReset = { pos = true },
+  ranges = { size = { 1, 50, 1 } }, choices = { corner = { TOPLEFT = true, TOPRIGHT = true } }, keepOnReset = { pos = true },
 })
 local resets = 0
 A:On("RESET", function() resets = resets + 1 end)
-TestBDB = {}
-local B = Peon:NewModule("Peon_TestB", { key = "testb", title = "Test B", db = "TestBDB", defaults = { on = true }, noProfile = true })
+TestBDB = { on = false }
+local B = Peon:NewModule("Peon_TestB", { key = "testb", db = "TestBDB", defaults = { on = true }, noProfile = true })
 TestCDB = {}
-local C = Peon:NewModule("Peon_TestC", { key = "testc", title = "Test C", db = "TestCDB", defaults = { level = 3 } })
+local C = Peon:NewModule("Peon_TestC", { key = "testc", db = "TestCDB", defaults = { level = 3 } })
 A:_Init(); B:_Init(); C:_Init()
-check(A.db.size == 10 and A.db.mode == "normal" and TestACharDB.mode == "normal", "Module mit Standardwerten")
+check(TestADB._profile == "Standard" and A.db.size == 12 and TestADB.size == 12, "bisherige Einstellungen sind Standard, liegen weiter direkt in der Tabelle")
+check(TestADB._profiles.Alt.size == 5 and TestCDB._profiles.Alt == nil, "Stand aus 0.25.0 beim Modul angekommen")
+check(TestBDB._profile == nil and TestBDB._profiles == nil and B.db.on == false, "noProfile: nichts angefasst")
+local keys = table.concat(A:_ProfileKeys(), ",")
+check(keys == "color,corner,size", "zum Profil gehoeren nicht pos (keepOnReset), mode (Charakter), debug: " .. keys)
 
--- Speichern
-A.db.size, A.db.mode, A.db.corner = 22, "fishing", "TOPRIGHT"
-A.db.color[2] = 0.5
-A.db.debug = true
-C.db.level = 7
-local ok, n = P.Save("  Hexer |cffff0000rot|r  ")
-check(ok and n == 2, "Profil gespeichert, 2 Module (TestB ausgelassen): " .. tostring(n))
-local list = P.List()
-check(#list == 1 and list[1].name == "Hexer rot" and list[1].mods == 2, "Name ohne Farbcodes, Liste: " .. tostring(list[1] and list[1].name))
-local saved = PeonDB.profiles[list[1].name].mods
-check(saved.testa.size == 22 and saved.testa.mode == "fishing" and saved.testa.corner == "TOPRIGHT", "Werte gespeichert, auch der Charakterwert")
-check(saved.testa.pos == nil and saved.testa.debug == nil and saved.testa.data == nil, "keepOnReset, debug und Daten nicht im Profil")
-check(saved.testb == nil and saved.testc.level == 7, "noProfile ausgelassen")
-check(saved.testa.color ~= A.db.color and saved.testa.color[2] == 0.5, "Tabellen kopiert, nicht geteilt")
-A.db.color[1] = 0.1
-check(saved.testa.color[1] == 1, "spaetere Aenderung trifft das Profil nicht")
+-- Einloggen eines Charakters nachspielen: gleiche Konto-Tabellen, eigenes Charakterfach
+local function Login(name, charProfile, charA)
+  CHAR = name
+  PeonCharDB = charProfile and { profile = charProfile } or {}
+  TestACharDB = charA or {}
+  P.Init()
+  for _, m in ipairs({ A, B, C }) do m.initialized = false; m:_Init() end
+end
 
--- Laden auf einem "anderen Charakter": Charakterwert neu, Konto-Werte zurueck
-P.Save("Basis")
-A.db.size, A.db.mode, A.db.corner, A.db.pos = 3, "normal", "TOPLEFT", { x = 99 }
-TestACharDB.mode = "normal"
-C.db.level = 1
+-- Arnulf: neues Profil als Kopie, eigene Werte
+A.db.mode = "fishing"
 local r0 = resets
-local ok2, mods, values = P.Load("hexer rot")
-check(ok2 and mods == 2 and values == 5, "Laden: 2 Module, 5 Werte (Gross- und Kleinschreibung egal): " .. tostring(mods) .. "/" .. tostring(values))
-check(A.db.size == 22 and A.db.mode == "fishing" and TestACharDB.mode == "fishing" and A.db.corner == "TOPRIGHT" and C.db.level == 7, "Werte uebernommen, Charakterwert im Charakterfach")
-check(A.db.pos.x == 99, "Position (keepOnReset) bleibt")
-check(A.db.color[1] == 1 and A.db.color ~= PeonDB.profiles["Hexer rot"].mods.testa.color, "Tabelle beim Laden kopiert")
-check(resets == r0 + 1, "RESET danach, damit sich alles neu zeichnet")
+local ok, n, name = P.Use("Hexer")
+check(ok and name == "Hexer" and n == 2 and PeonCharDB.profile == "Hexer", "Benutzen legt ein fehlendes Profil als Kopie an und wechselt: " .. tostring(n))
+check(A.db.size == 12 and TestADB._profile == "Hexer" and TestADB._profiles.Standard.size == 12 and TestADB._profiles.Hexer == nil, "Kopie: gleiche Werte, Standard abgelegt, aktives liegt direkt in der Tabelle")
+check(resets == r0 + 1, "RESET nach dem Wechsel")
+A.db.size, A.db.corner, C.db.level = 30, "TOPRIGHT", 9
+local arnulfChar = TestACharDB
 
--- Ungueltige Werte im Profil werden nicht uebernommen, Zahlen begrenzt, unbekannte Schluessel ignoriert
-PeonDB.profiles.Kaputt = { t = 1, mods = { testa = { size = 999, corner = "MITTE", mode = 5, fremd = 1, pos = { x = 1 } }, weg = { a = 1 } } }
-local ok3, m3, v3 = P.Load("Kaputt")
-check(ok3 and m3 == 1 and v3 == 1 and A.db.size == 50, "nur gueltige Werte, Zahl auf den Bereich begrenzt: " .. tostring(v3) .. " " .. tostring(A.db.size))
-check(A.db.corner == "TOPRIGHT" and A.db.mode == "fishing" and A.db.pos.x == 99 and A.db.fremd == nil, "ungueltige und fremde Werte bleiben weg")
+-- Borin loggt ein: Standard
+Login("Borin Stein", nil)
+check(P.Current() == "Standard" and A.db.size == 12 and A.db.corner == "TOPLEFT" and C.db.level == 3, "anderer Charakter: Standard")
+check(TestADB._profiles.Hexer.size == 30 and TestADB._profiles.Hexer.corner == "TOPRIGHT", "Hexer beim Wechsel abgelegt")
+check(A.db.mode == "normal", "Charakterwert bleibt beim Charakter")
+check(TestADB.pos.x == 5 and TestADB.data[2] == 2, "keepOnReset und Daten unberuehrt")
+A.db.size = 14   -- Borin aendert Standard
 
--- Fehlerfaelle
-check(select(2, P.Save("")) == "name" and select(2, P.Save(string.rep("x", 41))) == "name", "Name leer oder zu lang")
-check(select(2, P.Load("Gibts nicht")) == "missing" and P.Delete("Gibts nicht") == false, "unbekanntes Profil")
-for i = 1, P.MAX do P.Save("P" .. i) end
-local okF, why = P.Save("Noch eins")
-check(not okF and why == "full", "hoechstens " .. P.MAX .. " Profile")
-check(P.Save("Basis"), "vorhandenes Profil ueberschreiben geht auch bei voller Liste")
-check(P.Delete("basis") and PeonDB.profiles.Basis == nil, "Loeschen (Gross- und Kleinschreibung egal)")
+-- Arnulf wieder: Hexer, Standard bleibt mit Borins Aenderung
+Login("Arnulf Stein", "Hexer", arnulfChar)
+check(A.db.size == 30 and A.db.mode == "fishing" and C.db.level == 9, "Arnulf bekommt sein Profil zurueck")
+check(TestADB._profiles.Standard.size == 14, "Aenderung an Standard bleibt fuer alle")
+local list = P.List()
+check(list[1].name == "Standard" and list[1].users == 1, "Liste: Standard zuerst, ein Charakter")
+local hex
+for _, p in ipairs(list) do if p.name == "Hexer" then hex = p end end
+check(hex and hex.current and hex.users == 1, "Liste: Hexer ist das Profil dieses Charakters")
 
--- Befehle und Ausgaben
+-- Leeres Profil, Kopieren von, ungueltige Werte, fehlendes Modul
+check(P.Create("Leer", true) and P.Use("leer"), "neues leeres Profil, Name ohne Gross- und Kleinschreibung")
+check(A.db.size == 10 and A.db.corner == "TOPLEFT" and C.db.level == 3, "leer: Standardwerte")
+local okL, mods, vals = P.Load("hexer")
+check(okL and mods == 2 and A.db.size == 30 and TestADB._profiles.Hexer.size == 30, "Kopieren von Hexer ins aktuelle Profil: " .. tostring(mods) .. "/" .. tostring(vals))
+TestADB._profiles.Hexer = { size = 999, corner = "MITTE", fremd = 1 }
+P.Use("Hexer")
+check(A.db.size == 50 and A.db.corner == "TOPLEFT" and A.db.fremd == nil, "ungueltige Werte beim Wechsel: begrenzt oder Standardwert")
+TestCDB._profiles.Leer = nil
+P.Use("Leer")
+check(C.db.level == TestCDB._profiles.Standard.level, "fehlt ein Profil beim Modul, gilt eine Kopie von Standard")
+
+-- Speichern ohne Wechsel (API 25)
+local okS = P.Save("Abend")
+check(okS and P.Current() == "Leer" and TestADB._profiles.Abend.size == A.db.size, "Speichern legt die jetzigen Werte unter einem Namen ab, ohne zu wechseln")
+
+-- Loeschen
+check(not P.Delete("Standard"), "Standard laesst sich nicht loeschen")
+check(P.Delete("Leer") and P.Current() == "Standard" and TestADB._profile == "Standard" and TestADB._profiles.Leer == nil, "aktives Profil geloescht: zurueck zu Standard")
+check(PeonDB.profileUsers["Arnulf Stein-Forever"] == "Standard", "Anzeige der Charaktere angepasst")
+P.Delete("Hexer")
+Login("Arnulf Stein", "Hexer", arnulfChar)
+check(P.Current() == "Standard" and A.db.size == 14, "Profil des Charakters geloescht: Standard")
+-- Ein Modul, das zuletzt ein inzwischen geloeschtes Profil aktiv hatte
+TestADB._profile = "Weg"
+TestADB._profiles.Standard = { size = 21 }
+Login("Borin Stein", nil)
+check(TestADB._profile == "Standard" and A.db.size == 21, "zuletzt aktives Profil geloescht: Standard eingesetzt")
+
+-- Fehlerfaelle und Grenze
+check(select(2, P.Create("")) == "name" and select(2, P.Create(string.rep("x", 41))) == "name", "Name leer oder zu lang")
+check(select(2, P.Create("abend")) == "exists", "Name schon vergeben")
+for i = 1, P.MAX do P.Create("P" .. i) end
+check(select(2, P.Create("Zuviel")) == "full", "hoechstens " .. P.MAX .. " Profile")
+check(P.CleanName("  Hexer |cffff0000rot|r ") == "Hexer rot", "Farbcodes und Leerzeichen entfernt")
+
+-- Befehle
 out = {}
-SlashCmdList.PEON("profil speichern Mein Profil")
-check(PeonDB.profiles["Mein Profil"] and out[#out]:find("gespeichert", 1, true), "/peon profil speichern")
+SlashCmdList.PEON("profil benutzen Nacht Profil")
+check(P.Current() == "Standard" and out[#out]:find("Es gibt schon", 1, true), "voll: kein neues Profil")
+P.Delete("P1")
+SlashCmdList.PEON("profil benutzen Nacht Profil")
+check(P.Current() == "Nacht Profil" and out[#out]:find("nutzt jetzt", 1, true), "/peon profil benutzen")
 combat = true
-SlashCmdList.PEON("profil laden Mein Profil")
-check(out[#out]:find("Kampf", 1, true), "im Kampf nicht laden")
+SlashCmdList.PEON("profil standard")
+check(P.Current() == "Nacht Profil" and out[#out]:find("Kampf", 1, true), "im Kampf kein Wechsel")
 combat = false
-SlashCmdList.PEON("profil laden Mein Profil")
-check(out[#out]:find("geladen", 1, true) and out[#out]:find("/reload", 1, true), "/peon profil laden mit Hinweis auf /reload")
+SlashCmdList.PEON("profil standard")
+check(P.Current() == "Standard", "/peon profil standard")
+SlashCmdList.PEON("profil loeschen Standard")
+check(out[#out]:find("nicht löschen", 1, true), "Standard bleibt")
 out = {}
 SlashCmdList.PEON("profil")
 local all = table.concat(out, "\n")
-check(all:find("Mein Profil", 1, true) and all:find("/peon profil speichern", 1, true), "Liste und Hilfe")
-SlashCmdList.PEON("profil loeschen Mein Profil")
-check(PeonDB.profiles["Mein Profil"] == nil, "/peon profil loeschen")
+check(all:find("Dieser Charakter nutzt: Standard", 1, true) and all:find("Nacht Profil (0 Charaktere)", 1, true) and all:find("/peon profil benutzen", 1, true), "Stand, Liste und Hilfe")
 out = {}
 SlashCmdList.PEON("hilfe")
 check(table.concat(out, "\n"):find("/peon profil", 1, true), "Hilfe von /peon nennt die Profile")
 
--- Optionsseite: Unterseite Profile, Knoepfe arbeiten mit dem Namen im Feld
+-- Optionsseite
 local panel = P.CreatePanel()
-check(panel and panel.name == "Profile" and P.option.box and P.option.save, "Seite Profile mit Feld und Knoepfen")
-P.option.box:SetText("Seite")
-P.option.save.scripts.OnClick()
-check(PeonDB.profiles.Seite, "Knopf Speichern")
+check(panel and panel.name == "Profile" and P.option.use and P.option.empty and P.option.copy and P.option.delete and P.option.default, "Seite Profile mit allen Knoepfen")
 panel.scripts.OnShow()
-check(P.option.list.txt:find("Seite", 1, true), "Liste auf der Seite")
+check(P.option.status.txt == "Dieser Charakter nutzt: Standard" and P.option.list.txt:find("< dieser Charakter", 1, true), "Stand und Liste auf der Seite")
+P.Delete("P2")   -- Platz fuer ein neues Profil
+P.option.box:SetText("Seite")
+P.option.empty.scripts.OnClick()
+check(P.Current() == "Seite" and A.db.size == 10, "Knopf Neu, leer")
+P.option.default.scripts.OnClick()
+check(P.Current() == "Standard", "Knopf Zurueck zu Standard")
 P.option.delete.scripts.OnClick()
-check(PeonDB.profiles.Seite == nil and not P.option.list.txt:find("Seite (", 1, true), "Knopf Loeschen, Liste neu")
+check(not P.Find("Seite"), "Knopf Loeschen")
 check(#reported == 0, "keine Fehler: " .. table.concat(reported, " | "))
 
 print("ALLE TESTS OK")

@@ -13,7 +13,7 @@ ns.Peon = Peon
 Peon.name      = ADDON_NAME
 Peon.L         = L
 Peon.NewLocale = ns.NewLocale
-Peon.API       = 25         -- wird erhoeht, wenn Funktionen dazukommen (Module koennen pruefen)
+Peon.API       = 26         -- wird erhoeht, wenn Funktionen dazukommen (Module koennen pruefen)
 Peon.COLOR     = "ff8ccf4d" -- Peon-Gruen fuer Chat-Ausgaben
 Peon.modules   = {}         -- addonName -> Modul
 Peon.order     = {}         -- Module in Ladereihenfolge
@@ -160,6 +160,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
         if name == ADDON_NAME then
             if type(PeonDB) ~= "table" then PeonDB = {} end
             Peon.db = PeonDB
+            if ns.Profiles and ns.Profiles.Init then   -- API 26: Profile, vor den Modulen
+                local ok, err = pcall(ns.Profiles.Init)
+                if not ok then Peon.ReportCoreError("Profile", err) end
+            end
             if ns.ItemMenu then   -- API 16: Gegenstandsmenue
                 local ok, err = pcall(ns.ItemMenu.Init)
                 if not ok then Peon.ReportCoreError("ItemMenu", err) end
