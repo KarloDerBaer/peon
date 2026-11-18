@@ -275,11 +275,17 @@ function fakeCache() {
 
 test('Worker: je Eintrag ein Issue mit Label, Nummern und Bestaetigung zurueck', async () => {
   const { handle } = await worker();
-  const seen = [];
-  const fetchImpl = async (url, o) => { seen.push({ url, o, issue: JSON.parse(o.body) }); return new Response(JSON.stringify({ number: 6 + seen.length }), { status: 201 }); };
+  const seen = [], searched = [];
+  const fetchImpl = async (url, o) => {
+    if (o.method === 'GET') { searched.push(url); return new Response(JSON.stringify({ items: [] })); }
+    seen.push({ url, o, issue: JSON.parse(o.body) }); return new Response(JSON.stringify({ number: 6 + seen.length }), { status: 201 });
+  };
   const res = await handle(post(good()), ENV, { fetchImpl, cache: fakeCache() });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true, done: [0, 1], numbers: [7, 8] });
+  assert.equal(searched.length, 1, 'nur der Fehler wird gesucht, die Rueckmeldung nicht');
+  assert.match(decodeURIComponent(searched[0]), /^https:\/\/api\.github\.com\/search\/issues\?q=repo:KarloDerBaer\/peon-fehler is:issue is:open in:body "peon-key: [0-9a-f]{16}"/);
+  assert.match(seen[0].issue.body, /\n\npeon-key: [0-9a-f]{16}$/);
   assert.equal(seen[0].url, 'https://api.github.com/repos/KarloDerBaer/peon-fehler/issues');
   assert.equal(seen[0].o.headers.Authorization, 'Bearer test');
   assert.equal(seen[0].issue.title, 'Peon_Tooltip 0.7.4: Border');
@@ -294,7 +300,10 @@ test('Worker: je Eintrag ein Issue mit Label, Nummern und Bestaetigung zurueck',
 test('Worker: scheitert GitHub mittendrin, wird nur Angelegtes bestaetigt', async () => {
   const { handle } = await worker();
   let calls = 0;
-  const fetchImpl = async () => { calls++; return calls === 1 ? new Response(JSON.stringify({ number: 1 })) : new Response('', { status: 500 }); };
+  const fetchImpl = async (url, o) => {
+    if (o.method === 'GET') return new Response(JSON.stringify({ items: [] }));
+    calls++; return calls === 1 ? new Response(JSON.stringify({ number: 1 })) : new Response('', { status: 500 });
+  };
   const res = await handle(post(good()), ENV, { fetchImpl, cache: fakeCache() });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: false, done: [0], numbers: [1] });
@@ -320,12 +329,54 @@ test('Worker: lehnt Falsches ab, ohne GitHub zu fragen', async () => {
   assert.equal(calls, 0);
 });
 
-test('Worker: bremst zu viele Sendungen', async () => {
+test('Worker: bremst zu viele Eintraege (nicht Sendungen)', async () => {
   const { handle } = await worker();
   const opt = { fetchImpl: async () => new Response(JSON.stringify({ number: 1 })), cache: fakeCache() };
-  for (let i = 0; i < 5; i++) assert.equal((await handle(post(good()), ENV, opt)).status, 200);
+  for (let i = 0; i < 10; i++) assert.equal((await handle(post(good()), ENV, opt)).status, 200, '10 Sendungen mit je 2 Eintraegen = 20');
   assert.equal((await handle(post(good()), ENV, opt)).status, 429);
   assert.equal((await handle(post(good(), '9.9.9.9'), ENV, opt)).status, 200, 'andere Adresse geht noch');
+  const opt2 = { fetchImpl: opt.fetchImpl, cache: fakeCache() };
+  const voll = good(Array.from({ length: 20 }, (_, i) => errItem({ ref: i, msg: `kaputt ${i}` })));
+  assert.equal((await handle(post(voll, '5.5.5.5'), ENV, opt2)).status, 200);
+  assert.equal((await handle(post(good([errItem()]), '5.5.5.5'), ENV, opt2)).status, 429, 'eine volle Sendung braucht die Stunde einer Adresse auf');
+  for (const ip of ['6.6.6.6', '7.7.7.7']) assert.equal((await handle(post(voll, ip), ENV, opt2)).status, 200);
+  assert.equal((await handle(post(good([errItem()]), '8.8.8.8'), ENV, opt2)).status, 429, 'insgesamt hoechstens 60 Eintraege je Stunde');
+});
+
+test('Worker: gleicher Fehler kommt als Kommentar an das offene Issue', async () => {
+  const { handle, errorKey } = await worker();
+  const calls = [];
+  let openIssue = null;
+  const fetchImpl = async (url, o) => {
+    calls.push({ url, method: o.method, body: o.body ? JSON.parse(o.body) : null });
+    if (o.method === 'GET') return new Response(JSON.stringify({ items: openIssue ? [{ number: openIssue }] : [] }));
+    return new Response(JSON.stringify({ number: 41 }), { status: 201 });
+  };
+  // 1. Suche findet ein offenes Issue: Kommentar statt neuem Issue
+  openIssue = 12;
+  let res = await handle(post(good([errItem({ version: '0.7.5', n: 4 })])), ENV, { fetchImpl, cache: fakeCache() });
+  assert.deepEqual(await res.json(), { ok: true, done: [0], numbers: [12] });
+  const post1 = calls.filter((c) => c.method === 'POST');
+  assert.equal(post1.length, 1);
+  assert.equal(post1[0].url, 'https://api.github.com/repos/KarloDerBaer/peon-fehler/issues/12/comments');
+  assert.match(post1[0].body.body, /Wieder gemeldet von Peon Manager 1\.2\.3: Peon_Tooltip 0\.7\.5 \| 4x/);
+  assert.match(post1[0].body.body, /Notiz:\nbeim Kampf/);
+  // 2. Neues Issue, danach findet der Worker es ueber seinen Cache (die Suche von GitHub kennt es noch nicht)
+  calls.length = 0; openIssue = null;
+  const cache = fakeCache();
+  res = await handle(post(good([errItem(), errItem({ ref: 1, version: '0.7.6' })])), ENV, { fetchImpl, cache });
+  assert.deepEqual(await res.json(), { ok: true, done: [0, 1], numbers: [41, 41] });
+  const posts = calls.filter((c) => c.method === 'POST').map((c) => c.url);
+  assert.deepEqual(posts, ['https://api.github.com/repos/KarloDerBaer/peon-fehler/issues', 'https://api.github.com/repos/KarloDerBaer/peon-fehler/issues/41/comments']);
+  // 3. Kennung: Version egal, andere Meldung oder Stelle ergibt eine andere Kennung
+  const k = await errorKey(errItem());
+  assert.equal(await errorKey(errItem({ version: '9.9.9', n: 99 })), k);
+  assert.notEqual(await errorKey(errItem({ msg: 'anders' })), k);
+  assert.notEqual(await errorKey(errItem({ where: 'Anders' })), k);
+  // 4. Suche gescheitert: lieber ein neues Issue als gar keins
+  const down = async (url, o) => (o.method === 'GET' ? new Response('', { status: 403 }) : new Response(JSON.stringify({ number: 50 }), { status: 201 }));
+  res = await handle(post(good([errItem()])), ENV, { fetchImpl: down, cache: fakeCache() });
+  assert.deepEqual(await res.json(), { ok: true, done: [0], numbers: [50] });
 });
 
 test('Worker: Text kann den Codeblock nicht verlassen und niemanden benachrichtigen', async () => {

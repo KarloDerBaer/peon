@@ -39,7 +39,7 @@ function makeRelease(tag, addons, opt = {}) {
     return { name: a.name, title: a.name.replace('Peon_', ''), version: a.version, desc: `Beschreibung ${a.name}`, deps: a.deps || (a.name === 'Peon' ? [] : ['Peon']),
       api: 5, interface: 16001, file, sha256: a.sha256 || crypto.createHash('sha256').update(zip).digest('hex'), size: a.size || zip.length, news: a.news || [{ version: a.version, short: [`Neu in ${a.version}`] }], managerOnly: !!a.managerOnly, ...(a.release ? { release: a.release } : {}), ...(a.replacedBy ? { replacedBy: a.replacedBy } : {}) };
   });
-  files['manifest.json'] = JSON.stringify({ fmt: 1, release: tag, date: '2026-11-04', discord: null, manager: { version: opt.managerVersion || '0.8.0', minVersion, news: opt.managerNews, ...(opt.managerRelease ? { release: opt.managerRelease } : {}) }, addons: list, managerModules: [] });
+  files['manifest.json'] = JSON.stringify({ fmt: 1, release: tag, date: '2026-11-04', discord: null, manager: { version: opt.managerVersion || '0.8.0', minVersion, news: opt.managerNews, ...(opt.managerRelease ? { release: opt.managerRelease } : {}) }, addons: list, managerModules: [], ...(opt.retired ? { retired: opt.retired } : {}) });
   return files;
 }
 
@@ -359,6 +359,53 @@ test('Ersetzt (ab 0.38.0): neues Addon als Update, altes erst nach der Uebernahm
   assert.equal(list.find((a) => a.name === 'Peon_ComboPoints').status, 'missing');
   assert.deepEqual(w.svc.addons.autoReplace(false), []);
   w.close();
+});
+
+test('Abgeloest ohne Zip (ab 0.48.0): retired zeigt das alte Addon, entfernt es nach der Uebernahme', async () => {
+  const RET = [{ name: 'Peon_ComboPoints', by: 'Peon_ClassBuddy', db: 'PeonClassBuddyDB', key: 'cpImported' }];
+  const w = await world([{ name: 'Peon', version: '0.11.0' }, { name: 'Peon_Bridge', version: '0.4.0', managerOnly: true },
+    { name: 'Peon_ClassBuddy', version: '0.3.0' }], { retired: RET });
+  await w.svc.addons.check();
+  // Ohne ComboPoints: nichts davon zu sehen
+  let list = w.svc.addons.list();
+  assert.ok(!list.some((a) => a.name === 'Peon_ComboPoints'));
+  assert.equal(list.find((a) => a.name === 'Peon_ClassBuddy').status, 'missing');
+  // ComboPoints liegt noch von frueher da: abgeloest, entfernbar, Klassenbuddy als Update
+  fs.mkdirSync(path.join(w.addonsDir, 'Peon_ComboPoints'), { recursive: true });
+  fs.writeFileSync(path.join(w.addonsDir, 'Peon_ComboPoints', 'Peon_ComboPoints.toc'), '## Version: 3.6.0\n');
+  list = w.svc.addons.list();
+  const old = list.find((a) => a.name === 'Peon_ComboPoints');
+  assert.equal(old.status, 'retired');
+  assert.equal(old.installed, '3.6.0');
+  assert.equal(old.replacedBy, 'ClassBuddy');
+  assert.equal(old.removable, true);
+  const cb = list.find((a) => a.name === 'Peon_ClassBuddy');
+  assert.equal(cb.status, 'update');
+  assert.equal(cb.replaces, 'ComboPoints');
+  await w.svc.addons.install(['Peon_ClassBuddy']);
+  assert.deepEqual(w.svc.addons.autoReplace(false), [], 'Einstellungen noch nicht uebernommen');
+  const sv = path.join(w.wow, 'WTF', 'Account', 'KONTO', 'SavedVariables');
+  fs.mkdirSync(sv, { recursive: true });
+  fs.writeFileSync(path.join(sv, 'Peon_ClassBuddy.lua'), 'PeonClassBuddyDB = { ["cpImported"] = true }\n');
+  assert.deepEqual(w.svc.addons.autoReplace(true), [], 'nie bei laufendem WoW');
+  assert.deepEqual(w.svc.addons.autoReplace(false), [{ name: 'Peon_ComboPoints', by: 'Peon_ClassBuddy' }]);
+  assert.ok(!fs.existsSync(path.join(w.addonsDir, 'Peon_ComboPoints')));
+  assert.ok(fs.existsSync(path.join(w.dir, 'backup', 'Peon_ComboPoints-3.6.0', 'Peon_ComboPoints.toc')));
+  assert.ok(!w.svc.addons.list().some((a) => a.name === 'Peon_ComboPoints'));
+  // Von Hand entfernen geht auch, ein fremdes Addon nicht
+  fs.mkdirSync(path.join(w.addonsDir, 'Peon_ComboPoints'), { recursive: true });
+  fs.writeFileSync(path.join(w.addonsDir, 'Peon_ComboPoints', 'Peon_ComboPoints.toc'), '## Version: 3.6.0\n');
+  assert.equal(w.svc.addons.remove('Peon_ComboPoints'), true);
+  assert.throws(() => w.svc.addons.remove('Peon_Fremd'), /verwaltet der Manager nicht/);
+  w.close();
+  // Ungueltige Angaben werden abgelehnt
+  const base = JSON.parse(makeRelease('v2026.11.04', [{ name: 'Peon', version: '0.11.0' }, { name: 'Peon_ClassBuddy', version: '0.3.0' }])['manifest.json']);
+  const bad = (retired) => assert.throws(() => checkManifest({ ...base, retired }), /retired|abgelöst|Ersatz/);
+  bad('x');
+  bad([{ name: 'Peon_ClassBuddy', by: 'Peon', db: 'A', key: 'b' }]);
+  bad([{ name: 'Peon_ComboPoints', by: 'Peon_Fehlt', db: 'A', key: 'b' }]);
+  bad([{ name: 'Peon_ComboPoints', by: 'Peon_ClassBuddy', db: 'A B', key: 'b' }]);
+  assert.ok(checkManifest({ ...base, retired: RET }));
 });
 
 test('Ersetzt: Entwicklung (Junction) wird nie entfernt, ungueltige Angabe im Manifest abgelehnt', async () => {

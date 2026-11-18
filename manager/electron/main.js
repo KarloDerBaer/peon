@@ -20,6 +20,7 @@ const blizzard = require('../src/core/blizzard');
 const { BlizzardWatch } = require('../src/core/blizzard-watch');
 const { findWowDirs, REPO_URL } = require('../src/core/addons');
 const modules = require('../src/core/modules');
+const { zoomOf, zoomStep, zoomKey } = require('../src/core/zoom');
 const chancebook = require('../src/core/chancebook');
 const { MANAGER_MODULE } = require('../src/core/reports');
 
@@ -109,6 +110,20 @@ if (!app.requestSingleInstanceLock()) {
     win.once('ready-to-show', () => { if (!HIDDEN || win.__userOpened) win.show(); });
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     win.webContents.on('will-navigate', (e) => e.preventDefault());
+    // ab 0.47.0: Groesse der Oberflaeche (Einstellung zoom), Strg und Plus, Minus, 0 sowie Strg und Mausrad
+    const setZoom = (z) => {
+      const next = zoomOf(z);
+      win.webContents.setZoomFactor(next);
+      if (next !== svc.settings.zoom) { svc.saveSettings({ zoom: next }); send('changed', { what: 'settings' }); }
+    };
+    win.webContents.on('did-finish-load', () => win.webContents.setZoomFactor(zoomOf(svc.settings.zoom)));
+    win.webContents.on('before-input-event', (e, input) => {
+      const dir = zoomKey(input);
+      if (dir === null) return;
+      e.preventDefault();
+      setZoom(zoomStep(svc.settings.zoom, dir));
+    });
+    win.webContents.on('zoom-changed', (_e, how) => setZoom(zoomStep(svc.settings.zoom, how === 'in' ? 1 : -1)));
     win.on('close', (e) => { if (!quitting) { e.preventDefault(); win.hide(); } });
   }
 
@@ -428,6 +443,8 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('settings', () => svc.settings);
     // ab 0.42.0: Ansichten, die nur lesen, ueber den Lese-Prozess (warten nie hinter dem Neurechnen)
     const rd = (name, ...a) => (svc.broker.read ? svc.broker.read(name, ...a) : svc.broker[name](...a));
+    // ab 0.48.0: Aenderungen am Broker Client nur, wenn das Modul an ist, sonst eine klare Meldung statt TypeError
+    const broker = () => { if (!svc.broker) throw new Error('Das Modul Peon Broker Client ist ausgeschaltet.'); return svc.broker; };
     ipcMain.handle('items', (_e, market) => (svc.broker ? rd('itemList', String(market)) : null));
     ipcMain.handle('item', (_e, market, key, range) => (svc.broker ? rd('itemDetail', String(market), String(key), String(range || '30d')) : null));
     ipcMain.handle('itemInfo', (_e, key) => (svc.broker ? svc.broker.itemTip(String(key), blizzardClient()) : null));
@@ -443,17 +460,17 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('successView', (_e, market) => (svc.broker ? svc.broker.successView(String(market)) : null));
     ipcMain.handle('setOwnUse', (_e, key, t, on) => (svc.broker ? svc.broker.setOwnUse(String(key), Number(t), !!on) : false));
     ipcMain.handle('chanceRules', () => (svc.broker ? svc.broker.chanceRules() : null));
-    ipcMain.handle('setChanceRules', (_e, patch) => chanceChanged(svc.broker.setChanceRules(patch || {})));
-    ipcMain.handle('resetChanceRules', (_e, kind) => chanceChanged(svc.broker.resetChanceRules(String(kind || ''))));
+    ipcMain.handle('setChanceRules', (_e, patch) => chanceChanged(broker().setChanceRules(patch || {})));
+    ipcMain.handle('resetChanceRules', (_e, kind) => chanceChanged(broker().resetChanceRules(String(kind || ''))));
     ipcMain.handle('chanceProbe', (_e, market, kind, next) => (svc.broker ? svc.broker.chanceProbe(String(market), String(kind), next || {}) : null));
     ipcMain.handle('overrides', () => (svc.broker ? svc.broker.overrides() : []));
-    ipcMain.handle('setOverride', (_e, key, o) => chanceChanged(svc.broker.setOverride(String(key), o || {})));
-    ipcMain.handle('rateChance', async (_e, f) => { const r = await chanceChanged(svc.broker.rateChance(f || {})); await forwardRatings(); return r; });
+    ipcMain.handle('setOverride', (_e, key, o) => chanceChanged(broker().setOverride(String(key), o || {})));
+    ipcMain.handle('rateChance', async (_e, f) => { const r = await chanceChanged(broker().rateChance(f || {})); await forwardRatings(); return r; });
     ipcMain.handle('chanceRatings', () => (svc.broker ? svc.broker.chanceRatings() : { list: [], reasons: [] }));
-    ipcMain.handle('deleteChanceRating', (_e, id) => chanceChanged(svc.broker.deleteChanceRating(Number(id))));
-    ipcMain.handle('pinChance', async (_e, market, key, on) => { const r = await svc.broker.pinChance(String(key), !!on); await svc.broker.writeBridge('chancen'); return r; });
+    ipcMain.handle('deleteChanceRating', (_e, id) => chanceChanged(broker().deleteChanceRating(Number(id))));
+    ipcMain.handle('pinChance', async (_e, market, key, on) => { const r = await broker().pinChance(String(key), !!on); await broker().writeBridge('chancen'); return r; });
     ipcMain.handle('fests', () => (svc.broker ? svc.broker.fests() : []));
-    ipcMain.handle('setEvents', (_e, list) => chanceChanged(svc.broker.setEvents(list || [])));
+    ipcMain.handle('setEvents', (_e, list) => chanceChanged(broker().setEvents(list || [])));
     ipcMain.handle('exportChanceRatings', async () => {
       const r = await dialog.showSaveDialog(win, { title: 'Rückmeldungen für die Auswertung speichern', defaultPath: 'Peon_Rueckmeldungen_Chancen.json', filters: [{ name: 'JSON', extensions: ['json'] }] });
       if (r.canceled || !r.filePath) return null;
@@ -461,31 +478,31 @@ if (!app.requestSingleInstanceLock()) {
     });
     ipcMain.handle('favorites', () => (svc.broker ? svc.broker.favorites() : []));
     ipcMain.handle('vendors', (_e, market) => (svc.broker ? svc.broker.vendorView(String(market)) : { rows: [], vendors: 0, offers: 0 }));
-    ipcMain.handle('setFavorite', (_e, key, on) => svc.broker.setFavorite(String(key), !!on));
+    ipcMain.handle('setFavorite', (_e, key, on) => broker().setFavorite(String(key), !!on));
     // Konten (ab 0.29.0): Einkaufslisten und Beobachtung je WoW-Konto
     ipcMain.handle('accounts', () => (svc.broker ? svc.broker.accounts() : { list: [], waiting: [], selected: null }));
-    ipcMain.handle('accountSelect', async (_e, id) => { const r = await svc.broker.selectAccount(String(id)); send('changed', { what: 'konto' }); return r; });
-    ipcMain.handle('accountName', async (_e, id, name) => { const r = await svc.broker.nameAccount(String(id), String(name || '')); send('changed', { what: 'konto' }); return r; });
+    ipcMain.handle('accountSelect', async (_e, id) => { const r = await broker().selectAccount(String(id)); send('changed', { what: 'konto' }); return r; });
+    ipcMain.handle('accountName', async (_e, id, name) => { const r = await broker().nameAccount(String(id), String(name || '')); send('changed', { what: 'konto' }); return r; });
     // Seite Beobachten (ab 0.32.0)
     const watchChanged = async (r) => { const v = await r; notifyWatch().catch(() => {}); return v; };
     ipcMain.handle('watchView', (_e, market) => (svc.broker ? rd('watchView', String(market)) : { rows: [] }));
-    ipcMain.handle('watchSetBuy', (_e, key, kind, value) => watchChanged(svc.broker.setWatchBuy(String(key), kind || null, value == null ? null : Number(value))));
-    ipcMain.handle('watchSetUp', (_e, key, value) => watchChanged(svc.broker.setWatchUp(String(key), value == null ? null : Number(value))));
-    ipcMain.handle('watchSetBell', (_e, key, which, on) => watchChanged(svc.broker.setWatchBell(String(key), which || null, !!on)));
+    ipcMain.handle('watchSetBuy', (_e, key, kind, value) => watchChanged(broker().setWatchBuy(String(key), kind || null, value == null ? null : Number(value))));
+    ipcMain.handle('watchSetUp', (_e, key, value) => watchChanged(broker().setWatchUp(String(key), value == null ? null : Number(value))));
+    ipcMain.handle('watchSetBell', (_e, key, which, on) => watchChanged(broker().setWatchBell(String(key), which || null, !!on)));
     // Abgleich nachvollziehen (ab 0.31.0): Protokoll, Geloeschtes, Wiederherstellen
     ipcMain.handle('syncLog', (_e, area, origin) => (svc.broker ? (svc.broker.read ? svc.broker.read('syncLog', { area: area || null, origin: origin || null }) : svc.broker.syncLog({ area: area || null, origin: origin || null })) : []));
     ipcMain.handle('syncTrash', (_e, area) => (svc.broker ? (svc.broker.read ? svc.broker.read('syncTrash', { area: area || null }) : svc.broker.syncTrash({ area: area || null })) : []));
-    ipcMain.handle('syncRestore', async (_e, id) => { const r = await svc.broker.restoreTrash(Number(id)); if (r && r.ok) send('changed', { what: 'wiederhergestellt' }); return r; });
+    ipcMain.handle('syncRestore', async (_e, id) => { const r = await broker().restoreTrash(Number(id)); if (r && r.ok) send('changed', { what: 'wiederhergestellt' }); return r; });
     const shopChanged = async (r) => { const v = await r; send('changed', { what: 'einkaufsliste' }); return v; };
     ipcMain.handle('shopView', (_e, market) => (svc.broker ? rd('shopView', String(market)) : { lists: [] }));
     ipcMain.handle('shopBuyable', (_e, market) => (svc.broker ? rd('shopBuyable', String(market)) : []));
     ipcMain.handle('shopLists', (_e, key) => (svc.broker ? svc.broker.shopLists(key == null ? null : String(key)) : []));
-    ipcMain.handle('shopNewList', (_e, name) => shopChanged(svc.broker.newShopList(name == null ? '' : String(name))));
-    ipcMain.handle('shopDeleteList', (_e, id) => shopChanged(svc.broker.deleteShopList(id)));
-    ipcMain.handle('shopUpdateList', (_e, id, patch) => shopChanged(svc.broker.updateShopList(id, patch || {})));
-    ipcMain.handle('shopAdd', async (_e, id, key) => { const r = await svc.broker.addShopItem(id, key); notifyShop().catch(() => {}); return shopChanged(r); });
-    ipcMain.handle('shopRemove', (_e, id, key) => shopChanged(svc.broker.removeShopItem(id, key)));
-    ipcMain.handle('shopSet', async (_e, id, key, patch) => { const r = await svc.broker.setShopItem(id, key, patch || {}); notifyShop().catch(() => {}); return shopChanged(r); });
+    ipcMain.handle('shopNewList', (_e, name) => shopChanged(broker().newShopList(name == null ? '' : String(name))));
+    ipcMain.handle('shopDeleteList', (_e, id) => shopChanged(broker().deleteShopList(id)));
+    ipcMain.handle('shopUpdateList', (_e, id, patch) => shopChanged(broker().updateShopList(id, patch || {})));
+    ipcMain.handle('shopAdd', async (_e, id, key) => { const r = await broker().addShopItem(id, key); notifyShop().catch(() => {}); return shopChanged(r); });
+    ipcMain.handle('shopRemove', (_e, id, key) => shopChanged(broker().removeShopItem(id, key)));
+    ipcMain.handle('shopSet', async (_e, id, key, patch) => { const r = await broker().setShopItem(id, key, patch || {}); notifyShop().catch(() => {}); return shopChanged(r); });
     ipcMain.handle('backupCreate', async () => {
       const r = await dialog.showOpenDialog(win, { title: 'Wohin soll die Sicherung?', properties: ['openDirectory', 'createDirectory'] });
       if (r.canceled || !r.filePaths[0]) return null;
@@ -493,6 +510,12 @@ if (!app.requestSingleInstanceLock()) {
       send('changed', { what: 'sicherung' });
       return res;
     });
+    // ab 0.48.0: Sicherung der Spieldaten
+    ipcMain.handle('gameBackups', () => ({ list: svc.gameBackup.list(), sources: svc.gameBackup.sources().length, dir: svc.gameBackup.dir }));
+    ipcMain.handle('gameBackupCreate', () => { const r = svc.gameBackup.create('manuell'); send('changed', { what: 'spielsicherung' }); return r; });
+    ipcMain.handle('gameBackupRestore', async (_e, id) => { const r = svc.gameBackup.restore(String(id), await wowRunning()); send('changed', { what: 'spielsicherung' }); return r; });
+    ipcMain.handle('gameBackupDelete', (_e, id) => { const r = svc.gameBackup.remove(String(id)); send('changed', { what: 'spielsicherung' }); return r; });
+    ipcMain.handle('gameBackupOpen', () => { fs.mkdirSync(svc.gameBackup.dir, { recursive: true }); shell.openPath(svc.gameBackup.dir); });
     ipcMain.handle('backupPick', async () => {
       const r = await dialog.showOpenDialog(win, { title: 'Ordner der Sicherung wählen', properties: ['openDirectory'] });
       if (r.canceled || !r.filePaths[0]) return null;
@@ -566,6 +589,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('saveSettings', (_e, patch) => {
       const before = svc.settings.wowDir, keepBefore = svc.settings.keepDays, hourBefore = svc.settings.hourDays;
       const s = svc.saveSettings(patch || {});
+      if (patch && 'zoom' in patch && win && !win.isDestroyed()) win.webContents.setZoomFactor(zoomOf(s.zoom));
       if (s.wowDir !== before) { setupWatch(); runImport('Ordner geändert'); }
       if (s.keepDays !== keepBefore || s.hourDays !== hourBefore) pruneNow();
       applyAutostart();
@@ -629,6 +653,9 @@ if (!app.requestSingleInstanceLock()) {
       const a = await svc.broker.meta('ack').catch(() => null);
       if (!a || a.day !== require('../src/core/broker').dayOf(svc.now())) runImport('Tageswechsel');
     }, 60 * 60 * 1000);
+    // ab 0.48.0: Spieldaten einmal am Tag sichern (nach dem Start, dann stuendlich nachsehen)
+    setTimeout(() => { try { svc.gameBackup.dailyIfDue(); } catch { /* steht im Protokoll */ } }, 2 * 60 * 1000);
+    setInterval(() => { try { svc.gameBackup.dailyIfDue(); } catch { /* steht im Protokoll */ } }, 60 * 60 * 1000);
     applyAutostart();
     firstStart().catch(() => {}).then(() => checkAddons()).catch(() => {});
     // Jede Minute nachsehen, ob der eingestellte Abstand um ist. So gilt eine geaenderte Einstellung gleich.

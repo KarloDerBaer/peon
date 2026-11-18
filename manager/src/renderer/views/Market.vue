@@ -67,7 +67,7 @@ const intro = computed(() => ({
       <table class="tbl" v-if="list.length">
         <thead><tr><th>Gegenstand</th><th class="num">Aussicht</th><th class="num">Zeitraum</th><th class="num">Erwartet</th><th class="num">Sicherheit</th><th>Signale</th></tr></thead>
         <tbody>
-          <tr v-for="x in list.slice(0, limit)" :key="x.key" class="click" @click="emit('brief', x.key)">
+          <tr v-for="x in list.slice(0, limit)" :key="x.key" class="click" tabindex="0" @click="emit('brief', x.key)" @keydown.enter="emit('brief', x.key)">
             <td class="name" :style="{ color: qualityColor(x.quality) }">{{ itemName(x) }}</td>
             <td class="num" :class="x.dir > 0 ? 'up' : 'down'">{{ x.dir > 0 ? '▲ steigt' : '▼ fällt' }}</td>
             <td class="num">{{ x.days }} Tage</td>
@@ -84,7 +84,7 @@ const intro = computed(() => ({
       <table class="tbl" v-if="list.length">
         <thead><tr><th>Gegenstand</th><th class="num">Median jetzt</th><th class="num">Langzeitwert</th><th class="num">Änderung</th><th class="num">Bereich</th><th class="num">14 Tage</th><th class="num">Min jetzt</th><th class="num">Menge</th></tr></thead>
         <tbody>
-          <tr v-for="r in list.slice(0, limit)" :key="r.key" class="click" @click="emit('brief', r.key)">
+          <tr v-for="r in list.slice(0, limit)" :key="r.key" class="click" tabindex="0" @click="emit('brief', r.key)" @keydown.enter="emit('brief', r.key)">
             <td class="name" :style="{ color: qualityColor(r.quality) }">{{ itemName(r) }}</td>
             <td class="num"><Gold :copper="r.now" compact /></td>
             <td class="num muted"><Gold :copper="r.lang" compact /></td>
@@ -103,7 +103,7 @@ const intro = computed(() => ({
       <table class="tbl" v-if="list.length">
         <thead><tr><th>Gegenstand</th><th class="num">Absatz/Tag</th><th class="num">Verkauft</th><th class="num">Langzeitwert</th><th class="num">Bereich</th><th class="num">Umsatz/Tag</th><th class="num">Spanne/Tag</th></tr></thead>
         <tbody>
-          <tr v-for="r in list.slice(0, limit)" :key="r.key" class="click" @click="emit('brief', r.key)">
+          <tr v-for="r in list.slice(0, limit)" :key="r.key" class="click" tabindex="0" @click="emit('brief', r.key)" @keydown.enter="emit('brief', r.key)">
             <td class="name" :style="{ color: qualityColor(r.quality) }">{{ itemName(r) }}</td>
             <td class="num"><Sales :s="r" /></td>
             <td class="num muted">{{ r.rate == null ? '–' : Math.round(r.rate * 100) + ' %' }}</td>

@@ -147,7 +147,7 @@ fire("ADDON_LOADED", "Peon_Profession")
 local mod = ns.mod
 check(mod.initialized and mod.page, "Modul + Optionsseite")
 fire("PLAYER_LOGIN")
-check(cats.Peon and cats.Peon.subs[#cats.Peon.subs] == "Profession", "Seite unter Peon > Profession")
+check(cats.Peon and cats.Peon.subs[#cats.Peon.subs - 1] == "Profession" and cats.Peon.subs[#cats.Peon.subs] == "Profile", "Seite unter Peon > Profession, danach die Profile des Kerns")
 check(mod.db.craftListMode == "pct" and mod.db.craftHint == false and mod.db.craftTwinks == true and mod.db.craftMigrated == true
     and mod.db.craftBlock == true, "0.2.0: Einstellungen des Berufsfensters einmal von Broker uebernommen")
 mod.db.craftListMode, mod.db.craftHint, mod.db.craftTwinks = "money", true, false

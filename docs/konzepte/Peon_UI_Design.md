@@ -2,7 +2,7 @@
 
 Stand: 11.11.2026, **von KarloDerBaer freigegeben** (nach drei Tests im Spiel). Grundlage für alle Fenster aller Peon-Addons, zuerst für den Umbau von Peon_Broker. Bestehende Fenster bleiben vorerst, wie sie sind.
 
-Beispielfenster im Spiel: `/peon ui` (Peon 0.18.0, Bausteine in `addons\Peon\UIKit.lua`, Beispielseiten in `UIDemo.lua`). Die Bausteine sind seit Kern-API 18 als `Peon.UI` für alle Module da (intern `ns.UI`). Wie die ganze Kern-API wird `Peon.UI` nur erweitert, nie geändert.
+Beispielfenster im Spiel: `/pdebug ui` (ab 18.11.2026 im privaten Peon_Debug, bis Peon 0.24.1 `/peon ui` im Kern) (Peon 0.18.0, Bausteine in `addons\Peon\UIKit.lua`, Beispielseiten in `UIDemo.lua`). Die Bausteine sind seit Kern-API 18 als `Peon.UI` für alle Module da (intern `ns.UI`). Wie die ganze Kern-API wird `Peon.UI` nur erweitert, nie geändert.
 
 ## 1. Ziel und Vorbild
 
@@ -26,7 +26,7 @@ Nach dem zweiten Test (11.11.2026) passen laut KarloDerBaer Grundlagen, Bedienel
 
 ## 2. Woher die Werte kommen
 
-**Nie raten.** Alle Werte hier sind im Spiel gemessen (`/peon ui pruefen`, 11.11.2026, Client 1.60.1.70888) und mit Blizzards Code im Zweig `forever` von `Gethe/wow-ui-source` abgeglichen.
+**Nie raten.** Alle Werte hier sind im Spiel gemessen (`/peon ui pruefen`, heute `/pdebug ui pruefen`, 11.11.2026, Client 1.60.1.70888) und mit Blizzards Code im Zweig `forever` von `Gethe/wow-ui-source` abgeglichen.
 
 - Forever heißt in Blizzards Code „camelot“. Es lädt die Mainline-Fassung und ersetzt einzelne Teile. Unter denselben Atlas-Namen wie in Retail liegen teils eigene Grafiken. Beispiele aus der Messung: Metallrahmen der Fenster (Dateien 8069114 bis 8069118), Reiter (8168849), Schließen-Knopf (8107305), Bildlaufleiste (8069100 bis 8069104), Auswahlliste (8069110).
 - Die Hintergründe des Auktionshauses kommen aus Blizzards gewohnter Datei (3054898), die Zeilen, Kategorien und Eingabefelder aus 3046538.
@@ -34,7 +34,7 @@ Nach dem zweiten Test (11.11.2026) passen laut KarloDerBaer Grundlagen, Bedienel
 - **Peon passt den Hintergrund dem Bereich an** (nach dem ersten Test von KarloDerBaer): Ist der Bereich kleiner als das Bild, wird das Bild abgeschnitten, sonst ragt es über den Rand hinaus. Ist der Bereich größer, wird es gedehnt, sonst endet das Grau mitten im Bereich. Innen bleiben 3 Punkte Rand, bei Listen oben 22 für den Kopf und rechts 25 für die Leiste, bei Kategorien rechts 27. **Hinter jeder Bildlaufleiste liegt kein Hintergrundbild**, dort scheint wie bei Blizzard das hellere Grau des Fensters durch (gemessen an der Kategorieliste: Bild 138 breit im 168 breiten Bereich). Broker 0.56 bis 0.58 hatte das Bild ohne Rücksicht auf den Ausschnitt auf den ganzen Rahmen gezogen.
 - Die Ordner `…/Classic/…` (Marmor, Pergament) gelten nicht für Forever.
 
-Neue Grafiken immer erst mit `/peon ui pruefen` (oder `maus`, `<Pfad>`) im Spiel prüfen, dann verwenden.
+Neue Grafiken immer erst mit `/pdebug ui pruefen` (Peon_Debug) (oder `maus`, `<Pfad>`) im Spiel prüfen, dann verwenden.
 
 ## 3. Maße
 

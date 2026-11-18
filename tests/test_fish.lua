@@ -230,6 +230,24 @@ do
   check(zones[6303] and zones[6303][1].count == 5, "1.7: anderer Fisch")
   PeonFishingDB.catches.zones = keep
 end
+-- 1.7.1: Takt fuer die Tasten nur im Angelmodus, Schwarm-Zeile nur an der sichtbaren Fangliste
+do
+  local lure
+  for _, f in ipairs(frames) do if not lure and f.ev.PLAYER_EQUIPMENT_CHANGED and f.scripts.OnEvent then lure = f end end
+  local keep = mod.db.mode
+  mod.db.mode = "normal"; ns.UpdateLureTick()
+  check(lure and lure.scripts.OnUpdate == nil, "1.7.1: kein Takt ausserhalb des Angelmodus")
+  mod.db.mode = "fishing"; ns.UpdateLureTick()
+  check(lure.scripts.OnUpdate ~= nil, "1.7.1: Takt im Angelmodus")
+  mod.db.mode = "normal"; ns.UpdateLureTick()
+  check(lure.scripts.OnUpdate == nil, "1.7.1: Takt wieder aus")
+  mod.db.mode = keep; ns.UpdateLureTick()
+  local hooked = false
+  for _, fn in ipairs(ns.onModeChanged) do mod.db.mode = "fishing"; pcall(fn); if lure.scripts.OnUpdate then hooked = true end; mod.db.mode = keep; ns.UpdateLureTick() end
+  check(hooked, "1.7.1: Takt folgt dem Wechsel des Modus")
+  check(type(ns.CatchListTick) == "function", "1.7.1: Schwarm-Zeile mit eigenem Takt an der Fangliste")
+  if _G.PeonFishingCatchList then check(_G.PeonFishingCatchList.scripts.OnUpdate ~= nil, "1.7.1: Takt haengt an der Fangliste") end
+end
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler in") then n = n + 1; io.write("!! ", l, "\n") end end
 check(n == 0, "keine Fehlermeldungen")
 print("ALLE TESTS OK")

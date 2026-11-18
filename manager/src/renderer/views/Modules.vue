@@ -22,7 +22,7 @@ const pick = ref({});
 const pickModule = ref({});
 const found = ref([]);
 
-const LABEL = { current: 'Aktuell', update: 'Update verfügbar', missing: 'Nicht installiert', dev: 'Entwicklung (Repo)', newer: 'Neuer als das Release', unknown: 'Installiert' };
+const LABEL = { current: 'Aktuell', update: 'Update verfügbar', missing: 'Nicht installiert', dev: 'Entwicklung (Repo)', newer: 'Neuer als das Release', unknown: 'Installiert', retired: 'Abgelöst' };
 const items = computed(() => (st.value ? st.value.items : []));
 const shown = computed(() => items.value.filter((a) => !a.managerOnly || a.present));
 const choosable = computed(() => items.value.filter((a) => !a.managerOnly));

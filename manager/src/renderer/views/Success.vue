@@ -65,7 +65,7 @@ function path(days) {
         <table class="tbl" v-if="tradeBuys.length">
           <thead><tr><th>Gekauft</th><th>Gegenstand</th><th class="num">Stück</th><th class="num">Einsatz</th><th class="num">Erlös</th><th class="num">Dauer</th><th>Vorschlag</th><th></th></tr></thead>
           <tbody>
-            <tr v-for="b in tradeBuys" :key="b.t + b.key" class="click" @click="emit('brief', b.key)">
+            <tr v-for="b in tradeBuys" :key="b.t + b.key" class="click" tabindex="0" @click="emit('brief', b.key)" @keydown.enter="emit('brief', b.key)">
               <td class="small muted">{{ when(b.t) }}</td>
               <td :style="{ color: qualityColor(b.quality) }">{{ itemName({ name: b.name, item: b.key }) }}</td>
               <td class="num">{{ num(b.qty) }}</td>

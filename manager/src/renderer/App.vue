@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick, K
 import Overview from './views/Overview.vue';
 import Sources from './views/Sources.vue';
 import Settings from './views/Settings.vue';
+import Help from './views/Help.vue';
 import Item from './views/Item.vue';
 import Chances from './views/Chances.vue';
 import Market from './views/Market.vue';
@@ -53,6 +54,7 @@ const ALL = [
   { key: 'sources', label: 'Datenlage' },
   { key: 'modules', label: 'Updates', always: true },
   { key: 'reports', label: 'Rückmeldungen', always: true },
+  { key: 'help', label: 'Hilfe', always: true },   // ab 0.48.0: Hilfe aus docs/Hilfe.md
   { key: 'settings', label: 'Einstellungen', always: true },
 ];
 const GROUPS = computed(() => (data.value ? data.value.modules.filter((m) => m.enabled).map((m) => ({
@@ -63,7 +65,7 @@ const watchFocus = ref(null);   // ab 0.32.0: Zeile, die Beobachten nach einer M
 const wipPage = computed(() => ALL.find((n) => n.wip && n.key === view.value) || null);
 const broker = computed(() => !!(data.value && data.value.views.includes('overview')));
 // ab 0.36.0: Seiten, die ohne Marktdaten gehen, solange der Broker Client noch laedt
-const NO_MARKET = new Set(['modules', 'reports', 'settings']);
+const NO_MARKET = new Set(['modules', 'reports', 'help', 'settings']);
 const marketWait = computed(() => !!(data.value && data.value.brokerLoading) && !NO_MARKET.has(view.value));
 
 const current = computed(() => {
@@ -292,6 +294,7 @@ onMounted(() => {
           <Sources v-else-if="view === 'sources'" :data="data" :market="current" :now="now" :stamp="stamp" @go="go($event)" />
           <Modules v-else-if="view === 'modules'" :data="data" :settings="settings" :now="now" :stamp="stamp" @changed="load" @save="saveSettings" @pick-folder="pickWow" @go="go($event)" @updates="load().then(() => { showUpdates = true; })" />
           <Reports v-else-if="view === 'reports'" :now="now" :stamp="stamp" @go="go($event)" @changed="load" />
+          <Help v-else-if="view === 'help'" />
           <Settings v-else-if="view === 'settings'" :data="data" :settings="settings" :stamp="stamp" :broker="broker" :now="now" @save="saveSettings" @go="go($event)" />
         </KeepAlive>
       </div>

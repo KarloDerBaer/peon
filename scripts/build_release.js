@@ -33,6 +33,12 @@ const REPO = path.join(__dirname, '..');
 
 const MAX_NEWS = 20;   // so viele Versionen mit kurzem Text stehen im Manifest
 
+// Angabe local aus release.json: { "local": true } = nur zum Testen im Repo, kommt in kein Release
+// (kein Zip, nicht im Manifest, ungespeicherte Aenderungen daran halten den Bau nicht auf).
+function localAddons(config) {
+  return Object.keys(config.addons || {}).filter((n) => config.addons[n] && config.addons[n].local === true).sort();
+}
+
 // Angabe replacedBy aus release.json pruefen: { by: "Peon_Neu", db: "PeonNeuDB", key: "uebernommen" }
 const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 function replacement(name, r, addons) {
@@ -199,8 +205,11 @@ function build(opts = {}) {
   const prevVersions = {};
   if (prev && Array.isArray(prev.addons)) for (const a of prev.addons) prevVersions[a.name] = a.version;
 
+  const local = localAddons(config);
   if (!opts.dirty && !opts.listFiles) {
-    const st = execFileSync('git', ['-C', repo, 'status', '--porcelain', '--', 'addons', 'docs/changelog', 'docs/releases', 'scripts/release.json'], { encoding: 'utf8' }).trim();
+    const skip = [];
+    for (const n of local) skip.push(`:(exclude)addons/${n}`, `:(exclude)docs/changelog/${n}.md`);
+    const st = execFileSync('git', ['-C', repo, 'status', '--porcelain', '--', 'addons', 'docs/changelog', 'docs/releases', 'scripts/release.json', ...skip], { encoding: 'utf8' }).trim();
     if (st) throw new Error('Ungespeicherte Aenderungen in addons/, docs/changelog/ oder docs/releases/ (erst committen oder --dirty):\n' + st);
   }
 
@@ -225,7 +234,7 @@ function build(opts = {}) {
   const rm = releaseForManifest(table[0], !!prev);
   if (rm) manifest.manager.release = rm;
 
-  const names = Object.keys(config.addons).sort();
+  const names = Object.keys(config.addons).filter((n) => !local.includes(n)).sort();
   for (const name of fs.readdirSync(addonsDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)) {
     if (!config.addons[name]) throw new Error(`${name}: fehlt in scripts/release.json`);
   }
@@ -275,6 +284,25 @@ function build(opts = {}) {
     if (cfg.replacedBy) manifest.addons[manifest.addons.length - 1].replacedBy = replacement(name, cfg.replacedBy, config.addons);
   }
 
+  // api = Kern-API, die das Addon mindestens zum Laufen braucht (nur zur Auskunft: Der Manager aktualisiert Peon
+  // immer mit). Sie darf nicht neuer sein als der Kern im selben Release, sonst stimmt die Angabe nicht.
+  const core = manifest.addons.find((a) => a.name === 'Peon');
+  for (const a of manifest.addons) {
+    if (!Number.isInteger(a.api) || a.api < 1) throw new Error(`${a.name}: api in scripts/release.json fehlt oder ist keine Zahl`);
+    if (core && a.api > core.api) throw new Error(`${a.name}: api ${a.api} ist neuer als der Kern (Peon.API ${core.api})`);
+  }
+
+  // ab 18.11.2026: abgeloeste Addons ohne Ordner im Repo (release.json "retired": { "Peon_Alt": { by, db, key } }).
+  // Sie bekommen kein Zip, der Manager ab 0.48.0 entfernt sie wie bei replacedBy, sobald das neue die Einstellungen hat.
+  const retired = Object.entries(config.retired || {}).sort(([x], [y]) => x.localeCompare(y)).map(([name, r]) => {
+    if (!/^Peon_[A-Za-z0-9]+$/.test(name)) throw new Error(`retired: Name ungültig: ${name}`);
+    if (config.addons[name] || fs.existsSync(path.join(addonsDir, name))) throw new Error(`${name}: steht in retired, gibt es aber noch als Addon`);
+    const rep = replacement(name, r, config.addons);
+    if (!manifest.addons.some((a) => a.name === rep.by)) throw new Error(`${name}: retired ${rep.by} kommt nicht ins Release`);
+    return { name, ...rep };
+  });
+  if (retired.length) manifest.retired = retired;
+
   fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   const notes = releaseNotes(manifest, table);
   fs.writeFileSync(path.join(out, 'notes.md'), notes);
@@ -315,7 +343,7 @@ function check(out, manifest, config) {
   }
 }
 
-module.exports = { build, makeZip, readZip, readToc, readChangelog, notesFor, cmpVersion, releaseNotes, readReleaseNotes };
+module.exports = { build, localAddons, makeZip, readZip, readToc, readChangelog, notesFor, cmpVersion, releaseNotes, readReleaseNotes };
 
 if (require.main === module) {
   const args = process.argv.slice(2);
@@ -332,6 +360,8 @@ if (require.main === module) {
   try {
     const { out, manifest } = build(opts);
     for (const a of manifest.addons) console.log(`${a.file.padEnd(32)} ${String(a.size).padStart(8)} Byte  ${a.sha256.slice(0, 12)}${a.managerOnly ? '  (nur Manager)' : ''}`);
+    const local = localAddons(opts.config || JSON.parse(fs.readFileSync(path.join(opts.repo || path.resolve(__dirname, '..'), 'scripts', 'release.json'), 'utf8')));
+    if (local.length) console.log(`Nur lokal, nicht im Release: ${local.join(', ')}`);
     console.log(`\n${manifest.addons.length} Addons, Manager ${manifest.manager.version}, geprueft. Ausgabe: ${out}`);
   } catch (e) {
     console.error('FEHLER: ' + e.message);

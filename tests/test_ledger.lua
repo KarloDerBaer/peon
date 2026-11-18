@@ -156,7 +156,10 @@ check(cats.Peon and cats.Peon.subs[1] == "Ledger", "Seite unter Peon > Ledger")
 check(Peon.GetFeedbackAreas("Peon_Ledger")[1] == "Prüfung", "Bereiche fuer Peon_Feedback gemeldet")
 check(ns.CharName() == "Mirel Dorna" and ns.Realm() == "Classic Beta PvE", "Charakter mit Vor- und Nachname, Realm")
 
--- Ereignisse und Aufrufe
+-- Ereignisse und Aufrufe: ab 0.16.2 erst nach dem Pruefbefehl
+check(PeonLedgerDB.probeEvents == nil and PeonLedgerDB.probeHooks == nil, "ohne Pruefbefehl liest Ledger nichts mit")
+SlashCmdList.PEON_LEDGER("pruefen")
+check(said("Ledger-Prüfung gestartet"), "Pruefbefehl startet das Mitlesen bis zum /reload")
 local ev = PeonLedgerDB.probeEvents
 check(ev.BAG_UPDATE_DELAYED and ev.BAG_UPDATE_DELAYED.known and ev.MAIL_SHOW.known, "Ereignisse angemeldet")
 fire("UNIT_SPELLCAST_SUCCEEDED", "target", "x", 1)

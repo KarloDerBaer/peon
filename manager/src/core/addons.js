@@ -73,7 +73,23 @@ function checkManifest(m) {
     if (typeof r !== 'object' || !NAME_RE.test(String(r.by)) || r.by === a.name || !seen.has(r.by)) throw new Error(`Manifest: Ersatz für ${a.name} ungültig`);
     if (!IDENT_RE.test(String(r.db)) || !IDENT_RE.test(String(r.key))) throw new Error(`Manifest: Ersatz für ${a.name} ungültig`);
   }
+  // ab 0.48.0: abgeloeste Addons ohne eigenes Zip (retired = [{ name, by, db, key }]), der Manager entfernt sie wie replacedBy
+  if (m.retired != null) {
+    if (!Array.isArray(m.retired)) throw new Error('Manifest: retired ungültig');
+    for (const r of m.retired) {
+      if (!r || !NAME_RE.test(String(r.name)) || seen.has(r.name)) throw new Error(`Manifest: abgelöstes Addon ungültig: ${r && r.name}`);
+      if (!NAME_RE.test(String(r.by)) || !seen.has(r.by) || !IDENT_RE.test(String(r.db)) || !IDENT_RE.test(String(r.key))) throw new Error(`Manifest: Ersatz für ${r.name} ungültig`);
+    }
+  }
   return m;
+}
+
+// Alle Abloesungen: replacedBy an Addons und retired ohne Zip. Rueckgabe [{ name, by, db, key, retired }]
+function replacements(m) {
+  if (!m) return [];
+  const out = m.addons.filter((a) => a.replacedBy).map((a) => ({ name: a.name, ...a.replacedBy, retired: false }));
+  for (const r of (Array.isArray(m.retired) ? m.retired : [])) out.push({ name: r.name, by: r.by, db: r.db, key: r.key, retired: true });
+  return out;
 }
 
 // Eintrag des Zip pruefen und relativen Pfad liefern (Schutz gegen Pfade ausserhalb des Addon-Ordners)
@@ -252,11 +268,17 @@ class AddonManager {
         out.push({ name: a.name, title: a.title, desc: a.desc, available: a.version, installed: i.version, present: i.present, dev: i.dev, status,
           news: newsSince(a.news, status === 'update' ? i.version : null), release: releaseFor(a.release, a.news, status === 'update' ? i.version : null), deps: a.deps, size: a.size, managerOnly: !!a.managerOnly, removable: this.removeBlock(a.name) === null });
       }
+      // ab 0.48.0: abgeloeste Addons ohne Zip nur zeigen, solange sie installiert sind
+      for (const r of replacements(m).filter((x) => x.retired)) {
+        const i = this.installed(r.name);
+        if (!i.present) continue;
+        out.push({ name: r.name, title: r.name.replace(/^Peon_/, ''), desc: '', available: null, installed: i.version, present: true, dev: i.dev,
+          status: i.dev ? 'dev' : 'retired', news: [], deps: [], size: 0, managerOnly: false, removable: this.removeBlock(r.name) === null });
+      }
       // ab 0.38.0: Wird ein installiertes Addon ersetzt, gilt das neue als Update. Das alte bekommt einen Hinweis.
-      for (const a of m.addons) {
-        if (!a.replacedBy) continue;
+      for (const a of replacements(m)) {
         const old = out.find((x) => x.name === a.name);
-        const neu = out.find((x) => x.name === a.replacedBy.by);
+        const neu = out.find((x) => x.name === a.by);
         if (!old || !neu) continue;
         old.replacedBy = neu.title;
         if (old.present && !old.dev && neu.status === 'missing') { neu.status = 'update'; neu.replaces = old.title; }
@@ -278,7 +300,14 @@ class AddonManager {
   removeBlock(name) {
     const m = this.manifest;
     const a = m && m.addons.find((x) => x.name === name);
-    if (!a) return 'Dieses Addon verwaltet der Manager nicht.';
+    if (!a) {
+      // ab 0.48.0: abgeloeste Addons darf man entfernen, wenn sie da sind und nicht aus dem Repo kommen
+      if (!replacements(m).some((r) => r.retired && r.name === name)) return 'Dieses Addon verwaltet der Manager nicht.';
+      const i = this.installed(name);
+      if (!i.present) return 'Nicht installiert.';
+      if (i.dev) return 'Entwicklung (Repo): bleibt, wie es ist.';
+      return null;
+    }
     const i = this.installed(name);
     if (!i.present) return 'Nicht installiert.';
     if (i.dev) return 'Entwicklung (Repo): bleibt, wie es ist.';
@@ -325,6 +354,8 @@ class AddonManager {
     try {
       if (!this.wowValid()) throw new Error(`Im WoW-Ordner liegt kein Spiel: ${this.host.settings.wowDir}`);
       this.checkManagerVersion();
+      // ab 0.48.0: Spieldaten sichern, bevor sich Addons aendern (hoechstens alle 10 Minuten, Fehler halten nichts auf)
+      if (this.host.gameBackup) this.host.gameBackup.beforeUpdate();
       const m = this.manifest;
       for (const n of this.plan(names)) {
         const a = m.addons.find((x) => x.name === n);
@@ -500,9 +531,8 @@ class AddonManager {
     const m = this.manifest;
     const done = [];
     if (!m || this.busy || wowRunning) return done;
-    for (const a of m.addons) {
-      const r = a.replacedBy;
-      if (!r) continue;
+    for (const r of replacements(m)) {
+      const a = { name: r.name };
       const old = this.installed(a.name);
       const neu = this.installed(r.by);
       if (!old.present || old.dev || !neu.present) continue;

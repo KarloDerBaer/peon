@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 1.7.1
+
+Kurz: Peon Fishing braucht außerhalb des Angelmodus keine Leistung mehr.
+
+- 1.7.1 (18.11.2026, Review mit KarloDerBaer):
+  - **Geändert:** Der Takt für die Tasten läuft nur noch im Angelmodus (vorher ein OnUpdate in jedem Bildaufbau, auch ohne Angeln). Die Schwarm-Zeile der Fangliste hängt an der Liste selbst und läuft nur, solange sie zu sehen ist (vorher ein Takt jede Sekunde für immer).
+
 ## 1.7.0
 
 Kurz: Deine Fänge erscheinen jetzt auch im Codex von Peon Berufe, mit den Gebieten, in denen du welchen Fisch gefangen hast.

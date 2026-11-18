@@ -576,7 +576,6 @@ mod:On("INIT", function()
     end
     mod:AcctId()   -- ab 0.85: Kennung des Kontos fuer den Manager, gleich beim ersten Laden
     if ns.CreateOptions then mod:Call("Options", ns.CreateOptions) end
-    if ns.Probe then mod:Call("Probe", ns.Probe.Init) end
     mod:Call("Scan", ns.Scan.Init)
     mod:Call("Tooltip", ns.Tooltip.Init)
     mod:Call("Fenster", ns.Window.Init)

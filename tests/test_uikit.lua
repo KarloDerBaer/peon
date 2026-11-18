@@ -1,7 +1,6 @@
--- Peon-Kern: UI-Bausteine (UIKit.lua) und Beispielfenster /peon ui (UIDemo.lua), ab 0.18.0.
--- Nachgebaute Rahmen ohne Blizzards Vorlagen (Rueckfall-Wege). Prueft: Fenster und vier Seiten ohne Fehler,
--- Reiter wechseln und merken, Zahl am Reiter, Tabelle (Sortierung, leere Werte unten, Richtung, Auswahl, leer,
--- Laden), Geld anzeigen und eingeben, Kategorieliste, Masse aus der Pruefung, Toggle und Kampf.
+-- Peon-Kern: UI-Bausteine (UIKit.lua, Kern-API 18). Bis Peon 0.24.1 Teil von test_uidemo.lua, das Beispielfenster
+-- liegt seit 18.11.2026 im privaten Peon_Debug. Nachgebaute Rahmen ohne Blizzards Vorlagen (Rueckfall-Wege). Prueft:
+-- gemessene Masse, Fortschritt, Geld anzeigen und eingeben, Haken, Reiter mit Zahl, Hintergruende, Kategorieliste, Rueckfrage.
 -- Ausfuehren aus dem AddOns-Ordner (siehe tests/README.md).
 local out = {}
 print = function(...) local t = {} for i = 1, select("#", ...) do t[#t+1] = tostring((select(i, ...))) end out[#out+1] = table.concat(t, " "); io.write("  > ", out[#out], "\n") end
@@ -101,121 +100,23 @@ local function load(dir, files)
   end
   return ns
 end
-local ns = load("Peon", { "Locales.lua", "Core.lua", "Module.lua", "Options.lua", "UIKit.lua", "UIDemo.lua", "UIProbe.lua", "Slash.lua" })
+local ns = load("Peon", { "Locales.lua", "Core.lua", "Module.lua", "Options.lua", "UIKit.lua", "Slash.lua" })
 PeonDB = {}
 Peon.db = PeonDB
 local reported = {}
 Peon.ReportCoreError = function(where, err) reported[#reported + 1] = where .. ": " .. tostring(err) end
-local UI, D = ns.UI, ns.UIDemo
-check(UI and D, "UIKit oder UIDemo fehlt")
+local UI = ns.UI
+check(UI, "UIKit fehlt")
 check(Peon.API >= 18 and Peon.UI == UI, "API 18: Peon.UI")
 local toc = io.open("Peon/Peon.toc"):read("*a")
-check(toc:find("Chart.lua\r?\nUIKit.lua\r?\nUIDemo.lua\r?\nUIProbe.lua\r?\nNotice.lua\r?\nComm.lua\r?\nSlash.lua"), "Reihenfolge in der TOC")
+check(toc:find("Chart.lua\r?\nUIKit.lua\r?\nNotice.lua\r?\nComm.lua\r?\nProfiles.lua\r?\nSlash.lua"), "Reihenfolge in der TOC")
+check(not toc:find("UIDemo") and not toc:find("UIProbe"), "Beispielfenster und UI-Pruefung nicht mehr im Kern (ab 0.25.0)")
 
 -- 1. gemessene Masse (Pruefung im Spiel 11.11.2026)
 check(UI.WINDOW_W == 800 and UI.WINDOW_H == 538, "Fenster wie das Auktionshaus")
 check(UI.ROW_H == 20 and UI.HEADER_H == 19 and UI.NAV_H == 21 and UI.INPUT_H == 33, "Zeilen, Kopf, Kategorie, Eingabe")
 check(UI.BG.left[1] == "auctionhouse-background-sell-left" and UI.BG.left[2] == 357 and UI.BG.left[3] == 437, "Hintergrund links")
 check(UI.BG.list[2] == 595 and UI.BG.list[3] == 413, "Hintergrund Liste")
-
--- 2. Fenster ueber /peon ui: vier Seiten, keine Fehler, ESC
-SlashCmdList.PEON("ui")
-local win = D.win
-check(win and win.shown, "Fenster offen")
-check(#reported == 0, "Fehler beim Aufbau: " .. table.concat(reported, " | "))
-check(win.w == 800 and win.h == 538, "Fenstergroesse")
-local esc = false
-for _, n in ipairs(UISpecialFrames) do if n == "PeonUIDemoFrame" then esc = true end end
-check(esc, "ESC schliesst das Fenster")
-for _, p in ipairs(D.PAGES) do check(D.pages[p[1]], "Seite " .. p[1]) end
-check(D.pages.basics.shown and not D.pages.lists.shown, "erste Seite sichtbar")
-
--- 3. Reiter wechseln, merken, Zahl am Reiter
-D.tabs:Select("lists")
-check(D.pages.lists.shown and not D.pages.basics.shown, "Reiter Listen")
-check(PeonDB.uiDemoTab == "lists", "Reiter gemerkt")
-check(D.tabs[3].badge.shown and D.tabs[3].badge.text.txt == "3", "Zahl am Reiter")
-D.tabs[3]:SetBadge(0)
-check(not D.tabs[3].badge.shown, "Zahl 0 ausgeblendet")
-D.tabs[3]:SetBadge(150)
-check(D.tabs[3].badge.text.txt == "99+", "grosse Zahl gekuerzt")
-SlashCmdList.PEON("ui")
-check(not win.shown, "zweites /peon ui schliesst")
-combat = true
-out = {}
-SlashCmdList.PEON("ui")
-check(not win.shown and out[1] and out[1]:find("Kampf"), "im Kampf nicht")
-combat = false
-
--- 4. Tabelle: Sortierung, leere Werte unten, Richtung, Auswahl
-local t = D.listTable
-check(#t.items == 40, "40 Testzeilen")
-check(t.sortKey == "price", "Sortierung nach Preis")
-for i = 2, #t.items do check(t.items[i - 1].price <= t.items[i].price, "aufsteigend nach Preis") end
-t.sortKey, t.sortDesc = "level", false
-t:Sort()
-check(t.items[#t.items].level == nil, "leerer Wert unten (aufsteigend)")
-t.sortDesc = true
-t:Sort()
-check(t.items[#t.items].level == nil, "leerer Wert unten (absteigend)")
-check(t.items[1].level >= t.items[2].level, "absteigend")
--- Klick auf Kopf: gleiche Spalte dreht die Richtung, andere Spalte beginnt aufsteigend
-t.heads[1].scripts.OnClick()
-check(t.sortKey == "name" and not t.sortDesc, "Kopf Name aufsteigend")
-check(t.items[1].name:lower() <= t.items[2].name:lower(), "Namen sortiert")
-t.heads[1].scripts.OnClick()
-check(t.sortDesc, "zweiter Klick dreht")
--- Auswahl ueber Zeile
-local row = t.list.rows[2]
-row.scripts.OnClick(row, "LeftButton")
-check(t:GetSelected() == row.data and row.sel.shown, "Zeile ausgewaehlt")
-check(D.status.text.txt:find(row.data.name, 1, true), "Statuszeile nennt Auswahl")
--- Zeilen gefuellt: Streifen, Symbol, Preis
-check(row.cells[1].txt == row.data.name and row.icon, "Zelle Name mit Symbol")
-check(row.cells[4].txt ~= "", "Preis-Zelle")
-
--- 5. leer und laden
-t:SetData({})
-check(t.empty.shown and #t.items == 0 and t:GetSelected() == nil, "leere Liste mit Hinweis, Auswahl weg")
-t:SetLoading(true, "Suche...")
-check(t.spinner.shown and not t.empty.shown and not t.list.box.shown, "Ladeanzeige")
-t:SetLoading(false)
-check(t.empty.shown and t.list.box.shown, "wieder leer")
-
--- 6. Seite Aufbau: Kategorie waehlt, Suche laeuft mit Ladeanzeige
-D.tabs:Select("layout")
-check(D.pages.layout.shown, "Seite Aufbau")
--- sichtbare Kategorie-Knoepfe (Rueckfall-Liste: sichtbare Zeilen der Kategorieliste)
-local function CatRow(key)
-  for _, f in ipairs(created) do if f.shown and f.data and f.data.key == key and f.data.level then return f end end
-end
-local function CatShown(key) return CatRow(key) ~= nil end
-check(CatShown("Waffen") and CatShown("Handwerkswaren"), "oberste Stufe sichtbar")
-check(not CatShown("Handwerkswaren/Stoff") and not CatShown("Waffen/Einhandschwerter"), "Unterpunkte zu")
-local hw = CatRow("Handwerkswaren")
-hw.scripts.OnClick(hw, "LeftButton")
-check(CatShown("Handwerkswaren/Stoff") and CatShown("Handwerkswaren/Metall und Stein"), "Handwerkswaren aufgeklappt")
-check(not CatShown("Handwerkswaren/Metall und Stein/Erz"), "dritte Stufe noch zu")
-check(not CatShown("Waffen/Einhandschwerter"), "andere Kategorie bleibt zu")
-local catRow = CatRow("Handwerkswaren/Metall und Stein")
-catRow.scripts.OnClick(catRow, "LeftButton")
-check(CatShown("Handwerkswaren/Metall und Stein/Erz") and CatShown("Handwerkswaren/Stoff"), "dritte Stufe offen, Geschwister bleiben")
-catRow = CatRow("Handwerkswaren/Metall und Stein")
-check(#timers > 0, "Suche wartet kurz (Ladeanzeige)")
-timers[#timers]()
-check(D.status.text.txt:find("Ergebnisse in Handwerkswaren/Metall und Stein", 1, true), "Ergebnisse gefiltert: " .. D.status.text.txt)
-local n = tonumber(D.status.text.txt:match("^(%d+)"))
-check(n and n > 0, "Treffer vorhanden")
-check(catRow.sel.shown, "Kategorie markiert")
--- erneuter Klick klappt zu und waehlt die Eltern-Kategorie
-catRow.scripts.OnClick(catRow, "LeftButton")
-timers[#timers]()
-check(not CatShown("Handwerkswaren/Metall und Stein/Erz") and CatShown("Handwerkswaren/Stoff"), "zugeklappt, Eltern offen")
-check(D.status.text.txt:find("in Handwerkswaren$"), "Eltern gewaehlt: " .. D.status.text.txt)
-hw = CatRow("Handwerkswaren")
-hw.scripts.OnClick(hw, "LeftButton")
-timers[#timers]()
-check(not CatShown("Handwerkswaren/Stoff") and D.status.text.txt:find("^60 Ergebnisse$"), "alles zu, alle Ergebnisse: " .. D.status.text.txt)
 
 -- 6b. Fortschritt wie der Balken beim Herstellen
 local pb = UI.Progress(UIParent, 208)
@@ -241,7 +142,6 @@ check(mi.gold.txt == "12" and mi.silver.txt == "34" and mi.copper.txt == "56", "
 check(mi:GetAmount() == 123456, "Geld eingeben lesen")
 mi.gold:SetText("")
 check(mi:GetAmount() == 3456, "leeres Gold = 0")
-check(D.MoneyText(12345) == "1g 23s 45c", "Geld als Text ohne Blizzard: " .. D.MoneyText(12345))
 
 -- 8. Haken: gesperrt wird grau
 local cb = UI.Check(UIParent, "Test", true)
@@ -250,13 +150,6 @@ cb:Disable()
 check(cb.label.color[1] == 0.5, "gesperrter Haken grau")
 cb:Enable()
 check(cb.label.color[2] == 0.82, "wieder gold")
-
--- 9. Testdaten
-local items = D.Items(40)
-check(#items == 40 and items[5].level == nil, "Testdaten mit leerem Wert")
-local q = {}
-for _, it in ipairs(items) do q[it.quality] = true end
-check(q[1] and q[2] and q[3], "mehrere Qualitaeten")
 
 -- 10. Reiter: Breite aus Text + 40, mit Zahl breiter, Abstand 3, Zahl im Reiter
 local tabs = UI.BottomTabs(UIParent, { { "a", "Markt" }, { "b", "Verkaufen" } })

@@ -203,7 +203,7 @@ check(ns.StartChannels() == 0 and not ns.hooked, "nicht freigeschaltet: Kanal st
 PeonBridgeData.channels.broker = true
 check(ns.ChannelOn("broker") and mod:LongTerm(2589, MK0) ~= nil and mod:Sales(2589, MK0) ~= nil, "freigeschaltet: Werte fuer Broker")
 PeonBridgeData = nil   -- fuer den ersten Scan wieder ohne Manager
-check(mod.page ~= nil and cats.Peon and table.concat(cats.Peon.subs, ",") == "Broker,Bridge", "Optionsseite Peon > Bridge")
+check(mod.page ~= nil and cats.Peon and table.concat(cats.Peon.subs, ",") == "Broker,Bridge,Profile", "Optionsseite Peon > Bridge (danach die Profile des Kerns)")
 check(#Peon.GetFeedbackAreas("Peon_Bridge") == 5, "Bereiche fuer Peon_Feedback gemeldet")
 check(StaticPopupDialogs == POPUPS and POPUPS.PEON_BRIDGE_CLEAR, "StaticPopupDialogs nicht neu zugewiesen")
 

@@ -1,6 +1,6 @@
 -- Peon - UIKit.lua
 -- Ab 0.18.0: Bausteine fuer einheitliche Peon-Fenster im Look von Blizzards Auktionshaus (WoW Forever).
--- Alle Masse, Grafiken und Schriften sind mit /peon ui pruefen im Spiel gemessen (11.11.2026), nicht geraten.
+-- Alle Masse, Grafiken und Schriften sind mit /peon ui pruefen (heute /pdebug ui pruefen in Peon_Debug) im Spiel gemessen (11.11.2026), nicht geraten.
 -- Kern-API 18 (freigegeben von KarloDerBaer, 11.11.2026): Module nutzen Peon.UI, intern heisst die Tabelle ns.UI.
 -- Wie die ganze Kern-API wird Peon.UI nur erweitert, nie geaendert.
 -- Regeln und Begruendungen: docs/konzepte/Peon_UI_Design.md

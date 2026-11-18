@@ -6,6 +6,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { openManagerDb, migrateSplit, fileSize, removeDb, log } = require('./db');
+const { GameBackup } = require('./gamebackup');
 const { writeData, addonDir } = require('./datalua');
 const modules = require('./modules');
 const backup = require('./backup');
@@ -29,6 +30,7 @@ const DEFAULTS = {
   itemColumns: [],        // Spalten unter Gegenstaende, leer = Standard
   checklistHidden: false, // Einrichtungsliste ausgeblendet
   theme: 'dark',
+  zoom: 1,                // ab 0.47.0: Groesse der Oberflaeche als Faktor (zoom.js, ZOOM_STEPS)
   keepDays: 7,            // Kennzahlen je Stand aufheben (Tage, 0 = unbegrenzt), ab 0.41.0 7 statt 14
   retentionV: 3,          // Stand der Standardwerte der Aufbewahrung (Umstellung im Konstruktor)
   chances: { days: 7, minProfit: 1000, quality: 0 },   // Ansicht Chancen: Zeitraum, Mindestgewinn je Tag (Kupfer), Qualitaet ab
@@ -96,6 +98,9 @@ class Service {
     }
     this.reports = new ReportStore(this);
     this.broker = this.isActive('broker-client') ? this.brokerFactory(this) : null;
+    // ab 0.48.0: Sicherung der Spieldaten (SavedVariables der Peon-Addons)
+    const svc = this;
+    this.gameBackup = new GameBackup({ get settings() { return svc.settings; }, dbDir, now: () => svc.now(), log: (ok, text) => log(svc.db, 'sicherung', ok, text) });
     this.addons = new AddonManager(this, releases || {});
   }
 

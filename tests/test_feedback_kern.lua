@@ -20,7 +20,7 @@ function tinsert(t, v) table.insert(t, v) end
 UISpecialFrames, SlashCmdList, ChatFontNormal = {}, {}, {}
 
 local function TocMeta(dir) local m = {} local f = io.open(dir .. "/" .. dir .. ".toc") if f then for l in f:lines() do local k, v = l:match("^##%s*([%w%-]+):%s*(.-)%s*$") if k then m[k] = v end end f:close() end return m end
-local addons = { "Peon", "Peon_Broker", "Peon_ComboPoints", "Peon_Feedback", "Peon_Fishing", "Peon_Tooltip", "BagBrother" }
+local addons = { "Peon", "Peon_Broker", "Peon_Feedback", "Peon_Fishing", "Peon_Mover", "Peon_Tooltip", "BagBrother" }
 local meta = {}
 for _, a in ipairs(addons) do meta[a] = TocMeta(a) end
 C_AddOns = { GetAddOnMetadata = function(a, f) return meta[a] and meta[a][f] end,
@@ -102,8 +102,8 @@ check(#Peon.GetFeedbackAreas("Peon") == 7 and Peon.GetFeedbackAreas("Peon")[1] =
 check(Peon.NewList and Peon.ModulePrototype.NewMinimapButton and Peon.PagePrototype.Dropdown, "bestehende Bausteine unveraendert da")
 
 -- Bereichs-Zeilen aus den echten Moduldateien ausfuehren
-local files = { Peon_Broker = "Broker.lua", Peon_Tooltip = "Tooltip.lua", Peon_Fishing = "Fishing.lua", Peon_ComboPoints = "ComboPoints.lua" }
-local expect = { Peon_Broker = 16, Peon_Tooltip = 8, Peon_Fishing = 9, Peon_ComboPoints = 3 }
+local files = { Peon_Broker = "Broker.lua", Peon_Tooltip = "Tooltip.lua", Peon_Fishing = "Fishing.lua", Peon_Mover = "Mover.lua" }
+local expect = { Peon_Broker = 16, Peon_Tooltip = 8, Peon_Fishing = 9, Peon_Mover = 6 }
 for addon, file in pairs(files) do
   local line
   for l in io.lines(addon .. "/" .. file) do if l:match("^if Peon%.SetFeedbackAreas then") then line = l end end
@@ -136,7 +136,7 @@ fire("PLAYER_LOGIN")
 local mods = ns.Modules()
 check(#mods == 6 and mods[1][1] == "Peon" and mods[1][2] == "Peon (Kern)", "Module: Kern zuerst, fremde Addons weg")
 local titles = {} for i = 2, #mods do titles[#titles+1] = mods[i][2] end
-check(table.concat(titles, ",") == "Broker,ComboPoints,Feedback,Fishing,Tooltip", "Titel aus den echten TOCs: " .. table.concat(titles, ","))
+check(table.concat(titles, ",") == "Broker,Feedback,Fishing,Mover,Tooltip", "Titel aus den echten TOCs: " .. table.concat(titles, ","))
 check(#ns.Areas("Peon_Broker") == 17 and ns.Areas("Peon_Broker")[17][1] == "Sonstiges", "Broker: 16 Bereiche + Sonstiges (ab 0.91 mit Beobachten)")
 check(#ns.Areas("Peon_Feedback") == 1, "Feedback selbst: nur Sonstiges")
 

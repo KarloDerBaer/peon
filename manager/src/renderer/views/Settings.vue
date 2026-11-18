@@ -7,6 +7,7 @@ import ChanceRules from '../components/ChanceRules.vue';
 const props = defineProps({ data: Object, settings: Object, stamp: Number, broker: Boolean, now: Number });
 const emit = defineEmits(['save', 'go']);
 const api = window.peon;
+const ZOOM_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75];   // wie in src/core/zoom.js
 const wowDir = ref(props.settings.wowDir);
 watch(() => props.settings.wowDir, (v) => { wowDir.value = v; });
 
@@ -41,6 +42,32 @@ const move = ref(null);
 const moveError = ref('');
 async function loadDir() { try { dirInfo.value = await api.dataDirInfo(); } catch { dirInfo.value = null; } }
 onMounted(loadDir);
+
+// ab 0.48.0: Sicherung der Spieldaten (SavedVariables der Peon-Addons)
+const KIND = { update: 'vor Update', taeglich: 'täglich', manuell: 'von dir', 'vor-wiederherstellen': 'vor Wiederherstellen' };
+const games = ref(null);
+const gameBusy = ref('');
+const gameText = ref('');
+const gameError = ref('');
+const gameAsk = ref(null);   // { id, t } wartet auf Bestaetigung
+async function loadGames() { try { games.value = await api.gameBackups(); } catch { games.value = null; } }
+onMounted(loadGames);
+watch(() => props.stamp, loadGames);
+async function gameRun(what, fn) {
+  gameBusy.value = what; gameText.value = ''; gameError.value = '';
+  try { await fn(); } catch (e) { gameError.value = cleanError(e); } finally { gameBusy.value = ''; await loadGames(); }
+}
+const gameCreate = () => gameRun('create', async () => {
+  const r = await api.gameBackupCreate();
+  gameText.value = r ? `Spieldaten gesichert: ${r.files} Dateien, ${bytes(r.bytes)}.` : 'Keine Spieldaten von Peon gefunden.';
+});
+const gameRestore = (b) => gameRun(b.id, async () => {
+  const r = await api.gameBackupRestore(b.id);
+  gameAsk.value = null;
+  if (!r || !r.ok) { gameError.value = (r && r.error) || 'Wiederherstellen ging nicht.'; return; }
+  gameText.value = `Spieldaten vom ${when(b.t)} wiederhergestellt (${r.files} Dateien). Der vorherige Stand ist ebenfalls gesichert.`;
+});
+const gameDelete = (b) => gameRun(b.id, async () => { await api.gameBackupDelete(b.id); });
 async function pickDataDir() {
   moveError.value = '';
   move.value = null;
@@ -134,6 +161,13 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
           <option value="dark">Dunkel</option><option value="light">Hell</option>
         </select>
       </label>
+      <label class="field inline">
+        <span>Größe</span>
+        <select :value="String(settings.zoom || 1)" @change="emit('save', { zoom: Number($event.target.value) })">
+          <option v-for="z in ZOOM_STEPS" :key="z" :value="String(z)">{{ Math.round(z * 100) }} %</option>
+        </select>
+      </label>
+      <p class="small muted">Die Größe geht auch mit Strg und Plus oder Minus und mit Strg und dem Mausrad. Strg und 0 stellt 100 % ein.</p>
       <p class="small muted">Das Fenster schließen lässt den Manager im Infobereich weiterlaufen. Beenden geht über das Symbol im Infobereich.</p>
     </section>
 
@@ -169,6 +203,41 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
         <div class="row">
           <button class="primary" @click="api.backupRestore(restore.dir)">Einspielen und neu starten</button>
           <button @click="restore = null">Abbrechen</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2>Spieldaten sichern</h2>
+      <p class="small muted">Der Manager sichert die Daten der Peon-Addons aus dem Spiel (Ledger-Buch, Fänge, Einstellungen und mehr) vor jedem Update der Addons und einmal am Tag. Er hebt je Anlass die neuesten Sicherungen auf. Wiederherstellen geht nur, wenn WoW geschlossen ist.</p>
+      <p class="small muted" v-if="games && !games.sources">Im WoW-Ordner gibt es noch keine Daten von Peon-Addons.</p>
+      <div class="row">
+        <button :disabled="!!gameBusy || !games || !games.sources" @click="gameCreate">{{ gameBusy === 'create' ? 'Sichert' : 'Jetzt sichern' }}</button>
+        <button @click="api.gameBackupOpen()">Ordner öffnen</button>
+      </div>
+      <p class="small ok" v-if="gameText" role="status">{{ gameText }}</p>
+      <p class="small warn" v-if="gameError" role="alert">{{ gameError }}</p>
+      <table class="games" v-if="games && games.list.length">
+        <thead><tr><th scope="col">Stand</th><th scope="col">Anlass</th><th scope="col" class="num">Dateien</th><th scope="col" class="num">Größe</th><th scope="col"><span class="sr-only">Aktionen</span></th></tr></thead>
+        <tbody>
+          <tr v-for="b in games.list" :key="b.id">
+            <td>{{ when(b.t) }}</td>
+            <td>{{ KIND[b.kind] || b.kind }}</td>
+            <td class="num">{{ b.files }}</td>
+            <td class="num">{{ bytes(b.bytes) }}</td>
+            <td class="row end">
+              <button :disabled="!!gameBusy" @click="gameAsk = b">Wiederherstellen</button>
+              <button class="link small" :disabled="!!gameBusy" @click="gameDelete(b)">Löschen</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small muted" v-else-if="games">Noch keine Sicherung.</p>
+      <div class="apply" v-if="gameAsk" role="alertdialog" aria-label="Spieldaten wiederherstellen">
+        <p class="small warn">Spieldaten vom {{ when(gameAsk.t) }} wiederherstellen? Das ersetzt die Daten aller Peon-Addons im Spiel durch diesen Stand. WoW muss dafür geschlossen sein. Den jetzigen Stand sichert der Manager vorher.</p>
+        <div class="row">
+          <button class="primary" :disabled="!!gameBusy" @click="gameRestore(gameAsk)">Wiederherstellen</button>
+          <button @click="gameAsk = null">Abbrechen</button>
         </div>
       </div>
     </section>
@@ -238,6 +307,11 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
 .field { display: grid; gap: 6px; }
 .field.inline { grid-template-columns: 110px auto; align-items: center; justify-content: start; gap: 12px; }
 .row { display: flex; gap: 10px; align-items: center; }
+.row.end { justify-content: flex-end; }
+.games { width: 100%; border-collapse: collapse; }
+.games th, .games td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line-soft); }
+.games .num { text-align: right; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .between { justify-content: space-between; }
 .check { display: flex; gap: 10px; align-items: center; }
 .ok { color: var(--accent); }

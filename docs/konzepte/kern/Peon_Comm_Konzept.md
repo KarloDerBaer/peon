@@ -1,6 +1,6 @@
 # Peon (Kern): Konzept Datenaustausch zwischen Peon-Nutzern (Peon.Comm)
 
-Stand: 18.11.2026. Gebaut in Peon 0.23.0 (API 23) als erster Schritt ohne Dienste der Module, im Spiel mit zwei Spielern geprüft. Ab Peon 0.24.0 an alle über den Kanal, an einen per Flüstern. **Regeln für Module: Abschnitt 8.**
+Stand: 18.11.2026. Gebaut in Peon 0.23.0 (API 23) als erster Schritt ohne Dienste der Module, im Spiel mit zwei Spielern geprüft. Ab Peon 0.24.0 an alle über den Kanal, an einen per Flüstern, ab 0.24.1 ohne jede Weitergabe. **Regeln für Module: Abschnitt 8.**
 
 ## 1. Idee
 
@@ -40,7 +40,7 @@ Peon.Comm.Peers()                           -- Zahl der erreichbaren Peon-Nutzer
 ```
 
 - Ein Präfix `PEON` für alle Dienste, der Dienst steht in der Nachricht.
-- Der Kern kümmert sich um Kanal, Mitgliederliste, Warteschlange, Takt, Weitergabe, doppelte Nachrichten und Prüfwert.
+- Der Kern kümmert sich um Kanal, Mitgliederliste, Warteschlange, Takt, doppelte Nachrichten und Prüfwert (Weitergabe nur bis Peon 0.24.0).
 - Die Module kümmern sich um ihre Daten: was gesendet wird, wie oft, und wie fremde Daten gespeichert werden.
 - Nicht im Kampf und nicht in Instanzen senden. Geheime Werte vorher mit `Peon.IsSecret` prüfen.
 - Keine Charakternamen speichern oder anzeigen. Namen nur im Speicher zum Zustellen.
@@ -108,7 +108,8 @@ Privates Werkzeug von KarloDerBaer im Ordner `privat/` (steht in `.gitignore`, l
 - **An einen:** `Peon.Comm.Send("dienst", daten, { to = name })` oder `info.reply(daten)` geht per Addon-Flüstern an genau diesen Spieler. Gedacht für Antworten und Nachholen.
 - Beim Empfänger sagt `info.via`, woher die Nachricht kam (`c` Kanal, `w` Flüstern), `info.origin` ist der Prüfwert des Urhebers.
 - Wer offline war, bekommt Rundsendungen nicht nachgeliefert. Braucht ein Dienst das, holt er es selbst nach (8.3).
-- Nachrichten von Peon 0.23.0 (Flüstern mit Weitergabe) versteht der Kern weiter und gibt sie weiter.
+- Nachrichten von Peon 0.23.0 (Flüstern mit Weitergabe) versteht der Kern weiter. Ab Peon 0.24.1 gibt er sie nicht mehr weiter (Entscheidung 18.11.2026): In 0.23.0 hat nur die Begrüßung Daten getauscht, die Weitergabe ließ jeden Empfänger fremde Spieler anflüstern. `RandomNames`, `RELAY`, `FANOUT` und `MAX_HOPS` bleiben als Teil der Kern-API stehen.
+- Ab Peon 0.24.1 zeigt der Kern beim ersten Login einmal einen Hinweis, dass Peon Daten teilt und wie man es ausschaltet (`teilen-2026-11`). Die README hat einen Abschnitt Datenschutz.
 
 ### 8.2 Sparsam senden
 

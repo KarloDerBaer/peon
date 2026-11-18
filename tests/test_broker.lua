@@ -183,12 +183,13 @@ check(cats.Peon and cats.Peon.subs[1] == "Broker", "Seite unter Peon > Broker")
 check(SlashCmdList.PEON_BROKER ~= nil and SLASH_PEON_BROKER1 == "/broker", "/broker angemeldet")
 check(ns.Money(1234567) == "123g 45s 67c" and ns.Money(305) == "3s 5c" and ns.Money(7) == "7c" and ns.Money(nil) == "?", "Geldanzeige")
 
--- Ereignisse
-local ev = PeonBrokerDB.probeEvents
-check(ev.AUCTION_HOUSE_SHOW.known == true and ev.NEW_AUCTION_UPDATE.known == false, "unbekannte Ereignisse sauber abgewiesen")
+-- Ereignisse: ab 0.103.2 erst nach dem Pruefbefehl
+check(PeonBrokerDB.probeEvents == nil, "ohne Pruefbefehl zaehlt Broker keine Ereignisse")
 
 -- Pruefung ohne Auktionshaus
 SlashCmdList.PEON_BROKER("pruefen")
+local ev = PeonBrokerDB.probeEvents
+check(ev.AUCTION_HOUSE_SHOW.known == true and ev.NEW_AUCTION_UPDATE.known == false, "unbekannte Ereignisse sauber abgewiesen")
 local r = PeonBrokerDB.probe
 check(r and r.market == "Classic Beta PvE / Horde", "Markt = Regelsatz / Fraktion")
 check(r.build.interface == "16001" and r.realm == "Classic Beta PvE", "Client und Realm gespeichert")

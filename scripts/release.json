@@ -8,7 +8,6 @@
     "Peon_Bridge":      { "api": 5, "managerOnly": true, "exclude": ["Data.lua"] },
     "Peon_ClassBuddy":  { "api": 18 },
     "Peon_Broker":      { "api": 18 },
-    "Peon_ComboPoints": { "api": 5, "replacedBy": { "by": "Peon_ClassBuddy", "db": "PeonClassBuddyDB", "key": "cpImported" } },
     "Peon_Feedback":    { "api": 7 },
     "Peon_Fishing":     { "api": 6 },
     "Peon_Ledger":      { "api": 19 },
@@ -17,6 +16,9 @@
     "Peon_Profession":  { "api": 18 },
     "Peon_Tooltip":     { "api": 6 },
     "Peon_Warhorn":     { "api": 18 }
+  },
+  "retired": {
+    "Peon_ComboPoints": { "by": "Peon_ClassBuddy", "db": "PeonClassBuddyDB", "key": "cpImported" }
   },
   "managerModules": [
     {

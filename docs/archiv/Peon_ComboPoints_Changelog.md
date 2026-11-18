@@ -1,4 +1,7 @@
-# Peon_ComboPoints: Verlauf der Versionen
+# Peon_ComboPoints: Verlauf der Versionen (Archiv)
+
+Peon_ComboPoints wurde am 18.11.2026 aus Repo und Release genommen (Entscheidung KarloDerBaer). Abgelöst durch Peon_ClassBuddy, der Peon Manager ab 0.48.0 entfernt es über `retired` im Manifest, sobald ClassBuddy die Einstellungen übernommen hat.
+
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 

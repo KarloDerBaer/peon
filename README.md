@@ -42,16 +42,20 @@ Alle Teile hängen an einem gemeinsamen Kern und haben ihre Einstellungen unter 
 |---|---|---|
 | **Peon** | Gemeinsamer Kern. Wird von allen anderen gebraucht. | `/peon`, `/peon list` |
 | **Peon_Tooltip** | Tooltip folgt der Maus, mit Größe, Transparenz, Rahmenfarbe, PvP- und Quest-Symbol und Kampfmodus. Teile im Gegenstands-Tooltip lassen sich sortieren und ausblenden. | `/ttp` |
-| **Peon_Broker** | Helfer fürs Auktionshaus: Komplettscan, Preise je Markt, Preise im Tooltip, eigenes Fenster mit Verkaufen, Meine Auktionen und Radar. Die Einkaufsliste wird gerade überarbeitet. | `/broker` |
-| **Peon_Ledger** | Bestand aller Charaktere (Taschen, Bank, Post, Auktionen, Gold) und Buchführung über Einnahmen und Ausgaben. | `/ledger` |
+| **Peon_Broker** | Helfer fürs Auktionshaus: Komplettscan, Preise je Markt, Preise im Tooltip, eigenes Fenster mit Markt, Verkaufen, Auktionen, Einkaufen, Beobachten, Radar, Fokus und Chancen. | `/broker` |
+| **Peon_Ledger** | Bestand aller Charaktere (Taschen, Bank, Post, Auktionen, Gold) und Buchführung über Einnahmen und Ausgaben, dazu ein eigenes Postfenster. | `/ledger` |
 | **Peon_Bags** | Taschen, Bank und Gildenbank in je einem Fenster mit Suche und Sortierung. | `/peon bags` |
+| **Peon_Profession** | Guide zum Leveln der Berufe mit Preisen und Einkaufsliste von Broker, Codex für Rezepte und Sammelgebiete, Rezepte deiner Freunde. | `/prof` |
+| **Peon_Warhorn** | Gruppen, Dungeons und Raids: Gruppensuche mit Filtern nach Rolle, Klasse und Stufe, Eintragen, Wer-Liste und Flüstervorlagen. | `/warhorn` |
 | **Peon_Fishing** | Angelmodus mit Ausrüstungswechsel, Angeln per Doppelklick oder Taste, Köder, Warnton. | `/fp` |
-| **Peon_Feedback** | Fehler und Ideen direkt im Spiel festhalten, der Peon Manager sendet sie weiter. Optional. | `/feedback` |
-| **Peon_Mover** | Fenster von Blizzard und Peon verschieben und in der Größe ändern. | `/peon mover` |
+| **Peon_ClassBuddy** | Kleine Helfer je Klasse. Schurke: runde Combo-Punkte über dem Namensschild des Gegners. Hexenmeister: überzählige Seelensplitter vernichten. Hat Peon_ComboPoints abgelöst, der Manager entfernt es von selbst. | `/peon classbuddy` |
 | **Peon_Panel** | Leiste oben am Bildschirm und verschiebbares Panel für die Symbole der Peon-Addons, mit kurzen Texten wie Gold oder freien Taschenplätzen. Dazu Einträge wie XP, Zone, Koordinaten, Uhr und Haltbarkeit. Beide lassen sich aufklappbar machen. | `/peon panel` |
-| **Peon_ComboPoints** | Runde Combo-Punkte über dem Namensschild des Gegners (nur Schurken). | `/peon combopoints` |
+| **Peon_Mover** | Fenster von Blizzard und Peon verschieben und in der Größe ändern. | `/peon mover` |
+| **Peon_Feedback** | Fehler und Ideen direkt im Spiel festhalten, der Peon Manager sendet sie weiter. Optional. | `/feedback` |
 
 Jedes Addon außer Peon ist freiwillig. Nimm nur, was du willst, aber **Peon selbst muss immer dabei sein**.
+
+Wie du die Addons bedienst, steht kurz in der [Hilfe](docs/Hilfe.md). Der Peon Manager zeigt sie unter **Hilfe**.
 
 Peon_Bridge (Verbindung zum Peon Manager) gehört zum Manager und wird mit ihm installiert. Ohne den Manager tut es nichts.
 
@@ -85,6 +89,13 @@ Die Addons gehen auch von Hand: Lade auf der Seite [Releases](https://github.com
 ## 🐞 Feedback und Fehler
 
 Fehler, Wünsche und Ideen meldest du am einfachsten im **Peon Manager** unter „Rückmeldungen“. Ein Konto brauchst du dafür nicht. Der Manager sammelt auch die Fehler der Addons, du kannst Notizen ergänzen und vor dem Senden alles ändern oder löschen. Im Spiel geht es zusätzlich mit dem Addon Peon_Feedback über `/feedback`.
+
+## 🔒 Datenschutz
+
+- **Daten teilen im Spiel:** Peon tauscht über einen versteckten Kanal und unsichtbares Addon-Flüstern kleine Datenpakete mit anderen Peon-Nutzern aus, zum Beispiel für die Rezepte deiner Freunde in Peon_Profession. Im Chat erscheint davon nichts, Charakternamen speichert Peon dabei nicht. Ausschalten geht unter **Einstellungen > AddOns > Peon** („Daten teilen“) oder mit `/peon teilen aus`.
+- **Spieldaten:** Der Peon Manager sichert die Daten der Peon-Addons (zum Beispiel das Ledger-Buch) vor jedem Update und einmal am Tag auf deinem Rechner, im Datenordner unter „Spielsicherung“. Sie verlassen deinen Rechner nicht.
+- **Rückmeldungen:** Der Peon Manager sendet Fehler und Rückmeldungen nur, wenn du auf „Senden“ klickst. Vorher kannst du alles ansehen, ändern oder löschen. Die Berichte landen in einem privaten Repo, das nur KarloDerBaer sieht.
+- **Peon Manager:** Er spricht nur mit GitHub (Updates), beim Senden von Rückmeldungen mit dem Dienst `peon-fehler` und, wenn du es einrichtest, mit der Blizzard-API (Auktionsdaten). Dein Zugang zur Blizzard-API liegt verschlüsselt auf deinem Rechner.
 
 ## ☕ Peon unterstützen
 

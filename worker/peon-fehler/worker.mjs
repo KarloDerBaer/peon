@@ -2,12 +2,15 @@
 // Nimmt Fehler und Rueckmeldungen ohne Anmeldung an, prueft sie und legt je Eintrag ein Issue an. Der GitHub-Token liegt
 // nur hier (Geheimnis GITHUB_TOKEN), nie im Manager. Einrichtung: README.md in diesem Ordner.
 // Die IP-Adresse wird nur als Pruefsumme fuer die Sperre gegen zu viele Anfragen genutzt und nach einer Stunde verworfen.
+// Ab 18.11.2026: Die Sperre zaehlt Eintraege statt Sendungen (vorher bis zu 20 Eintraege je Sendung), und ein Fehler,
+// der schon als offenes Issue da ist, kommt als Kommentar an dieses Issue statt als neues.
 
 const MAX_BODY = 64 * 1024;
 const MAX_ITEMS = 20;              // Der Manager schickt nicht mehr, Cloudflare erlaubt je Anfrage nur begrenzt viele Abrufe
-const LIMIT_PER_IP = 5;            // Sendungen je Stunde und Adresse
-const LIMIT_TOTAL = 30;            // Sendungen je Stunde insgesamt
+const LIMIT_PER_IP = 20;           // Eintraege je Stunde und Adresse
+const LIMIT_TOTAL = 60;            // Eintraege je Stunde insgesamt
 const LIMIT_SECONDS = 3600;
+const KEY_SECONDS = 3600;          // so lange merkt sich der Worker, welches Issue zu einem Fehler gehoert (danach fragt er die Suche)
 
 const KINDS = { bug: ['Fehler', 'fehler'], improve: ['Verbesserung', 'verbesserung'], idea: ['Neue Idee', 'idee'], other: ['Sonstiges', 'sonstiges'] };
 const PRIOS = { low: 'Niedrig', mid: 'Mittel', high: 'Hoch' };
@@ -49,7 +52,12 @@ export function cleanReport(data) {
   return { manager: plain(str(data.manager, 40)), items };
 }
 
-export function buildIssue(i, manager) {
+// Kennung eines Fehlers: gleiches Addon, gleiche Stelle, gleiche Meldung (Version egal). Steht unter dem Issue.
+export async function errorKey(i) {
+  return (await sha256(`${i.addon}|${i.where}|${i.msg}`)).slice(0, 16);
+}
+
+export function buildIssue(i, manager, key) {
   const from = `Peon Manager ${manager || '?'}`;
   if (i.type === 'error') {
     const head = `${i.addon} ${i.version} | ${i.where} | ${i.n}x | zuletzt ${utc(i.last)} | Build ${i.build || '?'} | ${i.source}`;
@@ -57,7 +65,7 @@ export function buildIssue(i, manager) {
     if (i.stack) lines.push('', i.stack);
     if (i.note) lines.push('', 'Notiz:', i.note);
     return { title: plain(`${i.addon}${i.version ? ` ${i.version}` : ''}: ${i.where || 'Fehler'}`, 120), labels: ['fehler'],
-      body: `${from}\n\n\`\`\`text\n${fence(lines.join('\n'))}\n\`\`\`` };
+      body: `${from}\n\n\`\`\`text\n${fence(lines.join('\n'))}\n\`\`\`${key ? `\n\npeon-key: ${key}` : ''}` };
   }
   const [kind, label] = KINDS[i.kind];
   const head = `${kind} | ${i.module} ${i.version} | ${i.area} | Priorität ${PRIOS[i.prio]} | ${utc(i.t)} | aus ${i.origin === 'game' ? 'dem Spiel' : 'dem Manager'}`;
@@ -66,20 +74,52 @@ export function buildIssue(i, manager) {
     body: `${from}\n\n\`\`\`text\n${fence([head, ...where, '', i.text].join('\n'))}\n\`\`\`` };
 }
 
+// Weitere Meldung desselben Fehlers: kurzer Kommentar am bestehenden Issue
+export function buildComment(i, manager) {
+  const head = `Wieder gemeldet von Peon Manager ${manager || '?'}: ${i.addon} ${i.version} | ${i.n}x | zuletzt ${utc(i.last)} | Build ${i.build || '?'}`;
+  const lines = [head];
+  if (i.note) lines.push('', 'Notiz:', i.note);
+  return { body: `\`\`\`text\n${fence(lines.join('\n'))}\n\`\`\`` };
+}
+
 async function sha256(text) {
   const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Zaehler im Cache von Cloudflare. Er gilt je Rechenzentrum, das reicht als Bremse. Rueckgabe: true, wenn noch frei
-async function allow(cache, name, max) {
+// Zaehler im Cache von Cloudflare. Er gilt je Rechenzentrum, das reicht als Bremse.
+// Rueckgabe: true, wenn noch add Eintraege frei sind (dann sind sie gezaehlt)
+async function allow(cache, name, max, add = 1) {
   if (!cache) return true;
   const key = new Request(`https://peon-fehler.invalid/zaehler/${name}`);
   const hit = await cache.match(key);
   const n = hit ? Number(await hit.text()) || 0 : 0;
-  if (n >= max) return false;
-  await cache.put(key, new Response(String(n + 1), { headers: { 'Cache-Control': `max-age=${LIMIT_SECONDS}` } }));
+  if (n + add > max) return false;
+  await cache.put(key, new Response(String(n + add), { headers: { 'Cache-Control': `max-age=${LIMIT_SECONDS}` } }));
   return true;
+}
+
+// Offenes Issue zu einer Fehlerkennung: erst im Cache, sonst ueber die Suche von GitHub. Rueckgabe: Nummer oder null
+async function findIssue(key, env, gh, cache) {
+  const ck = new Request(`https://peon-fehler.invalid/fehler/${key}`);
+  const hit = cache ? await cache.match(ck) : null;
+  if (hit) {
+    const n = Number(await hit.text());
+    if (Number.isInteger(n) && n > 0) return n;
+  }
+  const q = encodeURIComponent(`repo:${env.GITHUB_REPO} is:issue is:open in:body "peon-key: ${key}"`);
+  const res = await gh(`https://api.github.com/search/issues?q=${q}&per_page=1`);
+  if (!res.ok) return null;
+  let body;
+  try { body = await res.json(); } catch { return null; }
+  const n = body && Array.isArray(body.items) && body.items[0] ? Number(body.items[0].number) : null;
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+async function rememberIssue(key, number, cache) {
+  if (!cache) return;
+  const ck = new Request(`https://peon-fehler.invalid/fehler/${key}`);
+  await cache.put(ck, new Response(String(number), { headers: { 'Cache-Control': `max-age=${KEY_SECONDS}` } }));
 }
 
 export async function handle(request, env, { fetchImpl = fetch, cache = globalThis.caches && globalThis.caches.default } = {}) {
@@ -91,27 +131,33 @@ export async function handle(request, env, { fetchImpl = fetch, cache = globalTh
   const report = cleanReport(data);
   if (!report) return json(400, { ok: false, error: 'invalid report' });
 
+  const n = report.items.length;
   const ip = await sha256(request.headers.get('CF-Connecting-IP') || 'unbekannt');
-  if (!(await allow(cache, `ip-${ip}`, LIMIT_PER_IP)) || !(await allow(cache, 'gesamt', LIMIT_TOTAL))) {
+  if (!(await allow(cache, `ip-${ip}`, LIMIT_PER_IP, n)) || !(await allow(cache, 'gesamt', LIMIT_TOTAL, n))) {
     return json(429, { ok: false, error: 'too many reports' });
   }
 
-  // Nacheinander anlegen und beim ersten Fehler aufhoeren: Was bestaetigt ist, loescht der Manager, der Rest bleibt bei ihm
+  const headers = {
+    Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'peon-fehler-worker', 'Content-Type': 'application/json',
+  };
+  const gh = (url, body) => fetchImpl(url, body ? { method: 'POST', headers, body: JSON.stringify(body) } : { method: 'GET', headers });
+
+  // Nacheinander anlegen und beim ersten Fehler aufhoeren: Was bestaetigt ist, loescht der Manager, der Rest bleibt bei ihm.
+  // Gleicher Fehler wie ein offenes Issue: Kommentar daran statt neuem Issue.
   const done = [], numbers = [];
   let failed = null;
   for (const item of report.items) {
-    const res = await fetchImpl(`https://api.github.com/repos/${env.GITHUB_REPO}/issues`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'peon-fehler-worker', 'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(buildIssue(item, report.manager)),
-    });
+    const key = item.type === 'error' ? await errorKey(item) : null;
+    const open = key ? await findIssue(key, env, gh, cache) : null;
+    const res = open
+      ? await gh(`https://api.github.com/repos/${env.GITHUB_REPO}/issues/${open}/comments`, buildComment(item, report.manager))
+      : await gh(`https://api.github.com/repos/${env.GITHUB_REPO}/issues`, buildIssue(item, report.manager, key));
     if (!res.ok) { failed = res.status; break; }
-    const issue = await res.json();
+    const number = open || (await res.json()).number;
+    if (key) await rememberIssue(key, number, cache);
     done.push(item.ref);
-    numbers.push(issue.number);
+    numbers.push(number);
   }
   if (!done.length) return json(502, { ok: false, error: `github ${failed}` });
   return json(200, { ok: !failed, done, numbers });

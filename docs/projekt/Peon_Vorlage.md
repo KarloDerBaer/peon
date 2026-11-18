@@ -27,7 +27,7 @@ Weitere Bausteine und die ganze Kern-API: siehe `Peon_Ueberblick.md`.
 
 ## Eigenes Fenster (ab Kern-API 18)
 
-Fenster eines Moduls nur mit `Peon.UI` bauen, damit alle Peon-Fenster gleich aussehen. Regeln, Maße und alle Bausteine: `docs\konzepte\Peon_UI_Design.md`, Beispiele im Spiel mit `/peon ui`.
+Fenster eines Moduls nur mit `Peon.UI` bauen, damit alle Peon-Fenster gleich aussehen. Regeln, Maße und alle Bausteine: `docs\konzepte\Peon_UI_Design.md`, Beispiele im Spiel mit `/pdebug ui` (privates Peon_Debug).
 
 ```lua
 if Peon.UI then

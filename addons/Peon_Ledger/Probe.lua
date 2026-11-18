@@ -3,8 +3,9 @@
 -- Ereignisse des Spiels Ledger fuer Bestand und Buch nutzen kann. Alles nur lesend: nichts wird genommen, gekauft,
 -- verkauft, verschickt oder zerstoert.
 --   /ledger pruefen          -> Funktionen, Texte, Charakter; dazu das gerade offene Fenster
---   automatisch              -> Postfach, Haendler, Bank, Handel, Beruf, Beute, Quest-Belohnung, Flugmeister, Lehrer
+--   danach bis zum /reload   -> Postfach, Haendler, Bank, Handel, Beruf, Beute, Quest-Belohnung, Flugmeister, Lehrer
 --                               werden die ersten 3 Male beim Oeffnen mitgelesen (Schnappschuss)
+-- Ab 0.16.2: Das Mitlesen startet erst mit dem Pruefbefehl (vorher bei jedem Login, kostete bei allen Nutzern Leistung).
 --   Ereignisse               -> je Ereignis Anzahl, Zeit und die ersten 3 Werte
 --   Mitlesen von Aufrufen    -> z. B. Haendlerkauf, Zerstoeren, Benutzen, Post verschicken (nur zaehlen, nach dem Aufruf)
 -- Ergebnis in PeonLedgerDB.probe, .probeEvents, .probeHooks, .probeSnaps (nach /reload im WTF-Ordner lesbar).
@@ -159,6 +160,7 @@ function P.Init()
     acc.probeHooks = type(acc.probeHooks) == "table" and acc.probeHooks or {}
     acc.probeSnaps = type(acc.probeSnaps) == "table" and acc.probeSnaps or {}
     if frame then return end
+    P.started = true
     frame = CreateFrame("Frame")
     for _, ev in ipairs(P.EVENTS) do
         local ok = pcall(frame.RegisterEvent, frame, ev)
@@ -457,6 +459,10 @@ end
 ---------------------------------------------------------------------------
 function P.Run()
     local acc = mod.acc
+    if not P.started then
+        P.Init()
+        mod:Print(L.P_LISTEN)
+    end
     mod:Print(L.P_START)
     local r = { time = date("%Y-%m-%d %H:%M:%S"), ledger = mod.version, peon = Peon.version, peonAPI = Peon.API,
                 locale = GetLocale and GetLocale() or "?" }

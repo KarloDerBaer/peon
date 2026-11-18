@@ -144,7 +144,7 @@ local function NewPlayer(name, opts)
   }
   -- Kern laden
   local ns = {}
-  for _, f in ipairs({ "Locales.lua", "Core.lua", "Module.lua", "Options.lua", "Comm.lua", "Slash.lua" }) do
+  for _, f in ipairs({ "Locales.lua", "Core.lua", "Module.lua", "Options.lua", "Notice.lua", "Comm.lua", "Slash.lua" }) do
     local chunk, err = loadfile("Peon/" .. f)
     if not chunk then fail(err) end
     setfenv(chunk, env)
@@ -240,7 +240,9 @@ local A = NewPlayer("Arnulf")
 local C, Peon, L = A.C, A.Peon, A.ns.L
 check(Peon.API >= 24 and Peon.Comm == C, "Kern-API 24, Peon.Comm")
 local toc = io.open("Peon/Peon.toc"):read("*a")
-check(toc:find("Notice.lua%s+Comm.lua%s+Slash.lua"), "Comm.lua in der TOC nach Notice und vor Slash")
+check(toc:find("Notice.lua%s+Comm.lua%s+Profiles.lua%s+Slash.lua"), "Comm.lua in der TOC nach Notice und vor Profiles und Slash")
+local nt = A.ns.Notice and A.ns.Notice.byId["teilen-2026-11"]
+check(nt and nt.title:find("teilt Daten", 1, true) and #nt.text == 3 and nt.text[3]:find("/peon teilen aus", 1, true), "0.24.1: einmaliger Hinweis zum Teilen mit Weg zum Ausschalten")
 local src = io.open("Peon/Comm.lua"):read("*a")
 check(not src:find("loadstring") and not src:find("RunScript"), "kein fremder Code beim Entpacken")
 check(C.IsOn(), "von Anfang an an")
@@ -419,11 +421,11 @@ B.fire("CHAT_MSG_ADDON", "PEON", good, "WHISPER", "Edwin Stein-Fremdrealm")
 check(#got == 1 and bdb.dup == dup0 + 1, "doppelte Nachricht erkannt")
 local q0 = #B.C.queue
 B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("test", "abcdef", C.MAX_HOPS, "", "aa3", 1, 1, C.Encode(1)), "WHISPER", "Edwin Stein-Fremdrealm")
-check(#B.C.queue == q0 and #got == 2, "nach " .. C.MAX_HOPS .. " Spruengen nicht mehr weitergegeben, aber zugestellt")
+check(#B.C.queue == q0 and #got == 2, "ab 0.24.1 nicht weitergegeben, aber zugestellt")
 B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("test", "abcdef", 1, "d", "aa4", 1, 1, C.Encode(1)), "WHISPER", "Edwin Stein-Fremdrealm")
 check(#B.C.queue == q0, "direkte Nachricht nicht weitergegeben")
 B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("neu", "abcdef", 1, "", "aa5", 1, 1, C.Encode(1)), "WHISPER", "Edwin Stein-Fremdrealm")
-check(#B.C.queue > q0 and #got == 3, "unbekannter Dienst wird weitergegeben, nicht zugestellt")
+check(#B.C.queue == q0 and #got == 3, "unbekannter Dienst: weder zugestellt noch weitergegeben")
 wipe(B.C.queue)
 B.fire("CHAT_MSG_ADDON", "PEON", "2^test^abcdef^1^^aa6^1^1^n1;", "WHISPER", "Edwin Stein-Fremdrealm")
 check(#B.C.queue == 0 and #got == 3, "neueres Format: weder verstanden noch weitergegeben")
@@ -665,11 +667,11 @@ check(pB and (pB.c or 0) >= 1 and B.Peon.db.comm.chanRecv >= 1, "B kennt A ueber
 local pA = A.Peon.db.comm.peers[B.C.MyCode()]
 check(pA and (pA.w or 0) >= 1, "Antwort von B kam per Fluestern: " .. Dump(pA))
 check(A.Peon.db.comm.peers[C.MyCode()] == nil, "eigene Kanal-Nachricht nicht als fremder Nutzer gezaehlt")
--- Peon 0.23.0 schickt Fluestern ohne Flag d: wird weiter verstanden und weitergegeben
+-- Peon 0.23.0 schickt Fluestern ohne Flag d: wird weiter verstanden, ab 0.24.1 nicht mehr weitergegeben
 local relB = B.Peon.db.comm.relayed
 local gotOld = #got
 B.fire("CHAT_MSG_ADDON", "PEON", B.C.Build("test", C.Checksum("edwin stein"), 0, "", "alt1", 1, 1, C.Encode("alt")), "WHISPER", "Edwin Stein-Fremdrealm")
-check(B.Peon.db.comm.relayed == relB + 1 and #got == gotOld + 1, "Nachricht von 0.23.0 zugestellt und weitergegeben")
+check(B.Peon.db.comm.relayed == relB and #got == gotOld + 1, "Nachricht von 0.23.0 zugestellt, nicht weitergegeben")
 
 ---------------------------------------------------------------------------
 -- 16. Schalter fuer Peon_Debug

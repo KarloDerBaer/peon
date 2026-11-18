@@ -6,8 +6,10 @@
 --   Addon-Nachrichten im versteckten Kanal "PeonNet" erreichen alle Mitglieder. Unsichtbares Addon-Fluestern
 --   geht zwischen Spielern, aber nur an "Vorname Nachname" (ohne Realm-Anhang).
 --   Ab 0.24.0 (KarloDerBaer): an alle einmal in den Kanal, an einen per Fluestern, beides ohne Weitergabe.
---   Nachrichten von Peon 0.23.0 (Fluestern mit Weitergabe, hoechstens MAX_HOPS Spruenge) werden weiter
---   verstanden und weitergegeben.
+--   Nachrichten von Peon 0.23.0 (Fluestern mit Weitergabe) werden weiter verstanden, ab 0.24.1 aber nicht
+--   mehr weitergegeben: In 0.23.0 hat nur die Begruessung Daten getauscht, die Weitergabe brachte nichts mehr
+--   und liess jeden Empfaenger fremde Spieler anfluestern.
+--   RandomNames, RELAY, FANOUT und MAX_HOPS bleiben als Teil der Schnittstelle bestehen, werden aber nicht mehr genutzt.
 --
 -- Schnittstelle fuer Module (API 23, nur Erweiterung):
 --   Peon.Comm.Register("dienst", { version = 1, onReceive = function(daten, info) end })
@@ -23,7 +25,7 @@
 --   Fuer Peon_Debug: Peon.Comm.Listen(fn(richtung, art, wer, text)), Peon.Comm.SetShow("channel"|"whisper", an)
 --
 -- Der Kern kuemmert sich um Kanal, Mitgliederliste, Warteschlange, Takt, Teilen langer Nachrichten,
--- Weitergabe, doppelte Nachrichten und Pruefwert. Nicht im Kampf und nicht in Instanzen senden.
+-- doppelte Nachrichten und Pruefwert. Nicht im Kampf und nicht in Instanzen senden.
 -- Charakternamen werden nie gespeichert oder angezeigt, sie liegen nur im Speicher zum Zustellen.
 --
 -- Erster Schritt (KarloDerBaer, 17.11.2026): noch kein Modul tauscht Daten. Der Kern meldet selbst den
@@ -433,15 +435,7 @@ function C.Receive(text, sender, via)
     if m.hops == 0 and sk:find(" ", 1, true) and m.origin ~= C.Checksum(sk) then Count("bad"); return end
     if m.origin == C.MyCode() then return end
     Count("recv")
-    -- Weitergeben (auch unbekannte Dienste, damit neuere Module ihre Daten verbreiten koennen)
-    if m.flags == "" and m.hops < C.MAX_HOPS then
-        local fwd = C.Build(m.svc, m.origin, m.hops + 1, "", m.mid, m.i, m.n, m.payload)
-        local any = false
-        for _, t in ipairs(C.RandomNames(C.RELAY, sender)) do
-            if Enqueue(t, fwd) then any = true end
-        end
-        if any then Count("relayed") end
-    end
+    -- ab 0.24.1 keine Weitergabe mehr (auch nicht fuer Nachrichten von 0.23.0)
     if m.n == 1 then return Deliver(m, m.payload, sender, via) end
     local pk = m.origin .. ":" .. m.mid
     local p = C.parts[pk]
@@ -849,7 +843,7 @@ end
 function C.StatusText()
     local s = C.Status()
     if not s.on then return L.COMM_STATUS_OFF end
-    return L.COMM_STATUS:format(s.channel or "-", s.peers, s.known, s.sent, s.recv, s.relayed)
+    return L.COMM_STATUS:format(s.channel or "-", s.peers, s.known, s.sent, s.recv)
 end
 
 function C.AddOption(panel, anchor)
@@ -902,4 +896,9 @@ function C.Slash(rest)
         Peon.Print(C.StatusText())
         for _, line in ipairs(L.COMM_HELP) do Peon.Print(line) end
     end
+end
+
+-- ab 0.24.1: einmaliger Hinweis, dass Peon Daten teilt und wie man es ausschaltet
+if Peon.AddNotice then
+    Peon.AddNotice({ id = "teilen-2026-11", date = "18.11.2026", title = L.COMM_NOTICE_TITLE, text = L.COMM_NOTICE })
 end

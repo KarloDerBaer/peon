@@ -1,12 +1,16 @@
-<!-- Rueckmeldung zu einem Vorschlag (Peon_Manager_Chancen.md 7.1): Daumen, ein Grund zum Anklicken, Freitext bis 250 Zeichen -->
+<!-- Rueckmeldung zu einem Vorschlag (Peon_Manager_Chancen.md 7.1): Daumen, ein Grund zum Anklicken, Freitext bis 1000 Zeichen -->
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 const props = defineProps({ chance: Object, market: String, reasons: Array });
 const emit = defineEmits(['close', 'saved']);
 const up = ref(null);
 const reason = ref(null);
 const note = ref('');
 const busy = ref(false);
+// ab 0.47.0: Escape schliesst wie bei den anderen Dialogen
+function onKey(e) { if (e.key === 'Escape') emit('close'); }
+onMounted(() => window.addEventListener('keydown', onKey));
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 const REASONS = props.reasons && props.reasons.length ? props.reasons : ['Scherzpreis', 'verkauft sich nicht', 'Zielpreis zu hoch', 'zu riskant', 'schon bekannt', 'lief gut', 'gekauft'];
 async function save() {
   busy.value = true;
@@ -34,7 +38,7 @@ async function save() {
       </div>
       <textarea v-model="note" maxlength="1000" rows="5" placeholder="Bemerkung (freiwillig, bis 1000 Zeichen)" aria-label="Bemerkung"></textarea>
       <div class="row">
-        <span class="small faint">{{ note.length }} / 250</span>
+        <span class="small faint">{{ note.length }} / 1000</span>
         <span class="grow"></span>
         <button @click="emit('close')">Abbrechen</button>
         <button class="primary" :disabled="busy || (up == null && !reason && !note.trim())" @click="save">Speichern</button>

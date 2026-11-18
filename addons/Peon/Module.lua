@@ -198,6 +198,26 @@ function Module:ResetDefaults(except)
     self:Fire("RESET")
 end
 
+-- Ab API 25 (Profiles.lua): Werte aus einem Profil uebernehmen. Nur Schluessel aus defaults, nicht keepOnReset und
+-- debug, nur gueltige Werte (wie beim Laden), Zahlen in ihren Grenzen. Danach RESET, damit sich alles neu zeichnet.
+-- Rueckgabe: Anzahl uebernommener Werte
+function Module:_ApplyProfile(vals)
+    local o = self.opts
+    if not (self.db and type(vals) == "table" and type(o.defaults) == "table") then return 0 end
+    local keep = o.keepOnReset or {}
+    local n = 0
+    for k, v in pairs(vals) do
+        local def = o.defaults[k]
+        if def ~= nil and k ~= "debug" and not keep[k] and IsValid(o, k, v, def) then
+            if o.ranges and o.ranges[k] then v = Peon.Clamp(v, o.ranges[k]) or def end
+            self.db[k] = Peon.CopyTable(v)
+            n = n + 1
+        end
+    end
+    if n > 0 then self:Fire("RESET") end
+    return n
+end
+
 function Module:_Init()
     if self.initialized then return end
     self:Call("DB", self._InitDB, self)

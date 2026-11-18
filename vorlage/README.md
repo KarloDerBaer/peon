@@ -23,4 +23,4 @@
 
 Weitere Bausteine und die ganze Kern-API: siehe `docs\projekt\Peon_Ueberblick.md`, ausführliche Vorlage in `docs\projekt\Peon_Vorlage.md`.
 
-Eigene Fenster nur mit den Bausteinen `Peon.UI` (ab Kern-API 18), damit alle Peon-Fenster gleich aussehen: Beispiel in `docs\projekt\Peon_Vorlage.md` unter „Eigenes Fenster“, Regeln in `docs\konzepte\Peon_UI_Design.md`, Beispiele im Spiel mit `/peon ui`.
+Eigene Fenster nur mit den Bausteinen `Peon.UI` (ab Kern-API 18), damit alle Peon-Fenster gleich aussehen: Beispiel in `docs\projekt\Peon_Vorlage.md` unter „Eigenes Fenster“, Regeln in `docs\konzepte\Peon_UI_Design.md`, Beispiele im Spiel mit `/pdebug ui` (privates Peon_Debug).

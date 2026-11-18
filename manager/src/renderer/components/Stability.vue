@@ -114,7 +114,7 @@ const hist = computed(() => (d.value && d.value.hist) || []);
       <table class="tbl cats">
         <thead><tr><th>Kategorie</th><th class="num">Gegenstände</th><th class="num">Stufe</th><th class="num">Index</th><th class="num">Stunden</th><th class="num">Tage</th><th class="num">Massenware</th></tr></thead>
         <tbody>
-          <tr v-for="c in cats" :key="c.key" class="click" :class="{ sub: c.parent, on: cat && cat.key === c.key }" @click="pickCat(c)">
+          <tr v-for="c in cats" :key="c.key" class="click" :class="{ sub: c.parent, on: cat && cat.key === c.key }" tabindex="0" @click="pickCat(c)" @keydown.enter="pickCat(c)">
             <td>
               <button v-if="!c.parent && hasSubs.has(c.key)" class="fold" :aria-label="open.has(c.key) ? 'Zuklappen' : 'Aufklappen'" @click.stop="toggle(c)">{{ open.has(c.key) ? '▾' : '▸' }}</button>
               <span v-else-if="!c.parent" class="fold"></span>
@@ -139,16 +139,16 @@ const hist = computed(() => (d.value && d.value.hist) || []);
       </div>
       <table class="tbl" v-if="list.length">
         <thead><tr>
-          <th class="click" @click="sortBy('name')">Gegenstand{{ arrow('name') }}</th>
-          <th class="num click" @click="sortBy('i')">Stufe{{ arrow('i') }}</th>
-          <th class="num click" @click="sortBy('i')">Index</th>
-          <th class="num click" @click="sortBy('h')" title="Mittlere Bewegung je Stunde">Stunden{{ arrow('h') }}</th>
-          <th class="num click" @click="sortBy('d')" title="Schwankung der Tageswerte">Tage{{ arrow('d') }}</th>
-          <th class="num click" @click="sortBy('dir')" title="Erster zu letztem Tageswert">Richtung{{ arrow('dir') }}</th>
-          <th class="num click" @click="sortBy('a')" title="Angebote im Schnitt">Angebote{{ arrow('a') }}</th>
+          <th class="click" tabindex="0" @click="sortBy('name')" @keydown.enter="sortBy('name')">Gegenstand{{ arrow('name') }}</th>
+          <th class="num click" tabindex="0" @click="sortBy('i')" @keydown.enter="sortBy('i')">Stufe{{ arrow('i') }}</th>
+          <th class="num click" tabindex="0" @click="sortBy('i')" @keydown.enter="sortBy('i')">Index</th>
+          <th class="num click" tabindex="0" @click="sortBy('h')" @keydown.enter="sortBy('h')" title="Mittlere Bewegung je Stunde">Stunden{{ arrow('h') }}</th>
+          <th class="num click" tabindex="0" @click="sortBy('d')" @keydown.enter="sortBy('d')" title="Schwankung der Tageswerte">Tage{{ arrow('d') }}</th>
+          <th class="num click" tabindex="0" @click="sortBy('dir')" @keydown.enter="sortBy('dir')" title="Erster zu letztem Tageswert">Richtung{{ arrow('dir') }}</th>
+          <th class="num click" tabindex="0" @click="sortBy('a')" @keydown.enter="sortBy('a')" title="Angebote im Schnitt">Angebote{{ arrow('a') }}</th>
         </tr></thead>
         <tbody>
-          <tr v-for="x in list.slice(0, limit)" :key="x.key" class="click" @click="emit('brief', x.key)">
+          <tr v-for="x in list.slice(0, limit)" :key="x.key" class="click" tabindex="0" @click="emit('brief', x.key)" @keydown.enter="emit('brief', x.key)">
             <td class="name" :style="{ color: qualityColor(x.quality) }">{{ itemName(x) }}</td>
             <td class="num" :class="'lv' + x.g">{{ level(x.g) }}</td>
             <td class="num">{{ x.i }}</td>

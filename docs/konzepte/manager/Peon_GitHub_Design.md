@@ -204,8 +204,10 @@ PeonBridgeData = {
 }
 ```
 
-- `deps` aus `## Dependencies`, `api` = mindestens nötige Kern-API, `interface` aus der TOC, `notes` aus `docs\changelog\<Modul>.md` (Einträge seit dem letzten Release).
+- `deps` aus `## Dependencies`, `api` = mindestens nötige Kern-API (nur zur Auskunft, der Manager wertet sie nicht aus, weil er Peon immer mit aktualisiert. Der Bau prüft ab 18.11.2026, dass sie eine Zahl und nicht neuer als der Kern ist), `interface` aus der TOC, `notes` aus `docs\changelog\<Modul>.md` (Einträge seit dem letzten Release).
 - `Peon_Bridge` hat `managerOnly: true` (wird nur mit dem Manager angeboten).
+- Ab 18.11.2026 (Manager 0.48.0): `retired = [{ name, by, db, key }]` im Manifest, aus `"retired"` in `scripts/release.json`. Abgelöste Addons ohne Ordner im Repo und ohne Zip. Der Manager zeigt sie, solange sie installiert sind („Abgelöst“), und entfernt sie wie bei `replacedBy`, sobald `<db>.<key>` des neuen Addons wahr ist. Erste Nutzung: Peon_ComboPoints, abgelöst durch Peon_ClassBuddy.
+- `"local": true` in `scripts/release.json` (ab 19.11.2026): Das Addon liegt im Repo nur zum Testen und kommt in kein Release (kein Zip, nicht im Manifest, ungespeicherte Änderungen daran halten den Bau nicht auf). Lokal einbinden mit `scripts\junctions.cmd entwicklung <Addon>`. Der Manager lässt die Junction in Ruhe. Private Addons, die gar nicht ins Repo sollen, liegen stattdessen in `privat` (steht in `.gitignore`).
 
 ### 6.3 Bauen
 

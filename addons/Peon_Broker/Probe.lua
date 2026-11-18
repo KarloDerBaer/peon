@@ -3,6 +3,7 @@
 -- wie der Markt heisst und wie die Gebuehren aussehen. Alles nur lesend; nichts wird gekauft,
 -- eingestellt oder abgebrochen. Ergebnis in PeonBrokerDB.probe, Ereignis-Zaehler in
 -- PeonBrokerDB.probeEvents (bleiben ueber /reload erhalten und sind im WTF-Ordner lesbar).
+-- Ab 0.103.2: Die Ereignisse zaehlt Broker erst nach dem ersten Pruefbefehl bis zum /reload (vorher bei jedem Login).
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -81,6 +82,9 @@ local function AH() return rawget(_G, "C_AuctionHouse") end
 -- Ereignisse mitzaehlen (nur die ersten 3 Aufrufe je Ereignis mit Werten)
 ---------------------------------------------------------------------------
 local frame
+-- Offenes Auktionshaus: Scan kennt es immer, die Pruefung erst nach dem Start
+local function AHOpen() return P.ahOpen or (ns.Scan and ns.Scan.ahOpen) == true end
+
 function P.Init()
     local acc = mod.acc
     acc.probeEvents = type(acc.probeEvents) == "table" and acc.probeEvents or {}
@@ -166,6 +170,7 @@ end
 -- Pruefung
 ---------------------------------------------------------------------------
 function P.Run()
+    P.Init()
     mod:Print(L.MSG_PROBE_START)
     local r = {}
     r.time = date("%Y-%m-%d %H:%M:%S")
@@ -211,8 +216,8 @@ function P.Run()
     end
 
     -- Nur bei geoeffnetem Auktionshaus
-    r.ahOpen = P.ahOpen
-    if P.ahOpen and ah then
+    r.ahOpen = AHOpen()
+    if r.ahOpen and ah then
         r.live = {}
         r.live.throttleReady = Try(ah.IsThrottledMessageSystemReady)
         r.live.numReplicate = Try(ah.GetNumReplicateItems)
@@ -274,7 +279,8 @@ P.SCAN_TIMEOUT = 90
 
 function P.ScanTest()
     local ah = AH()
-    if not P.ahOpen then mod:Print(L.MSG_SCAN_NEED_AH); return end
+    P.Init()
+    if not AHOpen() then mod:Print(L.MSG_SCAN_NEED_AH); return end
     if not ah or type(ah.ReplicateItems) ~= "function" then mod:Print(L.MSG_SCAN_NO_API); return end
     local probe = type(mod.acc.probe) == "table" and mod.acc.probe or {}
     mod.acc.probe = probe

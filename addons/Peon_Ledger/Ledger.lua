@@ -324,7 +324,6 @@ mod:On("INIT", function()
         return
     end
     if ns.CreateOptions then mod:Call("Options", ns.CreateOptions) end
-    mod:Call("Pruefung", ns.Probe.Init)
     mod:Call("Bestand", ns.Inventory.Init)
     mod:Call("Bewegungen", ns.Moves.Init)
     mod:Call("Tooltip", ns.Tooltip.Init)

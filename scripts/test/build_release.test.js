@@ -202,12 +202,31 @@ test('Vorabversion: Tag mit -test', () => {
   assert.equal(run(fakeRepo(), { tag: 'v2026.11.04.2' }).manifest.release, 'v2026.11.04.2');
 });
 
-test('Fehler: Version ohne Changelog, Datei aus der TOC fehlt, Addon nicht in release.json', () => {
+test('Fehler: Version ohne Changelog, Datei aus der TOC fehlt, Addon nicht in release.json, api zu neu oder fehlt', () => {
+  const g = fakeRepo();
+  g.config.addons.Peon_Broker.api = 12;
+  assert.throws(() => run(g), /Peon_Broker: api 12 ist neuer als der Kern \(Peon\.API 11\)/);
+  const h = fakeRepo();
+  delete h.config.addons.Peon_Broker.api;
+  assert.throws(() => run(h), /Peon_Broker: api in scripts\/release\.json fehlt/);
   assert.throws(() => run(fakeRepo({ brokerVersion: '0.34.0' })), /Peon_Broker 0\.34\.0: kein Abschnitt/);
   assert.throws(() => run(fakeRepo({ bridgeExtra: 'Fehlt.lua\n' })), /Datei aus der TOC fehlt im Repo: Fehlt\.lua/);
   const f = fakeRepo();
   delete f.config.addons.Peon_Broker;
   assert.throws(() => run(f), /Peon_Broker: fehlt in scripts\/release\.json/);
+});
+
+test('Nur lokal: kein Zip, nicht im Manifest, ohne Changelog und Version erlaubt', () => {
+  const f = fakeRepo();
+  const w = (rel, text) => { const p = path.join(f.repo, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); };
+  w('addons/Peon_Spass/Peon_Spass.toc', '## Interface: 16001\n## Title: Spass\n## Version: 0.9.0\n\nSpass.lua\nFehlt.lua\n');
+  w('addons/Peon_Spass/Spass.lua', '-- Spass\n');
+  assert.throws(() => run(f), /Peon_Spass: fehlt in scripts\/release\.json/);
+  f.config.addons.Peon_Spass = { api: 8, local: true };
+  const { out, manifest: m } = run(f);
+  assert.ok(!m.addons.some((a) => a.name === 'Peon_Spass'), 'nicht im Manifest');
+  assert.ok(!fs.readdirSync(out).some((x) => x.startsWith('Peon_Spass')), 'kein Zip');
+  assert.deepEqual(R.localAddons(f.config), ['Peon_Spass']);
 });
 
 test('Versionen vergleichen', () => {
@@ -226,8 +245,28 @@ test('Echtes Repo: alle Addons, Bridge nur fuer den Manager, ohne Data.lua', () 
   assert.ok(m.addons.every((a) => a.notes === ''), 'erstes Release ohne Was ist neu');
   const spaeter = R.build({ out: tmp('echt2'), tag: 'v2026.11.04', dirty: true, prev: { addons: [] } }).manifest;
   assert.ok(spaeter.addons.every((a) => a.notes.startsWith(`### ${a.version}`)), 'jede Version hat einen Changelog-Abschnitt');
-  assert.equal(m.addons.find((a) => a.name === 'Peon').api, 24);
-  // ab Manager 0.38.0: Peon_ComboPoints wird durch den Klassenbuddy ersetzt
-  assert.deepEqual(m.addons.find((a) => a.name === 'Peon_ComboPoints').replacedBy, { by: 'Peon_ClassBuddy', db: 'PeonClassBuddyDB', key: 'cpImported' });
+  assert.equal(m.addons.find((a) => a.name === 'Peon').api, 25);
+  // ab 18.11.2026: Peon_ComboPoints ist abgeloest (retired), kein Zip mehr, der Manager entfernt es nach der Uebernahme
+  assert.ok(!names.includes('Peon_ComboPoints'));
+  assert.deepEqual(m.retired, [{ name: 'Peon_ComboPoints', by: 'Peon_ClassBuddy', db: 'PeonClassBuddyDB', key: 'cpImported' }]);
   assert.ok(!('replacedBy' in m.addons.find((a) => a.name === 'Peon_ClassBuddy')));
+});
+
+test('Abgeloest (retired): ins Manifest ohne Zip, Fehler bei falschen Angaben', () => {
+  const f = fakeRepo();
+  f.config.retired = { Peon_Alt: { by: 'Peon_Broker', db: 'PeonBrokerDB', key: 'altImported' } };
+  const m = run(f).manifest;
+  assert.deepEqual(m.retired, [{ name: 'Peon_Alt', by: 'Peon_Broker', db: 'PeonBrokerDB', key: 'altImported' }]);
+  assert.ok(!m.addons.some((a) => a.name === 'Peon_Alt'));
+  const ohne = run(fakeRepo()).manifest;
+  assert.ok(!('retired' in ohne), 'ohne retired kein Feld');
+  const g = fakeRepo();
+  g.config.retired = { Peon_Broker: { by: 'Peon_Bridge', db: 'X', key: 'y' } };
+  assert.throws(() => run(g), /Peon_Broker: steht in retired, gibt es aber noch als Addon/);
+  const h = fakeRepo();
+  h.config.retired = { Peon_Alt: { by: 'Peon_Fehlt', db: 'X', key: 'y' } };
+  assert.throws(() => run(h), /Peon_Fehlt steht nicht in scripts\/release\.json/);
+  const k = fakeRepo();
+  k.config.retired = { Peon_Alt: { by: 'Peon_Broker', db: 'X Y', key: 'y' } };
+  assert.throws(() => run(k), /braucht db und key/);
 });

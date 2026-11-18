@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.103.2
+
+Kurz: Broker braucht im Auktionshaus etwas weniger Leistung.
+
+- 0.103.2 (18.11.2026, Review mit KarloDerBaer):
+  - **Geändert:** Die Ereignisse des Auktionshauses zählt die Prüfung erst nach `/broker pruefen` (auch `pruefen scan`) bis zum nächsten `/reload`, vorher bei jedem Login. Ob das Auktionshaus offen ist, weiß die Prüfung auch ohne eigene Ereignisse (über den Scan).
+
 ## 0.103.1
 
 Kurz: „Im Markt zeigen“ springt bei Ausrüstung mit Zusatz wie „des Banditen“ jetzt zur richtigen Variante.

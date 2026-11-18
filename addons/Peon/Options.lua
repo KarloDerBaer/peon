@@ -128,6 +128,12 @@ end
 -- PLAYER_LOGIN: Unterseiten anhaengen, dann die Kategorie "Peon" einmalig registrieren
 function ns.FinishOptions()
     if registered then return end
+    -- ab API 25: Unterseite Profile nach den Modulen (Profiles.lua)
+    if ns.Profiles and ns.Profiles.CreatePanel then
+        local ok, p = pcall(ns.Profiles.CreatePanel)
+        if ok and p then pending[#pending + 1] = { panel = p, title = p.name, isProfiles = true }
+        elseif not ok then Peon.ReportCoreError("Profile", p) end
+    end
     if HasSettings and category then
         for _, mod in ipairs(pending) do RegisterModulePanel(mod) end
         Settings.RegisterAddOnCategory(category)

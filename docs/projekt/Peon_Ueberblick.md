@@ -1,6 +1,6 @@
 # Peon – Überblick für neue Arbeiten
 
-Stand: 25.10.2026. Addon-Sammlung von KarloDerBaer für **WoW Forever** (bis 23.10. Beta, ab 25.10. Ordner der Release-Version `_forever_`), Client 1.60.1 (70009), **Interface 16001**, deutscher Client (deDE, Texte zusätzlich enUS).
+Stand: 18.11.2026. Addon-Sammlung von KarloDerBaer für **WoW Forever** (bis 23.10. Beta, ab 25.10. Ordner der Release-Version `_forever_`), Client 1.60.1 (70009), **Interface 16001**, deutscher Client (deDE, Texte zusätzlich enUS).
 
 ## Wo alles liegt
 
@@ -29,24 +29,27 @@ Das Repo ist öffentlich. Statt echter Pfade stehen hier Platzhalter: `<Repo>`, 
 - Einstellungen: Einstellungen > AddOns > **Peon** (Übersicht aller Module) mit Unterseiten je Modul.
 - Chat: `/peon` (Optionen), `/peon list`, `/peon debug <modul>`, `/peon <modul> [befehl]`.
 
-| Addon | Version | SavedVariables | Befehl |
-|---|---|---|---|
-| Peon | 0.24.0 | `PeonDB` | /peon |
-| Peon_Tooltip (früher TooltipPlus) | 0.7.4 | `PeonTooltipDB` | /ttp |
-| Peon_ComboPoints (früher Combo Point Display) | 3.5.1 | `PeonComboPointsDB` | /peon combopoints |
-| Peon_Fishing (früher FishingPlus) | 1.6.0 | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
-| Peon_Broker (neu, Auktionshaus) | 0.84.0 | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
-| Peon_Bridge (bis 0.3.0 Peon_Client, Verbindung zum Peon Manager) | 0.9.2 | `PeonBridgeDB` | /peon bridge |
-| Peon_Feedback | 0.4.0 | `PeonFeedbackDB` | /feedback |
-| Peon_Mover (neu, Fenster verschieben) | 0.1.0 | `PeonMoverDB` | /peon mover |
-| Peon_Ledger (Bestand, Buch, Postfenster) | 0.14.7 | `PeonLedgerDB` | /ledger |
-| Peon_Bags (neu, Taschen, Bank, Gildenbank) | 0.4.0 | `PeonBagsDB` | /peon bags |
-| Peon_Panel (neu, Leiste und Panel) | 0.4.0 | `PeonPanelDB` | /peon panel |
-| Peon_Profession (neu, Berufe) | 0.6.0 | `PeonProfessionDB`, `PeonProfessionCharDB` (pro Charakter) | /prof |
+Versionen stehen in den TOC-Dateien und in `Peon_Stand.md` (hier nicht, damit nichts veraltet).
+
+| Addon | SavedVariables | Befehl |
+|---|---|---|
+| Peon (Kern) | `PeonDB` | /peon |
+| Peon_Tooltip (früher TooltipPlus) | `PeonTooltipDB` | /ttp |
+| Peon_Broker (Auktionshaus) | `PeonBrokerDB`, `PeonBrokerCharDB` (pro Charakter) | /broker |
+| Peon_Bridge (Verbindung zum Peon Manager, bis 0.3.0 Peon_Client) | `PeonBridgeDB` | /peon bridge |
+| Peon_Ledger (Bestand, Buch, Postfenster) | `PeonLedgerDB` | /ledger |
+| Peon_Bags (Taschen, Bank, Gildenbank) | `PeonBagsDB` | /peon bags |
+| Peon_Profession (Berufe) | `PeonProfessionDB`, `PeonProfessionCharDB` (pro Charakter) | /prof |
+| Peon_Warhorn (Gruppen, Dungeons, Raids) | `PeonWarhornDB`, `PeonWarhornCharDB` (pro Charakter) | /warhorn |
+| Peon_Fishing (früher FishingPlus) | `PeonFishingDB`, `PeonFishingCharDB` (pro Charakter) | /fp |
+| Peon_ClassBuddy (Helfer je Klasse) | `PeonClassBuddyDB` | /peon classbuddy |
+| Peon_Panel (Leiste und Panel) | `PeonPanelDB` | /peon panel |
+| Peon_Mover (Fenster verschieben) | `PeonMoverDB` | /peon mover |
+| Peon_Feedback (Rückmeldungen im Spiel) | `PeonFeedbackDB` | /feedback |
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
-## Kern-API (Peon.API = 24)
+## Kern-API (Peon.API = 25)
 
 Die API wird nur erweitert, nie geändert (sonst brechen alle Module). Bei neuen Funktionen `Peon.API` erhöhen.
 
@@ -165,6 +168,12 @@ Peon.Comm.SendChannel("nodes", daten)   -- seit 0.24.0 dasselbe wie Send ohne Zi
 Peon.Comm.Listen(function(richtung, art, wer, text) end)   -- jede Nachricht sehen (Peon_Debug)
 Peon.Comm.SetShow("channel", true); Peon.Comm.SetShow("whisper", true)   -- Kanal und „nicht online“ zeigen (Peon_Debug)
 ```
+- **Profile (API 25, Profiles.lua):** Ein Profil speichert je Modul alle Schlüssel aus `defaults` außer `keepOnReset` und `debug`, auch Charakterwerte, und spielt sie auf Wunsch wieder ein (Prüfung wie beim Laden, Zahlen begrenzt, danach `RESET`). Ein Modul ohne Profil setzt `noProfile = true` in den Optionen. Gespeichert in `PeonDB.profiles`, höchstens 20. `/peon profil`, Unterseite Peon > Profile.
+```lua
+Peon.Profiles.Save("Hexer")          -- true, Anzahl Module
+Peon.Profiles.Load("Hexer")          -- true, Module, Werte (danach /reload empfehlen)
+Peon.Profiles.List(); Peon.Profiles.Delete("Hexer")
+```
   Dienstnamen: Buchstaben, Ziffern und `_`, höchstens 12 Zeichen. Daten: Tabellen, Texte, Zahlen, Wahrheitswerte, nach dem Verpacken höchstens acht Teile (rund 1.600 Zeichen).
 - **Fehlerspeicher (API 12, Core.lua):** `mod:ReportError(where, err)` und `mod:Call` speichern abgefangene Fehler automatisch in `PeonDB.errors` und nennen sie einmal pro Sitzung kurz im Chat. Den Text zeigen `/peon fehler` und der Reiter Rückmeldungen im Peon Manager, der sie einliest und im Spiel löschen lässt.
 ```lua
@@ -188,7 +197,7 @@ ch:CreateLegend(parent, { "md", "cost" }, function(key, on) end)   -- Knöpfe an
 Peon.LinkCharts({ ch1, ch2 }, { shareLeft = true })                -- gemeinsame Mauslinie, gleicher Bereich links
 Peon.NiceRange(lo, hi, schritte)
 ```
-- **Fenster im Look des Auktionshauses (API 18, UIKit.lua):** `Peon.UI` mit allen Bausteinen für Peon-Fenster, Beispielfenster `/peon ui`. Maße, Grafiken, Schriften, Regeln und alle Bausteine: `docs\konzepte\Peon_UI_Design.md`. Neue Fenster nutzen nur diese Bausteine.
+- **Fenster im Look des Auktionshauses (API 18, UIKit.lua):** `Peon.UI` mit allen Bausteinen für Peon-Fenster, Beispielfenster `/pdebug ui` im privaten Peon_Debug (bis Peon 0.24.1 `/peon ui`). Maße, Grafiken, Schriften, Regeln und alle Bausteine: `docs\konzepte\Peon_UI_Design.md`. Neue Fenster nutzen nur diese Bausteine.
 ```lua
 local UI = Peon.UI   -- if Peon.UI then ... end, solange ältere Kerne möglich sind
 local win = UI.Window("PeonXyFrame", { title = "Peon Xy", icon = "Interface\\Icons\\…" })
@@ -202,11 +211,12 @@ UI.BottomTabs(win, { { "a", "Übersicht" } }, fn):Select("a"); UI.StatusBar(win)
 -- UI.Dropdown, UI.FilterDropdown, UI.Check, UI.Slider, UI.CategoryList, UI.TopTabs, UI.Badge, UI.ItemIcon,
 -- UI.ItemHeader, UI.Spinner, UI.Progress, UI.Collapse, UI.Divider, UI.Text(rolle), UI.SetTooltip, UI.Confirm
 ```
-- Ereignisse mit `RegisterUnitEvent` kann der Kern noch nicht; dafür hat ComboPoints einen eigenen Rahmen.
+- Ereignisse mit `RegisterUnitEvent` kann der Kern noch nicht. Dafür hat der Klassenbuddy (Combo-Punkte) einen eigenen Rahmen.
 - Diagramm-Legende (ab 0.11): mehrere Reihen mit gleichem `key` → die Reihe mit `label` bestimmt Name und Farbe.
 
 ## Wichtige Erkenntnisse zu WoW Forever
 
+- **Kampflog für Addons gesperrt (gesehen beim Entwickeln, 19.11.2026):** Schon `frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")` löst ADDON_ACTION_FORBIDDEN „UNKNOWN()“ aus, auch innerhalb von `pcall`. Nie anmelden. Ersatz: Tod des eigenen Ziels (`UnitIsDead("target")`, nicht `UnitIsTapDenied`), Erfahrungsmeldung `CHAT_MSG_COMBAT_XP_GAIN`, `UNIT_COMBAT` am eigenen Charakter (Ausweichen, Schaden). Kritische Treffer, Fallschaden und Heilung anderer lassen sich so nicht erkennen.
 - **Geheime Werte (Secret Values, aus Retail 12.x):** Sie werden bei Kampf-, Encounter- oder PvP-Einschränkungen geheim; in Instanzen sind Name, GUID und ID von NPCs immer geheim; UnitName von Nicht-Spielern ist im Kampf geheim. Erlaubt ist speichern, weiterreichen, `type()` und an Widgets übergeben (Text, Farbe, StatusBar). Verboten ist vergleichen, rechnen, boolesch prüfen oder als Tabellenschlüssel nutzen. Immer zuerst `Peon.IsSecret()` prüfen; `issecrettable` für Tooltip-Daten.
 - **Auch `debugstack()` kann einen geheimen Text liefern** (Kampf, Instanz, Tooltip mit geheimen Daten; BugGrabber zeigt dann „debugstack() returned secrets“). `type()` meldet weiter „string“, aber `:find`/`:gmatch` brechen ab. Vor dem Durchsuchen immer `Peon.IsSecret(st)` prüfen (Tooltip 0.7.2, Bags 0.2.1).
 - **Combo-Punkte** hängen am Gegner, nur einer trägt sie gleichzeitig. Der Trick: je Punkt eine StatusBar mit `SetMinMaxValues(i-1, i)`, alle bekommen denselben geheimen Wert. Der Träger wird über den Nameplate-Rahmen erkannt, nicht über GUID oder UnitIsUnit (die können geheim sein).
@@ -247,7 +257,7 @@ UI.BottomTabs(win, { { "a", "Übersicht" } }, fn):Select("a"); UI.StatusBar(win)
 - **Gruppensuche (geprüft mit Warhorn 0.1.0, 17.11.2026):** Forever hat nur die Gruppensuche im Vanilla-Stil (`Blizzard_GroupFinder_VanillaStyle`, `LFGParentFrame` mit `LFGBrowseFrame` und `LFGListingFrame`), kein `PVEFrame`. `C_LFGList.Search` geht aus einem Addon nur nach Klick oder Tastendruck des Spielers. Aus einem Zeitgeber meldet das Spiel `ADDON_ACTION_BLOCKED`. Änderungen an gefundenen Einträgen kommen ohne neue Suche (`LFG_LIST_SEARCH_RESULT_UPDATED`). `GetSearchResultMemberCounts` liefert Anzahl je Rolle, freie Plätze je Rolle (`TANK_REMAINING`, `HEALER_REMAINING`, `DAMAGER_REMAINING`), Anzahl je Klasse und `classesByRole`. `GetSearchResultPlayerInfo` liefert je Mitglied Klasse, Stufe, Rolle und `lfgRoles`. Außerhalb von Kampf und Instanz ist nichts davon geheim.
 - **Addon-Nachrichten zwischen Spielern (Fund aus Profession Leveling Guide 2.6.8, MIT, `Module\Netz.lua`):** Über einen Chat-Kanal (`CHANNEL`) kommen Addon-Nachrichten in Forever nicht an, auch die eigenen nicht, Senden meldet keinen Fehler. Unsichtbares Addon-Flüstern (`WHISPER`) geht. Die Mitgliederliste eines Kanals liefert `C_ChatInfo.GetChannelRosterInfo(Nummer aus GetChannelDisplayInfo, i)`. Die gemeldete Anzahl ist oft 0, bis die Liste geladen ist (`SetSelectedDisplayChannel` fordert sie an), Namen fehlen teils und kommen dann über `GetPlayerInfoByGUID`. Blizzard drosselt Flüstern bei etwa einer Nachricht je Sekunde, höchstens 255 Zeichen. Den Kanal erst rund 15 Sekunden nach dem Einloggen betreten, sonst verschieben sich die Nummern der Standardkanäle. **Eigene Prüfung mit Peon 0.23.0 (17.11.2026, Build 70938, `/peon teilen pruefen`, nur ein Spieler im Kanal):** Kanal `PeonNet` betreten und versteckt. Die eigene Addon-Nachricht im Kanal kam zurück, der Fund aus dem Guide stimmt hier also nicht oder nicht mehr. Addon-Flüstern an den eigenen Charakter kam dagegen nicht zurück, weil Peon an den Vornamen allein flüsterte (Meldung „nicht online“ mit dem Vornamen). Flüstern braucht in Forever den vollen Namen mit Nachnamen. Zweite Prüfung mit vollem Namen (17.11.2026): Flüstern an sich selbst kommt in beiden Schreibweisen an („Vorname Nachname“ und „Vorname-Nachname“). Mitgliederliste und Absender von Addon-Nachrichten liefern Namen als „Vorname Nachname“ mit Leerzeichen. `GetPlayerInfoByGUID` liefert den vollen Namen und bei anderen Spielern zusätzlich einen Realm. **Flüstern an „Vorname Nachname-Realm“ kommt nicht an** („nicht online“), den Realm deshalb nie anhängen (Peon 0.23.1). Mit zwei Spielern bestätigt (17.11.2026): Addon-Nachrichten im Kanal erreichen andere Mitglieder, Addon-Flüstern geht zwischen Spielern. **Vorsicht:** `SetSelectedDisplayChannel` nie aus `CHANNEL_ROSTER_UPDATE` heraus aufrufen. Jede Antwort fordert sonst die nächste an, im Test trennte der Chatserver danach kurz die Verbindung (Peon 0.23.0 fordert höchstens einmal je Minute an). Ob Flüstern zwischen zwei Spielern ankommt und ob Kanal-Nachrichten andere Mitglieder erreichen, lässt sich allein nicht klären. Die Mitgliederliste war lesbar (1 Eintrag, der eigene), die gemeldete Anzahl war 0.
 - **Blizzard-Code der Forever-Version** liegt öffentlich auf GitHub: `Gethe/wow-ui-source`, Zweig **`forever`** (Stand 1.60.1.70888, 10.11.2026). Damit lassen sich Abläufe nachlesen statt raten (z. B. `TooltipComparisonManager.lua`, `ContainerFrame.lua`, `SharedUIPanelTemplates.xml`). Mainline-Dateien (`…/Mainline/…`) sind die, die Forever nutzt.
-- **Forever heißt in Blizzards Code „camelot“** (Spieltyp in den TOC-Dateien, Ordner `…/Camelot/…`). Geladen wird die Mainline-Fassung (`[Family]`), dazu Camelot-Dateien, die einzelne Teile ersetzen (z. B. `Blizzard_SharedXML/Camelot/NineSliceLayoutOverrides.lua`, `SharedUIPanelTemplates.lua` mit Schließen-Knopf 28×28, `Blizzard_Professions/Camelot`). **Wichtig für das Aussehen:** Laut Blizzards Kommentar gibt es eigene Grafiken für Camelot unter denselben Atlas-Namen wie in Retail. Wie ein Atlas aussieht, lässt sich deshalb nicht aus dem Code ablesen, nur im Spiel (`/peon ui pruefen`, ab Peon 0.18.0). Die Ordner `…/Classic/…` (z. B. Marmor-Hintergründe im Auktionshaus) gelten nicht für Forever. Im Spiel bestätigt (11.11.2026): Metallrahmen, Reiter, Schließen-Knopf, Bildlaufleiste und Auswahllisten kommen aus eigenen Forever-Dateien, die Hintergründe des Auktionshauses aus Blizzards gewohnter Datei. Maße, Grafiken und Schriften für Peon-Fenster: `docs\konzepte\Peon_UI_Design.md`.
+- **Forever heißt in Blizzards Code „camelot“** (Spieltyp in den TOC-Dateien, Ordner `…/Camelot/…`). Geladen wird die Mainline-Fassung (`[Family]`), dazu Camelot-Dateien, die einzelne Teile ersetzen (z. B. `Blizzard_SharedXML/Camelot/NineSliceLayoutOverrides.lua`, `SharedUIPanelTemplates.lua` mit Schließen-Knopf 28×28, `Blizzard_Professions/Camelot`). **Wichtig für das Aussehen:** Laut Blizzards Kommentar gibt es eigene Grafiken für Camelot unter denselben Atlas-Namen wie in Retail. Wie ein Atlas aussieht, lässt sich deshalb nicht aus dem Code ablesen, nur im Spiel (`/pdebug ui pruefen` in Peon_Debug, bis Peon 0.24.1 `/peon ui pruefen`). Die Ordner `…/Classic/…` (z. B. Marmor-Hintergründe im Auktionshaus) gelten nicht für Forever. Im Spiel bestätigt (11.11.2026): Metallrahmen, Reiter, Schließen-Knopf, Bildlaufleiste und Auswahllisten kommen aus eigenen Forever-Dateien, die Hintergründe des Auktionshauses aus Blizzards gewohnter Datei. Maße, Grafiken und Schriften für Peon-Fenster: `docs\konzepte\Peon_UI_Design.md`.
 - **Hintergründe im Auktionshaus** (`AuctionHouseBackgroundTemplate`): `Background:SetAtlas(atlas, true)` in Originalgröße, nur oben links verankert und nicht gestreckt. Wer die Grafik auf einen anders großen Rahmen zieht, verzerrt sie (Broker 0.56 bis 0.58).
 - **`%d` in `string.format` nur bis 2^31** (2.147.483.647, also etwa 214.748 Gold in Kupfer): darüber bricht Forever-Lua mit „integer overflow attempting to store …“ ab. Angebote zum Höchstpreis (fast 5 Mio. Gold) kommen im Auktionshaus vor, Auktionsnummern können ebenfalls groß werden. Geldbeträge und Nummern immer mit `%.0f` oder `tostring` schreiben (Broker 0.30.2). Die Tests bauen die Grenze nach (`test_client.lua`).
 - **Nie `pcall` (oder `xpcall`) um eine Funktion mit sehr vielen Rückgabewerten** (z. B. `{ pcall(UIParent.GetChildren, UIParent) }`): Forever-Lua stürzt dann mit „Assertion failure! L->top < L->ci->top (lapi.c)“ ab (Broker 0.28.0, Berufsfenster). Direkt aufrufen: `{ frame:GetChildren() }`.
@@ -283,11 +293,4 @@ elease.json`. Ein neues Addon muss dort eingetragen werden, sonst bricht der Bau
 
 ## Früher: Übertragen aus der Cloud (bis 31.10.2026)
 
-Bis zum Umzug ins Git-Repo hat Claude in der Cloud gearbeitet und Lieferungen auf den PC übertragen. Diese Regeln gelten nur noch zum Verständnis des Archivs (`<Archiv>\eingang\`).
-
-- **Testen vor dem Übertragen:** lua5.1 mit einem kleinen WoW-Stub (nachgebaute API), zuerst an der Arbeitskopie in der Cloud; bei Datenänderungen mit einer Kopie der echten SavedVariables. Nach dem Übertragen die Tests zusätzlich lokal auf den echten Dateien laufen lassen (`run_tests.sh`, Lua liegt in `tools\`).
-- **Nach jedem Übertragen die Prüfsumme auf dem PC kontrollieren.** Einmal meldete die Übertragung „geschrieben“, obwohl die alte Datei blieb. Jede Lieferung in einem neuen Staging-Ordner.
-- **Entpacken in freigegebene Ordner:** `tar` überschreibt vorhandene Dateien nur mit `--overwrite` (sonst müsste es löschen, und Löschen ist ohne Freigabe gesperrt). Programmordner des Peon Client nicht überschreiben, sondern neu entpacken und tauschen (`mv`).
-- **Neue Programmversion klein übertragen:** Ändert sich nur der Programmcode, unterscheiden sich nur `resources\app.asar` und wenige Bytes der exe (Prüfsumme der asar). Dann reicht ein Paket mit app.asar und einer Liste der geänderten Bytes; auf dem PC `Runtime` nach `_neu` kopieren, beides einspielen, Prüfsummen aller Dateien mit dem Bau vergleichen, tauschen (Programm 0.3.0). Eine Datei gleichen Namens erneut zu übertragen kann die alte liefern: neuen Namen nehmen und die Prüfsumme kontrollieren.
-- **Dateien über 20 MB** lehnt die Übertragung ab (28 MB scheiterte, 20 MB ging): große Pakete in Stücke zu 15 MB teilen, auf dem PC mit `cat` zusammensetzen und Prüfsummen von Stücken, Ganzem und jeder Datei kontrollieren (Peon Client 0.1.0).
-- **Übertragen größerer Lieferungen:** Paket (`.tgz` mit `PRUEFSUMMEN.md5`) nach `eingang\` legen, auf dem PC in einen Zwischenordner entpacken, Prüfsummen prüfen, dann übernehmen und erneut prüfen; vorher kontrollieren, dass die zu ersetzenden Dateien noch dem Ausgangsstand entsprechen. Dateien vom PC in die Cloud holen: `device_stage_files`.
+Die Regeln von damals stehen im Archiv: `docs\archiv\Peon_Cloud_Uebertragen.md`.

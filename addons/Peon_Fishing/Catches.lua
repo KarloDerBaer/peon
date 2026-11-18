@@ -368,6 +368,7 @@ local shownPool       -- zuletzt angezeigter Schwarm (Ticker erkennt Aenderungen
 
 local function CreateList()
     list = CreateFrame("Frame", "PeonFishingCatchList", UIParent, "BackdropTemplate")
+    list:SetScript("OnUpdate", function(self, elapsed) ns.CatchListTick(self, elapsed) end)   -- ab 1.7.1, laeuft nur bei sichtbarer Liste
     list:SetSize(240, 60)
     list:SetFrameStrata("MEDIUM")
     list:SetClampedToScreen(true)
@@ -707,10 +708,15 @@ end)
 
 table.insert(ns.onModeChanged, function() ns.UpdateCatchList() end)
 
--- Schwarm-Zeile aktuell halten (Bewegung, Zeitfenster)
-C_Timer.NewTicker(1, function()
+-- Schwarm-Zeile aktuell halten (Bewegung, Zeitfenster). Ab 1.7.1 nur, solange die Fangliste zu sehen ist
+-- (OnUpdate an der Liste, vorher ein Takt jede Sekunde fuer immer).
+local listAcc = 0
+function ns.CatchListTick(_, elapsed)
+    listAcc = listAcc + (elapsed or 0)
+    if listAcc < 1 then return end
+    listAcc = 0
     if list and list:IsShown() and (ActivePool()) ~= shownPool then ns.UpdateCatchList() end
-end)
+end
 table.insert(ns.onLogin, function() ns.UpdateCatchList() end)
 
 ---------------------------------------------------------------------------

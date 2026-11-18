@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.16.2
+
+Kurz: Ledger braucht im Hintergrund weniger Leistung.
+
+- 0.16.2 (18.11.2026, Review mit KarloDerBaer):
+  - **Geändert:** Die Prüfung (`Probe.lua`) liest Ereignisse, Aufrufe und Fenster erst nach `/ledger pruefen` mit und dann bis zum nächsten `/reload`. Vorher lief sie bei jedem Login für alle Nutzer mit (rund 60 Ereignisse, darunter `BAG_UPDATE` und alle Zauber, dazu 17 mitgelesene Aufrufe) und meldete sich beim ersten Postfach mit einer Chatzeile.
+
 ## 0.16.1
 
 Kurz: Nachnahme ist in Peon Post vorerst ausgegraut. Der Server von WoW Forever lehnt zurzeit jeden Brief mit Nachnahme ab, auch aus Blizzards eigenem Postfenster.

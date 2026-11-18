@@ -2,6 +2,23 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.25.0
+
+Kurz: Neu sind Profile. Speichere die Einstellungen aller Peon-Addons unter einem Namen und lade sie auf einem anderen Charakter mit /peon profil.
+
+- 0.25.0 (18.11.2026, Review mit KarloDerBaer):
+  - **Neu, Kern-API 25:** Profile (`Profiles.lua`, `Peon.Profiles`). Ein Profil speichert je Modul alle Schlüssel aus `defaults` außer `keepOnReset` und `debug`, auch Charakterwerte. Laden prüft jeden Wert wie beim Start, begrenzt Zahlen und feuert danach `RESET`. `opts.noProfile` lässt ein Modul aus. Gespeichert in `PeonDB.profiles`, höchstens 20. `/peon profil [speichern | laden | loeschen <Name>]`, Unterseite Peon > Profile. Neu im Modul: `mod:_ApplyProfile(werte)`.
+  - **Entfernt:** Beispielfenster `/peon ui` und UI-Prüfung `/peon ui pruefen` (`UIDemo.lua`, `UIProbe.lua`, rund 950 Zeilen). Sie liegen jetzt im privaten Peon_Debug (`/pdebug ui`), weil sie nur beim Entwickeln gebraucht werden. Die Bausteine `Peon.UI` bleiben unverändert. Die Daten `PeonDB.uiProbe` und `PeonDB.uiDemoTab` werden nicht mehr geschrieben.
+
+## 0.24.1
+
+Kurz: Peon zeigt einmal kurz, dass es Daten mit anderen Peon-Nutzern teilt und wie du das ausschaltest.
+
+- 0.24.1 (18.11.2026, Review mit KarloDerBaer):
+  - **Neu:** Einmaliger Hinweis beim ersten Login (`teilen-2026-11`): Peon teilt Daten über einen versteckten Kanal, nichts davon im Chat, keine Charakternamen gespeichert, Ausschalten unter Einstellungen oder mit `/peon teilen aus`.
+  - **Geändert:** Keine Weitergabe mehr, auch nicht für Nachrichten von Peon 0.23.0. In 0.23.0 hat nur die Begrüßung Daten getauscht, die Weitergabe ließ jeden Empfänger fremde Spieler anflüstern. `RandomNames`, `RELAY`, `FANOUT` und `MAX_HOPS` bleiben als Teil der Kern-API stehen, werden aber nicht mehr genutzt. Der Status unter `/peon teilen` nennt keine weitergegebenen Nachrichten mehr.
+  - **Geändert:** Text der Option „Daten teilen“ beschreibt, wofür Module den Austausch nutzen (statt „vorerst nur die Version“).
+
 ## 0.24.0
 
 Kurz: Peon-Nutzer erreichen sich jetzt direkt über den versteckten Kanal. Das ist schneller und braucht weniger Nachrichten.

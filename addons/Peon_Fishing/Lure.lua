@@ -199,12 +199,18 @@ f:SetScript("OnEvent", function()
     if ns.RefreshKeys then ns.RefreshKeys("Taschen/Koeder") end
 end)
 
+-- Takt fuer die Tasten, ab 1.7.1 nur im Angelmodus (vorher lief das OnUpdate immer)
 local acc = 0
-f:SetScript("OnUpdate", function(_, elapsed)
+local function Tick(_, elapsed)
     acc = acc + elapsed
     if acc < 1 then return end
     acc = 0
     if ns.IsFishing() and not InCombatLockdown() and ns.RefreshKeys then ns.RefreshKeys("Takt") end
-end)
+end
+function ns.UpdateLureTick()
+    f:SetScript("OnUpdate", ns.IsFishing() and Tick or nil)
+end
+table.insert(ns.onModeChanged, function() ns.UpdateLureTick() end)
+table.insert(ns.onLogin, function() ns.UpdateLureTick() end)
 
 table.insert(ns.onLogin, function() ns.ScanLures() end)

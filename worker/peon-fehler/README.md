@@ -40,7 +40,8 @@ gh issue list --repo KarloDerBaer/peon-fehler
 Die Adresse steht im öffentlichen Repo, der Worker ist also für jeden erreichbar. Deshalb gilt:
 
 - Es werden nur Berichte im erwarteten Format angenommen, höchstens 64 KB und 20 Einträge je Sendung, Addon-Namen nur `Peon` oder `Peon_...`.
-- Höchstens 5 Sendungen je Stunde und Adresse und 30 je Stunde insgesamt. Die Zähler gelten je Rechenzentrum von Cloudflare, sie sind also eine Bremse und keine harte Grenze.
+- Höchstens 20 Einträge je Stunde und Adresse und 60 je Stunde insgesamt (ab 18.11.2026 zählen Einträge, vorher Sendungen mit bis zu 20 Einträgen). Die Zähler gelten je Rechenzentrum von Cloudflare, sie sind also eine Bremse und keine harte Grenze.
+- Gleiche Fehler (gleiches Addon, gleiche Stelle, gleiche Meldung, Version egal) bekommen eine Kennung `peon-key` unter dem Issue. Ist dazu schon ein offenes Issue da, hängt der Worker die neue Meldung als kurzen Kommentar daran. Er findet das Issue über die Suche von GitHub und merkt es sich eine Stunde lang. Rückmeldungen und Ideen kommen immer als eigenes Issue.
 - Fehlertexte stehen im Issue in Codeblöcken, damit sie weder das Issue verändern noch jemanden benachrichtigen.
 - Der Token darf nur Issues dieses einen Repos schreiben. Wird der Worker doch zugemüllt, reicht es, den Token zu löschen.
 - Die IP-Adresse wird nur als Prüfsumme für die Zähler verwendet und nach einer Stunde verworfen.

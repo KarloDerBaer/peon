@@ -2,6 +2,28 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.48.0
+
+Kurz: Der Manager sichert jetzt die Daten deiner Peon-Addons vor jedem Update und einmal am Tag. Unter Einstellungen holst du einen älteren Stand zurück.
+Kurz: Neue Seite Hilfe mit einer kurzen Anleitung zu jedem Addon.
+
+- 0.48.0 (18.11.2026, Review mit KarloDerBaer):
+  - **Neu, Spieldaten sichern** (`src/core/gamebackup.js`): Die SavedVariables der Peon-Addons aus `WTF\Account` (Konto und Charaktere) gepackt im Datenordner unter `Spielsicherung`. Vor jedem Installieren oder Aktualisieren (höchstens alle 10 Minuten) und einmal am Tag. Je Anlass bleiben die neuesten (vor Update 5, täglich 7, von Hand 5, vor Wiederherstellen 3). Unter Einstellungen: Jetzt sichern, Liste, Wiederherstellen (nur bei geschlossenem WoW, vorher wird der jetzige Stand gesichert), Löschen, Ordner öffnen. Fremde Dateien bleiben unberührt.
+  - **Neu, Hilfe:** Seite Hilfe mit Suche und Sprungleiste, Inhalt aus `docs/Hilfe.md` im Repo (auch auf GitHub lesbar). Ein kleiner Leser (`src/renderer/markdown.js`) gibt nur Text aus, kein HTML.
+  - **Neu, abgelöste Addons:** `retired` im Manifest. Peon_ComboPoints wird nicht mehr ausgeliefert. Ist es noch installiert, zeigt die Seite Updates es als „Abgelöst“ und entfernt es wie bisher von selbst, sobald Peon_ClassBuddy die Einstellungen übernommen hat. Von Hand entfernen geht ebenfalls.
+  - **Geändert:** Änderungen am Broker Client bei ausgeschaltetem Modul melden „Das Modul Peon Broker Client ist ausgeschaltet.“ statt eines Programmfehlers.
+
+## 0.47.0
+
+Kurz: Die Größe des Fensterinhalts lässt sich einstellen, auch mit Strg und Plus oder Minus.
+Kurz: Mehr Listen gehen jetzt auch mit der Tastatur, und Rückmeldungen an Peon werden bei gleichen Fehlern zusammengefasst.
+
+- 0.47.0 (18.11.2026, Review mit KarloDerBaer):
+  - **Neu:** Größe der Oberfläche unter Einstellungen, Programm (80 bis 175 %), dazu Strg und Plus, Minus, 0 sowie Strg und Mausrad (`src/core/zoom.js`, Einstellung `zoom`, gemerkt in `settings.json`). Vorher gab es keinen Zoom, weil das Fenster kein Menü hat.
+  - **Geändert:** Klickbare Zeilen und Spaltenköpfe in Stabilität, Marktübersicht und Erfolgskontrolle gehen jetzt auch mit Tab und Enter (wie schon in Übersicht, Chancen, Einkaufen, Beobachten und Händler).
+  - **Behoben:** Der Dialog „Rückmeldung“ zu einer Chance schließt jetzt mit Escape, und der Zähler zeigt die richtige Grenze (1000 statt 250 Zeichen).
+  - **Geändert (Fehler-Worker, gilt nach dem Hochladen):** Die Sperre zählt Einträge statt Sendungen (20 je Stunde und Adresse, 60 insgesamt). Gleiche Fehler (Addon, Stelle, Meldung) kommen als Kommentar an das offene Issue statt als neues Issue.
+
 ## 0.46.0
 
 Kurz: Die Übersicht zeigt jetzt, wie stabil der Markt ist, mit Verlauf im Diagramm. Der Markt ist jetzt der erste Reiter in der Marktübersicht.
