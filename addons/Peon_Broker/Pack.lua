@@ -32,9 +32,10 @@ local function Plain(s)
 end
 
 -- Eine Zeile "- 16 Kupferrohre" -> 16, "Kupferrohre" (sonst nil)
+-- 0.103.3: Tippfehler im Spieltext wie "-: 20 schweres Leder" (Textilien des Experten) zaehlen auch
 function P.ParseLine(text)
     if type(text) ~= "string" or Peon.IsSecret(text) then return nil end
-    local n, name = Plain(text):match("^%s*%-%s*(%d+)%s*[xX]?%s+(.-)%s*$")
+    local n, name = Plain(text):match("^%s*%-%s*[:.]?%s*(%d+)%s*[xX]?%s+(.-)%s*$")
     n = tonumber(n)
     if not n or n < 1 or not name or name == "" then return nil end
     return n, name

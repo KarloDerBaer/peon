@@ -4066,6 +4066,10 @@ end)()
   check(n2 == 4 and s2 == "Kupfermodulatoren", "0.87: Farbcodes und Leerzeichen am Ende stoeren nicht")
   check(P.ParseLine("Benötigt Stufe 10") == nil and P.ParseLine("- Kupferrohre") == nil and P.ParseLine("-16") == nil, "0.87: andere Zeilen zaehlen nicht")
   check(P.Parse({ "Benutzen: ...", "- 16 Kupferrohre" }) == nil, "0.87: ein Paket allein ist keine Auswahl")
+  local n3, s3 = P.ParseLine("-: 20 schweres Leder")
+  check(n3 == 20 and s3 == "schweres Leder", "0.103.3: Tippfehler '-:' im Spieltext gelesen")
+  local pk = P.Parse({ "Liste:", "- 40 Magiestoff", "-: 20 schweres Leder" })
+  check(pk and #pk == 2, "0.103.3: Textilien des Experten ergeben zwei Pakete")
   local mk = D.Market(nil, true)
   mk.items[7801] = { m = 300, md = 300, q = 50, n = 5, t = clock, nm = "Kupferrohr", ql = 1 }
   mk.items[7802] = { m = 500, md = 500, q = 50, n = 5, t = clock, nm = "Kupfermodulator", ql = 1 }

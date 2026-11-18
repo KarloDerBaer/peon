@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.103.3
+
+Kurz: Der Paketvergleich erscheint jetzt auch bei der Kiste „Textilien des Experten“.
+
+- 0.103.3 (18.11.2026, Rückmeldung KarloDerBaer):
+  - **Behoben, Paketvergleich:** Im Spieltext der Kiste steht „-: 20 schweres Leder“ mit einem Doppelpunkt zu viel. `P.ParseLine` las diese Zeile nicht, es blieb nur ein Paket übrig und der Vergleich erscheint erst ab zwei. Jetzt darf nach dem Strich ein Doppelpunkt oder Punkt stehen.
+  - Tests: Zeile mit „-:“ gelesen, Textilien des Experten ergeben zwei Pakete (`test_broker.lua`).
+
 ## 0.103.2
 
 Kurz: Broker braucht im Auktionshaus etwas weniger Leistung.
