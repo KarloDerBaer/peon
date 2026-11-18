@@ -31,6 +31,7 @@ const { makeZip, readZip } = require('../manager/src/core/zip');
 
 const REPO = path.join(__dirname, '..');
 
+const GITHUB_URL = 'https://github.com/KarloDerBaer/peon';   // fuer Links im Text des Release
 const MAX_NEWS = 20;   // so viele Versionen mit kurzem Text stehen im Manifest
 
 // Angabe local aus release.json: { "local": true } = nur zum Testen im Repo, kommt in kein Release
@@ -316,7 +317,10 @@ function releaseNotes(m, table) {
   table = table || m.addons.map((a) => ({ name: a.name, version: a.version, prev: '', note: '', items: [] }));
   const cell = (s) => String(s || '').replace(/\|/g, '\\|');
   const lines = [`Peon ${m.release}${m.prerelease ? ' (Vorabversion, Kanal Test)' : ''}`, ''];
-  lines.push(`Installation: \`PeonManager-Setup-${m.manager.version}.exe\` laden und starten, der Peon Manager installiert und aktualisiert die Addons. Anleitung in der README.`, '');
+  // ab 18.11.2026: oben ein klarer Hinweis, welche Datei neue Nutzer brauchen (die Liste der Dateien ist lang)
+  const setup = `PeonManager-Setup-${m.manager.version}.exe`;
+  lines.push(`**Neu hier? Lade nur [${setup}](${GITHUB_URL}/releases/download/${m.release}/${setup}) und starte die Datei.** Der Peon Manager installiert und aktualisiert die Addons, Anleitung in der [README](${GITHUB_URL}#-installation).`, '');
+  lines.push('Alle anderen Dateien in der Liste unten holt sich der Peon Manager selbst: die Addons als Zip, `manifest.json` und `latest.yml` für die Suche nach Updates und die `.blockmap`-Dateien, mit denen das Update des Managers nur geänderte Teile lädt. Du brauchst sie nicht.', '');
   lines.push('| Addon/Modul | Version alt | Version neu | Anmerkung |', '|---|---|---|---|');
   for (const t of table) lines.push(`| ${cell(t.name)} | ${cell(t.prev) || '–'} | ${cell(t.version)} | ${cell(t.note)} |`);
   for (const t of table.filter((x) => x.items.length)) {

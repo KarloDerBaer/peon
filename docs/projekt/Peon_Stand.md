@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 18.11.2026. Peon 0.26.0 (API 26) / Broker 0.103.2 / Ledger 0.16.2 / Bridge 0.12.0 / Peon Manager 0.48.0 / Fishing 1.7.1 / Tooltip 0.7.5 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.1 / Profession 0.6.0 / Warhorn 0.5.2.
+Stand: 18.11.2026. Peon 0.26.0 (API 26) / Broker 0.103.2 / Ledger 0.16.2 / Bridge 0.12.0 / Peon Manager 0.49.0 / Fishing 1.7.1 / Tooltip 0.7.5 / ClassBuddy 0.3.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.1 / Profession 0.6.0 / Warhorn 0.5.2.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -58,17 +58,18 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Befehle: `/broker`, `/broker optionen`, `/broker scan`, `/broker pruefen [scan | abfrage | beruf | ah | zeit | fehler | kalender | auktionen]`, `/broker debug`, `/peon broker`.
 - Offen: `e.sp` (zuletzt vermutlich verkauft) füllt sich nur aus Brokers eigenen Beobachtungen, der Manager kennt keine Verkaufspreise. Einmaligen Hinweis `broker:umbau-2026-11` nach ein paar Versionen aus `Broker.lua` und `Locales.lua` entfernen. Vorgemerkt: „Alles Lohnende kaufen“.
 
-## Peon Manager – 0.48.0 (Programm für Windows)
+## Peon Manager – 0.49.0 (Programm für Windows)
 
 - Quellcode `manager\`, Anleitung `manager\README.md`. Design `docs\konzepte\manager\Peon_GitHub_Design.md` (Manager, Module, Installieren) und `Peon_Client_Design.md` (Funktionen des Moduls Peon Broker Client).
 - Installiert für den Benutzer ohne Administratorrechte, Daten in `%APPDATA%\Peon Manager\Daten` (verlegbar unter Einstellungen, Daten). Selbst-Update über `electron/updater.js`. Anderer Datenordner zum Testen: `PEON_MANAGER_DB`, andere Release-Quelle: `PEON_MANAGER_RELEASES`.
 - Addons: Manifest des Release, Zip prüfen, tauschen, bei Fehler zurück (`src\core\addons.js`). Junctions gelten als „Entwicklung (Repo)“ und bleiben unberührt. Kanal Stabil oder Test. Ersetzte Addons über `replacedBy`, abgelöste ohne Zip über `retired` im Manifest (ab 0.48.0).
 - Modul **Peon Broker Client** (`broker-client`, Standard aus): eigene Arbeitsprozesse zum Schreiben, Rechnen und Lesen, SQLite `broker-client.db` (Schema 15). Liest `Peon_Bridge.lua`, schreibt `AddOns\Peon_Bridge\Data.lua`. Seiten Übersicht, Marktübersicht (mit Stabilität), Gegenstände, Chancen, Einkaufen, Beobachten, Händler, Datenlage, Erfolgskontrolle. Blizzard-API mit Zugang unter Einstellungen (`docs\konzepte\manager\Peon_Blizzard_API.md`).
-- Rückmeldungen (`src\core\reports.js`): Fehler aus `Peon.lua` und `!BugGrabber.lua`, Einträge aus Peon_Feedback, Senden über den Worker `worker\peon-fehler\` in ein privates Repo.
+- Rückmeldungen (`src\core\reports.js`): Fehler aus `Peon.lua` und `!BugGrabber.lua`, Einträge aus Peon_Feedback, Senden über den Worker `worker\peon-fehler\` in ein privates Repo. Ab 0.49.0 mit anonymer Kennung der Installation (`senderId`, im Issue „Absender …“).
 - Spieldaten sichern (ab 0.48.0, `src\core\gamebackup.js`): SavedVariables `Peon*.lua` aus `WTF\Account` gepackt nach `<Datenordner>\Spielsicherung\<Datum>_<Anlass>`, vor jedem Installieren (höchstens alle 10 Minuten) und täglich, je Anlass die neuesten. Wiederherstellen nur bei geschlossenem WoW, vorher Sicherung des jetzigen Stands.
 - Hilfe (ab 0.48.0): Seite aus `docs\Hilfe.md` (`views\Help.vue`, `src\renderer\markdown.js`, nur Text, kein HTML). Neue Addons brauchen dort einen Abschnitt, sonst schlägt `test\hilfe.test.js` fehl.
-- Einstellungen `settings.json`: unter anderem `wowDir`, `theme`, `zoom` (Größe der Oberfläche, ab 0.47.0), `keepDays`, `hourDays`, `updateCheckMin`, `modules`.
+- Einstellungen `settings.json`: unter anderem `wowDir`, `theme`, `zoom` (Größe der Oberfläche, ab 0.47.0), `senderId` (anonyme Kennung, ab 0.49.0), `keepDays`, `hourDays`, `updateCheckMin`, `modules`.
 - Bedienung: Strg und Plus, Minus, 0 sowie Strg und Mausrad ändern die Größe (ab 0.47.0). Klickbare Zeilen gehen auch mit Tab und Enter, Dialoge schließen mit Escape.
+- Peon unterstützen (ab 0.49.0): Eintrag unten in der Seitenleiste und Abschnitt in der Hilfe, öffnet `https://buymeacoffee.com/karloderbaer` (in `openLink` einzeln freigegeben).
 - Bauen: `npm ci`, `npm run dist:setup`. Tests: `npm test` im Ordner `manager\`.
 - Offen: Grenzen der Stabilität nach vollen 14 Tagen prüfen (Ende November), dabei klären, ob die Richtung mitzählen soll. Prüfungen P1 bis P4 aus `Peon_Manager_Chancen.md`. Absatz und Prognosen lesen je rund 930 000 Vergleichszeilen (je etwa 4 Sekunden).
 

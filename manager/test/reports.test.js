@@ -234,6 +234,33 @@ test('Senden: aelteste zuerst, Notiz dabei, Namen ersetzt, nur Bestaetigtes wird
   } finally { delete process.env.PEON_MANAGER_REPORT_URL; svc.close(); }
 });
 
+test('Absender-Kennung (ab 0.49.0): zufaellig, bleibt gleich, geht mit, neu auf Wunsch', async () => {
+  const calls = [];
+  const { svc, rep } = setup({ fetchImpl: async (url, o) => { calls.push(JSON.parse(o.body)); return { ok: true, status: 200, json: async () => ({ done: [0] }) }; } });
+  rep.addFeedback(mine());
+  assert.equal(rep.state().preview.sender, null, 'vor dem ersten Senden noch keine Kennung');
+  process.env.PEON_MANAGER_REPORT_URL = 'https://test.invalid/bericht';
+  try {
+    await rep.send();
+    const id = calls[0].sender;
+    assert.match(id, /^[0-9a-f]{8}$/);
+    assert.equal(svc.settings.senderId, id, 'in den Einstellungen gemerkt');
+    assert.equal(rep.state().preview.sender, id, 'Vorschau zeigt die Kennung');
+    rep.addFeedback(mine({ text: 'zweite' }));
+    await rep.send();
+    assert.equal(calls[1].sender, id, 'gleiche Kennung beim naechsten Senden');
+    const neu = rep.newSenderId();
+    assert.match(neu, /^[0-9a-f]{8}$/);
+    assert.notEqual(neu, id);
+    rep.addFeedback(mine({ text: 'dritte' }));
+    await rep.send();
+    assert.equal(calls[2].sender, neu, 'neue Kennung geht mit');
+    svc.saveSettings({ senderId: 'kaputt!' });
+    assert.equal(rep.senderId(false), null, 'ungueltige Kennung gilt nicht');
+  } finally { process.env.PEON_MANAGER_REPORT_URL = ''; }
+  svc.close();
+});
+
 test('Senden: hoechstens 20 und unter der Grenze des Workers, der Rest bleibt', () => {
   const { svc, rep, core } = setup();
   const many = [];
@@ -295,6 +322,18 @@ test('Worker: je Eintrag ein Issue mit Label, Nummern und Bestaetigung zurueck',
   assert.deepEqual(seen[1].issue.labels, ['idee']);
   assert.match(seen[1].issue.body, /Priorität Hoch/);
   assert.match(seen[1].issue.body, /Markt: Reich \/ Alliance/);
+  assert.match(seen[0].issue.body, /^Peon Manager 1\.2\.3\n/, 'ohne Kennung kein Absender');
+});
+
+test('Worker: Absender-Kennung im Issue und im Kommentar, falsche Kennung weggelassen', async () => {
+  const { handle, cleanReport, buildComment } = await worker();
+  const seen = [];
+  const fetchImpl = async (url, o) => { if (o.method === 'GET') return new Response(JSON.stringify({ items: [] })); seen.push(JSON.parse(o.body)); return new Response(JSON.stringify({ number: 3 }), { status: 201 }); };
+  await handle(post({ ...good([fbItem()]), sender: 'a1b2c3d4' }), ENV, { fetchImpl, cache: fakeCache() });
+  assert.match(seen[0].body, /^Peon Manager 1\.2\.3 · Absender a1b2c3d4\n/);
+  assert.equal(cleanReport({ ...good(), sender: '<b>@x</b>' }).sender, '');
+  assert.equal(cleanReport({ ...good(), sender: 'A1B2C3D4' }).sender, '', 'nur Kleinbuchstaben und Ziffern');
+  assert.match(buildComment(errItem(), '1.2.3', 'a1b2c3d4').body, /Wieder gemeldet von Peon Manager 1\.2\.3 \(Absender a1b2c3d4\)/);
 });
 
 test('Worker: scheitert GitHub mittendrin, wird nur Angelegtes bestaetigt', async () => {

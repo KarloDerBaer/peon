@@ -30,6 +30,7 @@ const DEFAULTS = {
   itemColumns: [],        // Spalten unter Gegenstaende, leer = Standard
   checklistHidden: false, // Einrichtungsliste ausgeblendet
   theme: 'dark',
+  senderId: '',           // ab 0.49.0: anonyme Kennung fuer Rueckmeldungen (reports.js, wird beim ersten Senden gewuerfelt)
   zoom: 1,                // ab 0.47.0: Groesse der Oberflaeche als Faktor (zoom.js, ZOOM_STEPS)
   keepDays: 7,            // Kennzahlen je Stand aufheben (Tage, 0 = unbegrenzt), ab 0.41.0 7 statt 14
   retentionV: 3,          // Stand der Standardwerte der Aufbewahrung (Umstellung im Konstruktor)

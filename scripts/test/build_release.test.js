@@ -104,6 +104,11 @@ test('Was ist neu: beim ersten Release leer, danach alles seitdem, neues Addon m
   assert.equal(broker.notes, '');
   assert.equal(broker.changed, true);
   assert.doesNotMatch(R.releaseNotes(first), /^## /m);
+  // ab 18.11.2026: oben der Direktlink auf den Installer und eine Erklaerung der anderen Dateien
+  const notes = R.releaseNotes(first);
+  assert.match(notes, /\*\*Neu hier\? Lade nur \[PeonManager-Setup-\d+\.\d+\.\d+\.exe\]\(https:\/\/github\.com\/KarloDerBaer\/peon\/releases\/download\/v2026\.11\.04\/PeonManager-Setup-\d+\.\d+\.\d+\.exe\)/);
+  assert.match(notes, /Alle anderen Dateien .* Du brauchst sie nicht\./);
+  assert.ok(notes.indexOf('Neu hier') < notes.indexOf('| Addon/Modul |'), 'Hinweis steht vor der Tabelle');
   const neu = run(f, { prev: { addons: [] } }).manifest.addons.find((a) => a.name === 'Peon_Broker');
   assert.equal(neu.notes, '### 0.33.0\n\n- Bridge');
   const prev = { addons: [{ name: 'Peon_Broker', version: '0.31.0' }, { name: 'Peon', version: '0.11.0' }] };

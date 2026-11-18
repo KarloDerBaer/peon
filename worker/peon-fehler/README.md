@@ -45,6 +45,7 @@ Die Adresse steht im öffentlichen Repo, der Worker ist also für jeden erreichb
 - Fehlertexte stehen im Issue in Codeblöcken, damit sie weder das Issue verändern noch jemanden benachrichtigen.
 - Der Token darf nur Issues dieses einen Repos schreiben. Wird der Worker doch zugemüllt, reicht es, den Token zu löschen.
 - Die IP-Adresse wird nur als Prüfsumme für die Zähler verwendet und nach einer Stunde verworfen.
+- Ab Manager 0.49.0 schickt der Manager eine anonyme Kennung seiner Installation mit (8 Zeichen, zufällig, Einstellung `senderId`). Sie steht im Issue als „Absender …“ und zeigt nur, ob mehrere Berichte vom selben Manager kommen. Andere Werte nimmt der Worker nicht an. Der Nutzer kann im Sendedialog jederzeit eine neue Kennung erzeugen.
 
 ## Tests
 

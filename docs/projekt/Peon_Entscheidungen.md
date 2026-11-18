@@ -3,6 +3,12 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 18.11.2026: Anonyme Absender-Kennung und übersichtlichere Releases (Manager 0.49.0)
+
+- **Anonyme Kennung je Installation** (KarloDerBaer): 8 zufällige Zeichen, beim ersten Senden erzeugt, im Issue als „Absender …“. Damit ist erkennbar, ob mehrere Berichte von derselben Installation kommen, ohne Namen oder Rechner zu kennen. Im Sendedialog sichtbar und jederzeit neu erzeugbar, erwähnt im Abschnitt Datenschutz der README.
+- **Weniger Dateien im Release:** Die Blockmaps alter Installer (fürs Laden nur geänderter Teile beim Update des Managers) kommen nur noch für die letzten 5 Versionen mit, vorher für alle (zuletzt 18). Ältere Versionen laden beim Update den ganzen Installer.
+- **Hinweis oben im Release-Text:** Direktlink auf den Installer und ein Satz, dass alle anderen Dateien der Manager selbst holt. GitHub lässt die Liste der Dateien nicht ordnen oder ausblenden.
+
 ## 18.11.2026: Laufende Profile mit Standard (Peon 0.26.0, Kern-API 26)
 
 - **Standard für alle, eigenes Profil je Charakter** (KarloDerBaer): Es gibt immer „Standard“. Jeder Charakter nutzt es, bis man ein anderes wählt. Änderungen gelten sofort für alle Charaktere mit demselben Profil. Die Stände aus 0.25.0 werden zu Profilen.

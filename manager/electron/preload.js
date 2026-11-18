@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('peon', {
   errorDelete: (key) => ipcRenderer.invoke('errorDelete', key),
   reportsClear: () => ipcRenderer.invoke('reportsClear'),
   reportsSend: () => ipcRenderer.invoke('reportsSend'),
+  reportSenderNew: () => ipcRenderer.invoke('reportSenderNew'),
   settings: () => ipcRenderer.invoke('settings'),
   items: (market) => ipcRenderer.invoke('items', market),
   item: (market, key, range) => ipcRenderer.invoke('item', market, key, range),

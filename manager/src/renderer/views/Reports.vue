@@ -93,6 +93,8 @@ const send = () => run('send', async () => {
   note.value = parts.join(' ');
   previewOpen.value = false;
 });
+// ab 0.49.0: neue anonyme Kennung, danach die Vorschau neu laden
+const newSender = () => run('sender', () => api.reportSenderNew());
 function openPreview() {
   error.value = '';
   note.value = '';
@@ -189,7 +191,7 @@ function openPreview() {
         </div>
         <p v-if="!state.canSend" class="small muted">Das Senden ist in dieser Fassung nicht eingerichtet.</p>
       </template>
-      <SendDialog v-if="previewOpen && total" :preview="state.preview" :busy="busy === 'send'" :error="error" @send="send" @close="previewOpen = false" />
+      <SendDialog v-if="previewOpen && total" :preview="state.preview" :busy="busy === 'send'" :error="error" @send="send" @newid="newSender" @close="previewOpen = false" />
     </section>
 
     <p v-if="error" class="err" role="alert">{{ error }}</p>

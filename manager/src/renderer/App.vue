@@ -218,6 +218,10 @@ onMounted(() => {
   api.onOpenWatch(({ market: mk, key }) => { market.value = mk; watchFocus.value = { key, at: Date.now() }; go('favorites'); load(); });
   setInterval(() => { now.value = Math.floor(Date.now() / 1000); }, 30000);
 });
+
+// ab 0.49.0: Peon unterstuetzen (Buy Me a Coffee), oeffnet den Browser
+const COFFEE_URL = 'https://buymeacoffee.com/karloderbaer';
+function openCoffee() { window.peon.openLink(COFFEE_URL); }
 </script>
 
 <template>
@@ -252,6 +256,8 @@ onMounted(() => {
           {{ n.label }}<span v-if="n.key === 'modules' && updates && updates.count" class="count" :title="`${updates.count} verfügbar`">{{ updates.count }}</span>
           <span v-if="n.key === 'reports' && data && data.reportCount" class="count" :title="`${data.reportCount} noch nicht gesendet`">{{ data.reportCount }}</span>
         </button>
+        <!-- ab 0.49.0: Peon unterstuetzen, klein unter den Eintraegen -->
+        <button class="nav coffee" title="Öffnet die Seite von KarloDerBaer bei Buy Me a Coffee im Browser" @click="openCoffee">☕ Peon unterstützen</button>
         <div class="rail-foot faint small" v-if="data">Version {{ data.version }}</div>
       </div>
     </nav>
@@ -318,6 +324,7 @@ onMounted(() => {
   padding: 9px 12px; color: var(--muted); font-weight: 500; display: flex; justify-content: space-between; align-items: center; }
 .nav:hover { color: var(--text); background: var(--line-soft); }
 .nav.on { color: var(--text); border-left-color: var(--accent); background: var(--accent-soft); }
+.nav.coffee { font-size: 13px; color: var(--muted); margin-top: 6px; }
 .group { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; padding: 8px 6px; background: var(--raised); border: 1px solid var(--line-soft); border-radius: var(--radius-m); }
 .group-title { padding: 0 8px 6px; font-family: var(--font-cond); font-weight: 600; font-size: 14px; color: var(--text); }
 .nav.parent { color: var(--text); border-left-color: var(--line); }

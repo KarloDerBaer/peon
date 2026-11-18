@@ -15,7 +15,8 @@ test('Hilfe: jedes ausgelieferte Addon und der Manager haben einen Abschnitt', (
   const names = Object.keys(cfg.addons).filter((n) => !cfg.addons[n].local);
   const heads = MD.split(/\r?\n/).filter((l) => l.startsWith('## ')).map((l) => l.slice(3).trim());
   for (const n of [...names, 'Peon Manager']) assert.ok(heads.includes(n), `Abschnitt fehlt: ${n}`);
-  for (const h of heads) assert.ok(h === 'Peon Manager' || names.includes(h), `Abschnitt ohne ausgeliefertes Addon: ${h}`);
+  const extra = ['Peon Manager', 'Peon unterstützen'];
+  for (const h of heads) assert.ok(extra.includes(h) || names.includes(h), `Abschnitt ohne ausgeliefertes Addon: ${h}`);
 });
 
 test('Hilfe: Texte ohne Gedankenstriche und Semikolons (Regel in CLAUDE.md)', () => {
@@ -52,4 +53,14 @@ test('Hilfe: Seite liest docs/Hilfe.md, ohne v-html, steht in der Navigation', (
   const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'App.vue'), 'utf8');
   assert.match(app, /\{ key: 'help', label: 'Hilfe', always: true \}/);
   assert.match(app, /<Help v-else-if="view === 'help'" \/>/);
+});
+
+test('Peon unterstuetzen (ab 0.49.0): Eintrag unten in der Seitenleiste, nur genau diese Adresse darf sich oeffnen', () => {
+  const URL = 'https://buymeacoffee.com/karloderbaer';
+  const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'App.vue'), 'utf8');
+  assert.ok(app.includes('☕ Peon unterstützen') && app.includes(`const COFFEE_URL = '${URL}'`));
+  assert.ok(app.indexOf('☕ Peon unterstützen') > app.indexOf('rail-bottom'), 'unten in der Seitenleiste');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'electron', 'main.js'), 'utf8');
+  assert.ok(main.includes(`const COFFEE_URL = '${URL}'`) && main.includes('const coffee = url === COFFEE_URL;'), 'Freigabe nur fuer genau diese Adresse');
+  assert.ok(MD.includes(URL) && MD.includes('freut sich KarloDerBaer'), 'Absatz in der Hilfe');
 });

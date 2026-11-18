@@ -4,7 +4,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { pl } from '../util.js';
 
 const props = defineProps({ preview: Object, busy: Boolean, error: String });
-const emit = defineEmits(['send', 'close']);
+const emit = defineEmits(['send', 'close', 'newid']);
 const root = ref(null);
 
 function close() { if (!props.busy) emit('close'); }
@@ -24,6 +24,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         <button class="x" aria-label="Schließen" :disabled="busy" @click="close">×</button>
       </header>
       <p class="small muted">Das geht an KarloDerBaer: genau der Text unten, je Eintrag ein Bericht in einem nicht öffentlichen GitHub-Repo. Deine Konto- und Charakternamen sowie Pfade sind ersetzt, Namen anderer Spieler in deinem Text aber nicht. Der Bericht läuft über einen Cloudflare-Dienst, der deine IP-Adresse technisch sieht, aber nicht speichert. Ein Konto brauchst du nicht. Gesendete Einträge verschwinden danach aus der Liste.</p>
+      <p class="small muted sender">Anonyme Kennung dieser Installation: <code>{{ preview.sender || 'wird beim ersten Senden erzeugt' }}</code>. Sie ist zufällig und verrät nichts über dich. Sie zeigt nur, ob mehrere Berichte vom selben Peon Manager kommen. <button class="link small" :disabled="busy" @click="emit('newid')">Neue Kennung</button></p>
       <pre class="stack">{{ preview.text }}</pre>
       <p v-if="preview.left" class="small muted">{{ pl(preview.left, 'weiterer Eintrag', 'weitere Einträge') }} beim nächsten Senden.</p>
       <p v-if="error" class="small err" role="alert">{{ error }}</p>

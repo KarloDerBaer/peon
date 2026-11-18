@@ -63,7 +63,9 @@ jobs:
       - name: Alles zusammenlegen
         run: |
           OUT="build/release/$TAG"
-          cp build/prev/*.blockmap "$OUT/" 2>/dev/null || true
+          # Blockmaps alter Installer: damit laedt das Selbst-Update nur geaenderte Teile. Ab 18.11.2026 nur die der letzten
+          # 5 Versionen, sonst wird die Liste im Release immer laenger. Aeltere Versionen laden den ganzen Installer.
+          ls build/prev/*.blockmap 2>/dev/null | sort -V | tail -n 5 | while read -r f; do cp "$f" "$OUT/"; done
           cp manager/release/PeonManager-Setup-*.exe manager/release/PeonManager-Setup-*.exe.blockmap manager/release/latest.yml "$OUT/"
           ls -la "$OUT"
           grep -q "\"version\": \"$(node -p "require('./manager/package.json').version")\"" "$OUT/manifest.json"

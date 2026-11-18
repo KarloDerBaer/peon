@@ -15,6 +15,7 @@ const KEY_SECONDS = 3600;          // so lange merkt sich der Worker, welches Is
 const KINDS = { bug: ['Fehler', 'fehler'], improve: ['Verbesserung', 'verbesserung'], idea: ['Neue Idee', 'idee'], other: ['Sonstiges', 'sonstiges'] };
 const PRIOS = { low: 'Niedrig', mid: 'Mittel', high: 'Hoch' };
 const ADDON = /^Peon(_\w+)?$/;
+const SENDER = /^[0-9a-f]{8}$/;   // ab Manager 0.49.0: anonyme Kennung der Installation (fehlt bei aelteren)
 
 const json = (status, data) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -49,7 +50,7 @@ export function cleanReport(data) {
   if (data.items.length < 1 || data.items.length > MAX_ITEMS) return null;
   const items = data.items.map(cleanItem);
   if (items.includes(null)) return null;
-  return { manager: plain(str(data.manager, 40)), items };
+  return { manager: plain(str(data.manager, 40)), sender: SENDER.test(str(data.sender, 8)) ? data.sender : '', items };
 }
 
 // Kennung eines Fehlers: gleiches Addon, gleiche Stelle, gleiche Meldung (Version egal). Steht unter dem Issue.
@@ -57,8 +58,8 @@ export async function errorKey(i) {
   return (await sha256(`${i.addon}|${i.where}|${i.msg}`)).slice(0, 16);
 }
 
-export function buildIssue(i, manager, key) {
-  const from = `Peon Manager ${manager || '?'}`;
+export function buildIssue(i, manager, key, sender) {
+  const from = `Peon Manager ${manager || '?'}${sender ? ` · Absender ${sender}` : ''}`;
   if (i.type === 'error') {
     const head = `${i.addon} ${i.version} | ${i.where} | ${i.n}x | zuletzt ${utc(i.last)} | Build ${i.build || '?'} | ${i.source}`;
     const lines = [head, i.msg];
@@ -75,8 +76,8 @@ export function buildIssue(i, manager, key) {
 }
 
 // Weitere Meldung desselben Fehlers: kurzer Kommentar am bestehenden Issue
-export function buildComment(i, manager) {
-  const head = `Wieder gemeldet von Peon Manager ${manager || '?'}: ${i.addon} ${i.version} | ${i.n}x | zuletzt ${utc(i.last)} | Build ${i.build || '?'}`;
+export function buildComment(i, manager, sender) {
+  const head = `Wieder gemeldet von Peon Manager ${manager || '?'}${sender ? ` (Absender ${sender})` : ''}: ${i.addon} ${i.version} | ${i.n}x | zuletzt ${utc(i.last)} | Build ${i.build || '?'}`;
   const lines = [head];
   if (i.note) lines.push('', 'Notiz:', i.note);
   return { body: `\`\`\`text\n${fence(lines.join('\n'))}\n\`\`\`` };
@@ -151,8 +152,8 @@ export async function handle(request, env, { fetchImpl = fetch, cache = globalTh
     const key = item.type === 'error' ? await errorKey(item) : null;
     const open = key ? await findIssue(key, env, gh, cache) : null;
     const res = open
-      ? await gh(`https://api.github.com/repos/${env.GITHUB_REPO}/issues/${open}/comments`, buildComment(item, report.manager))
-      : await gh(`https://api.github.com/repos/${env.GITHUB_REPO}/issues`, buildIssue(item, report.manager, key));
+      ? await gh(`https://api.github.com/repos/${env.GITHUB_REPO}/issues/${open}/comments`, buildComment(item, report.manager, report.sender))
+      : await gh(`https://api.github.com/repos/${env.GITHUB_REPO}/issues`, buildIssue(item, report.manager, key, report.sender));
     if (!res.ok) { failed = res.status; break; }
     const number = open || (await res.json()).number;
     if (key) await rememberIssue(key, number, cache);

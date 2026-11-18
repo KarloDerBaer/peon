@@ -21,6 +21,7 @@ const { log } = require('./db');
 // Adresse des Workers (worker/peon-fehler). Leer: Senden ist nicht eingerichtet.
 const REPORT_URL = 'https://peon-fehler.karloderbaer.workers.dev/bericht';
 const REPORT_FMT = 2;
+const SENDER_RE = /^[0-9a-f]{8}$/;   // ab 0.49.0: anonyme Kennung dieser Installation (Einstellung senderId)
 const MAX_ITEMS = 20;             // je Senden, der Rest bleibt fuer das naechste Mal
 const MAX_REPORT_BYTES = 50000;   // der Worker nimmt hoechstens 64 KB an
 const MAX_TEXT = 2000, MAX_STACK = 1500, MAX_MSG = 1000;
@@ -317,7 +318,21 @@ class ReportStore {
       const where = [i.zone && `Zone ${i.zone}`, i.market && `Markt ${i.market}`].filter(Boolean).join(', ');
       return [`${head}${labelOf(KINDS, i.kind)}, ${i.module}${i.version ? ` ${i.version}` : ''}, ${i.area}, Priorität ${labelOf(PRIOS, i.prio)}${where ? `, ${where}` : ''}`, i.text].join('\n');
     });
-    return { text: parts.join('\n\n'), count: next.length, left };
+    return { text: parts.join('\n\n'), count: next.length, left, sender: this.senderId(false) };
+  }
+
+  // Ab 0.49.0: anonyme Kennung dieser Installation. Zufaellig, ohne Bezug zu Namen, Konto oder Rechner. Damit sieht
+  // KarloDerBaer, ob mehrere Berichte von derselben Installation kommen. create = false: nur lesen (null, wenn es keine gibt)
+  senderId(create = true) {
+    const id = this.host.settings.senderId;
+    if (SENDER_RE.test(String(id || ''))) return id;
+    return create ? this.newSenderId() : null;
+  }
+
+  newSenderId() {
+    const id = crypto.randomBytes(4).toString('hex');
+    this.host.saveSettings({ senderId: id });
+    return id;
   }
 
   // An den Worker senden, geloescht wird nur, was er bestaetigt
@@ -326,7 +341,7 @@ class ReportStore {
     if (!url) throw new Error('Das Senden ist noch nicht eingerichtet.');
     const { next, left } = this.nextItems();
     if (!next.length) throw new Error('Es gibt nichts zu senden.');
-    const report = { fmt: REPORT_FMT, manager: this.host.version, items: next.map((e, ref) => ({ ...e.item, ref })) };
+    const report = { fmt: REPORT_FMT, manager: this.host.version, sender: this.senderId(), items: next.map((e, ref) => ({ ...e.item, ref })) };
     const keep = 'Deine Einträge bleiben erhalten.';
     let res;
     try {

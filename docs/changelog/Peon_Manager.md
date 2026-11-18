@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.49.0
+
+Kurz: Rückmeldungen tragen jetzt eine anonyme Kennung deines Peon Managers. So sieht KarloDerBaer, ob mehrere Berichte von derselben Installation kommen.
+
+- 0.49.0 (18.11.2026, Wunsch KarloDerBaer):
+  - **Neu, anonyme Absender-Kennung:** 8 Zeichen, zufällig beim ersten Senden erzeugt (`reports.js`, Einstellung `senderId`), ohne Bezug zu Namen, Konto oder Rechner. Sie geht mit jeder Sendung mit und steht im Issue als „Absender …“ (Worker). Der Sendedialog zeigt sie, „Neue Kennung“ erzeugt eine andere.
+  - **Neu, Peon unterstützen:** Eintrag „☕ Peon unterstützen“ unten in der Seitenleiste und ein Abschnitt am Ende der Hilfe. Öffnet die Seite von KarloDerBaer bei Buy Me a Coffee im Browser (nur genau diese Adresse ist freigegeben).
+  - Der Worker nimmt nur gültige Kennungen an. Ältere Manager senden keine, ihre Issues bleiben ohne Absender. Wirkt nach dem Hochladen des Workers (`npx wrangler deploy`).
+
 ## 0.48.0
 
 Kurz: Der Manager sichert jetzt die Daten deiner Peon-Addons vor jedem Update und einmal am Tag. Unter Einstellungen holst du einen älteren Stand zurück.

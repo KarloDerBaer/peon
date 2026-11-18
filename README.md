@@ -94,8 +94,14 @@ Fehler, Wünsche und Ideen meldest du am einfachsten im **Peon Manager** unter �
 
 - **Daten teilen im Spiel:** Peon tauscht über einen versteckten Kanal und unsichtbares Addon-Flüstern kleine Datenpakete mit anderen Peon-Nutzern aus, zum Beispiel für die Rezepte deiner Freunde in Peon_Profession. Im Chat erscheint davon nichts, Charakternamen speichert Peon dabei nicht. Ausschalten geht unter **Einstellungen > AddOns > Peon** („Daten teilen“) oder mit `/peon teilen aus`.
 - **Spieldaten:** Der Peon Manager sichert die Daten der Peon-Addons (zum Beispiel das Ledger-Buch) vor jedem Update und einmal am Tag auf deinem Rechner, im Datenordner unter „Spielsicherung“. Sie verlassen deinen Rechner nicht.
-- **Rückmeldungen:** Der Peon Manager sendet Fehler und Rückmeldungen nur, wenn du auf „Senden“ klickst. Vorher kannst du alles ansehen, ändern oder löschen. Die Berichte landen in einem privaten Repo, das nur KarloDerBaer sieht.
+- **Rückmeldungen:** Jede Sendung trägt eine anonyme Kennung deines Peon Managers (8 zufällige Zeichen). Sie verrät nichts über dich und zeigt nur, ob mehrere Berichte vom selben Manager kommen. Im Sendedialog kannst du jederzeit eine neue erzeugen. Der Peon Manager sendet Fehler und Rückmeldungen nur, wenn du auf „Senden“ klickst. Vorher kannst du alles ansehen, ändern oder löschen. Die Berichte landen in einem privaten Repo, das nur KarloDerBaer sieht.
 - **Peon Manager:** Er spricht nur mit GitHub (Updates), beim Senden von Rückmeldungen mit dem Dienst `peon-fehler` und, wenn du es einrichtest, mit der Blizzard-API (Auktionsdaten). Dein Zugang zur Blizzard-API liegt verschlüsselt auf deinem Rechner.
+
+## 🤖 Peon und KI
+
+Peon entsteht mit Hilfe von KI, und das möchte ich offen sagen. Die KI schreibt einen großen Teil des Codes, aber sie arbeitet nach meinen Vorgaben. Ich entscheide, welche Funktionen es gibt, wie die Fenster aussehen und wie sich alles bedienen lässt. Jede Version spiele ich selbst durch, melde Fehler zurück und lasse sie so lange nachbessern, bis sie passt. Dazu kommen über 5.000 automatische Prüfungen, die bei jedem Release laufen.
+
+Für mich ist die KI ein Werkzeug wie ein guter Editor, nur mächtiger. Die Zeit für Ideen, Design und Testen steckt weiter in jedem Addon. Wenn dir etwas auffällt, melde es gern über den Peon Manager.
 
 ## ☕ Peon unterstützen
 

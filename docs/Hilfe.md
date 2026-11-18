@@ -131,3 +131,7 @@ Das Programm für Windows installiert und aktualisiert die Addons.
 - **Spieldaten sichern:** Der Manager sichert die Daten der Peon-Addons vor jedem Update und einmal am Tag. Unter Einstellungen holst du einen älteren Stand zurück, wenn WoW geschlossen ist.
 - **Größe:** Strg und Plus oder Minus, Strg und Mausrad, Strg und 0 für 100 %.
 - **Modul Peon Broker Client** (unter Updates einschaltbar): sammelt die Auktionsdaten von Broker, wertet sie aus und zeigt Übersicht, Marktübersicht, Chancen, Einkaufen und Beobachten.
+
+## Peon unterstützen
+
+Peon ist kostenlos. Wenn es dir beim Spielen hilft, freut sich KarloDerBaer über einen Kaffee: https://buymeacoffee.com/karloderbaer. Im Peon Manager geht das auch über **☕ Peon unterstützen** unten in der Seitenleiste.

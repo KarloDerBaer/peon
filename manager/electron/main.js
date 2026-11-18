@@ -19,6 +19,7 @@ const { money: shopMoney } = require('../src/core/shopping');
 const blizzard = require('../src/core/blizzard');
 const { BlizzardWatch } = require('../src/core/blizzard-watch');
 const { findWowDirs, REPO_URL } = require('../src/core/addons');
+const COFFEE_URL = 'https://buymeacoffee.com/karloderbaer';   // ab 0.49.0: Peon unterstuetzen
 const modules = require('../src/core/modules');
 const { zoomOf, zoomStep, zoomKey } = require('../src/core/zoom');
 const chancebook = require('../src/core/chancebook');
@@ -440,6 +441,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('errorDelete', (_e, key) => svc.reports.deleteError(key));
     ipcMain.handle('reportsClear', () => svc.reports.deleteAll());
     ipcMain.handle('reportsSend', () => svc.reports.send());
+    ipcMain.handle('reportSenderNew', () => svc.reports.newSenderId());   // ab 0.49.0
     ipcMain.handle('settings', () => svc.settings);
     // ab 0.42.0: Ansichten, die nur lesen, ueber den Lese-Prozess (warten nie hinter dem Neurechnen)
     const rd = (name, ...a) => (svc.broker.read ? svc.broker.read(name, ...a) : svc.broker[name](...a));
@@ -607,7 +609,9 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('openLink', (_e, url) => {
       if (typeof url !== 'string') return;
       const repo = url === REPO_URL || url.startsWith(`${REPO_URL}/`);
-      if (repo || /^https:\/\/discord\.(gg|com)\//.test(url) || /^https:\/\/(develop|community\.developer)\.battle\.net\//.test(url)) shell.openExternal(url);
+      // ab 0.49.0: Seite zum Unterstuetzen (Kaffee), nur genau diese Adresse
+      const coffee = url === COFFEE_URL;
+      if (repo || coffee || /^https:\/\/discord\.(gg|com)\//.test(url) || /^https:\/\/(develop|community\.developer)\.battle\.net\//.test(url)) shell.openExternal(url);
     });
   }
 
