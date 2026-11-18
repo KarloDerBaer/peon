@@ -3,6 +3,16 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 18.11.2026: Gifte mit einer Taste (ClassBuddy 0.4.0)
+
+- **Eine schlaue Taste mit Erinnerung** (KarloDerBaer, Vorschlag A mit C): Jeder Druck trägt das nächste fehlende oder bald ablaufende Gift auf, zuerst Haupthand, dann Nebenhand. Nicht gewählt: je Hand eine eigene Taste.
+- **Sicherer Knopf mit `target-slot`** (Claude): Gegenstände auf eine Waffe legen darf nur Blizzards Knopfvorlage, wie beim Köder in Peon_Fishing. Der Knopf wirkt beim Loslassen (`useOnKeyDown = false`), damit Tastenbelegung und `/click` unabhängig von `ActionButtonUseKeyDown` gehen. Im Kampf bleibt die vorbereitete Hand, weil sich die Attribute dann nicht ändern dürfen.
+- **Gift je Hand als Art, Rang automatisch** (Claude): Man wählt Sofort wirkend, Tödlich usw., die Taste nimmt den höchsten benutzbaren Rang. Standard Haupthand Sofort wirkend, Nebenhand Tödlich, erneuert unter 10 Minuten oder 10 Ladungen.
+- **Ersetzen selbst bestätigen, mit Rückfall** (Claude): Nur wenn die Frage direkt nach unserem Druck kommt. Sperrt das Spiel das, erscheint Blizzards Frage wieder und es wird in der Sitzung nicht mehr versucht.
+- **Panel-Klick über einen sicheren Knopf auf dem Symbol** (Wunsch KarloDerBaer, Weg Claude): Linksklick trägt auf, Rechtsklick wählt das Gift je Waffe. Der sichere Knopf legt sich beim Tooltip über das Symbol, nur positioniert und nicht angehängt, damit das Panel im Kampf frei bleibt. Keine Änderung an Kern-API und Peon_Panel. Im Kampf geht das Auftragen nur mit Taste oder Makro.
+- **Nur die eigene Klasse** (KarloDerBaer): Panel-Einträge und Optionsreiter gibt es nur für die Klasse des Charakters.
+- **Erinnerung nur, wenn man etwas tun kann** (Claude): Warnung nur, wenn ein passendes Gift in den Taschen liegt, nicht in Stadt und Gasthaus, nicht im Kampf. So stört sie Schurken ohne Gifte (unter Stufe 20) nicht.
+
 ## 18.11.2026: Anonyme Absender-Kennung und übersichtlichere Releases (Manager 0.49.0)
 
 - **Anonyme Kennung je Installation** (KarloDerBaer): 8 zufällige Zeichen, beim ersten Senden erzeugt, im Issue als „Absender …“. Damit ist erkennbar, ob mehrere Berichte von derselben Installation kommen, ohne Namen oder Rechner zu kennen. Im Sendedialog sichtbar und jederzeit neu erzeugbar, erwähnt im Abschnitt Datenschutz der README.

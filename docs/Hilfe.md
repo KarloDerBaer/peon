@@ -83,6 +83,8 @@ Kleine Helfer je Klasse.
 
 - `/peon classbuddy` öffnet die Einstellungen.
 - **Schurke:** runde Combo-Punkte über dem Namensschild des Gegners, Größe und Farben einstellbar.
+- **Schurke, Gifte:** Mit der Taste „Gift auftragen“ oder dem Makro `/click PeonClassBuddyPoison` legst du das nächste fehlende oder bald ablaufende Gift auf, zuerst auf die Haupthand, dann auf die Nebenhand. Welches Gift auf welche Hand kommt, stellst du im Reiter „Gifte“ ein. Der Klassenbuddy erinnert dich, wenn ein Gift fehlt oder knapp wird. `/peon classbuddy gifte` zeigt den Stand. Im Peon Panel gibt es den Eintrag „Gifte“: Linksklick trägt auf, Rechtsklick wählt das Gift je Waffe.
+- Der Klassenbuddy zeigt nur die Helfer deiner Klasse.
 - **Hexenmeister:** vernichtet überzählige Seelensplitter, wenn du einen Zauber wirkst. Dazu gibt es die Taste „Seelensplitter vernichten“ und das Makro `/click PeonClassBuddyShard`.
 
 ## Peon_Tooltip

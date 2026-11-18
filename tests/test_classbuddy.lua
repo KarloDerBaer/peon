@@ -1,4 +1,4 @@
--- Stub-Test fuer Peon + Peon_ClassBuddy: Combo-Punkte (Schurke), Seelensplitter (Hexenmeister), Optionen, Uebernahme
+-- Stub-Test fuer Peon + Peon_ClassBuddy als Hexenmeister: Seelensplitter, Optionen, Uebernahme aus Peon_ComboPoints, nur eigene Klasse
 -- Ausfuehren aus dem AddOns-Ordner (siehe tests/README.md).
 local out = {}
 print = function(...) local t = {} for i = 1, select("#", ...) do t[#t+1] = tostring((select(i, ...))) end out[#out+1] = table.concat(t, " "); io.write("  > ", out[#out], "\n") end
@@ -255,23 +255,18 @@ check(lastMsg() == "OPEN Peon/Klassenbuddy", "/peon classbuddy oeffnet Seite")
 -- Starter fuer Peon_Panel
 check(ns.shardLauncher and ns.shardLauncher:IsAvailable(), "Eintrag fuer Peon_Panel")
 
--- ===== Schurke: Combo-Punkte =====
+-- ===== Nur die eigene Klasse (ab 0.4.0) =====
 mod.panel.scripts.OnShow()
-local pips = {}
-for _, f in ipairs(allFrames) do if f.kind == "StatusBar" then pips[#pips+1] = f end end
-check(#pips == 5 and pips[1].w == 22, "Vorschau: 5 Punkte mit uebernommener Groesse")
-local slider
-for _, f in ipairs(allFrames) do if f.kind == "Slider" and f.value == 22 then slider = f end end
-slider:SetValue(20)
-check(PeonClassBuddyDB.size == 20 and pips[1].w == 20, "Regler -> Vorschau")
-local nTimers = #timers
-CLASS = "ROGUE"
-local cpFrame
-for _, f in ipairs(allFrames) do if f.scripts.OnEvent and next(f.events) == nil and f ~= allFrames[1] then cpFrame = f end end   -- Hexenmeister: Rahmen hat sich abgemeldet
-cpFrame.scripts.OnEvent(cpFrame, "PLAYER_LOGIN")
-check(cpFrame.unitev.UNIT_POWER_UPDATE and ns.active, "Schurke: Combo-Punkte aktiv")
-slider:SetValue(18)
-check(#timers == nTimers + 1, "Schurke: Nameplates werden neu gezeichnet")
+local tabs = {}
+for _, t in ipairs(mod.page.tabList or {}) do tabs[#tabs+1] = t[1] end
+check(#tabs == 1 and tabs[1] == "warlock", "Hexenmeister: nur der Reiter Hexenmeister")
+local pips = 0
+for _, f in ipairs(allFrames) do if f.kind == "StatusBar" then pips = pips + 1 end end
+check(pips == 0, "Hexenmeister: keine Vorschau der Combo-Punkte")
+check(ns.poisonLauncher == nil and not ns.Poisons.IsActive() and _G.PeonClassBuddyPoison == nil, "Hexenmeister: keine Gifte, kein Panel-Eintrag")
+local keys = {}
+for _, l in ipairs(Peon.GetLaunchers()) do keys[l.key] = true end
+check(keys.shards and not keys.poisons, "Panel: nur Seelensplitter")
 mod:ResetDefaults()
 check(PeonClassBuddyDB.size == 15 and PeonClassBuddyDB.cpImported == true and PeonClassBuddyDB.shardRule == "free" and PeonClassBuddyDB.shardRule3, "Standardwerte, Uebernahme bleibt gemerkt")
 

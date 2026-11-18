@@ -2,7 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Konzept: `docs/konzepte/classbuddy/Peon_ClassBuddy_Konzept.md`.
 
-## 0.3.0
+## 0.4.0
+
+Kurz: Schurken tragen Gifte jetzt mit einer Taste auf. Jeder Druck legt das nächste fehlende oder bald ablaufende Gift auf, zuerst auf die Haupthand, dann auf die Nebenhand.
+Kurz: Der Klassenbuddy erinnert dich, wenn ein Gift fehlt, bald ausläuft oder in den Taschen knapp wird.
+Kurz: Neuer Eintrag „Gifte“ für Peon Panel: Linksklick trägt das nächste Gift auf, Rechtsklick wählt das Gift je Waffe, auf Wunsch mit Anzahl in den Taschen.
+Kurz: Der Klassenbuddy zeigt nur noch die Helfer deiner Klasse, in den Optionen und im Panel.
+
+- 0.4.0 (18.11.2026, Wunsch KarloDerBaer, Vorschlag A mit Erinnerung, Konzept Abschnitt 10):
+  - **Gift-Taste** (`Rogue_Poisons.lua`): sicherer Knopf `PeonClassBuddyPoison` (Typ `item`, `target-slot`, wirkt beim Loslassen), Tastenbelegung „Gift auftragen“, Makro `PeonGift` über den Knopf „Makro anlegen“. Gift je Hand wählbar (`poisonMain` Standard Sofort wirkend, `poisonOff` Standard Tödlich, oder keins), genommen wird der höchste benutzbare Rang. Erneuert unter `poisonRenew` Minuten (Standard 10) oder `poisonCharges` Ladungen (Standard 10, 0 = aus). Im Kampf gilt die beim Kampfbeginn vorbereitete Hand.
+  - **Ersetzen ohne Nachfrage** (`poisonReplace`): Die Frage des Spiels direkt nach dem Druck bestätigt der Klassenbuddy selbst. Sperrt das Spiel das, kommt die Frage wieder mit Hinweis im Chat.
+  - **Erinnerung** (`poisonWarn`, `poisonSound`): einmal in der Bildschirmmitte, wenn ein Gift fehlt oder abläuft und ein passendes in den Taschen liegt. Nicht im Kampf, tot, auf dem Flug oder in Stadt und Gasthaus. Dazu nach Einloggen, Instanz, Wiederbeleben und Bereitschaftscheck. Vorratswarnung bei `poisonLow` oder weniger (Standard 5, 0 = aus).
+  - Neuer Reiter „Gifte“ in den Optionen, Befehl `/peon classbuddy gifte`, Rückmeldebereich „Gifte“.
+  - **Panel-Eintrag „Gifte“:** Texte Restzeit, Gifte in den Taschen oder beides (im Menü des Panels wählbar). Beim Tooltip legt sich der unsichtbare sichere Knopf `PeonClassBuddyPoisonPanel` über das Symbol (nur positioniert, nicht angehängt, damit das Panel im Kampf frei bleibt). Linksklick klickt die Gift-Taste, Rechtsklick, Tooltip und Ziehen gehen an das Symbol weiter. Im Kampf verschwindet der Knopf, ein Klick auf das Symbol erklärt, dass nur die Taste geht. Das Menü wählt das Gift je Waffe, jeweils mit Anzahl in den Taschen.
+  - **Nur die eigene Klasse:** Panel-Einträge (Gifte, Seelensplitter) entstehen nur für die passende Klasse (`ns.ForClass`), die Optionen zeigen nur ihre Reiter. Andere Klassen sehen einen Hinweis.
+  - Tests: `test_classbuddy_schurke.lua` neu (Combo-Punkte, Auswahl, Ränge, Taste, Kampf, Ersetzen und Sperre, Waffen, Erinnerung, Vorrat, Makro, Befehl, Panel mit Klick, Menü und Kampf, Reiter). `test_classbuddy.lua` läuft als Hexenmeister und prüft, dass nichts vom Schurken da ist.
 
 Kurz: Neue Regel „Seelentasche minus 1“ für Seelensplitter, jetzt der Standard: Ein Platz der Seelentasche bleibt immer frei, so landet ein neuer Splitter nie in einer normalen Tasche.
 

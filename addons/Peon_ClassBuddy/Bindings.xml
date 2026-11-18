@@ -1,5 +1,8 @@
 <Bindings>
+    <!-- Schurke: naechstes Gift auftragen (sicherer Knopf in Rogue_Poisons.lua) -->
+    <Binding name="CLICK PeonClassBuddyPoison:LeftButton" header="PEON_CLASSBUDDY" category="ADDONS">
+    </Binding>
     <!-- Hexenmeister: einen ueberzaehligen Seelensplitter vernichten (unsichtbarer Knopf in Warlock_Shards.lua) -->
-    <Binding name="CLICK PeonClassBuddyShard:LeftButton" header="PEON_CLASSBUDDY" category="ADDONS">
+    <Binding name="CLICK PeonClassBuddyShard:LeftButton" category="ADDONS">
     </Binding>
 </Bindings>

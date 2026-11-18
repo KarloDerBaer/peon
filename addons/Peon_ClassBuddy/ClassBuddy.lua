@@ -1,6 +1,7 @@
 -- Peon_ClassBuddy - ClassBuddy.lua
 -- Klassenbuddy: kleine Helfer je Klasse (Konzept docs/konzepte/classbuddy/Peon_ClassBuddy_Konzept.md).
---   Schurke:      Combo-Punkte ueber dem Nameplate (Rogue_ComboPoints.lua, frueher Peon_ComboPoints)
+--   Schurke:      Combo-Punkte ueber dem Nameplate (Rogue_ComboPoints.lua, frueher Peon_ComboPoints),
+--                 Gifte mit einer Taste und Erinnerung (Rogue_Poisons.lua, ab 0.4.0)
 --   Hexenmeister: ueberzaehlige Seelensplitter vernichten (Warlock_Shards.lua)
 -- Jeder Teil startet nur fuer seine Klasse. Einstellungen in PeonClassBuddyDB, flach mit den Namen der Teile,
 -- damit die Bausteine der Optionsseite sie direkt nutzen koennen (Combo-Punkte mit den Namen aus Peon_ComboPoints).
@@ -37,6 +38,15 @@ local mod = Peon:NewModule(ADDON_NAME, {
         socketColor = { 0.00, 0.00, 0.00, 0.70 },  -- leere Fassung
         ringColor   = { 0.85, 0.70, 0.32, 1.00 },  -- goldener Rand
         cpImported  = false,                       -- Einstellungen aus Peon_ComboPoints uebernommen
+        poisonOn    = true,                        -- Gift-Taste (ab 0.4.0)
+        poisonMain  = "instant",                   -- Gift fuer die Haupthand (Art, Rang automatisch)
+        poisonOff   = "deadly",                    -- Gift fuer die Nebenhand
+        poisonRenew = 10,                          -- erneuern bei weniger Minuten
+        poisonCharges = 10,                        -- erneuern bei weniger Ladungen (0 = aus)
+        poisonReplace = true,                      -- Frage zum Ersetzen selbst bestaetigen
+        poisonWarn  = true,                        -- erinnern, wenn ein Gift fehlt oder ablaeuft
+        poisonSound = true,                        -- mit Ton
+        poisonLow   = 5,                           -- warnen, wenn nur noch so viele Gifte da sind (0 = aus)
         -- Hexenmeister
         shardOn     = true,                        -- ueberzaehlige Seelensplitter vernichten
         shardRule   = "free",                      -- free = Seelentasche minus 1 (ab 0.3.0), bag = Seelentasche voll, max = Hoechstzahl
@@ -51,8 +61,15 @@ local mod = Peon:NewModule(ADDON_NAME, {
         yOffset  = { -30, 60, 1 },
         ringPad  = { 0, 4, 1 },
         shardMax = { 1, 60, 1 },
+        poisonRenew   = { 1, 30, 1 },
+        poisonCharges = { 0, 50, 1 },
+        poisonLow     = { 0, 20, 1 },
     },
-    choices  = { shardRule = { free = true, bag = true, max = true } },
+    choices  = {
+        shardRule  = { free = true, bag = true, max = true },
+        poisonMain = { instant = true, deadly = true, crippling = true, mind = true, wound = true, none = true },
+        poisonOff  = { instant = true, deadly = true, crippling = true, mind = true, wound = true, none = true },
+    },
     validate = {
         fillColor   = IsColor(3),
         socketColor = IsColor(4),
@@ -71,6 +88,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
     onSlash  = function(m, cmd, rest)
         if cmd == "splitter" or cmd == "shard" or cmd == "shards" then
             if ns.Shards then ns.Shards.Report() end
+        elseif cmd == "gifte" or cmd == "gift" or cmd == "poisons" or cmd == "poison" then
+            if ns.Poisons then ns.Poisons.Report() end
         else
             m:OpenOptions()
         end
@@ -83,6 +102,21 @@ function ns.PlayerClass()
     local _, class = UnitClass("player")
     if Peon.IsSecret(class) then return nil end
     return class
+end
+
+-- fn einmal ausfuehren, wenn der Charakter diese Klasse hat (ab 0.4.0). Die Klasse ist meist schon beim Laden
+-- bekannt (INIT), sonst spaetestens beim Einloggen. Andere Klassen bekommen so weder Panel-Eintrag noch Reiter.
+function ns.ForClass(class, fn)
+    local done = false
+    local function try()
+        if done then return end
+        local c = ns.PlayerClass()
+        if not c then return end
+        done = true
+        if c == class then fn() end
+    end
+    mod:On("INIT", try)
+    mod:On("LOGIN", try)
 end
 
 -- Einstellungen aus Peon_ComboPoints einmalig uebernehmen. Erst beim Einloggen, weil Peon_ComboPoints
@@ -118,6 +152,6 @@ end)
 -- Bereiche fuer Rueckmeldungen in Peon_Feedback
 if Peon.SetFeedbackAreas then
     Peon.SetFeedbackAreas(ADDON_NAME, (GetLocale() == "deDE")
-        and { "Combo-Punkte", "Seelensplitter", "Optionen" }
-        or  { "Combo points", "Soul shards", "Options" })
+        and { "Combo-Punkte", "Gifte", "Seelensplitter", "Optionen" }
+        or  { "Combo points", "Poisons", "Soul shards", "Options" })
 end

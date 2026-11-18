@@ -1,6 +1,6 @@
 # Peon_ClassBuddy: Konzept
 
-Stand: 14.11.2026, abgestimmt mit KarloDerBaer (Abschnitt 8), Prüfung im Spiel erledigt (Abschnitt 4.3), umgesetzt in ClassBuddy 0.2.0 und Peon_ComboPoints 3.6.0. Anlass: Wunsch aus dem Feedback (peon-fehler #36, Bereich ComboPoints, Priorität hoch): ein Addon für mehrere Klassen, das die Combo-Punkte des Schurken mitbringt und für den Hexenmeister überzählige Seelensplitter vernichtet. Angezeigt wird es als „Klassenbuddy“.
+Stand: 18.11.2026, abgestimmt mit KarloDerBaer (Abschnitt 8 und 10), Prüfung im Spiel erledigt (Abschnitt 4.3), umgesetzt in ClassBuddy 0.2.0 und Peon_ComboPoints 3.6.0, Gifte in ClassBuddy 0.4.0. Anlass: Wunsch aus dem Feedback (peon-fehler #36, Bereich ComboPoints, Priorität hoch): ein Addon für mehrere Klassen, das die Combo-Punkte des Schurken mitbringt und für den Hexenmeister überzählige Seelensplitter vernichtet. Angezeigt wird es als „Klassenbuddy“.
 
 ## 1. Idee
 
@@ -141,3 +141,46 @@ Verhalten und Optionen bleiben genau wie in Peon_ComboPoints 3.5.1. Nur die Eins
 3. Seelensplitter mit dem Weg, den die Prüfung erlaubt.
 
 Schritte 2 und 3 umgesetzt in ClassBuddy 0.2.0 und Peon_ComboPoints 3.6.0 (14.11.2026). Offen: Prüfung im Spiel, später Peon_ComboPoints entfernen.
+
+## 10. Schurke: Gifte mit einer Taste (ab 0.4.0)
+
+Abgestimmt mit KarloDerBaer am 18.11.2026: Vorschlag A (eine schlaue Taste) zusammen mit C (Erinnerung). Nicht gewählt: B (je Hand eine eigene Taste).
+
+### 10.1 Die Taste
+
+- Unsichtbarer sicherer Knopf `PeonClassBuddyPoison` (`SecureActionButtonTemplate`, Typ `item`, Attribut `target-slot` 16 oder 17). Blizzards Vorlage benutzt das Gift und legt es danach mit `UseInventoryItem` auf die Waffe. Derselbe Weg wie beim Köder in Peon_Fishing.
+- Tastenbelegung „Gift auftragen“, Makro `PeonGift` mit `/click PeonClassBuddyPoison`, Knopf „Makro anlegen“ in den Optionen.
+- `useOnKeyDown = false`: Der Knopf wirkt beim Loslassen. Die Tastenbelegung schickt Drücken und Loslassen, `/click` nur das Loslassen. So geht beides, egal wie `ActionButtonUseKeyDown` steht (nachgelesen in `SecureTemplates.lua`, Zweig forever).
+- Jeder Druck trägt EIN Gift auf: zuerst Haupthand, dann Nebenhand, jeweils nur, wenn es fehlt oder bald abläuft (weniger als `poisonRenew` Minuten oder weniger als `poisonCharges` Ladungen). Ist alles frisch, steht der Stand im Chat.
+- Je Hand wird die Art gewählt (Sofort wirkend, Tödlich, Verkrüppelnd, Gedankenbenebelnd, Wund, keins). Genommen wird der höchste Rang in den Taschen, den das Spiel als benutzbar meldet. Erkannt werden die Gifte über ihre Gegenstandsnummern aus dem klassischen Spiel.
+- Nur echte Waffen (Klasse 2), keine Angel, kein Schild.
+- Außerhalb des Kampfes entscheidet der Knopf bei jedem Druck neu (`PreClick`). Im Kampf dürfen sich die Attribute nicht ändern: Dann gilt, was beim Kampfbeginn vorbereitet war. Ein zweiter Druck im Kampf trifft also dieselbe Hand.
+- Welche Art gerade auf der Waffe liegt, verrät das Spiel nur als Nummer der Verzauberung. Die Taste schaut deshalb nur auf Restzeit und Ladungen, nicht auf die Art.
+
+### 10.2 Ersetzen
+
+Liegt noch ein Gift auf der Waffe, fragt das Spiel nach (`REPLACE_ENCHANT`). Kommt die Frage höchstens 3 Sekunden nach unserem Druck, bestätigt der Klassenbuddy sie mit `C_Item.ReplaceEnchant()` und schließt sie (`poisonReplace`, abschaltbar). Meldet das Spiel `ADDON_ACTION_BLOCKED`, erscheint die Frage wieder, und in dieser Sitzung wird es nicht mehr versucht. Ob das Spiel das erlaubt, zeigt erst der Alltag.
+
+### 10.3 Erinnerung
+
+- Fehlt ein Gift oder läuft es ab und liegt ein passendes in den Taschen, kommt einmal eine Warnung in der Bildschirmmitte, im Chat und mit Ton (`poisonWarn`, `poisonSound`). Erst wenn die Hand wieder frisch ist, kann sie erneut warnen.
+- Nicht im Kampf, nicht tot, nicht auf dem Flug, nicht in Stadt oder Gasthaus (außer in einer Instanz). Verlässt man die Stadt, kommt die Warnung.
+- Fest dazu: nach dem Einloggen, beim Betreten einer Instanz, nach dem Wiederbeleben und beim Bereitschaftscheck. Mehrere feste Anlässe innerhalb von 15 Sekunden warnen nur einmal.
+- Vorrat: Sinkt die Zahl eines gewählten Gifts (alle Ränge) auf `poisonLow` oder darunter, kommt einmal eine Warnung. Erst nach dem Auffüllen wieder.
+- Geprüft wird alle 10 Sekunden außerhalb des Kampfes und bei Änderungen an Taschen und Ausrüstung.
+
+### 10.4 Weiteres
+
+- Eintrag „Gifte“ für Peon Panel, siehe 10.5.
+- Befehl `/peon classbuddy gifte`: Stand und Gifte in den Taschen.
+- Eigener Reiter „Gifte“ in den Optionen.
+
+### 10.5 Panel mit Klick und Menü (Wunsch KarloDerBaer, 18.11.2026)
+
+- Linksklick auf „Gifte“ im Panel trägt das nächste Gift auf. Ein Klick im Panel ist ein gewöhnlicher Klick und darf das nicht. Deshalb legt sich beim Tooltip ein unsichtbarer sicherer Knopf `PeonClassBuddyPoisonPanel` über das Symbol (Typ `click` auf die Gift-Taste). Er wird nur an die Bildschirmstelle gesetzt, nicht an das Symbol gehängt: Ein an ein Symbol gehängter geschützter Knopf würde das Panel selbst schützen, und es ließe sich im Kampf nicht mehr ordnen. So braucht es keine Änderung an Kern-API oder Peon_Panel.
+- Rechtsklick, Tooltip und Ziehen gibt der Knopf an das Symbol weiter. Beim Verlassen und beim Kampfbeginn verschwindet er. Im Kampf wird er nicht angelegt, dann erklärt ein Klick, dass nur Taste oder Makro gehen.
+- Das Menü des Symbols wählt das Gift je Waffe, jeweils mit Anzahl in den Taschen. Als Text auf Leiste oder Panel wählbar: Restzeit, Gifte in den Taschen oder beides.
+
+### 10.6 Nur die eigene Klasse
+
+Panel-Einträge und Optionsreiter entstehen nur für die Klasse des Charakters (`ns.ForClass`, beim Laden oder spätestens beim Einloggen). Vorher zeigte Peon Panel im Menü auf einer freien Stelle alle Einträge, auch die Seelensplitter beim Schurken. Ist die Klasse beim Laden unbekannt, zeigen die Optionen alle Reiter.

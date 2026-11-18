@@ -221,7 +221,7 @@ local function AddLauncher()
     })
 end
 
-mod:On("INIT", AddLauncher)
+ns.ForClass("WARLOCK", AddLauncher)   -- ab 0.4.0 nur fuer Hexenmeister
 mod:On("LOGIN", function()
     if ns.PlayerClass() ~= "WARLOCK" then return end
     active = true
