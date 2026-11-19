@@ -405,9 +405,12 @@ end
 ---------------------------------------------------------------------------
 A.liveRows = nil   -- { key, rows }: letzte Live-Angebote im Verkaufen
 
+-- ab 0.120 (KarloDerBaer 19.11.2026): nur bei Massenware. Bei Einzelgegenstaenden ist ein einzelnes guenstiges
+-- Stueck ein normales Angebot (z. B. ein Ring, 1 zu 6g 74s unter 2 zu 7g 50s), kein Lockangebot.
 function A.Bait(key)
     local lr = A.liveRows
     if key == nil or not (lr and lr.key == key) then return nil end
+    if not ns.Data.IsCommodity(key) then return nil end
     return ns.Data.SkipBait(lr.rows, mod.db)
 end
 

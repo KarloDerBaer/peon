@@ -3,6 +3,23 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 19.11.2026: Knopf Auto für Kaufen bis im Schnellkauf (Broker 0.121.0)
+
+- **Auto setzt Kaufen bis zwischen Lockangebot und regulären Preis** (KarloDerBaer): Im Kaufprotokoll scheiterten die meisten Käufe, solange Kaufen bis genau auf dem Lockpreis lag. Etwas darüber gelang die Mehrheit. Die Mitte als Wert (Vorschlag Claude) entspricht dem, was KarloDerBaer von Hand eingestellt hatte.
+- **Ein Klick, kein Nachführen** (Vorschlag Claude, KarloDerBaer einverstanden): Ein Wert, der sich alleine bewegt, könnte einen schnellen Kauf überraschend teuer machen.
+- **Code 10 nach Fehlkäufen bleibt** (KarloDerBaer): Eine Pause nach dem Fehlkauf würde die nächste Abfrage verzögern, der Fehler stört nicht.
+
+## 19.11.2026: Vorgaben im Schnellkauf, Prüfabstand, Haken im Menü (Broker 0.120.0)
+
+- **Kaufen bis ohne eigenen Wert** (KarloDerBaer): die Hälfte des günstigsten Angebots oder der Händlerpreis, je nachdem was höher ist. Anteil einstellbar. Ein einzelnes Stück ganz unten zählt nicht (Vorschlag Claude), sonst würde ein Lockangebot die Vorgabe drücken. Ersetzt die Übernahme aus dem Aufkauf (0.107).
+- **Limit pro Kauf ohne eigenen Wert 5 Gold** (KarloDerBaer), einstellbar. Ersetzt 100 Stück zu Kaufen bis (0.113).
+- **Prüfabstand nach Bewegung** (KarloDerBaer): lebhafte oft, je schlechter desto seltener. Gleitend nach dem Anteil an der Grenze für lebhaft, höchstens 10 Minuten (Werte Claude, einstellbar).
+- **Haken je Liste im Gegenstandsmenü** (KarloDerBaer): „Beobachten: Aufkauf“ und „Beobachten: Schnellkauf“. Nur bei Massenware, weil der Schnellkauf nur dort geht (Claude).
+- **Marktbewegung nur in der Kaufzone** (KarloDerBaer, Vorschlag Claude): Einstellungen und Käufe zählen nur bis 5 % über dem günstigsten Angebot, Preissprünge erst ab 2 %. Grund: Bei großen Märkten wie Magiestoff passiert oben im Stapel ständig etwas, auch 20 Einstellungen je Minute reichten als Grenze nicht. Zufluss und Abfluss bleiben für den ganzen Markt (KarloDerBaer).
+- **Gelegenheiten als langfristige Kennzahl** (KarloDerBaer): Sie fallen in den kurzen Prüfungen nur zufällig auf und taugen nicht für die Bewertung der Bewegung. Wie sie gesammelt und gezeigt werden, folgt nach Abstimmung.
+- **Schutz vor Lockangeboten beim Verkaufen nur bei Massenware** (KarloDerBaer): Bei Einzelgegenständen ist ein einzelnes günstiges Stück ein normales Angebot.
+- **Spalte Art entfällt** (KarloDerBaer): Die Unterreiter trennen die Arten schon, die Art steht im Tooltip.
+
 ## 19.11.2026: Chancen im Schnellkauf, Unterreiter (Broker 0.119.0)
 
 - **Vorschläge aus der Menge** (KarloDerBaer): Massenware mit der größten Menge im jüngsten Stand, günstigster Preis mindestens 1 Silber (1 Gold war für Massenware zu hoch), Anzahl 10. Beides einstellbar.

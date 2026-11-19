@@ -1,6 +1,6 @@
 # Peon Broker: Chancen in drei Listen und Chancen für den Schnellkauf
 
-Stand: 19.11.2026, mit KarloDerBaer abgestimmt, umgesetzt in Broker 0.119.0.
+Stand: 19.11.2026, mit KarloDerBaer abgestimmt, umgesetzt in Broker 0.119.0, Nachbesserungen in 0.120.0 (Abschnitt 6).
 
 ## 1. Ziel
 
@@ -48,7 +48,7 @@ Die Liste entsteht neu, sobald ein neuer Stand da ist, eine Einstellung sich än
 
 - Die geprüfte Zeile ist hell hinterlegt, oben steht „Prüft 4 von 10: Name“.
 - Sortierung: lebhaft oben, ruhige grau unten. Neu sortiert wird erst nach einer fertigen Prüfung, damit die Zeilen nicht unter der Maus springen.
-- Klick öffnet den Fokus im Modus Schnellkauf. Rechtsklick: Gegenstandsmenü mit „Nicht für Schnellkauf vorschlagen“ und „Für Schnellkauf beobachten“ (Kaufen bis = günstigster Preis).
+- Klick öffnet den Fokus im Modus Schnellkauf. Rechtsklick: Gegenstandsmenü mit „Nicht für Schnellkauf vorschlagen“ und ab 0.120 den Haken „Beobachten: Aufkauf“ und „Beobachten: Schnellkauf“ (Vorgaben siehe 6).
 - Tooltip: Bewegung, Raten je Minute, Zahl der Ereignisse, Prüfungen und Abfragen, Lockangebote, Regel für lebhaft, Herkunft der Vorschläge.
 
 ### 2.4 Einstellungen (Fenster Einstellungen der Chancen)
@@ -83,6 +83,15 @@ Ein Gegenstand steht in jeder Liste, für die er Werte hat (`Watch.InQuick`, `Wa
 - **Schnellkauf**: Gegenstand, Günstigster, Kaufen bis, Glocke, Darunter (Stück unter Kaufen bis), Bewegung (Prüfung wie in 2.2), Gekauft (diese Sitzung), Rat. Limit pro Kauf, die Haken und die Bilanz stehen im Tooltip.
 
 Preisalarm und Zahl am Reiter bleiben beim zuletzt gespeicherten Modus.
+
+## 6. Nachbesserungen in 0.120.0 (KarloDerBaer 19.11.2026)
+
+- **Kaufen bis ohne eigenen Wert:** die Hälfte des günstigsten fremden Angebots (`quickLimitPct`, Vorgabe 50 %), mindestens der Händlerpreis. Ein einzelnes Stück ganz unten zählt nicht, wenn darüber weitere Angebote liegen. Gilt im Fokus und beim Hinzufügen zur Liste Schnellkauf.
+- **Limit pro Kauf ohne eigenen Wert:** 5 Gold (`quickGoldDefault`).
+- **Prüfabstand:** Lebhafte und ungeprüfte sofort wieder. Sonst Wartezeit = `qcWaitMax` (Vorgabe 10 Min.) × (1 − Anteil an der Grenze für lebhaft), mindestens 30 Sek., vorläufige halb so lange. Zustand „vor 2 Min., wieder in 3 Min.“.
+- **Gegenstandsmenü:** Bei Massenware zwei Haken „Beobachten: Aufkauf“ und „Beobachten: Schnellkauf“. Beide aus beendet die Beobachtung, die Werte einer abgewählten Liste bleiben.
+- **Marktbewegung nur in der Kaufzone:** Einstellungen und Käufe zählen bis 5 % über dem günstigsten Angebot (`quickZonePct`), Preissprünge ab 2 % (`quickJumpPct`). Zufluss und Abfluss bleiben für den ganzen Markt.
+- **Listen der Chancen ohne Spalte Art**, die Art steht im Tooltip. Fehler behoben: Im Unterreiter Aufkauf standen nach Antworten des Radars auch Spekulationen.
 
 ## 5. Spätere Ideen (nicht umgesetzt, nur nach Zustimmung)
 

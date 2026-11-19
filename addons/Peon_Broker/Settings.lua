@@ -55,7 +55,7 @@ local function BaitAlarmOff() return S.Get("focus", "quickBaitAlarm") == false e
 
 -- Fokus: Abfragen je Minute und die Grenzen fuer das Urteil (Measure.lua)
 S.SPECS.focus = {
-    title = "SET_FOCUS_TITLE", height = 800,   -- ab 0.108 hoeher (Marktbewegung), ab 0.109 noch ein Regler, ab 0.111 Ton fuer Lockangebote
+    title = "SET_FOCUS_TITLE", height = 860,   -- ab 0.108 hoeher (Marktbewegung), ab 0.109 noch ein Regler, ab 0.111 Ton fuer Lockangebote, ab 0.120 Vorgaben
     { "head", "SET_FOCUS_QUERY" },
     { "slider", "focusRate", "SET_FOCUS_RATE", 2, 90, 1, function(v) return L.SET_RATE_FMT:format(v, Dec(60 / v)) end },
     { "note", "SET_FOCUS_RATE_NOTE" },
@@ -71,6 +71,9 @@ S.SPECS.focus = {
     { "choice", "quickBaitSound", "SET_QUICK_SOUND", QuickSounds, test = QuickTest, off = BaitAlarmOff },
     { "slider", "quickBaitPct", "SET_QUICK_PCT", 5, 90, 5, function(v) return L.SET_PCT_FMT:format(v) end },
     { "slider", "quickHold", "SET_QUICK_HOLD", 0, 5, 0.5, function(v) return v == 0 and L.SET_OFF or L.SET_SECD_FMT:format(Dec(v)) end },   -- ab 0.114
+    { "head", "SET_QUICK_DEFAULTS" },   -- ab 0.120: Vorgaben ohne eigene Werte
+    { "slider", "quickLimitPct", "SET_QUICK_LIMIT_PCT", 10, 100, 5, function(v) return L.SET_PCT_FMT:format(v) end },
+    { "money", "quickGoldDefault", "SET_QUICK_GOLD_DEF", 1 },
     { "col" },
     { "head", "SET_FOCUS_VERDICT" },
     { "slider", "focusWindow", "SET_FOCUS_WINDOW", 2, 30, 1, function(v) return L.SET_MIN_FMT:format(v) end },
@@ -82,6 +85,8 @@ S.SPECS.focus = {
     { "slider", "quickMoveIn", "SET_QUICK_MOVE_IN", 1, 20, 1, function(v) return L.SET_PERMIN_FMT:format(v) end },
     { "slider", "quickMoveAll", "SET_QUICK_MOVE_ALL", 1, 30, 1, function(v) return L.SET_PERMIN_FMT:format(v) end },
     { "slider", "quickMoveLow", "SET_QUICK_MOVE_LOW", 1, 10, 1, function(v) return L.SET_PERMIN_FMT:format(v) end },
+    { "slider", "quickZonePct", "SET_QUICK_ZONE", 1, 50, 1, function(v) return L.SET_PCT_FMT:format(v) end },   -- ab 0.120
+    { "slider", "quickJumpPct", "SET_QUICK_JUMP", 0, 20, 1, function(v) return L.SET_PCT_FMT:format(v) end },
     { "slider", "quickFollowSec", "SET_QUICK_FOLLOW", 10, 120, 5, function(v) return L.SET_SEC_FMT:format(v) end },
     { "slider", "quickBaitMinPct", "SET_QUICK_BAITMIN", 1, 50, 1, function(v) return L.SET_PCT_FMT:format(v) end },   -- ab 0.109
 }
@@ -122,10 +127,11 @@ S.QUICK_CHANCES = {
     { "slider", "qcCount", "SET_QC_COUNT", 3, 30, 1, function(v) return tostring(v) end, off = QuickOff },
     { "money", "qcMinPrice", "SET_QC_MIN", 1, off = QuickOff },
     { "slider", "qcProbes", "SET_QC_PROBES", 3, 20, 1, function(v) return L.SET_QC_PROBES_FMT:format(v) end, off = QuickOff },
+    { "slider", "qcWaitMax", "SET_QC_WAIT", 1, 60, 1, function(v) return L.SET_MIN_FMT:format(v) end, off = QuickOff },   -- ab 0.120
     { "note", "SET_QC_NOTE" },
 }
 S.SPECS.chances = {
-    title = "SET_CH_TITLE", height = 760,   -- ab 0.119 hoeher (Schnellkauf)
+    title = "SET_CH_TITLE", height = 800,   -- ab 0.119 hoeher (Schnellkauf), ab 0.120 noch ein Regler
     { "head", "SET_CH_KINDS" },
     { "check", "chancesShowS", "SET_CH_S", "SET_CH_S_TIP" },
     { "check", "chancesShowL", "SET_CH_L", "SET_CH_L_TIP" },

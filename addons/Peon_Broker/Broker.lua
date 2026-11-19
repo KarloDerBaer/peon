@@ -74,6 +74,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
         quickMoveIn  = 2,       -- Schnellkauf (ab 0.108): lebhaft ab so vielen Einstellungen je Minute ...
         quickMoveAll = 5,       -- ... und so vielen Ereignissen je Minute (Einstellungen, Kaeufe, Preisspruenge)
         quickMoveLow = 1,       -- ruhig unter so vielen Ereignissen je Minute
+        quickZonePct = 5,       -- ab 0.120: Einstellungen und Kaeufe zaehlen nur bis so viel % ueber dem guenstigsten (Kaufzone)
+        quickJumpPct = 2,       -- ab 0.120: Preissprung erst ab so viel % Aenderung des guenstigsten Preises
         quickFollowSec = 30,
         quickBaitMinPct = 5,
         autoSaveBuyout = true,  -- ab 0.113: Werte des Aufkaufs beim Verlassen automatisch speichern (nur beobachtete)
@@ -95,6 +97,9 @@ local mod = Peon:NewModule(ADDON_NAME, {
         qcCount      = 10,      -- ab 0.119: so viele Vorschlaege fuer den Schnellkauf
         qcMinPrice   = 100,     -- ab 0.119: guenstigster Preis je Stueck mindestens (Kupfer, 1 Silber)
         qcProbes     = 5,       -- ab 0.119: Abfragen je Pruefung eines Gegenstands
+        qcWaitMax    = 10,      -- ab 0.120: ruhige Vorschlaege hoechstens alle so viele Minuten pruefen (maessige gleitend oefter)
+        quickLimitPct = 50,     -- ab 0.120: Kaufen bis im Schnellkauf ohne eigenen Wert: so viel % des guenstigsten Angebots
+        quickGoldDefault = 50000, -- ab 0.120: Limit pro Kauf im Schnellkauf ohne eigenen Wert (Kupfer, 5 Gold)
         -- ab 0.97 (Wunsch KarloDerBaer 15.11.2026): ob und wann die rote Zahl am Reiter kommt (AHTabs.BADGE_MODES)
         badgeBuy = "buypart", badgeWatch = "both", badgeRadar = "blink", badgeSell = "on", badgeChances = "off",
         buyoutMinQty = 500,     -- Aufkauf (ab 0.71): Massenware erst ab so vielen Stueck im Angebot (bis 0.82 200)
@@ -128,7 +133,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  radarRenewSec = { 15, 600, 15 }, radarRenewMax = { 30, 1200, 30 }, radarSearchPct = { 0, 80, 5 },
                  salesWindow = { 1, 24, 1 }, salesMidMin = { 10, 600, 10 }, salesSureMin = { 20, 1440, 10 },
                  salesCancelPct = { 0, 50, 5 },
-                 qcCount = { 3, 30, 1 }, qcMinPrice = { 0, 1000000, 1 }, qcProbes = { 3, 20, 1 } },   -- ab 0.119
+                 qcCount = { 3, 30, 1 }, qcMinPrice = { 0, 1000000, 1 }, qcProbes = { 3, 20, 1 },   -- ab 0.119
+                 qcWaitMax = { 1, 60, 1 }, quickZonePct = { 1, 50, 1 }, quickJumpPct = { 0, 20, 1 }, quickLimitPct = { 10, 100, 5 }, quickGoldDefault = { 0, 100000000, 1 } },   -- ab 0.120
     choices  = { undercutMode = { copper = true, percent = true }, undercutMassMode = { copper = true, percent = true },
                  duration = { [2] = true, [8] = true, [24] = true },
                  radarKind = { both = true, vendor = true, market = true },

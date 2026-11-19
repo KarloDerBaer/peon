@@ -10,6 +10,8 @@
 --                Gegenstands mit den Grenzen der Marktbewegung im Schnellkauf (Quick.MoveClass). Mit nur einer
 --                Pruefung ist das Ergebnis vorlaeufig ("?").
 --   Reihenfolge  erste Runde nach Menge, danach lebhafte (meiste Ereignisse zuerst), ungepruefte, maessige, ruhige.
+--                Ab 0.120 (KarloDerBaer 19.11.2026) wartet ein Gegenstand, der nicht lebhaft ist, bis zur naechsten
+--                Pruefung: je ruhiger, desto laenger, hoechstens qcWaitMax Minuten (QC.Wait). Lebhafte sind immer dran.
 --   Listen       Reiter Chancen, Unterreiter Schnellkauf (Vorschlaege), und Beobachten, Unterreiter Schnellkauf
 --                (Gegenstaende mit Werten des Schnellkaufs). Geprueft wird nur die Liste, die zu sehen ist (QC.Source).
 -- Die Abfragen schickt Radar.lua (R.NextKey Art "probe", QC.Send), die Antworten kommen ueber R.Apply (QC.OnAnswer).
@@ -176,6 +178,30 @@ end
 
 function QC.Rank(v) return QC.RANK[v and v.class or "none"] or 2 end
 
+-- ab 0.120: Wartezeit bis zur naechsten Pruefung in Sekunden. Lebhaft und ungeprueft 0. Sonst gleitend nach dem Anteil
+-- an der Grenze fuer lebhaft (0 = gar keine Bewegung, 1 = fast lebhaft): Wartezeit = qcWaitMax x (1 - Anteil),
+-- mindestens 30 Sekunden. Vorlaeufige Ergebnisse (nur eine Pruefung) warten halb so lange.
+QC.WAIT_MIN = 30
+function QC.Wait(v)
+    if not v or v.class == "high" then return 0 end
+    local db = mod.db
+    local needIn = math.max(1, tonumber(db.quickMoveIn) or 2)
+    local needAll = math.max(1, tonumber(db.quickMoveAll) or 5)
+    local share = math.min(1, (v.newPerMin or 0) / needIn, (v.ev or 0) / needAll)
+    local max = math.max(1, tonumber(db.qcWaitMax) or 10) * 60
+    local w = math.max(QC.WAIT_MIN, max * (1 - share))
+    if v.early then w = w / 2 end
+    return w
+end
+
+-- Sekunden bis der Gegenstand wieder dran ist (0 = jetzt)
+function QC.DueIn(key)
+    local res = QC.res[key]
+    local v = QC.Result(key)
+    if not (v and res and res.last) then return 0 end
+    return math.max(0, QC.Wait(v) - (Now() - res.last))
+end
+
 ---------------------------------------------------------------------------
 -- Pruefung
 ---------------------------------------------------------------------------
@@ -217,13 +243,17 @@ function QC.Keys(src)
 end
 
 -- Reihenfolge einer Runde: lebhafte (meiste Ereignisse zuerst), ungepruefte, maessige, ruhige
+-- ab 0.120 nur, wer wieder dran ist (QC.DueIn)
 function QC.BuildQueue(src)
-    local keys = QC.Keys(src)
+    local keys = {}
     local pos, info = {}, {}
-    for i, k in ipairs(keys) do
-        pos[k] = i
-        local v = QC.Result(k)
-        info[k] = { rank = QC.Rank(v), ev = v and v.ev or 0 }
+    for i, k in ipairs(QC.Keys(src)) do
+        if QC.DueIn(k) <= 0 then
+            keys[#keys + 1] = k
+            pos[k] = i
+            local v = QC.Result(k)
+            info[k] = { rank = QC.Rank(v), ev = v and v.ev or 0 }
+        end
     end
     table.sort(keys, function(a, b)
         local ia, ib = info[a], info[b]
@@ -304,7 +334,7 @@ function QC.OnAnswer(key, rows, t)
     if r.prev and s.t > r.prev.t then
         local pr = M.Pair(r.prev, s, nil)
         r.secs = r.secs + (pr.gap or 0)
-        r.nNew, r.nSold = r.nNew + (pr.nNew or 0), r.nSold + (pr.nSold or 0)
+        r.nNew, r.nSold = r.nNew + (pr.zNew or 0), r.nSold + (pr.zSold or 0)   -- ab 0.120 nur in der Kaufzone
         r.inAll, r.sold = r.inAll + (pr.newAll or 0), r.sold + (pr.sold or 0)
         if pr.jump then r.jumps = r.jumps + 1 end
         r.baits = r.baits + #ns.Quick.NewBaits(r.prev, s, nil)
@@ -386,6 +416,8 @@ function QC.StateText(key)
     if at then
         local age = ns.Radar.ShortAge(math.max(0, Now() - at))
         if pos then return GREY .. L.QC_STATE_AGE_POS:format(age, pos) .. "|r" end
+        local due = QC.DueIn(key)   -- ab 0.120: wann wieder dran
+        if due > 0 then return GREY .. L.QC_STATE_AGE_NEXT:format(age, ns.Radar.ShortAge(due)) .. "|r" end
         return GREY .. L.QC_STATE_AGE:format(age) .. "|r"
     end
     if pos then return GREY .. L.QC_STATE_POS:format(pos) .. "|r" end
@@ -413,7 +445,7 @@ function QC.TipLines(GT, key)
     else
         GT:AddLine(L.QC_TIP_MOVE:format(QC.MoveText(v)), 1, 1, 1)
         if v.early then GT:AddLine(L.QC_TIP_EARLY, 0.7, 0.7, 0.7, true) end
-        GT:AddLine(L.QC_TIP_RATES:format(QC.Rate(v.newPerMin), QC.Rate(v.soldPerMin), QC.Rate(v.jumpsPerMin)), 0.85, 0.85, 0.85, true)
+        GT:AddLine(L.QC_TIP_RATES:format(tonumber(mod.db.quickZonePct) or 5, QC.Rate(v.newPerMin), QC.Rate(v.soldPerMin), QC.Rate(v.jumpsPerMin)), 0.85, 0.85, 0.85, true)
         GT:AddLine(L.QC_TIP_FLOW:format(QC.Rate(v.inPerMin), QC.Rate(v.outPerMin)), 0.85, 0.85, 0.85, true)
         GT:AddLine(L.QC_TIP_BASE:format(v.events, v.probes, v.queries, QC.Rate(v.secs)), 0.7, 0.7, 0.7, true)
         if v.baits > 0 then GT:AddLine(L.QC_TIP_BAITS:format(v.baits), 1, 0.82, 0, true) end
@@ -458,15 +490,18 @@ end
 ---------------------------------------------------------------------------
 -- Gegenstandsmenue (Menu.lua): nicht mehr vorschlagen, fuer den Schnellkauf beobachten
 ---------------------------------------------------------------------------
+-- ab 0.120: Kaufen bis und Limit pro Kauf wie im Fokus ohne eigene Werte (Quick.DefaultLimit, Quick.DefaultGold).
+-- Bis 0.119 war Kaufen bis der guenstigste Preis und Limit pro Kauf "ohne Grenze".
 function QC.WatchQuick(key, name)
-    local Wt = ns.Watch
-    if not Wt.Is(key) then Wt.Add(key, { name = name }) end
-    local e = ns.Data.Lookup(key)
-    local res = QC.res[key]
-    local limit = (res and res.min) or (type(e) == "table" and e.m) or nil
-    Wt.SetQuick(key, limit, nil, true, true)
+    ns.Watch.SetQuickOn(key, true, { name = name })
     QC.Changed(true)
     return true
+end
+
+-- Vorgaben fuer einen Gegenstand, der neu in die Liste Schnellkauf kommt: Kaufen bis, Limit pro Kauf
+function QC.Defaults(key)
+    local res = QC.res[key]
+    return ns.Quick.DefaultLimit(key, res and res.min or nil), ns.Quick.DefaultGold()
 end
 
 function QC.AddMenu(root, item, key)
@@ -474,8 +509,5 @@ function QC.AddMenu(root, item, key)
     if QC.IsCandidate(key) then
         root:CreateButton(L.MENU_QC_HIDE, function() mod:Call("Schnellkauf-Chancen", QC.Hide, key) end)
     end
-    local Wt = ns.Watch
-    if Wt and ns.Data.IsCommodity(key) and not Wt.InQuick(key) then
-        root:CreateButton(L.MENU_QC_WATCH, function() mod:Call("Schnellkauf-Chancen", QC.WatchQuick, key, item and item.name) end)
-    end
+    -- ab 0.120: "Beobachten: Schnellkauf" als Haken im Menue der Beobachtung (Watch.AddMenu)
 end

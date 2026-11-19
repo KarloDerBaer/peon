@@ -1303,7 +1303,11 @@ end
 -- Ab 0.105 ist das die gemeinsame Liste im Reiter Chancen.
 function R.Refresh()
     local C = ns.Chances
-    if C and C.list and C.Shown() then R.Perf("liste", function() C.list:SetData(C.Rows()) end) end
+    -- ab 0.120: nur die Zeilen des offenen Unterreiters (bis 0.119 standen hier alle, auch Spekulationen im Aufkauf)
+    if C and C.list and C.Shown() then
+        local tab = C.Tab()
+        if tab ~= "quick" then R.Perf("liste", function() C.list:SetData(C.TabRows(tab)) end) end
+    end
     R.UpdateView()
 end
 
@@ -1453,6 +1457,9 @@ function R.RowTooltip(row, r)
 end
 
 function R.TipLines(GameTooltip, r)
+    -- ab 0.120: die Art (die Spalte Art im Reiter Chancen entfaellt)
+    local kind = L["RADAR_KIND_" .. tostring(r.kind):upper()]
+    if kind then GameTooltip:AddLine(kind, 1, 0.82, 0) end
     if r.kind == "market" then
         GameTooltip:AddLine(L.RADAR_TT_DATA:format(r.scans or 0, tonumber(mod.db.dealDays) or 7), 0.7, 0.7, 0.7)
         GameTooltip:AddLine(L.RADAR_TT_RESALE2:format(Money(r.ref or 0)), 0.7, 0.7, 0.7)

@@ -8,8 +8,8 @@
 --           guenstigsten Preis, der Menge unter Kaufen bis und senkrechten Strichen fuer eigene Lockangebote
 -- Lockangebot: 1 Stueck aus den Taschen, kuerzeste Laufzeit. Der Preis steht als Vorschlag im Feld: ab 0.107
 -- Kaufen bis minus quickBaitPct Prozent (Vorgabe 50, vorher die erste echte Stufe minus 20). Ein eigener Betrag im
--- Feld gilt bis zum naechsten Gegenstand. Ab 0.107 uebernimmt der Schnellkauf beim ersten Oeffnen Kaufen bis vom
--- Aufkauf (Q.EnsureLimit), damit das Feld nicht leer ist. Nur Massenware (PostCommodity). Eigenes Einstellen per Knopf war in Forever bisher nicht erprobt:
+-- Feld gilt bis zum naechsten Gegenstand. Ab 0.107 fuellt der Schnellkauf ein leeres Kaufen bis (Q.EnsureLimit), bis
+-- 0.119 mit dem Wert des Aufkaufs, ab 0.120 mit der Haelfte des guenstigsten Angebots, mindestens dem Haendlerpreis. Nur Massenware (PostCommodity). Eigenes Einstellen per Knopf war in Forever bisher nicht erprobt:
 -- Fragt das Spiel nach (Rueckgabe von PostCommodity oder AUCTION_HOUSE_POST_WARNING), bestaetigt erst der zweite
 -- Klick (ConfirmPostCommodity).
 
@@ -177,19 +177,23 @@ function Q.AvgOn(key)
     return true
 end
 
--- ab 0.113 (Wunsch KarloDerBaer): Limit pro Kauf ohne gespeicherten Wert = Preis fuer Q.GOLD_QTY Stueck zu Kaufen bis.
--- Folgt Kaufen bis, bis man selbst einen Betrag eintraegt. Leert man das Feld, bleibt es leer (Q.goldCleared).
-Q.GOLD_QTY = 100
+-- ab 0.113 (Wunsch KarloDerBaer): Limit pro Kauf ohne gespeicherten Wert. Leert man das Feld, bleibt es leer
+-- (Q.goldCleared). Ab 0.120 (KarloDerBaer 19.11.2026) ein fester Betrag (quickGoldDefault, Vorgabe 5 Gold), bis 0.119
+-- der Preis fuer 100 Stueck zu Kaufen bis.
 Q.goldCleared = {}
+function Q.DefaultGold()
+    local v = math.floor(tonumber(mod.db.quickGoldDefault) or 50000)
+    return v > 0 and v or nil
+end
+
 function Q.EnsureGold()
     local F = ns.Focus
     local key = F.key
     if key == nil or not Q.On() or Q.goldCleared[key] then return end
     local m = F.manualGold
     if m and m.key == key and not m.auto then return end
-    local limit = F.ManualLimit(key)
-    if not (Num(limit) and limit > 0) then return end
-    F.manualGold = { key = key, gold = math.floor(limit * Q.GOLD_QTY), auto = true }
+    local gold = Q.DefaultGold()
+    if gold then F.manualGold = { key = key, gold = gold, auto = true } end
 end
 
 function Q.SetAvg(on)
@@ -337,11 +341,36 @@ function Q.NoteLimit(key, limit)
     if limit then Q.limitCleared[key] = nil elseif Q.On() then Q.limitCleared[key] = true end
 end
 
+-- ab 0.120 (KarloDerBaer 19.11.2026): Kaufen bis ohne eigenen Wert = quickLimitPct Prozent (Vorgabe 50) des
+-- guenstigsten fremden Angebots, mindestens der Haendlerpreis. Ein einzelnes Stueck ganz unten (Lockangebot) zaehlt
+-- nicht, wenn es darueber weitere Angebote gibt. cheapest = guenstigster Preis, falls bekannt (sonst live oder Stand).
+-- Bis 0.119 kam Kaufen bis vom Aufkauf (Q.BuyoutLimit).
+function Q.DefaultLimit(key, cheapest)
+    if key == nil then return nil end
+    local D = ns.Data
+    if not Num(cheapest) then
+        local live = ns.Buy.live and ns.Buy.live[key]
+        local lv = live and live.rows and D.Available(live.rows) or {}
+        local first = lv[1]
+        if first and first.qty <= 1 and lv[2] then first = lv[2] end
+        cheapest = first and first.price or nil
+    end
+    if not Num(cheapest) then
+        local e = D.Lookup(key)
+        cheapest = type(e) == "table" and not e.gone and Num(e.m) and e.m or nil
+    end
+    local pct = tonumber(mod.db.quickLimitPct) or 50
+    local v = Num(cheapest) and math.floor(cheapest * pct / 100) or 0
+    local hp = ns.VendorPrice(D.ItemID(key) or key)
+    if Num(hp) and hp > v then v = hp end
+    return v > 0 and v or nil
+end
+
 function Q.EnsureLimit()
     local F = ns.Focus
     local key = F.key
     if key == nil or not Q.On() or Q.limitCleared[key] or F.ManualLimit(key) then return end
-    local v = Q.BuyoutLimit(key)
+    local v = Q.DefaultLimit(key)
     if Num(v) and v > 0 then
         F.manualLimit = { key = key, price = math.floor(v) }
         F.manualSrc = F.manualSrc or "own"
@@ -589,8 +618,10 @@ function Q.Movement(v)
     local M = ns.Measure
     M.Sync()
     if not v or (v.n or 0) < 2 or (v.elapsed or 0) < M.FIRST then return "first" end
-    local ev = (v.newPerMin or 0) + (v.soldPerMin or 0) + (v.jumpsPerMin or 0)
-    return Q.MoveClass(v.newPerMin or 0, ev), ev
+    -- ab 0.120: Einstellungen und Kaeufe nur in der Kaufzone (Measure.Pair)
+    local zIn = v.zNewPerMin or v.newPerMin or 0
+    local ev = zIn + (v.zSoldPerMin or v.soldPerMin or 0) + (v.jumpsPerMin or 0)
+    return Q.MoveClass(zIn, ev), ev
 end
 
 -- ab 0.119: Einordnung aus Einstellungen je Minute und Ereignissen je Minute (auch fuer QuickChances.lua)
@@ -617,7 +648,7 @@ end
 -- Eigene Lockangebote kommen ueber Q.OnCreated dazu (Q.AddBait).
 Q.BAIT_KEEP = 200
 
-function Q.AddBait(key, t, price, own, lastQ)
+function Q.AddBait(key, t, price, own, lastQ, reg)
     if key == nil or not Num(price) then return end
     if lastQ == nil then
         local c = ns.Measure and ns.Measure.cur
@@ -625,7 +656,7 @@ function Q.AddBait(key, t, price, own, lastQ)
         lastQ = s and QtyAt(s, price) or 0
     end
     local list = Q.baits[key] or {}
-    list[#list + 1] = { t = t, price = price, own = own or nil, lastQ = lastQ, added = 0, times = 0 }
+    list[#list + 1] = { t = t, price = price, own = own or nil, lastQ = lastQ, added = 0, times = 0, reg = reg }
     while #list > Q.BAIT_KEEP do table.remove(list, 1) end
     Q.baits[key] = list
 end
@@ -646,7 +677,7 @@ function Q.OnSample(key, prev, s)
     local F = ns.Focus
     local limit = F and F.key == key and F.ManualLimit and F.ManualLimit(key) or nil
     for _, l in ipairs(Q.NewBaits(prev, s, limit)) do
-        Q.AddBait(key, s.t, l.price, false, 1)
+        Q.AddBait(key, s.t, l.price, false, 1, prev.min)   -- ab 0.121 mit dem guenstigsten Preis davor (Q.AutoLimit)
         if ns.Focus and ns.Focus.key == key then Q.baitPing = key end   -- ab 0.111: Ton in Q.CheckAlarm
         Q.Trace("bait foreign price=%s min=%s", l.price, prev.min)
     end
@@ -688,6 +719,29 @@ function Q.BaitStats(key)
     end
     if r.n == 0 then return nil end
     return r
+end
+
+-- Knopf Auto neben Kaufen bis (ab 0.121, Wunsch KarloDerBaer 19.11.2026): die Mitte zwischen dem letzten fremden
+-- Lockangebot und dem guenstigsten regulaeren Angebot darueber, abgerundet. Regulaer ist eine fremde Stufe ueber dem
+-- Lockpreis mit mindestens 2 Stueck in der letzten Abfrage, ohne Abfrage der guenstigste Preis bei der Erkennung.
+-- Rueckgabe value, bait, regular oder nil (noch kein fremdes Lockangebot oder kein Abstand).
+function Q.AutoLimit(key)
+    if key == nil then return nil end
+    local last
+    for _, b in ipairs(Q.baits[key] or {}) do
+        if not b.own and (not last or b.t >= last.t) then last = b end
+    end
+    if not last then return nil end
+    local reg
+    local live = ns.Buy.live and ns.Buy.live[key]
+    if type(live) == "table" and type(live.rows) == "table" then
+        for _, l in ipairs(ns.Data.Available(live.rows)) do
+            if l.price > last.price and l.qty >= 2 then reg = l.price; break end
+        end
+    end
+    if not reg and Num(last.reg) and last.reg > last.price then reg = last.reg end
+    if not reg or reg - last.price < 2 then return nil end
+    return math.floor((last.price + reg) / 2), last.price, reg
 end
 
 ---------------------------------------------------------------------------

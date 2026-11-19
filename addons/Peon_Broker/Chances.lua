@@ -502,8 +502,8 @@ function C.Build(c)
                   if r.state == "gone" or (r.d and r.d.cant) then return 0.5, 0.5, 0.5 end
                   return UI.QualityColor(r.quality or 1)
               end },
-            { key = "kindText", title = L.RADAR_COL_KIND, width = 100, align = "RIGHT" },
-            { key = "gain", title = L.RADAR_COL_GAIN, width = 110, align = "RIGHT",
+            -- ab 0.120 ohne Spalte Art (die Art steht im Tooltip)
+            { key = "gain", title = L.RADAR_COL_GAIN, width = 160, align = "RIGHT",
               format = function(v, r) return ((r.state == "gone" or (r.d and r.d.cant)) and GREY or GREEN) .. Money(math.floor((v or 0) + 0.5)) .. "|r" end,
               sort = function(r) return -r.rank * 1e13 + (r.gain or 0) end },
             { key = "limit", title = L.CH_COL_LIMIT, width = 100, align = "RIGHT",

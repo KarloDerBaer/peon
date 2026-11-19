@@ -91,8 +91,12 @@ local function OfferMap(rows)
 end
 
 -- Vergleich zweier Abfragen: verkauft, neu unter Ziel, abgebrochen
-function M.Compare(A, B, target)
+-- zone (ab 0.120): Grenze der Kaufzone. Einstellungen und Kaeufe bis dahin zaehlen zusaetzlich als zNew, zSold
+-- (Marktbewegung im Schnellkauf). nil = ohne Kaufzone, dann zaehlt alles.
+function M.Compare(A, B, target, zone)
     local gap = B.t - A.t
+    local zNew, zSold = 0, 0
+    local function In(p) return zone == nil or p <= zone end
     local cap = math.huge
     if A.partial then cap = math.min(cap, A.maxP) end
     if B.partial then cap = math.min(cap, B.maxP) end
@@ -103,7 +107,10 @@ function M.Compare(A, B, target)
         if a.p <= cap then
             local b = B.offers[id]
             if b then
-                if b.q < a.q then sold = sold + (a.q - b.q); nSold = nSold + 1 end
+                if b.q < a.q then
+                    sold = sold + (a.q - b.q); nSold = nSold + 1
+                    if In(a.p) then zSold = zSold + 1 end
+                end
                 if b.q > 0 and (not anchor or a.p < anchor) then anchor = a.p end
             else
                 gone[#gone + 1] = a
@@ -118,16 +125,19 @@ function M.Compare(A, B, target)
         else
             sold = sold + a.q
             nSold = nSold + 1
+            if In(a.p) then zSold = zSold + 1 end
         end
     end
     for id, b in pairs(B.offers) do
         if b.p <= cap and not A.offers[id] then
             newAll = newAll + b.q
             nNew = nNew + 1
+            if In(b.p) then zNew = zNew + 1 end
             if target and b.p < target then newUnder = newUnder + b.q end
         end
     end
-    return { t = B.t, gap = gap, sold = sold, cancelled = cancelled, newUnder = newUnder, newAll = newAll, nNew = nNew, nSold = nSold }
+    return { t = B.t, gap = gap, sold = sold, cancelled = cancelled, newUnder = newUnder, newAll = newAll, nNew = nNew, nSold = nSold,
+             zNew = zNew, zSold = zSold }
 end
 
 -- ab 0.74: Massenware ueber die Preisstufen vergleichen statt ueber Auktionsnummern. Im Spiel sprang der Abfluss,
@@ -137,8 +147,10 @@ end
 --   weniger Stueck ueber einer Stufe, die stehen blieb                     -> abgebrochen
 --   mehr Stueck                                                          -> neu (unter dem Ziel: Zufluss)
 -- Kauf und neues Angebot im selben Abstand auf derselben Stufe heben sich auf. Bei kurzen Abstaenden selten.
-function M.CompareLevels(A, B, target)
+function M.CompareLevels(A, B, target, zone)
     local gap = B.t - A.t
+    local zNew, zSold = 0, 0
+    local function In(p) return zone == nil or p <= zone end
     local cap = math.huge
     if A.partial then cap = math.min(cap, A.maxP) end
     if B.partial then cap = math.min(cap, B.maxP) end
@@ -152,7 +164,11 @@ function M.CompareLevels(A, B, target)
         if b >= a then
             intact = true
         else
-            if intact then cancelled = cancelled + (a - b) else sold = sold + (a - b); nSold = nSold + 1 end
+            if intact then cancelled = cancelled + (a - b)
+            else
+                sold = sold + (a - b); nSold = nSold + 1
+                if In(p) then zSold = zSold + 1 end
+            end
             if b > 0 then intact = true end
         end
     end
@@ -162,12 +178,13 @@ function M.CompareLevels(A, B, target)
             if b > a then
                 newAll = newAll + (b - a)
                 nNew = nNew + 1
+                if In(p) then zNew = zNew + 1 end
                 if target and p < target then newUnder = newUnder + (b - a) end
             end
         end
     end
     return { t = B.t, gap = gap, sold = sold, cancelled = cancelled, newUnder = newUnder, newAll = newAll, nNew = nNew, nSold = nSold,
-             byLevels = true }
+             zNew = zNew, zSold = zSold, byLevels = true }
 end
 
 -- Eine Antwort als Abfrage fuer den Vergleich. nil = ohne Auktionsnummern (laesst sich nicht vergleichen).
@@ -195,12 +212,32 @@ function M.Sample(rows, t, target)
 end
 
 -- Vergleich zweier Abfragen hintereinander (ab 0.119 eigene Funktion, siehe M.Sample)
+-- Ab 0.120 (KarloDerBaer 19.11.2026): Die Marktbewegung zaehlt nur noch in der Kaufzone, also bis quickZonePct
+-- Prozent (Vorgabe 5) ueber dem guenstigsten fremden Angebot beider Abfragen (zNew, zSold). Was oben im Stapel
+-- passiert, sagt nichts ueber Chancen und wuchs mit der Groesse des Markts. Ein Preissprung zaehlt erst ab
+-- quickJumpPct Prozent (Vorgabe 2), Wackeln um 1 Kupfer ist Unterbieten. Zufluss und Abfluss bleiben fuer den ganzen
+-- Markt (nNew, nSold, newAll, sold).
+function M.Zone(prev, s)
+    local lo
+    if Num(prev.min) then lo = prev.min end
+    if Num(s.min) and (not lo or s.min < lo) then lo = s.min end
+    if not lo then return nil end
+    return lo * (1 + (tonumber(mod.db.quickZonePct) or 5) / 100)
+end
+
+function M.IsJump(a, b)
+    if not (Num(a) and Num(b)) or a == b then return false end
+    local pct = (tonumber(mod.db.quickJumpPct) or 2) / 100
+    return math.abs(b - a) >= math.min(a, b) * pct
+end
+
 function M.Pair(prev, s, target)
     local pr
-    if prev.levels and s.levels then pr = M.CompareLevels(prev, s, target)
-    else pr = M.Compare(prev, s, target) end
-    -- ab 0.108: Preissprung = guenstigster Preis anders als in der vorigen Abfrage
-    pr.jump = Num(prev.min) and Num(s.min) and prev.min ~= s.min or false
+    local zone = M.Zone(prev, s)
+    if prev.levels and s.levels then pr = M.CompareLevels(prev, s, target, zone)
+    else pr = M.Compare(prev, s, target, zone) end
+    -- ab 0.108: Preissprung = guenstigster Preis anders als in der vorigen Abfrage, ab 0.120 erst ab quickJumpPct
+    pr.jump = M.IsJump(prev.min, s.min)
     return pr
 end
 
@@ -247,11 +284,13 @@ function M.Values(now)
     local from = now - M.WINDOW
     local sold, inUnder, secs, moved = 0, 0, 0, 0
     local inAll, nNew, nSold, jumps = 0, 0, 0, 0
+    local zNew, zSold = 0, 0   -- ab 0.120: Kaufzone
     for _, p in ipairs(c.pairs) do
         if p.t > from then
             sold, inUnder, secs = sold + p.sold, inUnder + p.newUnder, secs + p.gap
             moved = moved + p.sold + p.newAll + p.cancelled
             inAll, nNew, nSold = inAll + (p.newAll or 0), nNew + (p.nNew or 0), nSold + (p.nSold or 0)
+            zNew, zSold = zNew + (p.zNew or p.nNew or 0), zSold + (p.zSold or p.nSold or 0)
             if p.jump then jumps = jumps + 1 end
         end
     end
@@ -270,6 +309,8 @@ function M.Values(now)
     v.soldPerMin = mins > 0 and nSold / mins or 0
     v.jumps = jumps
     v.jumpsPerMin = mins > 0 and jumps / mins or 0
+    v.zNewPerMin = mins > 0 and zNew / mins or 0     -- ab 0.120: Einstellungen und Kaeufe in der Kaufzone
+    v.zSoldPerMin = mins > 0 and zSold / mins or 0
     v.secs = secs
     local du = last.under - first.under
     if du > 0 and du >= math.max(1, first.under * M.GROW) then v.underTrend = "grow"

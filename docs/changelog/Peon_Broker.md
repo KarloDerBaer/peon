@@ -2,6 +2,34 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.121.0
+
+Kurz: Im Schnellkauf setzt der neue Knopf „Auto“ neben Kaufen bis den Preis auf die Mitte zwischen dem letzten fremden Lockangebot und dem nächsten regulären Angebot. So reagierst du schnell, wenn die Lockangebote zu einem neuen Preis wandern.
+
+- 0.121.0 (19.11.2026, Wunsch KarloDerBaer nach dem vierten Kaufprotokoll):
+  - **Neu, Knopf Auto hinter Kaufen bis im Schnellkauf** (`Quick.AutoLimit`): Mitte zwischen dem letzten fremden Lockangebot und dem günstigsten regulären Angebot darüber, abgerundet. Regulär ist eine fremde Stufe über dem Lockpreis mit mindestens 2 Stück in der letzten Abfrage, ohne Abfrage der günstigste Preis bei der Erkennung (neues Feld `reg` in `Q.baits`). Eigene Lockangebote zählen nicht. Grau, solange kein fremdes Lockangebot erkannt ist oder kein Abstand besteht. Der Tooltip zeigt Lockpreis, regulären Preis und den neuen Wert. Ein Klick setzt Kaufen bis einmalig, der Wert folgt danach nicht von selbst.
+  - Anlass: Im Protokoll (19:50 bis 19:53 Uhr) gelang mit Kaufen bis genau auf dem Lockpreis 1 von 9 Klicks, mit Kaufen bis zwischen Lockpreis und regulärem Preis 10 von 18. Bezahlt wurde in beiden Fällen meist der Lockpreis.
+  - Tests: Vorschlag, eigene Lockangebote, regulär erst ab 2 Stück, Rückfall ohne Abfrage, kein Abstand, Knopf grau und Klick (`test_broker.lua`).
+
+## 0.120.0
+
+Kurz: Im Unterreiter Aufkauf der Chancen stehen keine Spekulationen mehr. Die Spalte Art entfällt, die Art steht im Tooltip.
+Kurz: Beim Verkaufen gilt der Schutz vor Lockangeboten nur noch für Massenware.
+Kurz: Die Marktbewegung im Schnellkauf zählt nur noch, was nahe am günstigsten Preis passiert, und Preissprünge erst ab 2 %. Große Märkte sind dadurch nicht mehr automatisch lebhaft.
+Kurz: Schnellkauf ohne eigene Werte: Kaufen bis ist die Hälfte des günstigsten Angebots (mindestens der Händlerpreis), Limit pro Kauf 5 Gold. Beides ist einstellbar.
+Kurz: Ruhige Vorschläge im Schnellkauf werden seltener geprüft, lebhafte sofort wieder. Im Rechtsklick-Menü lässt sich „Beobachten: Aufkauf“ und „Beobachten: Schnellkauf“ einzeln anhaken.
+
+- 0.120.0 (19.11.2026, Rückmeldung KarloDerBaer zu 0.119.0):
+  - **Behoben:** Im Unterreiter Aufkauf der Chancen standen auch Spekulationen. `R.Refresh` füllte die Liste nach jeder Antwort des Radars mit allen Zeilen, jetzt nur mit denen des offenen Unterreiters (`C.TabRows`).
+  - **Behoben:** Der Schutz vor Lockangeboten im Verkaufen griff auch bei Einzelgegenständen (z. B. ein Ring, 1 Stück knapp unter 2 Stück, hieß „Lockangebot nicht beachtet“). Er gilt jetzt nur bei Massenware (`Advice.Bait`), der Hinweis in den Optionen sagt das.
+  - **Entfernt:** Spalte Art in den Listen der Chancen. Die Art steht im Tooltip (Chancen des Managers wie bisher, Treffer des Radars mit neuer erster Zeile in `R.TipLines`).
+  - **Geändert, Kaufen bis im Schnellkauf ohne eigenen Wert** (`Quick.DefaultLimit`): `quickLimitPct` Prozent (Vorgabe 50) des günstigsten fremden Angebots, mindestens der Händlerpreis. Ein einzelnes Stück ganz unten zählt nicht, wenn es darüber weitere Angebote gibt (Lockangebot). Bis 0.119 kam der Wert aus dem Aufkauf. Gilt im Fokus (`Quick.EnsureLimit`), bei „Für Schnellkauf beobachten“ und beim Haken „Beobachten: Schnellkauf“ (bis 0.119 dort der günstigste Preis).
+  - **Geändert, Limit pro Kauf ohne eigenen Wert** (`Quick.DefaultGold`): fester Betrag `quickGoldDefault` (Vorgabe 5 Gold) statt Preis für 100 Stück zu Kaufen bis. „Für Schnellkauf beobachten“ speicherte bis 0.119 „ohne Grenze“, jetzt ebenfalls 5 Gold. Beide Vorgaben stehen im Fenster Einstellungen des Fokus unter „Schnellkauf ohne eigene Werte“, das Fenster ist dafür höher.
+  - **Geändert, Prüfabstand nach Bewegung** (`QuickChances.Wait`, `QC.DueIn`): Lebhafte und ungeprüfte kommen sofort wieder dran. Die anderen warten gleitend nach ihrem Anteil an der Grenze für lebhaft, höchstens `qcWaitMax` Minuten (Vorgabe 10, Einstellungen der Chancen), mindestens 30 Sekunden. Vorläufige Ergebnisse warten halb so lange. Die Zeile zeigt „vor 2 Min., wieder in 3 Min.“.
+  - **Neu, Haken im Gegenstandsmenü:** Bei Massenware „Beobachten: Aufkauf“ und „Beobachten: Schnellkauf“ (`Watch.SetBuyoutOn`, `Watch.SetQuickOn`, Merker `bon` und `qon` nur im Spiel). Beide aus beendet die Beobachtung, Werte der abgewählten Liste bleiben gespeichert. Preisgrenze und Zielpreis stehen nur, wenn der Gegenstand im Aufkauf steht. Der Knopf „Für Schnellkauf beobachten“ entfällt, andere Gegenstände behalten den einen Haken „Beobachten“.
+  - **Geändert, Marktbewegung nur in der Kaufzone** (`Measure.Pair`, `Measure.Zone`, `Measure.IsJump`): Einstellungen und Käufe zählen für lebhaft, mäßig und ruhig nur bis `quickZonePct` Prozent (Vorgabe 5) über dem günstigsten fremden Angebot beider Abfragen (`zNew`, `zSold`). Ein Preissprung zählt erst ab `quickJumpPct` Prozent Änderung (Vorgabe 2), Wackeln um 1 Kupfer nicht mehr. Zufluss und Abfluss im Verlauf gelten weiter für den ganzen Markt. Gilt im Fokus, in den Chancen und in Beobachten. Beide Werte stehen in den Einstellungen des Fokus unter Marktbewegung, die Vorgaben ohne eigene Werte rücken dafür in die linke Spalte.
+  - Tests: Filter je Unterreiter in `R.Refresh`, Kaufzone und Preissprung, Vorgaben für Kaufen bis und Limit pro Kauf, Wartezeit, Haken im Menü (`test_broker.lua`). Ältere Tests auf die neuen Vorgaben und die Liste ohne Spalte Art angepasst.
+
 ## 0.119.0
 
 Kurz: Neue Chancen für den Schnellkauf: Broker schlägt Massenware mit viel Menge auf dem Markt vor und prüft, wie lebhaft dort gerade gehandelt wird.

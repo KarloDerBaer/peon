@@ -26,7 +26,8 @@ Wt.PCTS = { 10, 20, 30 }   -- Vorschlaege im Menue: % unter dem Vergleichspreis
 -- Werte mit eigener Zeit (ab 0.89, Regeln in Shop.lua): Kaufen bis und Zielpreis. hit und upHit sind Merker des Alarms
 Wt.SPEC = { { f = "buy", keys = { "lim", "pct" }, reset = "hit" }, { f = "up", keys = { "up" }, reset = "upHit" } }
 Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, upHit = true, sDown = true, sUp = true, muteDown = true, muteUp = true,
-            qlim = true, qmax = true, mode = true, qskip = true, qgold = true, qavg = true }   -- ab 0.106: Werte des Schnellkaufs nur im Spiel
+            qlim = true, qmax = true, mode = true, qskip = true, qgold = true, qavg = true,   -- ab 0.106: Werte des Schnellkaufs nur im Spiel
+            bon = true, qon = true }   -- ab 0.120: Haken Beobachten Aufkauf und Schnellkauf, nur im Spiel
 -- ab 0.91 (Fehlerberichte 20 und 21): Warnton je Richtung, einstellbar fuer alle (watchSoundDown, watchSoundUp, dazu
 -- Chatnachricht watchChatDown, watchChatUp) und je Gegenstand (sDown, sUp: Ton oder "off", nil = wie eingestellt).
 -- Die Werte je Gegenstand bleiben im Spiel, der Manager kennt sie nicht.
@@ -122,22 +123,80 @@ function Wt.SetMode(key, mode)
     if not w then return false end
     local m = mode == "quick" and "quick" or nil
     if w.mode ~= m then w.mode, w.hit = m, nil end
+    if m == "quick" then w.qon = true else w.bon = true end   -- ab 0.120: in die Liste des Modus
     return true
 end
 
 -- ab 0.119: Unterreiter in Beobachten. Ein Gegenstand steht in jeder Liste, fuer die er Werte hat, also auch in beiden.
 -- Schnellkauf: Kaufen bis des Schnellkaufs oder zuletzt im Schnellkauf gespeichert. Aufkauf: Werte des Aufkaufs oder
 -- gar keine Werte (frisch hinzugefuegt).
+-- Ab 0.120 (KarloDerBaer 19.11.2026) schalten Haken im Gegenstandsmenue jede Liste einzeln: bon / qon = true oder false
+-- gehen vor, nil = wie bisher nach den Werten.
 function Wt.InQuick(key)
     local w = Wt.Store()[key]
-    return w ~= nil and (w.mode == "quick" or Num(w.qlim))
+    if w == nil then return false end
+    if w.qon ~= nil then return w.qon end
+    return w.mode == "quick" or Num(w.qlim)
 end
 
 function Wt.InBuyout(key)
     local w = Wt.Store()[key]
     if not w then return false end
+    if w.bon ~= nil then return w.bon end
     if Num(w.lim) or Num(w.pct) or Num(w.up) then return true end
     return not Wt.InQuick(key)
+end
+
+-- ab 0.120: Haken "Beobachten: Aufkauf". Aus: steht der Gegenstand noch im Schnellkauf, bleibt er dort, sonst endet
+-- die Beobachtung. Die Werte des Aufkaufs bleiben gespeichert.
+function Wt.SetBuyoutOn(key, on, info)
+    if key == nil then return false end
+    if on then
+        if not Wt.Is(key) then Wt.Add(key, info) end
+        local w = Wt.Store()[key]
+        w.bon = true
+        if not Wt.InQuick(key) then w.mode = nil end
+    else
+        local w = Wt.Store()[key]
+        if not w then return false end
+        if not Wt.InQuick(key) then Wt.Remove(key); return true end
+        w.bon = false
+        if w.mode ~= "quick" then w.mode, w.hit = "quick", nil end   -- Alarm nach Kaufen bis des Schnellkaufs
+        w.qon = true
+    end
+    Wt.Check({ key })
+    return true
+end
+
+-- ab 0.120: Haken "Beobachten: Schnellkauf". An ohne Werte des Schnellkaufs: Kaufen bis und Limit pro Kauf wie im
+-- Fokus ohne eigene Werte (QuickChances.Defaults), beide Haken an. Der gespeicherte Modus wird nur Schnellkauf, wenn
+-- der Gegenstand nicht auch im Aufkauf steht.
+function Wt.SetQuickOn(key, on, info)
+    if key == nil then return false end
+    if on then
+        local fresh = not Wt.Is(key)
+        if fresh then Wt.Add(key, info) end
+        local w = Wt.Store()[key]
+        if not Num(w.qlim) then
+            local limit, gold = nil, nil
+            if ns.QuickChances then limit, gold = ns.QuickChances.Defaults(key) end
+            w.qlim = Num(limit) and limit > 0 and math.floor(limit) or nil
+            w.qgold = Num(gold) and gold > 0 and math.floor(gold) or 0
+            w.qskip, w.qavg = true, true
+        end
+        w.qon = true
+        if fresh then w.bon = false end
+        if fresh or not Wt.InBuyout(key) then w.mode, w.hit = "quick", nil end
+    else
+        local w = Wt.Store()[key]
+        if not w then return false end
+        local inB = Wt.InBuyout(key)   -- vor dem Ausschalten: steht er auch im Aufkauf?
+        if not inB then Wt.Remove(key); return true end
+        w.qon, w.bon = false, true
+        if w.mode == "quick" then w.mode, w.hit = nil, nil end
+    end
+    Wt.Check({ key })
+    return true
 end
 
 -- ab 0.106: Werte des Schnellkaufs (Kaufen bis und hoechste Menge, nil = alle), Modus wird Schnellkauf
@@ -150,6 +209,7 @@ function Wt.SetQuick(key, limit, gold, skip, avg)
     w.qavg = avg and true or false   -- ab 0.112 Haken "Durchschnitt zaehlt", ab 0.113 auch aus gespeichert
     w.qskip = skip and true or false   -- ab 0.109: Haken "Lockangebot ignorieren", ab 0.113 auch aus gespeichert
     w.mode, w.hit = "quick", nil
+    w.qon = true   -- ab 0.120: Speichern im Schnellkauf stellt ihn in die Liste Schnellkauf
     Wt.Check({ key })
     return true
 end
@@ -277,15 +337,29 @@ function Wt.PseudoList()
 end
 
 -- Gegenstandsmenue: "Beobachten" (Haken) und Untermenue "Preisgrenze"
+-- Ab 0.120 bei Massenware zwei Haken: "Beobachten: Aufkauf" und "Beobachten: Schnellkauf" (Wunsch KarloDerBaer).
+-- Preisgrenze und Zielpreis gehoeren zum Aufkauf und stehen nur dort.
 function Wt.AddMenu(root, item, key)
     local on = Wt.Is(key)
-    if root.CreateCheckbox then
+    local info = { name = item.name }
+    if key ~= nil and ns.Data.IsCommodity(key) then
+        local function Add(text, get, set)
+            if root.CreateCheckbox then
+                root:CreateCheckbox(text, get, function() mod:Call("Beobachtung", set, key, not get(), info) end)
+            else
+                root:CreateButton((get() and "[x] " or "[ ] ") .. text, function() mod:Call("Beobachtung", set, key, not get(), info) end)
+            end
+        end
+        Add(L.MENU_WATCH_BUYOUT, function() return Wt.InBuyout(key) end, Wt.SetBuyoutOn)
+        Add(L.MENU_WATCH_QUICK, function() return Wt.InQuick(key) end, Wt.SetQuickOn)
+    elseif root.CreateCheckbox then
         root:CreateCheckbox(L.MENU_WATCH, function() return Wt.Is(key) end,
-            function() mod:Call("Beobachtung", Wt.Toggle, key, { name = item.name }) end)
+            function() mod:Call("Beobachtung", Wt.Toggle, key, info) end)
     else
-        root:CreateButton(on and L.MENU_UNWATCH or L.MENU_WATCH, function() mod:Call("Beobachtung", Wt.Toggle, key, { name = item.name }) end)
+        root:CreateButton(on and L.MENU_UNWATCH or L.MENU_WATCH, function() mod:Call("Beobachtung", Wt.Toggle, key, info) end)
     end
     if not on then return end
+    if not Wt.InBuyout(key) then return end
     local sub = root:CreateButton(L.MENU_WATCH_LIMIT)
     for _, p in ipairs(Wt.PCTS) do
         sub:CreateButton(L.WATCH_PCT:format(p), function() mod:Call("Beobachtung", Wt.SetLimit, key, "pct", p) end)

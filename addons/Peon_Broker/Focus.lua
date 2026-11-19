@@ -995,7 +995,18 @@ function F.BuildQuick(left, Label)
     if q.avg.SetScale then q.avg:SetScale(0.85) end
     q.avg:SetPoint("TOPLEFT", F.QUICK_AVG_X / 0.85, F.QUICK_SKIP_Y / 0.85)
     q.balance:Hide()   -- ab 0.114 nicht mehr gezeigt (Wunsch KarloDerBaer): die Bilanz steht in der Zeile "Gekauft"
-    q.all = { q.head, q.priceLabel, q.priceInput, q.priceHint, q.post, q.cancel, q.state, q.skip, q.line1, q.line2, q.avg }
+    -- ab 0.121: Knopf Auto hinter Kaufen bis (Q.AutoLimit), grau ohne erkanntes fremdes Lockangebot
+    q.auto = UI.Button(left, L.QUICK_AUTO, 50, function()
+        local v = Q.AutoLimit(F.key)
+        if v then F.SetLimit(v) end
+    end)
+    q.auto:SetPoint("LEFT", F.limitInput, "RIGHT", 6, 0)
+    UI.SetTooltip(q.auto, function()
+        local v, bait, reg = Q.AutoLimit(F.key)
+        if not v then return { L.QUICK_AUTO, L.QUICK_AUTO_TIP, GREY .. L.QUICK_AUTO_NONE .. "|r" } end
+        return { L.QUICK_AUTO, L.QUICK_AUTO_TIP, L.QUICK_AUTO_VALUES:format(Money(bait), Money(reg), Money(v)) }
+    end)
+    q.all = { q.head, q.priceLabel, q.priceInput, q.priceHint, q.post, q.cancel, q.state, q.skip, q.line1, q.line2, q.avg, q.auto }
 end
 
 local function MoveLabel(label, y, x)
@@ -1082,6 +1093,7 @@ function F.UpdateQuick(d, live)
     q.post:SetText((b and b.state == "confirm") and L.QUICK_CONFIRM or L.QUICK_POST)
     On(q.post, canPost and true or false)
     On(q.cancel, live and b ~= nil and b.state == "up" and b.id ~= nil)
+    On(q.auto, live and key ~= nil and Q.AutoLimit(key) ~= nil)
     if key ~= nil and not ns.Data.IsCommodity(key) then q.state:SetText(GREY .. L.QUICK_ONLY_MASS .. "|r")
     else q.state:SetText(Q.StateText(key)) end
     q.balance:SetText(Q.BalanceText(key))
@@ -1108,7 +1120,7 @@ function F.UpdateQuickMove(v)
         tips[2] = { L.QUICK_MV_TIP_OUT:format(R(v.out), R(v.soldPerMin), win) }
         local color = (code == "high" and GREEN) or (code == "mid" and YELLOW) or GREY
         vals[3] = color .. L["QUICK_MV_" .. code:upper()] .. "|r " .. GREY .. L.QUICK_MV_JUMPS:format(v.jumps or 0) .. "|r"
-        tips[3] = { L.QUICK_MV_TIP_MOVE:format(v.jumps or 0, R(v.jumpsPerMin), R(ev)),
+        tips[3] = { L.QUICK_MV_TIP_MOVE:format(v.jumps or 0, tonumber(db.quickJumpPct) or 2, R(v.jumpsPerMin), R(ev), tonumber(db.quickZonePct) or 5),
                     L.QUICK_MV_TIP_RULE:format(tonumber(db.quickMoveIn) or 2, tonumber(db.quickMoveAll) or 5, tonumber(db.quickMoveLow) or 1) }
     end
     local st = F.key ~= nil and (v or AHOpen()) and Q.BaitStats(F.key) or nil
@@ -1208,8 +1220,8 @@ function F.Update()
     local has = key ~= nil
     local live = AHOpen()
     if has and live and ns.Quick.On() then
-        ns.Quick.EnsureLimit()   -- ab 0.107: Kaufen bis aus dem Aufkauf
-        ns.Quick.EnsureGold()    -- ab 0.113: Limit pro Kauf = 100 Stueck zu Kaufen bis
+        ns.Quick.EnsureLimit()   -- ab 0.107, ab 0.120 Haelfte des guenstigsten, mindestens Haendlerpreis
+        ns.Quick.EnsureGold()    -- ab 0.113, ab 0.120 fester Betrag (quickGoldDefault)
     end
     On(F.marketButton, has); On(F.itemButton, has); On(F.saveButton, has)
     On(F.autoButton, has and live and (F.ManualTarget(key) ~= nil or F.ManualLimit(key) ~= nil))
