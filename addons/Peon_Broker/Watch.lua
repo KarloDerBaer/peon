@@ -9,6 +9,10 @@
 -- Ton (wie das Radar) und erst wieder, nachdem der Preis darueber lag. Geprueft nach jedem Komplettscan, nach
 -- dem Stand vom Manager (Anmelden) und nach jeder Live-Abfrage.
 -- Ab 0.82 eigener Reiter Beobachten (WatchPage.lua). up heisst dort "Zielpreis" (Preis, ab dem man verkaufen wuerde).
+-- Ab 0.106 (KarloDerBaer 19.11.2026) Werte je Modus des Fokus: lim/pct und up gehoeren zum Aufkauf, qlim (Kaufen bis)
+-- und qmax (hoechste Menge) zum Schnellkauf, mode = "quick" oder nil (Aufkauf) ist der zuletzt gespeicherte Modus.
+-- qlim, qmax und mode bleiben im Spiel, der Abgleich mit dem Manager laesst sie aus (Wt.SKIP). Der Preisalarm nimmt
+-- Kaufen bis des gespeicherten Modus, den Zielpreis nur im Aufkauf.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -21,7 +25,8 @@ Wt.PCTS = { 10, 20, 30 }   -- Vorschlaege im Menue: % unter dem Vergleichspreis
 
 -- Werte mit eigener Zeit (ab 0.89, Regeln in Shop.lua): Kaufen bis und Zielpreis. hit und upHit sind Merker des Alarms
 Wt.SPEC = { { f = "buy", keys = { "lim", "pct" }, reset = "hit" }, { f = "up", keys = { "up" }, reset = "upHit" } }
-Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, upHit = true, sDown = true, sUp = true, muteDown = true, muteUp = true }
+Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, upHit = true, sDown = true, sUp = true, muteDown = true, muteUp = true,
+            qlim = true, qmax = true, mode = true }   -- ab 0.106: Werte des Schnellkaufs nur im Spiel
 -- ab 0.91 (Fehlerberichte 20 und 21): Warnton je Richtung, einstellbar fuer alle (watchSoundDown, watchSoundUp, dazu
 -- Chatnachricht watchChatDown, watchChatUp) und je Gegenstand (sDown, sUp: Ton oder "off", nil = wie eingestellt).
 -- Die Werte je Gegenstand bleiben im Spiel, der Manager kennt sie nicht.
@@ -106,6 +111,39 @@ function Wt.SetUp(key, value)
     return true
 end
 
+-- ab 0.106: zuletzt gespeicherter Modus des Fokus ("quick" oder "buyout")
+function Wt.Mode(key)
+    local w = Wt.Store()[key]
+    return (w and w.mode == "quick") and "quick" or "buyout"
+end
+
+function Wt.SetMode(key, mode)
+    local w = Wt.Store()[key]
+    if not w then return false end
+    local m = mode == "quick" and "quick" or nil
+    if w.mode ~= m then w.mode, w.hit = m, nil end
+    return true
+end
+
+-- ab 0.106: Werte des Schnellkaufs (Kaufen bis und hoechste Menge, nil = alle), Modus wird Schnellkauf
+function Wt.SetQuick(key, limit, qmax)
+    local w = Wt.Store()[key]
+    if not w then return false end
+    w.qlim = Num(limit) and limit > 0 and math.floor(limit) or nil
+    w.qmax = Num(qmax) and qmax >= 1 and math.floor(qmax) or nil
+    w.mode, w.hit = "quick", nil
+    Wt.Check({ key })
+    return true
+end
+
+-- ab 0.106: Kaufen bis des gespeicherten Modus (fuer Liste und Alarm)
+function Wt.ActiveLimit(key, e)
+    local w = Wt.Store()[key]
+    if not w then return nil end
+    if w.mode == "quick" then return Num(w.qlim) and w.qlim or nil end
+    return Wt.Limit(key, e)
+end
+
 -- Grenze in Kupfer (je Stueck) oder nil
 function Wt.Limit(key, e)
     local w = Wt.Store()[key]
@@ -174,7 +212,7 @@ function Wt.Check(keys)
         local w = st[key]
         if w then
             local e = ns.Data.Lookup(key)
-            local limit = Wt.Limit(key, e)
+            local limit = Wt.ActiveLimit(key, e)   -- ab 0.106 je Modus
             local hit = limit and type(e) == "table" and not e.gone and Num(e.m) and e.m <= limit
             if hit and not w.hit then
                 w.hit = true
@@ -184,7 +222,7 @@ function Wt.Check(keys)
                 w.hit = nil
             end
             -- ab 0.68: Grenze nach oben, guenstigstes Angebot liegt darueber (guter Zeitpunkt zum Verkaufen)
-            local up = Num(w.up) and w.up or nil
+            local up = Num(w.up) and w.mode ~= "quick" and w.up or nil   -- ab 0.106: Zielpreis nur im Aufkauf
             local upHit = up and type(e) == "table" and not e.gone and Num(e.m) and e.m >= up
             if upHit and not w.upHit then
                 w.upHit = true

@@ -3,6 +3,25 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 19.11.2026: Schnellkauf und Beobachten je Modus (Broker 0.106.0)
+
+- **Schnellkauf schlank** (KarloDerBaer): keine Hinweistexte, kein Wiedereinstellen. Käufe daraus werden nie Posten.
+- **Max. Menge als Feld** (KarloDerBaer, ohne Haken nach Vorschlag Claude): leer heißt alle, der Höchstbetrag (Menge mal Kaufen bis) steht hinter dem Feld. Ein Regler passt nicht, weil man ihn bei Angeboten von Sekunden nicht nachstellt.
+- **Werte je Modus in Beobachten** (KarloDerBaer): Aufkauf mit Kaufen bis und Zielpreis, Schnellkauf mit Kaufen bis und Max. Menge, dazu der zuletzt gespeicherte Modus. Eine Spalte „Kaufen bis“ zeigt den Wert der Art in der neuen Spalte „Art“. Der Preisalarm folgt der Art.
+- **Neue Werte nur im Spiel** (Claude, zugestimmt): Der Manager nutzt sie nicht, darum lässt der Abgleich sie aus.
+- **Fokus aus Chancen immer im Aufkauf** (Claude, zugestimmt): Chancen haben Ziel und Gewinn.
+- **Stand in Beobachten** (KarloDerBaer): Spalte „Stand“ weg, oben rechts die jüngste Einzelabfrage („Letzter Gegenstand gescannt vor: …“). Die Abfragen gehen reihum, die anderen sind nur Sekunden älter.
+
+## 19.11.2026: Schnellkauf, Lockangebote, schnellerer Kaufknopf, Radar in Chancen (Broker 0.104.0 und 0.105.0)
+
+- **Ein Reiter Fokus mit zwei Modi** (KarloDerBaer, Vorschlag Claude): „Aufkauf“ ist der bisherige Fokus, „Schnellkauf“ ist neu. Nicht gewählt: zwei getrennte Reiter. Grund: Beide brauchen dieselben Preisstufen und dieselbe laufende Abfrage, beim Umschalten bleibt der Gegenstand.
+- **Schnellkauf nur mit Kaufen bis** (Claude): Gekauft wird alles bis Kaufen bis, ohne Zielpreis, Gewinn, üblichen Bereich und Risiko. Ohne Kaufen bis kauft der Schnellkauf nichts.
+- **Diagramm im Schnellkauf** (KarloDerBaer): Preislinie und Menge unter Kaufen bis reichen, dazu ein Strich je eigenem Lockangebot (Vorschlag Claude). So sieht man, wie oft Lockangebote und Nachahmer kommen.
+- **Lockangebot** (KarloDerBaer): immer 1 Stück, kürzeste Laufzeit, eigenes Feld mit Vorschlag. Der Vorschlag liegt einen festen, einstellbaren Prozentsatz (Vorgabe 20 %) unter der ersten echten Stufe. Nur Massenware. Es ist Brokers erstes Einstellen aus eigenem Knopf, deshalb mit Rückfrage des Spiels als zweitem Klick und ohne Automatik.
+- **Lockangebote beim Verkaufen erkennen** (KarloDerBaer, Grenzen von Claude): höchstens 5 Stück oder unter 2 % aller Angebote, und die nächste Stufe mehr als 10 % teurer. Alle Grenzen einstellbar.
+- **Kaufknopf nach Kauf und „schon weg“** (Claude): Stufen sofort anpassen und sofort neu abfragen statt bis zur nächsten Antwort mit dem alten Stand zu rechnen. Nach „schon weg“ wartet der Knopf auf die frische Antwort, höchstens 3 Sekunden, damit er nicht hängen bleibt, wenn eine Antwort ausfällt.
+- **Radar in Chancen** (KarloDerBaer, umgesetzt in Broker 0.105.0): kein eigener Reiter Radar mehr. Ein Scan-Knopf mit Auswahl Manager-Chancen, Beobachten, Massenware, Alles. Spalten Gegenstand, Art, Gewinn, Kaufen bis, Risiko, Zustand. Keine doppelten Zeilen: Die Live-Prüfung aktualisiert die Chance des Managers. Weggefallene je Herkunft wie bisher. Zahl am Reiter und Einstellungen zusammengeführt. Standard der Zahl bleibt aus (Entscheidung vom 15.11.2026), nach einem Komplettscan blinkt sie wie früher beim Radar, wenn sie eingeschaltet ist.
+
 ## 18.11.2026: Gifte mit einer Taste (ClassBuddy 0.4.0)
 
 - **Eine schlaue Taste mit Erinnerung** (KarloDerBaer, Vorschlag A mit C): Jeder Druck trägt das nächste fehlende oder bald ablaufende Gift auf, zuerst Haupthand, dann Nebenhand. Nicht gewählt: je Hand eine eigene Taste.

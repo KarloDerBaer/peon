@@ -47,6 +47,13 @@ function S.Set(kind, key, v)
     S.tmp[kind][key] = v
 end
 
+-- ab 0.104: Toene fuer den Alarm im Schnellkauf
+local function QuickSounds()
+    return { { "raid", L.SOUND_RAID }, { "ready", L.SOUND_READY }, { "alarm", L.SOUND_ALARM }, { "tell", L.SOUND_TELL } }
+end
+local function QuickTest(v) if ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert, v) end end
+local function QuickAlarmOff() return S.Get("focus", "quickAlarm") == false end
+
 -- Fokus: Abfragen je Minute und die Grenzen fuer das Urteil (Measure.lua)
 S.SPECS.focus = {
     title = "SET_FOCUS_TITLE",
@@ -56,6 +63,10 @@ S.SPECS.focus = {
     { "head", "SET_FOCUS_BUY" },
     { "slider", "focusPriceTol", "SET_FOCUS_TOL", 0, 10, 1, function(v) return L.SET_PCT_FMT:format(v) end },
     { "check", "relistDefault", "SET_FOCUS_RELIST", "SET_FOCUS_RELIST_TIP" },   -- ab 0.91
+    { "head", "SET_QUICK_HEAD" },   -- ab 0.104
+    { "check", "quickAlarm", "SET_QUICK_ALARM", "SET_QUICK_ALARM_TIP" },
+    { "choice", "quickSound", "SET_QUICK_SOUND", QuickSounds, test = QuickTest, off = QuickAlarmOff },
+    { "slider", "quickBaitPct", "SET_QUICK_PCT", 5, 50, 5, function(v) return L.SET_PCT_FMT:format(v) end },
     { "col" },
     { "head", "SET_FOCUS_VERDICT" },
     { "slider", "focusWindow", "SET_FOCUS_WINDOW", 2, 30, 1, function(v) return L.SET_MIN_FMT:format(v) end },
@@ -65,11 +76,10 @@ S.SPECS.focus = {
     { "slider", "focusGrow", "SET_FOCUS_GROW", 1, 50, 1, function(v) return L.SET_PCT_FMT:format(v) end },
 }
 -- Radar: welche Moeglichkeiten mit ihren Grenzen, Erneuern, Radar-Scan (ab 0.71)
-local function VendorOff() return S.Get("radar", "radarVendorOn") == false end
-local function BuyoutOff() return S.Get("radar", "radarBuyoutOn") == false end
-local function RenewOff() return S.Get("radar", "radarRenew") == false end
-S.SPECS.radar = {
-    title = "SET_RADAR_TITLE",
+local function VendorOff() return S.Get("chances", "radarVendorOn") == false end   -- ab 0.105 im Fenster Chancen
+local function BuyoutOff() return S.Get("chances", "radarBuyoutOn") == false end
+local function RenewOff() return S.Get("chances", "radarRenew") == false end
+S.RADAR_KINDS = {
     { "head", "SET_RADAR_KINDS" },
     { "check", "radarVendorOn", "SET_RADAR_VENDOR", "SET_RADAR_VENDOR_TIP" },
     { "money", "dealMinVendor", "SET_RADAR_MIN_GAIN", 1, off = VendorOff },
@@ -80,38 +90,45 @@ S.SPECS.radar = {
     { "slider", "buyoutMinQty", "SET_RADAR_MIN_QTY", 0, 5000, 50, function(v) return L.SET_QTY_FMT:format(v) end, off = BuyoutOff },
     { "slider", "buyoutMinLevels", "SET_RADAR_MIN_LEVELS", 2, 12, 1, function(v) return tostring(v) end, off = BuyoutOff },
     { "slider", "buyoutMinSales", "SET_RADAR_MIN_SALES", 0, 2000, 10, function(v) return L.SET_QTY_FMT:format(v) end, off = BuyoutOff },
-    { "col" },
+}
+S.RADAR_GENERAL = {
     { "head", "SET_RADAR_GENERAL" },
     { "money", "radarReserve", "SET_RADAR_RESERVE", 10000 },
     { "check", "radarSound", "SET_RADAR_SOUND" },
+}
+S.RADAR_UPDATE = {
     { "head", "SET_RADAR_UPDATE" },
     { "check", "radarRenew", "SET_RADAR_RENEW", "SET_RADAR_RENEW_TIP" },
     { "slider", "radarRenewSec", "SET_RADAR_RENEW_SEC", 15, 600, 15, function(v) return L.SET_SEC_FMT:format(v) end, off = RenewOff },
     { "slider", "radarRenewMax", "SET_RADAR_RENEW_MAX", 30, 1200, 30, function(v) return L.SET_SEC_FMT:format(v) end, off = RenewOff },
     { "slider", "radarSearchPct", "SET_RADAR_SEARCH_PCT", 0, 80, 5, function(v) return L.SET_PCT_FMT:format(v) end },
 }
-S.changed.radar = function()
-    local R = ns.Radar
-    if not R then return end
-    R.loaded = nil   -- Grenzen geaendert: Chancen aus der Datenbank neu rechnen
-    if R.Shown() then R.Open(); R.Wake() end
-end
 
--- Chancen vom Peon Manager (ab 0.96, Chances.lua): Arten und Hinweise
+-- Chancen vom Peon Manager (ab 0.96, Chances.lua): Arten und Hinweise. Ab 0.105 mit den Einstellungen des Radars in
+-- einem Fenster (der Reiter Radar entfaellt), dafuer etwas hoeher.
 S.SPECS.chances = {
-    title = "SET_CH_TITLE",
+    title = "SET_CH_TITLE", height = 620,
     { "head", "SET_CH_KINDS" },
     { "check", "chancesShowS", "SET_CH_S", "SET_CH_S_TIP" },
     { "check", "chancesShowL", "SET_CH_L", "SET_CH_L_TIP" },
     { "check", "chancesShowB", "SET_CH_B", "SET_CH_B_TIP" },
     { "check", "chancesShowM", "SET_CH_M", "SET_CH_M_TIP" },
-    { "col" },
     { "head", "SET_CH_NOTES" },
     { "check", "chancesAhNote", "SET_CH_AH_NOTE", "SET_CH_AH_NOTE_TIP" },
     { "check", "chancesNotify", "SET_CH_NOTIFY", "SET_CH_NOTIFY_TIP" },
     { "note", "SET_CH_NOTE" },
 }
-S.changed.chances = function() if ns.Chances and ns.Chances.Shown() then ns.Chances.Refresh() end end
+for _, row in ipairs(S.RADAR_GENERAL) do table.insert(S.SPECS.chances, row) end
+table.insert(S.SPECS.chances, { "col" })
+for _, row in ipairs(S.RADAR_KINDS) do table.insert(S.SPECS.chances, row) end
+for _, row in ipairs(S.RADAR_UPDATE) do table.insert(S.SPECS.chances, row) end
+S.changed.chances = function()
+    local R = ns.Radar
+    if R then R.loaded = nil end   -- Grenzen geaendert: Treffer aus der Datenbank neu rechnen
+    if ns.Chances and ns.Chances.Shown() then
+        if R then R.Open(); R.Wake() else ns.Chances.Refresh() end
+    end
+end
 
 -- Beobachten (ab 0.91, Fehlerbericht 20): Warnton und Chatnachricht je Richtung
 local function Sounds()
@@ -148,7 +165,7 @@ function S.Build(kind)
     local UI = Peon.UI
     if not (spec and UI) then return nil end
     local f = UI.Window("PeonBroker" .. (kind:gsub("^%l", string.upper)) .. "Settings",
-        { title = L[spec.title] or spec.title, icon = "Interface\\Icons\\INV_Misc_Gear_01", width = S.WIDTH, height = S.HEIGHT })
+        { title = L[spec.title] or spec.title, icon = "Interface\\Icons\\INV_Misc_Gear_01", width = S.WIDTH, height = spec.height or S.HEIGHT })
     f:SetFrameStrata("DIALOG")
     f.controls = {}
     f:SetScript("OnHide", function() S.tmp[kind] = nil end)   -- ESC oder Schliessen = Abbrechen

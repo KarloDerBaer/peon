@@ -29,7 +29,6 @@ T.TABS = {
     { key = "buy",    label = "AHTAB_SHOP" },
     { key = "focus",  label = "NTAB_FOCUS" },   -- ab 0.96 links neben Beobachten
     { key = "watch",  label = "NTAB_WATCH" },   -- ab 0.82
-    { key = "radar",  label = "AHTAB_RADAR" },
     { key = "chances", label = "TAB_CHANCES" }, -- ab 0.96
     { key = "more",   label = "NTAB_MORE" },    -- ab 0.82 mit Gegenstand
 }
@@ -621,11 +620,10 @@ end
 T.BADGE_MODES = {
     buy     = { db = "badgeBuy",     label = "AHTAB_SHOP",    modes = { "off", "buypart", "buy" }, def = "buypart" },
     watch   = { db = "badgeWatch",   label = "NTAB_WATCH",    modes = { "off", "both", "buy", "sell" }, def = "both" },
-    radar   = { db = "badgeRadar",   label = "AHTAB_RADAR",   modes = { "off", "blink", "still" }, def = "blink" },
     sell    = { db = "badgeSell",    label = "AHTAB_SELL_BASE", modes = { "off", "on" }, def = "on" },
     chances = { db = "badgeChances", label = "TAB_CHANCES",   modes = { "off", "ok", "all" }, def = "off" },
 }
-T.BADGE_ORDER = { "buy", "watch", "radar", "chances", "sell" }
+T.BADGE_ORDER = { "buy", "watch", "chances", "sell" }   -- ab 0.105 ohne Radar (zaehlt bei Chancen mit)
 
 function T.BadgeMode(key)
     local d = T.BADGE_MODES[key]
@@ -641,23 +639,18 @@ function T.RefreshBadges()
     if ns.WatchPage and ns.WatchPage.UpdateBadge then ns.WatchPage.UpdateBadge() end
     if ns.Chances and ns.Chances.UpdateBadge then ns.Chances.UpdateBadge() end
     if ns.Lots and ns.Lots.UpdateSellTab then ns.Lots.UpdateSellTab() end
-    local b = T.badges.radar
-    local mode = T.BadgeMode("radar")
-    if b and T.built then
-        if mode == "off" then T.SetBadge("radar", nil) else T.SetBadge("radar", b.n, mode == "blink" and b.blink) end
-    end
 end
 
--- Nach einem Komplettscan: Treffer im Radar zaehlen (blinkt), Einkaufen kommt mit U8
+-- Nach einem Komplettscan: Treffer im Radar zaehlen. Ab 0.105 zaehlen sie im Reiter Chancen mit und lassen die
+-- Zahl dort blinken, bis man ihn oeffnet.
 function T.OnScanDone()
     if not T.built or ns.AHPlain() then return end
     local R = ns.Radar
     if R and R.LoadFromScan and R.CountHits then
         R.LoadFromScan()
         local n = R.CountHits()
-        local mode = T.BadgeMode("radar")
-        if mode == "off" then T.SetBadge("radar", nil) else T.SetBadge("radar", n, mode == "blink" and n > 0) end
         T.lastScanHits = n
+        if ns.Chances and ns.Chances.OnScanDone then ns.Chances.OnScanDone(n) end
     end
 end
 

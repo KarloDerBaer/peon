@@ -181,7 +181,8 @@ function M.Add(key, rows, t)
     c.target = target
     local under = 0
     for _, l in ipairs(lv) do if target and l.price < target then under = under + l.qty end end
-    local s = { t = t, offers = offers, min = lv[1] and lv[1].price or nil, under = under, partial = rows.partial and true or false, maxP = maxP }
+    local s = { t = t, offers = offers, min = lv[1] and lv[1].price or nil, under = under, partial = rows.partial and true or false, maxP = maxP,
+                lv = lv }   -- ab 0.104: Stufen fuer das Diagramm im Schnellkauf (Menge unter Kaufen bis)
     if rows.commodity then   -- ab 0.74: Preisstufen fuer den Vergleich (alle Stueck, auch eigene)
         local levels, top = {}, 0
         for _, r in ipairs(rows) do

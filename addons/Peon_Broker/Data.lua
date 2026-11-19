@@ -783,6 +783,32 @@ function D.Available(rows)
     return out
 end
 
+-- Lockangebote (ab 0.104, Wunsch KarloDerBaer 19.11.2026): Andere stellen ein Stueck sehr billig ein, damit
+-- Verkaeufer den Preis uebernehmen, und kaufen dann die billige Menge. Die guenstigsten fremden Stufen zaehlen nicht,
+-- wenn sie zusammen wenig Menge haben (hoechstens baitQty Stueck oder unter baitPct % aller Angebote) und
+-- die naechste Stufe mehr als baitGap % teurer ist. Rueckgabe { price = erste echte Stufe, qty = Menge der
+-- Lockangebote, top = teuerstes Lockangebot, low = billigstes } oder nil (kein Lockangebot)
+function D.SkipBait(rows, db)
+    db = db or {}
+    local lv = D.Available(rows)
+    if #lv < 2 then return nil end
+    local total = 0
+    for _, l in ipairs(lv) do total = total + l.qty end
+    local maxQty = tonumber(db.baitQty) or 5
+    local maxPct = (tonumber(db.baitPct) or 2) / 100
+    local gap = (tonumber(db.baitGap) or 10) / 100
+    local cum, found = 0, nil
+    for i = 1, #lv - 1 do
+        cum = cum + lv[i].qty
+        if cum > maxQty and cum >= total * maxPct then break end
+        if lv[i + 1].price > lv[i].price * (1 + gap) then found = i end
+    end
+    if not found then return nil end
+    local qty = 0
+    for i = 1, found do qty = qty + lv[i].qty end
+    return { price = lv[found + 1].price, qty = qty, top = lv[found].price, low = lv[1].price }
+end
+
 -- Kosten der n guenstigsten Stueck und Preis des n-ten Stuecks (ab 0.17: Kauf je Stueck oder Stapel)
 function D.CostOf(rows, n)
     local cost, got, last = 0, 0, nil

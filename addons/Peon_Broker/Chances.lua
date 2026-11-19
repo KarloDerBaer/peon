@@ -14,6 +14,14 @@
 -- liest die Liste aus Peon_Broker.lua und blendet sie ebenfalls aus.
 -- Ab 0.102 (Rueckmeldung KarloDerBaer 17.11.2026): Chancen mit Varianten ohne gelernten Suchschluessel lernt Broker
 -- zuerst ueber die Browse-Suche (C.NextLearn, Radar.lua R.LearnChance), sonst blieben sie "ungeprueft".
+-- Ab 0.105 (KarloDerBaer 19.11.2026): Das Radar hat keinen eigenen Reiter mehr. Eine Liste fuer beides:
+--   Chancen des Managers wie bisher. Die Live-Pruefung aktualisiert sie, auch wenn das Radar fuer denselben
+--     Gegenstand etwas findet (keine doppelten Zeilen).
+--   Treffer des Radars (Haendler, Aufkauf), die keine Chance des Managers sind, mit Risiko und Alter. Weggefallene
+--     bleiben wie im Radar R.GONE_TIME Sekunden grau stehen, verworfene Chancen des Managers wie bisher ausgeblendet.
+--   Scan-Knopf mit Auswahl: Manager-Chancen (eine Runde, frueher "Alle pruefen"), Beobachten, Massenware, Alles.
+--   Zahl am Reiter: alle Zeilen zusammen. Nach einem Komplettscan mit neuen Treffern blinkt sie bis zum Oeffnen.
+--   Einstellungen: ein Fenster mit Chancen und Radar.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -24,6 +32,7 @@ local C = {}
 ns.Chances = C
 
 C.checked = {}   -- [Schluessel] = { t = Zeit der Pruefung (GetTime), ok = noch da, gain, offer }
+C.blink = false  -- ab 0.105: neue Treffer nach einem Komplettscan, Zahl blinkt bis zum Oeffnen
 C.notified = {}  -- [Schluessel .. Fenster] = true: Meldung zum Fenster schon gegeben (diese Sitzung)
 C.KIND_SETTING = { s = "chancesShowS", l = "chancesShowL", b = "chancesShowB", m = "chancesShowM" }
 
@@ -215,7 +224,14 @@ function C.UpdateBadge()
         return
     end
     if T.current == "chances" then return end   -- offen: keine Zahl, wie bei den anderen Reitern
-    T.SetBadge("chances", C.BadgeCount(mode), false)
+    local n = C.BadgeCount(mode)
+    T.SetBadge("chances", n, C.blink and n > 0)
+end
+
+-- ab 0.105: nach einem Komplettscan (AHTabs.OnScanDone): neue Treffer des Radars lassen die Zahl blinken
+function C.OnScanDone(hits)
+    C.blink = (hits or 0) > 0 and not C.Shown()
+    C.UpdateBadge()
 end
 
 -- Fenster als Text: "0 bis 3 Uhr", "Samstag", "Samstag 18 bis 21 Uhr"
@@ -242,17 +258,17 @@ function C.InWindow(w, t)
     return true
 end
 
--- Zeilen fuer die Liste
+-- Zeilen fuer die Liste: Chancen des Managers, dazu (ab 0.105) die Treffer des Radars ohne Chance des Managers
 function C.Rows()
     local Sp, D, R = ns.Spec, ns.Data, ns.Radar
-    local rows = {}
-    if not Sp then return rows end
+    local rows, seen = {}, {}
     local market = D.Market()
-    local now = Now()
-    for key, x in pairs(Sp.All()) do
+    for key, x in pairs(Sp and Sp.All() or {}) do
+        if C.KindOn(x.mk) then seen[key] = true end   -- auch verworfene: das Radar zeigt sie nicht doppelt
         if C.KindOn(x.mk) and not C.Hidden(key, x) then
             local e = market and market.items[key]
             local r = { key = key, mk = x.mk, x = x, limit = x.limit, target = x.target, qty = x.qty, say = x.say }
+            r.kindText = L["CH_KIND_" .. tostring(x.mk):upper()] or tostring(x.mk)
             r.name = (type(e) == "table" and e.nm) or D.ItemName(key, e)
             if not r.name then r.name, r.noName = tostring(key), true; if R then R.RequestName(D.ItemID(key)) end end
             r.quality = type(e) == "table" and e.ql or nil
@@ -265,6 +281,23 @@ function C.Rows()
             elseif c then r.state, r.rank = "ok", 0
             else r.state, r.rank = "new", 1 end
             if x.mk == "m" and not r.inWindow then r.rank = r.rank + 0.5 end
+            -- Risiko aus der Live-Pruefung, wenn das Radar dabei eine Chance gerechnet hat
+            local d = R and R.entries[key]
+            if c and c.ok and d and d.risk then r.risk = d.risk end
+            rows[#rows + 1] = r
+        end
+    end
+    if not R then return rows end
+    for _, d in ipairs(R.Rows()) do
+        if not seen[d.key] then
+            local r = { key = d.key, d = d, radar = true, name = d.name, quality = d.quality, icon = d.icon, limit = d.limit,
+                        gain = d.showGain or d.gain or 0, risk = not d.gone and d.risk or nil, newUntil = d.newUntil }
+            r.kindText = L["RADAR_KIND_" .. tostring(d.kind):upper()] or tostring(d.kind)
+            if d.gone then r.state, r.rank = "gone", 3
+            elseif d.live and d.checked then r.state, r.rank = "ok", 0
+            else r.state, r.rank = "new", 1 end
+            if d.cant then r.rank = r.rank + 1.5 end
+            if d.risk == "high" then r.rank = r.rank + 0.5 end
             rows[#rows + 1] = r
         end
     end
@@ -272,6 +305,12 @@ function C.Rows()
 end
 
 function C.StateText(r)
+    if r.radar then
+        local d = r.d
+        if r.state == "gone" then return ORANGE .. L.CH_STATE_GONE .. "|r" end
+        if r.state == "ok" then return GREEN .. L.CH_STATE_OK:format(ns.Radar.ShortAge(Now() - d.checked)) .. "|r" end
+        return GREY .. L.CH_STATE_SCAN:format(ns.Radar.ShortAge(d.seenT and (time() - d.seenT))) .. "|r"
+    end
     if r.mk == "m" and r.x.buyWin and not r.inWindow then
         return GREY .. L.CH_STATE_FROM:format(C.WindowText(r.x.buyWin)) .. "|r"
     end
@@ -298,23 +337,69 @@ end
 ---------------------------------------------------------------------------
 -- Seite
 ---------------------------------------------------------------------------
+-- ab 0.105: Auswahl des Scans (mgr = Chancen des Managers, eine Runde) und Knopf Start/Stopp
+function C.MODES()
+    return { { "mgr", L.CH_SCAN_MGR }, { "watch", L.RADAR_MODE_WATCH }, { "mass", L.RADAR_MODE_MASS }, { "all", L.RADAR_MODE_ALL } }
+end
+
+function C.Mode()
+    local v = mod.db.chancesScan
+    for _, m in ipairs(C.MODES()) do if m[1] == v then return v end end
+    return "mgr"
+end
+
+function C.ModeText()
+    for _, m in ipairs(C.MODES()) do if m[1] == C.Mode() then return m[2] end end
+    return L.CH_SCAN_MGR
+end
+
+function C.SetMode(v)
+    mod.db.chancesScan = v
+    local R = ns.Radar
+    if R.running then R.Stop() end
+    R.search = nil
+    if C.modeDrop and C.modeDrop.fallback then C.modeDrop:SetText(C.ModeText()) end
+    C.UpdateView()
+end
+
+-- Rueckfall ohne Blizzards Auswahlliste: Klick schaltet weiter
+function C.NextMode()
+    local list, cur = C.MODES(), C.Mode()
+    for i, m in ipairs(list) do
+        if m[1] == cur then C.SetMode(list[(i % #list) + 1][1]); return end
+    end
+end
+
+-- Knopf: Scan starten oder anhalten
 function C.CheckAll()
     local R = ns.Radar
     if R.running then R.Stop(); return end
-    R.forceMode = "mgronly"
+    local mode = C.Mode()
+    if mode == "mgr" then
+        R.forceMode = "mgronly"
+    else
+        R.forceMode = nil
+        mod.db.radarScanMode = mode
+    end
     R.search = nil
     R.Start()
 end
 
 function C.Build(c)
     local UI = Peon.UI
-    C.checkButton = UI.Button(c, L.CH_CHECK_ALL, 150, function() mod:Call("Chancen", C.CheckAll) end)
+    C.checkButton = UI.Button(c, L.CH_CHECK_ALL, 130, function() mod:Call("Chancen", C.CheckAll) end)
     C.checkButton:SetPoint("TOPRIGHT", -2, -2)
-    UI.SetTooltip(C.checkButton, { L.CH_CHECK_ALL, L.CH_CHECK_ALL_TIP })
+    UI.SetTooltip(C.checkButton, { L.CH_CHECK_ALL, L.CH_SCAN_TIP })
+    C.modeDrop = UI.Dropdown(c, 140, C.MODES(), function() return C.Mode() end, function(v) C.SetMode(v) end)
+    C.modeDrop:SetPoint("RIGHT", C.checkButton, "LEFT", -6, 0)
+    if C.modeDrop.fallback then
+        C.modeDrop:SetText(C.ModeText())
+        C.modeDrop:SetScript("OnClick", function() C.NextMode() end)
+    end
     C.settingsButton = UI.Button(c, L.SETTINGS_BUTTON, 110, function()
         if ns.Settings then mod:Call("Einstellungen", ns.Settings.Toggle, "chances") end
     end)
-    C.settingsButton:SetPoint("RIGHT", C.checkButton, "LEFT", -6, 0)
+    C.settingsButton:SetPoint("RIGHT", C.modeDrop, "LEFT", -6, 0)
     C.status = UI.Text(c, "small", "")
     C.status:SetPoint("TOPLEFT", 8, -8)
     C.status:SetPoint("RIGHT", C.settingsButton, "LEFT", -12, 0)
@@ -323,29 +408,43 @@ function C.Build(c)
     p:SetPoint("TOPLEFT", 0, -30)
     p:SetPoint("BOTTOMRIGHT", 0, 0)
     C.panel = p
+    local R = ns.Radar
     C.list = UI.Table(p, {
         columns = {
             { key = "name", title = L.COL_ITEM, sort = function(r) return W.Lower(r.name) end,
+              format = function(v, r)
+                  local isNew = r.newUntil and Now() < r.newUntil   -- ab 0.105: neue Treffer des Radars mit Punkt
+                  return (isNew and ("|T" .. R.DOT .. ":10:10:0:0|t ") or "") .. tostring(v)
+              end,
               color = function(r)
-                  if r.state == "gone" then return 0.5, 0.5, 0.5 end
+                  if r.state == "gone" or (r.d and r.d.cant) then return 0.5, 0.5, 0.5 end
                   return UI.QualityColor(r.quality or 1)
               end },
-            { key = "mk", title = L.RADAR_COL_KIND, width = 100, align = "RIGHT",
-              format = function(v) return L["CH_KIND_" .. tostring(v):upper()] or tostring(v) end },
+            { key = "kindText", title = L.RADAR_COL_KIND, width = 100, align = "RIGHT" },
             { key = "gain", title = L.RADAR_COL_GAIN, width = 110, align = "RIGHT",
-              format = function(v, r) return ((r.state == "gone") and GREY or GREEN) .. Money(math.floor((v or 0) + 0.5)) .. "|r" end,
+              format = function(v, r) return ((r.state == "gone" or (r.d and r.d.cant)) and GREY or GREEN) .. Money(math.floor((v or 0) + 0.5)) .. "|r" end,
               sort = function(r) return -r.rank * 1e13 + (r.gain or 0) end },
             { key = "limit", title = L.CH_COL_LIMIT, width = 100, align = "RIGHT",
               format = function(v) return v and Money(v) or "" end },
-            { key = "state", title = L.CH_COL_STATE, width = 150, align = "RIGHT",
+            { key = "risk", title = L.RADAR_COL_RISK, width = 80, align = "RIGHT",
+              format = function(v) return v and ((R.RISK_COLOR[v] or "") .. (L["RADAR_RISK_" .. v:upper()] or v) .. "|r") or "" end,
+              sort = function(r) return ({ low = 1, mid = 2, high = 3 })[r.risk] or 9 end },
+            { key = "state", title = L.CH_COL_STATE, width = 140, align = "RIGHT",
               format = function(_, r) return C.StateText(r) end,
               sort = function(r) return r.rank end },
         },
         sortKey = "gain", sortDesc = true, icon = true, empty = L.CH_EMPTY,
-        onClick = function(r)
+        onClick = function(r, button)
+            if r.radar then
+                if button == "RightButton" then ns.Go.Menu(r.d, C.panel) else mod:Call("Sprung", ns.Go.Focus, r.d) end
+                return
+            end
             mod:Call("Sprung", ns.Go.Focus, { key = r.key, name = r.name, from = "chances" })
         end,
-        onEnter = function(row, r) if r then C.RowTooltip(row, r) end end,
+        onEnter = function(row, r)
+            if not r then return end
+            if r.radar then R.RowTooltip(row, r.d) else C.RowTooltip(row, r) end
+        end,
     })
     C.Open()
 end
@@ -365,6 +464,13 @@ function C.StatusText()
     if R.running and R.forceMode == "mgronly" then
         local sc = R.search
         st = GREEN .. L.CH_CHECKING:format(sc and sc.done or 0, sc and #sc.keys or 0) .. "|r"
+    elseif R.running or ns.Scan.state then
+        return R.StatusText()   -- ab 0.105: Scan des Radars (enthaelt Erneuern und "nicht live")
+    else
+        -- ab 0.105: Stand der Treffer des Radars (letzter Komplettscan)
+        local market = ns.Data.Market()
+        local at = market and ns.Data.DataAt(market)
+        if at then st = st .. "  " .. GREY .. L.RADAR_STAND:format(ns.Scan.Age(at)) .. "|r" end
     end
     if not (ns.Scan.ahOpen and rawget(_G, "C_AuctionHouse")) then st = st .. "  " .. ORANGE .. L.ST_NOT_LIVE .. "|r" end
     return st
@@ -374,8 +480,9 @@ function C.UpdateView()
     if not C.list then return end
     local R = ns.Radar
     C.status:SetText(C.StatusText())
-    C.checkButton:SetText((R.running and R.forceMode == "mgronly") and L.RADAR_STOP or L.CH_CHECK_ALL)
-    if ns.Scan.ahOpen and not ns.Scan.state and not (R.running and R.forceMode ~= "mgronly") then C.checkButton:Enable() else C.checkButton:Disable() end
+    -- ab 0.105: ein Knopf fuer jede Auswahl, "Alle pruefen" fuer die Chancen des Managers, sonst "Radar-Scan"
+    C.checkButton:SetText(R.running and L.RADAR_STOP or (C.Mode() == "mgr" and L.CH_CHECK_ALL or L.RADAR_START))
+    if ns.Scan.ahOpen and not ns.Scan.state then C.checkButton:Enable() else C.checkButton:Disable() end
 end
 
 function C.Refresh()
@@ -390,6 +497,7 @@ function C.Leave()
 end
 
 function C.Open()
+    C.blink = false   -- ab 0.105: geoeffnet, die Zahl blinkt nicht mehr
     if ns.Radar then ns.Radar.LoadIfStale() end
     C.Refresh()
     if ns.Radar then ns.Radar.Wake() end

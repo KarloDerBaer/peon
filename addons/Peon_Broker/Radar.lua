@@ -11,6 +11,9 @@
 --   Fokus: genau ein Gegenstand wird regelmaessig neu abgefragt (R.SetFocus), solange die Seite Fokus offen ist.
 --   Kaufen (R.BuyStep): Massenware erst Preis vom Spiel, dann bestaetigen. Einzelgegenstaende je Klick eine Auktion.
 -- Der Kern (Treffer rechnen, Abfragen, Kaufen) stammt aus dem Radar 0.14 bis 0.57.
+-- Ab 0.105 (KarloDerBaer 19.11.2026) hat das Radar keine eigene Seite mehr. Seine Treffer stehen mit den Chancen des
+-- Managers in einer Liste im Reiter Chancen (Chances.lua), dort sind auch Scan-Knopf und Einstellungen. R.Shown()
+-- heisst deshalb: der Reiter Chancen ist zu sehen.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -386,7 +389,7 @@ end
 -- Erneuern aktiv? Nur auf der Seite Radar oder (ab 0.96) Chancen am Auktionator
 function R.ChancesShown() return ns.Chances ~= nil and ns.Chances.Shown() end
 function R.Renewing()
-    return mod.db.radarRenew ~= false and AHOpen() and (R.Shown() or R.ChancesShown())
+    return mod.db.radarRenew ~= false and AHOpen() and R.Shown()
 end
 
 -- Anteil des Radar-Scans (0 bis 1)
@@ -401,36 +404,30 @@ function R.RenewInterval(n)
     return math.max(minS, math.min(maxS, need))
 end
 
--- Naechste gezeigte Moeglichkeit, die dran ist (am laengsten nicht geprueft zuerst), sonst nil
+-- Naechste gezeigte Moeglichkeit, die dran ist (am laengsten nicht geprueft zuerst), sonst nil.
+-- Ab 0.105 eine Liste: Chancen des Managers (Zeit der Pruefung aus Chances.checked) und Treffer des Radars, die
+-- keine Chance des Managers sind (Zeit d.checked).
 function R.NextRenew()
-    -- ab 0.96: Seite Chancen: die Kandidaten des Managers, am laengsten nicht geprueft zuerst
-    if R.ChancesShown() then
-        local keys, C = ns.Chances.Keys(), ns.Chances
-        local n = 0
-        for _, key in ipairs(keys) do if not R.skip[key] then n = n + 1 end end
-        local every = R.RenewInterval(n)
-        R.renewEvery = every
-        local now, best, bestT = Now(), nil, nil
-        for _, key in ipairs(keys) do
-            if not R.skip[key] then
-                local c = C.checked[key]
-                local t = c and c.t or -1e9
-                if now - t >= every and (bestT == nil or t < bestT) then best, bestT = key, t end
-            end
+    local C = ns.Chances
+    local cands, seen = {}, {}
+    for _, key in ipairs(C and C.Keys() or {}) do
+        if not R.skip[key] then
+            local c = C.checked[key]
+            cands[#cands + 1] = { key = key, t = c and c.t or -1e9 }
+            seen[key] = true
         end
-        return best
     end
-    local budget, list = R.Budget(), {}
+    local budget = R.Budget()
     for key, d in pairs(R.entries) do
-        if R.Visible(d, budget) and ns.Buy.KnownKey(key) and not R.skip[key] and (d.loadWait or 0) < 30 then list[#list + 1] = d end
+        if not seen[key] and R.Visible(d, budget) and ns.Buy.KnownKey(key) and not R.skip[key] and (d.loadWait or 0) < 30 then
+            cands[#cands + 1] = { key = key, t = d.checked or -1e9 }
+        end
     end
-    local every = R.RenewInterval(#list)
+    local every = R.RenewInterval(#cands)
     R.renewEvery = every
     local now, best = Now(), nil
-    for _, d in ipairs(list) do
-        if not d.checked or now - d.checked >= every then
-            if not best or (d.checked or -1e9) < (best.checked or -1e9) then best = d end
-        end
+    for _, c in ipairs(cands) do
+        if now - c.t >= every and (not best or c.t < best.t) then best = c end
     end
     return best and best.key or nil
 end
@@ -667,8 +664,8 @@ function R.Tick()
     if not R.loop then return end
     if ns.Buying() and not R.job then R.Schedule(); return end   -- ab 0.74: fremder Kauf laeuft, warten
     if not (AHOpen() and R.Active()) then R.Halt(); return end
-    -- der Radar-Scan laeuft nur auf der Seite Radar, "Alle pruefen" (ab 0.102.0) auch auf der Seite Chancen
-    if R.running and not (R.Shown() or (R.forceMode == "mgronly" and R.ChancesShown())) then R.running = false end
+    -- der Scan laeuft nur, solange der Reiter Chancen zu sehen ist (ab 0.105, vorher die Seite Radar)
+    if R.running and not R.Shown() then R.running = false end
     if ns.Scan.state then R.OnFullScan(); return end
     local ah = AHApi()
     local st = R.stats
@@ -994,6 +991,72 @@ function R.AuctionQueue(d, n)
     return q
 end
 
+---------------------------------------------------------------------------
+-- ab 0.104 (Rueckmeldung KarloDerBaer 19.11.2026): Nach einem Kauf oder wenn das Angebot schon weg war, rechnete
+-- der Kaufknopf bis zur naechsten Antwort mit den alten Preisstufen. Schnelles Nachklicken startete denselben
+-- veralteten Kauf, das Spiel nannte einen hoeheren Preis, Broker brach ab. Mit eigenem Ziel fragte der Fokus danach
+-- nicht einmal sofort neu ab. Jetzt:
+--   gekauft   die gekaufte Menge kommt sofort aus den Stufen, gleich neu abfragen
+--   weg       die guenstigste fremde Stufe faellt sofort weg, gleich neu abfragen, und der Stand gilt als veraltet:
+--             der Kaufknopf zeigt "prueft ..." bis zur naechsten Antwort (hoechstens R.STALE_MAX Sekunden)
+---------------------------------------------------------------------------
+R.STALE_MAX = 3
+
+local function CopyRows(rows)
+    local out = {}
+    for k, v in pairs(rows) do if type(k) ~= "number" then out[k] = v end end
+    for i, r in ipairs(rows) do
+        local c = {}
+        for k, v in pairs(r) do c[k] = v end
+        out[i] = c
+    end
+    return out
+end
+
+-- Kopie der Stufen ohne n Stueck der guenstigsten fremden Angebote (n = nil: die guenstigste fremde Stufe ganz)
+function R.TakeRows(rows, n)
+    local out = CopyRows(rows or {})
+    local order = {}
+    for _, r in ipairs(out) do if Num(r.price) and Num(r.qty) then order[#order + 1] = r end end
+    table.sort(order, function(a, b) return a.price < b.price end)
+    for _, r in ipairs(order) do
+        if n ~= nil and n <= 0 then break end
+        local free = r.qty - math.min(r.own or 0, r.qty)
+        if free > 0 then
+            local take = n == nil and free or math.min(free, n)
+            r.qty = r.qty - take
+            if n == nil then break end
+            n = n - take
+        end
+    end
+    return out
+end
+
+-- Stufen von key nach einem Kauf (n Stueck) oder "weg" (n = nil, stale = true) anpassen und gleich neu abfragen
+function R.AfterBuy(key, n, stale)
+    local B = ns.Buy
+    local lv = B.live and B.live[key]
+    if type(lv) == "table" and type(lv.rows) == "table" and (n == nil or n > 0) then
+        local rows = R.TakeRows(lv.rows, n)
+        B.live[key] = { rows = rows, t = lv.t, commodity = lv.commodity }
+        local d = R.entries[key]
+        if d and d.rows == lv.rows then d.rows = rows end
+        lv = B.live[key]
+    end
+    if stale and type(lv) == "table" then
+        lv.staleAt = Now()
+        if C_Timer then C_Timer.After(R.STALE_MAX + 0.1, function() R.UpdateView() end) end
+    end
+    if R.focus and R.focus.key == key then R.focus.at = 0 end
+    R.Wake()
+end
+
+-- Wartet der Stand von key auf eine frische Antwort?
+function R.IsStale(key)
+    local lv = key ~= nil and ns.Buy.live and ns.Buy.live[key]
+    return type(lv) == "table" and lv.staleAt ~= nil and Now() - lv.staleAt < R.STALE_MAX
+end
+
 local function JobTimer(job, sec)
     job.stamp = (job.stamp or 0) + 1
     local stamp = job.stamp
@@ -1029,6 +1092,7 @@ function R.BuyStep(d, mode)
         return
     end
     if job then return end
+    if R.IsStale(d.key) then return end   -- ab 0.104: erst die frische Antwort abwarten
     local id = ns.Data.ItemID(d.key)
     local qty = R.ModeQty(d, mode)
     if qty < 1 then return end
@@ -1056,6 +1120,7 @@ function R.BuyStep(d, mode)
         R.job = { key = d.key, items = true, queue = queue, idx = 1, qty = #queue, done = 0, cost = 0, name = d.name,
                   stage = "wait", kind = d.kind, mode = mode, t = Now(), target = d.ref }
     end
+    R.job.quick = d.quick   -- ab 0.104: Kauf aus dem Schnellkauf (Bilanz)
     JobTimer(R.job, 20)
     R.UpdateView()
 end
@@ -1071,6 +1136,7 @@ function R.OnPriceUpdated(unitPrice, totalPrice)
         R.MarkGone(R.entries[job.key], L.RADAR_GONE_PRICE:format(Money(unitPrice)))
         R.entries[job.key] = nil
         R.job = nil
+        R.AfterBuy(job.key, nil, true)   -- ab 0.104
         R.Refresh()
         return
     end
@@ -1098,12 +1164,14 @@ function R.FinishJob(ok)
     local cost = job.items and job.cost or (job.total or job.price)
     if n > 0 then
         mod:Print(L.BUY_DONE:format(n, job.name, cost and Money(cost) or "?"))
+        if ns.Quick then ns.Quick.OnBought(job, n, cost) end   -- ab 0.104
         -- ab 0.67 (H3): ein Aufkauf wird ein Posten zum Einstellen (kommt per Post)
         -- ab 0.70 auch ein Kauf mit eigenem Ziel im Fokus
         -- ab 0.91 nur, wenn fuer den Gegenstand eingeschaltet (Lots.Wanted, Standard aus)
         -- ab 0.97.1 jede Art ausser Haendlerware: Kaeufe aus Chancen (spec) und Markt-Schnaeppchen fehlten, obwohl
         -- der Haken im Fokus gesetzt war
-        if job.kind ~= "vendor" and ns.Lots and ns.Lots.Wanted(job.key) then ns.Lots.Add(job.key, n, cost, job.target, "radar") end
+        -- ab 0.106 nicht aus dem Schnellkauf (dort gibt es den Haken nicht)
+        if job.kind ~= "vendor" and not job.quick and ns.Lots and ns.Lots.Wanted(job.key) then ns.Lots.Add(job.key, n, cost, job.target, "radar") end
     end
     -- Rest pruefen lassen: Treffer bleibt, bis die naechste Abfrage zeigt, was noch da ist
     local d = R.entries[job.key]
@@ -1118,6 +1186,9 @@ function R.FinishJob(ok)
             R.entries[job.key] = nil
         end
     end
+    -- ab 0.104: Stufen sofort anpassen (Einzelgegenstaende sind schon aus den Stufen genommen), gleich neu abfragen.
+    -- Fehlgeschlagen: Stand gilt als veraltet, bis die naechste Antwort da ist.
+    R.AfterBuy(job.key, (not job.items and ok) and n or 0, not ok)
     R.Refresh()
 end
 
@@ -1164,9 +1235,11 @@ end
 ---------------------------------------------------------------------------
 -- Anzeige
 ---------------------------------------------------------------------------
--- ab 0.69: die Liste nur neu fuellen, wenn die Seite Radar zu sehen ist (im Fokus kostete das bei jeder Antwort Zeit)
+-- ab 0.69: die Liste nur neu fuellen, wenn sie zu sehen ist (im Fokus kostete das bei jeder Antwort Zeit).
+-- Ab 0.105 ist das die gemeinsame Liste im Reiter Chancen.
 function R.Refresh()
-    if R.list and R.Shown() then R.Perf("liste", function() R.list:SetData(R.Rows()) end) end
+    local C = ns.Chances
+    if C and C.list and C.Shown() then R.Perf("liste", function() C.list:SetData(C.Rows()) end) end
     R.UpdateView()
 end
 
@@ -1224,17 +1297,6 @@ function R.ModeText()
     return L.RADAR_MODE_WATCH
 end
 
--- Rueckfall ohne Blizzards Auswahlliste: Klick schaltet weiter
-function R.NextMode()
-    local list, cur = R.MODES(), mod.db.radarScanMode or "watch"
-    for i, m in ipairs(list) do
-        if m[1] == cur then mod.db.radarScanMode = list[(i % #list) + 1][1]; break end
-    end
-    R.search = nil
-    if R.modeDrop and R.modeDrop.SetText then R.modeDrop:SetText(R.ModeText()) end
-    R.UpdateView()
-end
-
 function R.StatusText()
     local st
     if ns.Scan.state then
@@ -1259,11 +1321,7 @@ end
 
 function R.UpdateView()
     if ns.Focus and ns.Focus.Update and ns.Focus.Shown() then R.Perf("fokus", ns.Focus.Update) end
-    if ns.Chances and ns.Chances.UpdateView then ns.Chances.UpdateView() end   -- ab 0.96: Knopf "Alle pruefen"
-    if not R.list then return end
-    R.status:SetText(R.StatusText())
-    R.scanButton:SetText(R.running and L.RADAR_STOP or L.RADAR_START)
-    if AHOpen() and not ns.Scan.state then R.scanButton:Enable() else R.scanButton:Disable() end
+    if ns.Chances and ns.Chances.UpdateView then ns.Chances.UpdateView() end   -- ab 0.105: Scan-Knopf und Stand dort
 end
 
 -- kurze Altersangabe fuer die Spalte "Gesehen": "12 s", "40 Min.", "3 Std.", "2 T."
@@ -1304,7 +1362,7 @@ function R.OnItemInfo(id)
             end
         end
     end
-    if changed and R.list and not R.nameRefresh then
+    if changed and ns.Chances and ns.Chances.list and not R.nameRefresh then
         -- mehrere Namen kommen meist kurz nacheinander: einmal gesammelt auffrischen
         R.nameRefresh = true
         local function Go() R.nameRefresh = nil; R.Refresh() end
@@ -1357,85 +1415,6 @@ end
 
 R.RISK_COLOR = { low = GREEN, mid = "|cffffd100", high = RED }
 
--- Liste "Zum Einstellen" (ab 0.67, H3): Posten aus Aufkaeufen und abgebrochenen Auktionen
-function R.Build(c)
-    local UI = Peon.UI
-    -- ab 0.71: Knopf "Radar-Scan" mit Auswahl, was gesucht wird, und Fenster Einstellungen
-    R.scanButton = UI.Button(c, L.RADAR_START, 150, function() if R.running then R.Stop() else R.forceMode = nil; R.search = nil; mod:Call("Radar", R.Start) end end)
-    R.scanButton:SetPoint("TOPRIGHT", -2, -2)
-    UI.SetTooltip(R.scanButton, { L.RADAR_START, L.RADAR_SCAN_TIP })
-    R.modeDrop = UI.Dropdown(c, 130, R.MODES(), function() return mod.db.radarScanMode or "watch" end, function(v)
-        mod.db.radarScanMode = v
-        R.search = nil
-        if R.modeDrop.fallback then R.modeDrop:SetText(R.ModeText()) end
-        R.UpdateView()
-    end)
-    R.modeDrop:SetPoint("RIGHT", R.scanButton, "LEFT", -6, 0)
-    if R.modeDrop.fallback then
-        R.modeDrop:SetText(R.ModeText())
-        R.modeDrop:SetScript("OnClick", function() R.NextMode() end)
-    end
-    R.settingsButton = UI.Button(c, L.SETTINGS_BUTTON, 110, function()
-        if ns.Settings then mod:Call("Einstellungen", ns.Settings.Toggle, "radar") end
-    end)
-    R.settingsButton:SetPoint("RIGHT", R.modeDrop, "LEFT", -6, 0)
-    R.status = UI.Text(c, "small", "")
-    R.status:SetPoint("TOPLEFT", 8, -8)
-    R.status:SetPoint("RIGHT", R.settingsButton, "LEFT", -12, 0)
-    if R.status.SetWordWrap then R.status:SetWordWrap(false) end
-    local p = UI.Panel(c, "list", true)
-    p:SetPoint("TOPLEFT", 0, -30)
-    p:SetPoint("BOTTOMRIGHT", 0, 0)
-    R.panel = p
-    R.list = UI.Table(p, {
-        columns = {
-            { key = "name", title = L.COL_ITEM, sort = function(r) return W.Lower(r.name) end,
-              format = function(v, r)
-                  local isNew = r.newUntil and Now() < r.newUntil
-                  return (isNew and ("|T" .. R.DOT .. ":10:10:0:0|t ") or "") .. v
-              end,
-              color = function(r)
-                  if r.gone or r.cant then return 0.5, 0.5, 0.5 end
-                  return UI.QualityColor(r.quality or 1)
-              end },
-            { key = "showGain", title = L.RADAR_COL_GAIN, width = 130, align = "RIGHT",
-              format = function(v, r)
-                  -- ab 0.75: auch weggefallene Chancen zeigen den Gewinn (grau), "weg" steht unter Art
-                  local text = Money(math.floor((v or 0) + 0.5))
-                  return ((r.cant or r.gone) and GREY or GREEN) .. text .. "|r"
-              end,
-              -- ab 0.65: Gewinn, rotes Risiko nach unten (Konzept 6.1)
-              sort = function(r)
-                  if r.gone then return -1e15 + (r.showGain or 0) end
-                  local g = r.showGain or 0
-                  if r.risk == "high" then return g - 1e13 end
-                  return g
-              end },
-            { key = "kind", title = L.RADAR_COL_KIND, width = 110, align = "RIGHT",
-              format = function(v, r)
-                  if r and r.gone then return ORANGE .. L.RADAR_GONE_SHORT .. "|r" end
-                  return L["RADAR_KIND_" .. tostring(v):upper()] or tostring(v)
-              end },
-            { key = "risk", title = L.RADAR_COL_RISK, width = 100, align = "RIGHT",
-              format = function(v) return v and ((R.RISK_COLOR[v] or "") .. (L["RADAR_RISK_" .. v:upper()] or v) .. "|r") or "" end,
-              sort = function(r) return ({ low = 1, mid = 2, high = 3 })[r.risk] or 9 end },
-            { key = "checked", title = L.MARKET_COL_AGE, width = 90, align = "RIGHT",
-              format = function(v, r)
-                  if not v then return GREY .. R.ShortAge(r.seenT and (time() - r.seenT)) .. "|r" end
-                  return R.ShortAge(Now() - v)
-              end,
-              sort = function(r) return r.checked and -r.checked or 0 end },
-        },
-        sortKey = "showGain", sortDesc = true, icon = true, empty = L.RADAR_EMPTY2,
-        onClick = function(r, button)
-            if button == "RightButton" then ns.Go.Menu(r, R.panel) else mod:Call("Sprung", ns.Go.Focus, r) end
-        end,
-        onEnter = function(row, r) if r then R.RowTooltip(row, r) end end,
-    })
-    function R.list:GetItems() return self.items end
-    R.Open()
-end
-
 -- Reiter geoeffnet: Treffer aus dem Scan laden und gleich einmal live pruefen
 -- Ab 0.56: Treffer nur neu aus der Datenbank laden, wenn es einen neuen Scan gibt (oder Markt bzw. Altersgrenze
 -- gewechselt haben). Das Laden geht alle Gegenstaende des Marktes durch und liess den Wechsel auf den Reiter haengen.
@@ -1449,7 +1428,7 @@ function R.LoadIfStale()
     return true
 end
 
--- Seite Radar geoeffnet: Chancen aus der Datenbank, ohne Live-Pruefung
+-- Reiter Chancen geoeffnet: Treffer aus der Datenbank, ohne Live-Pruefung
 function R.Open()
     R.LoadIfStale()
     R.Refresh()
@@ -1515,18 +1494,15 @@ function R.Init()
 end
 
 ---------------------------------------------------------------------------
--- Die Seite Radar steht im Broker-Fenster oder als Reiter im Auktionshaus (AHTabs.lua haengt sie um).
--- R.Shown() = die Seite Radar ist zu sehen. R.Active() = Radar oder Fokus ist zu sehen (dann laufen Abfragen).
+-- R.Shown() = die Liste des Radars ist zu sehen, ab 0.105 im Reiter Chancen. R.Active() = Chancen, Fokus oder
+-- Beobachten ist zu sehen (dann laufen Abfragen).
 ---------------------------------------------------------------------------
 function R.Shown()
-    local T = ns.AHTabs
-    if T and T.current == "radar" then return true end
-    if T and T.host and T.host.radar == "ah" then return false end
-    return W.IsOpen() and W.current == "radar"
+    return R.ChancesShown()
 end
 
 function R.Active()
-    return R.Shown() or R.ChancesShown() or (ns.Focus ~= nil and ns.Focus.Shown()) or R.WatchShown()
+    return R.Shown() or (ns.Focus ~= nil and ns.Focus.Shown()) or R.WatchShown()
 end
 
 -- Treffer, die das Radar gerade zeigen wuerde (fuer die Zahl am Reiter)
@@ -1559,8 +1535,7 @@ end
 function PeonBroker_RadarBuy()
     local F = ns.Focus
     if not (F and F.Shown() and F.key ~= nil) then return end
-    local d = R.entries[F.key]
-    if d then mod:Call("Radar", R.BuyStep, d, "best") end
+    F.Buy()   -- ab 0.104: genau das, was der Kaufknopf zeigt (vorher nur Chancen aus dem Radar)
 end
 
 function PeonBroker_RadarNext()
@@ -1569,8 +1544,3 @@ function PeonBroker_RadarNext()
     if d then mod:Call("Sprung", ns.Go.Focus, d) end
 end
 
-W.pages.radar = {
-    build = R.Build,
-    refresh = function() R.Open() end,
-    leave = function() R.Halt() end,
-}

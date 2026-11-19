@@ -2,6 +2,49 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.106.0
+
+Kurz: Im Schnellkauf gibt es statt des Reglers ein Feld „Max. Menge“. Dahinter steht, was ein Kauf höchstens kostet.
+Kurz: Beobachten merkt sich die Werte von Aufkauf und Schnellkauf getrennt und öffnet den Fokus im zuletzt gespeicherten Modus.
+
+- 0.106.0 (19.11.2026, Wünsche KarloDerBaer):
+  - **Geändert, Schnellkauf:** ohne große Zeile und Satz darunter, ohne Haken „Wiedereinstellen“. Käufe aus dem Schnellkauf werden nie als Posten gemerkt. Kaufen bis, Max. Menge und Lockangebot rücken nach oben.
+  - **Geändert, Max. Menge:** Eingabefeld statt Regler. Leer heißt alle (grau „alle“ im Feld). Dahinter steht „Höchstens 15s (10 × 1s 50c)“, also Menge mal Kaufen bis, ohne Menge „ohne Grenze“ (`F.SyncQuickQty`).
+  - **Neu, Beobachten je Modus:** Kaufen bis und Zielpreis gehören zum Aufkauf, Kaufen bis und Max. Menge des Schnellkaufs werden getrennt gespeichert (`qlim`, `qmax`), dazu der zuletzt gespeicherte Modus (`mode`). „Speichern“ ändert nur die Werte des aktiven Modus. Umschalten im Fokus lädt die Werte des Modus. Die neuen Werte bleiben im Spiel, der Abgleich mit dem Peon Manager lässt sie aus.
+  - **Geändert, Liste Beobachten:** neue Spalte „Art“ (Aufkauf oder Schnellkauf). „Kaufen bis“ zeigt den Wert dieser Art, „Zielpreis“ nur beim Aufkauf. Der Preisalarm nimmt Kaufen bis der gespeicherten Art, den Zielpreis nur beim Aufkauf. Doppelklick öffnet den Fokus in dieser Art, aus Chancen öffnet er immer im Aufkauf.
+  - **Geändert, Liste Beobachten:** Spalte „Stand“ entfällt. Ohne laufende Abfrage steht oben rechts „Letzter Gegenstand gescannt vor: …“, die jüngste Einzelabfrage eines beobachteten Gegenstands (auch aus Fokus oder Chancen).
+  - Tests: Schnellkauf ohne Hinweise und Haken, Max. Menge mit Höchstbetrag, Speichern und Laden je Modus, Fokus aus Beobachten und Chancen, Liste mit Art, Alarm je Modus, Stand oben rechts, kein Posten aus dem Schnellkauf (`test_broker.lua`).
+
+## 0.105.0
+
+Kurz: Das Radar hat keinen eigenen Reiter mehr. Seine Treffer stehen mit den Chancen vom Peon Manager in einer Liste im Reiter Chancen.
+Kurz: Ein Knopf startet den Scan, daneben wählst du, was geprüft wird: Manager-Chancen, Beobachten, Massenware oder Alles.
+
+- 0.105.0 (19.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Reiter Chancen:** eine Liste für beides (`C.Rows`). Chancen des Managers wie bisher. Die Live-Prüfung aktualisiert sie, auch wenn das Radar für denselben Gegenstand etwas findet, es gibt keine doppelten Zeilen. Dazu die Treffer des Radars (Händler, Aufkauf), die keine Chance des Managers sind. Spalten Gegenstand, Art, Gewinn, Kaufen bis, Risiko, Zustand. Treffer aus dem Scan zeigen im Zustand ihr Alter, neue Treffer einen Punkt. Rechtsklick auf einen Treffer öffnet das Menü wie bisher im Radar.
+  - **Geändert, Weggefallene:** je Herkunft wie bisher. Treffer des Radars bleiben 30 Sekunden grau stehen, verworfene Chancen des Managers bleiben ausgeblendet, bis ein neuerer Stand sie wieder bringt.
+  - **Geändert, Scan:** Knopf mit Auswahl (`C.MODES`, Einstellung `chancesScan`). „Manager-Chancen“ fragt jede Chance einmal ab (früher „Alle prüfen“), „Beobachten“, „Massenware“ und „Alles“ sind der frühere Radar-Scan. Er läuft, solange der Reiter offen ist. Das Erneuern prüft Chancen des Managers und Treffer des Radars gemeinsam, die am längsten nicht geprüfte zuerst (`R.NextRenew`).
+  - **Geändert, Zahl am Reiter:** nur noch am Reiter Chancen, die Treffer des Radars zählen mit. Nach einem Komplettscan mit neuen Treffern blinkt sie bis zum Öffnen (`C.OnScanDone`). Die eigene Auswahl für das Radar entfällt, Standard für Chancen bleibt aus.
+  - **Geändert, Einstellungen:** ein Fenster „Einstellungen Chancen und Radar“ mit allen Werten beider Teile, etwas höher als die anderen.
+  - **Geändert:** Ein gespeicherter Reiter Radar öffnet Chancen. „Zurück zu Radar“ im Fokus heißt „Zurück zu Chancen“. Die Tasten heißen „Fokus: kaufen“ und „Fokus: nächster Treffer des Radars“.
+  - **Entfernt:** Reiter Radar im Broker-Fenster und im Auktionshaus (`R.Build`, `W.pages.radar`, Auswahl `badgeRadar`).
+  - Tests: eine Liste ohne Doppel, Live-Prüfung aktualisiert die Chance des Managers, verworfene Chance kommt nicht als Treffer zurück, gemeinsames Erneuern, Auswahl des Scans, Blinken nach dem Scan, alte Tests auf den Reiter Chancen umgestellt (`test_broker.lua`).
+
+## 0.104.0
+
+Kurz: Der Kaufknopf im Fokus hängt nicht mehr an alten Angeboten. Nach einem Kauf oder wenn das Angebot schon weg ist, prüft Broker sofort neu.
+Kurz: Neu im Fokus ist der Modus Schnellkauf für günstige Angebote, die nur Sekunden stehen: Alarm, Kaufen bis und ein eigenes Lockangebot mit einem Klick.
+Kurz: Beim Verkaufen erkennt Broker Lockangebote (ein paar Stück weit unter dem Markt) und schlägt den Preis vom ersten echten Angebot aus vor.
+
+- 0.104.0 (19.11.2026, Wünsche KarloDerBaer):
+  - **Behoben, Kaufknopf im Fokus:** Nach einem Kauf oder wenn das Angebot schon weg war, rechnete der Knopf bis zur nächsten Antwort mit den alten Preisstufen. Schnelles Nachklicken startete denselben veralteten Kauf, das Spiel nannte einen höheren Preis und Broker brach ab. Mit eigenem Ziel fragte der Fokus danach nicht einmal sofort neu ab. Jetzt nimmt Broker die gekaufte Menge sofort aus den Stufen (`R.TakeRows`, `R.AfterBuy`), bei „schon weg“ fällt die günstigste fremde Stufe weg. In beiden Fällen fragt der Fokus sofort neu ab. Nach „schon weg“ zeigt der Knopf „Prüft …“ bis zur frischen Antwort, höchstens 3 Sekunden (`R.IsStale`, `R.STALE_MAX`).
+  - **Behoben, Taste „Kaufen“:** Sie kaufte nur Chancen aus dem Radar, mit eigenem Ziel oder fester Menge tat sie nichts. Jetzt kauft sie genau das, was der Knopf zeigt (`F.Buy`).
+  - **Neu, Fokus mit zwei Modi:** Umschalter oben rechts, „Aufkauf“ (der bisherige Fokus) und „Schnellkauf“ (`Quick.lua`, Einstellung `focusMode`). Gegenstand, laufende Abfrage und Preisstufen bleiben beim Umschalten.
+  - **Neu, Schnellkauf:** links Kaufen bis, Menge und der Kaufknopf. Gekauft wird alles bis Kaufen bis, ohne Zielpreis und Gewinn. Sobald nach einer Antwort ohne Menge etwas unter Kaufen bis steht, kommt ein Ton und der Knopf leuchtet (`quickAlarm`, `quickSound`). Rechts die Preisstufen mit eigenen Angeboten (lila) und neuen oder größeren Stufen (einige Sekunden grün). Darunter ein Diagramm mit dem günstigsten Preis, der Menge unter Kaufen bis und einem Strich für jedes eigene Lockangebot.
+  - **Neu, Lockangebot im Schnellkauf:** „1 einstellen“ stellt 1 Stück aus den Taschen mit der kürzesten Laufzeit ein (`PostCommodity`, nur Massenware). Im Feld steht als Vorschlag die erste echte Stufe minus 20 % (`quickBaitPct`), ein eigener Betrag gilt bis zum nächsten Gegenstand. Fragt das Spiel nach, bestätigt der zweite Klick (`ConfirmPostCommodity`, auch nach `AUCTION_HOUSE_POST_WARNING`). „Zurückziehen“ bricht das Angebot ab. Der Zustand zeigt, ob es steht, weg ist (gekauft oder abgelaufen) oder zurückgezogen wurde. Bilanz der Sitzung: Lockangebote mit Einzahlung, gekaufte Menge, Kosten und Preis je Stück.
+  - **Neu, Rat beim Verkaufen:** Lockangebote zählen nicht (`Data.SkipBait`). Das sind die günstigsten fremden Stufen, wenn sie zusammen höchstens 5 Stück oder unter 2 % aller Angebote haben und die nächste Stufe mehr als 10 % teurer ist. Alle drei Grenzen stehen in den Optionen beim Preisvorschlag (`baitQty`, `baitPct`, `baitGap`). „Günstige“ und „Vorschlag“ gehen dann von der ersten echten Stufe aus, der Kasten nennt das Lockangebot. Steht im Preisfeld der Preis des Lockangebots oder weniger, heißt der Rat „Lockangebot“.
+  - Tests: Stufen nach Kauf und „weg“, Sperre bis zur frischen Antwort, Kauf und Bilanz, Lockangebote erkennen mit allen Grenzen, Rat und Knöpfe beim Verkaufen, Umschalter, Plan und Urteil im Schnellkauf, Alarm nur bei neuer Antwort, neue Stufen, Lockangebot einstellen, bestätigen, zurückziehen und weg, Diagramm (`test_broker.lua`).
+
 ## 0.103.3
 
 Kurz: Der Paketvergleich erscheint jetzt auch bei der Kiste „Textilien des Experten“.

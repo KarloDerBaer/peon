@@ -68,6 +68,10 @@ function ns.CreateOptions()
     page:Add(left, page:Dropdown("undercutMode", L.OPT_UB_ITEM_MODE, modes, L.OPT_UB_ITEM_HINT))
     page:Add(left, page:Slider("undercutValue", L.OPT_UB_ITEM_VALUE, L.OPT_UNDERCUT_VALUE_HINT))
     page:Add(left, page:Slider("dumpPct", L.OPT_DUMP, L.OPT_DUMP_HINT, " %"))
+    -- ab 0.104: Lockangebote erkennen (Data.SkipBait)
+    page:Add(left, page:Slider("baitQty", L.OPT_BAIT_QTY, L.OPT_BAIT_QTY_HINT))
+    page:Add(left, page:Slider("baitPct", L.OPT_BAIT_PCT, L.OPT_BAIT_PCT_HINT, " %"))
+    page:Add(left, page:Slider("baitGap", L.OPT_BAIT_GAP, L.OPT_BAIT_GAP_HINT, " %"))
     page:Add(left, page:Dropdown("duration", L.OPT_DURATION,
         { { 2, L.DUR_2 }, { 8, L.DUR_8 }, { 24, L.DUR_24 } }, L.OPT_DURATION_HINT))
 

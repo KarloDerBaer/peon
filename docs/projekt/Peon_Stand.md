@@ -47,16 +47,17 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Takte: Tasten nur im Angelmodus (`ns.UpdateLureTick`), Schwarm-Zeile nur bei sichtbarer Fangliste (`ns.CatchListTick`), ab 1.7.1.
 - Befehle: `/fp` (Optionen), `/fp toggle|an|aus`, `/fp set <Name>`, `/fp saveset`, `/fp kampf fragen|verlassen|bleiben`, `/fp waffenversuch`, `/fp klick doppel|aus`, `/fp status`, `/fp minimap`, `/fp koeder`, `/fp fische`, `/fp statistik`, `/fp debug`.
 
-## Peon_Broker – 0.103.3 (Auktionshaus-Helfer)
+## Peon_Broker – 0.106.0 (Auktionshaus-Helfer)
 
 - Konzepte: `docs\konzepte\broker\` (Konzept, Rechenmodell, Verkaufen, Einkaufen, Absatz, Umbau, Neuaufbau). Der Neuaufbau (11.11.2026) gilt, der Umbau nur noch für Tooltip, Märkte und Gegenstandsmenü.
-- Dateien: siehe `Peon_Broker.toc` (42 Dateien), dazu Bindings.xml und `Media\` (Trend-Symbole, Punkt für neue Radar-Treffer).
-- Fenster: ein Fenster in zwei Zuständen (am Auktionator als Reiter im Auktionshaus, unterwegs eigenes Fenster), Reiter Markt, Verkaufen, Auktionen, Einkaufen, Beobachten, Radar, Chancen, Fokus, Gegenstand, Mehr. Sprünge „Im Markt zeigen“ und „Gegenstand“ (`Go.lua`).
+- Dateien: siehe `Peon_Broker.toc` (43 Dateien), dazu Bindings.xml und `Media\` (Trend-Symbole, Punkt für neue Radar-Treffer).
+- Fenster: ein Fenster in zwei Zuständen (am Auktionator als Reiter im Auktionshaus, unterwegs eigenes Fenster), Reiter Markt, Verkaufen, Auktionen, Einkaufen, Fokus, Beobachten, Chancen, Mehr (mit Gegenstand). Der Fokus hat zwei Modi, Aufkauf und Schnellkauf (`Quick.lua`, ab 0.104.0). Beobachten speichert die Werte je Modus und den zuletzt gespeicherten Modus (`qlim`, `qmax`, `mode` nur im Spiel, ab 0.106.0). Chancen zeigt die Chancen des Managers und die Treffer des Radars in einer Liste, mit Scan-Knopf und Auswahl (ab 0.105.0, das Radar hat keinen eigenen Reiter mehr). Sprünge „Im Markt zeigen“ und „Gegenstand“ (`Go.lua`).
 - SavedVariables: `PeonBrokerDB` (Konto): Einstellungen, `markets["Realm / Fraktion"]` (Preise je Tag und Woche, Aufbau in `Data.lua`), `lists`/`listsGone` (Einkaufslisten), `watch`/`watchGone` (Beobachten), `vendors`, `cut`, `commodity`, `itemKeys`, `sellMem`, `lastPost`, `owned`, `relist`, `ratings`, `chancesGone`, `feste`, `acct` (Kennung des Kontos für den Manager), Prüfergebnisse `probe`, `probeEvents`, `ahProbe`, `calProbe`, `fieldProbe`. `PeonBrokerCharDB` (je Charakter): `lots`, `lotSeq`, `listSel`, `recipes`.
 - Schnittstellen: für Ledger, Profession und Panel `mod:BuyPrice`, `mod:AhPrice`, `mod:ItemValue`, `mod:AddToList(name, mats, keepMax)`, Markt-Liste für Ledger. Nutzt Ledger (`OpenFee`, `Cost`, `StockOthers`) und Bridge (`Chances`, Preise vom Manager).
 - Braucht Peon API 18.
 - Prüfungen: `/broker pruefen` startet auch das Zählen der Auktionshaus-Ereignisse bis zum `/reload` (ab 0.103.2, vorher bei jedem Login).
 - Befehle: `/broker`, `/broker optionen`, `/broker scan`, `/broker pruefen [scan | abfrage | beruf | ah | zeit | fehler | kalender | auktionen]`, `/broker debug`, `/peon broker`.
+- Einstellen aus eigenem Knopf: nur das Lockangebot im Schnellkauf (`PostCommodity`, ab 0.104.0). Sonst bleibt Einstellen Blizzards Weg.
 - Offen: `e.sp` (zuletzt vermutlich verkauft) füllt sich nur aus Brokers eigenen Beobachtungen, der Manager kennt keine Verkaufspreise. Einmaligen Hinweis `broker:umbau-2026-11` nach ein paar Versionen aus `Broker.lua` und `Locales.lua` entfernen. Vorgemerkt: „Alles Lohnende kaufen“.
 
 ## Peon Manager – 0.49.0 (Programm für Windows)

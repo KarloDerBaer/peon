@@ -30,7 +30,6 @@ W.TABS = {
     { key = "buy",      label = "AHTAB_SHOP" },      -- Einkaufen
     { key = "focus",    label = "NTAB_FOCUS" },      -- ab 0.96 links neben Beobachten (KarloDerBaer 15.11.2026)
     { key = "watch",    label = "NTAB_WATCH" },      -- Beobachten (ab 0.82 eigener Reiter)
-    { key = "radar",    label = "TAB_RADAR" },
     { key = "chances",  label = "TAB_CHANCES" },     -- ab 0.96: Chancen vom Peon Manager (Chances.lua)
     { key = "more",     label = "NTAB_MORE" },       -- Mehr: Gegenstand (ab 0.82), Haendler, Neutral, Datenlage
 }
@@ -235,6 +234,7 @@ end
 
 -- Gueltiger Reiter fuer das Fenster
 local function ValidKey(key)
+    if key == "radar" then key = "chances" end   -- ab 0.105 (gespeicherter Reiter)
     -- ab 0.82: Unterpunkte von Mehr (zum Beispiel Gegenstand) gelten, W.Select oeffnet dann Mehr mit dem Unterpunkt
     if key and W.pages[key] then for _, t in ipairs(W.MORE) do if t.key == key then return key end end end
     if key and W.pages[key] and not W.AH_ONLY[key] then
@@ -245,6 +245,7 @@ end
 
 -- Unterpunkt von "Mehr" (Haendler, Neutral, Datenlage, Beobachtung)? Dann oeffnet Mehr mit diesem Unterpunkt.
 local function Resolve(key)
+    if key == "radar" then key = "chances" end   -- ab 0.105: Radar steht im Reiter Chancen
     for _, t in ipairs(W.MORE) do
         if t.key == key and W.pages[key] then return "more", key end
     end

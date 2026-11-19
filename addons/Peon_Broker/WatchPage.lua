@@ -12,6 +12,9 @@
 -- Eine Zeile leuchtet nur kurz auf, wenn sich ihr Rat aendert (jetzt KAUFEN oder VERKAUFEN). Haken unten links schaltet
 -- die Warnung (Chat und Ton) ab (watchAlarm). Laufende Antworten tauschen die Daten der Liste nicht aus, sondern
 -- fuellen die Zeilen neu: Ein Austausch zwischen Druecken und Loslassen der Maustaste verschluckte sonst den Klick.
+-- Ab 0.106 (KarloDerBaer 19.11.2026): Spalte "Art" (Aufkauf oder Schnellkauf, zuletzt im Fokus gespeichert). Kaufen bis
+-- zeigt den Wert dieser Art, der Zielpreis gilt nur im Aufkauf. Doppelklick oeffnet den Fokus in dieser Art. Die Spalte
+-- "Stand" entfaellt, oben rechts steht ohne laufende Abfrage, wann zuletzt ein Gegenstand abgefragt wurde.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -55,6 +58,13 @@ function P.LiveText()
     if R and R.Watching and R.Watching() then
         return GREEN .. L.WATCH_LIVE .. ("."):rep(P.dots) .. "|r"
     end
+    -- ab 0.106: juengste Einzelabfrage eines beobachteten Gegenstands (auch aus Fokus oder Chancen)
+    local last
+    for key in pairs(ns.Watch.Store()) do
+        local a = P.Age(key)
+        if a and (not last or a < last) then last = a end
+    end
+    if last then return GREY .. L.WATCH_LAST:format(R.ShortAge(last)) .. "|r" end
     return GREY .. L.WATCH_OFF .. "|r"
 end
 
@@ -123,8 +133,9 @@ function P.Rows()
     for key, w in pairs(Wt.Store()) do
         local e = D.Lookup(key)
         local price = type(e) == "table" and not e.gone and Num(e.m) and e.m or nil
-        local limit = Wt.Limit(key, e)
-        local target = Num(w.up) and w.up or nil
+        local mode = Wt.Mode(key)   -- ab 0.106
+        local limit = Wt.ActiveLimit(key, e)
+        local target = mode ~= "quick" and Num(w.up) and w.up or nil
         local advice
         if price and limit and price <= limit then advice = "buy"
         elseif price and target and price >= target then advice = "sell" end
@@ -132,7 +143,7 @@ function P.Rows()
         rows[#rows + 1] = {
             key = key, name = w.name or D.ItemName(key, e) or tostring(key), quality = w.q or (type(e) == "table" and e.ql) or nil,
             icon = w.icon or ns.Buy.Icon(D.ItemID(key)), link = D.LinkFromKey and D.LinkFromKey(key) or nil,
-            price = price, limit = limit, target = target, advice = advice,
+            price = price, limit = limit, target = target, advice = advice, mode = mode,
             bandLow = type(band) == "table" and Num(band.low) and band.low or nil,
             bandHigh = type(band) == "table" and Num(band.high) and band.high or nil,
             age = P.Age(key),
@@ -181,8 +192,9 @@ function P.Build(c)
             P.BellColumn("Down"),
             { key = "target", title = L.FOCUS_R_TARGET, width = 100, align = "RIGHT", format = function(v) return Num(v) and Money(v) or (GREY .. "-|r") end },
             P.BellColumn("Up"),
-            { key = "age", title = L.WATCH_COL_AGE, width = 70, align = "RIGHT", format = function(v) return P.AgeText(v) end,
-              sort = function(r) return r.age or 1e9 end },
+            -- ab 0.106: Art statt Stand
+            { key = "mode", title = L.RADAR_COL_KIND, width = 90, align = "RIGHT",
+              format = function(v) return v == "quick" and L.FOCUS_MODE_QUICK or L.FOCUS_MODE_BUYOUT end },
             { key = "advice", title = L.WATCH_COL_ADVICE, width = 96, align = "RIGHT",
               format = function(v)
                   if v == "buy" then return GREEN .. L.WATCH_ADV_BUY .. "|r" end

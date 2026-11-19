@@ -21,9 +21,9 @@ Helfer fürs Auktionshaus mit eigenem Fenster und Reitern direkt im Auktionshaus
 
 - `/broker` öffnet und schließt das Broker-Fenster, `/broker optionen` die Einstellungen.
 - **Komplettscan:** Knopf oben im Auktionshaus oder `/broker scan`. Danach kennt Broker die Preise des ganzen Markts.
-- **Reiter:** Markt (Preise und Suche), Verkaufen (Rat zum Preis), Auktionen, Einkaufen (Einkaufslisten), Beobachten (Preisalarm), Radar (günstige Angebote), Chancen (vom Peon Manager), Fokus (ein Gegenstand genau beobachtet), Gegenstand.
+- **Reiter:** Markt (Preise und Suche), Verkaufen (Rat zum Preis, erkennt Lockangebote), Auktionen, Einkaufen (Einkaufslisten), Fokus (ein Gegenstand genau beobachtet, Modi Aufkauf und Schnellkauf), Beobachten (Preisalarm), Chancen (vom Peon Manager und aus dem Radar-Scan), Mehr (Gegenstand und anderes).
 - **Tooltip:** zeigt Preise, Trend und Bestand. Die Teile stellst du unter Peon > Broker ein.
-- **Tasten:** „Radar: gewählten Treffer kaufen“ und „Radar: nächster Treffer“.
+- **Tasten:** „Fokus: kaufen“ und „Fokus: nächster Treffer des Radars“.
 - Mit dem Peon Manager und seinem Modul Peon Broker Client bekommt Broker zusätzlich Preise aus der Blizzard-API und Chancen.
 
 ## Peon_Ledger

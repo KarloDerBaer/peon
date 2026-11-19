@@ -65,12 +65,20 @@ local mod = Peon:NewModule(ADDON_NAME, {
         watchChatDown = true,   -- ab 0.91: Chatnachricht bei Kaufen bis
         watchChatUp  = true,    -- ab 0.91: Chatnachricht beim Zielpreis
         focusPriceTol = 1,      -- Fokus (ab 0.70): Warnung, wenn der Gesamtpreis so viel % ueber dem erwarteten liegt
+        focusMode    = "buyout", -- Fokus (ab 0.104): Modus Aufkauf (buyout) oder Schnellkauf (quick)
+        quickAlarm   = true,    -- Schnellkauf (ab 0.104): Ton, sobald etwas unter Kaufen bis steht
+        quickSound   = "raid",  -- Schnellkauf (ab 0.104): welcher Ton
+        quickBaitPct = 20,      -- Schnellkauf (ab 0.104): Lockpreis so viel % unter der ersten echten Stufe
+        baitQty      = 5,       -- Verkaufen (ab 0.104): Lockangebot hoechstens so viele Stueck ...
+        baitPct      = 2,       -- ... oder unter so viel % aller Angebote ...
+        baitGap      = 10,      -- ... und die naechste Stufe mehr als so viel % teurer
         radarVendorOn = true,   -- Radar (ab 0.71): Art Haendler zeigen
         radarBuyoutOn = true,   -- Radar (ab 0.71): Art Aufkauf zeigen
         -- ab 0.96: Reiter Chancen (Chances.lua) statt Art Spekulation im Radar (radarSpecOn entfaellt)
         chancesShowS = true, chancesShowL = true, chancesShowB = true, chancesShowM = true,
         chancesAhNote = true,   -- beim Oeffnen des Auktionshauses sagen, wie viele Chancen warten
         chancesNotify = true,   -- Meldung, wenn ein guenstiges Zeitfenster beginnt (Muster)
+        chancesScan  = "mgr",   -- ab 0.105: Auswahl des Scans im Reiter Chancen (mgr, watch, mass, all)
         -- ab 0.97 (Wunsch KarloDerBaer 15.11.2026): ob und wann die rote Zahl am Reiter kommt (AHTabs.BADGE_MODES)
         badgeBuy = "buypart", badgeWatch = "both", badgeRadar = "blink", badgeSell = "on", badgeChances = "off",
         buyoutMinQty = 500,     -- Aufkauf (ab 0.71): Massenware erst ab so vielen Stueck im Angebot (bis 0.82 200)
@@ -98,6 +106,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  buyoutHours = { 1, 24, 1 }, focusEvery = { 3, 30, 1 },
                  focusRate = { 2, 90, 1 }, focusWindow = { 2, 30, 1 }, focusFirst = { 10, 120, 5 }, focusSure = { 30, 600, 10 },
                  focusMore = { 0, 100, 5 }, focusGrow = { 1, 50, 1 }, focusPriceTol = { 0, 10, 1 },
+                 quickBaitPct = { 5, 50, 5 }, baitQty = { 1, 50, 1 }, baitPct = { 0, 10, 1 }, baitGap = { 5, 50, 5 },
                  buyoutMinQty = { 0, 100000, 10 }, buyoutMinLevels = { 2, 12, 1 }, buyoutMinSales = { 0, 100000, 5 }, buyoutTargetPct = { 0, 200, 5 },
                  radarRenewSec = { 15, 600, 15 }, radarRenewMax = { 30, 1200, 30 }, radarSearchPct = { 0, 80, 5 },
                  salesWindow = { 1, 24, 1 }, salesMidMin = { 10, 600, 10 }, salesSureMin = { 20, 1440, 10 },
@@ -115,6 +124,9 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  badgeRadar = { off = true, blink = true, still = true },
                  badgeSell = { off = true, on = true },
                  badgeChances = { off = true, ok = true, all = true },
+                 focusMode = { buyout = true, quick = true },   -- ab 0.104
+                 chancesScan = { mgr = true, watch = true, mass = true, all = true },   -- ab 0.105
+                 quickSound = { raid = true, ready = true, alarm = true, tell = true },
                  windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true,
                               market = true, watch = true, sources = true, vendors = true,
                               browse = true, focus = true, more = true } },   -- ab 0.59 (Neuaufbau N1)   -- ab 0.51 neue Reiter   -- ab 0.28 mit "start", ohne "book"
@@ -592,6 +604,7 @@ mod:On("INIT", function()
     mod:Call("Radar", ns.Radar.Init)
     mod:Call("Chancen", ns.Chances.Init)   -- ab 0.96
     if ns.Lots then mod:Call("Posten", ns.Lots.Init) end   -- ab 0.67 (H3)
+    if ns.Quick then mod:Call("Schnellkauf", ns.Quick.Init) end   -- ab 0.104
     if ns.SellVariant then mod:Call("Varianten", ns.SellVariant.Init) end   -- ab 0.98
     mod:Call("Sprung", ns.Go.InitMarket)   -- ab 0.73: sicherer Knopf Im Markt zeigen
     -- ab 0.95: Berufsfenster in Peon_Profession (Craft.lua dort)

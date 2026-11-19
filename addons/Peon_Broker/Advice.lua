@@ -178,6 +178,9 @@ function A.Prices(key, e, lot, r)
     local v = A.var
     if v and v.key == key and Num(v.best) then p.cheap = v.best
     elseif type(e) == "table" and not e.gone and Num(e.m) then p.cheap = e.m end
+    -- ab 0.104: Lockangebote nicht beachten, "Guenstige" und "Vorschlag" gehen von der ersten echten Stufe aus
+    local b = A.Bait(key)
+    if b and (not Num(p.cheap) or p.cheap <= b.top) then p.cheap, p.bait = b.price, b end
     if p.cheap and not p.suggest then
         local te = type(e) == "table" and e or nil
         local ok, vp = pcall(ns.Data.Suggest, p.cheap, te and te.md, key, mod.db, te, te and te.pmd)
@@ -325,7 +328,13 @@ function A.Show(sf, r, isNeutral)
         end
         table.insert(parts, 1, line)
     end
-    A.ShowButtons(b, A.Prices(r.key, r.key ~= nil and ns.Data.Lookup(r.key) or nil, lot, r))
+    local prices = A.Prices(r.key, r.key ~= nil and ns.Data.Lookup(r.key) or nil, lot, r)
+    -- ab 0.104: Lockangebot nicht beachtet
+    local bait = r.bait or prices.bait
+    if bait then
+        parts[#parts + 1] = "|cffffd100" .. L.ADV_ROW_BAIT .. "|r  " .. L.ADV_BAIT_ROW:format(bait.qty, Money(bait.top))
+    end
+    A.ShowButtons(b, prices)
     b.lines:SetText(table.concat(parts, "\n"))
     b:Show()
     A.last = r
@@ -347,6 +356,7 @@ function A.Update(sf, commodity)
     r.key = it.key
     A.CheckVariant(r, it, e)
     A.CheckNoOffers(r, it, e, hp)
+    A.CheckBait(r, it)
     if A.AutoVariant(sf, r, it) then return A.Update(sf, commodity) end   -- mit dem neuen Preis neu rechnen
     A.lot = ns.Lots and ns.Lots.ForKey(it.key) or nil
     A.Show(sf, r, ns.AtNeutralAH and ns.AtNeutralAH())
@@ -386,6 +396,31 @@ function A.CheckVariant(r, it, e)
     r.why = v.best and L.ADV_VARIANT_WHY:format(Money(best)) or L.ADV_VARIANT_WHY_MKT:format(Money(best))
     r.extra = nil
     r.fillPrice = fill
+end
+
+---------------------------------------------------------------------------
+-- Lockangebote (ab 0.104, Wunsch KarloDerBaer 19.11.2026): Data.SkipBait auf die Live-Angebote dieses Fensters.
+-- Steht im Preisfeld der Preis eines Lockangebots (oder darunter), heisst der Rat "Lockangebot" und nennt die erste
+-- echte Stufe. Die Knoepfe "Guenstige" und "Vorschlag" gehen dann ebenfalls von ihr aus (A.Prices).
+---------------------------------------------------------------------------
+A.liveRows = nil   -- { key, rows }: letzte Live-Angebote im Verkaufen
+
+function A.Bait(key)
+    local lr = A.liveRows
+    if key == nil or not (lr and lr.key == key) then return nil end
+    return ns.Data.SkipBait(lr.rows, mod.db)
+end
+
+function A.CheckBait(r, it)
+    local b = A.Bait(it.key)
+    if not b then return end
+    r.bait = b
+    if not Num(it.price) or it.price > b.top or r.title == L.ADV_VARIANT then return end
+    local fill = ns.Data.Undercut(b.price, it.key, mod.db)
+    if not Num(fill) or fill <= it.price then return end
+    r.kind, r.title = "wait", L.ADV_BAIT
+    r.why = L.ADV_BAIT_WHY:format(b.qty, Money(b.top), Money(b.price))
+    r.extra = nil
 end
 
 ---------------------------------------------------------------------------
@@ -489,6 +524,7 @@ function A.OnResults(commodity, arg)
         end
     end
     if type(rows) ~= "table" or #rows == 0 or rows.foreign then return end
+    A.liveRows = { key = it.key, rows = rows }   -- ab 0.104: fuer die Erkennung von Lockangeboten
     ns.Data.ApplyLive(it.key, rows, time())
     local sf, isCommodity = A.ActiveSellFrame()
     if sf then A.Update(sf, isCommodity) end
