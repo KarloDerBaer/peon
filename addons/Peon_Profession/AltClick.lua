@@ -213,8 +213,18 @@ function A.OnTradeTooltip(tt, index)
     Offer(tt, "picklock", { trade = index })
 end
 
--- Nach dem Klick: im Handel das Feld als Ziel waehlen (noch im selben Klick), dann den Knopf entfernen
-function A.PostClick()
+-- Wirkt dieser Teil des Klicks? Der Knopf ist fuer Druecken und Loslassen angemeldet, das Spiel fuehrt die Aktion
+-- je nach Einstellung ActionButtonUseKeyDown nur bei einem davon aus (ab 0.7.1, vorher nur Loslassen: Klick ohne Wirkung)
+function A.Acts(down)
+    local cv = GetCVarBool and GetCVarBool("ActionButtonUseKeyDown")
+    if cv == nil then return not down end
+    return (down and true or false) == (cv and true or false)
+end
+
+-- Nach dem Klick: im Handel das Feld als Ziel waehlen (noch im selben Klick), dann den Knopf entfernen.
+-- down: Druecken oder Loslassen. Nur der Teil, der die Aktion ausfuehrt, zaehlt, sonst verschwaende der Knopf zu frueh.
+function A.PostClick(down)
+    if down ~= nil and not A.Acts(down) then return end
     local cur = A.current
     if cur and cur.trade then
         local targeting = rawget(_G, "SpellIsTargeting")
@@ -243,7 +253,7 @@ end
 function A.Init()
     if btn then return end
     btn = CreateFrame("Button", "PeonProfessionAltClick", UIParent, "SecureActionButtonTemplate")
-    btn:RegisterForClicks("AnyUp")
+    btn:RegisterForClicks("AnyUp", "AnyDown")
     btn:Hide()
     -- Der Knopf liegt ueber dem Platz, der Platz verliert die Maus und damit den Tooltip: wieder aufbauen
     btn:SetScript("OnEnter", function()
@@ -255,7 +265,7 @@ function A.Init()
         if GameTooltip then GameTooltip:Hide() end
         A.Hide()
     end)
-    btn:SetScript("PostClick", function() mod:Call("AltClick", A.PostClick) end)
+    btn:SetScript("PostClick", function(_, _, down) mod:Call("AltClick", A.PostClick, down and true or false) end)
     local ev = CreateFrame("Frame")
     ev:RegisterEvent("MODIFIER_STATE_CHANGED")
     ev:RegisterEvent("PLAYER_REGEN_DISABLED")

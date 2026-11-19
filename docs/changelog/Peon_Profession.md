@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.7.1
+
+Kurz: Alt + Klick in der Tasche entzaubert und knackt Schlösser jetzt wirklich. Vorher passierte beim Klick nichts.
+
+- 0.7.1 (19.11.2026, Meldung KarloDerBaer): **Alt + Klick ohne Wirkung behoben.** Der unsichtbare Knopf war nur für das Loslassen der Maustaste angemeldet. Das Spiel führt Zauber über solche Knöpfe aber standardmäßig schon beim Drücken aus (Einstellung `ActionButtonUseKeyDown`). Der Knopf ist jetzt für beides angemeldet wie die Knöpfe in Broker, Fishing und ClassBuddy. Nach dem Klick verschwindet er erst nach dem Teil, der den Zauber wirkt (`AltClick.Acts`), sonst wäre er beim Loslassen schon weg.
+  - Tests: `test_profession.lua` (Drücken oder Loslassen je nach Einstellung).
+
 ## 0.7.0
 
 Kurz: Alt halten und einen Gegenstand in der Tasche anklicken: Waffen und Rüstung ab grün werden entzaubert, verschlossene Kassetten geknackt (Schurke).

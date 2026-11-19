@@ -1022,8 +1022,17 @@ end)()
   local clicked
   SpellIsTargeting = function() return true end
   ClickTargetTradeButton = function(i) clicked = i end
-  A.PostClick()
+  -- 0.7.1: Druecken oder Loslassen, je nach ActionButtonUseKeyDown
+  local keepCV, keyDown = GetCVarBool, true
+  GetCVarBool = function(n) if n == "ActionButtonUseKeyDown" then return keyDown end end
+  check(A.Acts(true) and not A.Acts(false), "0.7.1: Aktion beim Druecken, wenn das Spiel es so eingestellt hat")
+  keyDown = false
+  check(A.Acts(false) and not A.Acts(true), "0.7.1: Aktion beim Loslassen, wenn das Spiel es so eingestellt hat")
+  A.PostClick(true)
+  check(clicked == nil and A.current and A.current.trade == 7, "0.7.1: Druecken ohne Aktion laesst den Knopf stehen")
+  A.PostClick(false)
   check(clicked == 7 and A.current == nil, "0.7.0: Handel, nach dem Klick wird das Feld als Ziel gewaehlt")
+  GetCVarBool = keepCV
   tradeLines = { "Eiserne Kassette" }
   A.OnTradeTooltip(tt, 7)
   check(A.current == nil, "0.7.0: Handel, offene Kassette nicht")
