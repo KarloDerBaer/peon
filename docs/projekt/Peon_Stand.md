@@ -47,7 +47,7 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Takte: Tasten nur im Angelmodus (`ns.UpdateLureTick`), Schwarm-Zeile nur bei sichtbarer Fangliste (`ns.CatchListTick`), ab 1.7.1.
 - Befehle: `/fp` (Optionen), `/fp toggle|an|aus`, `/fp set <Name>`, `/fp saveset`, `/fp kampf fragen|verlassen|bleiben`, `/fp waffenversuch`, `/fp klick doppel|aus`, `/fp status`, `/fp minimap`, `/fp koeder`, `/fp fische`, `/fp statistik`, `/fp debug`.
 
-## Peon_Broker – 0.106.0 (Auktionshaus-Helfer)
+## Peon_Broker – 0.107.1 (Auktionshaus-Helfer)
 
 - Konzepte: `docs\konzepte\broker\` (Konzept, Rechenmodell, Verkaufen, Einkaufen, Absatz, Umbau, Neuaufbau). Der Neuaufbau (11.11.2026) gilt, der Umbau nur noch für Tooltip, Märkte und Gegenstandsmenü.
 - Dateien: siehe `Peon_Broker.toc` (43 Dateien), dazu Bindings.xml und `Media\` (Trend-Symbole, Punkt für neue Radar-Treffer).

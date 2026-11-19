@@ -2,6 +2,26 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.107.1
+
+Kurz: Der Schnellkauf übernimmt Kaufen bis jetzt auch, wenn du den Fokus aus Beobachten öffnest. Der Lockpreis liegt 50 % darunter.
+
+- 0.107.1 (19.11.2026, Rückmeldung KarloDerBaer):
+  - **Behoben, Kaufen bis im Schnellkauf:** Öffnete man den Fokus aus Beobachten, während der Schnellkauf eingestellt war, galt die Übernahme schon als erledigt, bevor der Fokus in den gespeicherten Aufkauf wechselte. Beim Umschalten blieb das Feld leer. Jetzt füllt der Schnellkauf Kaufen bis immer nach, wenn es leer ist, außer man hat es dort selbst geleert (`Q.limitCleared`, bis man wieder einen Wert einträgt).
+  - **Behoben, Lockpreis:** Gespeichert war noch die alte Vorgabe 20 %. Sie wird einmal auf 50 % gestellt (`quickBaitPct50`), ein eigener anderer Wert bleibt.
+  - Tests: Sprung aus Beobachten mit anschließendem Umschalten, selbst geleert bleibt leer, Umzug des Prozentwerts (`test_broker.lua`).
+
+## 0.107.0
+
+Kurz: Der Schnellkauf übernimmt beim ersten Öffnen Kaufen bis vom Aufkauf. Der Lockpreis liegt dann 50 % darunter.
+Kurz: Das Feld Max. Menge steht bündig unter Kaufen bis, der Text dahinter hat mehr Platz.
+
+- 0.107.0 (19.11.2026, Rückmeldung KarloDerBaer):
+  - **Geändert, Schnellkauf:** Beim ersten Öffnen für einen Gegenstand übernimmt er Kaufen bis vom Aufkauf (`Q.EnsureLimit`, `Q.BuyoutLimit`): aus Beobachten, sonst den Wert, den der Aufkauf gerade rechnet. Leert man das Feld selbst, bleibt es leer.
+  - **Geändert, Lockpreis:** Vorschlag ist Kaufen bis minus 50 % (`quickBaitPct`, einstellbar 5 bis 90 %), nicht mehr die erste echte Stufe minus 20 %.
+  - **Geändert, Max. Menge:** Das Feld steht im Schnellkauf bündig mit dem Goldfeld von Kaufen bis.
+  - Tests: Kaufen bis übernommen, selbst geleert bleibt leer, Lockpreis aus Kaufen bis, Lage des Mengenfelds (`test_broker.lua`).
+
 ## 0.106.0
 
 Kurz: Im Schnellkauf gibt es statt des Reglers ein Feld „Max. Menge“. Dahinter steht, was ein Kauf höchstens kostet.

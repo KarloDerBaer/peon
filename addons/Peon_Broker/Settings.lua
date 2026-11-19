@@ -66,7 +66,7 @@ S.SPECS.focus = {
     { "head", "SET_QUICK_HEAD" },   -- ab 0.104
     { "check", "quickAlarm", "SET_QUICK_ALARM", "SET_QUICK_ALARM_TIP" },
     { "choice", "quickSound", "SET_QUICK_SOUND", QuickSounds, test = QuickTest, off = QuickAlarmOff },
-    { "slider", "quickBaitPct", "SET_QUICK_PCT", 5, 50, 5, function(v) return L.SET_PCT_FMT:format(v) end },
+    { "slider", "quickBaitPct", "SET_QUICK_PCT", 5, 90, 5, function(v) return L.SET_PCT_FMT:format(v) end },
     { "col" },
     { "head", "SET_FOCUS_VERDICT" },
     { "slider", "focusWindow", "SET_FOCUS_WINDOW", 2, 30, 1, function(v) return L.SET_MIN_FMT:format(v) end },

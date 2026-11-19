@@ -6,9 +6,10 @@
 --           Block Lockangebot (Preisfeld, Einstellen, Zurueckziehen, Zustand) und die Bilanz der Sitzung
 --   rechts  Preisstufen (eigene Angebote markiert, neue Stufen kurz gruen), darunter ein Diagramm mit dem
 --           guenstigsten Preis, der Menge unter Kaufen bis und senkrechten Strichen fuer eigene Lockangebote
--- Lockangebot: 1 Stueck aus den Taschen, kuerzeste Laufzeit. Der Preis steht als Vorschlag im Feld: die erste
--- echte Stufe (Data.SkipBait) minus quickBaitPct Prozent. Ein eigener Betrag im Feld gilt bis zum naechsten
--- Gegenstand. Nur Massenware (PostCommodity). Eigenes Einstellen per Knopf war in Forever bisher nicht erprobt:
+-- Lockangebot: 1 Stueck aus den Taschen, kuerzeste Laufzeit. Der Preis steht als Vorschlag im Feld: ab 0.107
+-- Kaufen bis minus quickBaitPct Prozent (Vorgabe 50, vorher die erste echte Stufe minus 20). Ein eigener Betrag im
+-- Feld gilt bis zum naechsten Gegenstand. Ab 0.107 uebernimmt der Schnellkauf beim ersten Oeffnen Kaufen bis vom
+-- Aufkauf (Q.EnsureLimit), damit das Feld nicht leer ist. Nur Massenware (PostCommodity). Eigenes Einstellen per Knopf war in Forever bisher nicht erprobt:
 -- Fragt das Spiel nach (Rueckgabe von PostCommodity oder AUCTION_HOUSE_POST_WARNING), bestaetigt erst der zweite
 -- Klick (ConfirmPostCommodity).
 
@@ -156,18 +157,49 @@ end
 ---------------------------------------------------------------------------
 -- Lockangebot
 ---------------------------------------------------------------------------
--- Vorschlag: erste echte Stufe minus quickBaitPct Prozent (nil ohne Live-Stand)
+-- Vorschlag (ab 0.107): Kaufen bis minus quickBaitPct Prozent (nil ohne Kaufen bis)
 function Q.Suggest()
     local F = ns.Focus
-    local rows = F.LiveRows()
-    if not rows then return nil, nil end
-    local D = ns.Data
-    local b = D.SkipBait(rows, mod.db)
-    local lv = D.Available(rows)
-    local base = (b and b.price) or (lv[1] and lv[1].price)
+    local base = F.ManualLimit(F.key)
     if not Num(base) then return nil, nil end
-    local pct = (tonumber(mod.db.quickBaitPct) or 20) / 100
+    local pct = (tonumber(mod.db.quickBaitPct) or 50) / 100
     return math.max(1, math.floor(base * (1 - pct))), base
+end
+
+-- ab 0.107: Kaufen bis des Aufkaufs fuer key: in Beobachten gespeichert, sonst was der Aufkauf gerade rechnet
+function Q.BuyoutLimit(key)
+    local F, Wt = ns.Focus, ns.Watch
+    if Wt and Wt.Is(key) then
+        local l = Wt.Limit(key)
+        if Num(l) and l > 0 then return l end
+    end
+    local keep = mod.db.focusMode
+    mod.db.focusMode = "buyout"
+    local ok, d = pcall(F.Plan)
+    mod.db.focusMode = keep
+    if ok and type(d) == "table" and not d.gone and Num(d.limit) and d.limit > 0 then return d.limit end
+    return nil
+end
+
+-- Schnellkauf ohne Kaufen bis: das des Aufkaufs uebernehmen. Ab 0.107.1 jedes Mal, wenn das Feld leer ist, nur nicht
+-- nachdem man es im Schnellkauf selbst geleert hat (Q.limitCleared, bis man wieder einen Wert eintraegt). In 0.107.0
+-- galt "einmal je Gegenstand": Oeffnete man den Fokus aus Beobachten, waehrend der Schnellkauf eingestellt war, war das
+-- Einmal schon verbraucht, bevor der Fokus in den gespeicherten Aufkauf wechselte. Danach blieb das Feld leer.
+Q.limitCleared = {}
+function Q.NoteLimit(key, limit)
+    if key == nil then return end
+    if limit then Q.limitCleared[key] = nil elseif Q.On() then Q.limitCleared[key] = true end
+end
+
+function Q.EnsureLimit()
+    local F = ns.Focus
+    local key = F.key
+    if key == nil or not Q.On() or Q.limitCleared[key] or F.ManualLimit(key) then return end
+    local v = Q.BuyoutLimit(key)
+    if Num(v) and v > 0 then
+        F.manualLimit = { key = key, price = math.floor(v) }
+        F.manualSrc = F.manualSrc or "own"
+    end
 end
 
 function Q.ManualPrice(key)

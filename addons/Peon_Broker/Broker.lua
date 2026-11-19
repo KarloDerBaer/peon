@@ -68,7 +68,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         focusMode    = "buyout", -- Fokus (ab 0.104): Modus Aufkauf (buyout) oder Schnellkauf (quick)
         quickAlarm   = true,    -- Schnellkauf (ab 0.104): Ton, sobald etwas unter Kaufen bis steht
         quickSound   = "raid",  -- Schnellkauf (ab 0.104): welcher Ton
-        quickBaitPct = 20,      -- Schnellkauf (ab 0.104): Lockpreis so viel % unter der ersten echten Stufe
+        quickBaitPct = 50,      -- Schnellkauf (ab 0.104): Lockpreis so viel % unter Kaufen bis (bis 0.106: 20 % unter der ersten echten Stufe)
         baitQty      = 5,       -- Verkaufen (ab 0.104): Lockangebot hoechstens so viele Stueck ...
         baitPct      = 2,       -- ... oder unter so viel % aller Angebote ...
         baitGap      = 10,      -- ... und die naechste Stufe mehr als so viel % teurer
@@ -106,7 +106,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  buyoutHours = { 1, 24, 1 }, focusEvery = { 3, 30, 1 },
                  focusRate = { 2, 90, 1 }, focusWindow = { 2, 30, 1 }, focusFirst = { 10, 120, 5 }, focusSure = { 30, 600, 10 },
                  focusMore = { 0, 100, 5 }, focusGrow = { 1, 50, 1 }, focusPriceTol = { 0, 10, 1 },
-                 quickBaitPct = { 5, 50, 5 }, baitQty = { 1, 50, 1 }, baitPct = { 0, 10, 1 }, baitGap = { 5, 50, 5 },
+                 quickBaitPct = { 5, 90, 5 }, baitQty = { 1, 50, 1 }, baitPct = { 0, 10, 1 }, baitGap = { 5, 50, 5 },
                  buyoutMinQty = { 0, 100000, 10 }, buyoutMinLevels = { 2, 12, 1 }, buyoutMinSales = { 0, 100000, 5 }, buyoutTargetPct = { 0, 200, 5 },
                  radarRenewSec = { 15, 600, 15 }, radarRenewMax = { 30, 1200, 30 }, radarSearchPct = { 0, 80, 5 },
                  salesWindow = { 1, 24, 1 }, salesMidMin = { 10, 600, 10 }, salesSureMin = { 20, 1440, 10 },
@@ -138,6 +138,11 @@ local mod = Peon:NewModule(ADDON_NAME, {
         end
         -- ab 0.95.1 (Fehlerbericht 29): Ton bei neuen Radar-Treffern einmal ausschalten, er kam ohne Chatzeile
         if not acc.radarSoundOff then acc.radarSound = false; acc.radarSoundOff = true end
+        -- ab 0.107.1: Lockpreis jetzt unter Kaufen bis, die alte Vorgabe 20 % (unter dem Markt) einmal auf 50 % stellen
+        if not acc.quickBaitPct50 then
+            if acc.quickBaitPct == nil or acc.quickBaitPct == 20 then acc.quickBaitPct = 50 end
+            acc.quickBaitPct50 = true
+        end
         if ns.Data then ns.Data.Migrate(acc) end
         if ns.Sales then ns.Sales.Migrate(acc) end
     end,

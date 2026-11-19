@@ -4504,12 +4504,17 @@ end)()
     "0.104: Schnellkauf blendet Zielpreis und Angaben aus und zeigt das Lockangebot")
   check(plain(F.sectionTab.text) == L.FOCUS_MODE_QUICK and F.modeQuick.locked, "0.104: Umschalter zeigt den Modus")
   F.Update()
-  check(plain(F.verdict.text) == L.QUICK_V_NOLIMIT and F.buyButton.disabled, "0.104: ohne Kaufen bis kauft der Schnellkauf nichts")
+  check(F.ManualLimit(7971) == 100 and F.limitInput:GetAmount() == 100,
+    "0.107: erstes Oeffnen uebernimmt Kaufen bis vom Aufkauf (bis unter die zweite Stufe 1s 50c)")
+  check(Q.Price(7971) == 50, "0.107: Lockpreis 50 % unter Kaufen bis")
+  F.SetLimitTyped(0)
+  check(F.ManualLimit(7971) == nil and plain(F.verdict.text) == L.QUICK_V_NOLIMIT and F.buyButton.disabled,
+    "0.104/0.107: selbst geleert bleibt Kaufen bis leer, dann kauft der Schnellkauf nichts")
   F.SetLimit(150)
   local d = F.Plan()
   check(plain(F.verdict.text) == L.QUICK_V_BUY and d and d.quick and d.best.qty == 21, "0.104: alles bis Kaufen bis: 21 Stueck")
   check(plain(F.buyInfo.text) == "Menge 21, Kosten " .. plain(ns.Tooltip.Money(3100)), "0.104: ueber dem Knopf Menge und Kosten ohne Gewinn: " .. plain(F.buyInfo.text))
-  check(Q.Price(7971) == 120, "0.104: Lockpreis 20 % unter der ersten echten Stufe (Lockangebot zu 1s nicht beachtet)")
+  check(Q.Price(7971) == 75, "0.107: Lockpreis 50 % unter Kaufen bis, nicht vom guenstigsten Angebot")
   -- Kauf, Angebot schon weg
   local started, confirmed
   ah.StartCommoditiesPurchase = function(_, n) started = n end
@@ -4557,17 +4562,17 @@ end)()
   ah.PostCommodity = function(loc, dur, qty, price) posted = { loc = loc, dur = dur, qty = qty, price = price }; return false end
   C_Container = { GetContainerNumSlots = function(bag) return bag == 0 and 2 or 0 end,
     GetContainerItemID = function(_, slot) return slot == 2 and 7971 or nil end }
-  check(Q.Price(7971) == 160, "0.104: Vorschlag folgt dem Markt (erste echte Stufe 2s)")
+  check(Q.Price(7971) == 75, "0.107: Vorschlag folgt Kaufen bis, nicht dem Markt")
   Q.Post()
-  check(posted and posted.qty == 1 and posted.dur == 1 and posted.price == 160 and posted.loc.slot == 2 and Q.bait.state == "posting",
+  check(posted and posted.qty == 1 and posted.dur == 1 and posted.price == 75 and posted.loc.slot == 2 and Q.bait.state == "posting",
     "0.104: 1 Stueck aus der Tasche, kuerzeste Laufzeit, zum Lockpreis")
   fire("AUCTION_HOUSE_AUCTION_CREATED", 555)
   check(Q.bait.state == "up" and Q.bait.id == 555 and Q.sessions[7971].baits == 1 and #Q.marks[7971] == 1, "0.104: Lockangebot steht, in Bilanz und Diagramm")
-  ns.Buy.live[7971] = { rows = { R(120, 3), R(160, 1, 1), R(200, 50), commodity = true }, t = clock + 1, commodity = true }
+  ns.Buy.live[7971] = { rows = { R(75, 1, 1), R(120, 3), R(200, 50), commodity = true }, t = clock + 1, commodity = true }
   F.Update()
   local own
   for _, it in ipairs(F.tiers.items) do if it.isOwn then own = it end end
-  check(own and own.price == 160 and Q.bait.seen and plain(F.quick.state.text):find("steht seit", 1, true), "0.104: eigenes Angebot markiert, Zustand steht: " .. plain(F.quick.state.text))
+  check(own and own.price == 75 and Q.bait.seen and plain(F.quick.state.text):find("steht seit", 1, true), "0.104: eigenes Angebot markiert, Zustand steht: " .. plain(F.quick.state.text))
   check(plain(F.quick.balance.text):find("1 Lockangebote", 1, true) and plain(F.quick.balance.text):find("gekauft 10", 1, true), "0.104: Bilanz: " .. plain(F.quick.balance.text))
   -- zurueckziehen
   local cancelled
@@ -4713,6 +4718,8 @@ end)()
   check(not F.verdict.shown and not F.why.shown and not F.relistCheck.shown and not F.qtySlider.shown and F.qtyInput.shown
     and plain(F.qtyLabel.text) == "Max. Menge", "0.106: Schnellkauf ohne Hinweistexte, ohne Wiedereinstellen, Max. Menge als Feld")
   check(F.qtyInput.text == "" and F.qtyAll.shown and plain(F.qtyHint.text) == "ohne Grenze", "0.106: leeres Feld heisst alle: " .. plain(F.qtyHint.text))
+  local qp = F.qtyInput.points[1]
+  check(qp and qp[2] == F.qtyLabel and qp[1] == "LEFT" and qp[3] == "RIGHT", "0.107: Mengenfeld buendig unter dem Goldfeld von Kaufen bis")
   F.SetLimit(150)
   F.SetQtyTyped(10)
   local want = "Höchstens " .. plain(ns.Tooltip.Money(1500)) .. " (10 × " .. plain(ns.Tooltip.Money(150)) .. ")"
@@ -4723,7 +4730,7 @@ end)()
   local w = Wt.Store()[7981]
   check(w and w.qlim == 150 and w.qmax == 10 and w.mode == "quick" and w.lim == nil and w.up == nil, "0.106: Speichern im Schnellkauf merkt Kaufen bis und Max. Menge")
   Q.SetMode("buyout")
-  check(F.ManualLimit(7981) == nil and F.ManualQty(7981) == nil and F.verdict.shown and F.relistCheck.shown and plain(F.qtyLabel.text) == "Menge",
+  check(F.qtyInput.points[1][2] == F.qtySlider and F.ManualLimit(7981) == nil and F.ManualQty(7981) == nil and F.verdict.shown and F.relistCheck.shown and plain(F.qtyLabel.text) == "Menge",
     "0.106: Aufkauf laedt seine eigenen Werte und zeigt Urteil und Wiedereinstellen")
   F.SetLimit(120)
   F.SetTarget(200)
@@ -4774,6 +4781,49 @@ end)()
   market.items[7981], ns.Buy.live[7981], mod.acc.commodity[7981] = nil, nil, nil
   Rd.entries, Rd.gone, Rd.job, Rd.focus = {}, {}, nil, nil
   ns.Quick.sessions = {}
+end)()
+
+-- ===== 0.107.1: Kaufen bis im Schnellkauf auch nach Sprung aus Beobachten, Lockpreis-Prozent umgestellt =====
+;(function()
+  local F, Q, Wt = ns.Focus, ns.Quick, ns.Watch
+  local acc = { quickBaitPct = 20 }
+  mod.opts.migrate(mod, acc)
+  check(acc.quickBaitPct == 50 and acc.quickBaitPct50, "0.107.1: alte Vorgabe 20 % wird einmal 50 %")
+  acc = { quickBaitPct = 30 }
+  mod.opts.migrate(mod, acc)
+  check(acc.quickBaitPct == 30, "0.107.1: eigener Wert bleibt")
+  local keepOpen, keepMoney = ns.Scan.ahOpen, GetMoney
+  GetMoney = function() return 10000000 end
+  ns.Scan.ahOpen = true
+  mod.acc.commodity[7982] = true
+  market.items[7982] = { m = 400, md = 450, q = 100, n = 3, t = clock, nm = "Flitzstein", ql = 1 }
+  Wt.Add(7982, { name = "Flitzstein" })
+  Wt.SetLimit(7982, "abs", 300)
+  Wt.SetUp(7982, 390)
+  Wt.SetMode(7982, "buyout")
+  ns.Buy.live[7982] = { rows = { { price = 400, qty = 80, own = 0 }, { price = 412, qty = 10, own = 0 }, commodity = true }, t = clock, commodity = true }
+  -- Fokus steht noch im Schnellkauf, Sprung aus Beobachten (gespeichert: Aufkauf)
+  Q.SetMode("quick", true)
+  F.Set(7982)
+  F.FromPage(7982, "watch")
+  check(mod.db.focusMode == "buyout" and F.ManualLimit(7982) == 300, "0.107.1: aus Beobachten im Aufkauf mit Kaufen bis 3s")
+  Q.SetMode("quick")
+  check(F.ManualLimit(7982) == 300 and F.limitInput:GetAmount() == 300 and Q.Price(7982) == 150,
+    "0.107.1: Umschalten in den Schnellkauf uebernimmt Kaufen bis, Lockpreis 50 % darunter")
+  F.SetLimitTyped(0)
+  Q.SetMode("buyout")
+  Q.SetMode("quick")
+  check(F.ManualLimit(7982) == nil, "0.107.1: selbst geleert bleibt leer, auch nach Umschalten")
+  F.SetLimitTyped(250)
+  check(not Q.limitCleared[7982], "0.107.1: neuer Wert hebt das Leeren auf")
+  -- aufraeumen
+  Wt.Remove(7982)
+  Q.SetMode("buyout", true)
+  F.SetLimit(nil)
+  Q.limitCleared = {}
+  ns.Scan.ahOpen, GetMoney = keepOpen, keepMoney
+  market.items[7982], ns.Buy.live[7982], mod.acc.commodity[7982] = nil, nil, nil
+  Rd.entries, Rd.gone, Rd.focus = {}, {}, nil
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

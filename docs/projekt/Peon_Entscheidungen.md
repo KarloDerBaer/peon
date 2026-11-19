@@ -3,6 +3,11 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 19.11.2026: Schnellkauf übernimmt Kaufen bis (Broker 0.107.0)
+
+- **Kaufen bis aus dem Aufkauf** (KarloDerBaer): damit das Feld nicht leer ist. Ab 0.107.1 immer, wenn das Feld leer ist, nur nicht nachdem man es im Schnellkauf selbst geleert hat (0.107.0 „einmal je Gegenstand“ ging beim Sprung aus Beobachten verloren).
+- **Lockpreis 50 % unter Kaufen bis** (KarloDerBaer): nicht mehr vom günstigsten Angebot abgeleitet, Prozent einstellbar.
+
 ## 19.11.2026: Schnellkauf und Beobachten je Modus (Broker 0.106.0)
 
 - **Schnellkauf schlank** (KarloDerBaer): keine Hinweistexte, kein Wiedereinstellen. Käufe daraus werden nie Posten.

@@ -1172,7 +1172,7 @@ L.SET_QUICK_HEAD   = "Quick buy"
 L.SET_QUICK_ALARM  = "Alarm when something is below"
 L.SET_QUICK_ALARM_TIP = "Sound and highlighted buy button as soon as something is below buy up to."
 L.SET_QUICK_SOUND  = "Sound"
-L.SET_QUICK_PCT    = "Bait price below first real offer"
+L.SET_QUICK_PCT    = "Bait price below buy up to"
 
 -- ab 0.105: Radar im Reiter Chancen
 L.CH_SCAN_MGR      = "Manager chances"
@@ -1252,7 +1252,7 @@ if GetLocale() == "deDE" then
     L.SET_QUICK_ALARM  = "Alarm, sobald etwas darunter steht"
     L.SET_QUICK_ALARM_TIP = "Ton und leuchtender Kaufknopf, sobald etwas unter Kaufen bis steht."
     L.SET_QUICK_SOUND  = "Ton"
-    L.SET_QUICK_PCT    = "Lockpreis unter erstem echten Angebot"
+    L.SET_QUICK_PCT    = "Lockpreis unter Kaufen bis"
     L.SALES_PER_HOUR = "%s/Std."
     L.SALES_REACH_H = "reicht %s Std."
     L.TT_SALES_CLIENT = "Absatz (Client, 14 Tage)"

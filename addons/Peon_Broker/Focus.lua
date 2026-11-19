@@ -111,6 +111,7 @@ function F.SetLimit(price)
     if F.key == nil then return end
     F.manualSrc = "own"
     if Num(price) and price > 0 then F.manualLimit = { key = F.key, price = math.floor(price) } else F.manualLimit = nil end
+    if ns.Quick then ns.Quick.NoteLimit(F.key, F.manualLimit) end   -- ab 0.107.1: selbst geleert merken
     if F.limitInput then
         if F.manualLimit then F.limitInput:SetAmount(F.manualLimit.price) else ClearMoney(F.limitInput) end
     end
@@ -122,6 +123,7 @@ function F.SetLimitTyped(amount)
     if F.key == nil then return end
     F.manualSrc = "own"
     if Num(amount) and amount > 0 then F.manualLimit = { key = F.key, price = math.floor(amount) } else F.manualLimit = nil end
+    if ns.Quick then ns.Quick.NoteLimit(F.key, F.manualLimit) end   -- ab 0.107.1: selbst geleert merken
     F.Update()
 end
 
@@ -914,6 +916,10 @@ function F.ApplyMode()
     F.qtySlider:SetShown(not quick)
     if F.qtyAll and not quick then F.qtyAll:Hide() end
     F.qtySlider.peonMin = nil   -- Regler beim naechsten Mal neu setzen
+    -- ab 0.107: im Schnellkauf steht das Feld buendig unter dem Goldfeld von Kaufen bis (Platz fuer den Text dahinter)
+    F.qtyInput:ClearAllPoints()
+    if quick then F.qtyInput:SetPoint("LEFT", F.qtyLabel, "RIGHT", 8 / 0.8, 0)
+    else F.qtyInput:SetPoint("LEFT", F.qtySlider, "RIGHT", 6 / 0.8, 0) end
     for _, r in ipairs(F.rows) do r.label:SetShown(not quick); r.value:SetShown(not quick) end
     for _, r in ipairs(F.mRows or {}) do r.label:SetShown(not quick); r.value:SetShown(not quick) end
     for _, f in ipairs(F.quick and F.quick.all or {}) do f:SetShown(quick) end
@@ -945,7 +951,7 @@ function F.UpdateQuick(d, live)
         if Num(v) and v > 0 then m:SetAmount(v) else ClearMoney(m) end
     end
     if Q.ManualPrice(key) then q.priceHint:SetText(GREY .. L.QUICK_PRICE_OWN .. "|r")
-    elseif Num(base) then q.priceHint:SetText(GREY .. L.QUICK_PRICE_HINT:format(tonumber(mod.db.quickBaitPct) or 20) .. "|r")
+    elseif Num(base) then q.priceHint:SetText(GREY .. L.QUICK_PRICE_HINT:format(tonumber(mod.db.quickBaitPct) or 50) .. "|r")
     else q.priceHint:SetText("") end
     local b = Q.BaitFor(key)
     local busy = b ~= nil and (b.state == "posting" or b.state == "cancelling")
@@ -1031,6 +1037,7 @@ function F.Update()
     local key = F.key
     local has = key ~= nil
     local live = AHOpen()
+    if has and live and ns.Quick.On() then ns.Quick.EnsureLimit() end   -- ab 0.107: Kaufen bis aus dem Aufkauf
     On(F.marketButton, has); On(F.itemButton, has); On(F.saveButton, has)
     On(F.autoButton, has and live and (F.ManualTarget(key) ~= nil or F.ManualLimit(key) ~= nil))
     if not has then
