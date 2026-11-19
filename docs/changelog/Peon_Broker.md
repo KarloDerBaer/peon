@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.115.0
+
+Kurz: Die Einstellung „Kaufprotokoll aufzeichnen“ ist wieder weg. Sie hat geholfen, die Fehlkäufe zu finden, und wird nicht mehr gebraucht.
+
+- 0.115.0 (19.11.2026, Wunsch KarloDerBaer):
+  - **Entfernt, Kaufprotokoll** (seit 0.110.0): Einstellung `buyTrace`, `R.Trace`, `Q.Trace` und die zusätzlichen Ereignisse. Gespeicherte Zeilen (`buyLog`) werden beim Laden gelöscht. Das Fenster Einstellungen des Fokus ist 800 hoch.
+
 ## 0.114.1
 
 Kurz: Ein eigenes Lockangebot, das sofort gekauft wird, steht jetzt richtig als weg da, statt weiter „steht seit …“ zu zählen.

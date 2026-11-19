@@ -55,14 +55,13 @@ local function BaitAlarmOff() return S.Get("focus", "quickBaitAlarm") == false e
 
 -- Fokus: Abfragen je Minute und die Grenzen fuer das Urteil (Measure.lua)
 S.SPECS.focus = {
-    title = "SET_FOCUS_TITLE", height = 830,   -- ab 0.108 hoeher (Marktbewegung), ab 0.109 noch ein Regler, ab 0.111 Ton fuer Lockangebote
+    title = "SET_FOCUS_TITLE", height = 800,   -- ab 0.108 hoeher (Marktbewegung), ab 0.109 noch ein Regler, ab 0.111 Ton fuer Lockangebote
     { "head", "SET_FOCUS_QUERY" },
     { "slider", "focusRate", "SET_FOCUS_RATE", 2, 90, 1, function(v) return L.SET_RATE_FMT:format(v, Dec(60 / v)) end },
     { "note", "SET_FOCUS_RATE_NOTE" },
     { "head", "SET_FOCUS_BUY" },
     { "slider", "focusPriceTol", "SET_FOCUS_TOL", 0, 10, 1, function(v) return L.SET_PCT_FMT:format(v) end },
     { "check", "relistDefault", "SET_FOCUS_RELIST", "SET_FOCUS_RELIST_TIP" },   -- ab 0.91
-    { "check", "buyTrace", "SET_BUY_TRACE", "SET_BUY_TRACE_TIP" },   -- ab 0.110
     { "check", "autoSaveBuyout", "SET_AUTOSAVE_BUYOUT", "SET_AUTOSAVE_TIP" },   -- ab 0.113
     { "check", "autoSaveQuick", "SET_AUTOSAVE_QUICK", "SET_AUTOSAVE_TIP" },
     { "head", "SET_QUICK_HEAD" },   -- ab 0.104

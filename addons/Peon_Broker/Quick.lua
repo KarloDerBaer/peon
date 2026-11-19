@@ -46,10 +46,7 @@ local function AHOpen() return ns.Scan.ahOpen and AHApi() ~= nil end
 
 function Q.On() return mod.db.focusMode == "quick" end
 
--- ab 0.110: Kaufprotokoll (Radar.lua R.Trace)
-function Q.Trace(fmt, ...)
-    if ns.Radar and ns.Radar.Trace then ns.Radar.Trace(fmt, ...) end
-end
+
 
 -- quiet = true: nur umschalten (der Aufrufer zeichnet neu). Ab 0.106 laedt der Modus die Werte, die fuer den
 -- Gegenstand in Beobachten gespeichert sind (Aufkauf und Schnellkauf getrennt).
@@ -269,7 +266,6 @@ function Q.CheckAlarm(key, rows, qty, button)
         local sec = tonumber(mod.db.quickHold) or 1
         if qty > 0 and sec > 0 then
             Q.hold = { key = key, rows = rows, untilT = Now() + sec }
-            Q.Trace("hold %s s qty=%s", sec, qty)
             if C_Timer then C_Timer.After(sec + 0.05, function() if ns.Focus.Shown() then ns.Focus.Update() end end) end
         else
             Q.hold = nil
@@ -460,7 +456,6 @@ function Q.OnCreated(auctionID)
     m[#m + 1] = Now()
     Q.marks[b.key] = m
     Q.AddBait(b.key, Now(), b.price, true)
-    Q.Trace("bait up price=%s id=%s", b.price, b.id)
     mod:Print(L.QUICK_POSTED:format(Money(b.price)))
     if ns.Focus.Shown() then ns.Focus.Update() end
 end
@@ -497,7 +492,6 @@ function Q.OnCanceled(auctionID)
     -- Antwort schon einmal gezeigt hatte, der Zustand blieb sonst bei "steht seit".
     elseif b and b.state == "up" and b.id ~= nil and auctionID == b.id then
         b.state, b.goneT = "gone", Now()
-        Q.Trace("bait gone id=%s", b.id)
         if ns.Focus.Shown() then ns.Focus.Update() end
     end
 end
@@ -647,7 +641,6 @@ function Q.OnSample(key, prev, s)
                and not (Num(limit) and l.price > limit) then
                 Q.AddBait(key, s.t, l.price, false, 1)
                 if ns.Focus and ns.Focus.key == key then Q.baitPing = key end   -- ab 0.111: Ton in Q.CheckAlarm
-                Q.Trace("bait foreign price=%s min=%s", l.price, prev.min)
             end
         end
     end

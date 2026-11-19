@@ -3,6 +3,10 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 19.11.2026: Kaufprotokoll entfernt (Broker 0.115.0)
+
+- **Nicht mit ausliefern** (KarloDerBaer): Das Protokoll hat die Ursache der Fehlkäufe gezeigt (belegte Bremse des Spiels, Abbrechen löste Code 10 aus). Es wird nicht mehr gebraucht.
+
 ## 19.11.2026: Pause der Abfragen bei freiem Kaufknopf (Broker 0.114.0)
 
 - **Pause statt Dauerabfrage** (KarloDerBaer, Vorschlag Claude aus dem Kaufprotokoll): Solange etwas kaufbar ist, keine Abfrage, damit die Bremse des Spiels beim Klick frei ist.

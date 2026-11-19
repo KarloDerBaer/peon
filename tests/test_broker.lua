@@ -3569,7 +3569,7 @@ end)()
   local S, M = ns.Settings, ns.Measure
   S.Toggle("focus")
   local f = S.frames.focus
-  check(f and f:IsShown() and #f.controls == 22, "0.70: Fenster Einstellungen des Fokus mit 7 Reglern (ab 0.91 Haken Wiedereinstellen, ab 0.104 drei fuer den Schnellkauf, ab 0.108 vier fuer die Marktbewegung, ab 0.109 Grenze fuer Lockangebote, ab 0.110 Kaufprotokoll, ab 0.111 Ton fuer Lockangebote, ab 0.113 automatisch speichern, ab 0.114 Pause der Abfragen)")
+  check(f and f:IsShown() and #f.controls == 21, "0.70: Fenster Einstellungen des Fokus mit 7 Reglern (ab 0.91 Haken Wiedereinstellen, ab 0.104 drei fuer den Schnellkauf, ab 0.108 vier fuer die Marktbewegung, ab 0.109 Grenze fuer Lockangebote, ab 0.115 ohne Kaufprotokoll, ab 0.111 Ton fuer Lockangebote, ab 0.113 automatisch speichern, ab 0.114 Pause der Abfragen)")
   local rate
   for _, c in ipairs(f.controls) do if c.row[2] == "focusRate" then rate = c end end
   check(rate and plain(rate.value.text) == "12 (alle 5 Sek.)", "0.70: Abfragen pro Minute mit Abstand: " .. tostring(rate and plain(rate.value.text)))
@@ -4981,7 +4981,7 @@ end)()
   Rd.entries, Rd.gone, Rd.job, Rd.focus = {}, {}, nil, nil
 end)()
 
--- ===== 0.110: Preisalarm aus Beobachten im Fokus still, Kaufprotokoll =====
+-- ===== 0.110: Preisalarm aus Beobachten im Fokus still =====
 ;(function()
   local F, Wt, R = ns.Focus, ns.Watch, ns.Radar
   local keepShown, keepAlert, keepKey = F.Shown, Wt.Alert, F.key
@@ -5003,16 +5003,6 @@ end)()
   F.Shown, Wt.Alert, F.key = keepShown, keepAlert, keepKey
   Wt.Remove(7987)
   D.Market().items[7987] = nil
-  -- Kaufprotokoll
-  mod.acc.buyLog = nil
-  mod.db.buyTrace = false
-  R.Trace("test %s", 1)
-  check(mod.acc.buyLog == nil, "0.110: ohne Einstellung kein Protokoll")
-  mod.db.buyTrace = true
-  R.Trace("test %s", 2)
-  check(type(mod.acc.buyLog) == "table" and #mod.acc.buyLog == 1 and mod.acc.buyLog[1]:find("test 2", 1, true), "0.110: Protokollzeile mit Text")
-  mod.db.buyTrace = false
-  mod.acc.buyLog = nil
 end)()
 
 -- ===== 0.111: Ton fuer Lockangebote, mehr Toene, Zeile Gekauft mit Quote =====

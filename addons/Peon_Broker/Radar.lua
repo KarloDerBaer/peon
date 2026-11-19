@@ -643,21 +643,7 @@ end
 -- Funktionen anzufassen: COMMODITY_PRICE_UPDATED (Preis da) bis COMMODITY_PURCHASE_SUCCEEDED/FAILED.
 R.BUY_HOLD = 15   -- Sekunden: so lange gilt ein Kauf nach dem Preis als laufend (ohne Abschluss-Ereignis)
 
--- Kaufprotokoll (ab 0.110, Einstellung buyTrace im Fenster Einstellungen des Fokus): jede Abfrage, Antwort, jeder
--- Kaufschritt und jedes Ereignis des Auktionshauses mit Uhrzeit und GetTime() in mod.acc.buyLog (hoechstens
--- R.TRACE_KEEP Zeilen). Zum Auswerten der Fehlkaeufe ("Interner Auktionshausfehler").
-R.TRACE_KEEP = 6000
-function R.Trace(fmt, ...)
-    if not mod.db.buyTrace then return end
-    local acc = mod.acc
-    if type(acc.buyLog) ~= "table" then acc.buyLog = {} end
-    local ok, text = pcall(string.format, fmt, ...)
-    if not ok then text = tostring(fmt) end
-    local list = acc.buyLog
-    list[#list + 1] = ("%s %.2f %s"):format(date and date("%H:%M:%S") or "", Now(), text)
-    while #list > R.TRACE_KEEP do table.remove(list, 1) end
-end
-local function B2S(v) if v == nil then return "-" end return tostring(v) end
+-- Kaufprotokoll (0.110 bis 0.114.1, R.Trace) zum Auswerten der Fehlkaeufe: ab 0.115 wieder entfernt.
 function ns.Buying()
     if R.job then return true end
     return (R.buyUntil or 0) > Now()
@@ -785,7 +771,6 @@ function R.Send(key, forBuy, refresh)
     end
     R.stats.sent = R.stats.sent + 1
     R.lastKey = key
-    R.Trace("send key=%s refresh=%s forBuy=%s ok=%s", B2S(key), B2S(refresh), B2S(forBuy), B2S(ok))
     -- Protokoll der ersten 30 Abfragen (Fehlersuche 0.14.4)
     local log = R.stats.log
     if log and #log < 30 then
@@ -1094,7 +1079,7 @@ local function JobTimer(job, sec)
     job.stamp = (job.stamp or 0) + 1
     local stamp = job.stamp
     if C_Timer then
-        C_Timer.After(sec, function() if R.job == job and job.stamp == stamp then R.Trace("timeout"); R.FinishJob(job.done and job.done > 0) end end)
+        C_Timer.After(sec, function() if R.job == job and job.stamp == stamp then R.FinishJob(job.done and job.done > 0) end end)
     end
 end
 
@@ -1106,12 +1091,9 @@ function R.BuyStep(d, mode)
     local ah = AHApi()
     local job = R.job
     -- Massenware: zweiter Klick bestaetigt
-    R.Trace("click key=%s mode=%s job=%s stale=%s pending=%s", B2S(d.key), B2S(mode), B2S(job and job.stage), B2S(R.IsStale(d.key)),
-        B2S(R.pending and math.floor((Now() - R.pending.sent) * 100) / 100))
     if job and job.stage == "confirm" and job.key == d.key and job.mode == mode then
         job.stage = "wait"
         local ok = pcall(ah.ConfirmCommoditiesPurchase, job.id, job.qty)
-        R.Trace("confirm2 qty=%s ok=%s", B2S(job.qty), B2S(ok))
         if not ok then R.job = nil; mod:Print(L.BUY_FAILED) end
         R.UpdateView()
         return
@@ -1136,9 +1118,7 @@ function R.BuyStep(d, mode)
         -- Der Preis vom Spiel ist die Pruefung, ob das guenstige Angebot noch da ist; Grenze = Preis des teuersten Stuecks
         local _, got, lastPrice = ns.Data.CostOf(d.rows or {}, qty)
         if got < 1 then R.MarkGone(d, L.RADAR_GONE_EMPTY); R.entries[d.key] = nil; R.Refresh(); return end
-        local ready = not ah.IsThrottledMessageSystemReady or ah.IsThrottledMessageSystemReady()
         local ok = pcall(ah.StartCommoditiesPurchase, id, got)
-        R.Trace("start id=%s qty=%s limit=%s ok=%s ready=%s", B2S(id), B2S(got), B2S(lastPrice), B2S(ok), B2S(ready))
         if not ok then mod:Print(L.BUY_FAILED); return end
         local expect = ns.Data.CostOf(d.rows or {}, got)
         R.job = { key = d.key, id = id, qty = got, limit = lastPrice, name = d.name, stage = "quote", kind = d.kind, mode = mode, t = Now(), done = 0,
@@ -1163,20 +1143,17 @@ function R.BuyStep(d, mode)
     -- hoechstens Kaufen bis ist, ohne Warnung. Max. Gold begrenzt den Gesamtpreis.
     if d.commodity and Num(d.avgLimit) then R.job.limit, R.job.avg = math.max(R.job.limit or 0, d.avgLimit), true end
     if Num(d.goldCap) then R.job.goldCap = d.goldCap end
-    R.Trace("job limit=%s avg=%s gold=%s", B2S(R.job.limit), B2S(R.job.avg), B2S(R.job.goldCap))
     JobTimer(R.job, 20)
     R.UpdateView()
 end
 
 function R.OnPriceUpdated(unitPrice, totalPrice)
     local job = R.job
-    R.Trace("quote unit=%s total=%s job=%s limit=%s", B2S(unitPrice), B2S(totalPrice), B2S(job and job.stage), B2S(job and job.limit))
     if not job or job.stage ~= "quote" then return end
     if (Num(unitPrice) and unitPrice > job.limit) or (Num(job.goldCap) and Num(totalPrice) and totalPrice > job.goldCap) then
         -- nicht mehr so guenstig: Treffer neu pruefen lassen. Ab 0.111.1 ohne CancelCommoditiesPurchase (Versuch,
         -- KarloDerBaer 19.11.2026): laut Kaufprotokoll folgte jedem Abbruch 0,1 Sek. spaeter der Fehler Code 10
         -- ("Interner Auktionshausfehler"). Der Preis verfaellt ohne Bestaetigung von selbst.
-        R.Trace("toohigh nocancel")
         R.buyUntil = nil
         mod:Print(L.RADAR_GONE:format(job.name))
         R.MarkGone(R.entries[job.key], L.RADAR_GONE_PRICE:format(Money(unitPrice)))
@@ -1197,7 +1174,6 @@ function R.OnPriceUpdated(unitPrice, totalPrice)
     if job.mode == "best" and not job.warn then
         job.stage = "wait"
         local ok = pcall(AHApi().ConfirmCommoditiesPurchase, job.id, job.qty)
-        R.Trace("confirm qty=%s ok=%s", B2S(job.qty), B2S(ok))
         if not ok then R.job = nil; mod:Print(L.BUY_FAILED) end
     end
     R.UpdateView()
@@ -1208,7 +1184,6 @@ function R.FinishJob(ok)
     local job = R.job
     if not job then return end
     R.job = nil
-    R.Trace("finish ok=%s stage=%s", B2S(ok), B2S(job.stage))
     if ns.Quick then ns.Quick.hold = nil end   -- ab 0.114: nach dem Kauf sofort wieder abfragen
     local n = job.items and job.done or (ok and job.qty or 0)
     if n == 0 and ns.Quick and ns.Quick.OnFailed then ns.Quick.OnFailed(job) end   -- ab 0.111
@@ -1504,26 +1479,10 @@ function R.Init()
     pcall(mod.RegisterEvent, mod, "COMMODITY_SEARCH_RESULTS_ADDED", function(_, itemID) OnResults(true, itemID) end)
     pcall(mod.RegisterEvent, mod, "ITEM_SEARCH_RESULTS_ADDED", function(_, itemKey) OnResults(false, itemKey) end)
     mod:RegisterEvent("COMMODITY_PRICE_UPDATED", function(_, unit, total) R.buyUntil = Now() + R.BUY_HOLD; R.OnPriceUpdated(unit, total) end)
-    mod:RegisterEvent("COMMODITY_PURCHASE_SUCCEEDED", function() R.Trace("ev purchase_ok"); R.buyUntil = nil; R.OnBought(true) end)
-    mod:RegisterEvent("COMMODITY_PURCHASE_FAILED", function() R.Trace("ev purchase_failed"); R.buyUntil = nil; R.OnBought(false) end)
+    mod:RegisterEvent("COMMODITY_PURCHASE_SUCCEEDED", function() R.buyUntil = nil; R.OnBought(true) end)
+    mod:RegisterEvent("COMMODITY_PURCHASE_FAILED", function() R.buyUntil = nil; R.OnBought(false) end)
     mod:RegisterEvent("AUCTION_HOUSE_PURCHASE_COMPLETED", function(_, auctionID) R.OnBought(true, auctionID) end)
-    mod:RegisterEvent("AUCTION_HOUSE_SHOW_ERROR", function(_, code)
-        R.Trace("ev error code=%s job=%s pending=%s", B2S(code), B2S(R.job and R.job.stage),
-            B2S(R.pending and math.floor((Now() - R.pending.sent) * 100) / 100))
-        R.stats.errors = R.stats.errors + 1; R.LogAHError(code); R.OnError()
-    end)
-    -- ab 0.110: fuer das Kaufprotokoll
-    for _, ev in ipairs({ "AUCTION_HOUSE_THROTTLED_MESSAGE_SENT", "AUCTION_HOUSE_THROTTLED_MESSAGE_QUEUED",
-                          "AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED", "AUCTION_HOUSE_THROTTLED_MESSAGE_RESPONSE_RECEIVED",
-                          "AUCTION_HOUSE_THROTTLED_SYSTEM_READY", "COMMODITY_SEARCH_RESULTS_UPDATED", "AUCTION_HOUSE_AUCTION_CREATED",
-                          "AUCTION_HOUSE_POST_WARNING", "AUCTION_CANCELED", "AUCTION_HOUSE_SHOW_NOTIFICATION",
-                          "AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION" }) do
-        local f = rawget(_G, "CreateFrame") and CreateFrame("Frame")
-        if f and f.RegisterEvent then
-            pcall(f.RegisterEvent, f, ev)
-            f:SetScript("OnEvent", function(_, e, a, b) if mod.db.buyTrace then R.Trace("ev %s %s %s", e:lower(), B2S(a), B2S(b)) end end)
-        end
-    end
+    mod:RegisterEvent("AUCTION_HOUSE_SHOW_ERROR", function(_, code) R.stats.errors = R.stats.errors + 1; R.LogAHError(code); R.OnError() end)
     -- Bremse des Spiels (aus dem modernen Auktionshaus; in Forever unbekannt, deshalb geschuetzt)
     pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED", function()
         R.stats.dropped = R.stats.dropped + 1

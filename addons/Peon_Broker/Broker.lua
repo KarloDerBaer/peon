@@ -76,7 +76,6 @@ local mod = Peon:NewModule(ADDON_NAME, {
         quickMoveLow = 1,       -- ruhig unter so vielen Ereignissen je Minute
         quickFollowSec = 30,
         quickBaitMinPct = 5,
-        buyTrace = false,
         autoSaveBuyout = true,  -- ab 0.113: Werte des Aufkaufs beim Verlassen automatisch speichern (nur beobachtete)
         autoSaveQuick = true,   -- ab 0.113: dasselbe fuer den Schnellkauf       -- ab 0.110: Kaufprotokoll im Fokus (Auswertung der Fehlkaeufe)    -- ab 0.109: fremdes Lockangebot (1 Stueck) erst so viel % unter dem bisher guenstigsten    -- Nachwirkung eines Lockangebots: so viele Sekunden danach zaehlen
         quickBaitPct = 50,      -- Schnellkauf (ab 0.104): Lockpreis so viel % unter Kaufen bis (bis 0.106: 20 % unter der ersten echten Stufe)
@@ -145,6 +144,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
                               browse = true, focus = true, more = true } },   -- ab 0.59 (Neuaufbau N1)   -- ab 0.51 neue Reiter   -- ab 0.28 mit "start", ohne "book"
     keepOnReset = { windowPos = true, windowTab = true, keepAllChars = true, ahPlain = true },
     migrate  = function(m, acc)
+        -- ab 0.115: Kaufprotokoll (0.110 bis 0.114.1) entfernt, gespeicherte Zeilen weg
+        acc.buyLog, acc.buyTrace = nil, nil
         -- ab 0.70: Abstand im Fokus als Abfragen je Minute
         if acc.focusRate == nil and type(acc.focusEvery) == "number" and acc.focusEvery > 0 and acc.focusEvery ~= 5 then
             acc.focusRate = math.max(2, math.min(90, math.floor(60 / acc.focusEvery + 0.5)))
