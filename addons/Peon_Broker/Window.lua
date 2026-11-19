@@ -245,7 +245,10 @@ end
 
 -- Unterpunkt von "Mehr" (Haendler, Neutral, Datenlage, Beobachtung)? Dann oeffnet Mehr mit diesem Unterpunkt.
 local function Resolve(key)
-    if key == "radar" then key = "chances" end   -- ab 0.105: Radar steht im Reiter Chancen
+    if key == "radar" then   -- ab 0.105: Radar steht im Reiter Chancen, ab 0.119 im Unterreiter Aufkauf
+        key = "chances"
+        mod.db.chancesTab = "buyout"
+    end
     for _, t in ipairs(W.MORE) do
         if t.key == key and W.pages[key] then return "more", key end
     end
@@ -391,6 +394,30 @@ W.pages.more = {
 ---------------------------------------------------------------------------
 -- Hilfen fuer die Reiter
 ---------------------------------------------------------------------------
+-- Laufend aktualisierte Liste fuellen (ab 0.119, vorher nur in WatchPage.lua): Sind es dieselben Gegenstaende, gehen
+-- die neuen Werte in die vorhandenen Zeilen (kein Austausch, keine neue Sortierung). Ein Austausch zwischen Druecken und
+-- Loslassen der Maustaste verschluckte sonst den Klick. resort = trotzdem neu sortieren. Rueckgabe: gezeigte Zeilen.
+function W.FillTable(tbl, rows, resort)
+    local old = tbl.items
+    local same = not resort and type(old) == "table" and #old == #rows and #rows > 0
+    local byKey = {}
+    if same then
+        for _, it in ipairs(old) do byKey[it.key] = it end
+        for _, r in ipairs(rows) do if not byKey[r.key] then same = false end end
+    end
+    if not same then
+        tbl:SetData(rows)
+        return rows
+    end
+    for _, r in ipairs(rows) do
+        local it = byKey[r.key]
+        for k in pairs(it) do if k ~= "__index" and r[k] == nil then it[k] = nil end end
+        for k, v in pairs(r) do it[k] = v end
+    end
+    tbl.list:Refresh()
+    return old
+end
+
 -- Kleinschreibung auch fuer Umlaute (string.lower kennt nur A-Z)
 function W.Lower(s)
     return (tostring(s or ""):lower():gsub("Ä", "ä"):gsub("Ö", "ö"):gsub("Ü", "ü"))

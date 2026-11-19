@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.119.0
+
+Kurz: Neue Chancen für den Schnellkauf: Broker schlägt Massenware mit viel Menge auf dem Markt vor und prüft, wie lebhaft dort gerade gehandelt wird.
+Kurz: Chancen und Beobachten haben jetzt Unterreiter (Spekulation, Aufkauf, Schnellkauf), damit die Listen übersichtlich bleiben.
+
+- 0.119.0 (19.11.2026, Wunsch KarloDerBaer, Konzept `docs/konzepte/broker/Peon_Broker_Chancen_Schnellkauf.md`):
+  - **Neu, Chancen der Art Schnellkauf** (`QuickChances.lua`): Vorschläge sind die Massenwaren mit der größten Menge im jüngsten Stand des Markts (eigener Komplettscan oder Stand des Peon Managers, den `Data.ApplyManager` schon einträgt), deren günstigster Preis mindestens beim Mindestpreis liegt. Einstellbar sind Anzahl (Vorgabe 10), Mindestpreis (Vorgabe 1 Silber) und Abfragen je Prüfung (Vorgabe 5). Die Liste bleibt bis zum nächsten Stand oder bis „Neu vorschlagen“.
+  - **Neu, Prüfung der Marktbewegung:** ein Gegenstand nach dem anderen, je Gegenstand mehrere Abfragen direkt hintereinander (erste als Suche, dann „Neu laden“). Gezählt werden Einstellungen, Käufe, Preissprünge und fremde Lockangebote mit denselben Regeln wie im Fokus (`Measure.Sample`, `Measure.Pair`, `Quick.NewBaits`, `Quick.MoveClass`). Bewertet wird gleitend über die letzten 3 Prüfungen, mit nur einer Prüfung vorläufig („lebhaft?“). Reihenfolge: erste Runde nach Menge, danach lebhafte, ungeprüfte, mäßige, ruhige.
+  - **Neu, Fortschritt sichtbar:** die geprüfte Zeile ist hell hinterlegt und füllt Punkte, wartende zeigen „als 3. dran“, oben „Prüft 4 von 10: Name“. Die Liste sortiert erst nach einer fertigen Prüfung neu. Knopf „Prüfung anhalten“.
+  - **Neu, Gegenstandsmenü:** „Nicht für Schnellkauf vorschlagen“ (`PeonBrokerDB.quickHide` je Markt, Knopf „Zurückholen“) und „Für Schnellkauf beobachten“ (Kaufen bis = günstigster Preis).
+  - **Neu, Unterreiter in Chancen:** Spekulation (Spekulation, Langzeit, Muster, Knopf „Alle prüfen“), Aufkauf (Aufkauf des Managers, Händler und Aufkauf des Radars, Scan mit Auswahl), Schnellkauf. Laufend geprüft wird nur der offene, Broker merkt ihn sich (`chancesTab`). Unterreiter ohne eingeschaltete Art verschwinden. Zahlen an den Unterreitern. Der alte Reiter Radar öffnet den Unterreiter Aufkauf.
+  - **Neu, Unterreiter in Beobachten:** Aufkauf (wie bisher) und Schnellkauf mit Günstigster, Kaufen bis, Glocke, Darunter, Bewegung, Gekauft und Rat. Ein Gegenstand steht in jeder Liste, für die er Werte hat. Abgefragt wird nur die offene Liste (`watchTab`), Schnellkauf mit derselben Prüfung. Doppelklick öffnet den Fokus im Modus der Liste.
+  - **Geändert:** Spalte Art in Beobachten entfällt (die Unterreiter ersetzen sie). Das Fenster Einstellungen der Chancen hat einen Abschnitt Schnellkauf und ist höher.
+  - Tests: Vorschläge, Prüfung, gleitende Bewertung, Reihenfolge, Pause, Ausblenden, Unterreiter, Zeilen in Beobachten, Fokus im Modus der Liste (`test_broker.lua`). Ältere Tests auf die Unterreiter angepasst.
+
 ## 0.118.0
 
 Kurz: Intern für die Fehlersuche: Broker kann ein Kaufprotokoll an ein separates Werkzeug weitergeben. Für dich ändert sich nichts.

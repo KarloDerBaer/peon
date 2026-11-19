@@ -262,12 +262,14 @@ end
 
 -- ab 0.82: Fokus geoeffnet von einer Seite. Aus dem Radar: zurueck zum Radar. Sonst zurueck zu Beobachten, und ist
 -- der Gegenstand beobachtet, gelten seine gespeicherten Werte (Kaufen bis, Zielpreis) als eigene Werte.
-function F.FromPage(key, from)
+function F.FromPage(key, from, want)
     if from == "focus" then return end           -- naechste Chance aus dem Fokus heraus: Herkunft bleibt
     F.origin = (from == "radar" or from == "chances") and "chances" or "watch"
     -- ab 0.106: aus Chancen immer Aufkauf, aus Beobachten der dort gespeicherte Modus
+    -- ab 0.119: want = Modus der Liste, aus der man kommt (Unterreiter Schnellkauf in Chancen und Beobachten)
     local Wt = ns.Watch
-    local mode = F.origin == "chances" and "buyout" or (Wt and Wt.Is(key) and Wt.Mode(key)) or nil
+    local mode = (want == "quick" or want == "buyout") and want
+        or F.origin == "chances" and "buyout" or (Wt and Wt.Is(key) and Wt.Mode(key)) or nil
     if mode and ns.Quick then ns.Quick.SetMode(mode, true) end
     if F.origin == "watch" then F.LoadWatch(key) end
     F.UpdateBack()

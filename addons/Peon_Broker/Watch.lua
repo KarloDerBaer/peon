@@ -125,6 +125,21 @@ function Wt.SetMode(key, mode)
     return true
 end
 
+-- ab 0.119: Unterreiter in Beobachten. Ein Gegenstand steht in jeder Liste, fuer die er Werte hat, also auch in beiden.
+-- Schnellkauf: Kaufen bis des Schnellkaufs oder zuletzt im Schnellkauf gespeichert. Aufkauf: Werte des Aufkaufs oder
+-- gar keine Werte (frisch hinzugefuegt).
+function Wt.InQuick(key)
+    local w = Wt.Store()[key]
+    return w ~= nil and (w.mode == "quick" or Num(w.qlim))
+end
+
+function Wt.InBuyout(key)
+    local w = Wt.Store()[key]
+    if not w then return false end
+    if Num(w.lim) or Num(w.pct) or Num(w.up) then return true end
+    return not Wt.InQuick(key)
+end
+
 -- ab 0.106: Werte des Schnellkaufs (Kaufen bis und hoechste Menge, nil = alle), Modus wird Schnellkauf
 function Wt.SetQuick(key, limit, gold, skip, avg)
     local w = Wt.Store()[key]

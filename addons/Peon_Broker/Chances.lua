@@ -22,6 +22,12 @@
 --   Scan-Knopf mit Auswahl: Manager-Chancen (eine Runde, frueher "Alle pruefen"), Beobachten, Massenware, Alles.
 --   Zahl am Reiter: alle Zeilen zusammen. Nach einem Komplettscan mit neuen Treffern blinkt sie bis zum Oeffnen.
 --   Einstellungen: ein Fenster mit Chancen und Radar.
+-- Ab 0.119 (Konzept Peon_Broker_Chancen_Schnellkauf.md, KarloDerBaer 19.11.2026): drei Unterreiter
+--   Spekulation  Chancen des Managers der Arten Spekulation, Langzeit und Muster, Knopf "Alle pruefen"
+--   Aufkauf      Chancen des Managers der Art Aufkauf, Treffer des Radars (Aufkauf, Haendler), Scan mit Auswahl
+--   Schnellkauf  Vorschlaege fuer den Schnellkauf mit Pruefung der Marktbewegung (QuickChances.lua)
+--   Laufend geprueft wird nur der offene Unterreiter, gemerkt in chancesTab. Unterreiter ohne eingeschaltete Art
+--   verschwinden. Die Zahl am Reiter zaehlt alle Listen (Schnellkauf: lebhafte), die Unterreiter zeigen die Aufteilung.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -35,6 +41,10 @@ C.checked = {}   -- [Schluessel] = { t = Zeit der Pruefung (GetTime), ok = noch 
 C.blink = false  -- ab 0.105: neue Treffer nach einem Komplettscan, Zahl blinkt bis zum Oeffnen
 C.notified = {}  -- [Schluessel .. Fenster] = true: Meldung zum Fenster schon gegeben (diese Sitzung)
 C.KIND_SETTING = { s = "chancesShowS", l = "chancesShowL", b = "chancesShowB", m = "chancesShowM" }
+-- ab 0.119: Unterreiter
+C.TABS = { "spec", "buyout", "quick" }
+C.TAB_OF_MK = { s = "spec", l = "spec", m = "spec", b = "buyout" }
+C.TAB_OF_KIND = { buyout = "buyout", vendor = "buyout" }
 
 local GREY, ORANGE, GREEN, GOLD = "|cff999999", "|cffff9933", "|cff60e060", "|cffffd100"
 local function Money(v) return ns.Tooltip.Money(v) end
@@ -44,6 +54,33 @@ local function Now() return GetTime and GetTime() or time() end
 function C.KindOn(mk)
     local k = C.KIND_SETTING[mk]
     return k ~= nil and mod.db[k] ~= false
+end
+
+-- ab 0.119: Unterreiter an? (mindestens eine Art eingeschaltet)
+function C.TabOn(tab)
+    if tab == "spec" then return C.KindOn("s") or C.KindOn("l") or C.KindOn("m") end
+    if tab == "buyout" then
+        local R = ns.Radar
+        return C.KindOn("b") or (R ~= nil and (R.KIND_ON.vendor or R.KIND_ON.buyout)) or false
+    end
+    if tab == "quick" then return mod.db.chancesShowQ ~= false end
+    return false
+end
+
+-- Offener Unterreiter: der gemerkte, wenn er an ist, sonst der erste eingeschaltete
+function C.Tab()
+    local t = mod.db.chancesTab
+    if t ~= "spec" and t ~= "buyout" and t ~= "quick" then t = "spec" end
+    if C.TabOn(t) then return t end
+    for _, k in ipairs(C.TABS) do if C.TabOn(k) then return k end end
+    return t
+end
+
+-- Unterreiter eines Treffers des Radars (Art "spec" sind Chancen des Managers, die das Radar live gerechnet hat)
+function C.EntryTab(d)
+    if type(d) ~= "table" then return nil end
+    if d.kind == "spec" then return C.TAB_OF_MK[d.mk] or "spec" end
+    return C.TAB_OF_KIND[d.kind]
 end
 
 function C.Shown()
@@ -147,13 +184,17 @@ function C.HiddenCount()
     return n
 end
 
--- Schluessel der gezeigten Arten, hoechster Gewinn zuerst (fuer Erneuern und "Alle pruefen")
-function C.Keys()
+-- Schluessel der gezeigten Arten, hoechster Gewinn zuerst (fuer Erneuern und "Alle pruefen").
+-- ab 0.119: tab = Unterreiter (ohne: der offene, "all" = alle)
+function C.Keys(tab)
     local Sp = ns.Spec
     if not Sp then return {} end
+    tab = tab or C.Tab()
     local all, keys = Sp.All(), {}
     for key, x in pairs(all) do
-        if C.KindOn(x.mk) and not C.Hidden(key, x) and ns.Buy.KnownKey(key) then keys[#keys + 1] = key end
+        if C.KindOn(x.mk) and (tab == "all" or C.TAB_OF_MK[x.mk] == tab) and not C.Hidden(key, x) and ns.Buy.KnownKey(key) then
+            keys[#keys + 1] = key
+        end
     end
     table.sort(keys, function(a, b) return (all[a].gain or 0) > (all[b].gain or 0) end)
     return keys
@@ -169,8 +210,9 @@ function C.NextLearn()
     local Sp = ns.Spec
     if not Sp then return nil end
     local now, best, bestGain = Now(), nil, nil
+    local tab = C.Tab()
     for key, x in pairs(Sp.All()) do
-        if C.KindOn(x.mk) and not C.Hidden(key, x) and ns.Data.IsVariantKey(key) and not ns.Buy.KnownKey(key)
+        if C.KindOn(x.mk) and C.TAB_OF_MK[x.mk] == tab and not C.Hidden(key, x) and ns.Data.IsVariantKey(key) and not ns.Buy.KnownKey(key)
             and not C.checked[key] and (C.learnTries[key] or 0) < C.LEARN_TRIES
             and now - (C.learnAt[key] or -1e9) >= C.LEARN_AGAIN then
             local g = x.gain or 0
@@ -206,13 +248,23 @@ end
 
 -- Zahl am Reiter (ab 0.97, einstellbar, Standard aus): ok = live bestaetigt, all = alle gezeigten.
 -- Muster zaehlen nur im guenstigen Zeitfenster.
-function C.BadgeCount(mode)
+-- ab 0.119: tab = nur dieser Unterreiter. Schnellkauf zaehlt die lebhaften Vorschlaege.
+function C.BadgeCount(mode, tab)
     local n = 0
     for _, r in ipairs(C.Rows()) do
         local now = not (r.mk == "m" and r.x.buyWin and not r.inWindow)
-        if now and (mode == "all" and r.state ~= "gone" or r.state == "ok") then n = n + 1 end
+        if (tab == nil or r.tab == tab) and now and (mode == "all" and r.state ~= "gone" or r.state == "ok") then n = n + 1 end
     end
+    if (tab == nil or tab == "quick") and ns.QuickChances then n = n + ns.QuickChances.LivelyCount() end
     return n
+end
+
+-- ab 0.119: Zahlen an den Unterreitern (alle gezeigten Zeilen, Schnellkauf: lebhafte)
+function C.UpdateTabBadges()
+    if not C.tabs then return end
+    for _, t in ipairs(C.tabs) do
+        if t.SetBadge then t:SetBadge(C.BadgeCount("all", t.key)) end
+    end
 end
 
 function C.UpdateBadge()
@@ -267,7 +319,7 @@ function C.Rows()
         if C.KindOn(x.mk) then seen[key] = true end   -- auch verworfene: das Radar zeigt sie nicht doppelt
         if C.KindOn(x.mk) and not C.Hidden(key, x) then
             local e = market and market.items[key]
-            local r = { key = key, mk = x.mk, x = x, limit = x.limit, target = x.target, qty = x.qty, say = x.say }
+            local r = { key = key, mk = x.mk, x = x, limit = x.limit, target = x.target, qty = x.qty, say = x.say, tab = C.TAB_OF_MK[x.mk] }
             r.kindText = L["CH_KIND_" .. tostring(x.mk):upper()] or tostring(x.mk)
             r.name = (type(e) == "table" and e.nm) or D.ItemName(key, e)
             if not r.name then r.name, r.noName = tostring(key), true; if R then R.RequestName(D.ItemID(key)) end end
@@ -291,7 +343,7 @@ function C.Rows()
     for _, d in ipairs(R.Rows()) do
         if not seen[d.key] then
             local r = { key = d.key, d = d, radar = true, name = d.name, quality = d.quality, icon = d.icon, limit = d.limit,
-                        gain = d.showGain or d.gain or 0, risk = not d.gone and d.risk or nil, newUntil = d.newUntil }
+                        gain = d.showGain or d.gain or 0, risk = not d.gone and d.risk or nil, newUntil = d.newUntil, tab = C.EntryTab(d) }
             r.kindText = L["RADAR_KIND_" .. tostring(d.kind):upper()] or tostring(d.kind)
             if d.gone then r.state, r.rank = "gone", 3
             elseif d.live and d.checked then r.state, r.rank = "ok", 0
@@ -302,6 +354,13 @@ function C.Rows()
         end
     end
     return rows
+end
+
+-- ab 0.119: Zeilen eines Unterreiters
+function C.TabRows(tab)
+    local out = {}
+    for _, r in ipairs(C.Rows()) do if r.tab == tab then out[#out + 1] = r end end
+    return out
 end
 
 function C.StateText(r)
@@ -342,7 +401,9 @@ function C.MODES()
     return { { "mgr", L.CH_SCAN_MGR }, { "watch", L.RADAR_MODE_WATCH }, { "mass", L.RADAR_MODE_MASS }, { "all", L.RADAR_MODE_ALL } }
 end
 
+-- ab 0.119: Auswahl nur im Unterreiter Aufkauf, Spekulation prueft immer die Chancen des Managers
 function C.Mode()
+    if C.Tab() == "spec" then return "mgr" end
     local v = mod.db.chancesScan
     for _, m in ipairs(C.MODES()) do if m[1] == v then return v end end
     return "mgr"
@@ -373,6 +434,11 @@ end
 -- Knopf: Scan starten oder anhalten
 function C.CheckAll()
     local R = ns.Radar
+    if C.Tab() == "quick" then   -- ab 0.119: "Neu vorschlagen"
+        if ns.QuickChances then ns.QuickChances.Renew() end
+        if R then R.Wake() end
+        return
+    end
     if R.running then R.Stop(); return end
     local mode = C.Mode()
     if mode == "mgr" then
@@ -387,25 +453,41 @@ end
 
 function C.Build(c)
     local UI = Peon.UI
+    local QC = ns.QuickChances
     C.checkButton = UI.Button(c, L.CH_CHECK_ALL, 130, function() mod:Call("Chancen", C.CheckAll) end)
     C.checkButton:SetPoint("TOPRIGHT", -2, -2)
-    UI.SetTooltip(C.checkButton, { L.CH_CHECK_ALL, L.CH_SCAN_TIP })
+    UI.SetTooltip(C.checkButton, function()
+        if C.Tab() == "quick" then return { L.QC_RENEW, L.QC_RENEW_TIP } end
+        return { C.Tab() == "spec" and L.CH_CHECK_ALL or L.RADAR_START, L.CH_SCAN_TIP }
+    end)
     C.modeDrop = UI.Dropdown(c, 140, C.MODES(), function() return C.Mode() end, function(v) C.SetMode(v) end)
     C.modeDrop:SetPoint("RIGHT", C.checkButton, "LEFT", -6, 0)
     if C.modeDrop.fallback then
         C.modeDrop:SetText(C.ModeText())
         C.modeDrop:SetScript("OnClick", function() C.NextMode() end)
     end
+    -- ab 0.119: Schnellkauf: Pruefung anhalten und weiter (an der Stelle der Auswahl)
+    C.pauseButton = UI.Button(c, L.QC_PAUSE, 140, function()
+        if QC then mod:Call("Chancen", QC.SetPaused, not QC.paused) end
+    end)
+    C.pauseButton:SetPoint("RIGHT", C.checkButton, "LEFT", -6, 0)
+    UI.SetTooltip(C.pauseButton, { L.QC_PAUSE, L.QC_PAUSE_TIP })
     C.settingsButton = UI.Button(c, L.SETTINGS_BUTTON, 110, function()
         if ns.Settings then mod:Call("Einstellungen", ns.Settings.Toggle, "chances") end
     end)
     C.settingsButton:SetPoint("RIGHT", C.modeDrop, "LEFT", -6, 0)
+    -- ab 0.119: ausgeblendete Vorschlaege zurueckholen (nur zu sehen, wenn es welche gibt)
+    C.unhideButton = UI.Button(c, L.QC_UNHIDE, 130, function()
+        if QC then mod:Call("Chancen", QC.Unhide) end
+    end)
+    C.unhideButton:SetPoint("RIGHT", C.settingsButton, "LEFT", -6, 0)
+    UI.SetTooltip(C.unhideButton, { L.QC_UNHIDE, L.QC_UNHIDE_TIP })
     C.status = UI.Text(c, "small", "")
     C.status:SetPoint("TOPLEFT", 8, -8)
     C.status:SetPoint("RIGHT", C.settingsButton, "LEFT", -12, 0)
     if C.status.SetWordWrap then C.status:SetWordWrap(false) end
     local p = UI.Panel(c, "list", true)
-    p:SetPoint("TOPLEFT", 0, -30)
+    p:SetPoint("TOPLEFT", 0, -62)
     p:SetPoint("BOTTOMRIGHT", 0, 0)
     C.panel = p
     local R = ns.Radar
@@ -446,13 +528,114 @@ function C.Build(c)
             if r.radar then R.RowTooltip(row, r.d) else C.RowTooltip(row, r) end
         end,
     })
-    C.Open()
+    -- ab 0.119: Liste Schnellkauf (eigene Spalten)
+    local qp = UI.Panel(c, "list", true)
+    qp:SetPoint("TOPLEFT", 0, -62)
+    qp:SetPoint("BOTTOMRIGHT", 0, 0)
+    C.qpanel = qp
+    C.qlist = UI.Table(qp, {
+        columns = {
+            { key = "name", title = L.COL_ITEM, sort = function(r) return W.Lower(r.name) end,
+              color = function(r)
+                  if r.class == "low" then return 0.5, 0.5, 0.5 end
+                  return UI.QualityColor(r.quality or 1)
+              end },
+            { key = "min", title = L.QC_COL_MIN, width = 90, align = "RIGHT", format = function(v) return v and Money(v) or "" end },
+            { key = "qty", title = L.QC_COL_QTY, width = 66, align = "RIGHT", format = function(v) return v and tostring(v) or "" end },
+            { key = "flow", title = L.QC_COL_FLOW, width = 100, align = "RIGHT",
+              format = function(_, r)
+                  if not r.v then return GREY .. "-|r" end
+                  return QC.Rate(r.v.inPerMin) .. " / " .. QC.Rate(r.v.outPerMin)
+              end,
+              sort = function(r) return r.v and (r.v.inPerMin + r.v.outPerMin) or -1 end },
+            { key = "move", title = L.QC_COL_MOVE, width = 104, align = "RIGHT",
+              format = function(_, r) return QC.MoveText(r.v) end,
+              sort = function(r) return r.rank * 1e6 - (r.ev or 0) end },
+            { key = "baits", title = L.QC_COL_BAITS, width = 84, align = "RIGHT",
+              format = function(v) return (v and v > 0) and (GOLD .. tostring(v) .. "|r") or "" end },
+            { key = "state", title = L.CH_COL_STATE, width = 110, align = "RIGHT",
+              format = function(_, r) return QC.StateText(r.key) end,
+              sort = function(r) return QC.QueuePos(r.key) or 99 end },
+        },
+        sortKey = "move", icon = true, empty = L.QC_EMPTY,
+        rowBg = function(r) if r and r.running then return 1, 0.82, 0, 0.16 end end,
+        onClick = function(r, button)
+            if button == "RightButton" then ns.Go.Menu(r, C.qpanel); return end
+            mod:Call("Sprung", ns.Go.Focus, { key = r.key, name = r.name, from = "chances", mode = "quick" })
+        end,
+        onEnter = function(row, r)
+            if not r or not GameTooltip then return end
+            GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(r.name or tostring(r.key), 1, 1, 1)
+            GameTooltip:AddLine(L.CH_TAB_QUICK, 1, 0.82, 0)
+            QC.TipLines(GameTooltip, r.key)
+            GameTooltip:AddLine(QC.SourceText(), 0.6, 0.6, 0.6)
+            GameTooltip:AddLine(L.QC_TIP_CLICK, 0.6, 0.6, 0.6)
+            GameTooltip:Show()
+        end,
+    })
+    -- ab 0.119: Unterreiter ueber der Liste
+    local defs = { { "spec", L.CH_TAB_SPEC }, { "buyout", L.CH_TAB_BUYOUT }, { "quick", L.CH_TAB_QUICK } }
+    C.tabs = UI.TopTabs(c, defs, function(key) mod:Call("Chancen", C.SelectTab, key) end)
+    C.LayoutTabs()
+    C.tabs:Select(C.Tab())
+end
+
+-- ab 0.119: nur die eingeschalteten Unterreiter zeigen, nebeneinander ueber der Liste
+function C.LayoutTabs()
+    if not C.tabs then return end
+    local prev
+    for _, t in ipairs(C.tabs) do
+        t:ClearAllPoints()
+        if C.TabOn(t.key) then
+            if prev then t:SetPoint("LEFT", prev, "RIGHT", Peon.UI.TAB_GAP or 3, 0)
+            else t:SetPoint("BOTTOMLEFT", C.panel, "TOPLEFT", 10, -2) end
+            t:Show()
+            prev = t
+        else
+            t:Hide()
+        end
+    end
+end
+
+-- ab 0.119: Unterreiter waehlen (Klick oder beim Aufbau)
+function C.SelectTab(key)
+    local changed = mod.db.chancesTab ~= key
+    mod.db.chancesTab = key
+    local R = ns.Radar
+    if changed and R then
+        if R.running then R.Stop() end
+        R.search = nil
+    end
+    local tab = C.Tab()
+    if C.panel then C.panel:SetShown(tab ~= "quick") end
+    if C.qpanel then C.qpanel:SetShown(tab == "quick") end
+    C.Refresh()
+    if R and C.Shown() then R.Wake() end
 end
 
 function C.StatusText()
     local Sp, R = ns.Spec, ns.Radar
-    local _, t = Sp.All()
+    local tab = C.Tab()
     local st
+    if tab == "quick" then   -- ab 0.119
+        local QC = ns.QuickChances
+        local cur, total = QC.Progress()
+        if QC.paused then st = ORANGE .. L.QC_PAUSED .. "|r"
+        elseif cur and QC.Active() then
+            local key = QC.run.key
+            local name = ns.Data.ItemName(key, ns.Data.Lookup(key)) or tostring(key)
+            st = GREEN .. L.QC_CHECKING:format(cur, total, name) .. "|r"
+        else st = QC.SourceText() end
+        local hidden = QC.HiddenCount()
+        if hidden > 0 then st = st .. GREY .. L.CH_HIDDEN:format(hidden) .. "|r" end
+        if not (ns.Scan.ahOpen and rawget(_G, "C_AuctionHouse")) then st = st .. "  " .. ORANGE .. L.ST_NOT_LIVE .. "|r" end
+        return st
+    end
+    local _, t = Sp.All()
+    if tab == "buyout" and not (R.running and R.forceMode == "mgronly") and (R.running or ns.Scan.state) then
+        return R.StatusText()   -- ab 0.105: Scan des Radars (enthaelt Erneuern und "nicht live")
+    end
     if not t then
         st = ORANGE .. L.CH_NO_MANAGER .. "|r"
     else
@@ -464,9 +647,7 @@ function C.StatusText()
     if R.running and R.forceMode == "mgronly" then
         local sc = R.search
         st = GREEN .. L.CH_CHECKING:format(sc and sc.done or 0, sc and #sc.keys or 0) .. "|r"
-    elseif R.running or ns.Scan.state then
-        return R.StatusText()   -- ab 0.105: Scan des Radars (enthaelt Erneuern und "nicht live")
-    else
+    elseif tab == "buyout" then
         -- ab 0.105: Stand der Treffer des Radars (letzter Komplettscan)
         local market = ns.Data.Market()
         local at = market and ns.Data.DataAt(market)
@@ -478,16 +659,46 @@ end
 
 function C.UpdateView()
     if not C.list then return end
-    local R = ns.Radar
+    local R, QC = ns.Radar, ns.QuickChances
+    local tab = C.Tab()
     C.status:SetText(C.StatusText())
     -- ab 0.105: ein Knopf fuer jede Auswahl, "Alle pruefen" fuer die Chancen des Managers, sonst "Radar-Scan"
-    C.checkButton:SetText(R.running and L.RADAR_STOP or (C.Mode() == "mgr" and L.CH_CHECK_ALL or L.RADAR_START))
-    if ns.Scan.ahOpen and not ns.Scan.state then C.checkButton:Enable() else C.checkButton:Disable() end
+    -- ab 0.119: je Unterreiter: Spekulation "Alle pruefen", Aufkauf mit Auswahl, Schnellkauf "Neu vorschlagen"
+    local text
+    if tab == "quick" then text = L.QC_RENEW
+    elseif R.running then text = L.RADAR_STOP
+    else text = C.Mode() == "mgr" and L.CH_CHECK_ALL or L.RADAR_START end
+    C.checkButton:SetText(text)
+    if tab == "quick" or (ns.Scan.ahOpen and not ns.Scan.state) then C.checkButton:Enable() else C.checkButton:Disable() end
+    C.modeDrop:SetShown(tab == "buyout")
+    C.pauseButton:SetShown(tab == "quick")
+    C.pauseButton:SetText(QC and QC.paused and L.QC_RESUME or L.QC_PAUSE)
+    local hidden = tab == "quick" and QC and QC.HiddenCount() or 0
+    C.unhideButton:SetShown(hidden > 0)
+    if hidden > 0 then C.unhideButton:SetText(L.QC_UNHIDE_N:format(hidden)) end
+    -- Statuszeile endet vor dem ersten sichtbaren Knopf
+    C.settingsButton:ClearAllPoints()
+    C.settingsButton:SetPoint("RIGHT", tab == "spec" and C.checkButton or C.modeDrop, "LEFT", -6, 0)
+    C.status:ClearAllPoints()
+    C.status:SetPoint("TOPLEFT", 8, -8)
+    C.status:SetPoint("RIGHT", hidden > 0 and C.unhideButton or C.settingsButton, "LEFT", -12, 0)
 end
 
 function C.Refresh()
-    if C.list and C.Shown() then C.list:SetData(C.Rows()) end
+    if C.list and C.Shown() then
+        local tab = C.Tab()
+        if tab == "quick" then
+            local QC = ns.QuickChances
+            -- neu sortieren nur nach einer fertigen Pruefung, sonst springen die Zeilen unter der Maus
+            local resort = C.qStamp ~= QC.sortStamp
+            C.qStamp = QC.sortStamp
+            W.FillTable(C.qlist, QC.Rows(), resort)
+        else
+            C.list:SetData(C.TabRows(tab))
+        end
+    end
     C.UpdateView()
+    C.UpdateTabBadges()
 end
 
 -- ab 0.101: gerade Verworfenes steht beim naechsten Oeffnen nicht mehr da (Reiter verlassen, Auktionshaus neu offen)
@@ -499,6 +710,8 @@ end
 function C.Open()
     C.blink = false   -- ab 0.105: geoeffnet, die Zahl blinkt nicht mehr
     if ns.Radar then ns.Radar.LoadIfStale() end
+    C.LayoutTabs()
+    if C.tabs and C.tabs.selected ~= C.Tab() then C.tabs:Select(C.Tab()); return end
     C.Refresh()
     if ns.Radar then ns.Radar.Wake() end
 end
@@ -510,7 +723,7 @@ function C.OnAHShow()
     C.Leave()
     C.UpdateBadge()
     if mod.db.chancesAhNote == false then return end
-    local n = #C.Keys()
+    local n = #C.Keys("all")
     if n > 0 then mod:Print(L.CH_AH_NOTE:format(n)) end
 end
 

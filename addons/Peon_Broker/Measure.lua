@@ -170,21 +170,12 @@ function M.CompareLevels(A, B, target)
              byLevels = true }
 end
 
--- Antwort auf eine Abfrage im Fokus. rows = Preisstufen mit offers (Live.lua), t = Zeit (GetTime)
-function M.Add(key, rows, t)
-    if type(rows) ~= "table" or key == nil then return end
-    if not M.cur or M.cur.key ~= key then M.Start(key) end
-    local c = M.cur
-    t = t or Now()
+-- Eine Antwort als Abfrage fuer den Vergleich. nil = ohne Auktionsnummern (laesst sich nicht vergleichen).
+-- Ab 0.119 eigene Funktion: die Pruefung der Chancen im Schnellkauf (QuickChances.lua) vergleicht genauso.
+function M.Sample(rows, t, target)
     local offers, n, maxP = OfferMap(rows)
-    if n == 0 and #ns.Data.Available(rows) > 0 then return end   -- ohne Auktionsnummern laesst sich nichts vergleichen
     local lv = ns.Data.Available(rows)
-    if not c.target then
-        c.target = M.ChanceTarget(key) or (lv[2] and lv[2].price) or (lv[1] and lv[1].price) or nil
-        c.ownTarget = M.ChanceTarget(key) == nil
-    end
-    local target = M.ChanceTarget(key) or c.target
-    c.target = target
+    if n == 0 and #lv > 0 then return nil end
     local under = 0
     for _, l in ipairs(lv) do if target and l.price < target then under = under + l.qty end end
     local s = { t = t, offers = offers, min = lv[1] and lv[1].price or nil, under = under, partial = rows.partial and true or false, maxP = maxP,
@@ -200,14 +191,38 @@ function M.Add(key, rows, t)
         s.levels = levels
         if rows.partial then s.maxP = top end
     end
+    return s
+end
+
+-- Vergleich zweier Abfragen hintereinander (ab 0.119 eigene Funktion, siehe M.Sample)
+function M.Pair(prev, s, target)
+    local pr
+    if prev.levels and s.levels then pr = M.CompareLevels(prev, s, target)
+    else pr = M.Compare(prev, s, target) end
+    -- ab 0.108: Preissprung = guenstigster Preis anders als in der vorigen Abfrage
+    pr.jump = Num(prev.min) and Num(s.min) and prev.min ~= s.min or false
+    return pr
+end
+
+-- Antwort auf eine Abfrage im Fokus. rows = Preisstufen mit offers (Live.lua), t = Zeit (GetTime)
+function M.Add(key, rows, t)
+    if type(rows) ~= "table" or key == nil then return end
+    if not M.cur or M.cur.key ~= key then M.Start(key) end
+    local c = M.cur
+    t = t or Now()
+    local lv = ns.Data.Available(rows)
+    local _, n = OfferMap(rows)
+    if n == 0 and #lv > 0 then return end   -- ohne Auktionsnummern laesst sich nichts vergleichen
+    if not c.target then
+        c.target = M.ChanceTarget(key) or (lv[2] and lv[2].price) or (lv[1] and lv[1].price) or nil
+        c.ownTarget = M.ChanceTarget(key) == nil
+    end
+    local target = M.ChanceTarget(key) or c.target
+    c.target = target
+    local s = M.Sample(rows, t, target)
     local prev = c.samples[#c.samples]
     if prev and t > prev.t then
-        local pr
-        if prev.levels and s.levels then pr = M.CompareLevels(prev, s, target)
-        else pr = M.Compare(prev, s, target) end
-        -- ab 0.108: Preissprung = guenstigster Preis anders als in der vorigen Abfrage
-        pr.jump = Num(prev.min) and Num(s.min) and prev.min ~= s.min or false
-        c.pairs[#c.pairs + 1] = pr
+        c.pairs[#c.pairs + 1] = M.Pair(prev, s, target)
     end
     c.t0 = c.t0 or t
     c.samples[#c.samples + 1] = s

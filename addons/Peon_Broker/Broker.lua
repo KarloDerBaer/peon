@@ -89,6 +89,12 @@ local mod = Peon:NewModule(ADDON_NAME, {
         chancesAhNote = true,   -- beim Oeffnen des Auktionshauses sagen, wie viele Chancen warten
         chancesNotify = true,   -- Meldung, wenn ein guenstiges Zeitfenster beginnt (Muster)
         chancesScan  = "mgr",   -- ab 0.105: Auswahl des Scans im Reiter Chancen (mgr, watch, mass, all)
+        chancesTab   = "spec",  -- ab 0.119: zuletzt offener Unterreiter in Chancen (spec, buyout, quick)
+        watchTab     = "buyout", -- ab 0.119: zuletzt offener Unterreiter in Beobachten (buyout, quick)
+        chancesShowQ = true,    -- ab 0.119: Chancen der Art Schnellkauf (QuickChances.lua)
+        qcCount      = 10,      -- ab 0.119: so viele Vorschlaege fuer den Schnellkauf
+        qcMinPrice   = 100,     -- ab 0.119: guenstigster Preis je Stueck mindestens (Kupfer, 1 Silber)
+        qcProbes     = 5,       -- ab 0.119: Abfragen je Pruefung eines Gegenstands
         -- ab 0.97 (Wunsch KarloDerBaer 15.11.2026): ob und wann die rote Zahl am Reiter kommt (AHTabs.BADGE_MODES)
         badgeBuy = "buypart", badgeWatch = "both", badgeRadar = "blink", badgeSell = "on", badgeChances = "off",
         buyoutMinQty = 500,     -- Aufkauf (ab 0.71): Massenware erst ab so vielen Stueck im Angebot (bis 0.82 200)
@@ -121,7 +127,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  buyoutMinQty = { 0, 100000, 10 }, buyoutMinLevels = { 2, 12, 1 }, buyoutMinSales = { 0, 100000, 5 }, buyoutTargetPct = { 0, 200, 5 },
                  radarRenewSec = { 15, 600, 15 }, radarRenewMax = { 30, 1200, 30 }, radarSearchPct = { 0, 80, 5 },
                  salesWindow = { 1, 24, 1 }, salesMidMin = { 10, 600, 10 }, salesSureMin = { 20, 1440, 10 },
-                 salesCancelPct = { 0, 50, 5 } },
+                 salesCancelPct = { 0, 50, 5 },
+                 qcCount = { 3, 30, 1 }, qcMinPrice = { 0, 1000000, 1 }, qcProbes = { 3, 20, 1 } },   -- ab 0.119
     choices  = { undercutMode = { copper = true, percent = true }, undercutMassMode = { copper = true, percent = true },
                  duration = { [2] = true, [8] = true, [24] = true },
                  radarKind = { both = true, vendor = true, market = true },
@@ -137,6 +144,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  badgeChances = { off = true, ok = true, all = true },
                  focusMode = { buyout = true, quick = true },   -- ab 0.104
                  chancesScan = { mgr = true, watch = true, mass = true, all = true },   -- ab 0.105
+                 chancesTab = { spec = true, buyout = true, quick = true },   -- ab 0.119
+                 watchTab = { buyout = true, quick = true },
                  quickSound = { raid = true, ready = true, alarm = true, tell = true, coin = true, levelup = true, queue = true, ping = true, boss = true, auction = true },
                  quickBaitSound = { raid = true, ready = true, alarm = true, tell = true, coin = true, levelup = true, queue = true, ping = true, boss = true, auction = true },
                  windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true,

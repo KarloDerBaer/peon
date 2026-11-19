@@ -589,11 +589,16 @@ function Q.Movement(v)
     local M = ns.Measure
     M.Sync()
     if not v or (v.n or 0) < 2 or (v.elapsed or 0) < M.FIRST then return "first" end
-    local db = mod.db
     local ev = (v.newPerMin or 0) + (v.soldPerMin or 0) + (v.jumpsPerMin or 0)
-    if (v.newPerMin or 0) >= (tonumber(db.quickMoveIn) or 2) and ev >= (tonumber(db.quickMoveAll) or 5) then return "high", ev end
-    if ev < (tonumber(db.quickMoveLow) or 1) then return "low", ev end
-    return "mid", ev
+    return Q.MoveClass(v.newPerMin or 0, ev), ev
+end
+
+-- ab 0.119: Einordnung aus Einstellungen je Minute und Ereignissen je Minute (auch fuer QuickChances.lua)
+function Q.MoveClass(newPerMin, ev)
+    local db = mod.db
+    if (newPerMin or 0) >= (tonumber(db.quickMoveIn) or 2) and (ev or 0) >= (tonumber(db.quickMoveAll) or 5) then return "high" end
+    if (ev or 0) < (tonumber(db.quickMoveLow) or 1) then return "low" end
+    return "mid"
 end
 
 -- Menge fremder Angebote genau zum Preis in einer Abfrage (eigene zaehlen nicht, Data.Available)
@@ -637,20 +642,28 @@ function Q.OnSample(key, prev, s)
             b.lastQ = q
         end
     end
-    if prev and Num(prev.min) then
-        local pct = (tonumber(mod.db.quickBaitMinPct) or 5) / 100
-        -- ab 0.110: nur unter Kaufen bis (was man ohnehin nicht kaufen wuerde, zaehlt nicht). Ohne Kaufen bis alle.
-        local F = ns.Focus
-        local limit = F and F.key == key and F.ManualLimit and F.ManualLimit(key) or nil
-        for _, l in ipairs(s.lv or {}) do
-            if l.qty == 1 and l.price <= prev.min * (1 - pct) and QtyAt(prev, l.price) == 0
-               and not (Num(limit) and l.price > limit) then
-                Q.AddBait(key, s.t, l.price, false, 1)
-                if ns.Focus and ns.Focus.key == key then Q.baitPing = key end   -- ab 0.111: Ton in Q.CheckAlarm
-                Q.Trace("bait foreign price=%s min=%s", l.price, prev.min)
-            end
+    -- ab 0.110: nur unter Kaufen bis (was man ohnehin nicht kaufen wuerde, zaehlt nicht). Ohne Kaufen bis alle.
+    local F = ns.Focus
+    local limit = F and F.key == key and F.ManualLimit and F.ManualLimit(key) or nil
+    for _, l in ipairs(Q.NewBaits(prev, s, limit)) do
+        Q.AddBait(key, s.t, l.price, false, 1)
+        if ns.Focus and ns.Focus.key == key then Q.baitPing = key end   -- ab 0.111: Ton in Q.CheckAlarm
+        Q.Trace("bait foreign price=%s min=%s", l.price, prev.min)
+    end
+end
+
+-- Neue fremde Lockangebote in der Abfrage s gegenueber prev (ab 0.119 eigene Funktion, auch fuer QuickChances.lua)
+function Q.NewBaits(prev, s, limit)
+    local out = {}
+    if not (prev and Num(prev.min) and type(s) == "table") then return out end
+    local pct = (tonumber(mod.db.quickBaitMinPct) or 5) / 100
+    for _, l in ipairs(s.lv or {}) do
+        if l.qty == 1 and l.price <= prev.min * (1 - pct) and QtyAt(prev, l.price) == 0
+           and not (Num(limit) and l.price > limit) then
+            out[#out + 1] = l
         end
     end
+    return out
 end
 
 -- Alle Lockangebote im Zeitfenster der Messung. Rueckgabe { n, withFollow, added, last } oder nil (keins im Fenster).

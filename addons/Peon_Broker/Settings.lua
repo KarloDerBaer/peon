@@ -116,25 +116,37 @@ S.RADAR_UPDATE = {
 
 -- Chancen vom Peon Manager (ab 0.96, Chances.lua): Arten und Hinweise. Ab 0.105 mit den Einstellungen des Radars in
 -- einem Fenster (der Reiter Radar entfaellt), dafuer etwas hoeher.
+local function QuickOff() return S.Get("chances", "chancesShowQ") == false end   -- ab 0.119
+S.QUICK_CHANCES = {
+    { "head", "SET_QC_HEAD" },
+    { "slider", "qcCount", "SET_QC_COUNT", 3, 30, 1, function(v) return tostring(v) end, off = QuickOff },
+    { "money", "qcMinPrice", "SET_QC_MIN", 1, off = QuickOff },
+    { "slider", "qcProbes", "SET_QC_PROBES", 3, 20, 1, function(v) return L.SET_QC_PROBES_FMT:format(v) end, off = QuickOff },
+    { "note", "SET_QC_NOTE" },
+}
 S.SPECS.chances = {
-    title = "SET_CH_TITLE", height = 620,
+    title = "SET_CH_TITLE", height = 760,   -- ab 0.119 hoeher (Schnellkauf)
     { "head", "SET_CH_KINDS" },
     { "check", "chancesShowS", "SET_CH_S", "SET_CH_S_TIP" },
     { "check", "chancesShowL", "SET_CH_L", "SET_CH_L_TIP" },
     { "check", "chancesShowB", "SET_CH_B", "SET_CH_B_TIP" },
     { "check", "chancesShowM", "SET_CH_M", "SET_CH_M_TIP" },
+    { "check", "chancesShowQ", "SET_CH_Q", "SET_CH_Q_TIP" },   -- ab 0.119
     { "head", "SET_CH_NOTES" },
     { "check", "chancesAhNote", "SET_CH_AH_NOTE", "SET_CH_AH_NOTE_TIP" },
     { "check", "chancesNotify", "SET_CH_NOTIFY", "SET_CH_NOTIFY_TIP" },
     { "note", "SET_CH_NOTE" },
 }
 for _, row in ipairs(S.RADAR_GENERAL) do table.insert(S.SPECS.chances, row) end
+for _, row in ipairs(S.QUICK_CHANCES) do table.insert(S.SPECS.chances, row) end
 table.insert(S.SPECS.chances, { "col" })
 for _, row in ipairs(S.RADAR_KINDS) do table.insert(S.SPECS.chances, row) end
 for _, row in ipairs(S.RADAR_UPDATE) do table.insert(S.SPECS.chances, row) end
 S.changed.chances = function()
     local R = ns.Radar
     if R then R.loaded = nil end   -- Grenzen geaendert: Treffer aus der Datenbank neu rechnen
+    if ns.QuickChances then ns.QuickChances.cands = nil end   -- ab 0.119: Vorschlaege neu
+    if ns.Chances and ns.Chances.LayoutTabs then ns.Chances.LayoutTabs() end
     if ns.Chances and ns.Chances.Shown() then
         if R then R.Open(); R.Wake() else ns.Chances.Refresh() end
     end

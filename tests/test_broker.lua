@@ -3694,7 +3694,7 @@ end)()
     if c.row[2] == "radarReserve" then reserve = c end
     if c.row[2] == "chancesNotify" then notify = c end
   end
-  check(reserve and notify and f.h == 620, "0.105: ein Fenster fuer Chancen und Radar, etwas hoeher")
+  check(reserve and notify and f.h == 760, "0.105: ein Fenster fuer Chancen und Radar, etwas hoeher (ab 0.119 mit Schnellkauf 760)")
   local vendor, spec
   for _, c in ipairs(f.controls) do
     if c.row[2] == "radarVendorOn" then vendor = c end
@@ -4672,11 +4672,18 @@ end)()
   check(by[7101] == nil and n == 1, "0.105: verworfene Chance erscheint nicht als Treffer des Radars")
   C.checked, PeonBrokerDB.chancesGone = {}, nil
   -- Erneuern: Chancen des Managers und Treffer des Radars gemeinsam, am laengsten nicht geprueft zuerst
+  -- ab 0.119: nur die Liste des offenen Unterreiters (7101 Spekulation, 7102 Haendler im Unterreiter Aufkauf)
   R.entries[7102].checked = GetTime() - 1000
   C.checked[7101] = { t = GetTime() - 5, ok = true }
-  check(R.NextRenew() == 7102, "0.105: Erneuern nimmt den Treffer des Radars, der am laengsten nicht geprueft wurde")
+  mod.db.chancesTab = "buyout"
+  check(R.NextRenew() == 7102, "0.105/0.119: Erneuern im Unterreiter Aufkauf nimmt den Treffer des Radars")
+  mod.db.chancesTab = "spec"
+  check(R.NextRenew() == nil, "0.119: im Unterreiter Spekulation nicht den Treffer des Radars")
   C.checked[7101] = { t = GetTime() - 5000, ok = true }
-  check(R.NextRenew() == 7101, "0.105: ... sonst die Chance des Managers")
+  check(R.NextRenew() == 7101, "0.105/0.119: ... dort die Chance des Managers")
+  check(#C.TabRows("spec") == 1 and C.TabRows("spec")[1].key == 7101 and #C.TabRows("buyout") == 1 and C.TabRows("buyout")[1].key == 7102,
+    "0.119: Zeilen je Unterreiter")
+  mod.db.chancesTab = "buyout"
   -- Auswahl des Scans
   local keepAH, keepOpen = ns.Scan.ahOpen, rawget(_G, "C_AuctionHouse")
   check(C.Mode() == "mgr" and C.ModeText() == "Manager-Chancen", "0.105: Standard Manager-Chancen")
@@ -4755,20 +4762,21 @@ end)()
   check(mod.db.focusMode == "quick" and F.ManualLimit(7981) == 150 and F.origin == "watch", "0.106: aus Beobachten im gespeicherten Modus")
   F.FromPage(7981, "chances")
   check(mod.db.focusMode == "buyout", "0.106: aus Chancen immer Aufkauf")
-  -- Liste Beobachten: Art und Kaufen bis des Modus
-  local function row() for _, x in ipairs(WP.Rows()) do if x.key == 7981 then return x end end end
-  local r = row()
-  check(r and r.mode == "quick" and r.limit == 150 and r.target == nil, "0.106: Liste mit Art Schnellkauf, Kaufen bis des Schnellkaufs, ohne Zielpreis")
+  -- Liste Beobachten: ab 0.119 je Unterreiter, ein Gegenstand mit Werten in beiden Modi steht in beiden Listen
+  local function row(tab) for _, x in ipairs(WP.Rows(tab)) do if x.key == 7981 then return x end end end
+  local rq, rb = row("quick"), row("buyout")
+  check(rq and rq.mode == "quick" and rq.limit == 150 and rq.target == nil and rb and rb.mode == "buyout" and rb.limit == 120 and rb.target == 200,
+    "0.106/0.119: Gegenstand in beiden Listen, jede mit ihren Werten (Schnellkauf ohne Zielpreis)")
   Wt.SetMode(7981, "buyout")
-  r = row()
-  check(r.mode == "buyout" and r.limit == 120 and r.target == 200 and Wt.ActiveLimit(7981) == 120, "0.106: Art Aufkauf mit seinen Werten")
+  check(Wt.ActiveLimit(7981) == 120 and row("active").limit == 120, "0.106: Art Aufkauf: Alarm und Zahl am Reiter mit seinen Werten")
   Wt.SetMode(7981, "quick")
-  check(Wt.ActiveLimit(7981) == 150, "0.106: Alarm nimmt Kaufen bis des gespeicherten Modus")
-  if WP.list then
-    local cols = {}
-    for _, c in ipairs(WP.list.o.columns) do cols[#cols + 1] = plain(c.title) end
-    local t = table.concat(cols, ",")
-    check(t:find("Art", 1, true) and not t:find("Stand", 1, true), "0.106: Spalte Art statt Stand: " .. t)
+  check(Wt.ActiveLimit(7981) == 150 and row("active").limit == 150, "0.106: Alarm nimmt Kaufen bis des gespeicherten Modus")
+  if WP.lists then
+    local function cols(tab) local t = {} for _, c in ipairs(WP.lists[tab].o.columns) do t[#t + 1] = plain(c.title) end return table.concat(t, ",") end
+    check(not cols("buyout"):find("Art", 1, true) and not cols("buyout"):find("Stand", 1, true) and cols("buyout"):find("Zielpreis", 1, true),
+      "0.119: Liste Aufkauf ohne Spalte Art: " .. cols("buyout"))
+    check(cols("quick"):find("Bewegung", 1, true) and cols("quick"):find("Darunter", 1, true) and cols("quick"):find("Gekauft", 1, true)
+      and not cols("quick"):find("Zielpreis", 1, true), "0.119: Liste Schnellkauf mit eigenen Spalten: " .. cols("quick"))
   end
   check(Wt.SKIP.qlim and Wt.SKIP.qgold and Wt.SKIP.qavg and Wt.SKIP.mode, "0.106: Werte des Schnellkaufs bleiben im Spiel (kein Abgleich mit dem Manager)")
   -- Stand oben rechts: juengste Einzelabfrage
@@ -5246,6 +5254,175 @@ end)()
   Rd.pending = nil
   check(#lines == 2 and lines[1] == "mit 2" and lines[2]:find("send key=7777", 1, true) and mod.acc.buyLog == nil,
     "0.118: R.Trace gibt Zeilen nur an einen gesetzten Anschluss, Broker speichert nichts")
+end)()
+
+-- ===== 0.119: Chancen der Art Schnellkauf, Unterreiter in Chancen und Beobachten =====
+;(function()
+  local QC, C, R, Wt, WP, F, Q = ns.QuickChances, ns.Chances, ns.Radar, ns.Watch, ns.WatchPage, ns.Focus, ns.Quick
+  local market = ns.Data.Market()
+  local keepGT, keepShown, keepWS, keepReady, keepSend, keepOpen = GetTime, C.Shown, WP.Shown, R.ItemReady, R.Send, ns.Scan.ahOpen
+  local keepAH = rawget(_G, "C_AuctionHouse")
+  local keepDb = {}
+  for _, k in ipairs({ "chancesTab", "watchTab", "qcCount", "qcMinPrice", "qcProbes", "chancesShowQ", "focusMode" }) do keepDb[k] = mod.db[k] end
+  local tnow = 1000
+  GetTime = function() return tnow end
+  ns.Scan.ahOpen = true
+  if not keepAH then C_AuctionHouse = {} end
+  check(mod.db.qcCount == 10 and mod.db.qcMinPrice == 100 and mod.db.qcProbes == 5 and mod.db.chancesShowQ == true, "0.119: Vorgaben 10 Vorschlaege, 1 Silber, 5 Abfragen")
+  mod.db.qcCount, mod.db.qcProbes = 2, 3
+  -- eigener Markt fuer den Test
+  local keepItems = market.items
+  market.items = {}
+  market.items[7991] = { m = 500, q = 3000, n = 5, t = clock, nm = "Schnellerz", ql = 1 }
+  market.items[7992] = { m = 50, q = 9000, n = 5, t = clock, nm = "Billigkraut", ql = 1 }   -- unter 1 Silber
+  market.items[7993] = { m = 800, q = 2000, n = 5, t = clock, nm = "Flinkstoff", ql = 1 }
+  market.items[7994] = { m = 900, q = 5000, n = 5, t = clock, nm = "Schwert", ql = 2 }      -- keine Massenware
+  market.items[7995] = { m = 300, q = 1000, n = 5, t = clock, nm = "Restgut", ql = 1 }
+  market.items[7996] = { m = 900, q = 8000, n = 5, t = clock, gone = clock, nm = "Weg", ql = 1 }   -- nicht mehr da
+  for _, id in ipairs({ 7991, 7992, 7993, 7994, 7995, 7996 }) do mod.acc.commodity[id] = id ~= 7994 end
+  QC.cands, QC.res, QC.run, QC.queue, QC.src, QC.paused = nil, {}, nil, {}, nil, false
+  local function keys() local t = {} for _, c in ipairs(QC.Candidates()) do t[#t + 1] = c.key end return table.concat(t, ",") end
+  check(keys() == "7991,7993", "0.119: Vorschlaege: Massenware ab Mindestpreis, groesste Menge zuerst, Anzahl begrenzt: " .. keys())
+  market.items[7995].q = 99999
+  check(keys() == "7991,7993", "0.119: Liste bleibt bis zum naechsten Stand, auch wenn sich die Menge live aendert")
+  QC.Candidates(true)
+  check(keys() == "7995,7991", "0.119: Neu vorschlagen nimmt die neue Menge: " .. keys())
+  market.items[7995].q = 1000
+  QC.Candidates(true)
+  QC.Hide(7991)
+  check(keys() == "7993,7995" and QC.Hidden(7991) and QC.HiddenCount() == 1 and type(mod.acc.quickHide) == "table",
+    "0.119: nicht mehr vorschlagen, der naechste rueckt nach: " .. keys())
+  QC.Unhide()
+  check(keys() == "7991,7993" and mod.acc.quickHide == nil, "0.119: zurueckholen")
+  -- Pruefung: ein Gegenstand nach dem anderen, je Gegenstand qcProbes Abfragen
+  mod.db.chancesTab = "quick"
+  C.Shown = function() return true end
+  WP.Shown = function() return false end
+  R.ItemReady = function() return true end
+  local sent = {}
+  R.Send = function(key, forBuy, refresh) sent[#sent + 1] = { key = key, refresh = refresh }; R.pending = { key = key, sent = tnow }; return true end
+  local function lv(list)
+    local rows = { offers = {}, commodity = true }
+    for i, x in ipairs(list) do
+      rows.offers[#rows.offers + 1] = { id = i, q = x[2], p = x[1] }
+      rows[#rows + 1] = { price = x[1], qty = x[2], own = 0 }
+    end
+    return rows
+  end
+  check(QC.Source() == "chances" and QC.Active(), "0.119: Unterreiter Schnellkauf offen: Pruefung aktiv")
+  R.soon = nil
+  local k, kind = R.NextKey()
+  check(k == 7991 and kind == "probe" and QC.run and QC.run.key == 7991, "0.119: Pruefung beginnt beim Vorschlag mit der groessten Menge")
+  QC.Send(k)
+  check(sent[1].key == 7991 and sent[1].refresh == false and R.pending.probe, "0.119: erste Abfrage als Suche, als Pruefung markiert")
+  QC.OnAnswer(7991, lv({ { 500, 10 }, { 600, 20 } }), 0)
+  QC.Send(7991)
+  check(sent[2].refresh == true, "0.119: danach Neu laden wie im Fokus")
+  QC.OnAnswer(7991, lv({ { 450, 1 }, { 500, 10 }, { 600, 25 } }), 3)   -- 2 Einstellungen (eine als Lockangebot), Preissprung
+  check(QC.StateText(7991):find("|T", 1, true) and QC.QueuePos(7993) == 2 and plain(QC.StateText(7993)) == "als 2. dran",
+    "0.119: laufende Zeile mit Punkten, der naechste als 2. dran: " .. plain(QC.StateText(7993)))
+  local qrows = QC.Rows()
+  check(qrows[1].running and not qrows[2].running, "0.119: laufende Zeile markiert (hell hinterlegt)")
+  QC.OnAnswer(7991, lv({ { 500, 4 }, { 600, 25 } }), 6)   -- 2 Kaeufe, Preissprung
+  local v = QC.Result(7991)
+  check(v and v.class == "high" and v.early and v.nNew == 2 and v.nSold == 2 and v.jumps == 2 and v.baits == 1 and v.queries == 3
+    and math.abs(v.ev - 60) < 0.01 and QC.run == nil,
+    "0.119: 3 Abfragen in 6 Sek.: 2 Einstellungen, 2 Kaeufe, 2 Preisspruenge, 1 Lockangebot heisst lebhaft (vorlaeufig)")
+  check(plain(QC.MoveText(v)) == "lebhaft?" and plain(QC.StateText(7991)):find("^vor "), "0.119: vorlaeufig mit Fragezeichen, Alter der Pruefung: " .. plain(QC.StateText(7991)))
+  check(QC.LivelyCount() == 1 and C.BadgeCount("all", "quick") == 1, "0.119: Zahl am Unterreiter zaehlt die lebhaften")
+  k = R.NextKey()
+  check(k == 7993, "0.119: dann der naechste Vorschlag")
+  for i = 0, 2 do QC.Send(7993); QC.OnAnswer(7993, lv({ { 800, 5 }, { 900, 5 } }), 10 + i * 3) end
+  v = QC.Result(7993)
+  check(v and v.class == "low" and v.events == 0, "0.119: nichts bewegt heisst ruhig")
+  -- neue Runde: lebhafte, ungepruefte, ruhige
+  mod.db.qcCount = 3
+  k = R.NextKey()
+  check(k == 7991 and table.concat(QC.queue, ",") == "7995,7993", "0.119: neue Runde: lebhafte zuerst, dann ungepruefte, ruhige zuletzt: " .. table.concat(QC.queue, ","))
+  for i = 0, 2 do QC.Send(7991); QC.OnAnswer(7991, lv({ { 500, 4 }, { 600, 25 } }), 20 + i * 3) end
+  v = QC.Result(7991)
+  check(v and not v.early and v.probes == 2 and v.secs == 12 and v.events == 6 and v.class == "high",
+    "0.119: gleitend: beide Pruefungen zusammen (6 Ereignisse in 12 Sek.)")
+  -- Antwort ueber das Radar, lange Pause, Anhalten
+  k = R.NextKey()
+  check(k == 7995, "0.119: dann der ungepruefte")
+  R.Apply({ key = 7995, probe = true }, lv({ { 300, 5 } }), true)
+  check(QC.run and QC.run.key == 7995 and QC.run.got == 1, "0.119: Antwort des Radars geht in die Pruefung")
+  R.Apply({ key = 7995 }, lv({ { 300, 5 } }), true)
+  check(QC.run.got == 1, "0.119: andere Antworten zaehlen nicht")
+  tnow = tnow + 30
+  k = R.NextKey()
+  check(k == 7995 and QC.run and QC.run.got == 0 and QC.res[7995] == nil, "0.119: nach langer Pause beginnt die Pruefung desselben Gegenstands neu")
+  QC.SetPaused(true)
+  check(not QC.Active() and R.NextKey() == nil, "0.119: angehalten: keine Abfragen")
+  QC.SetPaused(false)
+  -- Unterreiter ohne Art verschwindet, Rueckfall
+  mod.db.chancesShowQ = false
+  check(not C.TabOn("quick") and C.Tab() ~= "quick" and QC.Source() == nil, "0.119: Schnellkauf aus: Unterreiter weg, keine Pruefung")
+  mod.db.chancesShowQ = true
+  check(C.Tab() == "quick", "0.119: Unterreiter gemerkt")
+  if C.qlist then
+    local t = {}
+    for _, c in ipairs(C.qlist.o.columns) do t[#t + 1] = plain(c.title) end
+    check(table.concat(t, ",") == "Gegenstand,Günstigster,Menge,Zu / Ab je Min.,Bewegung,Lockangebote,Zustand" and C.tabs and #C.tabs == 3,
+      "0.119: drei Unterreiter, Liste Schnellkauf mit eigenen Spalten: " .. table.concat(t, ","))
+  end
+  -- Menue
+  local made = {}
+  local root = { CreateButton = function(_, text) made[#made + 1] = text end }
+  QC.AddMenu(root, { name = "Schnellerz" }, 7991)
+  check(made[1] == ns.L.MENU_QC_HIDE and made[2] == ns.L.MENU_QC_WATCH, "0.119: Menue: nicht vorschlagen, fuer Schnellkauf beobachten")
+  QC.WatchQuick(7991, "Schnellerz")
+  check(Wt.InQuick(7991) and Wt.Store()[7991].qlim == 500 and not Wt.InBuyout(7991), "0.119: fuer Schnellkauf beobachten mit Kaufen bis = guenstigster Preis")
+  made = {}
+  QC.AddMenu(root, { name = "Schnellerz" }, 7991)
+  check(#made == 1 and made[1] == ns.L.MENU_QC_HIDE, "0.119: schon beobachtet: nur noch nicht vorschlagen")
+  -- Beobachten mit zwei Unterreitern
+  C.Shown = function() return false end
+  WP.Shown = function() return true end
+  mod.db.watchTab = "quick"
+  Wt.Add(7993, { name = "Flinkstoff" })
+  Wt.SetQuick(7993, 850, nil, true, true)
+  Wt.Add(7995, { name = "Restgut" })
+  local wk = table.concat(QC.Keys("watch"), ",")
+  check(QC.Source() == "watch" and wk == "7991,7993", "0.119: Beobachten/Schnellkauf prueft nur Gegenstaende mit Werten des Schnellkaufs: " .. wk)
+  ns.Buy.live[7993] = { rows = lv({ { 800, 5 }, { 900, 5 } }), t = clock, commodity = true }
+  local r
+  for _, x in ipairs(WP.Rows("quick")) do if x.key == 7993 then r = x end end
+  check(r and r.limit == 850 and r.under == 5 and r.v and r.v.class == "low" and r.advice == "buy",
+    "0.119: Zeile Schnellkauf mit Kaufen bis, Stueck darunter, Bewegung und Rat")
+  local inB = {}
+  for _, x in ipairs(WP.Rows("buyout")) do inB[x.key] = true end
+  check(inB[7995] and not inB[7993] and not inB[7991], "0.119: nur Werte des Schnellkaufs: nicht in der Liste Aufkauf")
+  local got93 = false
+  R.watchSent = {}
+  for _ = 1, 12 do if R.NextWatch() == 7993 then got93 = true end end
+  check(not got93, "0.119: Aufkauf fragt nur seine Liste reihum ab")
+  if WP.SelectTab and WP.lists then
+    WP.SelectTab("buyout")
+    check(WP.list == WP.lists.buyout and mod.db.watchTab == "buyout" and WP.panels.buyout.shown and not WP.panels.quick.shown, "0.119: Unterreiter Aufkauf gewaehlt und gemerkt")
+    WP.SelectTab("quick")
+    check(WP.list == WP.lists.quick, "0.119: Unterreiter Schnellkauf")
+  end
+  -- Fokus im Modus der Liste
+  Q.SetMode("buyout", true)
+  F.FromPage(7993, "chances", "quick")
+  check(mod.db.focusMode == "quick", "0.119: aus Chancen/Schnellkauf im Schnellkauf")
+  F.FromPage(7993, "watch", "buyout")
+  check(mod.db.focusMode == "buyout", "0.119: aus Beobachten/Aufkauf im Aufkauf, auch wenn zuletzt Schnellkauf gespeichert")
+  -- aufraeumen
+  Q.SetMode("buyout", true)
+  for _, id in ipairs({ 7991, 7993, 7995 }) do Wt.Remove(id) end
+  ns.Buy.live[7993] = nil
+  for _, id in ipairs({ 7991, 7992, 7993, 7994, 7995, 7996 }) do mod.acc.commodity[id] = nil end
+  market.items = keepItems
+  ns.Data.vIndex = nil
+  for k2, v2 in pairs(keepDb) do mod.db[k2] = v2 end
+  GetTime, C.Shown, WP.Shown, R.ItemReady, R.Send, ns.Scan.ahOpen = keepGT, keepShown, keepWS, keepReady, keepSend, keepOpen
+  if not keepAH then C_AuctionHouse = nil end
+  R.pending, R.watchSent = nil, {}
+  QC.cands, QC.res, QC.run, QC.queue, QC.src, QC.paused = nil, {}, nil, {}, nil, false
+  mod.acc.quickHide = nil
 end)()
 
 -- Keine unerwarteten Fehlermeldungen

@@ -3,6 +3,15 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 19.11.2026: Chancen im Schnellkauf, Unterreiter (Broker 0.119.0)
+
+- **Vorschläge aus der Menge** (KarloDerBaer): Massenware mit der größten Menge im jüngsten Stand, günstigster Preis mindestens 1 Silber (1 Gold war für Massenware zu hoch), Anzahl 10. Beides einstellbar.
+- **Prüfung am Stück je Gegenstand** (KarloDerBaer): mehrere Abfragen direkt hintereinander zeigen schnelle Bewegungen und Lockangebote wie im Fokus. Reihum über alle Gegenstände (Vorschlag Claude) wäre für Lockangebote noch mehr Zufall.
+- **Gleitend über 3 Prüfungen** (KarloDerBaer, Vorschlag Claude): Fünf Abfragen dauern nur etwa 3 Sekunden, hochgerechnet auf eine Minute wäre fast alles lebhaft. Die erste Prüfung gilt als vorläufig.
+- **Daten des Managers ohne neue Schnittstelle** (Claude): Broker trägt den neuesten Stand des Managers (Menge und günstigster Preis) schon in seine Marktdaten ein (`Data.ApplyManager`). Die Vorschläge nehmen ihn damit automatisch, Manager und Bridge bleiben unverändert.
+- **Unterreiter** (KarloDerBaer): Chancen in Spekulation, Aufkauf und Schnellkauf, Beobachten in Aufkauf und Schnellkauf. Nur die offene Liste wird geprüft, die zuletzt offene merkt sich Broker. Langzeit und Muster gehören zu Spekulation, Händler zu Aufkauf. Ein Gegenstand mit Werten in beiden Modi steht in beiden Listen von Beobachten.
+- **Alle Vorschläge zeigen** (KarloDerBaer): ruhige grau unten statt ausgeblendet.
+
 ## 19.11.2026: Kaufprotokoll über Peon_Debug (Broker 0.118.0)
 
 - **Aufzeichnen im privaten Peon_Debug** (KarloDerBaer): nach weiteren Fehlkäufen wieder nötig, aber nicht mit ausliefern. Broker bekommt nur einen Anschluss ohne Einstellung und Speicher, wie `Peon.Comm.Listen` für Peon_Debug (Claude).

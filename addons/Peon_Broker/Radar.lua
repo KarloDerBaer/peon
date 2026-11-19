@@ -424,6 +424,8 @@ end
 function R.NextRenew()
     local C = ns.Chances
     local cands, seen = {}, {}
+    -- ab 0.119: Chancen des Managers aus anderen Unterreitern sind auch keine Treffer des Radars
+    for _, key in ipairs(C and C.Keys("all") or {}) do seen[key] = true end
     for _, key in ipairs(C and C.Keys() or {}) do
         if not R.skip[key] then
             local c = C.checked[key]
@@ -433,7 +435,9 @@ function R.NextRenew()
     end
     local budget = R.Budget()
     for key, d in pairs(R.entries) do
-        if not seen[key] and R.Visible(d, budget) and ns.Buy.KnownKey(key) and not R.skip[key] and (d.loadWait or 0) < 30 then
+        -- ab 0.119: nur Treffer der offenen Liste (Unterreiter in Chancen)
+        if not seen[key] and (not C or C.EntryTab(d) == C.Tab()) and R.Visible(d, budget) and ns.Buy.KnownKey(key)
+           and not R.skip[key] and (d.loadWait or 0) < 30 then
             cands[#cands + 1] = { key = key, t = d.checked or -1e9 }
         end
     end
@@ -521,7 +525,8 @@ end
 function R.NextWatch()
     local best, bestT
     for key in pairs(ns.Watch.Store()) do
-        if ns.Buy.KnownKey(key) and not R.skip[key] then
+        -- ab 0.119: nur die Liste Aufkauf (Schnellkauf prueft QuickChances.lua)
+        if ns.Buy.KnownKey(key) and not R.skip[key] and ns.Watch.InBuyout(key) then
             local t = R.watchSent[key] or -1e9
             if not best or t < bestT or (t == bestT and tostring(key) < tostring(best)) then best, bestT = key, t end
         end
@@ -616,6 +621,13 @@ function R.NextKey()
     local soon = R.soon
     if soon and R.entries[soon.key] and Now() >= soon.at then R.soon = nil; return soon.key, "soon" end
     if soon and not R.entries[soon.key] then R.soon = nil end
+    -- ab 0.119: Liste Schnellkauf offen (Chancen oder Beobachten): nur deren Pruefung (QuickChances.lua)
+    local QC = ns.QuickChances
+    if QC and QC.Source() then
+        local qk = QC.Next()
+        if qk ~= nil then return qk, "probe" end
+        return nil
+    end
     if R.Watching() then   -- ab 0.83: Reiter Beobachten offen, nur die Beobachtung
         local wk = R.NextWatch()
         if wk ~= nil then return wk, "watch" end
@@ -704,6 +716,7 @@ function R.Tick()
         R.pending = nil
         -- ab 0.69: ohne Antwort im Fokus den anderen Weg versuchen (Suche <-> Neu laden)
         if p.focus and R.focus and R.focus.key == p.key then R.focus.answered = not R.focus.answered end
+        if p.probe and ns.QuickChances then ns.QuickChances.OnTimeout(p) end   -- ab 0.119: dasselbe fuer die Pruefung
         if not p.forBuy and R.FromCache(p) then
             st.cached = (st.cached or 0) + 1
         else
@@ -737,12 +750,15 @@ function R.Tick()
             R.Schedule()
             return
         end
-        key = R.NextKey()
+        local kind
+        key, kind = R.NextKey()
         if key ~= nil and not R.ItemReady(key) then
             -- Daten erst laden (Treffer: hoechstens ~3 s lang, dann uebersprungen)
             local d = R.entries[key]
             if d then d.loadWait = (d.loadWait or 0) + 1 end
             R.stats.notCached = (R.stats.notCached or 0) + 1
+        elseif key ~= nil and kind == "probe" then
+            ns.QuickChances.Send(key)   -- ab 0.119: Pruefung der Chancen im Schnellkauf
         elseif key ~= nil then
             R.Send(key)
         elseif not R.running and not R.focus and not R.soon and not R.Renewing() and not R.Watching() then
@@ -856,6 +872,8 @@ function R.Apply(p, rows, commodity, cached)
         R.focus.answered = true   -- ab 0.69: ab jetzt reicht "Neu laden"
         if ns.Measure then ns.Measure.Add(p.key, rows, Now()) end
     end
+    -- ab 0.119: Antwort einer Pruefung im Schnellkauf (Chancen oder Beobachten)
+    if p.probe and not cached and ns.QuickChances then ns.QuickChances.OnAnswer(p.key, rows, Now()) end
     local old = R.entries[p.key]
     local d = R.Perf("rechnen", R.Evaluate, p.key, rows, true, commodity)
     if d and not R.KIND_ON[d.kind] then d = nil end   -- Art nicht im Radar
