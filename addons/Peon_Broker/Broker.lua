@@ -639,6 +639,8 @@ end)
 -- Die id nie aendern, sonst erscheint der Hinweis erneut. Nach ein paar Versionen wieder entfernen.
 if mod.AddNotice then
     mod:AddNotice({ id = "umbau-2026-11", date = "12.11.2026", title = L.NOTICE_REBUILD_TITLE, text = L.NOTICE_REBUILD_TEXT })
+    -- ab 0.117: einmaliger Hinweis auf den Schnellkauf im Fokus (Wunsch KarloDerBaer)
+    mod:AddNotice({ id = "schnellkauf-2026-11", date = "19.11.2026", title = L.NOTICE_QUICK_TITLE, text = L.NOTICE_QUICK_TEXT })
 end
 
 -- Bereiche für Rückmeldungen in Peon_Feedback (Kern ab API 9; mit älterem Kern wird nichts gemeldet)

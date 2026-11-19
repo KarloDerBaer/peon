@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.117.0
+
+Kurz: Beim ersten Öffnen nach dem Update erklärt ein kurzer Hinweis den neuen Schnellkauf im Fokus.
+
+- 0.117.0 (19.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Hinweis „Der Button ist heiß“** (`broker:schnellkauf-2026-11`, `L.NOTICE_QUICK_TITLE`, `L.NOTICE_QUICK_TEXT`): einmalig, erklärt den Schnellkauf und weist darauf hin, dass die Benutzung auf eigene Gefahr ist und man die Einstellungen prüfen soll.
+  - Tests: Hinweis gemeldet, Titel und Absätze (`test_broker.lua`).
+
 ## 0.116.0
 
 Kurz: Im Schnellkauf ändert ein Klick auf eine Preisstufe nichts mehr. So stellst du Kaufen bis nicht aus Versehen um.
