@@ -13,6 +13,7 @@ function ns.CreateOptions()
     page:Add(left, page:Header(L.HDR_MAIN))
     page:Add(left, page:Check("minimapShow", L.MINIMAP))
     page:Add(left, page:Check("showAll", L.SHOW_ALL, L.SHOW_ALL_HINT))
+    page:Add(left, page:Check("altClick", L.ALTCLICK, L.ALTCLICK_TIP))   -- ab 0.7.0
     page:Add(left, page:Button(L.OPEN, function() ns.Window.Open() end), 16)
     -- ab 0.4.1: Ton, wenn das Rezept des Guides wechselt
     page:Add(left, page:Header(L.HDR_SOUND), 6)

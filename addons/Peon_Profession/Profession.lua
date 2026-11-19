@@ -3,6 +3,7 @@
 -- docs/konzepte/profession/Peon_Profession_Konzept.md). Anmeldung beim Kern, Einstellungen, Berufe des Charakters.
 --
 -- Ab 0.5.0 Reiter Codex (Codex.lua) und Sammelstellen (Gather.lua), Konzept docs/konzepte/profession/Peon_Profession_Codex.md.
+-- Ab 0.7.0 Alt + Klick in der Tasche: Entzaubern und Schlossknacken (AltClick.lua).
 --
 -- Schnittstelle fuer andere Module (nur lesend):
 --   mod:Professions()      -> { { key, name, icon, skill, max } } Berufe des eingeloggten Charakters
@@ -66,6 +67,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         craftHint    = true,     -- Hinweis: verkaufen oder herstellen
         craftTwinks  = false,    -- Vorrat der Twinks mitzaehlen (vorher Brokers keepAllChars)
         craftMigrated = false,   -- Einstellungen einmal von Broker uebernommen
+        altClick     = true,     -- ab 0.7.0: Alt + Klick in der Tasche entzaubert oder knackt Kassetten (AltClick.lua)
     },
     ranges   = { minimapAngle = { 0, 359, 1 } },
     choices  = { windowTab = { guide = true, route = true, mats = true, history = true, codex = true },   -- history ab 0.4.1, codex ab 0.5.0
@@ -255,6 +257,7 @@ mod:On("LOGIN", function()
     if ns.Gather then mod:Call("Sammelstellen", ns.Gather.Init) end   -- ab 0.5.0
     if ns.Codex then mod:Call("Codex", ns.Codex.Init) end
     if ns.Friends then mod:Call("Rezepte der Freunde", ns.Friends.Init) end   -- ab 0.6.0
+    if ns.AltClick then mod:Call("AltClick", ns.AltClick.Init) end           -- ab 0.7.0
     if mod.NewMinimapButton then
         mod:Call("Minimap", mod.NewMinimapButton, mod, {
             icon = ns.ICON,

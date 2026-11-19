@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.7.0
+
+Kurz: Alt halten und einen Gegenstand in der Tasche anklicken: Waffen und Rüstung ab grün werden entzaubert, verschlossene Kassetten geknackt (Schurke).
+Kurz: Im Handelsfenster knackst du so auch die Kassette eines anderen Spielers, wenn er sie in das Feld „Wird nicht gehandelt“ legt.
+Kurz: Der Tooltip zeigt, was der Klick tut. Abschalten lässt es sich in den Optionen von Profession.
+
+- 0.7.0 (19.11.2026, Wunsch KarloDerBaer): **Alt + Klick in der Tasche** (neue Datei `AltClick.lua`). Anregung war das Addon Molinari, übernommen ist nur die Idee.
+  - Zeigt das Spiel den Tooltip eines Taschenplatzes, prüft Profession, ob es eine Aktion gibt: Entzaubern bei Waffen und Rüstung in Grün, Blau und Lila (keine Angeln), wenn Verzauberkunst gelernt ist. Schlossknacken bei Kassetten mit der Zeile „Verschlossen“, wenn der Charakter Schlossknacken kann. Eine schon geknackte Kassette wird nicht noch einmal angeboten.
+  - Im Tooltip steht dann „Alt + Klick: Entzaubern“ oder „Alt + Klick: Schlossknacken“.
+  - Mit gedrückter Alt-Taste legt sich ein unsichtbarer sicherer Knopf über den Platz. Er wirkt per Makro den Zauber auf genau diesen Gegenstand. Alt loslassen, Platz verlassen oder Kampfbeginn entfernt ihn. Nur eigene Taschen, nicht die Bank, nicht im Kampf. Funktioniert auch mit Peon_Bags (Blizzards Taschenknöpfe).
+  - Handelsfenster: Liegt beim anderen im Feld „Wird nicht gehandelt“ eine verschlossene Kassette, zeigt der Tooltip den Hinweis und Alt + Klick knackt sie. Der Knopf wirkt dort Schlossknacken, im selben Klick wählt Profession das Feld als Ziel (`ClickTargetTradeButton`). Entzaubern gibt es dort nicht, fremde Gegenstände lassen sich nicht entzaubern. Schließt der Handel, verschwindet der Knopf.
+  - Neue Einstellung `altClick` (an), Schalter in den Optionen unter „Allgemein“.
+  - Tests: `test_profession.lua` (Entscheidung je Gegenstand, Hinweis, Knopf nur mit Alt, Bank, abgeschaltet, Kampf, Handelsfenster).
+
 ## 0.6.0
 
 Kurz: Der Codex zeigt jetzt auch, welche Rezepte deine Freunde und Gildenmitglieder kennen, wenn sie Peon nutzen. Ihre Namen stehen im Tooltip.

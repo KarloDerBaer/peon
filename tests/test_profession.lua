@@ -959,6 +959,83 @@ end)()
   PC.channel = nil
 end)()
 
+-- 0.7.0: Alt + Klick in der Tasche (Entzaubern, Schlossknacken)
+;(function()
+  local A = ns.AltClick
+  check(A and A.Button(), "0.7.0: AltClick-Knopf beim Login angelegt")
+  local spells = {}
+  IsPlayerSpell = function(id) return spells[id] == true end
+  local ITEMS = { [101] = { q = 2, c = 4, s = 2 }, [102] = { q = 1, c = 4, s = 2 }, [103] = { q = 3, c = 2, s = 20 },
+    [104] = { q = 4, c = 2, s = 7 }, [105] = { q = 1, c = 15, s = 0 }, [106] = { q = 2, c = 0, s = 0 } }
+  local slots = { [0] = { [1] = 101, [2] = 102, [3] = 103, [4] = 104, [5] = 105, [6] = 106 } }
+  C_Container = { GetContainerItemInfo = function(b, sl) local id = slots[b] and slots[b][sl] if id then return { itemID = id, quality = ITEMS[id].q } end end }
+  local keepInstant = C_Item.GetItemInfoInstant
+  C_Item.GetItemInfoInstant = function(id) local it = ITEMS[id] if it then return id, "", "", "", 1, it.c, it.s end end
+  local function Decide(sl, lines) return A.Decide(A.ReadItem(0, sl, lines)) end
+  check(Decide(1) == nil, "0.7.0: ohne Verzauberkunst kein Entzaubern")
+  spells[A.DISENCHANT] = true
+  check(Decide(1) == "disenchant", "0.7.0: gruene Ruestung wird entzaubert")
+  check(Decide(2) == nil, "0.7.0: weisse Ruestung nicht")
+  check(Decide(3) == nil, "0.7.0: Angel nicht")
+  check(Decide(4) == "disenchant", "0.7.0: epische Waffe wird entzaubert")
+  check(Decide(6) == nil, "0.7.0: gruener Verbrauchsgegenstand nicht")
+  check(Decide(5, { "Eiserne Kassette", "Verschlossen" }) == nil, "0.7.0: ohne Schlossknacken keine Kassette")
+  spells[A.PICKLOCK] = true
+  check(Decide(5, { "Eiserne Kassette", "Verschlossen", "Benötigt Schlossknacken (100)" }) == "picklock", "0.7.0: verschlossene Kassette wird geknackt")
+  check(Decide(5, { "Eiserne Kassette", "<Rechtsklick zum Öffnen>" }) == nil, "0.7.0: geknackte Kassette nicht noch einmal")
+  check(A.Macro("Entzaubern", 0, 4) == "/cast Entzaubern\n/use 0 4", "0.7.0: Makro mit Zauber und Platz")
+  -- Tooltip: Hinweis immer, Knopf nur mit Alt
+  local alt = false
+  IsAltKeyDown = function() return alt end
+  local tip = {}
+  local slotBtn = CreateFrame("Button")
+  local tt = setmetatable({ AddLine = function(_, t) tip[#tip + 1] = t end, GetOwner = function() return slotBtn end,
+    NumLines = function() return 0 end, GetName = function() return "PeonTestTip" end }, { __index = function() return function() end end })
+  A.OnBagTooltip(tt, 0, 4)
+  check(tip[1] == "Alt + Klick: Zauber 13262" and A.current == nil, "0.7.0: Hinweis im Tooltip, ohne Alt kein Knopf")
+  alt = true
+  A.OnBagTooltip(tt, 0, 4)
+  check(A.current and A.current.kind == "disenchant" and A.current.macro == "/cast Zauber 13262\n/use 0 4", "0.7.0: mit Alt liegt der Knopf ueber dem Platz")
+  A.Hide()
+  check(A.current == nil, "0.7.0: Knopf wieder weg")
+  A.OnBagTooltip(tt, -1, 4)
+  check(A.current == nil, "0.7.0: Bank wird nicht beachtet")
+  mod.db.altClick = false
+  tip = {}
+  A.OnBagTooltip(tt, 0, 4)
+  check(#tip == 0 and A.current == nil, "0.7.0: abgeschaltet tut nichts")
+  mod.db.altClick = true
+  local keepCombat = InCombatLockdown
+  InCombatLockdown = function() return true end
+  A.OnBagTooltip(tt, 0, 4)
+  check(A.current == nil, "0.7.0: im Kampf kein Knopf")
+  InCombatLockdown = keepCombat
+  -- Handelsfenster: Feld "Wird nicht gehandelt" des anderen, nur Schlossknacken
+  local tradeLines = { "Eiserne Kassette", "Verschlossen" }
+  C_TooltipInfo = { GetTradeTargetItem = function(i) local l = {} for _, t in ipairs(tradeLines) do l[#l + 1] = { leftText = t } end return { lines = l } end }
+  tip = {}
+  A.OnTradeTooltip(tt, 3)
+  check(#tip == 0 and A.current == nil, "0.7.0: Handel, andere Felder nicht")
+  A.OnTradeTooltip(tt, 7)
+  check(tip[1] == "Alt + Klick: Zauber 1804" and A.current and A.current.trade == 7 and A.current.kind == "picklock",
+      "0.7.0: Handel, verschlossene Kassette im Feld 7 wird angeboten")
+  local clicked
+  SpellIsTargeting = function() return true end
+  ClickTargetTradeButton = function(i) clicked = i end
+  A.PostClick()
+  check(clicked == 7 and A.current == nil, "0.7.0: Handel, nach dem Klick wird das Feld als Ziel gewaehlt")
+  tradeLines = { "Eiserne Kassette" }
+  A.OnTradeTooltip(tt, 7)
+  check(A.current == nil, "0.7.0: Handel, offene Kassette nicht")
+  tradeLines = { "Eiserne Kassette", "Verschlossen" }
+  spells[A.PICKLOCK] = nil
+  A.OnTradeTooltip(tt, 7)
+  check(A.current == nil, "0.7.0: Handel, ohne Schlossknacken nichts")
+  C_TooltipInfo, SpellIsTargeting, ClickTargetTradeButton = nil, nil, nil
+  C_Item.GetItemInfoInstant = keepInstant
+  IsPlayerSpell, IsAltKeyDown, C_Container = nil, nil, nil
+end)()
+
 -- Starter-Text und Slash
 ns.Window.Open(186)
 check(ns.LauncherText() == "Bergbau 40/75", "Text fuer Peon_Panel: gewaehlter Beruf")

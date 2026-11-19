@@ -303,3 +303,14 @@ if GetLocale() == "deDE" then
     L.MILESTONE_DONE   = "Meilenstein: %s ist mit %d fertig."
     L.FORGET_DONE      = "%d gemerkte Rezepte dieses Charakters vergessen. Sie werden beim nächsten Öffnen des Berufsfensters neu gelesen."
 end
+
+-- ab 0.7.0: Alt + Klick in der Tasche (AltClick.lua)
+L.ALTCLICK         = "Alt + click in bags: disenchant and pick locks"
+L.ALTCLICK_TIP     = "Hold Alt and click an item in your bags: weapons and armor from green quality are disenchanted (Enchanting), locked boxes are picked (rogue), also in the 'Will not be traded' slot of the trade window. The tooltip shows what the click does."
+L.ALTCLICK_HINT    = "Alt + click: %s"
+
+if GetLocale() == "deDE" then
+    L.ALTCLICK         = "Alt + Klick in der Tasche: entzaubern und Schlösser knacken"
+    L.ALTCLICK_TIP     = "Alt halten und einen Gegenstand in der Tasche anklicken: Waffen und Rüstung ab grün werden entzaubert (Verzauberkunst), verschlossene Kassetten geknackt (Schurke), auch im Feld „Wird nicht gehandelt“ des Handelsfensters. Der Tooltip zeigt, was der Klick tut."
+    L.ALTCLICK_HINT    = "Alt + Klick: %s"
+end
