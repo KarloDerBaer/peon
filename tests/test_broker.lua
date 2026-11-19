@@ -4554,6 +4554,10 @@ end)()
   local newRow
   for _, it in ipairs(F.tiers.items) do if it.price == 120 then newRow = it end end
   check(newRow and newRow.isNew, "0.104: neue Stufe in der Liste markiert")
+  local limBefore = F.ManualLimit(F.key)
+  F.tiers.o.onClick(newRow, "LeftButton")
+  F.tiers.o.onClick(newRow, "RightButton")
+  check(F.ManualLimit(F.key) == limBefore and F.ManualTarget(F.key) == nil, "0.116: Klick auf eine Preisstufe aendert im Schnellkauf nichts")
   played = nil
   F.Update()
   check(played == nil, "0.104: gleiche Antwort: kein zweiter Ton")

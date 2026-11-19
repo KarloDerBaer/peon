@@ -809,6 +809,7 @@ function F.Build(c)
         -- ab 0.83 getauscht (KarloDerBaer, 12.11.2026): Linksklick "Kaufen bis", Rechtsklick Zielpreis. Farben bleiben.
         onClick = function(item, button)
             if not (item and Num(item.price)) or item.isOwn then return end
+            if ns.Quick and ns.Quick.On() then return end   -- ab 0.116: im Schnellkauf aendert ein Klick nichts
             if button == "RightButton" then F.SetTarget(item.price) else F.SetLimit(item.price) end
         end,
     })

@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.116.0
+
+Kurz: Im Schnellkauf ändert ein Klick auf eine Preisstufe nichts mehr. So stellst du Kaufen bis nicht aus Versehen um.
+
+- 0.116.0 (19.11.2026, Wunsch KarloDerBaer):
+  - **Geändert:** Klick auf eine Preisstufe setzt im Schnellkauf weder Kaufen bis noch den Zielpreis. Im Aufkauf bleibt es wie bisher.
+
 ## 0.115.0
 
 Kurz: Die Einstellung „Kaufprotokoll aufzeichnen“ ist wieder weg. Sie hat geholfen, die Fehlkäufe zu finden, und wird nicht mehr gebraucht.
