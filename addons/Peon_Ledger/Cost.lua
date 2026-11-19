@@ -57,17 +57,52 @@ end
 ---------------------------------------------------------------------------
 local function NewState() return { chars = {}, transit = {}, craft = {}, trade = {}, res = {}, general = 0 } end
 
--- Teilstand eines Charakters waehlen: st.lots, st.fee, st.buy, st.soldQ, st.pre zeigen auf seine Tabellen
-local function Sub(st, c)
+-- Tabellen eines Charakters (ohne den Teilstand zu wechseln)
+local function Char(st, c)
     c = c or "?"
     local x = st.chars[c]
     if not x then x = { lots = {}, fee = {}, buy = {}, soldQ = {}, pre = {}, listed = {} }; st.chars[c] = x end
     x.listed = x.listed or {}
+    return x
+end
+
+-- Teilstand eines Charakters waehlen: st.lots, st.fee, st.buy, st.soldQ, st.pre zeigen auf seine Tabellen
+local function Sub(st, c)
+    c = c or "?"
+    local x = Char(st, c)
     st.lots, st.fee, st.buy, st.soldQ, st.pre, st.cur = x.lots, x.fee, x.buy, x.soldQ, x.pre, c
     st.listed = x.listed
     return x
 end
 C.Sub = Sub
+
+-- Stueck mit Posten des aktuellen Charakters (ab 0.16.3)
+local function Stock(st, id)
+    local n = 0
+    for _, lot in ipairs(id and st.lots[id] or {}) do n = n + lot.n end
+    return n
+end
+
+-- Anteil der offenen Gebuehren fuer q Stueck, die nicht ueber das Auktionshaus gehen (ab 0.16.3): nach dem Bestand
+-- vor dem Abgang, beim letzten Bestand alles. Rueckgabe Betrag (aus st.fee entnommen), 0 ohne Gebuehren.
+local function FeeShare(st, id, q, stock)
+    local open = id and st.fee[id] or 0
+    if open <= 0 then return 0 end
+    q = math.max(q or 1, 1)
+    local part = (stock > q) and open * q / stock or open
+    st.fee[id] = (open - part > 0.5) and (open - part) or nil
+    return part
+end
+
+-- Bestand weg ohne Verkauf (ab 0.16.3): verbraucht, hergestellt, zerstoert, gehandelt, an andere verschickt. Ist
+-- danach kein Stueck mehr da, sind die offenen Gebuehren verloren und mindern den Handelsgewinn (r.lost).
+local function LoseFee(st, id, r)
+    if not id or Stock(st, id) > 0 then return end
+    local open = st.fee[id]
+    if not Num(open) or open < 0.5 then return end
+    st.fee[id] = nil
+    r.lost = (r.lost or 0) + open
+end
 
 -- Offene Gebuehren fuer q verkaufte Stueck (ab 0.15): anteilig nach den Stueck, die im Auktionshaus stehen
 -- (eingestellt minus zurueck minus verkauft). Vorher nahm der erste Verkauf alle Gebuehren des Gegenstands.
@@ -225,6 +260,7 @@ function C.TradeProfit(r)
     if type(r) ~= "table" then return 0 end
     if r.general then return -r.general end
     if r.lootShare then return r.profit or 0 end
+    if r.lost then return -r.lost end   -- ab 0.16.3: offene Gebuehren ohne Bestand
     return 0
 end
 
@@ -317,6 +353,7 @@ end
 local function Use(st, e, id, n)
     local cost, _, _, acost = Take(st, id, n)
     st.res[e] = { use = cost, acost = acost }
+    LoseFee(st, id, st.res[e])
 end
 
 -- Beuteanteil aus Wert der Beute und Kosten (ab 0.15): ohne beides ist es Beute
@@ -339,6 +376,7 @@ local function Craft(st, e, id, n)
         local lv = ((loot or 0) + (miss or 0)) * (C.MarketValue(id) or 0)
         pool.used = true
         st.res[e] = { mat = cost }
+        LoseFee(st, id, st.res[e])
         if #pool.wait > 0 then
             -- Ergebnis kam schon vorher (anderer Schub): Kosten nachtragen
             local pieces = 0
@@ -384,6 +422,7 @@ local function Trade(st, e, id, n, m, groups)
         local cost, _, _, acost = Take(st, id, -n)
         g.give, g.acost = g.give + cost, (g.acost or 0) + acost
         st.res[e] = { use = 0, traded = true }
+        LoseFee(st, id, st.res[e])
     elseif not id and m < 0 then
         g.give = g.give - m
     elseif not id and m > 0 then
@@ -408,10 +447,17 @@ end
 local function Twink(st, e, id, n)
     if not id or n == 0 then return end
     if n < 0 then
+        local stock = Stock(st, id)
         local lots, left = TakeLots(st, id, -n)
         if left > 0 then lots[#lots + 1] = { t = e.t or 0, n = left, c = 0 } end   -- ohne Posten: Kosten 0 (wie beim Verkauf)
         local to = e.x
         if type(to) ~= "string" or to == "" then return end
+        -- ab 0.16.3: offene Gebuehren wandern anteilig mit zum Empfaenger
+        local fee = FeeShare(st, id, -n, stock)
+        if fee > 0 then
+            local rx = Char(st, to)
+            rx.fee[id] = (rx.fee[id] or 0) + fee
+        end
         local tr = st.transit[to]
         if not tr then tr = {}; st.transit[to] = tr end
         local q = tr[id]
@@ -486,9 +532,11 @@ function C.Apply(st, e, groups)
             st.res[e] = { unit = unit }
         elseif id and n < 0 then
             -- ab 0.15: Handelsteil zaehlt als "Ware an Haendler" zum Handelsgewinn, Beuteteil zum Haendler
+            -- ab 0.16.3: offene Gebuehren anteilig nach dem Bestand (vorher blieben sie beim Gegenstand liegen)
+            local fee = FeeShare(st, id, -n, Stock(st, id))
             local cost, miss, loot, acost = Take(st, id, -n)
             local got = m > 0 and m or 0
-            st.res[e] = SaleResult(got, -n, cost, miss, loot, acost, 0, 0)
+            st.res[e] = SaleResult(got, -n, cost, miss, loot, acost, fee, 0)
             st.res[e].vendor = true
         end
         return

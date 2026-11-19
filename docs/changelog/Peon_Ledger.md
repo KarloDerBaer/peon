@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.16.3
+
+Kurz: Verkaufst du einen Gegenstand mit offenen Gebühren an einen Händler, zieht Ledger die Gebühren jetzt von diesem Verkauf ab. Geht der letzte Bestand anders weg, etwa verbraucht oder zerstört, zählen sie als Verlust im Handelsgewinn.
+
+- 0.16.3 (19.11.2026, Frage KarloDerBaer): **Offene Gebühren gehen nicht mehr verloren.** Bisher zog nur ein Verkauf im Auktionshaus offene Gebühren ab. Ging der Gegenstand an einen Händler, blieben sie beim Gegenstand liegen und landeten beim nächsten Auktionsverkauf derselben Sorte oder nie im Handelsgewinn.
+  - **Behoben:** Ein Händlerverkauf nimmt die offenen Gebühren anteilig nach dem Bestand vor dem Verkauf mit, das letzte Stück alle. Weil Ledger alle Bewegungen neu nachrechnet, gilt das auch für frühere Verkäufe.
+  - **Behoben:** Ist nach Verbrauch, Herstellen, Zerstören, Handel oder Post an andere kein Stück mehr da, zählen die restlichen Gebühren als Verlust im Handelsgewinn (Buch: Gebühren im Handelsgewinn, Nach Gegenstand: Gewinn).
+  - **Geändert:** Post an eigene Twinks nimmt die offenen Gebühren anteilig mit zum Empfänger.
+  - Tests: Händlerverkauf anteilig und mit dem letzten Stück, Restgebühren beim Verbrauch, Post an Twink, Buch (`test_ledger.lua`).
+
 ## 0.16.2
 
 Kurz: Ledger braucht im Hintergrund weniger Leistung.

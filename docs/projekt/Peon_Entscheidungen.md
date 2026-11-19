@@ -3,6 +3,12 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 19.11.2026: Offene Gebühren ohne Auktionsverkauf (Ledger 0.16.3)
+
+- **Händlerverkauf trägt offene Gebühren** (KarloDerBaer, Vorschlag Claude): anteilig nach dem Bestand vor dem Verkauf, das letzte Stück alle. Grund: Sonst blieben sie liegen und belasteten einen späteren Auktionsverkauf oder nie den Handelsgewinn.
+- **Restgebühren als Verlust** (Claude, zugestimmt): Ist der Bestand ohne Verkauf weg (Verbrauch, Herstellen, Zerstören, Handel, Post an andere), mindern die restlichen Gebühren den Handelsgewinn.
+- **Post an Twinks** (Claude): Die Gebühren wandern anteilig mit zum Empfänger, weil die Ware dort weiterverkauft werden kann.
+
 ## 19.11.2026: Schnellkauf übernimmt Kaufen bis (Broker 0.107.0)
 
 - **Kaufen bis aus dem Aufkauf** (KarloDerBaer): damit das Feld nicht leer ist. Ab 0.107.1 immer, wenn das Feld leer ist, nur nicht nachdem man es im Schnellkauf selbst geleert hat (0.107.0 „einmal je Gegenstand“ ging beim Sprung aus Beobachten verloren).

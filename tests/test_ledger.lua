@@ -1019,6 +1019,55 @@ Co.Invalidate()
 end)()
 
 ;(function()
+-- ===== ab 0.16.3: offene Gebuehren bei Haendlerverkauf, Verbrauch und Post an Twinks =====
+local Co = ns.Cost
+local T, G = "Mirel Dorna", "Borin Dorna"
+local me = realm.chars[T]
+local savedStart, savedMoves, savedChars = me.start, realm.moves, {}
+for name, c in pairs(realm.chars) do savedChars[name] = c end
+for name in pairs(realm.chars) do if name ~= T then realm.chars[name] = nil end end
+realm.chars[G] = { places = {} }
+local t0 = os.time() - 5000
+me.start = { t = t0 - 100, places = {} }
+realm.lotBase = nil
+local function E(dt, k, id, n, m, extra) local e = { t = t0 + dt, c = T, k = k, id = id, n = n, m = m } for a, b in pairs(extra or {}) do e[a] = b end return e end
+local vend, use, vendAll
+realm.moves = {
+  E(0, "ahbuy", 6001, 6, -600),                 -- 6 Stueck zu 1s
+  E(10, "posted", 6001, -6), E(10, "ahfee", 6001, nil, -120),
+  E(20, "ahreturn", 6001, 6),                   -- abgelaufen: 1s 20c offen
+  E(30, "vendor", 6001, -2, 50),                -- 2 an den Haendler: 40c der Gebuehren
+  E(40, "use", 6001, -4),                       -- Rest verbraucht: 80c verloren
+  E(50, "ahbuy", 6002, 1, -1000),
+  E(60, "posted", 6002, -1), E(60, "ahfee", 6002, nil, -96),
+  E(70, "ahreturn", 6002, 1),
+  E(80, "vendor", 6002, -1, 120),               -- letztes Stueck an den Haendler: alle Gebuehren
+  E(90, "ahbuy", 6003, 4, -400),
+  E(100, "posted", 6003, -4), E(100, "ahfee", 6003, nil, -80),
+  E(110, "ahreturn", 6003, 4),
+  E(120, "twink", 6003, -1, nil, { x = G }),    -- 1 von 4 an den Twink: 20c wandern mit
+}
+vend, use, vendAll = realm.moves[5], realm.moves[6], realm.moves[11]
+Co.Invalidate()
+local r = Co.Result(vend)
+check(r and math.abs(r.fee - 40) < 0.01 and math.abs(r.profit - (50 - 40 - 200)) < 0.01, "0.16.3: Haendlerverkauf zieht offene Gebuehren anteilig ab")
+local u = Co.Result(use)
+check(u and math.abs(u.lost - 80) < 0.01 and math.abs(Co.TradeProfit(u) + 80) < 0.01, "0.16.3: letzter Bestand verbraucht: Restgebuehren mindern den Handelsgewinn")
+check(Co.OpenFee(6001) == nil, "0.16.3: danach keine offenen Gebuehren mehr")
+local r2 = Co.Result(vendAll)
+check(r2 and math.abs(r2.fee - 96) < 0.01 and math.abs(r2.profit - (120 - 96 - 1000)) < 0.01 and Co.OpenFee(6002) == nil,
+    "0.16.3: letztes Stueck an den Haendler nimmt alle offenen Gebuehren")
+check(math.abs(Co.OpenFee(6003, T) - 60) < 0.01 and math.abs(Co.OpenFee(6003, G) - 20) < 0.01, "0.16.3: Post an Twink nimmt Gebuehren anteilig mit")
+local b = ns.Book.Collect("all", false)
+check(math.abs(b.tfee - (40 + 80 + 96)) < 0.01 and math.abs(b.bridge.open + 80) < 0.01, "0.16.3: Buch zaehlt die Gebuehren, offen bleiben nur die 80c von 6003")
+realm.lotBase = nil
+for name in pairs(realm.chars) do realm.chars[name] = nil end
+for name, c in pairs(savedChars) do realm.chars[name] = c end
+me.start, realm.moves = savedStart, savedMoves
+Co.Invalidate()
+end)()
+
+;(function()
 -- ===== ab 0.9: Kosten je Charakter, Post an Twinks nimmt die Posten mit =====
 local Co = ns.Cost
 local T, G = "Mirel Dorna", "Borin Dorna"

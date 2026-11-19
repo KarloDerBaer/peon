@@ -85,6 +85,11 @@ function B.Collect(period, onlyMe, now, char)
         if not r then return end
         local p = ns.Cost.TradeProfit(r)
         res.trade = res.trade + p
+        if r.lost then   -- ab 0.16.3: offene Gebuehren, deren Bestand ohne Verkauf weg ist
+            res.tfee = res.tfee + r.lost
+            feesUsed = feesUsed + r.lost
+            if e.id then Item(e.id).profit = (Item(e.id).profit or 0) - r.lost end
+        end
         if r.lootShare then
             if r.sale then res.nsales = res.nsales + 1 end
             res.cogs = res.cogs + (r.cost or 0)

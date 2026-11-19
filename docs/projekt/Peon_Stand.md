@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 18.11.2026. Peon 0.26.0 (API 26) / Broker 0.103.3 / Ledger 0.16.2 / Bridge 0.12.0 / Peon Manager 0.49.0 / Fishing 1.7.1 / Tooltip 0.7.5 / ClassBuddy 0.4.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.1 / Profession 0.6.0 / Warhorn 0.5.2.
+Stand: 19.11.2026. Peon 0.26.0 (API 26) / Broker 0.103.3 / Ledger 0.16.3 / Bridge 0.12.0 / Peon Manager 0.49.0 / Fishing 1.7.1 / Tooltip 0.7.5 / ClassBuddy 0.4.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.1 / Profession 0.6.0 / Warhorn 0.5.2.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -83,7 +83,7 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Schnittstelle: `mod:Chances(market)` für Broker.
 - Befehle: `/peon bridge`, `/peon bridge senden`, `/peon bridge status`, `/peon debug bridge`.
 
-## Peon_Ledger – 0.16.2 (Bestand, Buch und Postfenster)
+## Peon_Ledger – 0.16.3 (Bestand, Buch und Postfenster)
 
 - Konzepte: `docs\konzepte\ledger\` (Konzept, Zuordnen, Gegenstand, Neuaufbau, Buch_AH). Es gilt der Neuaufbau (0.14.0) mit dem Buch nach `Peon_Ledger_Buch_AH.md` (0.15.0).
 - Dateien: Locales.lua, Ledger.lua, Inventory.lua, Moves.lua, Cost.lua, Check.lua, Last.lua, Trend.lua, Tooltip.lua, Window.lua, Overview.lua, Stock.lua, History.lua, Book.lua, Info.lua, Mail.lua, Pick.lua, Probe.lua, Options.lua, Bindings.xml
