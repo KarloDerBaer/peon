@@ -3,9 +3,11 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
-## 20.11.2026: Sicherer Knopf über fremden Symbolen (Profession 0.7.2)
+## 20.11.2026: Sicherer Knopf über fremden Symbolen (Profession 0.7.2 und 0.7.3)
 
 - **Nur hinsetzen, nicht anhängen** (Claude): Ein unsichtbarer sicherer Knopf über einem fremden Knopf (Taschenplatz, Symbol) wird nur an dieselbe Bildschirmstelle gesetzt (Position über `UIParent`), nie mit `SetAllPoints` oder `SetPoint` an den fremden Knopf gehängt. Angehängt tat der Klick bei Alt + Klick nichts. Er wirkt beim Loslassen (`useOnKeyDown = false`). Muster wie das Gifte-Symbol in Peon_ClassBuddy.
+- **Eigene, höhere Schicht** (Claude, im Spiel bestätigt): Der Knopf liegt in der Schicht DIALOG, nicht in der Schicht des fremden Knopfes. Fenster mit `SetToplevel` (Peon_Bags) heben sich sonst samt Plätzen über ihn.
+- **Nicht ständig neu setzen** (Claude, im Spiel bestätigt): Der Tooltip baut sich alle 0,2 Sekunden neu auf. Liegt der Knopf schon über demselben Platz, bleibt er unberührt, sonst verliert er bei jedem Neusetzen die Maus.
 
 ## 19.11.2026: Langfristig einfach zählen (Broker 0.124.0)
 

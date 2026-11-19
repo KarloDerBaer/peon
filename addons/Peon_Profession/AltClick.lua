@@ -27,6 +27,7 @@ A.DISENCHANT = 13262   -- Entzaubern
 A.PICKLOCK   = 1804    -- Schlossknacken
 
 local btn, owner
+A.STRATA = "DIALOG"   -- Schicht des Knopfes, ueber Taschen- und Handelsfenster (ab 0.7.3)
 A.current = nil        -- { kind, spell, bag, slot, trade, macro } auf das der Knopf gerade eingestellt ist
 
 local function Secret(v) return Peon.IsSecret and Peon.IsSecret(v) end
@@ -143,8 +144,9 @@ end
 ---------------------------------------------------------------------------
 -- Der Knopf ueber dem Taschenplatz oder dem Handelsfeld
 ---------------------------------------------------------------------------
-function A.Hide()
+function A.Hide(why)
     if not btn or InCombatLockdown() then return end
+    if A.current and why then mod:Dbg("AltClick: Knopf weg (" .. why .. ")") end
     btn:Hide()
     btn:ClearAllPoints()
     btn:SetAttribute("macrotext", nil)
@@ -169,6 +171,13 @@ local function Arm(target, kind, where)
     if not btn or InCombatLockdown() or not target then return false end
     local spell = A.SpellFor(kind)
     if not spell then return false end
+    -- Schon scharf ueber genau diesem Platz: nichts anfassen (ab 0.7.3). Der Tooltip baut sich alle 0,2 s neu auf.
+    -- Jedes Neusetzen loeste den Knopf kurz von seiner Stelle, er verlor die Maus und verschwand wieder.
+    local c = A.current
+    if c and owner == target and btn:IsShown() and c.kind == kind and c.bag == where.bag and c.slot == where.slot
+        and c.trade == where.trade then
+        return true
+    end
     local cur = { kind = kind, spell = spell, bag = where.bag, slot = where.slot, trade = where.trade }
     if where.trade then
         btn:SetAttribute("type", "spell")
@@ -181,8 +190,10 @@ local function Arm(target, kind, where)
         btn:SetAttribute("spell", nil)
     end
     if not A.Place(target) then return false end
-    if target.GetFrameStrata then btn:SetFrameStrata(target:GetFrameStrata()) end
-    if target.GetFrameLevel then btn:SetFrameLevel((Num(target:GetFrameLevel()) or 0) + 10) end
+    -- Eigene, hoehere Schicht (ab 0.7.3): Taschenfenster wie Peon_Bags sind SetToplevel und heben sich samt Plaetzen
+    -- ueber alles in ihrer Schicht. Ein Knopf in derselben Schicht landete darunter und bekam die Maus nie.
+    btn:SetFrameStrata(A.STRATA)
+    btn:SetFrameLevel(100)
     btn:Show()
     A.current = cur
     owner = target
@@ -191,7 +202,25 @@ local function Arm(target, kind, where)
     else
         mod:Dbg(("AltClick: %s auf Tasche %d Platz %d"):format(kind, where.bag, where.slot))
     end
+    if mod:IsDebug() and C_Timer and C_Timer.After then C_Timer.After(0.2, function() mod:Call("AltClick", A.DebugFocus) end) end
     return true
+end
+
+-- Nur fuer /peon debug profession (ab 0.7.3): Wo liegt der Knopf, was ist unter der Maus?
+local function FrameName(f)
+    if not f then return "nichts" end
+    local n = f.GetDebugName and f:GetDebugName() or (f.GetName and f:GetName())
+    return Str(n) or tostring(f)
+end
+
+function A.DebugFocus()
+    if not btn then return end
+    local foci = rawget(_G, "GetMouseFoci")
+    local top = type(foci) == "function" and foci() or nil
+    top = type(top) == "table" and top[1] or (rawget(_G, "GetMouseFocus") and GetMouseFocus())
+    mod:Dbg(("AltClick: Knopf sichtbar=%s Maus an=%s Maus drauf=%s Ebene=%s/%s, Platz %s/%s, unter der Maus: %s"):format(
+        tostring(btn:IsVisible()), tostring(btn:IsMouseEnabled()), tostring(btn:IsMouseOver()), tostring(btn:GetFrameStrata()), tostring(btn:GetFrameLevel()),
+        tostring(owner and owner:GetFrameStrata()), tostring(owner and owner:GetFrameLevel()), FrameName(top)))
 end
 
 -- Hinweis in den Tooltip schreiben und bei gedrueckter Alt-Taste scharf schalten
@@ -240,12 +269,12 @@ function A.PostClick()
             mod:Dbg("AltClick: Zauber wartet nicht auf ein Ziel")
         end
     end
-    A.Hide()
+    A.Hide("Klick")
 end
 
 local function OnModifier()
     if InCombatLockdown() then return end
-    if not IsAltKeyDown() then A.Hide() return end
+    if not IsAltKeyDown() then A.Hide("Alt losgelassen") return end
     -- Alt erst gedrueckt, als die Maus schon ueber dem Platz war: Tooltip neu aufbauen lassen
     local o = GameTooltip and GameTooltip:IsShown() and GameTooltip:GetOwner()
     if o and o ~= btn and o.IsMouseOver and o:IsMouseOver() then
@@ -259,16 +288,22 @@ function A.Init()
     btn = CreateFrame("Button", "PeonProfessionAltClick", UIParent, "SecureActionButtonTemplate")
     btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     btn:SetAttribute("useOnKeyDown", false)
+    btn:EnableMouse(true)
     btn:Hide()
     -- Der Knopf liegt ueber dem Platz, der Platz verliert die Maus und damit den Tooltip: wieder aufbauen
     btn:SetScript("OnEnter", function()
+        mod:Dbg("AltClick: Maus auf dem Knopf")
         local o = owner
         local fn = o and o.GetScript and o:GetScript("OnEnter")
         if fn then pcall(fn, o) end
     end)
     btn:SetScript("OnLeave", function()
         if GameTooltip then GameTooltip:Hide() end
-        A.Hide()
+        A.Hide("Maus weg")
+    end)
+    btn:SetScript("PreClick", function(_, button, down)
+        mod:Dbg(("AltClick: Klick %s %s, Makro %s"):format(tostring(button), down and "gedrueckt" or "losgelassen",
+            (tostring(btn:GetAttribute("macrotext") or btn:GetAttribute("spell")):gsub("\n", " | "))))
     end)
     btn:SetScript("PostClick", function() mod:Call("AltClick", A.PostClick) end)
     local ev = CreateFrame("Frame")
@@ -276,7 +311,7 @@ function A.Init()
     ev:RegisterEvent("PLAYER_REGEN_DISABLED")
     ev:RegisterEvent("TRADE_CLOSED")
     ev:SetScript("OnEvent", function(_, e)
-        if e == "MODIFIER_STATE_CHANGED" then mod:Call("AltClick", OnModifier) else A.Hide() end
+        if e == "MODIFIER_STATE_CHANGED" then mod:Call("AltClick", OnModifier) else A.Hide(e) end
     end)
     if GameTooltip and GameTooltip.SetBagItem then
         hooksecurefunc(GameTooltip, "SetBagItem", function(tt, bag, slot) mod:Call("AltClick", A.OnBagTooltip, tt, bag, slot) end)

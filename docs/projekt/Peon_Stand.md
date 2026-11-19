@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 19.11.2026. Peon 0.26.0 (API 26) / Broker 0.124.0 / Ledger 0.16.3 / Bridge 0.12.0 / Peon Manager 0.49.0 / Fishing 1.7.1 / Tooltip 0.7.5 / ClassBuddy 0.4.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.1 / Profession 0.7.2 / Warhorn 0.5.2.
+Stand: 20.11.2026. Peon 0.26.0 (API 26) / Broker 0.124.0 / Ledger 0.16.3 / Bridge 0.12.0 / Peon Manager 0.49.0 / Fishing 1.7.1 / Tooltip 0.7.5 / ClassBuddy 0.4.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.0 / Panel 0.4.1 / Profession 0.7.3 / Warhorn 0.5.2.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -131,7 +131,7 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Konzepte: `docs\konzepte\profession\Peon_Profession_Konzept.md`, `Peon_Profession_Codex.md`.
 - Dateien: siehe `Peon_Profession.toc`, dazu `Media\guide_arrow.tga` (aus `scripts\profession_media.js`). `Routes.lua` stammt aus `tools\plg_convert.lua` (MIT-Hinweis im Kopf) und wird von Hand gepflegt.
 - Reiter Guide, Route, Material, Verlauf, Codex. Kosten und Gewinn im Berufsfenster (`Craft.lua`, früher Broker), Leiste am Berufsfenster.
-- Alt + Klick in der Tasche (`AltClick.lua`, ab 0.7.0): Entzaubern (Waffen und Rüstung ab grün) und Schlossknacken (verschlossene Kassetten, Schurke, auch im Feld „Wird nicht gehandelt“ des Handelsfensters) über einen sicheren Knopf an der Stelle des Platzes (nicht daran gehängt, wirkt beim Loslassen, ab 0.7.2). Einstellung `altClick`.
+- Alt + Klick in der Tasche (`AltClick.lua`, ab 0.7.0): Entzaubern (Waffen und Rüstung ab grün) und Schlossknacken (verschlossene Kassetten, Schurke, auch im Feld „Wird nicht gehandelt“ des Handelsfensters) über einen sicheren Knopf an der Stelle des Platzes (nicht daran gehängt, Schicht DIALOG, wirkt beim Loslassen, ab 0.7.3). Debug-Zeilen zu Maus, Klick und Knopf mit `/peon debug profession`. Einstellung `altClick`.
 - SavedVariables: `PeonProfessionDB` (Konto): Einstellungen, Berufsfenster (`craft…`), Messungen `colors`, `ups`, Codex `nodes`, `recipes`, `teach`, `sold`, `npcs`. `PeonProfessionCharDB` (je Charakter): `sel`, `known`, `skills`, `target`, `friends` (Rezepte von Freunden und Gilde, höchstens 200, 30 Tage).
 - Braucht Peon API 18, für die Rezepte der Freunde API 24 (Dienst `recipes`). Nutzt Broker (Preise, Einkaufsliste), Ledger (Vorrat der Twinks), Fishing (`CatchZones`).
 - Befehle: `/prof`, `/prof optionen`, `/prof messungen`, `/prof pruefen`, `/prof vergessen`, `/prof stellen`, `/prof freunde`, `/peon profession`, `/peon debug profession`.

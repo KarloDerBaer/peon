@@ -2,19 +2,29 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.7.3
+
+Kurz: Alt + Klick in der Tasche entzaubert und knackt Schlösser jetzt wirklich, auch mit Peon_Bags. Vorher passierte beim Klick nichts.
+
+- 0.7.3 (20.11.2026, Meldung KarloDerBaer, im Spiel bestätigt): **Alt + Klick ohne Wirkung behoben.** Die Debug-Zeilen zeigten zwei Ursachen:
+  - Der Tooltip des Spiels baut sich alle 0,2 Sekunden neu auf. Jedes Mal setzte AltClick den Knopf neu und löste ihn dabei kurz von seiner Stelle. Er verlor die Maus und verschwand. Jetzt bleibt ein Knopf, der schon über demselben Platz liegt, unberührt.
+  - Das Taschenfenster von Peon_Bags ist `SetToplevel` und hebt sich samt Plätzen über alles in seiner Schicht. Der Knopf lag in derselben Schicht (MEDIUM) darunter und bekam die Maus nie. Jetzt liegt er in der Schicht DIALOG (`AltClick.STRATA`) und nimmt die Maus ausdrücklich an.
+  - Neue Debug-Zeilen (`/peon debug profession`): Maus auf dem Knopf, Klick mit Makro, warum der Knopf verschwindet, und kurz nach dem Setzen, was unter der Maus liegt.
+  - Tests: `test_profession.lua` (Knopf über demselben Platz bleibt beim Neuaufbau des Tooltips unberührt).
+
 ## 0.7.2
 
-Kurz: Alt + Klick in der Tasche entzaubert und knackt Schlösser jetzt auch mit Peon_Bags. Vorher passierte beim Klick nichts.
+Kurz: Vorarbeit für Alt + Klick in der Tasche, der Klick wirkte damit noch nicht.
 
-- 0.7.2 (20.11.2026, Meldung KarloDerBaer): **Alt + Klick weiter ohne Wirkung behoben.** Mit 0.7.1 wurde der Knopf gesetzt (Debug-Zeile da), der Klick tat aber nichts. Der unsichtbare sichere Knopf hing am Taschenplatz (`SetAllPoints`). Ein sicherer Knopf, der an einem normalen Knopf hängt, kann vom Spiel gesperrt werden. Jetzt wird er nur an dieselbe Stelle des Bildschirms gesetzt (`AltClick.Place`, Position über `UIParent`), wie das Gifte-Symbol in Peon_ClassBuddy.
+- 0.7.2 (20.11.2026, Meldung KarloDerBaer): **Alt + Klick, zweiter Versuch.** Mit 0.7.1 wurde der Knopf gesetzt (Debug-Zeile da), der Klick tat aber nichts. Die eigentliche Ursache fand erst 0.7.3. Der unsichtbare sichere Knopf hing am Taschenplatz (`SetAllPoints`). Ein sicherer Knopf, der an einem normalen Knopf hängt, kann vom Spiel gesperrt werden. Jetzt wird er nur an dieselbe Stelle des Bildschirms gesetzt (`AltClick.Place`, Position über `UIParent`), wie das Gifte-Symbol in Peon_ClassBuddy.
   - Der Knopf wirkt jetzt immer beim Loslassen der linken oder rechten Maustaste (`useOnKeyDown = false`), unabhängig von `ActionButtonUseKeyDown`. Die Unterscheidung aus 0.7.1 (`AltClick.Acts`) entfällt.
   - Tests: `test_profession.lua` (Knopf an der Stelle des Platzes, an `UIParent` statt am Platz).
 
 ## 0.7.1
 
-Kurz: Alt + Klick in der Tasche entzaubert und knackt Schlösser jetzt wirklich. Vorher passierte beim Klick nichts.
+Kurz: Vorarbeit für Alt + Klick in der Tasche, der Klick wirkte damit noch nicht.
 
-- 0.7.1 (19.11.2026, Meldung KarloDerBaer): **Alt + Klick ohne Wirkung behoben.** Der unsichtbare Knopf war nur für das Loslassen der Maustaste angemeldet. Das Spiel führt Zauber über solche Knöpfe aber standardmäßig schon beim Drücken aus (Einstellung `ActionButtonUseKeyDown`). Der Knopf ist jetzt für beides angemeldet wie die Knöpfe in Broker, Fishing und ClassBuddy. Nach dem Klick verschwindet er erst nach dem Teil, der den Zauber wirkt (`AltClick.Acts`), sonst wäre er beim Loslassen schon weg.
+- 0.7.1 (19.11.2026, Meldung KarloDerBaer): **Alt + Klick, erster Versuch.** Der unsichtbare Knopf war nur für das Loslassen der Maustaste angemeldet. Das Spiel führt Zauber über solche Knöpfe aber standardmäßig schon beim Drücken aus (Einstellung `ActionButtonUseKeyDown`). Der Knopf ist jetzt für beides angemeldet wie die Knöpfe in Broker, Fishing und ClassBuddy. Nach dem Klick verschwindet er erst nach dem Teil, der den Zauber wirkt (`AltClick.Acts`), sonst wäre er beim Loslassen schon weg.
   - Tests: `test_profession.lua` (Drücken oder Loslassen je nach Einstellung).
 
 ## 0.7.0

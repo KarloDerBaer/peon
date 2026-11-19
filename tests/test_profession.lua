@@ -1005,6 +1005,13 @@ end)()
   local pt = kb.points[1]
   check(#kb.points == 1 and pt[1] == "BOTTOMLEFT" and pt[2] == UIParent and pt[4] == 150 and pt[5] == 100 and kb.w == 18.5,
       "0.7.2: Knopf sitzt an der Stelle des Platzes, haengt aber an UIParent statt am Platz")
+  local cleared = 0
+  local keepClear = kb.ClearAllPoints
+  kb.ClearAllPoints = function(s) cleared = cleared + 1; keepClear(s) end
+  A.OnBagTooltip(tt, 0, 4)
+  check(cleared == 0 and A.current and A.current.slot == 4 and #kb.points == 1,
+      "0.7.3: Tooltip baut sich neu auf, der Knopf ueber demselben Platz bleibt unberuehrt")
+  kb.ClearAllPoints = nil
   A.Hide()
   check(A.current == nil, "0.7.0: Knopf wieder weg")
   A.OnBagTooltip(tt, -1, 4)
