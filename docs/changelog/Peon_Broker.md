@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.122.0
+
+Kurz: Neue langfristige Kennzahl im Schnellkauf: Broker zählt über Tage, wie oft bei einer Ware ein Angebot deutlich unter den günstigsten Preis fällt (Einbrüche je Stunde). Zu sehen im Fokus, in den Chancen und in Beobachten.
+
+- 0.122.0 (19.11.2026, Wunsch KarloDerBaer, Abstimmung im Konzept `docs/konzepte/broker/Peon_Broker_Chancen_Schnellkauf.md` Abschnitt 7):
+  - **Neu, Gelegenheiten langfristig** (`QuickStats.lua`): Einbruch heißt neues fremdes Angebot mit mindestens 2 Stück, mindestens `quickDipPct` Prozent (Vorgabe 5) unter dem bisher günstigsten. Höchstens einer je Abfrage, unabhängig von Kaufen bis. Dazu fremde Lockangebote (Regel wie im Fokus) und Lockangebote mit Nachahmern (nur im Fokus erkennbar). Gezählt wird bei jeder Beobachtung einer Massenware, im Fokus (`Quick.OnSample`) und in den Prüfungen der Chancen und von Beobachten (`QuickChances.OnAnswer`). Die beobachtete Zeit zählt je Abstand höchstens 10 Sekunden.
+  - **Speicher** `PeonBrokerDB.quickStats[Markt][Schlüssel][Tag]` mit Zeit, Einbrüchen, Lockangeboten und Nachahmern. Gezählt über `quickStatDays` Tage (Vorgabe 14), ältere Tage mit weniger Gewicht. Unter 30 Minuten Beobachtung ist der Wert vorläufig (grau).
+  - **Anzeige:** Im Fokus neue Zeile „Langfristig“ im Verlauf (Einbrüche und Lockangebote je Std., beobachtete Zeit, Einzelheiten im Tooltip), die Zeilen rücken dafür etwas enger. In den Chancen im Unterreiter Schnellkauf Spalte „Einbr./Std.“. Bei gleicher Bewegung stehen Vorschläge mit mehr Einbrüchen weiter oben. In Beobachten im Unterreiter Schnellkauf ersetzt die Spalte „Einbr./Std.“ die Spalte Gekauft, gekaufte Stück stehen im Tooltip. Beide Tooltips zeigen die langfristigen Werte.
+  - **Einstellungen** im Fenster Einstellungen des Fokus unter „Gelegenheiten (langfristig)“: Einbruch ab (Prozent) und Zeitraum (Tage).
+  - Tests: Einbruch, Lockangebot ist kein Einbruch, Zeit mit Obergrenze, Gewichtung und Aufräumen alter Tage, nur Massenware, Anzeige (`test_broker.lua`). Ältere Tests auf die neuen Spalten angepasst.
+
 ## 0.121.0
 
 Kurz: Im Schnellkauf setzt der neue Knopf „Auto“ neben Kaufen bis den Preis auf die Mitte zwischen dem letzten fremden Lockangebot und dem nächsten regulären Angebot. So reagierst du schnell, wenn die Lockangebote zu einem neuen Preis wandern.

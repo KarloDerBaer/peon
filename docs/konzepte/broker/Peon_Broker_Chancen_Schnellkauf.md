@@ -93,6 +93,17 @@ Preisalarm und Zahl am Reiter bleiben beim zuletzt gespeicherten Modus.
 - **Marktbewegung nur in der Kaufzone:** Einstellungen und Käufe zählen bis 5 % über dem günstigsten Angebot (`quickZonePct`), Preissprünge ab 2 % (`quickJumpPct`). Zufluss und Abfluss bleiben für den ganzen Markt.
 - **Listen der Chancen ohne Spalte Art**, die Art steht im Tooltip. Fehler behoben: Im Unterreiter Aufkauf standen nach Antworten des Radars auch Spekulationen.
 
+## 7. Gelegenheiten langfristig (0.122.0, KarloDerBaer 19.11.2026)
+
+Gelegenheiten fallen in den kurzen Prüfungen nur zufällig auf und taugen nicht für die Bewertung der Bewegung. Über längere Zeit zeigen sie aber, bei welchen Waren es immer wieder günstige Angebote gibt. Dort setzen andere auch häufiger Lockangebote.
+
+- **Einbruch:** neues fremdes Angebot mit mindestens 2 Stück, mindestens 5 % (`quickDipPct`) unter dem bisher günstigsten. Höchstens einer je Abfrage, unabhängig von Kaufen bis.
+- **Dazu:** fremde Lockangebote und Lockangebote mit Nachahmern (nur im Fokus).
+- **Quelle:** jede Beobachtung einer Massenware, im Fokus und in den Prüfungen. Zeit je Abstand höchstens 10 Sek.
+- **Speicher:** je Markt, Gegenstand und Tag (`quickStats`), über 14 Tage (`quickStatDays`), ältere Tage mit weniger Gewicht.
+- **Kennzahl:** Einbrüche je Stunde beobachteter Zeit, unter 30 Min. vorläufig (grau).
+- **Anzeige:** Fokus Zeile „Langfristig“, Chancen und Beobachten Spalte „Einbr./Std.“ (in Beobachten statt Gekauft), Tooltips. In den Chancen stehen bei gleicher Bewegung die mit mehr Einbrüchen oben.
+
 ## 5. Spätere Ideen (nicht umgesetzt, nur nach Zustimmung)
 
 1. Vorschläge, die schon beobachtet werden, mit einem Zeichen markieren.

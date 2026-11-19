@@ -3575,7 +3575,7 @@ end)()
   local S, M = ns.Settings, ns.Measure
   S.Toggle("focus")
   local f = S.frames.focus
-  check(f and f:IsShown() and #f.controls == 25, "0.70: Fenster Einstellungen des Fokus mit 7 Reglern (ab 0.120 zwei Vorgaben fuer den Schnellkauf, Kaufzone und Preissprung, ab 0.91 Haken Wiedereinstellen, ab 0.104 drei fuer den Schnellkauf, ab 0.108 vier fuer die Marktbewegung, ab 0.109 Grenze fuer Lockangebote, ab 0.115 ohne Kaufprotokoll, ab 0.111 Ton fuer Lockangebote, ab 0.113 automatisch speichern, ab 0.114 Pause der Abfragen)")
+  check(f and f:IsShown() and #f.controls == 27, "0.70: Fenster Einstellungen des Fokus mit 7 Reglern (ab 0.122 Gelegenheiten, ab 0.120 zwei Vorgaben fuer den Schnellkauf, Kaufzone und Preissprung, ab 0.91 Haken Wiedereinstellen, ab 0.104 drei fuer den Schnellkauf, ab 0.108 vier fuer die Marktbewegung, ab 0.109 Grenze fuer Lockangebote, ab 0.115 ohne Kaufprotokoll, ab 0.111 Ton fuer Lockangebote, ab 0.113 automatisch speichern, ab 0.114 Pause der Abfragen)")
   local rate
   for _, c in ipairs(f.controls) do if c.row[2] == "focusRate" then rate = c end end
   check(rate and plain(rate.value.text) == "12 (alle 5 Sek.)", "0.70: Abfragen pro Minute mit Abstand: " .. tostring(rate and plain(rate.value.text)))
@@ -4806,7 +4806,7 @@ end)()
     local function cols(tab) local t = {} for _, c in ipairs(WP.lists[tab].o.columns) do t[#t + 1] = plain(c.title) end return table.concat(t, ",") end
     check(not cols("buyout"):find("Art", 1, true) and not cols("buyout"):find("Stand", 1, true) and cols("buyout"):find("Zielpreis", 1, true),
       "0.119: Liste Aufkauf ohne Spalte Art: " .. cols("buyout"))
-    check(cols("quick"):find("Bewegung", 1, true) and cols("quick"):find("Darunter", 1, true) and cols("quick"):find("Gekauft", 1, true)
+    check(cols("quick"):find("Bewegung", 1, true) and cols("quick"):find("Darunter", 1, true) and cols("quick"):find("Einbr./Std.", 1, true)
       and not cols("quick"):find("Zielpreis", 1, true), "0.119: Liste Schnellkauf mit eigenen Spalten: " .. cols("quick"))
   end
   check(Wt.SKIP.qlim and Wt.SKIP.qgold and Wt.SKIP.qavg and Wt.SKIP.mode, "0.106: Werte des Schnellkaufs bleiben im Spiel (kein Abgleich mit dem Manager)")
@@ -5403,7 +5403,7 @@ end)()
   if C.qlist then
     local t = {}
     for _, c in ipairs(C.qlist.o.columns) do t[#t + 1] = plain(c.title) end
-    check(table.concat(t, ",") == "Gegenstand,Günstigster,Menge,Zu / Ab je Min.,Bewegung,Lockangebote,Zustand" and C.tabs and #C.tabs == 3,
+    check(table.concat(t, ",") == "Gegenstand,Günstigster,Menge,Zu / Ab je Min.,Bewegung,Einbr./Std.,Lockangebote,Zustand" and C.tabs and #C.tabs == 3,
       "0.119: drei Unterreiter, Liste Schnellkauf mit eigenen Spalten: " .. table.concat(t, ","))
   end
   -- Menue
@@ -5565,6 +5565,57 @@ check(ns.L.NOTICE_QUICK_TITLE == "Der Button ist heiß" and type(ns.L.NOTICE_QUI
   local v = { n = 5, elapsed = 600, newPerMin = 40, soldPerMin = 30, jumpsPerMin = 1, zNewPerMin = 1, zSoldPerMin = 1 }
   local code, ev = ns.Quick.Movement(v)
   check(code == "mid" and ev == 3, "0.120: Bewertung aus der Kaufzone: viel Bewegung oben macht nicht lebhaft (" .. tostring(code) .. ")")
+end)()
+
+-- ===== 0.122: Gelegenheiten langfristig (QuickStats.lua) =====
+;(function()
+  local QS, M = ns.QuickStats, ns.Measure
+  local function lv(list)
+    local rows = { offers = {}, commodity = true }
+    for i, x in ipairs(list) do
+      rows.offers[#rows.offers + 1] = { id = i, q = x[2], p = x[1] }
+      rows[#rows + 1] = { price = x[1], qty = x[2], own = 0 }
+    end
+    return rows
+  end
+  local key = 7999
+  mod.acc.commodity[key] = true
+  mod.acc.quickStats = nil
+  check(QS.Get(key) == nil and plain(QS.Cell(key)) == "-", "0.122: ohne Beobachtung nichts")
+  local a = M.Sample(lv({ { 500, 50 }, { 520, 100 } }), 100, nil)
+  local b = M.Sample(lv({ { 470, 5 }, { 500, 50 }, { 520, 100 } }), 101, nil)
+  local c = M.Sample(lv({ { 440, 1 }, { 470, 5 }, { 500, 50 } }), 130, nil)
+  local d = M.Sample(lv({ { 490, 3 }, { 500, 50 } }), 131, nil)
+  check(QS.Dip(a, b) and QS.Dip(a, b).price == 470, "0.122: neues Angebot ab 2 Stueck mindestens 5 % unter dem guenstigsten ist ein Einbruch")
+  check(QS.Dip(b, c) == nil, "0.122: einzelnes Stueck ist kein Einbruch (Lockangebot)")
+  check(QS.Dip(a, d) == nil, "0.122: nur 2 % darunter ist kein Einbruch")
+  QS.OnPair(key, a, b)
+  QS.OnPair(key, b, c)   -- Abstand 29 Sek. zaehlt nur 10
+  QS.OnFollow(key)
+  local v = QS.Get(key)
+  check(v and v.secs == 11 and v.dips == 1 and v.baits == 1 and v.follows == 1 and not v.sure,
+    "0.122: Zeit mit Obergrenze je Abstand, Einbruch, Lockangebot, Nachahmer gezaehlt: " .. tostring(v and v.secs) .. "/" .. tostring(v and v.dips) .. "/" .. tostring(v and v.baits) .. "/" .. tostring(v and v.follows))
+  check(plain(QS.Cell(key)) ~= "-" and QS.Cell(key):find("|cff999999", 1, true) and QS.Score(key) == 0, "0.122: vorlaeufig grau, zaehlt nicht fuer die Sortierung")
+  -- Gewichtung: heute voll, vor 7 von 14 Tagen halb, aelter faellt weg
+  local st = QS.Store(true)
+  local today = QS.Today()
+  st[key] = { [today] = { s = 1800, d = 2, b = 0, f = 0 }, [today - 7] = { s = 3600, d = 8, b = 2, f = 0 }, [today - 20] = { s = 9999, d = 99, b = 0, f = 0 } }
+  v = QS.Get(key)
+  check(v and v.secs == 3600 and v.dips == 6 and v.sure and math.abs(v.perHour - 6) < 0.001 and QS.Score(key) == 6,
+    "0.122: aeltere Tage zaehlen weniger, ueber 14 Tage gar nicht: " .. tostring(v and v.dips))
+  check(plain(QS.Cell(key)) == "6" and plain((QS.FocusText(key))):find("6 Einbrüche", 1, true), "0.122: Spalte und Zeile im Fokus: " .. plain((QS.FocusText(key))))
+  st[key][today] = nil
+  QS.Add(key, "d", 1)
+  check(st[key][today - 20] == nil and st[key][today - 7] and st[key][today].d == 1, "0.122: neuer Tag raeumt Tage ueber dem Zeitraum weg")
+  mod.db.quickDipPct = 2
+  check(QS.Dip(a, d) ~= nil, "0.122: Grenze fuer Einbruch einstellbar")
+  mod.db.quickDipPct = nil
+  -- Massenware nur
+  mod.acc.commodity[key] = false
+  local before = QS.Get(key).secs
+  QS.OnPair(key, a, b)
+  check(QS.Get(key).secs == before, "0.122: Einzelgegenstaende zaehlen nicht")
+  mod.acc.commodity[key], mod.acc.quickStats = nil, nil
 end)()
 
 print("ALLE TESTS OK")

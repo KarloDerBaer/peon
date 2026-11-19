@@ -542,16 +542,20 @@ function C.Build(c)
               end },
             { key = "min", title = L.QC_COL_MIN, width = 90, align = "RIGHT", format = function(v) return v and Money(v) or "" end },
             { key = "qty", title = L.QC_COL_QTY, width = 66, align = "RIGHT", format = function(v) return v and tostring(v) or "" end },
-            { key = "flow", title = L.QC_COL_FLOW, width = 100, align = "RIGHT",
+            { key = "flow", title = L.QC_COL_FLOW, width = 92, align = "RIGHT",
               format = function(_, r)
                   if not r.v then return GREY .. "-|r" end
                   return QC.Rate(r.v.inPerMin) .. " / " .. QC.Rate(r.v.outPerMin)
               end,
               sort = function(r) return r.v and (r.v.inPerMin + r.v.outPerMin) or -1 end },
-            { key = "move", title = L.QC_COL_MOVE, width = 104, align = "RIGHT",
+            { key = "move", title = L.QC_COL_MOVE, width = 90, align = "RIGHT",
               format = function(_, r) return QC.MoveText(r.v) end,
-              sort = function(r) return r.rank * 1e6 - (r.ev or 0) end },
-            { key = "baits", title = L.QC_COL_BAITS, width = 84, align = "RIGHT",
+              -- ab 0.122: bei gleicher Bewegung mehr Einbrueche je Std. weiter oben
+              sort = function(r) return r.rank * 1e6 - (r.dips or 0) * 1e3 - (r.ev or 0) end },
+            -- ab 0.122: Gelegenheiten langfristig (QuickStats.lua)
+            { key = "dips", title = L.QS_COL, width = 74, align = "RIGHT",
+              format = function(_, r) return ns.QuickStats.Cell(r.key) end },
+            { key = "baits", title = L.QC_COL_BAITS, width = 80, align = "RIGHT",
               format = function(v) return (v and v > 0) and (GOLD .. tostring(v) .. "|r") or "" end },
             { key = "state", title = L.CH_COL_STATE, width = 110, align = "RIGHT",
               format = function(_, r) return QC.StateText(r.key) end,

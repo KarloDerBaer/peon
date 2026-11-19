@@ -332,6 +332,7 @@ function QC.OnAnswer(key, rows, t)
     local s = M.Sample(rows, t or Now(), nil)
     if not s then return end
     if r.prev and s.t > r.prev.t then
+        if ns.QuickStats then ns.QuickStats.OnPair(key, r.prev, s) end   -- ab 0.122: Gelegenheiten langfristig
         local pr = M.Pair(r.prev, s, nil)
         r.secs = r.secs + (pr.gap or 0)
         r.nNew, r.nSold = r.nNew + (pr.zNew or 0), r.nSold + (pr.zSold or 0)   -- ab 0.120 nur in der Kaufzone
@@ -450,6 +451,7 @@ function QC.TipLines(GT, key)
         GT:AddLine(L.QC_TIP_BASE:format(v.events, v.probes, v.queries, QC.Rate(v.secs)), 0.7, 0.7, 0.7, true)
         if v.baits > 0 then GT:AddLine(L.QC_TIP_BAITS:format(v.baits), 1, 0.82, 0, true) end
     end
+    if ns.QuickStats then ns.QuickStats.TipLines(GT, key) end   -- ab 0.122
     local db = mod.db
     GT:AddLine(L.QUICK_MV_TIP_RULE:format(tonumber(db.quickMoveIn) or 2, tonumber(db.quickMoveAll) or 5, tonumber(db.quickMoveLow) or 1), 0.6, 0.6, 0.6, true)
 end
@@ -468,6 +470,7 @@ function QC.Rows()
         local r = { key = key, order = i, quality = type(e) == "table" and e.ql or nil, icon = ns.Buy.Icon(key),
                     min = res and res.min or c.min, qty = res and res.qty or c.qty, v = v, class = v and v.class or nil,
                     rank = QC.Rank(v), ev = v and v.ev or 0, baits = v and v.baits or nil,
+                    dips = ns.QuickStats and ns.QuickStats.Score(key) or 0,   -- ab 0.122: Einbrueche je Std.
                     running = QC.run ~= nil and QC.run.key == key, watched = Wt and Wt.InQuick(key) or false }
         r.name = (type(e) == "table" and e.nm) or D.ItemName(key, e)
         if not r.name then r.name, r.noName = tostring(key), true; if R then R.RequestName(D.ItemID(key)) end end

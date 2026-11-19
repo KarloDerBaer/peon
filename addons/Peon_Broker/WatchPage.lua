@@ -214,6 +214,7 @@ function P.QuickRow(key, w)
     local s = ns.Quick and ns.Quick.sessions[key]
     r.bought = s and s.bought > 0 and s.bought or nil
     r.cost = s and s.cost or nil
+    r.dips = ns.QuickStats and ns.QuickStats.Score(key) or 0   -- ab 0.122
     return r
 end
 
@@ -273,8 +274,9 @@ function P.Build(c)
             { key = "move", title = L.QC_COL_MOVE, width = 100, align = "RIGHT",
               format = function(_, r) return ns.QuickChances.MoveText(r.v) end,
               sort = function(r) return (r.rank or 2) * 1e6 - (r.ev or 0) end },
-            { key = "bought", title = L.WATCH_COL_BOUGHT, width = 70, align = "RIGHT",
-              format = function(v) return Num(v) and tostring(v) or (GREY .. "-|r") end },
+            -- ab 0.122: Einbrueche je Std. statt Gekauft (das steht im Tooltip)
+            { key = "dips", title = L.QS_COL, width = 74, align = "RIGHT",
+              format = function(_, r) return ns.QuickStats.Cell(r.key) end },
             { key = "advice", title = L.WATCH_COL_ADVICE, width = 80, align = "RIGHT", format = adviceCol.format, sort = adviceCol.sort },
         },
     }
@@ -388,6 +390,7 @@ function P.QuickTooltip(row, r)
     GT:AddLine(r.name or tostring(r.key), 1, 1, 1)
     GT:AddLine(L.FOCUS_MODE_QUICK, 1, 0.82, 0)
     if ns.QuickChances then ns.QuickChances.TipLines(GT, r.key) end
+    if Num(r.bought) then GT:AddLine(L.WATCH_TIP_BOUGHT:format(r.bought), 0.85, 0.85, 0.85) end   -- ab 0.122 statt Spalte
     if Num(w.qgold) and w.qgold > 0 then GT:AddLine(L.WATCH_TIP_QGOLD:format(Money(w.qgold)), 0.85, 0.85, 0.85) end
     if w.qskip then GT:AddLine(L.QUICK_SKIP, 0.85, 0.85, 0.85) end
     if w.qavg then GT:AddLine(L.WATCH_TIP_QAVG, 0.85, 0.85, 0.85) end

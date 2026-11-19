@@ -825,7 +825,8 @@ end
 
 F.TIER_H = 152     -- Hoehe der Preisstufen (Kopf und 6 Zeilen)
 F.MEASURE_ROWS = { "MEASURE_OUT", "MEASURE_IN", "MEASURE_UNDER", "MEASURE_MIN" }
-F.QUICK_ROWS = { "QUICK_MV_IN", "QUICK_MV_OUT", "QUICK_MV_MOVE", "QUICK_MV_BAITS_L", "QUICK_MV_LAST", "QUICK_MV_BOUGHT_L" }   -- ab 0.108: Marktbewegung, ab 0.109 fuenf Zeilen
+F.QUICK_ROWS = { "QUICK_MV_IN", "QUICK_MV_OUT", "QUICK_MV_MOVE", "QUICK_MV_BAITS_L", "QUICK_MV_LAST", "QUICK_MV_BOUGHT_L", "QS_LABEL" }   -- ab 0.108: Marktbewegung, ab 0.109 fuenf Zeilen, ab 0.122 Langfristig
+F.ROW_H = 15       -- ab 0.122: sieben Zeilen (vorher 17)
 
 local function AxisMoney(v)
     if not Num(v) then return "" end
@@ -848,7 +849,7 @@ function F.BuildMeasure(c, above)
         local label = UI.Text(mp, "label", L[F.MEASURE_ROWS[i]] or "")
         label:SetWidth(130)
         label:SetJustifyH("RIGHT")
-        label:SetPoint("TOPLEFT", 4, -28 - (i - 1) * 17)
+        label:SetPoint("TOPLEFT", 4, -26 - (i - 1) * F.ROW_H)
         local value = UI.Text(mp, "text", "")
         value:SetPoint("TOPLEFT", label, "TOPRIGHT", 10, 0)
         local r = { label = label, value = value }
@@ -1106,7 +1107,7 @@ function F.UpdateQuickMove(v)
     if not F.mRows then return end
     local Q, M = ns.Quick, ns.Measure
     local db = mod.db
-    local vals, tips = { "", "", "", "", "", "" }, {}
+    local vals, tips = { "", "", "", "", "", "", "" }, {}
     local win = math.floor(M.WINDOW / 60 + 0.5)
     -- ab 0.110 kurz, Einzelheiten im Tooltip (Wunsch KarloDerBaer: nicht ueber den Rand)
     local function R(x) x = x or 0; if x >= 10 then return tostring(math.floor(x + 0.5)) end return Dec(x) end
@@ -1142,6 +1143,7 @@ function F.UpdateQuickMove(v)
                     ns.Radar.ShortAge(math.max(0, math.floor(Now() - f.t)))), L.QUICK_MV_TIP_LAST2:format(f.added, f.times, f.sec) }
     end
     if F.key ~= nil then vals[6], tips[6] = Q.BoughtText(F.key) end   -- ab 0.111
+    if F.key ~= nil and ns.QuickStats then vals[7], tips[7] = ns.QuickStats.FocusText(F.key) end   -- ab 0.122
     for i, r in ipairs(F.mRows) do r.value:SetText(vals[i]); r.tip = tips[i] end
 end
 

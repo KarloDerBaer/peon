@@ -76,6 +76,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
         quickMoveLow = 1,       -- ruhig unter so vielen Ereignissen je Minute
         quickZonePct = 5,       -- ab 0.120: Einstellungen und Kaeufe zaehlen nur bis so viel % ueber dem guenstigsten (Kaufzone)
         quickJumpPct = 2,       -- ab 0.120: Preissprung erst ab so viel % Aenderung des guenstigsten Preises
+        quickDipPct  = 5,       -- ab 0.122: Einbruch = neues Angebot so viel % unter dem bisher guenstigsten (QuickStats.lua)
+        quickStatDays = 14,     -- ab 0.122: Gelegenheiten ueber so viele Tage
         quickFollowSec = 30,
         quickBaitMinPct = 5,
         autoSaveBuyout = true,  -- ab 0.113: Werte des Aufkaufs beim Verlassen automatisch speichern (nur beobachtete)
@@ -134,7 +136,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  salesWindow = { 1, 24, 1 }, salesMidMin = { 10, 600, 10 }, salesSureMin = { 20, 1440, 10 },
                  salesCancelPct = { 0, 50, 5 },
                  qcCount = { 3, 30, 1 }, qcMinPrice = { 0, 1000000, 1 }, qcProbes = { 3, 20, 1 },   -- ab 0.119
-                 qcWaitMax = { 1, 60, 1 }, quickZonePct = { 1, 50, 1 }, quickJumpPct = { 0, 20, 1 }, quickLimitPct = { 10, 100, 5 }, quickGoldDefault = { 0, 100000000, 1 } },   -- ab 0.120
+                 qcWaitMax = { 1, 60, 1 }, quickZonePct = { 1, 50, 1 }, quickJumpPct = { 0, 20, 1 }, quickDipPct = { 1, 30, 1 }, quickStatDays = { 1, 60, 1 }, quickLimitPct = { 10, 100, 5 }, quickGoldDefault = { 0, 100000000, 1 } },   -- ab 0.120
     choices  = { undercutMode = { copper = true, percent = true }, undercutMassMode = { copper = true, percent = true },
                  duration = { [2] = true, [8] = true, [24] = true },
                  radarKind = { both = true, vendor = true, market = true },

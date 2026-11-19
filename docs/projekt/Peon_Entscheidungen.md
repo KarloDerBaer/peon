@@ -3,6 +3,12 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 19.11.2026: Gelegenheiten langfristig (Broker 0.122.0)
+
+- **Einbruch statt Gelegenheit unter Kaufen bis** (Vorschlag Claude, KarloDerBaer einverstanden): Ein Einbruch (neues Angebot ab 2 Stück mindestens 5 % unter dem günstigsten) hängt nicht an Kaufen bis. So bleiben die Zahlen vergleichbar, auch wenn Kaufen bis sich ändert. Die Gelegenheiten unter Kaufen bis zählt der Fokus weiter für die Sitzung.
+- **Aus allen Beobachtungen, über 14 Tage gewichtet** (Vorschlag Claude, KarloDerBaer einverstanden): Fokus und Prüfungen zählen zusammen, je Stunde beobachteter Zeit. Unter 30 Minuten vorläufig.
+- **Spalte in Chancen und Beobachten** (KarloDerBaer): In Beobachten ersetzt sie Gekauft, das in den Tooltip wandert.
+
 ## 19.11.2026: Knopf Auto für Kaufen bis im Schnellkauf (Broker 0.121.0)
 
 - **Auto setzt Kaufen bis zwischen Lockangebot und regulären Preis** (KarloDerBaer): Im Kaufprotokoll scheiterten die meisten Käufe, solange Kaufen bis genau auf dem Lockpreis lag. Etwas darüber gelang die Mehrheit. Die Mitte als Wert (Vorschlag Claude) entspricht dem, was KarloDerBaer von Hand eingestellt hatte.

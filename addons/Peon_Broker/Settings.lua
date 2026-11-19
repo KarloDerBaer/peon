@@ -74,6 +74,9 @@ S.SPECS.focus = {
     { "head", "SET_QUICK_DEFAULTS" },   -- ab 0.120: Vorgaben ohne eigene Werte
     { "slider", "quickLimitPct", "SET_QUICK_LIMIT_PCT", 10, 100, 5, function(v) return L.SET_PCT_FMT:format(v) end },
     { "money", "quickGoldDefault", "SET_QUICK_GOLD_DEF", 1 },
+    { "head", "SET_QS_HEAD" },   -- ab 0.122: Gelegenheiten langfristig
+    { "slider", "quickDipPct", "SET_QS_DIP", 1, 30, 1, function(v) return L.SET_PCT_FMT:format(v) end },
+    { "slider", "quickStatDays", "SET_QS_DAYS", 1, 60, 1, function(v) return L.SET_DAYS_FMT:format(v) end },
     { "col" },
     { "head", "SET_FOCUS_VERDICT" },
     { "slider", "focusWindow", "SET_FOCUS_WINDOW", 2, 30, 1, function(v) return L.SET_MIN_FMT:format(v) end },

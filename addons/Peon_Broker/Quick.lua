@@ -669,10 +669,15 @@ function Q.OnSample(key, prev, s)
         if s.t > b.t and s.t <= b.t + sec then
             local q = QtyAt(s, b.price)
             local inc = q - (b.lastQ or 0)
-            if inc >= 2 then b.added, b.times = b.added + inc, b.times + 1 end
+            if inc >= 2 then
+                b.added, b.times = b.added + inc, b.times + 1
+                if b.times == 1 and not b.own and ns.QuickStats then ns.QuickStats.OnFollow(key) end   -- ab 0.122
+            end
             b.lastQ = q
         end
     end
+    -- ab 0.122: Gelegenheiten langfristig (QuickStats.lua), unabhaengig von Kaufen bis
+    if prev and ns.QuickStats then ns.QuickStats.OnPair(key, prev, s) end
     -- ab 0.110: nur unter Kaufen bis (was man ohnehin nicht kaufen wuerde, zaehlt nicht). Ohne Kaufen bis alle.
     local F = ns.Focus
     local limit = F and F.key == key and F.ManualLimit and F.ManualLimit(key) or nil
