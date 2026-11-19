@@ -989,6 +989,11 @@ end)()
   IsAltKeyDown = function() return alt end
   local tip = {}
   local slotBtn = CreateFrame("Button")
+  slotBtn.GetLeft = function() return 300 end
+  slotBtn.GetBottom = function() return 200 end
+  slotBtn.GetWidth = function() return 37 end
+  slotBtn.GetHeight = function() return 37 end
+  slotBtn.GetEffectiveScale = function() return 0.5 end
   local tt = setmetatable({ AddLine = function(_, t) tip[#tip + 1] = t end, GetOwner = function() return slotBtn end,
     NumLines = function() return 0 end, GetName = function() return "PeonTestTip" end }, { __index = function() return function() end end })
   A.OnBagTooltip(tt, 0, 4)
@@ -996,6 +1001,10 @@ end)()
   alt = true
   A.OnBagTooltip(tt, 0, 4)
   check(A.current and A.current.kind == "disenchant" and A.current.macro == "/cast Zauber 13262\n/use 0 4", "0.7.0: mit Alt liegt der Knopf ueber dem Platz")
+  local kb = A.Button()
+  local pt = kb.points[1]
+  check(#kb.points == 1 and pt[1] == "BOTTOMLEFT" and pt[2] == UIParent and pt[4] == 150 and pt[5] == 100 and kb.w == 18.5,
+      "0.7.2: Knopf sitzt an der Stelle des Platzes, haengt aber an UIParent statt am Platz")
   A.Hide()
   check(A.current == nil, "0.7.0: Knopf wieder weg")
   A.OnBagTooltip(tt, -1, 4)
@@ -1022,17 +1031,8 @@ end)()
   local clicked
   SpellIsTargeting = function() return true end
   ClickTargetTradeButton = function(i) clicked = i end
-  -- 0.7.1: Druecken oder Loslassen, je nach ActionButtonUseKeyDown
-  local keepCV, keyDown = GetCVarBool, true
-  GetCVarBool = function(n) if n == "ActionButtonUseKeyDown" then return keyDown end end
-  check(A.Acts(true) and not A.Acts(false), "0.7.1: Aktion beim Druecken, wenn das Spiel es so eingestellt hat")
-  keyDown = false
-  check(A.Acts(false) and not A.Acts(true), "0.7.1: Aktion beim Loslassen, wenn das Spiel es so eingestellt hat")
-  A.PostClick(true)
-  check(clicked == nil and A.current and A.current.trade == 7, "0.7.1: Druecken ohne Aktion laesst den Knopf stehen")
-  A.PostClick(false)
+  A.PostClick()
   check(clicked == 7 and A.current == nil, "0.7.0: Handel, nach dem Klick wird das Feld als Ziel gewaehlt")
-  GetCVarBool = keepCV
   tradeLines = { "Eiserne Kassette" }
   A.OnTradeTooltip(tt, 7)
   check(A.current == nil, "0.7.0: Handel, offene Kassette nicht")

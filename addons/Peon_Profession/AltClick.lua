@@ -7,6 +7,9 @@
 -- (SetTradeTargetItem), prueft AltClick, ob es fuer den Gegenstand eine Aktion gibt. Dann steht im Tooltip ein
 -- Hinweis. Ist Alt gedrueckt und kein Kampf, legt sich ein unsichtbarer sicherer Knopf genau ueber den Platz. Der
 -- Klick geht auf diesen Knopf, das Spiel erlaubt den Zauber.
+-- Der Knopf wird nur an dieselbe Stelle gesetzt, nie an den Platz gehaengt (ab 0.7.2): Ein sicherer Knopf, der an
+-- einem normalen Knopf haengt, kann vom Spiel gesperrt werden. Er wirkt immer beim Loslassen (useOnKeyDown = false),
+-- unabhaengig von der Einstellung ActionButtonUseKeyDown. Muster wie das Gifte-Symbol in Peon_ClassBuddy.
 --   Tasche: Makro "/cast Zauber" und "/use Tasche Platz" (der Zauber zielt auf den Gegenstand).
 --   Handel: der Knopf wirkt den Zauber, PostClick waehlt im selben Klick das Feld als Ziel (ClickTargetTradeButton).
 -- Laesst man Alt los, verlaesst den Platz, schliesst den Handel oder beginnt ein Kampf, verschwindet der Knopf.
@@ -149,6 +152,18 @@ function A.Hide()
     A.current, owner = nil, nil
 end
 
+-- Knopf an die Stelle von target setzen, ohne ihn dort anzuhaengen (Bildschirmposition ueber UIParent)
+function A.Place(target)
+    local l, b = Num(target.GetLeft and target:GetLeft()), Num(target.GetBottom and target:GetBottom())
+    local w, h = Num(target.GetWidth and target:GetWidth()), Num(target.GetHeight and target:GetHeight())
+    if not (l and b and w and h) then return false end
+    local s = (Num(target.GetEffectiveScale and target:GetEffectiveScale()) or 1) / (Num(btn:GetEffectiveScale()) or 1)
+    btn:ClearAllPoints()
+    btn:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", l * s, b * s)
+    btn:SetSize(w * s, h * s)
+    return true
+end
+
 -- where: { bag, slot } fuer die Tasche oder { trade = Feld } fuer das Handelsfenster
 local function Arm(target, kind, where)
     if not btn or InCombatLockdown() or not target then return false end
@@ -165,8 +180,7 @@ local function Arm(target, kind, where)
         btn:SetAttribute("macrotext", cur.macro)
         btn:SetAttribute("spell", nil)
     end
-    btn:ClearAllPoints()
-    btn:SetAllPoints(target)
+    if not A.Place(target) then return false end
     if target.GetFrameStrata then btn:SetFrameStrata(target:GetFrameStrata()) end
     if target.GetFrameLevel then btn:SetFrameLevel((Num(target:GetFrameLevel()) or 0) + 10) end
     btn:Show()
@@ -213,18 +227,8 @@ function A.OnTradeTooltip(tt, index)
     Offer(tt, "picklock", { trade = index })
 end
 
--- Wirkt dieser Teil des Klicks? Der Knopf ist fuer Druecken und Loslassen angemeldet, das Spiel fuehrt die Aktion
--- je nach Einstellung ActionButtonUseKeyDown nur bei einem davon aus (ab 0.7.1, vorher nur Loslassen: Klick ohne Wirkung)
-function A.Acts(down)
-    local cv = GetCVarBool and GetCVarBool("ActionButtonUseKeyDown")
-    if cv == nil then return not down end
-    return (down and true or false) == (cv and true or false)
-end
-
--- Nach dem Klick: im Handel das Feld als Ziel waehlen (noch im selben Klick), dann den Knopf entfernen.
--- down: Druecken oder Loslassen. Nur der Teil, der die Aktion ausfuehrt, zaehlt, sonst verschwaende der Knopf zu frueh.
-function A.PostClick(down)
-    if down ~= nil and not A.Acts(down) then return end
+-- Nach dem Klick (Loslassen): im Handel das Feld als Ziel waehlen (noch im selben Klick), dann den Knopf entfernen
+function A.PostClick()
     local cur = A.current
     if cur and cur.trade then
         local targeting = rawget(_G, "SpellIsTargeting")
@@ -253,7 +257,8 @@ end
 function A.Init()
     if btn then return end
     btn = CreateFrame("Button", "PeonProfessionAltClick", UIParent, "SecureActionButtonTemplate")
-    btn:RegisterForClicks("AnyUp", "AnyDown")
+    btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    btn:SetAttribute("useOnKeyDown", false)
     btn:Hide()
     -- Der Knopf liegt ueber dem Platz, der Platz verliert die Maus und damit den Tooltip: wieder aufbauen
     btn:SetScript("OnEnter", function()
@@ -265,7 +270,7 @@ function A.Init()
         if GameTooltip then GameTooltip:Hide() end
         A.Hide()
     end)
-    btn:SetScript("PostClick", function(_, _, down) mod:Call("AltClick", A.PostClick, down and true or false) end)
+    btn:SetScript("PostClick", function() mod:Call("AltClick", A.PostClick) end)
     local ev = CreateFrame("Frame")
     ev:RegisterEvent("MODIFIER_STATE_CHANGED")
     ev:RegisterEvent("PLAYER_REGEN_DISABLED")

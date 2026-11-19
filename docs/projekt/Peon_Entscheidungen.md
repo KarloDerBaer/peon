@@ -3,6 +3,10 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 20.11.2026: Sicherer Knopf über fremden Symbolen (Profession 0.7.2)
+
+- **Nur hinsetzen, nicht anhängen** (Claude): Ein unsichtbarer sicherer Knopf über einem fremden Knopf (Taschenplatz, Symbol) wird nur an dieselbe Bildschirmstelle gesetzt (Position über `UIParent`), nie mit `SetAllPoints` oder `SetPoint` an den fremden Knopf gehängt. Angehängt tat der Klick bei Alt + Klick nichts. Er wirkt beim Loslassen (`useOnKeyDown = false`). Muster wie das Gifte-Symbol in Peon_ClassBuddy.
+
 ## 19.11.2026: Langfristig einfach zählen (Broker 0.124.0)
 
 - **Zählen statt hochrechnen** (KarloDerBaer): Werte je Stunde nach wenigen Minuten Beobachtung springen stark und sagen nichts. Der Fokus zeigt Anzahl und beobachtete Zeit, ohne Gewichtung der Tage. Je Stunde bleibt nur für den Vergleich in den Listen, ab 30 Min. Beobachtung.

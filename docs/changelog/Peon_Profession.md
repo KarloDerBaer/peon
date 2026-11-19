@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.7.2
+
+Kurz: Alt + Klick in der Tasche entzaubert und knackt Schlösser jetzt auch mit Peon_Bags. Vorher passierte beim Klick nichts.
+
+- 0.7.2 (20.11.2026, Meldung KarloDerBaer): **Alt + Klick weiter ohne Wirkung behoben.** Mit 0.7.1 wurde der Knopf gesetzt (Debug-Zeile da), der Klick tat aber nichts. Der unsichtbare sichere Knopf hing am Taschenplatz (`SetAllPoints`). Ein sicherer Knopf, der an einem normalen Knopf hängt, kann vom Spiel gesperrt werden. Jetzt wird er nur an dieselbe Stelle des Bildschirms gesetzt (`AltClick.Place`, Position über `UIParent`), wie das Gifte-Symbol in Peon_ClassBuddy.
+  - Der Knopf wirkt jetzt immer beim Loslassen der linken oder rechten Maustaste (`useOnKeyDown = false`), unabhängig von `ActionButtonUseKeyDown`. Die Unterscheidung aus 0.7.1 (`AltClick.Acts`) entfällt.
+  - Tests: `test_profession.lua` (Knopf an der Stelle des Platzes, an `UIParent` statt am Platz).
+
 ## 0.7.1
 
 Kurz: Alt + Klick in der Tasche entzaubert und knackt Schlösser jetzt wirklich. Vorher passierte beim Klick nichts.
