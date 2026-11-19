@@ -3,6 +3,12 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 19.11.2026: Langfristig einfach zählen (Broker 0.124.0)
+
+- **Zählen statt hochrechnen** (KarloDerBaer): Werte je Stunde nach wenigen Minuten Beobachtung springen stark und sagen nichts. Der Fokus zeigt Anzahl und beobachtete Zeit, ohne Gewichtung der Tage. Je Stunde bleibt nur für den Vergleich in den Listen, ab 30 Min. Beobachtung.
+- **Einbruch nur bei echtem Tief** (Vorschlag Claude, KarloDerBaer einverstanden): In lebhaften Märkten zählte jedes Wiedereinstellen nach einem Auskauf als Einbruch. Jetzt gilt der Tiefstpreis der letzten Minute, einzelne Lockangebote zählen dafür nicht.
+- **Kurzer Text** (KarloDerBaer): Zeile und Tooltip gekürzt.
+
 ## 19.11.2026: Auto auch über Kaufen bis (Broker 0.123.0)
 
 - **Lockangebote über Kaufen bis erkennen** (KarloDerBaer): Kaufen bis hing oft genau an der Grenze zu den Lockangeboten, Auto konnte es nicht anheben.

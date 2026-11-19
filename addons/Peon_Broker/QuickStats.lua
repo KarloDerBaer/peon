@@ -2,16 +2,20 @@
 -- Ab 0.122 (KarloDerBaer 19.11.2026): Gelegenheiten als langfristige Kennzahl fuer den Schnellkauf.
 -- In den kurzen Pruefungen der Chancen fallen Gelegenheiten nur zufaellig auf. Sie zeigen sich erst ueber laengere
 -- Beobachtung und sagen, wo andere gern Lockangebote setzen. Deshalb zaehlt Broker sie ueber alle Beobachtungen
--- eines Gegenstands (Fokus, Pruefungen in Chancen und Beobachten) und rechnet sie je Stunde beobachteter Zeit.
+-- eines Gegenstands (Fokus, Pruefungen in Chancen und Beobachten).
+-- Ab 0.124 (KarloDerBaer 19.11.2026): einfach gezaehlt (ohne Gewichtung der Tage), im Fokus als Anzahl mit Zeit. Je
+-- Stunde nur noch fuer die Spalte in den Listen, erst ab QS.SURE Sekunden Beobachtung.
 --   Einbruch      neues fremdes Angebot mit mindestens 2 Stueck, mindestens quickDipPct Prozent (Vorgabe 5) unter dem
---                 bisher guenstigsten fremden Angebot. Haengt nicht an Kaufen bis, damit Gegenstaende vergleichbar sind.
---                 Hoechstens ein Einbruch je Abfrage.
+--                 Tiefstpreis der letzten QS.LOW_SEC Sekunden (ab 0.124, vorher nur der vorigen Abfrage: dann zaehlte
+--                 in lebhaften Maerkten jedes Wiedereinstellen nach einem Auskauf). Tiefstpreis = guenstigste Stufe mit
+--                 mindestens 2 Stueck, einzelne Lockangebote verschieben ihn nicht. Haengt nicht an Kaufen bis, damit
+--                 Gegenstaende vergleichbar sind. Hoechstens ein Einbruch je Abfrage.
 --   Lockangebot   wie im Fokus (Quick.NewBaits): neu 1 Stueck weit unter dem guenstigsten
 --   Nachahmer     Lockangebot, auf das andere zum selben Preis einstellen (nur im Fokus erkennbar, Quick.OnSample)
 --   Zeit          Abstand zweier Abfragen, hoechstens QS.GAP_MAX Sekunden (laengere Pausen zaehlen nicht)
--- Speicher je Markt und Tag: PeonBrokerDB.quickStats[Markt][Schluessel][Tag] = { s, d, b, f } (Tag = time() / 86400).
--- Gezaehlt werden die letzten quickStatDays Tage (Vorgabe 14), aeltere Tage mit weniger Gewicht (heute 1, dann
--- gleichmaessig weniger). Unter QS.SURE Sekunden Beobachtung ist der Wert vorlaeufig (grau).
+-- Speicher je Markt und Tag: PeonBrokerDB.quickStats[Markt][Schluessel][Tag] = { s, e, b, f } (Tag = time() / 86400).
+-- Einbrueche ab 0.124 in e (d aus 0.122 nach alter Regel wird nicht mehr gelesen und faellt mit dem Tag weg).
+-- Gezaehlt werden die letzten quickStatDays Tage (Vorgabe 14).
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -21,7 +25,9 @@ local QS = {}
 ns.QuickStats = QS
 
 QS.GAP_MAX = 10      -- Sekunden: laengere Abstaende zwischen zwei Abfragen zaehlen nicht als beobachtete Zeit
-QS.SURE = 1800       -- Sekunden: ab so viel beobachteter Zeit gilt der Wert (vorher grau)
+QS.SURE = 1800       -- Sekunden: ab so viel beobachteter Zeit gilt der Wert je Stunde (Listen)
+QS.LOW_SEC = 60      -- ab 0.124: Sekunden, ueber die der Tiefstpreis fuer Einbrueche reicht
+QS.lows = {}         -- ab 0.124: [Schluessel] = { { t, p }, ... } Tiefstpreise der letzten QS.LOW_SEC Sekunden (nur Sitzung)
 
 local GREY = "|cff999999"
 local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
@@ -57,7 +63,7 @@ local function Day(key)
     if not d then
         local from = today - QS.Days()
         for k in pairs(days) do if type(k) ~= "number" or k <= from then days[k] = nil end end
-        d = { s = 0, d = 0, b = 0, f = 0 }
+        d = { s = 0, e = 0, b = 0, f = 0 }
         days[today] = d
     end
     return d
@@ -74,12 +80,24 @@ local function QtyAt(s, price)
     return 0
 end
 
--- Einbruch in Abfrage s gegenueber prev? Rueckgabe Preisstufe oder nil
-function QS.Dip(prev, s)
-    if not (prev and Num(prev.min) and type(s) == "table") then return nil end
+-- Tiefstpreis einer Abfrage: guenstigste fremde Stufe mit mindestens 2 Stueck, sonst der guenstigste Preis
+function QS.Low(s)
+    if type(s) ~= "table" then return nil end
+    for _, l in ipairs(s.lv or {}) do
+        if Num(l.qty) and l.qty >= 2 and Num(l.price) then return l.price end
+    end
+    return Num(s.min) and s.min or nil
+end
+
+-- Einbruch in Abfrage s gegenueber prev? ref = Tiefstpreis davor (ab 0.124, Vorgabe Tiefstpreis von prev).
+-- Rueckgabe Preisstufe oder nil
+function QS.Dip(prev, s, ref)
+    if not (prev and type(s) == "table") then return nil end
+    if not Num(ref) then ref = QS.Low(prev) end
+    if not Num(ref) then return nil end
     local pct = (tonumber(mod.db.quickDipPct) or 5) / 100
     for _, l in ipairs(s.lv or {}) do
-        if l.price > prev.min * (1 - pct) then break end   -- lv ist nach Preis sortiert
+        if l.price > ref * (1 - pct) then break end   -- lv ist nach Preis sortiert
         if Num(l.qty) and l.qty - QtyAt(prev, l.price) >= 2 then return l end
     end
     return nil
@@ -94,7 +112,20 @@ function QS.OnPair(key, prev, s)
     local d = Day(key)
     if not d then return end
     d.s = d.s + math.min(gap, QS.GAP_MAX)
-    if QS.Dip(prev, s) then d.d = d.d + 1 end
+    -- ab 0.124: Tiefstpreis der letzten Minute (prev und gemerkte Abfragen davor)
+    local ref, keep, hasPrev = QS.Low(prev), {}, false
+    for _, e in ipairs(QS.lows[key] or {}) do
+        if e.t >= s.t - QS.LOW_SEC then
+            keep[#keep + 1] = e
+            if e.t == prev.t then hasPrev = true end
+            if e.t < s.t and (not Num(ref) or e.p < ref) then ref = e.p end
+        end
+    end
+    if not hasPrev and Num(ref) and prev.t >= s.t - QS.LOW_SEC then keep[#keep + 1] = { t = prev.t, p = QS.Low(prev) } end
+    local low = QS.Low(s)
+    if Num(low) then keep[#keep + 1] = { t = s.t, p = low } end
+    QS.lows[key] = keep
+    if QS.Dip(prev, s, ref) then d.e = (d.e or 0) + 1 end
     if ns.Quick and ns.Quick.NewBaits then d.b = d.b + #ns.Quick.NewBaits(prev, s, nil) end
 end
 
@@ -104,6 +135,7 @@ function QS.OnFollow(key)
 end
 
 -- Werte eines Gegenstands: nil (nie beobachtet) oder { secs, dips, baits, follows, perHour, baitsPerHour, sure }
+-- Ab 0.124 einfach gezaehlt ueber die letzten quickStatDays Tage, ohne Gewichtung.
 function QS.Get(key)
     local st = QS.Store(false)
     local days = st and st[key]
@@ -113,11 +145,10 @@ function QS.Get(key)
     for day, d in pairs(days) do
         local age = type(day) == "number" and today - day or n
         if age >= 0 and age < n and type(d) == "table" then
-            local w = 1 - age / n
-            v.secs = v.secs + (d.s or 0) * w
-            v.dips = v.dips + (d.d or 0) * w
-            v.baits = v.baits + (d.b or 0) * w
-            v.follows = v.follows + (d.f or 0) * w
+            v.secs = v.secs + (d.s or 0)
+            v.dips = v.dips + (d.e or 0)
+            v.baits = v.baits + (d.b or 0)
+            v.follows = v.follows + (d.f or 0)
         end
     end
     if v.secs <= 0 then return nil end
@@ -147,30 +178,29 @@ function QS.Span(secs)
     return L.QS_HOURS:format(Rate(secs / 3600))
 end
 
--- Zelle fuer Listen: Einbrueche je Std., grau solange vorlaeufig, "-" ohne Beobachtung
+-- Zelle fuer Listen: Einbrueche je Std., ab 0.124 erst ab QS.SURE Sekunden Beobachtung (vorher grau "-")
 function QS.Cell(key)
     local v = QS.Get(key)
-    if not v then return GREY .. "-|r" end
-    local t = Rate(v.perHour)
-    return v.sure and t or (GREY .. t .. "|r")
+    if not (v and v.sure) then return GREY .. "-|r" end
+    return Rate(v.perHour)
 end
 
--- Zeile im Fokus: Text und Tooltip
+-- Zeile im Fokus: Text und Tooltip. Ab 0.124 Anzahl mit beobachteter Zeit, kurzer Tooltip.
 function QS.FocusText(key)
     local v = QS.Get(key)
-    local rule = L.QS_TIP_RULE:format(tonumber(mod.db.quickDipPct) or 5, QS.Days())
-    if not v then return GREY .. L.QS_NONE .. "|r", { rule } end
-    local text = L.QS_LINE:format(Rate(v.perHour), Rate(v.baitsPerHour), QS.Span(v.secs))
-    if not v.sure then text = GREY .. text .. "|r" end
-    local tips = { L.QS_TIP_VALUES:format(Rate(v.dips), Rate(v.baits), Rate(v.follows), QS.Span(v.secs)) }
-    if not v.sure then tips[#tips + 1] = L.QS_TIP_EARLY:format(math.floor(QS.SURE / 60)) end
-    tips[#tips + 1] = rule
-    return text, tips
+    local tips = { L.QS_TIP_DIP:format(tonumber(mod.db.quickDipPct) or 5) }
+    if not v then
+        tips[#tips + 1] = L.QS_TIP_DAYS:format(QS.Days())
+        return GREY .. L.QS_NONE .. "|r", tips
+    end
+    tips[#tips + 1] = L.QS_TIP_FOLLOW:format(v.follows)
+    tips[#tips + 1] = L.QS_TIP_DAYS:format(QS.Days())
+    return L.QS_LINE:format(v.dips, v.baits, QS.Span(v.secs)), tips
 end
 
 -- Zeilen fuer Tooltips in Chancen und Beobachten
 function QS.TipLines(GT, key)
     local v = QS.Get(key)
     if not v then GT:AddLine(L.QS_TIP_NONE, 0.7, 0.7, 0.7, true); return end
-    GT:AddLine(L.QS_TIP_LONG:format(Rate(v.perHour), Rate(v.baitsPerHour), QS.Span(v.secs)), v.sure and 1 or 0.7, v.sure and 0.82 or 0.7, v.sure and 0 or 0.7, true)
+    GT:AddLine(L.QS_TIP_LONG:format(v.dips, v.baits, QS.Span(v.secs)), 1, 0.82, 0, true)
 end

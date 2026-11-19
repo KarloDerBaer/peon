@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.124.0
+
+Kurz: Die Zeile „Langfristig“ im Schnellkauf zählt jetzt einfach mit, zum Beispiel „29 Einbrüche, 6 Lockangebote (3 Min.)“, statt auf eine Stunde hochzurechnen. Als Einbruch zählt nur noch ein echtes neues Tief, nicht mehr das Wiedereinstellen nach einem Auskauf.
+
+- 0.124.0 (19.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Einbruch nur bei echtem Tief** (`QuickStats.OnPair`, `QuickStats.Dip`): Verglichen wird mit dem Tiefstpreis der letzten 60 Sekunden (`QS.LOW_SEC`), nicht mehr nur mit der vorigen Abfrage. Tiefstpreis ist die günstigste fremde Stufe ab 2 Stück (`QuickStats.Low`), einzelne Lockangebote verschieben ihn nicht. Vorher zählte in lebhaften Märkten jedes Wiedereinstellen zum alten Preis nach einem Auskauf.
+  - **Geändert, einfach gezählt** (`QuickStats.Get`): ohne Gewichtung der Tage. Einbrüche liegen im neuen Feld `e`, die nach alter Regel gezählten (`d`) werden nicht mehr gelesen.
+  - **Geändert, Anzeige:** Im Fokus Anzahl mit beobachteter Zeit statt Werte je Stunde, kurzer Tooltip (Regel, Nachahmer, Zeitraum). In den Tooltips von Chancen und Beobachten ebenso. Die Spalte Einbr./Std. zeigt einen Wert erst ab 30 Min. Beobachtung.
+  - Tests: Wiedereinstellen nach Auskauf ist kein Einbruch, echtes Tief schon, Lockangebot senkt das Tief nicht, Tief gilt eine Minute, Zählung ohne Gewichtung, Anzeige (`test_broker.lua`).
+
 ## 0.123.0
 
 Kurz: Der Knopf „Auto“ im Schnellkauf hebt Kaufen bis jetzt auch an, wenn die Lockangebote über deinem Kaufen bis liegen. Er leuchtet, sobald das letzte Lockangebot bei oder über deinem Kaufen bis liegt.

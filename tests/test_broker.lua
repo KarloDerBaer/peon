@@ -5644,15 +5644,16 @@ end)()
   local v = QS.Get(key)
   check(v and v.secs == 11 and v.dips == 1 and v.baits == 1 and v.follows == 1 and not v.sure,
     "0.122: Zeit mit Obergrenze je Abstand, Einbruch, Lockangebot, Nachahmer gezaehlt: " .. tostring(v and v.secs) .. "/" .. tostring(v and v.dips) .. "/" .. tostring(v and v.baits) .. "/" .. tostring(v and v.follows))
-  check(plain(QS.Cell(key)) ~= "-" and QS.Cell(key):find("|cff999999", 1, true) and QS.Score(key) == 0, "0.122: vorlaeufig grau, zaehlt nicht fuer die Sortierung")
-  -- Gewichtung: heute voll, vor 7 von 14 Tagen halb, aelter faellt weg
+  check(plain(QS.Cell(key)) == "-" and QS.Score(key) == 0, "0.124: vor 30 Min. kein Wert je Std. in den Listen, zaehlt nicht fuer die Sortierung")
+  check(plain((QS.FocusText(key))) == "1 Einbrüche, 1 Lockangebote (1 Min.)", "0.124: Fokus zaehlt einfach: " .. plain((QS.FocusText(key))))
+  -- ab 0.124 ohne Gewichtung: Tage im Zeitraum zaehlen voll, aelter faellt weg, alte Einbrueche (d) zaehlen nicht
   local st = QS.Store(true)
   local today = QS.Today()
-  st[key] = { [today] = { s = 1800, d = 2, b = 0, f = 0 }, [today - 7] = { s = 3600, d = 8, b = 2, f = 0 }, [today - 20] = { s = 9999, d = 99, b = 0, f = 0 } }
+  st[key] = { [today] = { s = 1800, e = 2, d = 50, b = 0, f = 0 }, [today - 7] = { s = 1800, e = 4, b = 2, f = 0 }, [today - 20] = { s = 9999, e = 99, b = 0, f = 0 } }
   v = QS.Get(key)
-  check(v and v.secs == 3600 and v.dips == 6 and v.sure and math.abs(v.perHour - 6) < 0.001 and QS.Score(key) == 6,
-    "0.122: aeltere Tage zaehlen weniger, ueber 14 Tage gar nicht: " .. tostring(v and v.dips))
-  check(plain(QS.Cell(key)) == "6" and plain((QS.FocusText(key))):find("6 Einbrüche", 1, true), "0.122: Spalte und Zeile im Fokus: " .. plain((QS.FocusText(key))))
+  check(v and v.secs == 3600 and v.dips == 6 and v.baits == 2 and v.sure and math.abs(v.perHour - 6) < 0.001 and QS.Score(key) == 6,
+    "0.124: Tage im Zeitraum zaehlen voll, ueber 14 Tage gar nicht: " .. tostring(v and v.dips))
+  check(plain(QS.Cell(key)) == "6" and plain((QS.FocusText(key))) == "6 Einbrüche, 2 Lockangebote (1 Std.)", "0.124: Spalte und Zeile im Fokus: " .. plain((QS.FocusText(key))))
   st[key][today] = nil
   QS.Add(key, "d", 1)
   check(st[key][today - 20] == nil and st[key][today - 7] and st[key][today].d == 1, "0.122: neuer Tag raeumt Tage ueber dem Zeitraum weg")
@@ -5665,6 +5666,48 @@ end)()
   QS.OnPair(key, a, b)
   check(QS.Get(key).secs == before, "0.122: Einzelgegenstaende zaehlen nicht")
   mod.acc.commodity[key], mod.acc.quickStats = nil, nil
+  QS.lows[key] = nil
+end)()
+
+-- ===== 0.124: Einbruch nur bei echtem Tief der letzten Minute =====
+;(function()
+  local QS, M = ns.QuickStats, ns.Measure
+  local function lv(list)
+    local rows = { offers = {}, commodity = true }
+    for i, x in ipairs(list) do
+      rows.offers[#rows.offers + 1] = { id = i, q = x[2], p = x[1] }
+      rows[#rows + 1] = { price = x[1], qty = x[2], own = 0 }
+    end
+    return rows
+  end
+  local key = 7998
+  mod.acc.commodity[key] = true
+  mod.acc.quickStats, QS.lows[key] = nil, nil
+  -- lebhafter Markt: 25 wird weggekauft, 30 ist kurz das guenstigste, dann wieder 25
+  local s1 = M.Sample(lv({ { 25, 40 }, { 30, 100 } }), 100, nil)
+  local s2 = M.Sample(lv({ { 30, 100 } }), 102, nil)
+  local s3 = M.Sample(lv({ { 25, 20 }, { 30, 100 } }), 104, nil)
+  check(QS.Dip(s2, s3) ~= nil, "0.124: gegen die vorige Abfrage allein waere es ein Einbruch")
+  QS.OnPair(key, s1, s2)
+  QS.OnPair(key, s2, s3)
+  check(QS.Get(key).dips == 0, "0.124: Wiedereinstellen nach Auskauf ist kein Einbruch")
+  -- echtes neues Tief
+  local s4 = M.Sample(lv({ { 23, 10 }, { 25, 20 }, { 30, 100 } }), 106, nil)
+  QS.OnPair(key, s3, s4)
+  check(QS.Get(key).dips == 1, "0.124: echtes neues Tief ist ein Einbruch")
+  -- einzelnes Lockangebot verschiebt das Tief nicht
+  local s5 = M.Sample(lv({ { 10, 1 }, { 23, 10 }, { 30, 100 } }), 108, nil)
+  local s6 = M.Sample(lv({ { 22, 5 }, { 23, 10 }, { 30, 100 } }), 110, nil)
+  QS.OnPair(key, s4, s5)
+  QS.OnPair(key, s5, s6)
+  check(QS.Get(key).dips == 1, "0.124: einzelnes Lockangebot zu 10 senkt das Tief nicht, 22 ist nicht 5 % unter 23")
+  -- nach einer Minute zaehlt das alte Tief nicht mehr
+  local s7 = M.Sample(lv({ { 30, 100 } }), 200, nil)
+  local s8 = M.Sample(lv({ { 27, 5 }, { 30, 100 } }), 202, nil)
+  QS.OnPair(key, s6, s7)
+  QS.OnPair(key, s7, s8)
+  check(QS.Get(key).dips == 2, "0.124: nach einer Minute gilt das neue Tief: " .. tostring(QS.Get(key).dips))
+  mod.acc.commodity[key], mod.acc.quickStats, QS.lows[key] = nil, nil, nil
 end)()
 
 print("ALLE TESTS OK")
