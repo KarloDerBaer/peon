@@ -3,6 +3,10 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 19.11.2026: Kaufprotokoll über Peon_Debug (Broker 0.118.0)
+
+- **Aufzeichnen im privaten Peon_Debug** (KarloDerBaer): nach weiteren Fehlkäufen wieder nötig, aber nicht mit ausliefern. Broker bekommt nur einen Anschluss ohne Einstellung und Speicher, wie `Peon.Comm.Listen` für Peon_Debug (Claude).
+
 ## 19.11.2026: Kaufprotokoll entfernt (Broker 0.115.0)
 
 - **Nicht mit ausliefern** (KarloDerBaer): Das Protokoll hat die Ursache der Fehlkäufe gezeigt (belegte Bremse des Spiels, Abbrechen löste Code 10 aus). Es wird nicht mehr gebraucht.

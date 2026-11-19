@@ -5231,6 +5231,23 @@ end)()
   Q.bait = keep
 end)()
 
+-- ===== 0.118: Anschluss fuer ein Kaufprotokoll ausserhalb von Broker =====
+;(function()
+  local R = ns.Radar
+  local lines = {}
+  mod.traceHook = nil
+  R.Trace("ohne %s", 1)
+  mod.traceHook = function(text) lines[#lines + 1] = text end
+  R.Trace("mit %s", 2)
+  R.Send(7777)
+  mod.traceHook = function() error("kaputt") end
+  R.Trace("Fehler im Abnehmer stoert nicht")
+  mod.traceHook = nil
+  Rd.pending = nil
+  check(#lines == 2 and lines[1] == "mit 2" and lines[2]:find("send key=7777", 1, true) and mod.acc.buyLog == nil,
+    "0.118: R.Trace gibt Zeilen nur an einen gesetzten Anschluss, Broker speichert nichts")
+end)()
+
 -- Keine unerwarteten Fehlermeldungen
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("hat einen Fehler gemeldet", 1, true) then n = n + 1 end end  -- erwartete Meldung aus dem Verkaufen-Test
 check(n == 0, "keine Fehlermeldungen")

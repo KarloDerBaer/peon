@@ -212,6 +212,9 @@ function M.Add(key, rows, t)
     c.t0 = c.t0 or t
     c.samples[#c.samples + 1] = s
     if ns.Quick and ns.Quick.OnSample then ns.Quick.OnSample(key, prev, s) end   -- ab 0.110: Lockangebote fortlaufend
+    if ns.Radar and ns.Radar.Trace then
+        ns.Radar.Trace("answer min=%s q1=%s lv=%d", s.min, s.lv and s.lv[1] and s.lv[1].qty, s.lv and #s.lv or 0)
+    end
     while #c.samples > M.KEEP do table.remove(c.samples, 1) end
     while #c.pairs > M.KEEP do table.remove(c.pairs, 1) end
     -- alte Angebotslisten brauchen nur die letzten beiden Abfragen

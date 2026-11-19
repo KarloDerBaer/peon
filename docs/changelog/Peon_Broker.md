@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.118.0
+
+Kurz: Intern für die Fehlersuche: Broker kann ein Kaufprotokoll an ein separates Werkzeug weitergeben. Für dich ändert sich nichts.
+
+- 0.118.0 (19.11.2026, Wunsch KarloDerBaer nach weiteren Fehlkäufen):
+  - **Neu, Anschluss für ein Kaufprotokoll:** Die Aufrufstellen von 0.110.0 bis 0.114.1 sind zurück (Abfrage, Antwort, Klick, Kaufschritte, Pause, Lockangebote). `R.Trace` gibt die Zeilen nur weiter, wenn jemand `mod.traceHook` gesetzt hat, und kehrt sonst sofort zurück. Broker speichert nichts und hat keine Einstellung dafür. Aufzeichnen tut das private Peon_Debug (ab 0.3.0, `/pdebug kauf`, Daten in `PeonDebugDB.brokerLog`), das nicht ausgeliefert wird.
+  - Tests: Zeilen nur mit Anschluss, Fehler im Abnehmer stört nicht, Broker speichert nichts (`test_broker.lua`).
+
 ## 0.117.0
 
 Kurz: Beim ersten Öffnen nach dem Update erklärt ein kurzer Hinweis den neuen Schnellkauf im Fokus.
