@@ -78,8 +78,7 @@ function ns.CreateOptions()
     -- Radar (Schnaeppchen)
     page:Add(left, page:Header(L.HDR_DEALS), 6)
     page:Add(left, page:Check("radarSound", L.OPT_RADAR_SOUND))
-    local soundKey = page:Add(left, page:Dropdown("radarSoundKey", L.OPT_RADAR_SOUND_KEY, {
-        { "raid", L.SOUND_RAID }, { "ready", L.SOUND_READY }, { "alarm", L.SOUND_ALARM }, { "tell", L.SOUND_TELL } }))
+    local soundKey = page:Add(left, page:Dropdown("radarSoundKey", L.OPT_RADAR_SOUND_KEY, ns.Radar.SoundChoices()))
     local soundTest = page:Add(left, page:Button(L.BTN_SOUND_TEST, function() ns.Radar.PlayAlert() end))
     page:Add(left, page:Slider("radarFlash", L.OPT_RADAR_FLASH, nil, L.OPT_SEC_SUFFIX))
     -- Geldbetraege (ab 0.19): Mindestgewinn Haendler/Markt (auch im Reiter Radar) und Goldreserve

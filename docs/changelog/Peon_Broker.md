@@ -2,6 +2,116 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.114.1
+
+Kurz: Ein eigenes Lockangebot, das sofort gekauft wird, steht jetzt richtig als weg da, statt weiter „steht seit …“ zu zählen.
+
+- 0.114.1 (19.11.2026, Rückmeldung KarloDerBaer):
+  - **Behoben:** Laut Kaufprotokoll war das Lockangebot nach 0,35 Sek. verkauft, bevor eine Abfrage es zeigte. Das Spiel meldet das mit `AUCTION_CANCELED` und der Nummer des Angebots, das wertet `Q.OnCanceled` jetzt aus. Außerdem gilt es als weg, wenn eine Antwort mindestens 2 Sek. nach dem Einstellen es nicht zeigt, auch ohne dass es vorher zu sehen war.
+  - Auswertung des dritten Kaufprotokolls (14:50 bis 15:20 Uhr): drei Käufe Leinenstoff, alle gelungen. Preis des Spiels nach 0,14 bis 0,18 Sek., auch wenn die Bremse beim Klick belegt war. Kein Code 10.
+
+## 0.114.0
+
+Kurz: Steht im Schnellkauf etwas unter Kaufen bis, fragt Broker 1 Sekunde lang nicht nach. So kommt dein Kauf schneller beim Spiel an.
+Kurz: Die Zeile „Sitzung“ unter dem Lockangebot ist weg, „ist weg“ steht ohne Zusatz.
+
+- 0.114.0 (19.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Pause der Abfragen** (`quickHold`, Vorgabe 1 Sek., 0 bis 5 Sek., 0 = aus): Zeigt eine Antwort etwas Kaufbares, schickt der Fokus so lange keine Abfrage (`Q.HoldQueries`). Wird nicht geklickt, ist der Knopf danach gesperrt, bis die nächste Antwort da ist (`Q.Locked`). Sie gibt ihn mit der neuen Menge wieder frei. Nach einem Kauf wird sofort wieder abgefragt. Anlass: Im Kaufprotokoll wartete ein Kauf bis zu 1 Sek. auf den Preis und noch einmal so lange auf die Bestätigung, wenn die Bremse des Spiels von einer Abfrage belegt war.
+  - **Entfernt:** Zeile „Sitzung …“ unter dem Lockangebot (die Bilanz steht in der Zeile „Gekauft“) und der Zusatz „(gekauft oder abgelaufen)“.
+  - Tests: Pause, gesperrter Knopf auch per Taste, neue Antwort gibt frei, ohne Kaufbares keine Pause, abschaltbar, nach dem Kauf sofort weiter (`test_broker.lua`).
+
+## 0.113.0
+
+Kurz: Im Schnellkauf sind „Lockangebot ignorieren“ und „Durchschnitt zählt“ jetzt vorgegeben, das Limit pro Kauf steht auf dem Preis für 100 Stück.
+Kurz: Neue Einstellungen speichern Aufkauf und Schnellkauf automatisch, wenn du den Reiter verlässt oder Broker schließt.
+
+- 0.113.0 (19.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Vorgaben im Schnellkauf:** Ohne gespeicherte Werte sind beide Haken an und das Limit pro Kauf ist der Preis für 100 Stück zu Kaufen bis (`Q.EnsureGold`, `Q.GOLD_QTY`). Das Limit folgt Kaufen bis, bis man selbst einen Betrag einträgt. Selbst geleert bleibt es leer. Gespeichert werden die Haken jetzt auch als aus und „ohne Grenze“ als 0.
+  - **Neu, automatisch speichern** (`autoSaveBuyout`, `autoSaveQuick`, Vorgabe an): beim Verlassen des Reiters, Schließen von Broker oder Auktionshaus und beim Wechsel von Modus oder Gegenstand (`F.AutoSave`, `F.Save(quiet)`). Nur für Gegenstände, die schon in Beobachten stehen.
+  - **Geändert:** Hinter dem Limit pro Kauf steht „≥ x Stück“ statt „mindestens x Stück“.
+  - Auswertung des zweiten Kaufprotokolls (14:33 bis 14:46 Uhr): Ohne Abbrechen kam nach einem zu teuren Preis kein Code 10 mehr. Code 10 kommt noch direkt nach fehlgeschlagenen Käufen, vom Spiel selbst. Ist die Bremse des Spiels beim Klick belegt (eine Abfrage ist gerade unterwegs), wartet der Kauf bis zu 1 Sek. auf den Preis und noch einmal so lange auf die Bestätigung. Siehe `Peon_Stand.md`.
+  - Tests: Vorgaben, Limit folgt Kaufen bis, eigener Betrag bleibt, automatisch speichern beim Verlassen und beim Wechsel des Modus, nicht für unbeobachtete, Einstellung aus (`test_broker.lua`).
+
+## 0.112.1
+
+Kurz: „Limit pro Kauf“ steht jetzt links bündig unter Kaufen bis. Der Tooltip zu „Durchschnitt zählt“ beschreibt genauer, was passiert.
+
+- 0.112.1 (19.11.2026, Rückmeldung KarloDerBaer):
+  - **Behoben:** „Limit pro Kauf“ stand im Spiel rechtsbündig. Im Schnellkauf haben die Beschriftungen keine feste Breite mehr, die Felder hängen an fester Stelle (`F.QUICK_FIELD_X`).
+  - **Geändert, Tooltip „Durchschnitt zählt“:** Broker kauft die beim Klick angezeigte Menge. Haben andere einen Teil gekauft, füllt das Spiel mit teureren Angeboten auf, und der Kauf geht durch, solange der Durchschnitt höchstens Kaufen bis ist.
+
+## 0.112.0
+
+Kurz: Neuer Haken „Durchschnitt zählt“ im Schnellkauf: Der Kauf geht durch, solange der Durchschnitt je Stück höchstens Kaufen bis ist.
+Kurz: Statt Max. Menge gibt es jetzt „Limit pro Kauf“ in Gold, Silber und Kupfer.
+
+- 0.112.0 (19.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Haken „Durchschnitt zählt“** rechts neben „Lockangebot ignorieren“ (je Gegenstand, gespeichert in Beobachten als `qavg`): Der Preis des Spiels gilt, solange der Durchschnitt je Stück höchstens Kaufen bis ist, ohne zweiten Klick mit Warnung (`job.avg`). Bisher galt der Preis des teuersten geplanten Stücks. Einzelne Stücke können dabei über Kaufen bis liegen, das erklärt der Tooltip.
+  - **Geändert, Limit pro Kauf statt Max. Menge:** Goldfeld wie bei Kaufen bis, leer heißt ohne Grenze (`F.manualGold`, `Q.GoldQty`, in Beobachten `qgold` statt `qmax`). Der Kauf nimmt nur so viel, wie in das Limit passt, und ein höherer Gesamtpreis des Spiels gilt als zu teuer (`job.goldCap`). Dahinter steht, wie viele Stück zu Kaufen bis mindestens hineinpassen.
+  - **Entfernt:** Hinweis „Linksklick“ hinter Kaufen bis im Schnellkauf.
+  - Tests: Durchschnitt mit und ohne Haken, Limit pro Kauf im Plan und beim Preis des Spiels, Speichern, Tests von 0.106 auf das Limit pro Kauf umgestellt (`test_broker.lua`).
+
+## 0.111.1
+
+Kurz: Ist ein Kauf im Fokus zu teuer geworden, bricht Broker ihn nicht mehr aktiv ab. Das soll den roten Fehler „Interner Auktionshausfehler“ vermeiden.
+
+- 0.111.1 (19.11.2026, Versuch mit KarloDerBaer):
+  - **Geändert, zu teurer Preis:** kein `CancelCommoditiesPurchase` mehr, der Preis verfällt ohne Bestätigung. Laut Kaufprotokoll folgte jedem Abbruch 0,1 Sek. später der Fehler Code 10. Im Protokoll steht dafür `toohigh nocancel`.
+
+## 0.111.0
+
+Kurz: Eigener Ton, wenn ein fremdes Lockangebot auftaucht und der Kaufknopf noch gesperrt ist. So bist du für den folgenden Stapel bereit.
+Kurz: Mehr Töne zur Auswahl. Im Schnellkauf zeigt die Zeile „Gekauft“, wie viele Gelegenheiten du genutzt hast.
+
+- 0.111.0 (19.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Ton für Lockangebote** (`quickBaitAlarm`, `quickBaitSound`, Vorgabe Kartenmarkierung): wenn ein fremdes Lockangebot erkannt wird und der Kaufknopf gesperrt ist (Haken „Lockangebot ignorieren“ oder nichts unter Kaufen bis). Ist der Knopf frei, gilt der normale Alarm.
+  - **Neu, mehr Töne:** Münzen, Stufenaufstieg, Warteschlange bereit, Kartenmarkierung, Bosswarnung, Auktionshaus (`R.SOUNDS`, `R.SoundChoices`), auch für den Ton des Radars.
+  - **Neu, Zeile „Gekauft“:** gekaufte Stück in dieser Sitzung und die Quote der genutzten Gelegenheiten. Eine Gelegenheit beginnt, wenn etwas Kaufbares unter Kaufen bis auftaucht, mit Haken ohne ein einzelnes Lockangebot. Im Tooltip Käufe und Fehlschläge (`Q.BoughtText`, `Q.OnFailed`, `Q.opp`).
+  - Auswertung des ersten Kaufprotokolls (13:15 bis 13:24 Uhr): Die Fehler mit Code 10 kamen jedes Mal direkt nach dem Abbruch eines zu teuren Kaufs oder nach einem fehlgeschlagenen Kauf. Fehlgeschlagen sind Käufe, bei denen jemand anderes schneller war. Siehe `Peon_Stand.md`.
+  - Tests: Ton für Lockangebote mit gesperrtem und freiem Knopf, Quote, Auswahl der Töne (`test_broker.lua`).
+
+## 0.110.0
+
+Kurz: Im Fokus meldet sich der Preisalarm aus Beobachten nicht mehr zusätzlich für den Gegenstand, den du gerade ansiehst.
+Kurz: Neue Einstellung „Kaufprotokoll aufzeichnen“, um Fehlkäufe auszuwerten.
+Kurz: Der Schnellkauf ist aufgeräumt: kürzere Zeilen mit Tooltips, Linien um das Lockangebot, Lockangebote bleiben sichtbar.
+
+- 0.110.0 (19.11.2026, Rückmeldung KarloDerBaer):
+  - **Geändert, Preisalarm:** Für den Gegenstand im sichtbaren Fokus gibt Beobachten keinen Alarm, der Fokus hat seinen eigenen (`Wt.InFocus`). Der Alarm gilt als gegeben und kommt nach dem Verlassen nicht nach.
+  - **Neu, Kaufprotokoll** (`buyTrace` im Fenster Einstellungen des Fokus, Standard aus): jede Abfrage, Antwort, jeder Kaufschritt und die Ereignisse des Auktionshauses (Fehler mit Code, Bremse, Kauf gelungen oder fehlgeschlagen) mit Uhrzeit in `buyLog` (höchstens 6000 Zeilen, `R.Trace`). Anlass: viele Fehler mit Code 10 („Interner Auktionshausfehler“) beim Kauf von Lockangeboten.
+  - **Behoben, Lockangebote verschwanden:** Sie wurden aus den Abfragen der Messung gerechnet, die nur die letzten 240 Abfragen behält und bei neuem Kaufen bis oder Modus neu beginnt. Jetzt zählt jede neue Abfrage fortlaufend mit (`Q.OnSample`, `Q.AddBait`, `Q.baits`).
+  - **Geändert, fremde Lockangebote:** zählen nur, wenn sie höchstens bei Kaufen bis liegen. Was man ohnehin nicht kaufen würde, zählt nicht. Ohne Kaufen bis zählen alle.
+  - **Behoben, Folge:** Wächst die Menge zum Lockpreis nur um 1 Stück, ist das selbst ein Lockangebot und zählt nicht mehr als Folge.
+  - **Behoben, Tooltip am Knopf:** Unsichtbare Mausbereiche der Zeilen des Aufkaufs lagen im Schnellkauf über dem Knopf. Sie sind jetzt mit verborgen.
+  - **Geändert, Schnellkauf links:** Knopf „Lockangebot einstellen“ (vorher „1 einstellen“, breiter), Linien über und unter dem Block Lockangebot, Beschriftungen links bündig.
+  - **Geändert, Zeilen über dem Diagramm:** kurz, zum Beispiel „446 je Min. (29×)“, „lebhaft (71 Sprünge)“, „26 in 10 Min., 25 mit Folge“, „+10 in 30 Sek.“. Einzelheiten und Regeln im Tooltip jeder Zeile.
+  - Tests: Lockangebote fortlaufend, einzelnes Stück keine Folge, kurze Zeilen und Tooltips, Mausbereiche, stiller Preisalarm im Fokus, Protokoll (`test_broker.lua`).
+
+## 0.109.0
+
+Kurz: Der Schnellkauf erkennt jetzt auch fremde Lockangebote und zeigt, wie viel andere danach zum selben Preis eingestellt haben.
+Kurz: Neuer Haken „Lockangebot ignorieren“: Kaufknopf und Alarm erst ab mehr als 1 Stück unter Kaufen bis.
+
+- 0.109.0 (19.11.2026, Wunsch KarloDerBaer):
+  - **Neu, fremde Lockangebote:** Eine neue Preisstufe mit genau 1 Stück, die mindestens 5 % unter dem bisher günstigsten fremden Angebot liegt, gilt als Lockangebot (`Q.ForeignBaits`, Grenze `quickBaitMinPct` 1 bis 50 % im Fenster Einstellungen des Fokus). Knappes Unterbieten zählt so nicht.
+  - **Geändert, Anzeige über dem Diagramm:** Statt einer Zeile „Nach Lockangebot“ stehen jetzt zwei. „Lockangebote“ fasst alle fremden und eigenen im Zeitfenster zusammen (Zahl, wie viele Nachfolger hatten, im Schnitt wie viel Stück danach zum selben Preis kam). „Letztes“ zeigt das jüngste wie bisher, das eigene mit „(eigenes)“ (`Q.BaitStats`, `Q.FollowOf`). Eigene Lockangebote werden dafür als Liste gemerkt.
+  - **Neu, Haken „Lockangebot ignorieren“** unter Max. Menge: Steht nur 1 Stück unter Kaufen bis, bleibt der Kaufknopf gesperrt und der Alarm still (`Q.SkipOn`, `c.baitOnly`). So hängt man nicht im Kauf eines einzelnen Stücks, während ein großer Stapel kommt. Das Spiel verkauft von unten, ein späterer Kauf nimmt das eine Stück mit. Der Haken gilt je Gegenstand und wird mit Speichern in Beobachten gemerkt (`qskip`, nur im Spiel).
+  - Der Block Lockangebot links rückt 16 Punkte nach unten, das Fenster Einstellungen des Fokus ist 680 hoch.
+  - Tests: fremdes Lockangebot und Grenze, Zusammenfassung mit eigenem Lockangebot, fünf Zeilen, Haken mit Knopf, Alarm, Speichern und je Gegenstand (`test_broker.lua`).
+
+## 0.108.0
+
+Kurz: Der Schnellkauf zeigt über dem Diagramm, wie viel gerade eingestellt und gekauft wird und wie lebhaft der Markt ist.
+Kurz: Nach einem eigenen Lockangebot siehst du, wie viel andere danach zum selben Preis eingestellt haben.
+
+- 0.108.0 (19.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Marktbewegung im Schnellkauf:** Über dem Diagramm stehen vier Zeilen statt der Messwerte des Aufkaufs (`F.UpdateQuickMove`, `F.QUICK_ROWS`). Zufluss und Abfluss in Stück je Minute mit der Zahl der Einstellungen bzw. Käufe je Minute, die Bewegung (lebhaft, mäßig, ruhig) mit den Preissprüngen, und die Nachwirkung des Lockangebots. Grundlage ist das Zeitfenster der Messung (`focusWindow`).
+  - **Neu, Bewegung:** zählt Ereignisse je Minute, also Einstellungen, Käufe und Preissprünge (`Q.Movement`). Lebhaft ab 2 Einstellungen und 5 Ereignissen je Minute, ruhig unter 1 Ereignis je Minute, sonst mäßig. Die drei Grenzen stehen im Fenster Einstellungen des Fokus (`quickMoveIn`, `quickMoveAll`, `quickMoveLow`).
+  - **Neu, Nachwirkung des Lockangebots:** Wie viel Stück andere in den 30 Sekunden nach dem eigenen Lockangebot genau zu dessen Preis eingestellt haben und in wie vielen Schritten (`Q.Follow`, einstellbar 10 bis 120 Sekunden mit `quickFollowSec`). Solange die Zeit läuft, steht dort „bisher“ mit der Restzeit.
+  - **Geändert, Messung:** Der Vergleich zweier Abfragen zählt jetzt auch Einstellungen und Käufe (Massenware je Preisstufe) und Preissprünge (`nNew`, `nSold`, `jump`). `M.Values` liefert dazu `inAll`, `newPerMin`, `soldPerMin`, `jumps`, `jumpsPerMin`.
+  - Das Fenster Einstellungen des Fokus ist höher (640).
+  - Tests: Zähler der Messung, Stufen der Bewegung, Nachwirkung fertig und laufend, Zeilen im Schnellkauf und zurück im Aufkauf, Zahl der Regler (`test_broker.lua`).
+
 ## 0.107.1
 
 Kurz: Der Schnellkauf übernimmt Kaufen bis jetzt auch, wenn du den Fokus aus Beobachten öffnest. Der Lockpreis liegt 50 % darunter.

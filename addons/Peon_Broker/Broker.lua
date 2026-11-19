@@ -68,6 +68,17 @@ local mod = Peon:NewModule(ADDON_NAME, {
         focusMode    = "buyout", -- Fokus (ab 0.104): Modus Aufkauf (buyout) oder Schnellkauf (quick)
         quickAlarm   = true,    -- Schnellkauf (ab 0.104): Ton, sobald etwas unter Kaufen bis steht
         quickSound   = "raid",  -- Schnellkauf (ab 0.104): welcher Ton
+        quickHold = 1,          -- ab 0.114: so viele Sekunden keine Abfrage, solange der Kaufknopf frei ist (0 = aus)
+        quickBaitAlarm = true,  -- ab 0.111: Ton, wenn ein fremdes Lockangebot auftaucht und der Kaufknopf noch gesperrt ist
+        quickBaitSound = "ping",
+        quickMoveIn  = 2,       -- Schnellkauf (ab 0.108): lebhaft ab so vielen Einstellungen je Minute ...
+        quickMoveAll = 5,       -- ... und so vielen Ereignissen je Minute (Einstellungen, Kaeufe, Preisspruenge)
+        quickMoveLow = 1,       -- ruhig unter so vielen Ereignissen je Minute
+        quickFollowSec = 30,
+        quickBaitMinPct = 5,
+        buyTrace = false,
+        autoSaveBuyout = true,  -- ab 0.113: Werte des Aufkaufs beim Verlassen automatisch speichern (nur beobachtete)
+        autoSaveQuick = true,   -- ab 0.113: dasselbe fuer den Schnellkauf       -- ab 0.110: Kaufprotokoll im Fokus (Auswertung der Fehlkaeufe)    -- ab 0.109: fremdes Lockangebot (1 Stueck) erst so viel % unter dem bisher guenstigsten    -- Nachwirkung eines Lockangebots: so viele Sekunden danach zaehlen
         quickBaitPct = 50,      -- Schnellkauf (ab 0.104): Lockpreis so viel % unter Kaufen bis (bis 0.106: 20 % unter der ersten echten Stufe)
         baitQty      = 5,       -- Verkaufen (ab 0.104): Lockangebot hoechstens so viele Stueck ...
         baitPct      = 2,       -- ... oder unter so viel % aller Angebote ...
@@ -106,7 +117,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  buyoutHours = { 1, 24, 1 }, focusEvery = { 3, 30, 1 },
                  focusRate = { 2, 90, 1 }, focusWindow = { 2, 30, 1 }, focusFirst = { 10, 120, 5 }, focusSure = { 30, 600, 10 },
                  focusMore = { 0, 100, 5 }, focusGrow = { 1, 50, 1 }, focusPriceTol = { 0, 10, 1 },
-                 quickBaitPct = { 5, 90, 5 }, baitQty = { 1, 50, 1 }, baitPct = { 0, 10, 1 }, baitGap = { 5, 50, 5 },
+                 quickBaitPct = { 5, 90, 5 }, quickMoveIn = { 1, 20, 1 }, quickMoveAll = { 1, 30, 1 },
+                 quickMoveLow = { 1, 10, 1 }, quickFollowSec = { 10, 120, 5 }, quickHold = { 0, 5, 0.5 }, quickBaitMinPct = { 1, 50, 1 }, baitQty = { 1, 50, 1 }, baitPct = { 0, 10, 1 }, baitGap = { 5, 50, 5 },
                  buyoutMinQty = { 0, 100000, 10 }, buyoutMinLevels = { 2, 12, 1 }, buyoutMinSales = { 0, 100000, 5 }, buyoutTargetPct = { 0, 200, 5 },
                  radarRenewSec = { 15, 600, 15 }, radarRenewMax = { 30, 1200, 30 }, radarSearchPct = { 0, 80, 5 },
                  salesWindow = { 1, 24, 1 }, salesMidMin = { 10, 600, 10 }, salesSureMin = { 20, 1440, 10 },
@@ -115,7 +127,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  duration = { [2] = true, [8] = true, [24] = true },
                  radarKind = { both = true, vendor = true, market = true },
                  radarScanMode = { watch = true, mass = true, all = true },
-                 radarSoundKey = { raid = true, ready = true, alarm = true, tell = true },
+                 radarSoundKey = { raid = true, ready = true, alarm = true, tell = true, coin = true, levelup = true, queue = true, ping = true, boss = true, auction = true },
                  watchSoundDown = { off = true, raid = true, ready = true, alarm = true, tell = true },   -- ab 0.91
                  watchSoundUp = { off = true, raid = true, ready = true, alarm = true, tell = true },
                  tooltipNeutral = { always = true, shift = true, off = true },
@@ -126,7 +138,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  badgeChances = { off = true, ok = true, all = true },
                  focusMode = { buyout = true, quick = true },   -- ab 0.104
                  chancesScan = { mgr = true, watch = true, mass = true, all = true },   -- ab 0.105
-                 quickSound = { raid = true, ready = true, alarm = true, tell = true },
+                 quickSound = { raid = true, ready = true, alarm = true, tell = true, coin = true, levelup = true, queue = true, ping = true, boss = true, auction = true },
+                 quickBaitSound = { raid = true, ready = true, alarm = true, tell = true, coin = true, levelup = true, queue = true, ping = true, boss = true, auction = true },
                  windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true,
                               market = true, watch = true, sources = true, vendors = true,
                               browse = true, focus = true, more = true } },   -- ab 0.59 (Neuaufbau N1)   -- ab 0.51 neue Reiter   -- ab 0.28 mit "start", ohne "book"

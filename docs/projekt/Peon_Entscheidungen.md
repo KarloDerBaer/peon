@@ -3,6 +3,49 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 19.11.2026: Pause der Abfragen bei freiem Kaufknopf (Broker 0.114.0)
+
+- **Pause statt Dauerabfrage** (KarloDerBaer, Vorschlag Claude aus dem Kaufprotokoll): Solange etwas kaufbar ist, keine Abfrage, damit die Bremse des Spiels beim Klick frei ist.
+- **Nur kurz, dann gesperrt** (KarloDerBaer): nach 1 Sek. (einstellbar) ohne Klick wieder abfragen und den Knopf bis zur Antwort sperren. Sonst entginge einem eine größere Menge, die kurz darauf kommt.
+
+## 19.11.2026: Vorgaben und automatisch speichern (Broker 0.113.0)
+
+- **Vorgaben im Schnellkauf** (KarloDerBaer): beide Haken an, Limit pro Kauf = 100 Stück zu Kaufen bis. Gespeicherte Werte gehen vor.
+- **Automatisch speichern je Modus** (KarloDerBaer), nur für Gegenstände in Beobachten (Claude): sonst landete jeder angesehene Gegenstand dort.
+
+## 19.11.2026: Durchschnitt und Limit pro Kauf (Broker 0.112.0)
+
+- **Durchschnitt statt teuerstes Stück, einstellbar** (KarloDerBaer, Vorschlag aus der Auswertung des Kaufprotokolls): erhöht die Chance, wenn andere gleichzeitig einen Teil des Stapels kaufen. Nur im Schnellkauf, Haken je Gegenstand, Vorgabe aus.
+- **Limit pro Kauf statt Max. Menge** (KarloDerBaer): ein Betrag fängt große Mengen besser ab als eine Stückzahl, gerade mit dem Durchschnittspreis.
+- **Gleich weniger kaufen (etwa 60 %) verworfen** (Claude, zugestimmt): Im Protokoll waren von 19 angezeigten Stück nur 3 bis 5 zu haben, 60 % hätten nicht gereicht.
+
+## 19.11.2026: Kein Abbruch bei zu teurem Preis (Broker 0.111.1)
+
+- **Versuch ohne `CancelCommoditiesPurchase`** (KarloDerBaer): Im Kaufprotokoll folgte jedem Abbruch der Fehler Code 10. Ob er damit verschwindet, zeigt das nächste Protokoll.
+- **Nicht der Menge hinterherjagen** (KarloDerBaer): Nach einem zu teuren Preis kauft der nächste Klick nicht automatisch weniger.
+
+## 19.11.2026: Kaufprotokoll und aufgeräumter Schnellkauf (Broker 0.110.0)
+
+- **Erst messen, dann umbauen** (KarloDerBaer, Vorschlag Claude): Die Fehlkäufe (Code 10) werden mit einem Kaufprotokoll aufgezeichnet. Ob Kauf und Abfragen des Fokus eine eigene Datei bekommen, entscheidet sich nach der Auswertung.
+- **Keine Pause nach dem Kauf** (KarloDerBaer): Während des Kaufs ruhen die Abfragen schon, danach geht es sofort weiter.
+- **Preisalarm aus Beobachten im Fokus still** (KarloDerBaer): für den Gegenstand, der gerade im Fokus zu sehen ist.
+- **Kurze Zeilen, Einzelheiten im Tooltip** (KarloDerBaer).
+- **Fremde Lockangebote nur bis Kaufen bis** (KarloDerBaer): darüber könnte man sie ohnehin nicht kaufen. Ohne Kaufen bis zählen alle (Claude).
+
+## 19.11.2026: Fremde Lockangebote und Haken „Lockangebot ignorieren“ (Broker 0.109.0)
+
+- **Fremdes Lockangebot = genau 1 Stück** (KarloDerBaer), neu und mindestens 5 % unter dem bisher günstigsten Angebot (Vorschlag Claude, einstellbar). Grund: 1 Kupfer darunter ist normales Unterbieten, kein Lockangebot.
+- **Nachfolger nur zum gleichen Preis** (KarloDerBaer): sicheres Zeichen, dass jemand einfach den günstigsten Preis übernommen hat.
+- **Anzeige** (KarloDerBaer): Zusammenfassung über das Zeitfenster und das letzte Lockangebot, das eigene gekennzeichnet.
+- **Haken „Lockangebot ignorieren“** (KarloDerBaer): Kaufknopf und Alarm erst ab mehr als 1 Stück, fest. Je Gegenstand, gespeichert in Beobachten. Das eine Stück wird nicht übersprungen, weil das Spiel Massenware von unten verkauft.
+
+## 19.11.2026: Marktbewegung im Schnellkauf (Broker 0.108.0)
+
+- **Zufluss, Abfluss und Bewegung getrennt** (KarloDerBaer): Lockangebote wirken nur, wenn viel eingestellt wird. Der Zufluss ist deshalb der wichtigste Wert und steht eigens da.
+- **Bewegung aus Ereignissen statt aus dem üblichen Absatz** (KarloDerBaer): Einstellungen, Käufe und Preissprünge je Minute. Gezählt werden Ereignisse, nicht Stück, damit die Grenzen bei billiger Massenware und seltenen Gegenständen ähnlich passen (Claude). Lebhaft nur mit genug Einstellungen. Grenzen einstellbar.
+- **Nachwirkung statt Verkaufsdauer des Lockangebots** (KarloDerBaer): was andere in 30 Sekunden (einstellbar) danach zum selben Preis eingestellt haben.
+- **Zeilen über dem Diagramm** (KarloDerBaer): wie die Messwerte im Aufkauf, kein Balken im Diagramm.
+
 ## 19.11.2026: Offene Gebühren ohne Auktionsverkauf (Ledger 0.16.3)
 
 - **Händlerverkauf trägt offene Gebühren** (KarloDerBaer, Vorschlag Claude): anteilig nach dem Bestand vor dem Verkauf, das letzte Stück alle. Grund: Sonst blieben sie liegen und belasteten einen späteren Auktionsverkauf oder nie den Handelsgewinn.

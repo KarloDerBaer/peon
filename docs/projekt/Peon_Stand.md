@@ -47,7 +47,7 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Takte: Tasten nur im Angelmodus (`ns.UpdateLureTick`), Schwarm-Zeile nur bei sichtbarer Fangliste (`ns.CatchListTick`), ab 1.7.1.
 - Befehle: `/fp` (Optionen), `/fp toggle|an|aus`, `/fp set <Name>`, `/fp saveset`, `/fp kampf fragen|verlassen|bleiben`, `/fp waffenversuch`, `/fp klick doppel|aus`, `/fp status`, `/fp minimap`, `/fp koeder`, `/fp fische`, `/fp statistik`, `/fp debug`.
 
-## Peon_Broker – 0.107.1 (Auktionshaus-Helfer)
+## Peon_Broker – 0.114.1 (Auktionshaus-Helfer)
 
 - Konzepte: `docs\konzepte\broker\` (Konzept, Rechenmodell, Verkaufen, Einkaufen, Absatz, Umbau, Neuaufbau). Der Neuaufbau (11.11.2026) gilt, der Umbau nur noch für Tooltip, Märkte und Gegenstandsmenü.
 - Dateien: siehe `Peon_Broker.toc` (43 Dateien), dazu Bindings.xml und `Media\` (Trend-Symbole, Punkt für neue Radar-Treffer).
@@ -58,6 +58,8 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Prüfungen: `/broker pruefen` startet auch das Zählen der Auktionshaus-Ereignisse bis zum `/reload` (ab 0.103.2, vorher bei jedem Login).
 - Befehle: `/broker`, `/broker optionen`, `/broker scan`, `/broker pruefen [scan | abfrage | beruf | ah | zeit | fehler | kalender | auktionen]`, `/broker debug`, `/peon broker`.
 - Einstellen aus eigenem Knopf: nur das Lockangebot im Schnellkauf (`PostCommodity`, ab 0.104.0). Sonst bleibt Einstellen Blizzards Weg.
+- Marktbewegung im Schnellkauf (ab 0.108.0): über dem Diagramm Zufluss, Abfluss, Bewegung (lebhaft, mäßig, ruhig aus Einstellungen, Käufen und Preissprüngen je Minute) und was andere nach Lockangeboten zum selben Preis eingestellt haben, fremde (1 Stück, mindestens 5 % unter dem günstigsten) und eigene (ab 0.109.0). Grenzen und Dauer im Fenster Einstellungen des Fokus. Haken „Lockangebot ignorieren“ je Gegenstand: Kaufknopf und Alarm erst ab mehr als 1 Stück (ab 0.109.0). Für den Gegenstand im sichtbaren Fokus schweigt der Preisalarm aus Beobachten (ab 0.110.0).
+- Kaufprotokoll (ab 0.110.0, Einstellung im Fokus): Zeilen in `PeonBrokerDB.buyLog`. Erste Auswertung (19.11.2026, 13:15 bis 13:24 Uhr): Antwort auf eine Abfrage nach etwa 0,1 Sek., vom Klick bis zum Preis des Spiels 0,2 Sek., bis zum Ergebnis weitere 0,6 Sek. Code 10 folgt jedem Abbruch eines zu teuren Kaufs (`CancelCommoditiesPurchase`) und fehlgeschlagenen Käufen. Nach einem zu teuren Preis zeigen die Abfragen den Stapel noch eine Weile, obwohl ihn jemand gerade kauft. Ab 0.111.1 Versuch ohne Abbrechen bei zu teurem Preis. Offen: prüfen, ob Code 10 damit verschwindet. Ab 0.112.0 Haken „Durchschnitt zählt“ und Limit pro Kauf im Schnellkauf. Zweite Auswertung (14:33 bis 14:46 Uhr): Ohne Abbrechen kein Code 10 mehr nach zu teurem Preis. Belegte Bremse beim Klick verzögert den Kauf um 1 bis 2 Sek. (Preis 0,1 Sek. mit freier Bremse, 1,2 Sek. mit belegter). Ab 0.114.0 Pause der Abfragen, solange der Kaufknopf frei ist (1 Sek., einstellbar), danach gesperrt bis zur nächsten Antwort. Drittes Protokoll (14:50 bis 15:20 Uhr): drei Käufe gelungen, Preis nach 0,14 bis 0,18 Sek., kein Code 10. Danach entscheiden, ob der Fokus eine eigene Datei bekommt.
 - Offen: `e.sp` (zuletzt vermutlich verkauft) füllt sich nur aus Brokers eigenen Beobachtungen, der Manager kennt keine Verkaufspreise. Einmaligen Hinweis `broker:umbau-2026-11` nach ein paar Versionen aus `Broker.lua` und `Locales.lua` entfernen. Vorgemerkt: „Alles Lohnende kaufen“.
 
 ## Peon Manager – 0.49.0 (Programm für Windows)

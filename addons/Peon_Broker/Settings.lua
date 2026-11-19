@@ -48,25 +48,30 @@ function S.Set(kind, key, v)
 end
 
 -- ab 0.104: Toene fuer den Alarm im Schnellkauf
-local function QuickSounds()
-    return { { "raid", L.SOUND_RAID }, { "ready", L.SOUND_READY }, { "alarm", L.SOUND_ALARM }, { "tell", L.SOUND_TELL } }
-end
+local function QuickSounds() return ns.Radar.SoundChoices() end   -- ab 0.111 alle Toene des Radars
 local function QuickTest(v) if ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert, v) end end
 local function QuickAlarmOff() return S.Get("focus", "quickAlarm") == false end
+local function BaitAlarmOff() return S.Get("focus", "quickBaitAlarm") == false end
 
 -- Fokus: Abfragen je Minute und die Grenzen fuer das Urteil (Measure.lua)
 S.SPECS.focus = {
-    title = "SET_FOCUS_TITLE",
+    title = "SET_FOCUS_TITLE", height = 830,   -- ab 0.108 hoeher (Marktbewegung), ab 0.109 noch ein Regler, ab 0.111 Ton fuer Lockangebote
     { "head", "SET_FOCUS_QUERY" },
     { "slider", "focusRate", "SET_FOCUS_RATE", 2, 90, 1, function(v) return L.SET_RATE_FMT:format(v, Dec(60 / v)) end },
     { "note", "SET_FOCUS_RATE_NOTE" },
     { "head", "SET_FOCUS_BUY" },
     { "slider", "focusPriceTol", "SET_FOCUS_TOL", 0, 10, 1, function(v) return L.SET_PCT_FMT:format(v) end },
     { "check", "relistDefault", "SET_FOCUS_RELIST", "SET_FOCUS_RELIST_TIP" },   -- ab 0.91
+    { "check", "buyTrace", "SET_BUY_TRACE", "SET_BUY_TRACE_TIP" },   -- ab 0.110
+    { "check", "autoSaveBuyout", "SET_AUTOSAVE_BUYOUT", "SET_AUTOSAVE_TIP" },   -- ab 0.113
+    { "check", "autoSaveQuick", "SET_AUTOSAVE_QUICK", "SET_AUTOSAVE_TIP" },
     { "head", "SET_QUICK_HEAD" },   -- ab 0.104
     { "check", "quickAlarm", "SET_QUICK_ALARM", "SET_QUICK_ALARM_TIP" },
     { "choice", "quickSound", "SET_QUICK_SOUND", QuickSounds, test = QuickTest, off = QuickAlarmOff },
+    { "check", "quickBaitAlarm", "SET_QUICK_BAITALARM", "SET_QUICK_BAITALARM_TIP" },   -- ab 0.111
+    { "choice", "quickBaitSound", "SET_QUICK_SOUND", QuickSounds, test = QuickTest, off = BaitAlarmOff },
     { "slider", "quickBaitPct", "SET_QUICK_PCT", 5, 90, 5, function(v) return L.SET_PCT_FMT:format(v) end },
+    { "slider", "quickHold", "SET_QUICK_HOLD", 0, 5, 0.5, function(v) return v == 0 and L.SET_OFF or L.SET_SECD_FMT:format(Dec(v)) end },   -- ab 0.114
     { "col" },
     { "head", "SET_FOCUS_VERDICT" },
     { "slider", "focusWindow", "SET_FOCUS_WINDOW", 2, 30, 1, function(v) return L.SET_MIN_FMT:format(v) end },
@@ -74,6 +79,12 @@ S.SPECS.focus = {
     { "slider", "focusSure", "SET_FOCUS_SURE", 30, 600, 10, function(v) return L.SET_SEC_FMT:format(v) end },
     { "slider", "focusMore", "SET_FOCUS_MORE", 0, 100, 5, function(v) return L.SET_PCT_FMT:format(v) end },
     { "slider", "focusGrow", "SET_FOCUS_GROW", 1, 50, 1, function(v) return L.SET_PCT_FMT:format(v) end },
+    { "head", "SET_QUICK_MOVE" },   -- ab 0.108
+    { "slider", "quickMoveIn", "SET_QUICK_MOVE_IN", 1, 20, 1, function(v) return L.SET_PERMIN_FMT:format(v) end },
+    { "slider", "quickMoveAll", "SET_QUICK_MOVE_ALL", 1, 30, 1, function(v) return L.SET_PERMIN_FMT:format(v) end },
+    { "slider", "quickMoveLow", "SET_QUICK_MOVE_LOW", 1, 10, 1, function(v) return L.SET_PERMIN_FMT:format(v) end },
+    { "slider", "quickFollowSec", "SET_QUICK_FOLLOW", 10, 120, 5, function(v) return L.SET_SEC_FMT:format(v) end },
+    { "slider", "quickBaitMinPct", "SET_QUICK_BAITMIN", 1, 50, 1, function(v) return L.SET_PCT_FMT:format(v) end },   -- ab 0.109
 }
 -- Radar: welche Moeglichkeiten mit ihren Grenzen, Erneuern, Radar-Scan (ab 0.71)
 local function VendorOff() return S.Get("chances", "radarVendorOn") == false end   -- ab 0.105 im Fenster Chancen

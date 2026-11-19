@@ -26,7 +26,7 @@ Wt.PCTS = { 10, 20, 30 }   -- Vorschlaege im Menue: % unter dem Vergleichspreis
 -- Werte mit eigener Zeit (ab 0.89, Regeln in Shop.lua): Kaufen bis und Zielpreis. hit und upHit sind Merker des Alarms
 Wt.SPEC = { { f = "buy", keys = { "lim", "pct" }, reset = "hit" }, { f = "up", keys = { "up" }, reset = "upHit" } }
 Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, upHit = true, sDown = true, sUp = true, muteDown = true, muteUp = true,
-            qlim = true, qmax = true, mode = true }   -- ab 0.106: Werte des Schnellkaufs nur im Spiel
+            qlim = true, qmax = true, mode = true, qskip = true, qgold = true, qavg = true }   -- ab 0.106: Werte des Schnellkaufs nur im Spiel
 -- ab 0.91 (Fehlerberichte 20 und 21): Warnton je Richtung, einstellbar fuer alle (watchSoundDown, watchSoundUp, dazu
 -- Chatnachricht watchChatDown, watchChatUp) und je Gegenstand (sDown, sUp: Ton oder "off", nil = wie eingestellt).
 -- Die Werte je Gegenstand bleiben im Spiel, der Manager kennt sie nicht.
@@ -126,11 +126,14 @@ function Wt.SetMode(key, mode)
 end
 
 -- ab 0.106: Werte des Schnellkaufs (Kaufen bis und hoechste Menge, nil = alle), Modus wird Schnellkauf
-function Wt.SetQuick(key, limit, qmax)
+function Wt.SetQuick(key, limit, gold, skip, avg)
     local w = Wt.Store()[key]
     if not w then return false end
     w.qlim = Num(limit) and limit > 0 and math.floor(limit) or nil
-    w.qmax = Num(qmax) and qmax >= 1 and math.floor(qmax) or nil
+    w.qmax = nil   -- bis 0.111 Max. Menge
+    w.qgold = Num(gold) and gold > 0 and math.floor(gold) or 0   -- ab 0.112 Limit pro Kauf, ab 0.113 0 = ohne Grenze
+    w.qavg = avg and true or false   -- ab 0.112 Haken "Durchschnitt zaehlt", ab 0.113 auch aus gespeichert
+    w.qskip = skip and true or false   -- ab 0.109: Haken "Lockangebot ignorieren", ab 0.113 auch aus gespeichert
     w.mode, w.hit = "quick", nil
     Wt.Check({ key })
     return true
@@ -203,6 +206,12 @@ function Wt.Alert(key, dir, text)
 end
 
 -- Preisalarm pruefen (keys = Liste von Schluesseln oder nil = alle). Rueckgabe: Zahl neuer Alarme
+-- ab 0.110: Gegenstand steht gerade im sichtbaren Fokus
+function Wt.InFocus(key)
+    local F = ns.Focus
+    return F ~= nil and key ~= nil and F.key == key and F.Shown ~= nil and F.Shown() and true or false
+end
+
 function Wt.Check(keys)
     local st = Wt.Store()
     local list = keys
@@ -216,8 +225,11 @@ function Wt.Check(keys)
             local hit = limit and type(e) == "table" and not e.gone and Num(e.m) and e.m <= limit
             if hit and not w.hit then
                 w.hit = true
+                -- ab 0.110: nicht fuer den Gegenstand, der gerade im Fokus zu sehen ist (dort gibt es den eigenen Alarm)
+                if not Wt.InFocus(key) then
                 n = n + 1
                 Wt.Alert(key, "Down", L.WATCH_ALARM:format(w.name or ns.Data.ItemName(key, e) or tostring(key), Money(e.m), Money(limit)))
+                end
             elseif not hit and w.hit and (type(e) ~= "table" or e.gone or (limit and Num(e.m) and e.m > limit)) then
                 w.hit = nil
             end
@@ -226,8 +238,10 @@ function Wt.Check(keys)
             local upHit = up and type(e) == "table" and not e.gone and Num(e.m) and e.m >= up
             if upHit and not w.upHit then
                 w.upHit = true
+                if not Wt.InFocus(key) then
                 n = n + 1
                 Wt.Alert(key, "Up", L.WATCH_ALARM_UP:format(w.name or ns.Data.ItemName(key, e) or tostring(key), Money(e.m), Money(up)))
+                end
             elseif not upHit and w.upHit and (type(e) ~= "table" or e.gone or (up and Num(e.m) and e.m < up) or not up) then
                 w.upHit = nil
             end

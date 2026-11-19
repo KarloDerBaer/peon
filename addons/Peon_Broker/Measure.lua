@@ -97,12 +97,13 @@ function M.Compare(A, B, target)
     if A.partial then cap = math.min(cap, A.maxP) end
     if B.partial then cap = math.min(cap, B.maxP) end
     local sold, cancelled, newUnder, newAll = 0, 0, 0, 0
+    local nNew, nSold = 0, 0   -- ab 0.108: Zahl der Einstellungen und Kaeufe (Marktbewegung im Schnellkauf)
     local anchor, gone = nil, {}
     for id, a in pairs(A.offers) do
         if a.p <= cap then
             local b = B.offers[id]
             if b then
-                if b.q < a.q then sold = sold + (a.q - b.q) end
+                if b.q < a.q then sold = sold + (a.q - b.q); nSold = nSold + 1 end
                 if b.q > 0 and (not anchor or a.p < anchor) then anchor = a.p end
             else
                 gone[#gone + 1] = a
@@ -116,15 +117,17 @@ function M.Compare(A, B, target)
             cancelled = cancelled + a.q
         else
             sold = sold + a.q
+            nSold = nSold + 1
         end
     end
     for id, b in pairs(B.offers) do
         if b.p <= cap and not A.offers[id] then
             newAll = newAll + b.q
+            nNew = nNew + 1
             if target and b.p < target then newUnder = newUnder + b.q end
         end
     end
-    return { t = B.t, gap = gap, sold = sold, cancelled = cancelled, newUnder = newUnder, newAll = newAll }
+    return { t = B.t, gap = gap, sold = sold, cancelled = cancelled, newUnder = newUnder, newAll = newAll, nNew = nNew, nSold = nSold }
 end
 
 -- ab 0.74: Massenware ueber die Preisstufen vergleichen statt ueber Auktionsnummern. Im Spiel sprang der Abfluss,
@@ -143,12 +146,13 @@ function M.CompareLevels(A, B, target)
     for p in pairs(A.levels) do if p <= cap then prices[#prices + 1] = p end end
     table.sort(prices)
     local sold, cancelled, newUnder, newAll, intact = 0, 0, 0, 0, false
+    local nNew, nSold = 0, 0   -- ab 0.108: Stufen mit neuer Menge bzw. mit Kauf (eine Stufe zaehlt je Abstand einmal)
     for _, p in ipairs(prices) do
         local a, b = A.levels[p], B.levels[p] or 0
         if b >= a then
             intact = true
         else
-            if intact then cancelled = cancelled + (a - b) else sold = sold + (a - b) end
+            if intact then cancelled = cancelled + (a - b) else sold = sold + (a - b); nSold = nSold + 1 end
             if b > 0 then intact = true end
         end
     end
@@ -157,11 +161,13 @@ function M.CompareLevels(A, B, target)
             local a = A.levels[p] or 0
             if b > a then
                 newAll = newAll + (b - a)
+                nNew = nNew + 1
                 if target and p < target then newUnder = newUnder + (b - a) end
             end
         end
     end
-    return { t = B.t, gap = gap, sold = sold, cancelled = cancelled, newUnder = newUnder, newAll = newAll, byLevels = true }
+    return { t = B.t, gap = gap, sold = sold, cancelled = cancelled, newUnder = newUnder, newAll = newAll, nNew = nNew, nSold = nSold,
+             byLevels = true }
 end
 
 -- Antwort auf eine Abfrage im Fokus. rows = Preisstufen mit offers (Live.lua), t = Zeit (GetTime)
@@ -196,11 +202,19 @@ function M.Add(key, rows, t)
     end
     local prev = c.samples[#c.samples]
     if prev and t > prev.t then
-        if prev.levels and s.levels then c.pairs[#c.pairs + 1] = M.CompareLevels(prev, s, target)
-        else c.pairs[#c.pairs + 1] = M.Compare(prev, s, target) end
+        local pr
+        if prev.levels and s.levels then pr = M.CompareLevels(prev, s, target)
+        else pr = M.Compare(prev, s, target) end
+        -- ab 0.108: Preissprung = guenstigster Preis anders als in der vorigen Abfrage
+        pr.jump = Num(prev.min) and Num(s.min) and prev.min ~= s.min or false
+        c.pairs[#c.pairs + 1] = pr
     end
     c.t0 = c.t0 or t
     c.samples[#c.samples + 1] = s
+    if ns.Quick and ns.Quick.OnSample then ns.Quick.OnSample(key, prev, s) end   -- ab 0.110: Lockangebote fortlaufend
+    if ns.Radar and ns.Radar.Trace then
+        ns.Radar.Trace("answer min=%s q1=%s lv=%d", s.min, s.lv and s.lv[1] and s.lv[1].qty, s.lv and #s.lv or 0)
+    end
     while #c.samples > M.KEEP do table.remove(c.samples, 1) end
     while #c.pairs > M.KEEP do table.remove(c.pairs, 1) end
     -- alte Angebotslisten brauchen nur die letzten beiden Abfragen
@@ -217,10 +231,13 @@ function M.Values(now)
     now = now or c.samples[#c.samples].t
     local from = now - M.WINDOW
     local sold, inUnder, secs, moved = 0, 0, 0, 0
+    local inAll, nNew, nSold, jumps = 0, 0, 0, 0
     for _, p in ipairs(c.pairs) do
         if p.t > from then
             sold, inUnder, secs = sold + p.sold, inUnder + p.newUnder, secs + p.gap
             moved = moved + p.sold + p.newAll + p.cancelled
+            inAll, nNew, nSold = inAll + (p.newAll or 0), nNew + (p.nNew or 0), nSold + (p.nSold or 0)
+            if p.jump then jumps = jumps + 1 end
         end
     end
     local first
@@ -232,6 +249,13 @@ function M.Values(now)
     local mins = secs / 60
     v.out = mins > 0 and sold / mins or 0
     v.inUnder = mins > 0 and inUnder / mins or 0
+    -- ab 0.108 (Marktbewegung im Schnellkauf): Zufluss aller Preise, Einstellungen, Kaeufe und Preisspruenge je Minute
+    v.inAll = mins > 0 and inAll / mins or 0
+    v.newPerMin = mins > 0 and nNew / mins or 0
+    v.soldPerMin = mins > 0 and nSold / mins or 0
+    v.jumps = jumps
+    v.jumpsPerMin = mins > 0 and jumps / mins or 0
+    v.secs = secs
     local du = last.under - first.under
     if du > 0 and du >= math.max(1, first.under * M.GROW) then v.underTrend = "grow"
     elseif du < 0 and -du >= math.max(1, first.under * M.GROW) then v.underTrend = "shrink"
