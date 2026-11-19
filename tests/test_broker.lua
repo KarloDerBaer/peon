@@ -4956,10 +4956,13 @@ end)()
   F.key, F.manualLimit = 7986, { key = 7986, price = 70 }
   Q.baits[7986] = nil
   Q.OnSample(7986, p0, s1)
-  check(Q.baits[7986] == nil, "0.110: Lockangebot ueber Kaufen bis zaehlt nicht")
+  -- ab 0.123 erkannt (fuer Auto), aber nicht gemeldet
+  check(Q.baits[7986] and Q.baits[7986][1].above == true and Q.baitPing ~= 7986, "0.110: Lockangebot ueber Kaufen bis zaehlt nicht (ab 0.123 nur fuer Auto gemerkt)")
+  Q.baits[7986] = nil
   F.manualLimit = { key = 7986, price = 80 }
   Q.OnSample(7986, p0, s1)
-  check(Q.baits[7986] and #Q.baits[7986] == 1, "0.110: Lockangebot auf Kaufen bis zaehlt")
+  check(Q.baits[7986] and #Q.baits[7986] == 1 and not Q.baits[7986][1].above, "0.110: Lockangebot auf Kaufen bis zaehlt")
+  Q.baitPing = nil
   F.key, F.manualLimit = keepKey, keepLim
   Q.baits[7986] = nil
   -- Mausbereiche der Aufkauf-Zeilen liegen im Schnellkauf nicht ueber dem Knopf
@@ -5526,6 +5529,52 @@ end)()
   Q.baits[7992] = nil
   ns.Scan.ahOpen, GetMoney = keepOpen, keepMoney
   market.items[7992], ns.Buy.live[7992], mod.acc.commodity[7992] = nil, nil, nil
+  Rd.entries, Rd.gone, Rd.job, Rd.focus = {}, {}, nil, nil
+end)()
+
+-- ===== 0.123: Auto auch ueber Kaufen bis, Knopf leuchtet an der Grenze =====
+;(function()
+  local F, Q = ns.Focus, ns.Quick
+  local keepOpen, keepMoney, keepTime = ns.Scan.ahOpen, GetMoney, GetTime
+  local now = 500
+  GetTime = function() return now end
+  GetMoney = function() return 10000000 end
+  ns.Scan.ahOpen = true
+  mod.acc.commodity[7993] = true
+  market.items[7993] = { m = 99, md = 150, q = 25, n = 2, t = clock, nm = "Lockleder", ql = 1 }
+  Rd.entries, Rd.gone, Rd.job = {}, {}, nil
+  Q.baits[7993] = nil
+  F.Set(7993)
+  Q.SetMode("quick")
+  F.SetLimit(55)
+  -- Lockangebot zu 60 ueber Kaufen bis 55: erkannt, nicht gemeldet
+  local p0 = { t = 500, min = 99, lv = { { price = 99, qty = 20 } } }
+  local s1 = { t = 501, min = 60, lv = { { price = 60, qty = 1 }, { price = 99, qty = 20 } } }
+  Q.baitPing = nil
+  Q.OnSample(7993, p0, s1)
+  check(Q.baits[7993] and #Q.baits[7993] == 1 and Q.baits[7993][1].above and Q.baitPing == nil, "0.123: Lockangebot ueber Kaufen bis erkannt, ohne Ton")
+  check(Q.BaitStats(7993) == nil, "0.123: Zeile Lockangebote zaehlt es nicht")
+  ns.Buy.live[7993] = { rows = { { price = 60, qty = 1, own = 0 }, { price = 99, qty = 20, own = 0 }, commodity = true }, t = clock, commodity = true }
+  local v, bait, reg, high = Q.AutoLimit(7993)
+  check(v == 79 and bait == 60 and reg == 99 and high, "0.123: Auto hebt Kaufen bis an (Mitte 60 und 99)")
+  F.Update()
+  check(not F.quick.auto.disabled and F.quick.auto.locked, "0.123: Auto frei und leuchtet")
+  local click = F.quick.auto.scripts and F.quick.auto.scripts.OnClick
+  if click then click(F.quick.auto) else F.SetLimit(v) end
+  F.Update()
+  check(F.ManualLimit(7993) == 79 and not F.quick.auto.locked, "0.123: nach dem Klick Kaufen bis 79, Knopf leuchtet nicht mehr")
+  -- genau auf dem Lockpreis: leuchtet
+  F.SetLimit(60)
+  F.Update()
+  check(F.quick.auto.locked, "0.123: Kaufen bis genau auf dem Lockpreis, Knopf leuchtet")
+  -- aufraeumen
+  Q.SetMode("buyout", true)
+  F.SetLimit(nil)
+  F.manualGold = nil
+  Q.hold = nil
+  Q.baits[7993], Q.baitPing = nil, nil
+  GetTime, ns.Scan.ahOpen, GetMoney = keepTime, keepOpen, keepMoney
+  market.items[7993], ns.Buy.live[7993], mod.acc.commodity[7993] = nil, nil, nil
   Rd.entries, Rd.gone, Rd.job, Rd.focus = {}, {}, nil, nil
 end)()
 

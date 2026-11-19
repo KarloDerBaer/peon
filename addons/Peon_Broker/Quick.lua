@@ -27,7 +27,7 @@ Q.bait = nil          -- { key, price, t, loc, id, state = "posting" | "confirm"
 Q.manual = nil        -- { key, price }: eigener Lockpreis (bis zum naechsten Gegenstand)
 Q.sessions = {}       -- [Schluessel] = { baits, deposit, bought, cost }: Bilanz dieser Sitzung
 Q.marks = {}          -- [Schluessel] = { GetTime() eigener Lockangebote } fuer das Diagramm
-Q.baits = {}          -- ab 0.110: [Schluessel] = { { t, price, own, lastQ, added, times }, ... } Lockangebote fortlaufend
+Q.baits = {}          -- ab 0.110: [Schluessel] = { { t, price, own, lastQ, added, times, reg, above }, ... } Lockangebote fortlaufend
 Q.hold = nil          -- ab 0.114: { key, rows, untilT } Pause der Abfragen, solange der Kaufknopf frei ist
 Q.opp = {}            -- ab 0.111: [Schluessel] = { t, won } letzte Gelegenheit zum Kauf
 Q.baitPing = nil      -- ab 0.111: Schluessel, fuer den gerade ein fremdes Lockangebot erkannt wurde
@@ -648,7 +648,7 @@ end
 -- Eigene Lockangebote kommen ueber Q.OnCreated dazu (Q.AddBait).
 Q.BAIT_KEEP = 200
 
-function Q.AddBait(key, t, price, own, lastQ, reg)
+function Q.AddBait(key, t, price, own, lastQ, reg, above)
     if key == nil or not Num(price) then return end
     if lastQ == nil then
         local c = ns.Measure and ns.Measure.cur
@@ -656,7 +656,7 @@ function Q.AddBait(key, t, price, own, lastQ, reg)
         lastQ = s and QtyAt(s, price) or 0
     end
     local list = Q.baits[key] or {}
-    list[#list + 1] = { t = t, price = price, own = own or nil, lastQ = lastQ, added = 0, times = 0, reg = reg }
+    list[#list + 1] = { t = t, price = price, own = own or nil, lastQ = lastQ, added = 0, times = 0, reg = reg, above = above or nil }
     while #list > Q.BAIT_KEEP do table.remove(list, 1) end
     Q.baits[key] = list
 end
@@ -666,7 +666,7 @@ function Q.OnSample(key, prev, s)
     local sec = tonumber(mod.db.quickFollowSec) or 30
     local list = Q.baits[key] or {}
     for _, b in ipairs(list) do
-        if s.t > b.t and s.t <= b.t + sec then
+        if not b.above and s.t > b.t and s.t <= b.t + sec then   -- ab 0.123 ohne Lockangebote ueber Kaufen bis
             local q = QtyAt(s, b.price)
             local inc = q - (b.lastQ or 0)
             if inc >= 2 then
@@ -678,13 +678,20 @@ function Q.OnSample(key, prev, s)
     end
     -- ab 0.122: Gelegenheiten langfristig (QuickStats.lua), unabhaengig von Kaufen bis
     if prev and ns.QuickStats then ns.QuickStats.OnPair(key, prev, s) end
-    -- ab 0.110: nur unter Kaufen bis (was man ohnehin nicht kaufen wuerde, zaehlt nicht). Ohne Kaufen bis alle.
+    -- ab 0.110: gemeldet (Zeile, Nachahmer, Ton) wird nur bis Kaufen bis (was man ohnehin nicht kaufen wuerde, zaehlt
+    -- nicht). Ohne Kaufen bis alle. Ab 0.123 (Wunsch KarloDerBaer 19.11.2026) erkannt werden alle, die darueber mit
+    -- above, damit der Knopf Auto Kaufen bis auch anheben kann (Q.AutoLimit).
     local F = ns.Focus
     local limit = F and F.key == key and F.ManualLimit and F.ManualLimit(key) or nil
-    for _, l in ipairs(Q.NewBaits(prev, s, limit)) do
-        Q.AddBait(key, s.t, l.price, false, 1, prev.min)   -- ab 0.121 mit dem guenstigsten Preis davor (Q.AutoLimit)
-        if ns.Focus and ns.Focus.key == key then Q.baitPing = key end   -- ab 0.111: Ton in Q.CheckAlarm
-        Q.Trace("bait foreign price=%s min=%s", l.price, prev.min)
+    for _, l in ipairs(Q.NewBaits(prev, s, nil)) do
+        local above = Num(limit) and l.price > limit
+        Q.AddBait(key, s.t, l.price, false, 1, prev.min, above)   -- ab 0.121 mit dem guenstigsten Preis davor
+        if not above then
+            if ns.Focus and ns.Focus.key == key then Q.baitPing = key end   -- ab 0.111: Ton in Q.CheckAlarm
+            Q.Trace("bait foreign price=%s min=%s", l.price, prev.min)
+        else
+            Q.Trace("bait above price=%s min=%s limit=%s", l.price, prev.min, limit)
+        end
     end
 end
 
@@ -713,7 +720,7 @@ function Q.BaitStats(key)
     local from = now - M.WINDOW
     local r = { n = 0, withFollow = 0, added = 0 }
     for _, b in ipairs(Q.baits[key] or {}) do
-        if b.t > from then
+        if b.t > from and not b.above then   -- ab 0.123: ueber Kaufen bis nur fuer Auto
             local f = { t = b.t, price = b.price, own = b.own, added = b.added, times = b.times, sec = sec,
                         running = now < b.t + sec, left = math.max(0, math.ceil(b.t + sec - now)) }
             r.n = r.n + 1
@@ -729,7 +736,9 @@ end
 -- Knopf Auto neben Kaufen bis (ab 0.121, Wunsch KarloDerBaer 19.11.2026): die Mitte zwischen dem letzten fremden
 -- Lockangebot und dem guenstigsten regulaeren Angebot darueber, abgerundet. Regulaer ist eine fremde Stufe ueber dem
 -- Lockpreis mit mindestens 2 Stueck in der letzten Abfrage, ohne Abfrage der guenstigste Preis bei der Erkennung.
--- Rueckgabe value, bait, regular oder nil (noch kein fremdes Lockangebot oder kein Abstand).
+-- Rueckgabe value, bait, regular, high oder nil (noch kein fremdes Lockangebot oder kein Abstand).
+-- Ab 0.123 zaehlen auch Lockangebote ueber Kaufen bis. high = das letzte Lockangebot liegt bei oder ueber dem
+-- aktuellen Kaufen bis (Kaufen bis haengt an der Grenze, der Knopf leuchtet).
 function Q.AutoLimit(key)
     if key == nil then return nil end
     local last
@@ -746,7 +755,10 @@ function Q.AutoLimit(key)
     end
     if not reg and Num(last.reg) and last.reg > last.price then reg = last.reg end
     if not reg or reg - last.price < 2 then return nil end
-    return math.floor((last.price + reg) / 2), last.price, reg
+    local F = ns.Focus
+    local limit = F and F.ManualLimit and F.ManualLimit(key) or nil
+    local high = Num(limit) and limit <= last.price or false
+    return math.floor((last.price + reg) / 2), last.price, reg, high
 end
 
 ---------------------------------------------------------------------------

@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.123.0
+
+Kurz: Der Knopf „Auto“ im Schnellkauf hebt Kaufen bis jetzt auch an, wenn die Lockangebote über deinem Kaufen bis liegen. Er leuchtet, sobald das letzte Lockangebot bei oder über deinem Kaufen bis liegt.
+
+- 0.123.0 (19.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Lockangebote auch über Kaufen bis erkannt** (`Quick.OnSample`): Fremde Lockangebote über Kaufen bis kommen mit dem Merker `above` in `Q.baits`. Gemeldet wird weiter nur bis Kaufen bis: Zeile Lockangebote (`Q.BaitStats`), Nachahmer und Ton zählen sie nicht. Im Kaufprotokoll heißen sie `bait above`.
+  - **Geändert, Auto hebt an** (`Quick.AutoLimit`): Das letzte fremde Lockangebot zählt auch über Kaufen bis. Neuer Rückgabewert `high`, wenn es bei oder über Kaufen bis liegt. Dann leuchtet der Knopf (`LockHighlight`), der Tooltip sagt es in Orange.
+  - Tests: Erkennung über Kaufen bis ohne Ton und ohne Zeile, Auto hebt an, Leuchten vor und nach dem Klick, Leuchten genau auf dem Lockpreis. Test aus 0.110 angepasst (`test_broker.lua`).
+
 ## 0.122.0
 
 Kurz: Neue langfristige Kennzahl im Schnellkauf: Broker zählt über Tage, wie oft bei einer Ware ein Angebot deutlich unter den günstigsten Preis fällt (Einbrüche je Stunde). Zu sehen im Fokus, in den Chancen und in Beobachten.

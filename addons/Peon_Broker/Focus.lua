@@ -1003,9 +1003,11 @@ function F.BuildQuick(left, Label)
     end)
     q.auto:SetPoint("LEFT", F.limitInput, "RIGHT", 6, 0)
     UI.SetTooltip(q.auto, function()
-        local v, bait, reg = Q.AutoLimit(F.key)
+        local v, bait, reg, high = Q.AutoLimit(F.key)
         if not v then return { L.QUICK_AUTO, L.QUICK_AUTO_TIP, GREY .. L.QUICK_AUTO_NONE .. "|r" } end
-        return { L.QUICK_AUTO, L.QUICK_AUTO_TIP, L.QUICK_AUTO_VALUES:format(Money(bait), Money(reg), Money(v)) }
+        local lines = { L.QUICK_AUTO, L.QUICK_AUTO_TIP, L.QUICK_AUTO_VALUES:format(Money(bait), Money(reg), Money(v)) }
+        if high then lines[#lines + 1] = ORANGE .. L.QUICK_AUTO_HIGH .. "|r" end   -- ab 0.123
+        return lines
     end)
     q.all = { q.head, q.priceLabel, q.priceInput, q.priceHint, q.post, q.cancel, q.state, q.skip, q.line1, q.line2, q.avg, q.auto }
 end
@@ -1094,7 +1096,13 @@ function F.UpdateQuick(d, live)
     q.post:SetText((b and b.state == "confirm") and L.QUICK_CONFIRM or L.QUICK_POST)
     On(q.post, canPost and true or false)
     On(q.cancel, live and b ~= nil and b.state == "up" and b.id ~= nil)
-    On(q.auto, live and key ~= nil and Q.AutoLimit(key) ~= nil)
+    local av, _, _, high = nil, nil, nil, false
+    if live and key ~= nil then av, _, _, high = Q.AutoLimit(key) end
+    On(q.auto, av ~= nil)
+    -- ab 0.123: leuchtet, wenn das letzte Lockangebot bei oder ueber Kaufen bis liegt
+    if q.auto.LockHighlight then
+        if av and high then q.auto:LockHighlight() else q.auto:UnlockHighlight() end
+    end
     if key ~= nil and not ns.Data.IsCommodity(key) then q.state:SetText(GREY .. L.QUICK_ONLY_MASS .. "|r")
     else q.state:SetText(Q.StateText(key)) end
     q.balance:SetText(Q.BalanceText(key))

@@ -3,6 +3,12 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 19.11.2026: Auto auch über Kaufen bis (Broker 0.123.0)
+
+- **Lockangebote über Kaufen bis erkennen** (KarloDerBaer): Kaufen bis hing oft genau an der Grenze zu den Lockangeboten, Auto konnte es nicht anheben.
+- **Erkennen und Melden getrennt** (Vorschlag Claude, KarloDerBaer einverstanden): Zeile, Nachahmer und Ton bleiben bei „höchstens Kaufen bis“ (0.110), sonst klingelt es bei Angeboten, die man nicht kaufen will. Nur Auto nutzt alle.
+- **Auto leuchtet an der Grenze** (Vorschlag Claude): wenn das letzte Lockangebot bei oder über Kaufen bis liegt.
+
 ## 19.11.2026: Gelegenheiten langfristig (Broker 0.122.0)
 
 - **Einbruch statt Gelegenheit unter Kaufen bis** (Vorschlag Claude, KarloDerBaer einverstanden): Ein Einbruch (neues Angebot ab 2 Stück mindestens 5 % unter dem günstigsten) hängt nicht an Kaufen bis. So bleiben die Zahlen vergleichbar, auch wenn Kaufen bis sich ändert. Die Gelegenheiten unter Kaufen bis zählt der Fokus weiter für die Sitzung.
