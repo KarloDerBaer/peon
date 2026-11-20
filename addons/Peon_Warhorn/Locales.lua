@@ -75,6 +75,7 @@ L.STATUS_SEARCHING = "Searching..."
 L.STATUS_FAILED = "The game rejected the search, please try again in a moment"
 L.STATUS_COMBAT = "Searching is not possible in combat"
 L.STATUS_ERROR = "Search not possible"
+L.STATUS_BLOCKED = "The game did not allow the search here, please click Search"
 
 L.TIP_LEADER   = "Leader: %s"
 L.TIP_MEMBERS  = "Members"
@@ -310,6 +311,7 @@ if GetLocale() == "deDE" then
     L.STATUS_FAILED = "Das Spiel hat die Suche abgelehnt, bitte gleich noch einmal versuchen"
     L.STATUS_COMBAT = "Im Kampf kann nicht gesucht werden"
     L.STATUS_ERROR = "Suche nicht möglich"
+    L.STATUS_BLOCKED = "Das Spiel hat die Suche hier nicht erlaubt, bitte auf Suchen klicken"
 
     L.TIP_LEADER   = "Anführer: %s"
     L.TIP_MEMBERS  = "Mitglieder"

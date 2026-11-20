@@ -590,6 +590,37 @@ combat = false
 fire("PLAYER_REGEN_ENABLED")
 check(Win.searchBtn.enabled, "nach dem Kampf wieder frei")
 
+-- ===== Kategorie aus der Auswahlliste (ab 0.5.3): erst suchen, dann Menue neu =====
+do
+  local steps, radios = {}, {}
+  local root = { CreateRadio = function(_, text, get, set) radios[#radios+1] = set end }
+  Win.catDD.menuGen(nil, root)
+  check(#radios > 0, "Auswahlliste hat Kategorien")
+  local oldSearch, oldGen = C_LFGList.Search, Win.catDD.GenerateMenu
+  C_LFGList.Search = function(cat) steps[#steps+1] = "suche " .. cat end
+  Win.catDD.GenerateMenu = function() steps[#steps+1] = "menue" end
+  local cur = PeonWarhornCharDB.category
+  local pick = cur == 2 and 5 or 2
+  Win.ChangeCategory(pick)
+  check(steps[1] == "suche " .. pick and steps[2] == "menue", "Kategorie: erst suchen, dann Menue neu")
+  check(PeonWarhornCharDB.category == pick and #PeonWarhornCharDB.activities == 0, "Kategorie gewechselt")
+  -- Das Spiel blockiert die Suche: keine haengende Suche, Hinweis auf den Knopf
+  C_LFGList.Search = function() fire("ADDON_ACTION_BLOCKED", "Peon_Warhorn", "UNKNOWN()") end
+  S.searching = false
+  check(S.Search() == false and not S.searching and S.status == "blocked", "blockierte Suche haengt nicht")
+  Win.UpdateStatus()
+  check(Win.statusText:find("Suchen klicken"), "Hinweis auf den Knopf Suchen")
+  fire("ADDON_ACTION_BLOCKED", "AnderesAddon", "UNKNOWN()")
+  check(S.status == "blocked", "fremde Blockade aendert nichts")
+  -- Blockade erst nach dem Aufruf
+  C_LFGList.Search = function() end
+  check(S.Search() == true and S.searching, "Suche laeuft")
+  fire("ADDON_ACTION_BLOCKED", "Peon_Warhorn", "UNKNOWN()")
+  check(not S.searching and S.status == "blocked", "spaete Blockade beendet die Suche")
+  C_LFGList.Search, Win.catDD.GenerateMenu = oldSearch, oldGen
+  S.status, S.searching = nil, false
+end
+
 -- ===== Auswahl =====
 S.SetCategory(5)
 check(PeonWarhornCharDB.category == 5 and #PeonWarhornCharDB.activities == 0, "andere Kategorie leert die Aktivitaeten")

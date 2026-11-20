@@ -17,7 +17,7 @@ local S = {
     seen      = {},      -- resultIDs der vorigen Suche (fuer "neu")
     lastSearch = nil,    -- Zeit der letzten Antwort
     searching = false,
-    status    = nil,     -- nil, "failed", "combat", "error"
+    status    = nil,     -- nil, "failed", "combat", "error", "blocked"
     listeners = {},
 }
 ns.Search = S
@@ -127,12 +127,13 @@ function S.EnsureSelection()
     end
 end
 
-function S.SetCategory(id)
+-- quiet: ohne Meldung an die Anzeige (ab 0.5.3, der Aufrufer meldet selbst, siehe Window.ChangeCategory)
+function S.SetCategory(id, quiet)
     local db = mod.db
     if not db or db.category == id then return end
     db.category = id
     db.activities = {}
-    Notify("selection")
+    if not quiet then Notify("selection") end
 end
 
 function S.IsActivitySelected(id)
@@ -172,7 +173,17 @@ function S.Search()
         return false
     end
     local acts = (#db.activities > 0) and db.activities or S.Activities(cat)
+    S.inCall, S.blockedNow = true, false
     local ok, err = pcall(C_LFGList.Search, cat, 0, 0, nil, false, nil, acts)
+    S.inCall = false
+    if S.blockedNow then
+        -- ab 0.5.3: Das Spiel hat den Aufruf blockiert (ADDON_ACTION_BLOCKED). Ohne das hier hinge "Suche laeuft".
+        mod:Dbg("Suche blockiert")
+        S.searching = false
+        S.status = "blocked"
+        Notify("status")
+        return false
+    end
     if not ok then
         mod:Dbg("Suche Fehler: " .. tostring(Secret(err) and "<geheim>" or err))
         S.status = "error"
@@ -331,6 +342,21 @@ mod:RegisterEvent("LFG_LIST_AVAILABILITY_UPDATE", function()
     S.EnsureSelection()
     if mod.db and mod.db.category ~= before then Notify("selection") end
 end)
+
+-- ab 0.5.3: Blockiert das Spiel die Suche, bleibt sie nicht haengen. Der Hinweis verweist auf den Knopf Suchen.
+-- Meist kommt das Ereignis noch waehrend des Aufrufs (S.inCall), sonst gleich danach.
+local function OnBlocked(event, addon)
+    if Secret(addon) or addon ~= ADDON_NAME then return end
+    if S.inCall then
+        S.blockedNow = true
+    elseif S.searching then
+        S.searching = false
+        S.status = "blocked"
+        Notify("status")
+    end
+end
+mod:RegisterEvent("ADDON_ACTION_BLOCKED", OnBlocked)
+mod:RegisterEvent("ADDON_ACTION_FORBIDDEN", OnBlocked)
 
 mod:RegisterEvent("LFG_LIST_SEARCH_FAILED", function(event, reason)
     S.searching = false

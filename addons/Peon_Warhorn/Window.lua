@@ -314,6 +314,15 @@ function W.Changed()
     if not Peon.InCombat() then S.Search() end
 end
 
+-- Kategorie aus der Auswahlliste (ab 0.5.3): erst suchen, dann die Anzeige neu aufbauen. Bis 0.5.2 lief vor der
+-- Suche ein Neuaufbau samt Menue der Auswahlliste, danach wertete das Spiel die Suche nicht mehr als Klick
+-- und blockierte sie (gemeldet bei Quest & Zonen). Der Knopf Suchen war nicht betroffen.
+function W.ChangeCategory(v)
+    S.SetCategory(v, true)
+    if not Peon.InCombat() then S.Search() end
+    S.Notify("selection")
+end
+
 local function BuildActivityMenu(root)
     local acts = S.Activities(mod.db.category)
     root:CreateButton(L.ACT_ALL, function() mod.db.activities = {}; S.Notify("selection"); W.Changed() end)
@@ -377,7 +386,7 @@ function W.Create(parent)
     f = W.NewPage("search")
 
     -- Zeile 1: Kategorie, Aktivitaeten, Suchen, Neu suchen, Blizzard
-    local cat = UI.Dropdown(f, 140, CategoryItems, function() return mod.db.category end, function(v) S.SetCategory(v); W.Changed() end)
+    local cat = UI.Dropdown(f, 140, CategoryItems, function() return mod.db.category end, function(v) W.ChangeCategory(v) end)
     cat:SetPoint("TOPLEFT", 62, -32)
     W.catDD = cat
     -- Text bleibt "Filter" (ab 0.2.2): Blizzards Vorlage setzt ihn beim Oeffnen ohnehin darauf zurueck
@@ -504,6 +513,8 @@ function W.UpdateStatus()
         text = "|cffff6060" .. L.STATUS_COMBAT .. "|r"
     elseif S.status == "error" then
         text = "|cffff6060" .. L.STATUS_ERROR .. "|r"
+    elseif S.status == "blocked" then
+        text = "|cffff6060" .. L.STATUS_BLOCKED .. "|r"
     elseif not S.lastSearch then
         text = L.STATUS_NEVER
     else

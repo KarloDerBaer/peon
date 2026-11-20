@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.5.3
+
+Kurz: Beim Wechsel der Kategorie, zum Beispiel auf Quest & Zonen, kommt keine Fehlermeldung „blockiert“ mehr.
+Kurz: Lässt das Spiel eine Suche einmal nicht zu, steht in der Statuszeile ein Hinweis, statt dass „Suche läuft“ stehen bleibt.
+
+- 0.5.3 (20.11.2026, Fehler gemeldet von KarloDerBaer): Beim Wechsel auf Quest & Zonen in der Auswahl der Kategorie meldete das Spiel `ADDON_ACTION_BLOCKED` für Warhorn. Der Knopf Suchen ging.
+  - **Ursache (vermutlich):** Bis 0.5.2 baute Warhorn beim Wechsel zuerst die Anzeige samt Menü der Auswahlliste neu auf und suchte erst danach. Zu diesem Zeitpunkt wertete das Spiel die Suche nicht mehr als Klick des Spielers.
+  - **Lösung:** Beim Wechsel der Kategorie sucht Warhorn jetzt zuerst und baut die Anzeige erst danach neu auf (`Window.ChangeCategory`).
+  - **Blockierte Suche:** Blockiert das Spiel eine Suche von Warhorn doch einmal, bleibt „Suche läuft“ nicht stehen. Die Statuszeile zeigt „Das Spiel hat die Suche hier nicht erlaubt, bitte auf Suchen klicken“ (`Search.lua`, Ereignis `ADDON_ACTION_BLOCKED`).
+
 ## 0.5.2
 
 Kurz: Beim schnellen Anflüstern wählst du die gesuchte Rolle direkt im Menü. Angegebene Rollen des Spielers sind wählbar, die anderen grau.
