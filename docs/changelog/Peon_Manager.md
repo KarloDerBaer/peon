@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.50.1
+
+Kurz: Die Seite Marktvergleich steht jetzt wirklich in der Seitenleiste unter Chancen.
+
+- 0.50.1 (20.11.2026, Fehler gemeldet von KarloDerBaer): Die Seite fehlte in der Liste der Seiten des Moduls Peon Broker Client (`modules.js`, `views`), darum zeigte die Seitenleiste sie nicht.
+  - Tests: Liste der Seiten mit `compare` (`test/modules.test.js`).
+
 ## 0.50.0
 
 Kurz: Neue Seite Marktvergleich: Sie vergleicht dein Auktionshaus mit dem neutralen über die letzten Tage und findet Gegenstände, die sich im einen Haus kaufen und im anderen verkaufen lassen. Die besten gehen an Broker.
