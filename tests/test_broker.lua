@@ -4875,6 +4875,38 @@ end)()
   Rd.entries, Rd.gone, Rd.focus = {}, {}, nil
 end)()
 
+-- ===== 0.125.1: automatisches Kaufen bis des Schnellkaufs bleibt nicht im Aufkauf stehen =====
+;(function()
+  local F, Q = ns.Focus, ns.Quick
+  local keepOpen, keepMoney = ns.Scan.ahOpen, GetMoney
+  GetMoney = function() return 10000000 end
+  ns.Scan.ahOpen = true
+  mod.acc.commodity[7988] = true
+  market.items[7988] = { m = 300, md = 1500, q = 200, n = 3, t = clock, nm = "Perlstein", ql = 1 }
+  Rd.entries, Rd.gone, Rd.job = {}, {}, nil
+  ns.Buy.live[7988] = { rows = { { price = 306, qty = 9, own = 0 }, { price = 307, qty = 5, own = 0 }, { price = 1600, qty = 3, own = 0 }, commodity = true }, t = clock, commodity = true }
+  Q.SetMode("quick", true)
+  F.Set(7988)
+  check(F.ManualLimit(7988) == 153, "0.125.1: Schnellkauf fuellt Kaufen bis (Haelfte des guenstigsten): " .. tostring(F.ManualLimit(7988)))
+  F.FromPage(7988, "chances")
+  F.SetTarget(1501)
+  local d = F.Plan()
+  check(mod.db.focusMode == "buyout" and F.ManualLimit(7988) == nil and d and d.qty == 14,
+    "0.125.1: aus Chancen im Aufkauf ohne Kaufen bis des Schnellkaufs, kauft alles unter dem Ziel: " .. tostring(F.ManualLimit(7988)) .. " / " .. tostring(d and d.qty))
+  Q.SetMode("quick")
+  F.SetLimit(200)
+  Q.SetMode("buyout")
+  check(F.ManualLimit(7988) == nil and F.ManualTarget(7988) == nil, "0.125.1: auch beim Umschalten per Knopf bleibt nichts aus dem Schnellkauf stehen")
+  -- aufraeumen
+  Q.SetMode("buyout", true)
+  F.SetLimit(nil)
+  F.SetTarget(nil)
+  Q.limitCleared = {}
+  ns.Scan.ahOpen, GetMoney = keepOpen, keepMoney
+  market.items[7988], ns.Buy.live[7988], mod.acc.commodity[7988] = nil, nil, nil
+  Rd.entries, Rd.gone, Rd.focus = {}, {}, nil
+end)()
+
 -- ===== 0.108: Marktbewegung im Schnellkauf (Zufluss, Abfluss, Bewegung, Nachwirkung des Lockangebots) =====
 ;(function()
   local F, Q, M = ns.Focus, ns.Quick, ns.Measure

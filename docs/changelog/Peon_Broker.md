@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.125.1
+
+Kurz: Der Aufkauf kauft wieder alles unter dem Ziel. Das automatische Kaufen bis des Schnellkaufs blieb beim Wechsel in den Aufkauf stehen, oft unter dem günstigsten Angebot, und dann wurde nichts gekauft.
+
+- 0.125.1 (20.11.2026, Fehler gemeldet von KarloDerBaer):
+  - **Behoben, Werte je Modus** (`Quick.SetMode`): Beim Wechsel zwischen Schnellkauf und Aufkauf werden eigenes Ziel, Kaufen bis, Menge und Limit pro Kauf geleert, danach lädt der Modus seine Werte aus Beobachten. Vorher blieb das Kaufen bis, das der Schnellkauf selbst einträgt (Hälfte des günstigsten Angebots, mindestens Händlerpreis), im Aufkauf stehen. Betroffen war vor allem der Sprung aus Chancen (Aufkauf), wenn der Fokus vorher im Schnellkauf stand: „Keine Chance“, obwohl genug unter dem Ziel stand.
+  - Tests: aus Chancen ohne Kaufen bis des Schnellkaufs, Umschalten per Knopf (`test_broker.lua`).
+
 ## 0.125.0
 
 Kurz: Der Knopf „Auto“ im Schnellkauf reagiert jetzt auch auf Einbrüche, also billige Angebote mit mehreren Stück. Statt der Zeile „Letztes“ zeigt der Fokus den tiefsten Einbruch dieser Sitzung und wie viele es waren.

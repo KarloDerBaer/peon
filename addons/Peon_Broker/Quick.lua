@@ -56,9 +56,16 @@ end
 function Q.SetMode(mode, quiet)
     local new = (mode == "quick") and "quick" or "buyout"
     local changed = mod.db.focusMode ~= new
-    if changed and not quiet and ns.Focus.AutoSave then ns.Focus.AutoSave() end   -- ab 0.113: Werte des bisherigen Modus
-    mod.db.focusMode = new
     local F = ns.Focus
+    if changed and not quiet and F.AutoSave then F.AutoSave() end   -- ab 0.113: Werte des bisherigen Modus
+    mod.db.focusMode = new
+    -- ab 0.125.1: eigene Werte gehoeren zum Modus. Vorher blieb das automatische Kaufen bis des Schnellkaufs
+    -- (Haelfte des guenstigsten Angebots) beim Wechsel in den Aufkauf stehen, der Aufkauf kaufte dann nichts.
+    if changed then
+        F.manual, F.manualLimit, F.manualSrc, F.manualQty, F.manualGold = nil, nil, nil, nil, nil
+        if F.limitInput then F.ClearLimitInput() end
+        if F.targetInput then F.ClearInput() end
+    end
     F.chartN = nil
     if F.ApplyMode then F.ApplyMode() end
     if changed and not quiet and F.key ~= nil and ns.Watch and ns.Watch.Is(F.key) then
