@@ -590,6 +590,7 @@ function Q.OnBought(job, n, cost)
     s.cost = s.cost + (Num(cost) and cost or 0)
     s.buys = (s.buys or 0) + 1
     s.lastBuy = { n = n, cost = Num(cost) and cost or nil, t = Now() }   -- ab 0.125: unter dem Kaufknopf
+    if ns.QuickStats then ns.QuickStats.OnBought(job.key, n, cost) end   -- ab 0.126: bleibt ueber den Logout
     -- ab 0.111: die letzte Gelegenheit gilt als genutzt (einmal)
     local o = Q.opp[job.key]
     if o and not o.won then o.won = true; s.won = (s.won or 0) + 1 end

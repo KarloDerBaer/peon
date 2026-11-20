@@ -2,6 +2,22 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.126.0
+
+Kurz: Beobachten, Unterreiter Schnellkauf, merkt sich jetzt alles über den Logout hinaus. Die Bewegung steht als Ampel da (grün lebhaft, gelb mäßig, rot ruhig, grau ungeprüft), blass, wenn der Wert älter als 6 Stunden ist.
+Kurz: Neue Spalten Treffer (wie oft etwas bis zu deinem Kaufen bis auftauchte), Einbrüche (Anzahl im Zeitraum) und Tief 24 Std. Die Spalte Rat ist weg. Gekauft steht im Tooltip über den ganzen Zeitraum.
+
+- 0.126.0 (20.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Bewegung gespeichert** (`QuickChances.lua`, `QC.Save`, `QC.Load`): Die letzten 3 Prüfungen je Gegenstand stehen in `PeonBrokerDB.quickMove[Markt]`. Nach Logout oder `/reload` zeigt die Liste den letzten Stand, gespeicherte Gegenstände sind sofort wieder dran. Ab 6 Std. gilt der Wert als alt (`QC.OLD`, `v.old`), der Tooltip nennt die letzte Prüfung. Gilt auch für Chancen.
+  - **Geändert, Bewegung als Ampel** (`QC.Light`): farbiger Punkt statt Wort, vorläufig oder alt blass.
+  - **Neu, Treffer** (`QuickStats.lua`, Feld `h`): ein fremdes Angebot taucht bis Kaufen bis des Schnellkaufs auf, vorher stand dort keins. Gezählt in allen Prüfungen und im Fokus.
+  - **Neu, Tief 24 Std.** (`QS.Low24`, Feld `lo` je Stunde): niedrigster Preis aus Stufen mit mindestens 2 Stück, grün bis Kaufen bis.
+  - **Geändert, Einbrüche als Anzahl** im Zeitraum statt je Stunde, sichtbar ab der ersten Beobachtung. Je Stunde steht im Tooltip. In Chancen bleibt die Spalte Einbr./Std.
+  - **Neu, Gekauft gespeichert** (`QS.OnBought`, Felder `k` und `c`): Menge und Durchschnitt im Zeitraum im Tooltip statt nur für die Sitzung.
+  - **Geändert, Zeitraum** (`quickStatDays`): Vorgabe 7 statt 14 Tage. Ein schon gespeicherter Wert bleibt.
+  - **Entfernt, Spalte Rat** im Unterreiter Schnellkauf. Die Zahl am Reiter und das Aufleuchten zählen weiter.
+  - Tests: Treffer, Tiefstpreis 24 Std., Gekauft, gespeicherte und alte Bewegung, Spalten (`test_broker.lua`).
+
 ## 0.125.1
 
 Kurz: Der Aufkauf kauft wieder alles unter dem Ziel. Das automatische Kaufen bis des Schnellkaufs blieb beim Wechsel in den Aufkauf stehen, oft unter dem günstigsten Angebot, und dann wurde nichts gekauft.

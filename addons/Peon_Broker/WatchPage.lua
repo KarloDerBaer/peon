@@ -21,6 +21,9 @@
 -- Ein Gegenstand steht in jeder Liste, fuer die er Werte hat (Watch.InQuick, Watch.InBuyout). Laufend abgefragt wird
 -- nur die offene Liste: Aufkauf wie bisher reihum (R.NextWatch), Schnellkauf mit der Pruefung der Marktbewegung
 -- (QuickChances.lua). Doppelklick oeffnet den Fokus im Modus der Liste. Gemerkt wird der Unterreiter in watchTab.
+-- Ab 0.126 (KarloDerBaer 20.11.2026): Schnellkauf ohne Rat, Bewegung als Ampel (gespeichert), dazu Treffer und
+-- Einbrueche im Zeitraum (quickStatDays) und der Tiefstpreis der letzten 24 Std. (QuickStats.lua). Gekauft im Tooltip
+-- ueber den Zeitraum statt nur fuer die Sitzung. Der Rat zaehlt weiter fuer die Zahl am Reiter und das Aufleuchten.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -214,8 +217,20 @@ function P.QuickRow(key, w)
     local s = ns.Quick and ns.Quick.sessions[key]
     r.bought = s and s.bought > 0 and s.bought or nil
     r.cost = s and s.cost or nil
-    r.dips = ns.QuickStats and ns.QuickStats.Score(key) or 0   -- ab 0.122
+    -- ab 0.126: Zaehlwerte im Zeitraum und Tiefstpreis 24 Std. (gespeichert)
+    local QS = ns.QuickStats
+    local st = QS and QS.Get(key) or nil
+    r.stats = st
+    r.dips = st and st.dips or nil
+    r.hits = st and r.limit and st.hits or nil
+    r.low24 = QS and QS.Low24(key) or nil
     return r
+end
+
+-- ab 0.126: Zelle fuer Anzahlen (Treffer, Einbrueche): grau "-" ohne Wert, gruen ab 1
+function P.CountCell(v)
+    if not Num(v) then return GREY .. "-|r" end
+    return (v > 0 and GREEN or GREY) .. tostring(v) .. "|r"
 end
 
 -- Zahl am Reiter: Gegenstaende mit Rat KAUFEN oder VERKAUFEN
@@ -271,13 +286,21 @@ function P.Build(c)
             P.BellColumn("Down"),
             { key = "under", title = L.WATCH_COL_UNDER, width = 80, align = "RIGHT",
               format = function(v) return Num(v) and (v > 0 and GREEN or GREY) .. tostring(v) .. "|r" or (GREY .. "-|r") end },
-            { key = "move", title = L.QC_COL_MOVE, width = 100, align = "RIGHT",
-              format = function(_, r) return ns.QuickChances.MoveText(r.v) end,
+            -- ab 0.126: Ampel statt Wort
+            { key = "move", title = L.QC_COL_MOVE, width = 76, align = "CENTER",
+              format = function(_, r) return ns.QuickChances.Light(r.v) end,
               sort = function(r) return (r.rank or 2) * 1e6 - (r.ev or 0) end },
-            -- ab 0.122: Einbrueche je Std. statt Gekauft (das steht im Tooltip)
-            { key = "dips", title = L.QS_COL, width = 74, align = "RIGHT",
-              format = function(_, r) return ns.QuickStats.Cell(r.key) end },
-            { key = "advice", title = L.WATCH_COL_ADVICE, width = 80, align = "RIGHT", format = adviceCol.format, sort = adviceCol.sort },
+            -- ab 0.126: Treffer und Einbrueche im Zeitraum, Tiefstpreis 24 Std. (statt Einbr./Std. und Rat)
+            { key = "hits", title = L.WATCH_COL_HITS, width = 60, align = "RIGHT", format = P.CountCell,
+              sort = function(r) return r.hits or -1 end },
+            { key = "dips", title = L.WATCH_COL_DIPS, width = 72, align = "RIGHT", format = P.CountCell,
+              sort = function(r) return r.dips or -1 end },
+            { key = "low24", title = L.WATCH_COL_LOW24, width = 96, align = "RIGHT",
+              format = function(v, r)
+                  if not Num(v) then return GREY .. "-|r" end
+                  return (r.limit and v <= r.limit) and (GREEN .. Money(v) .. "|r") or Money(v)
+              end,
+              sort = function(r) return r.low24 or math.huge end },
         },
     }
     P.panels, P.lists = {}, {}
@@ -390,7 +413,6 @@ function P.QuickTooltip(row, r)
     GT:AddLine(r.name or tostring(r.key), 1, 1, 1)
     GT:AddLine(L.FOCUS_MODE_QUICK, 1, 0.82, 0)
     if ns.QuickChances then ns.QuickChances.TipLines(GT, r.key) end
-    if Num(r.bought) then GT:AddLine(L.WATCH_TIP_BOUGHT:format(r.bought), 0.85, 0.85, 0.85) end   -- ab 0.122 statt Spalte
     if Num(w.qgold) and w.qgold > 0 then GT:AddLine(L.WATCH_TIP_QGOLD:format(Money(w.qgold)), 0.85, 0.85, 0.85) end
     if w.qskip then GT:AddLine(L.QUICK_SKIP, 0.85, 0.85, 0.85) end
     if w.qavg then GT:AddLine(L.WATCH_TIP_QAVG, 0.85, 0.85, 0.85) end

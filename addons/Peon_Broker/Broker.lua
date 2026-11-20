@@ -77,7 +77,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         quickZonePct = 5,       -- ab 0.120: Einstellungen und Kaeufe zaehlen nur bis so viel % ueber dem guenstigsten (Kaufzone)
         quickJumpPct = 2,       -- ab 0.120: Preissprung erst ab so viel % Aenderung des guenstigsten Preises
         quickDipPct  = 5,       -- ab 0.122: Einbruch = neues Angebot so viel % unter dem bisher guenstigsten (QuickStats.lua)
-        quickStatDays = 14,     -- ab 0.122: Gelegenheiten ueber so viele Tage
+        quickStatDays = 7,      -- ab 0.122: Gelegenheiten ueber so viele Tage (ab 0.126 Vorgabe 7 statt 14)
         quickFollowSec = 30,
         quickBaitMinPct = 5,
         autoSaveBuyout = true,  -- ab 0.113: Werte des Aufkaufs beim Verlassen automatisch speichern (nur beobachtete)

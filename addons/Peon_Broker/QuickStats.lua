@@ -15,7 +15,11 @@
 --   Zeit          Abstand zweier Abfragen, hoechstens QS.GAP_MAX Sekunden (laengere Pausen zaehlen nicht)
 -- Speicher je Markt und Tag: PeonBrokerDB.quickStats[Markt][Schluessel][Tag] = { s, e, b, f } (Tag = time() / 86400).
 -- Einbrueche ab 0.124 in e (d aus 0.122 nach alter Regel wird nicht mehr gelesen und faellt mit dem Tag weg).
--- Gezaehlt werden die letzten quickStatDays Tage (Vorgabe 14).
+-- Gezaehlt werden die letzten quickStatDays Tage (Vorgabe 14, ab 0.126 7).
+-- Ab 0.126 (KarloDerBaer 20.11.2026, Beobachten/Schnellkauf nuetzlicher, Werte ueberleben Logout) zusaetzlich je Tag:
+--   h   Treffer: fremdes Angebot unter Kaufen bis des Schnellkaufs taucht auf, vorher stand dort keins
+--   k   gekaufte Stueck im Schnellkauf, c deren Kosten (Kupfer)
+--   lo  { [Stunde] = Preis } Tiefstpreis je Stunde (Stunde = time() / 3600), nur Stufen mit mindestens 2 Stueck
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -32,7 +36,7 @@ QS.lows = {}         -- ab 0.124: [Schluessel] = { { t, p }, ... } Tiefstpreise 
 local GREY = "|cff999999"
 local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
 
-function QS.Days() return math.max(1, math.floor(tonumber(mod.db.quickStatDays) or 14)) end
+function QS.Days() return math.max(1, math.floor(tonumber(mod.db.quickStatDays) or 7)) end
 function QS.Today(t) return math.floor((t or time()) / 86400) end
 
 -- Speicher des Markts (create = anlegen)
@@ -89,6 +93,44 @@ function QS.Low(s)
     return Num(s.min) and s.min or nil
 end
 
+-- ab 0.126: Tiefstpreis nur aus Stufen mit mindestens 2 Stueck (ohne Rueckfall auf das guenstigste Angebot)
+function QS.Low2(s)
+    if type(s) ~= "table" then return nil end
+    for _, l in ipairs(s.lv or {}) do
+        if Num(l.qty) and l.qty >= 2 and Num(l.price) then return l.price end
+    end
+    return nil
+end
+
+-- ab 0.126: Kaufen bis des Schnellkaufs aus der Beobachtung (nil = nicht fuer den Schnellkauf beobachtet)
+function QS.Limit(key)
+    local Wt = ns.Watch
+    if not (Wt and Wt.InQuick and Wt.InQuick(key)) then return nil end
+    local w = Wt.Store()[key]
+    return type(w) == "table" and Num(w.qlim) and w.qlim or nil
+end
+
+-- ab 0.126: steht in Abfrage s ein fremdes Angebot bis limit?
+local function Under(s, limit)
+    if type(s) ~= "table" then return false end
+    for _, l in ipairs(s.lv or {}) do
+        if not Num(l.price) or l.price > limit then break end
+        if Num(l.qty) and l.qty > 0 then return true end
+    end
+    return false
+end
+QS.Under = Under
+
+function QS.Hour(t) return math.floor((t or time()) / 3600) end
+
+-- ab 0.126: Tiefstpreis der Stunde merken
+local function NoteLow(d, price)
+    if not (d and Num(price)) then return end
+    if type(d.lo) ~= "table" then d.lo = {} end
+    local h = QS.Hour()
+    if not d.lo[h] or price < d.lo[h] then d.lo[h] = price end
+end
+
 -- Einbruch in Abfrage s gegenueber prev? ref = Tiefstpreis davor (ab 0.124, Vorgabe Tiefstpreis von prev).
 -- Rueckgabe Preisstufe oder nil
 function QS.Dip(prev, s, ref)
@@ -129,6 +171,11 @@ function QS.OnPair(key, prev, s)
     if d then
         if dip then d.e = (d.e or 0) + 1 end
         if ns.Quick and ns.Quick.NewBaits then d.b = d.b + #ns.Quick.NewBaits(prev, s, nil) end
+        -- ab 0.126: Treffer unter Kaufen bis und Tiefstpreis der Stunde
+        local limit = QS.Limit(key)
+        if limit and Under(s, limit) and not Under(prev, limit) then d.h = (d.h or 0) + 1 end
+        NoteLow(d, QS.Low2(prev))
+        NoteLow(d, QS.Low2(s))
     end
     if dip then return dip, ref end
     return nil
@@ -139,14 +186,40 @@ function QS.OnFollow(key)
     if key ~= nil and ns.Data.IsCommodity(key) then QS.Add(key, "f", 1) end
 end
 
--- Werte eines Gegenstands: nil (nie beobachtet) oder { secs, dips, baits, follows, perHour, baitsPerHour, sure }
+-- ab 0.126: Kauf im Schnellkauf (Quick.OnBought), bleibt ueber den Logout
+function QS.OnBought(key, n, cost)
+    if key == nil or not (Num(n) and n > 0) then return end
+    local d = Day(key)
+    if not d then return end
+    d.k = (d.k or 0) + n
+    d.c = (d.c or 0) + (Num(cost) and cost or 0)
+end
+
+-- ab 0.126: Tiefstpreis der letzten 24 Stunden (nur Stufen ab 2 Stueck), nil = keiner gesehen
+function QS.Low24(key)
+    local st = QS.Store(false)
+    local days = st and st[key]
+    if type(days) ~= "table" then return nil end
+    local from, low = QS.Hour() - 23, nil
+    for _, d in pairs(days) do
+        if type(d) == "table" and type(d.lo) == "table" then
+            for h, p in pairs(d.lo) do
+                if type(h) == "number" and h >= from and Num(p) and (not low or p < low) then low = p end
+            end
+        end
+    end
+    return low
+end
+
+-- Werte eines Gegenstands: nil (nie beobachtet) oder { secs, dips, baits, follows, hits, bought, cost, perHour,
+-- baitsPerHour, sure }
 -- Ab 0.124 einfach gezaehlt ueber die letzten quickStatDays Tage, ohne Gewichtung.
 function QS.Get(key)
     local st = QS.Store(false)
     local days = st and st[key]
     if type(days) ~= "table" then return nil end
     local today, n = QS.Today(), QS.Days()
-    local v = { secs = 0, dips = 0, baits = 0, follows = 0 }
+    local v = { secs = 0, dips = 0, baits = 0, follows = 0, hits = 0, bought = 0, cost = 0 }
     for day, d in pairs(days) do
         local age = type(day) == "number" and today - day or n
         if age >= 0 and age < n and type(d) == "table" then
@@ -154,10 +227,12 @@ function QS.Get(key)
             v.dips = v.dips + (d.e or 0)
             v.baits = v.baits + (d.b or 0)
             v.follows = v.follows + (d.f or 0)
+            v.hits = v.hits + (d.h or 0)
+            v.bought, v.cost = v.bought + (d.k or 0), v.cost + (d.c or 0)
         end
     end
-    if v.secs <= 0 then return nil end
-    local h = v.secs / 3600
+    if v.secs <= 0 and v.bought <= 0 then return nil end
+    local h = math.max(v.secs, 1) / 3600
     v.perHour, v.baitsPerHour = v.dips / h, v.baits / h
     v.sure = v.secs >= QS.SURE
     return v
@@ -204,8 +279,16 @@ function QS.FocusText(key)
 end
 
 -- Zeilen fuer Tooltips in Chancen und Beobachten
+-- ab 0.126 mit Einbruechen je Std., Treffern, Tiefstpreis 24 Std. und Gekauft im Zeitraum
 function QS.TipLines(GT, key)
     local v = QS.Get(key)
     if not v then GT:AddLine(L.QS_TIP_NONE, 0.7, 0.7, 0.7, true); return end
-    GT:AddLine(L.QS_TIP_LONG:format(v.dips, v.baits, QS.Span(v.secs)), 1, 0.82, 0, true)
+    GT:AddLine(L.QS_TIP_PERIOD:format(QS.Days(), QS.Span(v.secs)), 1, 0.82, 0, true)
+    GT:AddLine(L.QS_TIP_COUNTS:format(v.dips, Rate(v.perHour), v.baits), 0.85, 0.85, 0.85, true)
+    if QS.Limit(key) then GT:AddLine(L.QS_TIP_HITS:format(v.hits), 0.85, 0.85, 0.85, true) end
+    local low = QS.Low24(key)
+    if low then GT:AddLine(L.QS_TIP_LOW24:format(ns.Tooltip.Money(low)), 0.85, 0.85, 0.85, true) end
+    if v.bought > 0 then
+        GT:AddLine(L.QS_TIP_BOUGHT:format(v.bought, ns.Tooltip.Money(math.floor(v.cost / v.bought + 0.5))), 0.85, 0.85, 0.85, true)
+    end
 end

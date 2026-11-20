@@ -16,6 +16,9 @@
 --                (Gegenstaende mit Werten des Schnellkaufs). Geprueft wird nur die Liste, die zu sehen ist (QC.Source).
 -- Die Abfragen schickt Radar.lua (R.NextKey Art "probe", QC.Send), die Antworten kommen ueber R.Apply (QC.OnAnswer).
 -- Ausgeblendete Vorschlaege: PeonBrokerDB.quickHide[Markt][Schluessel] = time().
+-- Ab 0.126 (KarloDerBaer 20.11.2026): Die letzten QC.HIST Pruefungen je Gegenstand bleiben gespeichert,
+-- PeonBrokerDB.quickMove[Markt][Schluessel] = { p = { Pruefungen }, t = time() }. Nach Logout oder /reload zeigt die
+-- Bewegung den letzten Stand, ab QC.OLD Sekunden blass (v.old). Gespeicherte Gegenstaende sind sofort wieder dran.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -30,6 +33,7 @@ QC.WAIT_LOAD = 30    -- so oft auf die Daten des Gegenstands warten (Takt des Ra
 QC.DOTS_MAX = 8      -- bis zu so vielen Abfragen je Pruefung Punkte, darueber "3/12"
 QC.STALE = 10        -- Sekunden ohne Abfrage: angefangene Pruefung verwerfen
 QC.RANK = { high = 1, none = 2, mid = 3, low = 4 }
+QC.OLD = 6 * 3600    -- ab 0.126: gespeicherte Bewegung gilt ab so vielen Sekunden als alt (blass)
 
 QC.res = {}          -- [Schluessel] = { probes = { { secs, nNew, nSold, jumps, inAll, sold, baits, n, t } }, min, qty, at, last }
 QC.run = nil         -- laufende Pruefung { key, got, sent, wait, answered, prev, secs, nNew, nSold, jumps, inAll, sold, baits }
@@ -152,12 +156,55 @@ function QC.SetPaused(on)
 end
 
 ---------------------------------------------------------------------------
+-- ab 0.126: gespeicherte Pruefungen (je Markt)
+---------------------------------------------------------------------------
+function QC.SaveStore(create)
+    local acc, market = mod.acc, ns.MarketKey()
+    if type(acc) ~= "table" or type(market) ~= "string" then return nil end
+    if type(acc.quickMove) ~= "table" then
+        if not create then return nil end
+        acc.quickMove = {}
+    end
+    local s = acc.quickMove[market]
+    if type(s) ~= "table" then
+        if not create then return nil end
+        s = {}
+        acc.quickMove[market] = s
+    end
+    return s
+end
+
+-- Pruefungen eines Gegenstands speichern, Eintraege ueber dem Zeitraum (quickStatDays) fallen weg
+function QC.Save(key, probes)
+    local st = QC.SaveStore(true)
+    if not st or key == nil then return end
+    local now = time()
+    local keep = (ns.QuickStats and ns.QuickStats.Days() or 14) * 86400
+    for k, e in pairs(st) do
+        if type(e) ~= "table" or not Num(e.t) or now - e.t > keep then st[k] = nil end
+    end
+    st[key] = { p = probes, t = now }
+end
+
+-- gespeicherte Pruefungen in QC.res holen (einmal je Sitzung und Gegenstand)
+function QC.Load(key)
+    if QC.res[key] then return QC.res[key] end
+    local st = QC.SaveStore(false)
+    local e = st and st[key]
+    if type(e) ~= "table" or type(e.p) ~= "table" or #e.p == 0 then return nil end
+    local probes = {}
+    for _, p in ipairs(e.p) do if type(p) == "table" then probes[#probes + 1] = p end end
+    QC.res[key] = { probes = probes, saved = true }
+    return QC.res[key]
+end
+
+---------------------------------------------------------------------------
 -- Ergebnis eines Gegenstands (gleitend ueber die letzten Pruefungen)
 ---------------------------------------------------------------------------
 -- Rueckgabe nil (noch keine Pruefung) oder { class, early, ev, newPerMin, soldPerMin, jumpsPerMin, inPerMin,
 -- outPerMin, baits, events, queries, secs, probes, at }
 function QC.Result(key)
-    local r = QC.res[key]
+    local r = QC.res[key] or QC.Load(key)   -- ab 0.126 auch gespeichert
     if not (r and r.probes and #r.probes > 0) then return nil end
     local v = { secs = 0, nNew = 0, nSold = 0, jumps = 0, inAll = 0, sold = 0, baits = 0, queries = 0 }
     for _, p in ipairs(r.probes) do
@@ -173,6 +220,11 @@ function QC.Result(key)
     v.events = v.nNew + v.nSold + v.jumps
     v.class = ns.Quick.MoveClass(v.newPerMin, v.ev)
     v.probes, v.early, v.at = #r.probes, #r.probes < 2, r.at
+    -- ab 0.126: Zeitpunkt der juengsten Pruefung (time()), alt ab QC.OLD
+    local newest
+    for _, p in ipairs(r.probes) do if Num(p.t) and (not newest or p.t > newest) then newest = p.t end end
+    v.stamp = newest
+    v.old = newest ~= nil and time() - newest > QC.OLD
     return v
 end
 
@@ -355,12 +407,13 @@ function QC.Finish()
     local r = QC.run
     QC.run = nil
     if not r then return end
-    local res = QC.res[r.key] or { probes = {} }
+    local res = QC.res[r.key] or QC.Load(r.key) or { probes = {} }
     if r.got >= 2 and r.secs > 0 then
         res.probes[#res.probes + 1] = { secs = r.secs, nNew = r.nNew, nSold = r.nSold, jumps = r.jumps, inAll = r.inAll,
                                         sold = r.sold, baits = r.baits, n = r.got, t = time() }
         while #res.probes > QC.HIST do table.remove(res.probes, 1) end
         res.at = Now()
+        QC.Save(r.key, res.probes)   -- ab 0.126
     end
     if Num(r.min) then res.min, res.qty = r.min, r.qty end
     res.last = Now()
@@ -408,6 +461,16 @@ function QC.MoveText(v)
     return color .. word .. (v.early and "?" or "") .. "|r"
 end
 
+-- ab 0.126 (KarloDerBaer 20.11.2026): Ampel fuer die Bewegung in Beobachten. Gruen lebhaft, gelb maessig, rot ruhig,
+-- grau ungeprueft. Vorlaeufig (eine Pruefung) oder alt (QC.OLD) blass.
+QC.LIGHT = { high = { 96, 224, 96 }, mid = { 255, 209, 0 }, low = { 230, 70, 60 }, none = { 110, 110, 110 } }
+function QC.Light(v)
+    local c = QC.LIGHT[v and v.class or "none"] or QC.LIGHT.none
+    local f = (v and (v.early or v.old)) and 0.45 or 1
+    local dot = ns.Radar.DOT
+    return ("|T%s:12:12:0:0:32:32:0:32:0:32:%d:%d:%d|t"):format(dot, math.floor(c[1] * f), math.floor(c[2] * f), math.floor(c[3] * f))
+end
+
 -- Zustand einer Zeile: Punkte (laeuft), "als 3. dran" oder Alter der letzten Pruefung
 function QC.StateText(key)
     local r = QC.run
@@ -446,6 +509,9 @@ function QC.TipLines(GT, key)
     else
         GT:AddLine(L.QC_TIP_MOVE:format(QC.MoveText(v)), 1, 1, 1)
         if v.early then GT:AddLine(L.QC_TIP_EARLY, 0.7, 0.7, 0.7, true) end
+        if v.stamp then   -- ab 0.126: Stand der Bewegung (auch gespeichert)
+            GT:AddLine(L.QC_TIP_STAMP:format(ns.Radar.ShortAge(math.max(0, time() - v.stamp))) .. (v.old and (" " .. L.QC_TIP_OLD) or ""), 0.7, 0.7, 0.7, true)
+        end
         GT:AddLine(L.QC_TIP_RATES:format(tonumber(mod.db.quickZonePct) or 5, QC.Rate(v.newPerMin), QC.Rate(v.soldPerMin), QC.Rate(v.jumpsPerMin)), 0.85, 0.85, 0.85, true)
         GT:AddLine(L.QC_TIP_FLOW:format(QC.Rate(v.inPerMin), QC.Rate(v.outPerMin)), 0.85, 0.85, 0.85, true)
         GT:AddLine(L.QC_TIP_BASE:format(v.events, v.probes, v.queries, QC.Rate(v.secs)), 0.7, 0.7, 0.7, true)

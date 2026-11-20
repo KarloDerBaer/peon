@@ -4806,8 +4806,8 @@ end)()
     local function cols(tab) local t = {} for _, c in ipairs(WP.lists[tab].o.columns) do t[#t + 1] = plain(c.title) end return table.concat(t, ",") end
     check(not cols("buyout"):find("Art", 1, true) and not cols("buyout"):find("Stand", 1, true) and cols("buyout"):find("Zielpreis", 1, true),
       "0.119: Liste Aufkauf ohne Spalte Art: " .. cols("buyout"))
-    check(cols("quick"):find("Bewegung", 1, true) and cols("quick"):find("Darunter", 1, true) and cols("quick"):find("Einbr./Std.", 1, true)
-      and not cols("quick"):find("Zielpreis", 1, true), "0.119: Liste Schnellkauf mit eigenen Spalten: " .. cols("quick"))
+    check(cols("quick"):find("Bewegung", 1, true) and cols("quick"):find("Darunter", 1, true) and cols("quick"):find("Einbrüche", 1, true)
+      and not cols("quick"):find("Zielpreis", 1, true), "0.119/0.126: Liste Schnellkauf mit eigenen Spalten: " .. cols("quick"))
   end
   check(Wt.SKIP.qlim and Wt.SKIP.qgold and Wt.SKIP.qavg and Wt.SKIP.mode, "0.106: Werte des Schnellkaufs bleiben im Spiel (kein Abgleich mit dem Manager)")
   -- Stand oben rechts: juengste Einzelabfrage
@@ -5514,7 +5514,7 @@ end)()
   if not keepAH then C_AuctionHouse = nil end
   R.pending, R.watchSent = nil, {}
   QC.cands, QC.res, QC.run, QC.queue, QC.src, QC.paused = nil, {}, nil, {}, nil, false
-  mod.acc.quickHide = nil
+  mod.acc.quickHide, mod.acc.quickMove = nil, nil
 end)()
 
 -- ===== 0.121: Knopf Auto neben Kaufen bis im Schnellkauf =====
@@ -5745,14 +5745,14 @@ end)()
   -- ab 0.124 ohne Gewichtung: Tage im Zeitraum zaehlen voll, aelter faellt weg, alte Einbrueche (d) zaehlen nicht
   local st = QS.Store(true)
   local today = QS.Today()
-  st[key] = { [today] = { s = 1800, e = 2, d = 50, b = 0, f = 0 }, [today - 7] = { s = 1800, e = 4, b = 2, f = 0 }, [today - 20] = { s = 9999, e = 99, b = 0, f = 0 } }
+  st[key] = { [today] = { s = 1800, e = 2, d = 50, b = 0, f = 0 }, [today - 5] = { s = 1800, e = 4, b = 2, f = 0 }, [today - 20] = { s = 9999, e = 99, b = 0, f = 0 } }
   v = QS.Get(key)
   check(v and v.secs == 3600 and v.dips == 6 and v.baits == 2 and v.sure and math.abs(v.perHour - 6) < 0.001 and QS.Score(key) == 6,
-    "0.124: Tage im Zeitraum zaehlen voll, ueber 14 Tage gar nicht: " .. tostring(v and v.dips))
+    "0.124: Tage im Zeitraum zaehlen voll, darueber gar nicht: " .. tostring(v and v.dips))
   check(plain(QS.Cell(key)) == "6" and plain((QS.FocusText(key))) == "6 Einbrüche, 2 Lockangebote (1 Std.)", "0.124: Spalte und Zeile im Fokus: " .. plain((QS.FocusText(key))))
   st[key][today] = nil
   QS.Add(key, "d", 1)
-  check(st[key][today - 20] == nil and st[key][today - 7] and st[key][today].d == 1, "0.122: neuer Tag raeumt Tage ueber dem Zeitraum weg")
+  check(st[key][today - 20] == nil and st[key][today - 5] and st[key][today].d == 1, "0.122: neuer Tag raeumt Tage ueber dem Zeitraum weg")
   mod.db.quickDipPct = 2
   check(QS.Dip(a, d) ~= nil, "0.122: Grenze fuer Einbruch einstellbar")
   mod.db.quickDipPct = nil
@@ -5804,6 +5804,73 @@ end)()
   QS.OnPair(key, s7, s8)
   check(QS.Get(key).dips == 2, "0.124: nach einer Minute gilt das neue Tief: " .. tostring(QS.Get(key).dips))
   mod.acc.commodity[key], mod.acc.quickStats, QS.lows[key] = nil, nil, nil
+end)()
+
+-- ===== 0.126: Beobachten/Schnellkauf: gespeicherte Bewegung, Treffer, Tiefstpreis 24 Std., Gekauft =====
+;(function()
+  local QS, QC, M, Wt, WP, Q = ns.QuickStats, ns.QuickChances, ns.Measure, ns.Watch, ns.WatchPage, ns.Quick
+  local function lv(list)
+    local rows = { offers = {}, commodity = true }
+    for i, x in ipairs(list) do
+      rows.offers[#rows.offers + 1] = { id = i, q = x[2], p = x[1] }
+      rows[#rows + 1] = { price = x[1], qty = x[2], own = 0 }
+    end
+    return rows
+  end
+  local key = 7997
+  mod.acc.commodity[key] = true
+  mod.acc.quickStats, mod.acc.quickMove, QS.lows[key] = nil, nil, nil
+  check(mod.db.quickStatDays == 7 and QS.Days() == 7, "0.126: Zeitraum Vorgabe 7 Tage")
+  Wt.Add(key, { name = "Ampelerz" })
+  Wt.SetQuick(key, 100, nil, true, true)
+  check(QS.Limit(key) == 100, "0.126: Kaufen bis des Schnellkaufs aus der Beobachtung")
+  -- Treffer: erst taucht 90 auf (Treffer), bleibt stehen (kein neuer), verschwindet, kommt wieder (Treffer)
+  local s1 = M.Sample(lv({ { 120, 10 }, { 130, 50 } }), 100, nil)
+  local s2 = M.Sample(lv({ { 90, 1 }, { 120, 10 }, { 130, 50 } }), 102, nil)
+  local s3 = M.Sample(lv({ { 90, 1 }, { 118, 3 }, { 130, 50 } }), 104, nil)
+  local s4 = M.Sample(lv({ { 118, 3 }, { 130, 50 } }), 106, nil)
+  local s5 = M.Sample(lv({ { 95, 4 }, { 118, 3 }, { 130, 50 } }), 108, nil)
+  QS.OnPair(key, s1, s2); QS.OnPair(key, s2, s3); QS.OnPair(key, s3, s4); QS.OnPair(key, s4, s5)
+  local v = QS.Get(key)
+  check(v and v.hits == 2, "0.126: Treffer zaehlt nur das Auftauchen unter Kaufen bis: " .. tostring(v and v.hits))
+  check(QS.Low24(key) == 95, "0.126: Tiefstpreis 24 Std. nur aus Stufen ab 2 Stueck: " .. tostring(QS.Low24(key)))
+  -- alter Tiefstpreis faellt nach 24 Std. heraus
+  local d = QS.Store(false)[key][QS.Today()]
+  d.lo[QS.Hour() - 30] = 10
+  check(QS.Low24(key) == 95, "0.126: Tiefstpreis aelter als 24 Std. zaehlt nicht")
+  -- Gekauft bleibt gespeichert
+  Q.OnBought({ key = key, quick = true }, 5, 450)
+  v = QS.Get(key)
+  check(v.bought == 5 and v.cost == 450, "0.126: Kauf im Schnellkauf im Zeitraum gespeichert")
+  -- Bewegung: Pruefung speichern, nach "Logout" (QC.res leer) wieder da
+  QC.res = {}
+  QC.res[key] = nil
+  QC.run = { key = key, got = 3, secs = 6, nNew = 4, nSold = 2, jumps = 0, inAll = 10, sold = 5, baits = 0 }
+  QC.Finish()
+  check(type(mod.acc.quickMove) == "table" and mod.acc.quickMove[ns.MarketKey()][key], "0.126: Pruefung gespeichert")
+  QC.res = {}
+  local r = QC.Result(key)
+  check(r and r.class == "high" and r.early and not r.old and QC.DueIn(key) == 0, "0.126: nach Logout Bewegung wieder da, sofort wieder dran")
+  check(QC.Light(r):find("|T", 1, true) ~= nil and QC.Light(nil) ~= QC.Light(r), "0.126: Ampel als Punkt")
+  mod.acc.quickMove[ns.MarketKey()][key].p[1].t = time() - 7 * 3600
+  QC.res = {}
+  r = QC.Result(key)
+  check(r and r.old, "0.126: nach 6 Std. alt (blass)")
+  -- Zeile und Spalten
+  local row
+  for _, x in ipairs(WP.Rows("quick")) do if x.key == key then row = x end end
+  check(row and row.hits == 2 and row.dips == 1 and row.low24 == 95, "0.126: Zeile mit Treffern, Einbruechen und Tiefstpreis: " .. tostring(row and row.hits) .. "/" .. tostring(row and row.dips) .. "/" .. tostring(row and row.low24) .. "/" .. tostring(row and row.limit))
+  if WP.lists and WP.lists.quick and WP.lists.quick.o then
+    local t = {}
+    for _, c in ipairs(WP.lists.quick.o.columns) do t[#t + 1] = plain(c.title) end
+    local cols = table.concat(t, ",")
+    check(not cols:find("Rat", 1, true) and cols:find("Treffer,Einbrüche,Tief 24 Std.", 1, true), "0.126: Spalten ohne Rat: " .. cols)
+  end
+  -- aufraeumen
+  Wt.Remove(key)
+  QC.res, QC.run = {}, nil
+  Q.sessions[key], QS.lows[key] = nil, nil
+  mod.acc.commodity[key], mod.acc.quickStats, mod.acc.quickMove = nil, nil, nil
 end)()
 
 print("ALLE TESTS OK")
