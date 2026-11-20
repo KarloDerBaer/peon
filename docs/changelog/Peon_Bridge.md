@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.13.0
+
+Kurz: Die Bridge gibt die Chancen des Marktvergleichs aus dem Peon Manager an Broker weiter.
+
+- 0.13.0 (20.11.2026, Konzept `Peon_Broker_Marktvergleich.md` Abschnitt 5): neue Funktion `mod:Compare(market)` nach dem Muster von `mod:Chances`. Liest `markets[Heimat].cmp` aus `Data.lua` mit Liste, Sätzen und dem Anteil des neutralen Hauses. Gehört zu Manager 0.50.0 und Broker 0.127.0.
+  - Tests: mit Liste, ohne Liste, ohne Freischaltung (`test_bridge.lua`).
+
 ## 0.12.0
 
 Kurz: Die Bridge schickt alle Händlerpreise einmal neu aus dem Spiel an den Peon Manager, damit dort keine falschen Werte mehr stehen.

@@ -110,7 +110,9 @@ class SnapIndex {
     let m = s.snapDays.get(r.item_key);
     if (!m) { m = new Map(); s.snapDays.set(r.item_key, m); }
     const x = m.get(day);
-    if (x) { x.sum += r.median; x.n++; } else m.set(day, { sum: r.median, n: 1 });
+    // ab Manager 0.50.0 (Marktvergleich): dazu der guenstigste Preis je Tag (msum, mn). Aeltere gesicherte Staende haben ihn nicht.
+    const mn = r.min > 0 ? 1 : 0, ms = r.min > 0 ? r.min : 0;
+    if (x) { x.sum += r.median; x.n++; x.msum = (x.msum || 0) + ms; x.mn = (x.mn || 0) + mn; } else m.set(day, { sum: r.median, n: 1, msum: ms, mn });
   }
 
   // ab Manager 0.35.0 (Reichweite F60): Menge im Angebot je Tag aus dem letzten Stand des Tages
@@ -147,14 +149,15 @@ class SnapIndex {
 
   // 3-Stunden-Werte (aus dem Verdichten): fuer den Bereich gewichtet (n), fuer die Liste je Abschnitt einmal, wie in den Abfragen
   readHours(s, mid, today) {
-    for (const r of this.db.prepare("SELECT item_key, t, median, n, qty FROM item_hour WHERE market_id = ? AND hour >= ? AND source = 'scan' AND t >= ?").iterate(mid, hourFrom((today - KEEP_DAYS) * 86400), (today - KEEP_DAYS) * 86400)) {
+    for (const r of this.db.prepare("SELECT item_key, t, median, n, qty, min FROM item_hour WHERE market_id = ? AND hour >= ? AND source = 'scan' AND t >= ?").iterate(mid, hourFrom((today - KEEP_DAYS) * 86400), (today - KEEP_DAYS) * 86400)) {
       if (r.median == null) continue;
       const day = dayOf(r.t);
       this.noteQty(s, r.item_key, day, r.t, r.qty);
       let m = s.hourDays.get(r.item_key);
       if (!m) { m = new Map(); s.hourDays.set(r.item_key, m); }
-      const x = m.get(day) || { wsum: 0, w: 0, sum: 0, n: 0 };
+      const x = m.get(day) || { wsum: 0, w: 0, sum: 0, n: 0, msum: 0, mn: 0 };
       x.wsum += r.median * r.n; x.w += r.n; x.sum += r.median; x.n++;
+      if (r.min > 0) { x.msum = (x.msum || 0) + r.min * r.n; x.mn = (x.mn || 0) + r.n; }
       m.set(day, x);
     }
   }
@@ -194,6 +197,43 @@ class SnapIndex {
       if (!d) { d = new Map(); out.set(r.item_key, d); }
       if (!d.has(r.num)) d.set(r.num, { value: r.median, own: false });
     }
+    return out;
+  }
+
+  // ab Manager 0.50.0 (Marktvergleich): Map key -> Map tag -> { min, qty }. min = Mittel der guenstigsten Preise des Tages
+  // (ohne Wert aus aelteren Sicherungen der Median), qty = Menge im letzten Stand des Tages
+  dayMins(mid, now, span) {
+    const s = this.of(mid, now);
+    const today = s.today, from = today - span;
+    const out = new Map();
+    const keys = new Set([...s.snapDays.keys(), ...s.hourDays.keys()]);
+    for (const k of keys) {
+      const a = s.snapDays.get(k), b = s.hourDays.get(k), q = s.qtyDays.get(k);
+      const d = new Map();
+      const days = new Set([...(a ? a.keys() : []), ...(b ? b.keys() : [])]);
+      for (const day of days) {
+        if (day <= from || day > today) continue;
+        const x = a && a.get(day), y = b && b.get(day);
+        const ms = (x && x.mn ? x.msum : 0) + (y && y.mn ? y.msum : 0), mn = (x && x.mn ? x.mn : 0) + (y && y.mn ? y.mn : 0);
+        let min = mn ? ms / mn : null;
+        if (min == null) {
+          const sum = (x ? x.sum : 0) + (y ? y.wsum : 0), n = (x ? x.n : 0) + (y ? y.w : 0);
+          min = n ? sum / n : null;
+        }
+        if (!(min > 0)) continue;
+        const qx = q && q.get(day);
+        d.set(day, { min, qty: qx ? qx.qty || 0 : 0 });
+      }
+      if (d.size) out.set(k, d);
+    }
+    return out;
+  }
+
+  // ab Manager 0.50.0: letzter Stand mit Angebot je Gegenstand, Map key -> { t, min, qty }
+  lastSeen(mid, now) {
+    const s = this.of(mid, now);
+    const out = new Map();
+    for (const [k, x] of s.seen) out.set(k, { t: x.t, min: x.row.min, qty: x.row.qty || 0 });
     return out;
   }
 

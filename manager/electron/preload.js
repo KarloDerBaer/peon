@@ -30,6 +30,12 @@ contextBridge.exposeInMainWorld('peon', {
   item: (market, key, range) => ipcRenderer.invoke('item', market, key, range),
   itemInfo: (key) => ipcRenderer.invoke('itemInfo', key),
   chanceView: (market) => ipcRenderer.invoke('chanceView', market),
+  compareView: (market) => ipcRenderer.invoke('compareView', market),   // ab 0.50.0: Marktvergleich
+  compareItem: (market, key) => ipcRenderer.invoke('compareItem', market, key),
+  setCompareRules: (patch) => ipcRenderer.invoke('setCompareRules', patch),
+  resetCompareRules: () => ipcRenderer.invoke('resetCompareRules'),
+  hideCompare: (key, on) => ipcRenderer.invoke('hideCompare', key, on),
+  pinCompare: (key, on) => ipcRenderer.invoke('pinCompare', key, on),
   chanceItem: (market, key) => ipcRenderer.invoke('chanceItem', market, key),
   brief: (market, key, days) => ipcRenderer.invoke('brief', market, key, days),
   marketOverview: (market) => ipcRenderer.invoke('marketOverview', market),

@@ -17,7 +17,7 @@ const range = ref('30d');
 const tab = ref('offers');
 const d = ref(null);
 const RANGES = [['1d', '24 Std.'], ['7d', '7 Tage'], ['30d', '30 Tage'], ['90d', '90 Tage'], ['all', 'Alles']];
-const TABS = [['offers', 'Angebote jetzt'], ['pattern', 'Wann günstig?'], ['sales', 'Absatz im Detail'], ['broker', 'Werte für Broker']];
+const TABS = [['offers', 'Angebote jetzt'], ['pattern', 'Wann günstig?'], ['sales', 'Absatz im Detail'], ['neutral', 'Neutral'], ['broker', 'Werte für Broker']];
 const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const SLOTS = ['0-3', '3-6', '6-9', '9-12', '12-15', '15-18', '18-21', '21-24'];
 
@@ -47,7 +47,18 @@ async function loadInfo() {
   const r = await api.itemInfo(key);
   if (props.itemKey === key) info.value = r;
 }
-onMounted(() => { load(); loadInfo(); });
+// ab 0.50.0: Marktvergleich mit dem neutralen Haus fuer diesen Gegenstand (Reiter Neutral)
+const cmpItem = ref(null);
+async function loadCompare() {
+  cmpItem.value = null;
+  const key = props.itemKey;
+  if (!key || !props.market) return;
+  const r = await api.compareItem(props.market.key, key);
+  if (props.itemKey === key) cmpItem.value = r;
+}
+const cmpDir = (x) => (x === 'n' ? `${cmpItem.value.home} → ${cmpItem.value.neutral}` : `${cmpItem.value.neutral} → ${cmpItem.value.home}`);
+onMounted(() => { load(); loadInfo(); loadCompare(); });
+watch(() => [props.itemKey, props.market && props.market.key, props.stamp], loadCompare);
 watch(() => [props.itemKey, props.market && props.market.key, props.stamp, range.value], load);
 watch(() => props.itemKey, loadInfo);
 
@@ -196,6 +207,22 @@ const levelsTop = computed(() => (d.value && d.value.levels ? d.value.levels.lis
       </p>
       <p class="muted" v-if="d.sales">Beobachtet {{ hoursText(d.sales.minutes) }} in {{ pl(d.sales.cmp, 'Vergleich', 'Vergleichen') }} (14 Tage), dabei {{ num(Math.round(d.sales.sold)) }} verkauft, {{ num(Math.round(d.sales.expired)) }} abgelaufen, {{ num(Math.round(d.sales.cancelled)) }} abgebrochen<template v-if="d.sales.avgPrice">, im Mittel zu <Gold :copper="d.sales.avgPrice" compact /></template>.</p>
       <p v-else class="muted">Absatz: noch kein Vergleich. Dafür braucht es zwei Stände höchstens 24 Std. auseinander.</p>
+    </section>
+
+    <section class="block" v-else-if="tab === 'neutral'">
+      <template v-if="cmpItem && cmpItem.row">
+        <table class="tbl">
+          <thead><tr><th></th><th class="num">{{ cmpItem.home }}</th><th class="num">{{ cmpItem.neutral }}</th></tr></thead>
+          <tbody>
+            <tr><td>Üblicher günstigster Preis</td><td class="num"><Gold v-if="cmpItem.row.hm != null" :copper="cmpItem.row.hm" /></td><td class="num"><Gold v-if="cmpItem.row.nm != null" :copper="cmpItem.row.nm" /></td></tr>
+            <tr><td>Absatz je Tag</td><td class="num">{{ perDay(cmpItem.row.sh) }}</td><td class="num">{{ perDay(cmpItem.row.sn) }}</td></tr>
+          </tbody>
+        </table>
+        <p>Bessere Richtung: {{ cmpDir(cmpItem.row.dir) }}, Spanne {{ cmpItem.row.pct > 0 ? '+' : '' }}{{ cmpItem.row.pct }} % nach dem Anteil des Zielhauses<span class="muted" v-if="!cmpItem.cutSure"> (Anteil Neutral {{ Math.round(cmpItem.cutN * 100) }} % angenommen)</span>.</p>
+        <p v-for="c in cmpItem.chances" :key="c.dir"><b>Chance {{ cmpDir(c.dir) }}:</b> {{ c.say }} Gewinn je Stück <Gold :copper="c.net" compact />, Menge {{ c.qty }}.</p>
+        <p v-if="!cmpItem.chances.length" class="muted">Keine Chance im Markttausch: Spanne, Absatz im Ziel oder Beständigkeit reichen nicht.</p>
+      </template>
+      <p v-else class="muted">Kein Vergleich mit dem neutralen Haus. Dafür braucht es Preise aus beiden Häusern in den letzten Tagen (Seite Marktvergleich).</p>
     </section>
 
     <section class="block" v-else>

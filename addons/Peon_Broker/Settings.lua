@@ -134,16 +134,18 @@ S.QUICK_CHANCES = {
     { "note", "SET_QC_NOTE" },
 }
 S.SPECS.chances = {
-    title = "SET_CH_TITLE", height = 800,   -- ab 0.119 hoeher (Schnellkauf), ab 0.120 noch ein Regler
+    title = "SET_CH_TITLE", height = 860,   -- ab 0.119 hoeher (Schnellkauf), ab 0.120 noch ein Regler
     { "head", "SET_CH_KINDS" },
     { "check", "chancesShowS", "SET_CH_S", "SET_CH_S_TIP" },
     { "check", "chancesShowL", "SET_CH_L", "SET_CH_L_TIP" },
     { "check", "chancesShowB", "SET_CH_B", "SET_CH_B_TIP" },
     { "check", "chancesShowM", "SET_CH_M", "SET_CH_M_TIP" },
     { "check", "chancesShowQ", "SET_CH_Q", "SET_CH_Q_TIP" },   -- ab 0.119
+    { "check", "chancesShowT", "SET_CH_T", "SET_CH_T_TIP" },   -- ab 0.127
     { "head", "SET_CH_NOTES" },
     { "check", "chancesAhNote", "SET_CH_AH_NOTE", "SET_CH_AH_NOTE_TIP" },
     { "check", "chancesNotify", "SET_CH_NOTIFY", "SET_CH_NOTIFY_TIP" },
+    { "check", "chancesTradeNote", "SET_CH_TRADE_NOTE", "SET_CH_TRADE_NOTE_TIP" },   -- ab 0.127
     { "note", "SET_CH_NOTE" },
 }
 for _, row in ipairs(S.RADAR_GENERAL) do table.insert(S.SPECS.chances, row) end

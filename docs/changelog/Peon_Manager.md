@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.50.0
+
+Kurz: Neue Seite Marktvergleich: Sie vergleicht dein Auktionshaus mit dem neutralen über die letzten Tage und findet Gegenstände, die sich im einen Haus kaufen und im anderen verkaufen lassen. Die besten gehen an Broker.
+
+- 0.50.0 (20.11.2026, Wunsch KarloDerBaer, Konzept `Peon_Broker_Marktvergleich.md`):
+  - **Neu, Rechnung** (`compare.js`): je Paar Heimat und Neutral und je Richtung Kaufpreis (Median der Tageswerte des günstigsten Preises), Verkaufspreis (Median der echten Verkaufspreise, höchstens das übliche günstigste Angebot), Gewinn nach dem Anteil des Zielhauses, Absatz im Ziel, Vorrat im Ziel, Beständigkeit und Menge. Bewertung = Gewinn je Tag mal Beständigkeit mal Abschlag für vollen Zielmarkt. Grün ab 70 % Beständigkeit und höchstens 3 Tagen Vorrat.
+  - **Neu, Regeln einstellbar** (`compareRules` in `meta`): Zeitraum 3, 7 oder 14 Tage, eigener Anteil am Absatz (Vorgabe 10 %), Haltedauer (Vorgabe 1 Tag), Mindestspanne, Mindestgewinn, Mindestabsatz, Beständigkeit und der angenommene Anteil des neutralen Hauses (15 %). Den gemessenen Anteil liest der Manager aus `Peon_Broker.lua` (`cut`).
+  - **Neu, Seite Marktvergleich** (`views/Compare.vue`) mit Unterreitern Chancen, Alle Gegenstände, Übersicht und Einstellen. Chancen lassen sich ausblenden (auch für Broker) und an Broker anheften.
+  - **Neu, Reiter Neutral** auf der Seite eines Gegenstands.
+  - **Neu, Weitergabe an Broker** (`compare-client.js`, `Data.lua` `markets[Heimat].cmp`): je Richtung die besten 150, dazu alle angehefteten.
+  - **Neu, günstigster Preis je Tag im Zwischenspeicher** (`snapindex.js`, `dayMins`, `lastSeen`). Ältere gesicherte Stände haben ihn nicht, dort gilt bis zum nächsten Neulesen der Median.
+  - Messung mit echten Daten (20.11.2026, 7 Tage): rund 27.000 Gegenstände in beiden Häusern, 532 Chancen nach Neutral und 912 nach Fraktion, davon 965 grün.
+  - Tests: Regeln, beide Richtungen, gemessener Anteil, Beständigkeit, voller Zielmarkt, Tageswerte aus dem Zwischenspeicher, Liste für Broker, Ansicht (`test/marktvergleich.test.js`).
+
 ## 0.49.0
 
 Kurz: Rückmeldungen tragen jetzt eine anonyme Kennung deines Peon Managers. So sieht KarloDerBaer, ob mehrere Berichte von derselben Installation kommen.

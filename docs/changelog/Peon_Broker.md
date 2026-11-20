@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.127.0
+
+Kurz: Neuer Unterreiter Markttausch in Chancen: im eigenen Haus kaufen und im neutralen verkaufen oder umgekehrt. Die Liste kommt vom Peon Manager, ohne ihn zeigt Broker die Preisunterschiede.
+Kurz: Mehr, Neutral hat jetzt eine Suche und zeigt den Absatz in beiden Häusern.
+
+- 0.127.0 (20.11.2026, Wunsch KarloDerBaer, Konzept `Peon_Broker_Marktvergleich.md`):
+  - **Neu, Suche in Mehr, Neutral** (`Pages.lua`, `G.CompareRows(minPct, onlyStock, search)`): Mit Suchtext gilt der Mindestunterschied nicht, Gegenstände aus nur einem Haus stehen mit „fehlt“ da.
+  - **Neu, Absatz je Tag in beiden Häusern** (`G.SalesPerDay`, über `bridge:Sales`), Tooltip mit Preis, Anteil und Absatz je Haus und dem Satz des Managers.
+  - **Geändert, Unterschied je Richtung:** im einen Haus zum Preis kaufen, im anderen nach dem Anteil verkaufen (`G.Spread`). Vorher beide Preise nach Gebühr. Spalte „Besser“ heißt jetzt „Richtung“.
+  - **Neu, Anteil des neutralen Hauses angenommen 15 %**, solange Broker ihn nicht gemessen hat (`Cut.lua`, `C.Guess`, `C.NEUTRAL_GUESS`). Gilt nur für den Vergleich zwischen den Häusern.
+  - **Neu, Unterreiter Markttausch** (`Trade.lua`, `chancesShowT`): Liste vom Manager (`bridge:Compare`) mit Richtung, Kaufen bis, Verkaufen für, Gewinn, Absatz, Menge, Ampel und Zustand. Der Zustand gilt für das Haus, an dem man steht: kaufbar oder zu teuer am Haus der Quelle, frei, unterboten oder im Gepäck am Haus des Ziels. „Alle prüfen“ fragt die Zeilen für dieses Haus einmal live ab (Radar, Auswahl `trade`). Ohne Manager eine Liste nur nach Preisunterschied ab 20 %.
+  - **Neu, Gepäck für das andere Haus** (`PeonBrokerDB.tradeGoods`): Ein Klick am Haus der Quelle öffnet den Fokus mit Kaufen bis und merkt den Gegenstand. Am Zielhaus nennt ein Hinweis, was davon in den Taschen liegt (`chancesTradeNote`, abschaltbar). Verkauft oder nach 14 Tagen fällt der Eintrag weg.
+  - Tests: Suche, Richtung nach Gebühr, Markttausch mit und ohne Manager, Zustände an beiden Häusern, Gepäck und Hinweis, vier Unterreiter (`test_broker.lua`).
+
 ## 0.126.0
 
 Kurz: Beobachten, Unterreiter Schnellkauf, merkt sich jetzt alles über den Logout hinaus. Die Bewegung steht als Ampel da (grün lebhaft, gelb mäßig, rot ruhig, grau ungeprüft), blass, wenn der Wert älter als 6 Stunden ist.

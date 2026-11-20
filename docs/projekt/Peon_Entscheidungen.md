@@ -3,6 +3,20 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 20.11.2026: Marktvergleich mit dem neutralen Haus (Broker 0.127.0, Bridge 0.13.0, Manager 0.50.0)
+
+Konzept `docs/konzepte/broker/Peon_Broker_Marktvergleich.md`, freigegeben von KarloDerBaer.
+
+- **Beide Richtungen** (KarloDerBaer): Fraktion nach Neutral und Neutral nach Fraktion. Die Horde bleibt draußen.
+- **Anteil des neutralen Hauses 15 % annehmen** (KarloDerBaer), bis Broker ihn aus Rechnungen misst. Der Manager liest den Messwert aus `Peon_Broker.lua`. In Broker gilt die Annahme nur für den Vergleich, nicht für Rat und Tooltip.
+- **Name „Markttausch“** für den Unterreiter in Chancen (KarloDerBaer).
+- **Keine Summe je Gang** zum neutralen Haus (KarloDerBaer).
+- **Ohne Manager eine einfache Liste** nach Preisunterschied (KarloDerBaer).
+- **Eigener Anteil am Absatz 10 %, Haltedauer 1 Tag**, beides einstellbar (KarloDerBaer: deutlich weniger und kürzer als vorgeschlagen).
+- **Kaufpreis aus dem günstigsten Preis je Tag, Verkaufspreis aus echten Verkäufen** (Claude): Der Median der Angebote hätte den Kauf zu teuer und den Verkauf zu günstig gerechnet. Dafür merkt sich der Zwischenspeicher des Managers jetzt auch den günstigsten Preis je Tag.
+- **Zustand nur für das Haus, an dem man steht** (Claude): Live abfragen geht nur am offenen Auktionshaus. „Alle prüfen“ nutzt die Abfrage des Radars.
+- **Gepäck einfach gehalten** (Claude): Broker merkt sich den Gegenstand beim Klick am Haus der Quelle, nicht als eigenen Posten im Buch. Ein Hinweis am Zielhaus nennt, was davon in den Taschen liegt.
+
 ## 20.11.2026: Sicherer Knopf über fremden Symbolen (Profession 0.7.2 und 0.7.3)
 
 - **Nur hinsetzen, nicht anhängen** (Claude): Ein unsichtbarer sicherer Knopf über einem fremden Knopf (Taschenplatz, Symbol) wird nur an dieselbe Bildschirmstelle gesetzt (Position über `UIParent`), nie mit `SetAllPoints` oder `SetPoint` an den fremden Knopf gehängt. Angehängt tat der Klick bei Alt + Klick nichts. Er wirkt beim Loslassen (`useOnKeyDown = false`). Muster wie das Gifte-Symbol in Peon_ClassBuddy.

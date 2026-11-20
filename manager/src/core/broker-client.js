@@ -29,6 +29,7 @@ const { SnapIndex } = require('./snapindex');
 const crypto = require('node:crypto');
 const proof = require('./proof');
 const chanceClient = require('./chance-client');
+const compareClient = require('./compare-client');
 
 const TIP_WANT_MAX = 1000;        // so viele genaue Werte je Laden im Spiel bestellen, der Rest kommt danach
 const TIP_RETRY = 7 * 86400;      // Kennt das Spiel etwas nicht, so lange nicht erneut fragen
@@ -101,7 +102,7 @@ class BrokerClient {
     if (sum.broker.some((b) => b.watch)) this.watchFromGame(sum.broker);
     if (sum.broker.some((b) => b.vendors)) this.vendorsFromGame(sum.broker);
     // ab 0.35.0 (Chancen): Feste, Einschaetzungen und Regeln des Aufkaufs aus Broker
-    try { this.festsFromGame(sum.broker); this.ratingsFromGame(sum.broker); this.rulesFromGame(sum.broker); this.goneFromGame(sum.broker); } catch (e) { log(this.db, 'chancen', false, `Aus Broker: ${e.message}`); }
+    try { this.festsFromGame(sum.broker); this.ratingsFromGame(sum.broker); this.rulesFromGame(sum.broker); this.goneFromGame(sum.broker); this.cutFromGame(sum.broker); } catch (e) { log(this.db, 'chancen', false, `Aus Broker: ${e.message}`); }
     // ab 0.44.0: Im Schreib-Prozess rechnet der Rechen-Prozess danach (broker-remote importGame), Data.lua kommt dann aus
     // bridgeFromCalc. Hier gleich die Bestaetigung mit den Werten der letzten Rechnung.
     const markets = this.role === 'write' ? this.storedMarkets() : this.buildMarkets();
@@ -153,6 +154,8 @@ class BrokerClient {
       // Kandidaten neu aus dem gespeicherten Ergebnis: Angeheftetes und Daumen runter gelten sofort, nicht erst nach der Rechnung
       const ch = this.chancesForBroker(m.id);
       if (ch) { lua[m.key].chances = ch; values[m.key].chances = ch.list; }
+      const cm = this.compareForBroker(m.id);   // ab 0.50.0: Marktvergleich (Heimatmarkt)
+      if (cm) { lua[m.key].cmp = cm; values[m.key].cmp = cm.list; }
       count += v.n || 0;
       salesCount += v.ns || 0;
       day = v.day;
@@ -212,6 +215,12 @@ class BrokerClient {
       count += lt.items.size;
       salesCount += st.size;
     }
+    // ab 0.50.0: Marktvergleich Heimat und Neutral (nach dem Absatz aller Maerkte), Liste fuer Broker beim Heimatmarkt
+    try { this.compareRunAll(); } catch (e) { log(this.db, 'marktvergleich', false, e.message); }
+    for (const p of this.comparePairs()) {
+      const cm = lua[p.home.key] && this.compareForBroker(p.home.id);
+      if (cm) { lua[p.home.key].cmp = cm; values[p.home.key].cmp = cm.list; }
+    }
     this.lastLua = lua;
     return { lua, values, count, salesCount, day };
   }
@@ -257,7 +266,7 @@ class BrokerClient {
       try {
         const r = broker.importFile(this.db, f.file);
         seen[f.file] = mt;
-        out.push({ file: f.file, folder: f.account, mt: Math.floor(mt / 1000), acct: r.acct, markets: r.markets, shop: r.shop, watch: r.watch, vendors: r.vendors, ratings: r.ratings, feste: r.feste, rules: r.rules, chancesGone: r.chancesGone });
+        out.push({ file: f.file, folder: f.account, mt: Math.floor(mt / 1000), acct: r.acct, markets: r.markets, shop: r.shop, watch: r.watch, vendors: r.vendors, ratings: r.ratings, feste: r.feste, rules: r.rules, chancesGone: r.chancesGone, cut: r.cut });
         const n = r.markets.reduce((a, m) => a + m.items, 0);
         log(this.db, 'broker', true, `Broker-Verlauf: ${n} Gegenstände in ${r.markets.length} ${r.markets.length === 1 ? 'Markt' : 'Märkten'}`);
       } catch (e) {
@@ -1522,6 +1531,7 @@ class BrokerClient {
   close() { this.closed = true; try { this.db.close(); } catch { /* schon zu */ } }
 }
 
-chanceClient.install(BrokerClient.prototype);   // ab 0.35.0: Chancen und Prognosen (chance-client.js)
+chanceClient.install(BrokerClient.prototype);
+compareClient.install(BrokerClient.prototype);   // ab 0.50.0: Marktvergleich mit dem neutralen Haus (compare-client.js)   // ab 0.35.0: Chancen und Prognosen (chance-client.js)
 
 module.exports = { BrokerClient };

@@ -96,6 +96,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
         chancesTab   = "spec",  -- ab 0.119: zuletzt offener Unterreiter in Chancen (spec, buyout, quick)
         watchTab     = "buyout", -- ab 0.119: zuletzt offener Unterreiter in Beobachten (buyout, quick)
         chancesShowQ = true,    -- ab 0.119: Chancen der Art Schnellkauf (QuickChances.lua)
+        chancesShowT = true,    -- ab 0.127: Unterreiter Markttausch (Trade.lua)
+        chancesTradeNote = true,   -- ab 0.127: Hinweis am Zielhaus auf Ware aus dem Markttausch
         qcCount      = 10,      -- ab 0.119: so viele Vorschlaege fuer den Schnellkauf
         qcMinPrice   = 100,     -- ab 0.119: guenstigster Preis je Stueck mindestens (Kupfer, 1 Silber)
         qcProbes     = 5,       -- ab 0.119: Abfragen je Pruefung eines Gegenstands
@@ -639,6 +641,7 @@ mod:On("INIT", function()
     mod:Call("Einkaufsliste", ns.Buy.Init)
     mod:Call("Radar", ns.Radar.Init)
     mod:Call("Chancen", ns.Chances.Init)   -- ab 0.96
+    if ns.Trade then mod:Call("Markttausch", ns.Trade.Init) end   -- ab 0.127
     if ns.Lots then mod:Call("Posten", ns.Lots.Init) end   -- ab 0.67 (H3)
     if ns.Quick then mod:Call("Schnellkauf", ns.Quick.Init) end   -- ab 0.104
     if ns.SellVariant then mod:Call("Varianten", ns.SellVariant.Init) end   -- ab 0.98

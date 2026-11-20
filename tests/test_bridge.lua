@@ -686,6 +686,15 @@ do
   check(mod:Chances(nsb.MarketKey()) == nil, "0.11.0: ohne Freischaltung keine Kandidaten")
   PeonBridgeData.channels.broker = true
   PeonBridgeData.markets[nsb.MarketKey()].chances = nil
+  -- 0.13.0 (Peon_Broker_Marktvergleich.md 5): Marktvergleich mit dem neutralen Haus
+  check(mod:Compare(nsb.MarketKey()) == nil, "0.13.0: ohne Liste kein Marktvergleich")
+  PeonBridgeData.markets[nsb.MarketKey()].cmp = { t = T, cutN = 1500, cutSure = false, list = { [90001] = "n:80:200:90:120:2:15:86:900:g" }, say = { [90001] = "Satz" } }
+  local mt, ml, ms, mi = mod:Compare(nsb.MarketKey())
+  check(mt == T and ml[90001] and ms[90001] == "Satz" and mi.cutN == 1500 and mi.cutSure == false, "0.13.0: Marktvergleich mit Zeit, Satz und Anteil")
+  PeonBridgeData.channels.broker = false
+  check(mod:Compare(nsb.MarketKey()) == nil, "0.13.0: ohne Freischaltung kein Marktvergleich")
+  PeonBridgeData.channels.broker = true
+  PeonBridgeData.markets[nsb.MarketKey()].cmp = nil
   check(D.ApplyManager() == 3, "0.36: drei Gegenstaende neu (einer hat eine neuere Live-Abfrage)")
   local e1 = mk.items[90001]
   check(e1.m == 80 and e1.md == 95 and e1.q == 30 and e1.n == 6 and e1.lt == T, "0.36: aktueller Stand vom Manager")

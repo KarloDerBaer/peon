@@ -21,7 +21,7 @@ Helfer fürs Auktionshaus mit eigenem Fenster und Reitern direkt im Auktionshaus
 
 - `/broker` öffnet und schließt das Broker-Fenster, `/broker optionen` die Einstellungen.
 - **Komplettscan:** Knopf oben im Auktionshaus oder `/broker scan`. Danach kennt Broker die Preise des ganzen Markts.
-- **Reiter:** Markt (Preise und Suche), Verkaufen (Rat zum Preis, erkennt Lockangebote), Auktionen, Einkaufen (Einkaufslisten), Fokus (ein Gegenstand genau beobachtet, Modi Aufkauf und Schnellkauf), Beobachten (Preisalarm), Chancen (vom Peon Manager und aus dem Radar-Scan), Mehr (Gegenstand und anderes).
+- **Reiter:** Markt (Preise und Suche), Verkaufen (Rat zum Preis, erkennt Lockangebote), Auktionen, Einkaufen (Einkaufslisten), Fokus (ein Gegenstand genau beobachtet, Modi Aufkauf und Schnellkauf), Beobachten (Preisalarm), Chancen (vom Peon Manager und aus dem Radar-Scan, Unterreiter Markttausch für eigenes und neutrales Haus), Mehr (Gegenstand, Vergleich mit dem neutralen Haus mit Suche und anderes).
 - **Tooltip:** zeigt Preise, Trend und Bestand. Die Teile stellst du unter Peon > Broker ein.
 - **Tasten:** „Fokus: kaufen“ und „Fokus: nächster Treffer des Radars“.
 - Mit dem Peon Manager und seinem Modul Peon Broker Client bekommt Broker zusätzlich Preise aus der Blizzard-API und Chancen.
@@ -132,7 +132,8 @@ Das Programm für Windows installiert und aktualisiert die Addons.
 - **Einstellungen:** WoW-Ordner, Kanal Stabil oder Test, Aussehen, Größe der Oberfläche, Datensicherung.
 - **Spieldaten sichern:** Der Manager sichert die Daten der Peon-Addons vor jedem Update und einmal am Tag. Unter Einstellungen holst du einen älteren Stand zurück, wenn WoW geschlossen ist.
 - **Größe:** Strg und Plus oder Minus, Strg und Mausrad, Strg und 0 für 100 %.
-- **Modul Peon Broker Client** (unter Updates einschaltbar): sammelt die Auktionsdaten von Broker, wertet sie aus und zeigt Übersicht, Marktübersicht, Chancen, Einkaufen und Beobachten.
+- **Modul Peon Broker Client** (unter Updates einschaltbar): sammelt die Auktionsdaten von Broker, wertet sie aus und zeigt Übersicht, Marktübersicht, Chancen, Marktvergleich, Einkaufen und Beobachten.
+- **Marktvergleich:** vergleicht dein Auktionshaus mit dem neutralen über die letzten Tage. Chancen sind Gegenstände, die sich im einen Haus günstig kaufen und im anderen mit Gewinn verkaufen lassen, bewertet nach Preisunterschied, Absatz im Zielhaus und wie beständig der Unterschied ist. Die besten gehen an Broker (Chancen, Markttausch).
 
 ## Peon unterstützen
 

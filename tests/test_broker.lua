@@ -3005,8 +3005,18 @@ end)()
   local rows = G.CompareRows(20, false)
   local cu
   for _, r in ipairs(rows) do if r.key == 2770 then cu = r end end
-  check(cu and cu.pct == 100 and cu.better == "neutral", "U10: Vergleich nach Gebuehr, neutral besser")
+  check(cu and cu.pct == 70 and cu.better == "neutral", "U10: Vergleich nach Gebuehr (Neutral angenommen 15 %), neutral besser")
   check(#G.CompareRows(500, false) == 0, "U10: Mindestabstand filtert")
+  -- ab 0.127.0: Suche zeigt auch Gegenstaende ohne Unterschied und aus nur einem Markt
+  nm.items[9999] = { m = 500, md = 500, q = 1, n = 1, t = clock, nm = "Nur Neutral Stein" }
+  local found = G.CompareRows(500, false, "nur neutral")
+  check(#found == 1 and found[1].key == 9999 and found[1].home == nil and found[1].pct == nil, "M1: Suche findet Gegenstand nur in Neutral")
+  check(#G.CompareRows(500, false, "kupfer") == 1, "M1: Suche ohne Mindestabstand")
+  check(#G.CompareRows(0, false, "gibtsnicht") == 0, "M1: Suche ohne Treffer leer")
+  local p1, b1 = G.Spread(100, 100, 0.05, 0.15)
+  local p2, b2 = G.Spread(300, 100, 0.05, 0.15)
+  check(p1 < 0 and b1 == nil and b2 == "home" and p2 == 185, "M1: Richtung und Unterschied nach Gebuehr")
+  nm.items[9999] = nil
   Win.Select("market")
   check(G.stand and plain(G.stand.text):find("PvE Horde", 1, true) and plain(G.stand.text):find("PvE Neutral", 1, true), "U10: Datenstand je Markt")
   check(#G.compare:GetItems() >= 1, "U10: Liste Vergleich gefuellt")
@@ -3700,7 +3710,7 @@ end)()
     if c.row[2] == "radarReserve" then reserve = c end
     if c.row[2] == "chancesNotify" then notify = c end
   end
-  check(reserve and notify and f.h == 800, "0.105: ein Fenster fuer Chancen und Radar, etwas hoeher (ab 0.120 mit Schnellkauf 800)")
+  check(reserve and notify and f.h == 860, "0.105: ein Fenster fuer Chancen und Radar, etwas hoeher (ab 0.127 mit Markttausch 860)")
   local vendor, spec
   for _, c in ipairs(f.controls) do
     if c.row[2] == "radarVendorOn" then vendor = c end
@@ -5438,8 +5448,8 @@ end)()
   if C.qlist then
     local t = {}
     for _, c in ipairs(C.qlist.o.columns) do t[#t + 1] = plain(c.title) end
-    check(table.concat(t, ",") == "Gegenstand,Günstigster,Menge,Zu / Ab je Min.,Bewegung,Einbr./Std.,Lockangebote,Zustand" and C.tabs and #C.tabs == 3,
-      "0.119: drei Unterreiter, Liste Schnellkauf mit eigenen Spalten: " .. table.concat(t, ","))
+    check(table.concat(t, ",") == "Gegenstand,Günstigster,Menge,Zu / Ab je Min.,Bewegung,Einbr./Std.,Lockangebote,Zustand" and C.tabs and #C.tabs == 4,
+      "0.119: vier Unterreiter (ab 0.127 mit Markttausch), Liste Schnellkauf mit eigenen Spalten: " .. table.concat(t, ","))
   end
   -- Menue
   local made = {}
@@ -5871,6 +5881,95 @@ end)()
   QC.res, QC.run = {}, nil
   Q.sessions[key], QS.lows[key] = nil, nil
   mod.acc.commodity[key], mod.acc.quickStats, mod.acc.quickMove = nil, nil, nil
+end)()
+
+-- ===== 0.127: Markttausch (Trade.lua, Peon_Broker_Marktvergleich.md 6.2) =====
+;(function()
+  local T, C, R, G = ns.Trade, ns.Chances, ns.Radar, ns.Pages
+  local HK, NK = ns.HomeMarketKey(), ns.NeutralMarketKey()
+  local oldGet, oldOpen, oldExists, oldUFG, oldCounts = Peon.GetModule, ns.Scan.ahOpen, rawget(_G, "UnitExists"), UnitFactionGroup, ns.Stock.Counts
+  local bridgeT = clock - 600
+  local fake = { Compare = function(_, market)
+      if market ~= HK then return nil end
+      return bridgeT, { [2770] = "n:80:200:90:120:2:15:86:900:g", ["7001"] = "h:100:300:185:30:1:9999:50:40:y", [7002] = "kaputt" },
+        { [2770] = "Fraktion kauft für 80c" }, { cutN = 1500, cutSure = false } end }
+  Peon.GetModule = function(self, k) if k == "bridge" then return fake end return oldGet(self, k) end
+  check(T.Parse("n:80:200:90:120:2:15:86:900:g").perDay == 12 and T.Parse("n:1:2:3:4:5:9999:50:7:y").supply == nil and T.Parse("x") == nil, "0.127: Eintrag lesen")
+  local entries, t, mgr = T.Entries()
+  check(#entries == 2 and t == bridgeT and mgr, "0.127: Liste des Managers, kaputte Zeile uebersprungen")
+  check(T.Say(2770) == "Fraktion kauft für 80c", "0.127: Satz des Managers")
+  check(C.TabOn("trade") and T.Count() == 1, "0.127: Unterreiter an, Zahl = gruene Eintraege")
+  mod.db.chancesShowT = false
+  check(not C.TabOn("trade") and T.Count() == 0, "0.127: Unterreiter abschaltbar")
+  mod.db.chancesShowT = true
+  -- unterwegs
+  ns.Scan.ahOpen = false
+  local rows = T.Rows()
+  local r2770
+  for _, r in ipairs(rows) do if r.key == 2770 then r2770 = r end end
+  check(r2770 and r2770.state == "away" and plain(r2770.stateText) == "im eigenen Haus kaufen", "0.127: unterwegs: wo kaufen")
+  -- am eigenen Haus (Quelle fuer Richtung n)
+  ns.Scan.ahOpen = true
+  UnitExists = function(u) return u == "npc" end
+  UnitFactionGroup = function(u) return "Horde", "Horde" end
+  local hm = D.Market(HK, true)
+  local e = hm.items[2770]
+  local oldM, oldLt, oldGone = e.m, e.lt, e.gone
+  e.m, e.lt, e.gone = 80, clock, nil
+  check(T.Where("n") == "src" and select(1, T.State({ key = 2770, dir = "n", buy = 80, sell = 200 })) == "buy", "0.127: am Haus der Quelle kaufbar")
+  e.m = 120
+  check(select(1, T.State({ key = 2770, dir = "n", buy = 80, sell = 200 })) == "dear", "0.127: zu teuer")
+  e.lt = clock - 3600
+  check(select(1, T.State({ key = 2770, dir = "n", buy = 80, sell = 200 })) == "open", "0.127: alter Preis: ungeprueft")
+  local keys = T.Keys()
+  check(#keys == 2, "0.127: Alle pruefen: beide Zeilen betreffen das eigene Haus")
+  R.forceMode = "trade"
+  check(#R.SearchKeys("trade") == 2, "0.127: Radar fragt die Zeilen des Markttauschs ab")
+  R.forceMode = nil
+  -- Klick am Haus der Quelle merkt den Gegenstand fuer das Ziel
+  T.Remember({ key = 2770, dir = "n", sell = 200 })
+  check(mod.acc.tradeGoods[2770] and mod.acc.tradeGoods[2770].dir == "n", "0.127: Gepaeck gemerkt")
+  -- am neutralen Haus (Ziel fuer Richtung n)
+  UnitFactionGroup = function(u) if u == "npc" then return nil end return "Horde", "Horde" end
+  check(ns.AHMarketKey() == NK and T.Where("n") == "dst" and T.Where("h") == "src", "0.127: am neutralen Haus")
+  local nm = D.Market(NK, true)
+  nm.items[2770] = { m = 300, md = 300, q = 2, n = 1, t = clock, lt = clock }
+  ns.Stock.Counts = function() return 0, 0, 0, 0 end
+  check(select(1, T.State({ key = 2770, dir = "n", buy = 80, sell = 200 })) == "free", "0.127: am Ziel frei")
+  nm.items[2770].m = 150
+  check(select(1, T.State({ key = 2770, dir = "n", buy = 80, sell = 200 })) == "under", "0.127: am Ziel unterboten")
+  ns.Stock.Counts = function() return 3, 0, 3, 0 end
+  check(select(1, T.State({ key = 2770, dir = "n", buy = 80, sell = 200 })) == "bags", "0.127: im Gepaeck")
+  local here = T.GoodsHere()
+  check(#here == 1 and here[1].n == 3, "0.127: Ware fuer dieses Haus")
+  local n0 = #out
+  T.OnAHShow()
+  check(#out == n0 + 1 and plain(out[#out]):find("Markttausch: 1", 1, true), "0.127: Hinweis am Zielhaus")
+  mod.db.chancesTradeNote = false
+  n0 = #out
+  T.OnAHShow()
+  check(#out == n0, "0.127: Hinweis abschaltbar")
+  mod.db.chancesTradeNote = true
+  -- Unterreiter in Chancen
+  C.SelectTab("trade")
+  check(C.Tab() == "trade" and (not C.tpanel or C.tpanel:IsShown()), "0.127: Unterreiter Markttausch waehlbar")
+  check(plain(T.StatusText()):find("Anteil Neutral 15 % angenommen", 1, true), "0.127: Status mit angenommenem Anteil")
+  -- ohne Manager: Liste nach Preisunterschied aus Brokers Preisen
+  Peon.GetModule = oldGet
+  hm.items[2770].m = 100
+  nm.items[2770] = { m = 300, md = 300, q = 2, n = 1, t = clock, nm = "Kupfererz" }
+  local fe = T.Entries()
+  local f2770
+  for _, x in ipairs(fe) do if x.key == 2770 then f2770 = x end end
+  check(f2770 and f2770.fallback and f2770.dir == "n" and f2770.net == math.floor(300 * 0.85 - 100), "0.127: ohne Manager nach Preisunterschied")
+  check(plain(T.StatusText()):find("Ohne Peon Manager", 1, true), "0.127: Status ohne Manager")
+  -- aufraeumen
+  C.SelectTab("spec")
+  mod.acc.tradeGoods = nil
+  e.m, e.lt, e.gone = oldM, oldLt, oldGone
+  D.DeleteMarket(NK)
+  ns.Stock.Counts = oldCounts
+  ns.Scan.ahOpen, UnitExists, UnitFactionGroup = oldOpen, oldExists, oldUFG
 end)()
 
 print("ALLE TESTS OK")

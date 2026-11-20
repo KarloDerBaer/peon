@@ -53,32 +53,79 @@ end
 G.minPct = 20
 G.onlyStock = false
 
--- Vergleich Heimat gegen Neutral: { key, name, home, neutral, pct, better }
-function G.CompareRows(minPct, onlyStock)
+-- Anteil des Hauses fuer den Vergleich: gemessen, sonst fuer Neutral die Annahme (ab 0.127.0, Marktvergleich 3.3)
+function G.CutOf(market)
+    local D = ns.Data
+    if D.CutSure(market) then return D.Cut(market) end
+    return ns.Cut and ns.Cut.Guess and ns.Cut.Guess(market) or D.Cut(market)
+end
+
+-- Absatz je Tag vom Manager (ueber Peon_Bridge), nil ohne Wert (ab 0.127.0)
+function G.SalesPerDay(key, market)
+    local c = Peon.GetModule and Peon:GetModule("bridge")
+    if not c or type(c.Sales) ~= "function" then return nil end
+    local ok, v = pcall(c.Sales, c, key, market)
+    if ok and type(v) == "table" and Num(v.perDay) then return v.perDay end
+    return nil
+end
+
+-- Unterschied nach Gebuehr fuer die bessere Richtung: im einen Haus kaufen, im anderen nach Gebuehr verkaufen.
+-- Rueckgabe pct (Gewinn in Prozent des Kaufpreises, negativ = Verlust in beiden Richtungen) und better ("neutral",
+-- "home" oder nil ohne Gewinn)
+function G.Spread(home, neutral, cutH, cutN)
+    local toN = (neutral * (1 - cutN) - home) / home
+    local toH = (home * (1 - cutH) - neutral) / neutral
+    local best, dir = toN, "neutral"
+    if toH > toN then best, dir = toH, "home" end
+    local pct = math.floor(best * 100 + 0.5)
+    return pct, pct > 0 and dir or nil
+end
+
+-- Vergleich Heimat gegen Neutral: { key, name, home, neutral, pct, better, salesH, salesN }
+-- search (ab 0.127.0): Teil des Namens. Mit Suchtext gilt der Mindestunterschied nicht und Gegenstaende aus nur einem
+-- Markt stehen mit fehlendem Preis in der Liste (Konzept Peon_Broker_Marktvergleich.md 6.1).
+-- Ab 0.127.0 zaehlt der Unterschied je Richtung (kaufen zum Preis, verkaufen nach Gebuehr), vorher beide nach Gebuehr.
+function G.CompareRows(minPct, onlyStock, search)
     local D = ns.Data
     local hk, nk = ns.HomeMarketKey(), ns.NeutralMarketKey()
     local hm, nm = D.Markets()[hk], D.Markets()[nk]
     local rows = {}
     if type(hm) ~= "table" or type(nm) ~= "table" or hk == nk then return rows end
-    local cutH, cutN = D.Cut(hk), D.Cut(nk)
-    for key, ne in pairs(nm.items or {}) do
-        local he = hm.items and hm.items[key]
-        if type(ne) == "table" and type(he) == "table" and Num(ne.m) and Num(he.m) and not ne.gone and not he.gone and he.m > 0 then
-            local netH, netN = he.m * (1 - cutH), ne.m * (1 - cutN)
-            local pct = math.floor((netN - netH) / netH * 100 + 0.5)
-            local stockOk = true
-            if onlyStock then
-                local id = D.ItemID(key)
-                local total = 0
-                if ns.Stock then local _, _, t = ns.Stock.Counts(id, nil); total = t or 0 end
-                stockOk = total > 0
-            end
-            if math.abs(pct) >= (minPct or 0) and stockOk then
-                rows[#rows + 1] = { key = key, name = he.nm or ne.nm or D.ItemName(key, he) or tostring(key), quality = he.ql or ne.ql,
-                    home = he.m, neutral = ne.m, pct = pct, better = pct > 0 and "neutral" or "home" }
-            end
-        end
+    local cutH, cutN = G.CutOf(hk), G.CutOf(nk)
+    local needle = type(search) == "string" and (search:gsub("^%s+", ""):gsub("%s+$", "")) or ""
+    needle = needle ~= "" and W.Lower(needle) or nil
+    local function Live(e) return type(e) == "table" and Num(e.m) and not e.gone and e.m > 0 end
+    local function StockOk(key)
+        if not onlyStock then return true end
+        local total = 0
+        if ns.Stock then local _, _, t = ns.Stock.Counts(D.ItemID(key), nil); total = t or 0 end
+        return total > 0
     end
+    local seen = {}
+    local function Add(key)
+        if seen[key] then return end
+        seen[key] = true
+        local he, ne = hm.items and hm.items[key], nm.items and nm.items[key]
+        local hOk, nOk = Live(he), Live(ne)
+        if not (hOk or nOk) then return end
+        local name = (type(he) == "table" and he.nm) or (type(ne) == "table" and ne.nm) or D.ItemName(key, hOk and he or ne) or tostring(key)
+        if needle then
+            if not W.Lower(name):find(needle, 1, true) then return end
+        elseif not (hOk and nOk) then
+            return
+        end
+        local pct, better
+        if hOk and nOk then
+            pct, better = G.Spread(he.m, ne.m, cutH, cutN)
+            if not needle and pct < (minPct or 0) then return end
+        end
+        if not StockOk(key) then return end
+        rows[#rows + 1] = { key = key, name = name, quality = (type(he) == "table" and he.ql) or (type(ne) == "table" and ne.ql),
+            home = hOk and he.m or nil, neutral = nOk and ne.m or nil, pct = pct, better = better,
+            salesH = G.SalesPerDay(key, hk), salesN = G.SalesPerDay(key, nk) }
+    end
+    for key in pairs(nm.items or {}) do Add(key) end
+    if needle then for key in pairs(hm.items or {}) do Add(key) end end
     return rows
 end
 
@@ -94,6 +141,13 @@ function G.BuildMarket(c)
     G.minRow = UI.FormRow(c, L.PG_MIN_PCT, G.minBox, 220, -36)
     G.minBox:SetText(tostring(G.minPct))
     G.minBox:SetScript("OnEditFocusLost", function(self) G.minPct = tonumber(self:GetText() or "") or 0; G.RefreshMarket() end)
+    -- ab 0.127.0: Suche nach Gegenstaenden (Marktvergleich 6.1)
+    G.search = UI.SearchBox(c, 220, function(text)
+        if text == (G.searchText or "") then return end
+        G.searchText = text
+        mod:Call("Neutral", G.RefreshMarket)
+    end)
+    G.search:SetPoint("TOPRIGHT", -8, -36)
     local p = UI.Panel(c, "list", true)
     p:SetPoint("TOPLEFT", 0, -70)
     p:SetPoint("BOTTOMRIGHT", 0, 0)
@@ -102,23 +156,50 @@ function G.BuildMarket(c)
         columns = {
             { key = "name", title = L.COL_ITEM, sort = function(r) return W.Lower(r.name) end,
               color = function(r) return UI.QualityColor(r.quality or 1) end },
-            { key = "home", title = L.PG_COL_HOME, width = 110, align = "RIGHT", format = function(v) return Money(v) end },
-            { key = "neutral", title = L.PG_COL_NEUTRAL, width = 110, align = "RIGHT", format = function(v) return Money(v) end },
-            { key = "pct", title = L.PG_COL_DIFF, width = 100, align = "RIGHT",
-              format = function(v) return (v > 0 and GREEN .. "+" or ORANGE) .. v .. " %|r" end,
-              sort = function(r) return -math.abs(r.pct) end },
+            { key = "home", title = L.PG_COL_HOME, width = 100, align = "RIGHT", format = function(v) return v and Money(v) or GREY .. L.PG_MISSING .. "|r" end },
+            { key = "neutral", title = L.PG_COL_NEUTRAL, width = 100, align = "RIGHT", format = function(v) return v and Money(v) or GREY .. L.PG_MISSING .. "|r" end },
+            { key = "pct", title = L.PG_COL_DIFF, width = 90, align = "RIGHT",
+              format = function(v) if not v then return GREY .. "-|r" end return (v > 0 and GREEN .. "+" or GREY) .. v .. " %|r" end,
+              sort = function(r) return r.pct and -r.pct or nil end },
+            { key = "salesH", title = L.PG_COL_SALES_H, width = 70, align = "RIGHT", format = function(v) return G.FmtSales(v) end },
+            { key = "salesN", title = L.PG_COL_SALES_N, width = 70, align = "RIGHT", format = function(v) return G.FmtSales(v) end },
             { key = "better", title = L.PG_COL_BETTER, width = 100, align = "RIGHT",
-              format = function(v) return v == "neutral" and L.FACTION_NEUTRAL or L.PG_HOME end },
+              format = function(v) if not v then return "" end return v == "neutral" and L.PG_DIR_TO_NEUTRAL or L.PG_DIR_TO_HOME end },
         },
         sortKey = "pct", icon = true, empty = L.PG_COMPARE_EMPTY,
         onClick = function(r, button)
             local item = { id = ns.Data.ItemID(r.key), key = r.key, name = r.name }
             if button == "RightButton" then ns.Go.Menu(item, G.comparePanel) else mod:Call("Sprung", ns.Go.Item, item) end
         end,
-        onEnter = function(row, r) if r then W.ShowItemTooltip(row, r.key) end end,
+        onEnter = function(row, r) if r then G.CompareTooltip(row, r) end end,
     })
     function G.compare:GetItems() return self.items end
     G.RefreshMarket()
+end
+
+-- Absatz je Tag kurz: "12", "1,5", "<0,1", ohne Wert "-"
+function G.FmtSales(v)
+    if not Num(v) then return GREY .. "-|r" end
+    if v >= 10 then return tostring(math.floor(v + 0.5)) end
+    if v < 0.1 then return "<0,1" end
+    return (("%.1f"):format(v):gsub("%.", ","))
+end
+
+-- Tooltip einer Zeile: Gegenstand, dazu beide Haeuser mit Gebuehr und Absatz, und der Satz des Managers
+function G.CompareTooltip(row, r)
+    W.ShowItemTooltip(row, r.key)
+    if not GameTooltip or not GameTooltip.AddLine then return end
+    local hk, nk = ns.HomeMarketKey(), ns.NeutralMarketKey()
+    GameTooltip:AddLine(" ")
+    for _, x in ipairs({ { hk, r.home, r.salesH }, { nk, r.neutral, r.salesN } }) do
+        local cut = G.CutOf(x[1])
+        GameTooltip:AddDoubleLine(G.MarketLabel(x[1]), (x[2] and Money(x[2]) or L.PG_MISSING), 1, 0.82, 0, 1, 1, 1)
+        GameTooltip:AddLine(L.PG_TIP_CUT:format(("%.0f"):format(cut * 100), ns.Data.CutSure(x[1]) and "" or L.PG_TIP_GUESS) ..
+            "  " .. L.PG_TIP_SALES:format(G.FmtSales(x[3])), 0.7, 0.7, 0.7)
+    end
+    local say = ns.Trade and ns.Trade.Say and ns.Trade.Say(r.key)
+    if say then GameTooltip:AddLine(" "); GameTooltip:AddLine(say, 0.6, 0.9, 1, true) end
+    GameTooltip:Show()
 end
 
 function G.RefreshMarket()
@@ -132,7 +213,7 @@ function G.RefreshMarket()
     if #lines == 0 then lines[1] = GREY .. L.PG_NO_DATA .. "|r" end
     G.stand:SetText(table.concat(lines, "\n"))
     if G.compare then
-        local rows = G.CompareRows(G.minPct, G.onlyStock)
+        local rows = G.CompareRows(G.minPct, G.onlyStock, G.searchText)
         for _, r in ipairs(rows) do r.icon = ns.Buy and ns.Buy.Icon(ns.Data.ItemID(r.key)) or nil end
         G.compare:SetData(rows)
     end

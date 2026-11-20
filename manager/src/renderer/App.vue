@@ -6,6 +6,7 @@ import Settings from './views/Settings.vue';
 import Help from './views/Help.vue';
 import Item from './views/Item.vue';
 import Chances from './views/Chances.vue';
+import Compare from './views/Compare.vue';   // ab 0.50.0
 import Market from './views/Market.vue';
 import Success from './views/Success.vue';
 import Brief from './views/Brief.vue';
@@ -49,6 +50,7 @@ const ALL = [
   { key: 'favorites', label: 'Beobachten' },   // ab 0.32.0 neu (A4), Name wie im Spiel
   // ab 0.35.0 (Peon_Manager_Chancen.md): Chancen ersetzen Radar (WIP), dazu Marktuebersicht und Erfolgskontrolle
   { key: 'chances', label: 'Chancen' },
+  { key: 'compare', label: 'Marktvergleich' },   // ab 0.50.0: Heimat gegen Neutral (Peon_Broker_Marktvergleich.md)
   { key: 'success', label: 'Erfolgskontrolle' },
   { key: 'vendors', label: 'Händler (WIP)', wip: true },
   { key: 'sources', label: 'Datenlage' },
@@ -84,7 +86,7 @@ function pickMarket(key) {
 }
 
 // ---------- Navigation: Verlauf wie im Browser ----------
-const ORIGINS = new Set(['overview', 'items', 'favorites', 'shopping', 'chances', 'market', 'success']);
+const ORIGINS = new Set(['overview', 'items', 'favorites', 'shopping', 'chances', 'compare', 'market', 'success']);
 const entries = ref([{ view: 'overview' }]);
 const pos = ref(0);
 const canBack = computed(() => pos.value > 0);
@@ -294,6 +296,7 @@ function openCoffee() { window.peon.openLink(COFFEE_URL); }
           <Vendors v-else-if="view === 'vendors'" :market="current" :now="now" :stamp="stampOf('vendors')" @open="openItem" />
           <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @loaded="itemLoaded" @go="go($event)" @open="openItem" @brief="openBrief" />
           <Chances v-else-if="view === 'chances'" :market="current" :now="now" :stamp="stampOf('chances')" :settings="settings" @open="openItem" @brief="openBrief" @save="saveQuiet" />
+          <Compare v-else-if="view === 'compare'" :market="current" :now="now" :stamp="stampOf('compare')" :settings="settings" @open="openItem" @save="saveQuiet" />
           <Market v-else-if="view === 'market'" :market="current" :now="now" :stamp="stampOf('market')" :settings="settings" :theme="settings.theme" :tab="marketTab" @tab="marketTab = $event" @open="openItem" @brief="openBrief" @save="saveQuiet" />
           <Success v-else-if="view === 'success'" :market="current" :now="now" :stamp="stampOf('success')" @open="openItem" @brief="openBrief" />
           <Brief v-else-if="view === 'brief'" :market="current" :item-key="itemKey" :now="now" :stamp="stamp" :theme="settings.theme" @open="openItem" />

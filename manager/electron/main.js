@@ -457,6 +457,14 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('chanceItem', (_e, market, key) => (svc.broker ? svc.broker.chanceItem(String(market), String(key)) : null));
     ipcMain.handle('brief', (_e, market, key, days) => (svc.broker ? svc.broker.brief(String(market), String(key), Number(days) || 14) : null));
     ipcMain.handle('marketOverview', (_e, market) => (svc.broker ? rd('marketOverview', String(market)) : null));
+    // ab 0.50.0: Marktvergleich mit dem neutralen Haus (compare-client.js)
+    const compareChanged = async (r) => { const v = await r; send('changed', { what: 'marktvergleich' }); return v; };
+    ipcMain.handle('compareView', (_e, market) => (svc.broker ? rd('compareView', String(market)) : null));
+    ipcMain.handle('compareItem', (_e, market, key) => (svc.broker ? rd('compareItem', String(market), String(key)) : null));
+    ipcMain.handle('setCompareRules', (_e, patch) => compareChanged(broker().setCompareRules(patch || {})));
+    ipcMain.handle('resetCompareRules', () => compareChanged(broker().resetCompareRules()));
+    ipcMain.handle('hideCompare', (_e, key, on) => compareChanged(broker().hideCompare(String(key), !!on)));
+    ipcMain.handle('pinCompare', async (_e, key, on) => { const r = await broker().pinCompare(String(key), !!on); await broker().writeBridge('marktvergleich'); return r; });
     ipcMain.handle('stabilityView', (_e, market) => (svc.broker ? rd('stabilityView', String(market)) : null));   // ab 0.45.0
     ipcMain.handle('stabilitySummary', (_e, market) => (svc.broker ? rd('stabilitySummary', String(market)) : null));   // ab 0.46.0
     ipcMain.handle('successView', (_e, market) => (svc.broker ? svc.broker.successView(String(market)) : null));

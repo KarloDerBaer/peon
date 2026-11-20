@@ -462,6 +462,10 @@ function R.SearchKeys(mode)
     if mode == "mgronly" then
         return ns.Chances and ns.Chances.Keys() or {}
     end
+    -- ab 0.127: "Alle pruefen" im Unterreiter Markttausch, nur die Zeilen fuer das Haus, an dem man steht (Trade.lua)
+    if mode == "trade" then
+        return ns.Trade and ns.Trade.Keys() or {}
+    end
     local market = D.Market()
     if not market then return keys end
     for key, e in pairs(market.items) do
@@ -489,11 +493,11 @@ function R.NextSearch(peek)
     end
     for _ = 1, 50 do
         if sc.index >= #sc.keys then
-            if mode == "mgronly" and sc.rounds >= 1 then   -- ab 0.96: eine Runde, dann fertig
+            if (mode == "mgronly" or mode == "trade") and sc.rounds >= 1 then   -- ab 0.96: eine Runde, dann fertig (ab 0.127 auch Markttausch)
                 if not peek then R.Stop() end
                 return nil
             end
-            sc.keys = (mode == "watch" or mode == "mgronly") and R.SearchKeys(mode) or Shuffle(R.SearchKeys(mode))
+            sc.keys = (mode == "watch" or mode == "mgronly" or mode == "trade") and R.SearchKeys(mode) or Shuffle(R.SearchKeys(mode))
             sc.index, sc.rounds = 0, sc.rounds + 1
             if #sc.keys == 0 then return nil end
         end

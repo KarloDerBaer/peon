@@ -18,6 +18,7 @@ local C = {}
 ns.Cut = C
 
 C.DEFAULT = D.CUT     -- 5 %
+C.NEUTRAL_GUESS = 0.15   -- ab 0.127.0: angenommener Anteil des neutralen Hauses, bis Broker ihn misst (KarloDerBaer, 20.11.2026)
 C.KEEP = 10           -- so viele Anteile je Haus merken
 C.MIN_PRICE = 2000    -- kleinere Verkaeufe (unter 20 Silber) nicht messen, die Rundung verfaelscht sie
 C.seen = {}           -- schon gezaehlte Rechnungen dieser Sitzung (Absender|Betreff|Preis|Anteil)
@@ -115,6 +116,13 @@ function D.CutSure(market)
     local e = f and Store()[f]
     if type(e) == "table" and Num(e.r) then return true end
     return f ~= "Neutral"
+end
+
+-- Anteil fuer Vergleiche zwischen den Haeusern (ab 0.127.0): gemessen, sonst fuer Neutral die Annahme 15 %
+function C.Guess(market)
+    if D.CutSure(market) then return D.Cut(market) end
+    if C.FactionOfMarket(market or ns.MarketKey()) == "Neutral" then return C.NEUTRAL_GUESS end
+    return D.Cut(market)
 end
 
 -- Text fuer Pruefung und Quellen: "Allianz 5,0 % (12 Rechnungen) · Neutral nicht gemessen"
