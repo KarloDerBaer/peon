@@ -15,7 +15,8 @@
 --             (solange die Liste offen ist, reihum die Zeilen fuer das Haus hier, T.NextKey), dem Komplettscan und dem Manager.
 --   Klick     am Haus der Quelle: Fokus im Aufkauf mit Kaufen bis, am Haus des Ziels: Gegenstand. Unterwegs: Fokus fuer
 --             den naechsten Besuch.
---   Gepaeck   (Konzept 6.2, M5) Was aus dem Markttausch in den Fokus ging, merkt sich Broker mit dem Zielhaus
+--   Gepaeck   ab 0.128.1 aus Peon_Ledger: Posten, die im anderen Haus gekauft und noch nicht verkauft sind (Ledger 0.17,
+--             mod:HouseLots). Bis dahin (Konzept 6.2, M5): Was aus dem Markttausch in den Fokus ging, merkt sich Broker mit dem Zielhaus
 --             (PeonBrokerDB.tradeGoods[Schluessel] = { dir, t, sell }). Am Zielhaus nennt ein Hinweis die Gegenstaende in
 --             den Taschen (abschaltbar, chancesTradeNote). Verkauft oder nach 14 Tagen faellt der Eintrag weg.
 
@@ -34,7 +35,9 @@ local GREY, ORANGE, GREEN, GOLD, BLUE = "|cff999999", "|cffff9933", "|cff60e060"
 local function Money(v) return ns.Tooltip.Money(v) end
 local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
 
-function T.On() return mod.db.chancesShowT ~= false end
+-- ab 0.128.2 (KarloDerBaer 20.11.2026): Markttausch in Chancen und Beobachten erst, wenn er in den Einstellungen der
+-- Chancen eingeschaltet ist (tradeOn, Vorgabe aus). Mehr, Neutral bleibt immer da.
+function T.On() return mod.db.tradeOn == true end
 
 -- Liste des Managers: t, list, say, info oder nil
 function T.Manager()
@@ -297,6 +300,7 @@ end
 function T.ActiveKeys()
     if not (ns.Scan and ns.Scan.ahOpen) then return nil end
     if T.ListShown() then return T.Keys() end
+    if ns.Packages and ns.Packages.Shown() then return ns.Packages.Keys() end   -- ab 0.129: Pakete
     local P = ns.WatchPage
     if P and P.Shown and P.Shown() and P.Tab() == "trade" and ns.Watch and ns.Watch.TradeKeys then return ns.Watch.TradeKeys() end
     return nil
@@ -321,7 +325,7 @@ end
 
 -- Antwort einer Abfrage (Radar.lua R.Apply): Liste neu zeigen
 function T.OnAnswer(key)
-    if T.ListShown() and ns.Chances then ns.Chances.Refresh() end
+    if (T.ListShown() or (ns.Packages and ns.Packages.Shown())) and ns.Chances then ns.Chances.Refresh() end
     local P = ns.WatchPage
     if P and P.Shown and P.Shown() and P.Tab() == "trade" and P.Refresh then P.Refresh() end
 end
@@ -360,15 +364,43 @@ function T.Prune()
     end
 end
 
+-- ab 0.128.1: Ware aus dem anderen Haus aus Peon_Ledger (Posten mit Haus, ab Ledger 0.17). Rueckgabe { [itemID] = Stueck },
+-- nil ohne Ledger. here = "n" (neutrales Haus offen) oder "f"
+function T.LedgerGoods(here)
+    local led = Peon.GetModule and Peon:GetModule("ledger")
+    if not led or type(led.HouseLots) ~= "function" then return nil end
+    local ok, lots = pcall(led.HouseLots, led)
+    if not ok or type(lots) ~= "table" then return nil end
+    local other = here == "n" and "f" or "n"
+    local out = {}
+    for id, o in pairs(lots) do
+        if Num(o[other]) and o[other] > 0 then out[id] = o[other] end
+    end
+    return out
+end
+
 -- Gegenstaende in den Taschen, die an diesem Haus verkauft werden sollen: Liste { key, name, n }
+-- ab 0.128.1 vor allem aus Peon_Ledger (im anderen Haus gekauft und noch nicht verkauft), dazu die Merker aus dem
+-- Markttausch (tradeGoods) fuer Kaeufe, die Ledger noch keinem Haus zuordnen konnte
 function T.GoodsHere()
     local out = {}
     if not (ns.Scan and ns.Scan.ahOpen) then return out end
     local here = ns.AHMarketKey()
+    local fromLedger = T.LedgerGoods(here == ns.NeutralMarketKey() and "n" or "f")
+    local seen = {}
+    for id, n in pairs(fromLedger or {}) do
+        local bags = InBags(id)
+        if bags > 0 then
+            seen[id] = true
+            out[#out + 1] = { key = id, name = ns.Data.ItemName(id) or tostring(id), n = math.min(bags, n) }
+        end
+    end
     for key, g in pairs(T.Goods()) do
         local _, dst = T.Markets(g.dir)
         local n = InBags(key)
-        if dst == here and n > 0 then out[#out + 1] = { key = key, name = ns.Data.ItemName(key) or tostring(key), n = n } end
+        if dst == here and n > 0 and not seen[ns.Data.ItemID(key) or key] and not seen[key] then
+            out[#out + 1] = { key = key, name = ns.Data.ItemName(key) or tostring(key), n = n }
+        end
     end
     table.sort(out, function(a, b) return W.Lower(a.name) < W.Lower(b.name) end)
     return out
@@ -376,7 +408,7 @@ end
 
 function T.OnAHShow()
     T.Prune()
-    if mod.db.chancesTradeNote == false then return end
+    if not T.On() or mod.db.chancesTradeNote == false then return end
     local list = T.GoodsHere()
     if #list == 0 then return end
     local names = {}

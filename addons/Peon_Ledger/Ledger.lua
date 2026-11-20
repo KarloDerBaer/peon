@@ -111,6 +111,27 @@ function mod:Cost(id, char)
     return info.next, info.avg, info.n, info.value
 end
 
+-- Markttausch (ab 0.17): Posten eines Charakters nach dem Haus, in dem sie gekauft wurden.
+-- Rueckgabe { [itemID] = { f = Stueck aus dem eigenen Haus, n = Stueck aus dem neutralen } }, nur Gegenstaende mit
+-- solchen Posten. Ohne char der eingeloggte Charakter.
+function mod:HouseLots(char)
+    if not ns.Cost then return {} end
+    local st = ns.Cost.State()
+    local x = st and st.chars and st.chars[char or ns.CharName()]
+    local out = {}
+    if type(x) ~= "table" or type(x.lots) ~= "table" then return out end
+    for id, q in pairs(x.lots) do
+        for _, lot in ipairs(q) do
+            if lot.h == "f" or lot.h == "n" then
+                local o = out[id]
+                if not o then o = { f = 0, n = 0 }; out[id] = o end
+                o[lot.h] = o[lot.h] + (lot.n or 0)
+            end
+        end
+    end
+    return out
+end
+
 -- Offene Gebuehren (ab 0.16): Einstellgebuehren ohne Verkauf (abgelaufen, abgebrochen), gesamt und je Stueck
 -- des Bestands (Kupfer); nil ohne offene Gebuehren. Sie stecken nicht in mod:Cost.
 function mod:OpenFee(id, char)
@@ -214,7 +235,8 @@ function ns.CharName()
 end
 
 function ns.Realm()
-    local realm = GetRealmName and GetRealmName() or nil
+    -- ab 0.17.0: mit Rueckfall des Kerns (API 27), das Spiel lieferte zeitweise einen leeren Namen
+    local realm = (Peon.RealmName and Peon.RealmName()) or (GetRealmName and GetRealmName()) or nil
     if Peon.IsSecret(realm) or type(realm) ~= "string" or realm == "" then return "?" end
     return realm
 end
@@ -349,7 +371,42 @@ function ns.MigrateBook()
     return had
 end
 
+-- ab 0.17.0: Lieferte das Spiel einen leeren Realm-Namen (gesehen 20.11.2026), lagen Bestand und Bewegungen unter "?".
+-- Sobald der echte Name bekannt ist (Kern API 27, Peon.RealmName), wandern sie zum echten Realm: Bewegungen dazu (nach
+-- Zeit sortiert), der Bestand der Charaktere aus "?" ist der neuere und ersetzt den alten, damit die Inventur danach keine
+-- doppelten Zugaenge sieht. Danach faellt "?" weg.
+function ns.MergeUnknownRealm()
+    local acc = mod.acc
+    local real = ns.Realm()
+    if real == "?" or type(acc) ~= "table" or type(acc.realms) ~= "table" then return 0 end
+    local q = acc.realms["?"]
+    if type(q) ~= "table" then return 0 end
+    local r = ns.Inventory.RealmData(real)
+    local n = 0
+    if type(q.moves) == "table" and #q.moves > 0 then
+        if type(r.moves) ~= "table" then r.moves = {} end
+        for _, e in ipairs(q.moves) do r.moves[#r.moves + 1] = e; n = n + 1 end
+        table.sort(r.moves, function(a, b) return (a.t or 0) < (b.t or 0) end)
+    end
+    for name, c in pairs(type(q.chars) == "table" and q.chars or {}) do
+        local old = r.chars[name]
+        if type(old) ~= "table" then
+            r.chars[name] = c
+        elseif type(c) == "table" then
+            if type(c.places) == "table" and next(c.places) then old.places = c.places end
+            for _, k in ipairs({ "money", "moneyT", "faction", "class", "level" }) do if c[k] ~= nil then old[k] = c[k] end end
+        end
+    end
+    if type(q.account) == "table" and type(q.account.places) == "table" and next(q.account.places) then r.account = q.account end
+    acc.realms["?"] = nil
+    if ns.Moves and ns.Moves.Changed then ns.Moves.Changed() end
+    if ns.Cost then ns.Cost.Invalidate() end
+    mod:Print(L.MSG_REALM_MERGED:format(n, real))
+    return n
+end
+
 mod:On("LOGIN", function()
+    mod:Call("Realm", ns.MergeUnknownRealm)   -- ab 0.17.0, vor allem anderen
     mod:Call("Bestand", ns.Inventory.OnLogin)
     mod:Call("Bewegungen", ns.Moves.OnLogin)
     mod:Call("Buch", ns.MigrateBook)

@@ -49,11 +49,11 @@ Versionen stehen in den TOC-Dateien und in `Peon_Stand.md` (hier nicht, damit ni
 
 **Peon_Bridge und Peon Manager (ab 31.10.2026):** Die Bridge ist die Verbindung zwischen Spiel und Manager. Inhalte melden sich in der Bridge als Kanal an (`ns.RegisterChannel`, intern im Addon, nicht Teil der Kern-API), der erste ist `broker`. Der Manager schaltet Kanäle über `Data.lua` frei (`PeonBridgeData.fmt = 2`, `channels = { broker = true }`). Ohne Freischaltung zeichnet die Bridge nichts auf und liefert Broker keine Werte, Broker rechnet dann selbst. Format und Plan: `docs\konzepte\manager\Peon_GitHub_Design.md`.
 
-## Kern-API (Peon.API = 26)
+## Kern-API (Peon.API = 27)
 
 Die API wird nur erweitert, nie geändert (sonst brechen alle Module). Bei neuen Funktionen `Peon.API` erhöhen.
 
-**Global `Peon`:** `version`, `API`, `L`, `NewLocale()`, `Print`, `IsSecret(v)`, `S(v)` (sicherer Text), `InCombat()`, `CopyTable`, `Clamp(wert, {min,max,schritt})`, `GetMetadata`, `IsAddOnLoaded`, `GetModule(key)`, `OpenOptions()`, `POSITIONS` / `POSITION_SET` (3×3-Raster mit "none" in der Mitte).
+**Global `Peon`:** `version`, `API`, `L`, `NewLocale()`, `Print`, `RealmName()` (API 27: Realm-Name, bei leerem Namen des Spiels der zuletzt bekannte, nie direkt `GetRealmName()` für Speicher nutzen), `IsSecret(v)`, `S(v)` (sicherer Text), `InCombat()`, `CopyTable`, `Clamp(wert, {min,max,schritt})`, `GetMetadata`, `IsAddOnLoaded`, `GetModule(key)`, `OpenOptions()`, `POSITIONS` / `POSITION_SET` (3×3-Raster mit "none" in der Mitte).
 
 **Modul anlegen** (erste Code-Datei des Moduls):
 ```lua
@@ -217,6 +217,9 @@ UI.BottomTabs(win, { { "a", "Übersicht" } }, fn):Select("a"); UI.StatusBar(win)
 - Diagramm-Legende (ab 0.11): mehrere Reihen mit gleichem `key` → die Reihe mit `label` bestimmt Name und Farbe.
 
 ## Wichtige Erkenntnisse zu WoW Forever
+
+- **Leerer Realm-Name (gesehen 20.11.2026):** Nach einem Neustart des Spiels lieferte `GetRealmName()` einen leeren Text. Module, die Daten je Realm speichern, sahen dann nichts mehr. Immer `Peon.RealmName()` nutzen (API 27).
+- **Grenze für SavedVariables (gesehen 20.11.2026):** Das Spiel lädt eine Datei mit mehr als etwa 262.000 verschiedenen Werten nicht („constant table overflow“). Das Modul startet dann leer und überschreibt beim nächsten Speichern die Datei. `Peon_Broker.lua` lag bei 231.000.
 
 - **Kampflog für Addons gesperrt (gesehen beim Entwickeln, 19.11.2026):** Schon `frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")` löst ADDON_ACTION_FORBIDDEN „UNKNOWN()“ aus, auch innerhalb von `pcall`. Nie anmelden. Ersatz: Tod des eigenen Ziels (`UnitIsDead("target")`, nicht `UnitIsTapDenied`), Erfahrungsmeldung `CHAT_MSG_COMBAT_XP_GAIN`, `UNIT_COMBAT` am eigenen Charakter (Ausweichen, Schaden). Kritische Treffer, Fallschaden und Heilung anderer lassen sich so nicht erkennen.
 - **Geheime Werte (Secret Values, aus Retail 12.x):** Sie werden bei Kampf-, Encounter- oder PvP-Einschränkungen geheim; in Instanzen sind Name, GUID und ID von NPCs immer geheim; UnitName von Nicht-Spielern ist im Kampf geheim. Erlaubt ist speichern, weiterreichen, `type()` und an Widgets übergeben (Text, Farbe, StatusBar). Verboten ist vergleichen, rechnen, boolesch prüfen oder als Tabellenschlüssel nutzen. Immer zuerst `Peon.IsSecret()` prüfen; `issecrettable` für Tooltip-Daten.

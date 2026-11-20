@@ -695,6 +695,12 @@ do
   check(mod:Compare(nsb.MarketKey()) == nil, "0.13.0: ohne Freischaltung kein Marktvergleich")
   PeonBridgeData.channels.broker = true
   PeonBridgeData.markets[nsb.MarketKey()].cmp = nil
+  -- 0.14.0: Pakete
+  check(mod:Packages(nsb.MarketKey()) == nil, "0.14.0: ohne Pakete nichts")
+  PeonBridgeData.markets[nsb.MarketKey()].pkg = { t = T, safe = 50, n = { stake = 100, gain = 50, gainSafe = 10, list = { "90001:1:80:120:200" } } }
+  local pt, pp = mod:Packages(nsb.MarketKey())
+  check(pt == T and pp.n.list[1] == "90001:1:80:120:200" and pp.safe == 50, "0.14.0: Pakete mit Zeit")
+  PeonBridgeData.markets[nsb.MarketKey()].pkg = nil
   check(D.ApplyManager() == 3, "0.36: drei Gegenstaende neu (einer hat eine neuere Live-Abfrage)")
   local e1 = mk.items[90001]
   check(e1.m == 80 and e1.md == 95 and e1.q == 30 and e1.n == 6 and e1.lt == T, "0.36: aktueller Stand vom Manager")

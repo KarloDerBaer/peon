@@ -21,6 +21,7 @@ async function setOwn(b, on) {
   await window.peon.setOwnUse(b.key, b.t, on);
   b.own = on;
 }
+const CMP_OUT = { held: 'gehalten', partly: 'teilweise', failed: 'nicht gehalten', nodata: 'keine Daten' };   // ab 0.52.0
 const pctOf = (x) => (x == null ? '–' : `${Math.round(x * 100)} %`);
 // kleine Linie aus den Tagen
 function path(days) {
@@ -95,6 +96,64 @@ function path(days) {
         </table>
         <p v-if="!d.buys.length" class="small muted">Keine Käufe in den letzten 30 Tagen gefunden.</p>
       </section>
+      <!-- ab 0.52.0: Marktvergleich mit dem neutralen Haus -->
+      <section class="box" v-if="d.compare">
+        <h3>Marktvergleich: Auswahl für Broker</h3>
+        <p class="small muted">Jeder Vorschlag aus dem Marktvergleich wird {{ d.compare.checkDays }} Tage danach nachgeprüft: gehalten, wenn der Unterschied in diesen Tagen im Mittel mindestens die Hälfte des erwarteten Gewinns brachte, „teilweise“, wenn immerhin Gewinn blieb.</p>
+        <p v-if="!d.compare.total" class="muted">Noch keine Vorschläge gemerkt. Das beginnt mit der nächsten Rechnung des Marktvergleichs.</p>
+        <template v-else>
+          <p>{{ num(d.compare.total) }} Vorschläge in 30 Tagen, {{ num(d.compare.checked) }} nachgeprüft:
+            <span class="good">{{ num(d.compare.held) }} gehalten</span>, {{ num(d.compare.partly) }} teilweise, <span class="warn">{{ num(d.compare.failed) }} nicht gehalten</span><template v-if="d.compare.checked"> ({{ pctOf(d.compare.held / d.compare.checked) }} Trefferquote)</template>.</p>
+          <table class="tbl">
+            <thead><tr><th>Gegenstand</th><th>Richtung</th><th>Vorgeschlagen</th><th class="num">Erwartet</th><th class="num">Danach</th><th>Ergebnis</th></tr></thead>
+            <tbody>
+              <tr v-for="r in d.compare.rows" :key="r.key + r.dir + r.day">
+                <td class="click" :style="{ color: qualityColor(r.quality) }" @click="emit('open', r.key)">{{ r.name || r.key }}</td>
+                <td class="small">{{ r.dir === 'n' ? `${d.compare.home} → ${d.compare.neutral}` : `${d.compare.neutral} → ${d.compare.home}` }}</td>
+                <td class="small">{{ when(r.t) }}</td>
+                <td class="num"><Gold :copper="r.net" compact /></td>
+                <td class="num"><Gold v-if="r.real != null" :copper="r.real" compact /><span v-else class="muted">–</span></td>
+                <td :class="{ good: r.outcome === 'held', warn: r.outcome === 'failed' }">{{ CMP_OUT[r.outcome] || 'wartet' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
+        <h3>Pakete</h3>
+        <p class="small muted">Je Tag und Richtung das erste Paket. Gekauft zählt im Haus der Quelle bis 7 Tage danach, verkauft im Haus des Ziels (aus Peon Ledger, ab Version 0.17).</p>
+        <p v-if="!d.compare.packages || !d.compare.packages.length" class="muted">Noch keine Pakete gemerkt.</p>
+        <table v-else class="tbl">
+          <thead><tr><th>Paket</th><th>Richtung</th><th class="num">Einsatz geplant</th><th class="num">Gekauft</th><th class="num">Verkauft</th><th class="num">Ausgegeben</th><th class="num">Erlös</th><th class="num">Ergebnis</th></tr></thead>
+          <tbody>
+            <tr v-for="k in d.compare.packages" :key="k.dir + k.t">
+              <td class="small">{{ when(k.t) }}<span class="muted"> · {{ k.names.join(', ') }}<template v-if="k.n > k.names.length"> …</template></span></td>
+              <td class="small">{{ k.dir === 'n' ? `${d.compare.home} → ${d.compare.neutral}` : `${d.compare.neutral} → ${d.compare.home}` }}</td>
+              <td class="num"><Gold :copper="k.stake" compact /></td>
+              <td class="num">{{ k.bought }}/{{ k.n }}</td>
+              <td class="num" :class="{ good: k.share != null && k.share >= k.safe, warn: k.share != null && k.share < k.safe && k.sold > 0 }">{{ k.sold }}/{{ k.bought || 0 }}</td>
+              <td class="num"><Gold :copper="k.cost" compact /></td>
+              <td class="num"><Gold :copper="k.income" compact /></td>
+              <td class="num" :class="{ good: k.profit > 0, warn: k.profit < 0 }"><Gold :copper="k.profit" compact /></td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Echte Tausche aus Peon Ledger</h3>
+        <p class="small muted">Im einen Haus gekauft, im anderen verkauft. Ledger merkt sich das Haus ab Version 0.17, ältere Käufe fehlen hier. Den genauen Gewinn mit Gebühren zeigt das Buch in Ledger unter „davon Markttausch“.</p>
+        <p v-if="!d.compare.trades.length" class="muted">Noch keine Tausche in den letzten 30 Tagen.</p>
+        <table v-else class="tbl">
+          <thead><tr><th>Gegenstand</th><th>Richtung</th><th>Verkauft</th><th class="num">Stück</th><th class="num">Einkauf</th><th class="num">Erlös</th><th class="num">Gewinn</th></tr></thead>
+          <tbody>
+            <tr v-for="r in d.compare.trades" :key="r.key + r.t">
+              <td class="click" :style="{ color: qualityColor(r.quality) }" @click="emit('open', r.key)">{{ r.name || r.key }}</td>
+              <td class="small">{{ r.dir === 'n' ? `${d.compare.home} → ${d.compare.neutral}` : `${d.compare.neutral} → ${d.compare.home}` }}</td>
+              <td class="small">{{ when(r.t) }}</td>
+              <td class="num">{{ num(r.qty) }}</td>
+              <td class="num"><Gold :copper="r.cost" compact /></td>
+              <td class="num"><Gold :copper="r.income" compact /></td>
+              <td class="num" :class="{ good: r.profit > 0, warn: r.profit < 0 }"><Gold :copper="r.profit" compact /></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </template>
   </div>
   <p v-else class="muted">Noch kein Markt eingelesen.</p>
@@ -114,4 +173,6 @@ function path(days) {
 .click { cursor: pointer; }
 .own td { opacity: 0.75; }
 .click:hover td { background: var(--panel); }
+.good { color: var(--good, #60e060); }
+.warn { color: var(--warn, #ff7070); }
 </style>

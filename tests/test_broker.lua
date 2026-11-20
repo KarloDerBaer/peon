@@ -2907,10 +2907,10 @@ end)()
   local root = { CreateButton = function(_, t, fn) local c = { text = t, fn = fn, CreateButton = function(self2, t2, f2) items[#items + 1] = t2; return {} end }; items[#items + 1] = t; return c end }
   Wt.AddMenu(root, { name = "Kupfererz" }, 2770)
   if ns.Data.IsCommodity(2770) then
-    check(items[1] == "[x] " .. ns.L.MENU_WATCH_BUYOUT and items[2] == "[ ] " .. ns.L.MENU_WATCH_QUICK and items[3] == "[ ] " .. ns.L.MENU_WATCH_TRADE and items[4] == ns.L.MENU_WATCH_LIMIT,
+    check(items[1] == "[x] " .. ns.L.MENU_WATCH_BUYOUT and items[2] == "[ ] " .. ns.L.MENU_WATCH_QUICK and items[3] == ns.L.MENU_WATCH_LIMIT,
       "U8/0.120: Menue mit Haken Aufkauf und Schnellkauf, dann Preisgrenze: " .. tostring(items[1]) .. " / " .. tostring(items[2]))
   else
-    check(items[1] == ns.L.MENU_UNWATCH and items[2] == "[ ] " .. ns.L.MENU_WATCH_TRADE and items[3] == ns.L.MENU_WATCH_LIMIT, "U8: Menue Nicht mehr beobachten, Markttausch (ab 0.128) und Preisgrenze")
+    check(items[1] == ns.L.MENU_UNWATCH and items[2] == ns.L.MENU_WATCH_LIMIT, "U8: Menue Nicht mehr beobachten und Preisgrenze (Markttausch aus)")
   end
   check(Wt.Toggle(2770) == false and not Wt.Is(2770) and PeonBrokerDB.watchGone[2770], "U8: Beobachtung entfernen mit Loeschmarke")
   -- Live-Abfrage prueft den Alarm
@@ -5448,8 +5448,8 @@ end)()
   if C.qlist then
     local t = {}
     for _, c in ipairs(C.qlist.o.columns) do t[#t + 1] = plain(c.title) end
-    check(table.concat(t, ",") == "Gegenstand,Günstigster,Menge,Zu / Ab je Min.,Bewegung,Einbr./Std.,Lockangebote,Zustand" and C.tabs and #C.tabs == 4,
-      "0.119: vier Unterreiter (ab 0.127 mit Markttausch), Liste Schnellkauf mit eigenen Spalten: " .. table.concat(t, ","))
+    check(table.concat(t, ",") == "Gegenstand,Günstigster,Menge,Zu / Ab je Min.,Bewegung,Einbr./Std.,Lockangebote,Zustand" and C.tabs and #C.tabs == 5,
+      "0.119: fuenf Unterreiter (ab 0.127 Markttausch, ab 0.129 Pakete), Liste Schnellkauf mit eigenen Spalten: " .. table.concat(t, ","))
   end
   -- Menue
   local made = {}
@@ -5898,10 +5898,9 @@ end)()
   local entries, t, mgr = T.Entries()
   check(#entries == 2 and t == bridgeT and mgr, "0.127: Liste des Managers, kaputte Zeile uebersprungen")
   check(T.Say(2770) == "Fraktion kauft für 80c", "0.127: Satz des Managers")
+  check(not C.TabOn("trade") and T.Count() == 0 and not T.On(), "0.128.2: Markttausch ab Werk aus")
+  mod.db.tradeOn = true
   check(C.TabOn("trade") and T.Count() == 2, "0.127/0.128: Unterreiter an, Zahl = alle Eintraege der Auswahl")
-  mod.db.chancesShowT = false
-  check(not C.TabOn("trade") and T.Count() == 0, "0.127: Unterreiter abschaltbar")
-  mod.db.chancesShowT = true
   -- unterwegs
   ns.Scan.ahOpen = false
   local rows = T.Rows()
@@ -6015,6 +6014,17 @@ end)()
   Wt.Merge(Wt.Store(), PeonBrokerDB.watchGone, { items = { [2589] = inc }, gone = {} })
   check(Wt.Store()[2589].qlim == 777, "0.128: Kaufen bis des Schnellkaufs aus dem Manager uebernommen")
   Wt.Remove(2589)
+  -- 0.128.2: ausgeschaltet kein Unterreiter in Beobachten, kein Haken im Menue, kein Hinweis
+  mod.db.watchTab = "trade"
+  check(WP.Tab() == "trade", "0.128.2: an: Unterreiter Markttausch in Beobachten")
+  mod.db.tradeOn = false
+  check(WP.Tab() == "buyout", "0.128.2: aus: Beobachten faellt auf Aufkauf zurueck")
+  local made2 = {}
+  Wt.AddMenu({ CreateButton = function(_, t) made2[#made2 + 1] = t; return { CreateButton = function() return {} end } end }, { name = "Zinnerz" }, 2589)
+  local hasTrade = false
+  for _, t in ipairs(made2) do if t:find(ns.L.MENU_WATCH_TRADE, 1, true) then hasTrade = true end end
+  check(not hasTrade, "0.128.2: aus: kein Haken Beobachten Markttausch im Menue")
+  mod.db.watchTab = "buyout"
   -- aufraeumen
   C.SelectTab("spec")
   mod.acc.tradeGoods = nil
@@ -6022,6 +6032,114 @@ end)()
   D.DeleteMarket(NK)
   ns.Stock.Counts = oldCounts
   ns.Scan.ahOpen, UnitExists, UnitFactionGroup = oldOpen, oldExists, oldUFG
+end)()
+
+-- ===== 0.129: Pakete (Packages.lua, Peon_Broker_Pakete.md) =====
+;(function()
+  local K, C, T = ns.Packages, ns.Chances, ns.Trade
+  local HK, NK = ns.HomeMarketKey(), ns.NeutralMarketKey()
+  local oldGet, oldOpen, oldExists, oldUFG, oldCounts = Peon.GetModule, ns.Scan.ahOpen, rawget(_G, "UnitExists"), UnitFactionGroup, ns.Stock.Counts
+  local oldBuy, oldAH, oldFind = ns.Radar.BuyStep, C_AuctionHouse, ns.Quick.FindBag
+  local lots = {}
+  local fakeB = { Packages = function(_, market)
+      if market ~= HK then return nil end
+      return clock - 600, { safe = 50, n = { stake = 1000, gain = 800, gainSafe = 100, list = { "2770:3:80:120:200", "kaputt" } },
+        h = { stake = 500, gain = 300, gainSafe = 50, list = { "7001:1:100:150:250" } } }
+    end }
+  local fakeL = { HouseLots = function() return lots end }
+  Peon.GetModule = function(self, k) if k == "bridge" then return fakeB end if k == "ledger" then return fakeL end return oldGet(self, k) end
+  mod.db.tradeOn = false
+  check(not C.TabOn("pkg") and K.Count() == 0, "0.129: Pakete nur mit eingeschaltetem Markttausch")
+  mod.db.tradeOn = true
+  check(C.TabOn("pkg"), "0.129: Unterreiter Pakete")
+  local x = K.Parse("2770:3:80:120:200")
+  check(x.key == 2770 and x.qty == 3 and x.minSell == 120 and K.Parse("x") == nil, "0.129: Angebot lesen")
+  check(select(1, K.SellPrice(x, 150)) == 149 and select(2, K.SellPrice(x, 100)) == false and K.SellPrice(x, 100) == 120, "0.129: knapp unterbieten, nie unter Verkaufen ab")
+  -- unterwegs
+  ns.Scan.ahOpen = false
+  local rows, sum = K.Rows()
+  check(#rows == 2 and sum.n.n == 1 and sum.h.n == 1, "0.129: beide Pakete, kaputte Zeile uebersprungen")
+  -- am eigenen Haus: Quelle von Richtung n
+  ns.Scan.ahOpen = true
+  UnitExists = function(u) return u == "npc" end
+  UnitFactionGroup = function() return "Horde", "Horde" end
+  local e = D.Market(HK, true).items[2770]
+  local oldM, oldLt, oldGone = e.m, e.lt, e.gone
+  e.m, e.lt, e.gone = 80, clock, nil
+  ns.Stock.Counts = function() return 0, 0, 0, 0 end
+  local r1
+  for _, r in ipairs((K.Rows())) do if r.key == 2770 then r1 = r end end
+  check(r1 and r1.where == "src" and r1.act == "buy" and r1.need == 3, "0.129: am Haus der Quelle: Kaufen")
+  e.m = 90
+  for _, r in ipairs((K.Rows())) do if r.key == 2770 then r1 = r end end
+  check(r1.act == "dear", "0.129: zu teuer: Aktion grau")
+  e.m = 80
+  local got
+  ns.Radar.BuyStep = function(d, mode) got = { d = d, mode = mode } end
+  ns.Buy.live[2770] = { rows = { { price = 70, qty = 2 }, { price = 80, qty = 5 }, { price = 95, qty = 9 } }, t = clock, commodity = true }
+  for _, r in ipairs((K.Rows())) do if r.key == 2770 then r1 = r end end
+  K.Act(r1)
+  check(got and got.mode == "pkg" and got.d.qty == 3 and #got.d.rows == 2, "0.129: Kaufen: fehlende Menge, nur Stufen bis Kaufen bis")
+  lots = { [2770] = { f = 3, n = 0 } }
+  for _, r in ipairs((K.Rows())) do if r.key == 2770 then r1 = r end end
+  check(r1.need == 0 and r1.act == nil and plain(r1.state):find("gekauft 3", 1, true), "0.129: aus Ledger: gekauft")
+  check(#K.Keys() >= 1, "0.129: laufende Abfrage fuer das Haus hier")
+  -- am neutralen Haus: Ziel von Richtung n
+  UnitFactionGroup = function(u) if u == "npc" then return nil end return "Horde", "Horde" end
+  local nm = D.Market(NK, true)
+  nm.items[2770] = { m = 150, md = 150, q = 5, n = 1, t = clock, lt = clock }
+  ns.Stock.Counts = function() return 3, 0, 3, 0 end
+  for _, r in ipairs((K.Rows())) do if r.key == 2770 then r1 = r end end
+  check(r1.where == "dst" and r1.act == "sell" and r1.sellAt == 149 and r1.sellQty == 3, "0.129: am Ziel: Verkaufen knapp unter dem guenstigsten")
+  local posted
+  ns.Quick.FindBag = function() return 0, 1 end
+  ItemLocation = { CreateFromBagAndSlot = function(_, b, sl) return { bag = b, slot = sl } end }
+  C_AuctionHouse = setmetatable({ PostCommodity = function(loc, dur, q, price) posted = { q = q, price = price }; return false end }, { __index = oldAH })
+  K.Act(r1)
+  check(posted and posted.q == 3 and posted.price == 149 and K.post and K.post.state == "posting", "0.129: Massenware selbst eingestellt")
+  K.OnCreated()
+  check(K.post == nil, "0.129: Auktion erstellt")
+  nm.items[2770].m = 100
+  posted = nil
+  for _, r in ipairs((K.Rows())) do if r.key == 2770 then r1 = r end end
+  check(r1.act == "sellwarn", "0.129: Konkurrenz unter dem Mindestpreis: Warnung")
+  K.Act(r1)
+  check(posted == nil, "0.129: erster Klick warnt nur")
+  K.Act(r1)
+  check(posted and posted.price == 120, "0.129: zweiter Klick verkauft zum Mindestpreis")
+  check(plain(K.StatusText()):find("1/1 gekauft", 1, true), "0.129: Status je Richtung")
+  -- aufraeumen
+  K.post, K.warned = nil, nil
+  ItemLocation = nil
+  C_AuctionHouse, ns.Quick.FindBag, ns.Radar.BuyStep = oldAH, oldFind, oldBuy
+  ns.Buy.live[2770] = nil
+  e.m, e.lt, e.gone = oldM, oldLt, oldGone
+  D.DeleteMarket(NK)
+  ns.Stock.Counts = oldCounts
+  Peon.GetModule = oldGet
+  mod.db.tradeOn = false
+  ns.Scan.ahOpen, UnitExists, UnitFactionGroup = oldOpen, oldExists, oldUFG
+end)()
+
+-- ===== 0.129: leerer Realm-Name, Maerkte unter "?" wandern zum echten =====
+;(function()
+  local acc = mod.acc
+  local real = "Classic Beta PvE / Horde"
+  acc.markets["? / Horde"] = { items = { [12345] = { m = 1, t = clock }, [2770] = { m = 1, t = clock } }, scans = 0 }
+  acc.markets["? / Neutral"] = { items = { [5] = { m = 2 } }, scans = 0 }
+  acc.quickMove = acc.quickMove or {}
+  acc.quickMove["? / Horde"] = { a = 1 }
+  local before = acc.markets[real].items[2770]
+  local oldRN = Peon.RealmName
+  Peon.RealmName = function() return "Classic Beta PvE" end
+  local hadNeutral = acc.markets["Classic Beta PvE / Neutral"]
+  check(ns.MergeUnknownRealm() > 0, "0.129: zusammengefuehrt")
+  check(acc.markets["? / Horde"] == nil and acc.markets[real].items[12345] and acc.markets[real].items[2770] == before, "0.129: fehlende Gegenstaende dazu, vorhandene bleiben")
+  check(hadNeutral ~= nil or (acc.markets["Classic Beta PvE / Neutral"] and acc.markets["Classic Beta PvE / Neutral"].items[5]), "0.129: Markt ohne Gegenstueck umbenannt")
+  check(acc.quickMove["? / Horde"] == nil, "0.129: Speicher je Markt ebenfalls")
+  Peon.RealmName = oldRN
+  acc.markets[real].items[12345] = nil
+  if not hadNeutral then acc.markets["Classic Beta PvE / Neutral"] = nil end
 end)()
 
 print("ALLE TESTS OK")

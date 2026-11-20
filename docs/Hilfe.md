@@ -21,7 +21,7 @@ Helfer fürs Auktionshaus mit eigenem Fenster und Reitern direkt im Auktionshaus
 
 - `/broker` öffnet und schließt das Broker-Fenster, `/broker optionen` die Einstellungen.
 - **Komplettscan:** Knopf oben im Auktionshaus oder `/broker scan`. Danach kennt Broker die Preise des ganzen Markts.
-- **Reiter:** Markt (Preise und Suche), Verkaufen (Rat zum Preis, erkennt Lockangebote), Auktionen, Einkaufen (Einkaufslisten), Fokus (ein Gegenstand genau beobachtet, Modi Aufkauf und Schnellkauf), Beobachten (Preisalarm), Chancen (vom Peon Manager und aus dem Radar-Scan, Unterreiter Markttausch mit der Auswahl des Managers für eigenes und neutrales Haus), Mehr (Gegenstand, Vergleich mit dem neutralen Haus mit Suche und anderes).
+- **Reiter:** Markt (Preise und Suche), Verkaufen (Rat zum Preis, erkennt Lockangebote), Auktionen, Einkaufen (Einkaufslisten), Fokus (ein Gegenstand genau beobachtet, Modi Aufkauf und Schnellkauf), Beobachten (Preisalarm), Chancen (vom Peon Manager und aus dem Radar-Scan, Unterreiter Markttausch mit der Auswahl des Managers für eigenes und neutrales Haus, einschalten in den Einstellungen der Chancen, dazu Pakete mit Knöpfen zum Kaufen und Verkaufen), Mehr (Gegenstand, Vergleich mit dem neutralen Haus mit Suche und anderes).
 - **Tooltip:** zeigt Preise, Trend und Bestand. Die Teile stellst du unter Peon > Broker ein.
 - **Tasten:** „Fokus: kaufen“ und „Fokus: nächster Treffer des Radars“.
 - Mit dem Peon Manager und seinem Modul Peon Broker Client bekommt Broker zusätzlich Preise aus der Blizzard-API und Chancen.
@@ -34,6 +34,7 @@ Bestand aller Charaktere und ein Buch über Einnahmen und Ausgaben.
 - `/ledger <Name oder Link>` zeigt einen Gegenstand.
 - **Peon Post:** eigenes Postfenster mit Eingang, Einsammeln und Senden (abschaltbar).
 - **Tooltip:** zeigt, wie viel davon deine Charaktere haben und was es gekostet hat.
+- **Markttausch:** Ledger merkt sich, ob du im eigenen oder im neutralen Auktionshaus gekauft und verkauft hast. Das Buch zeigt den Gewinn aus Tauschen zwischen den Häusern als „davon Markttausch“.
 - **Taste:** „Gegenstand unter der Maus in Ledger zeigen“.
 - Bank und Post kennt Ledger erst, wenn der Charakter sie einmal geöffnet hat.
 
@@ -134,6 +135,7 @@ Das Programm für Windows installiert und aktualisiert die Addons.
 - **Größe:** Strg und Plus oder Minus, Strg und Mausrad, Strg und 0 für 100 %.
 - **Modul Peon Broker Client** (unter Updates einschaltbar): sammelt die Auktionsdaten von Broker, wertet sie aus und zeigt Übersicht, Marktübersicht, Chancen, Marktvergleich, Einkaufen und Beobachten.
 - **Marktvergleich:** vergleicht dein Auktionshaus mit dem neutralen über die letzten Tage. Chancen sind Gegenstände, die sich im einen Haus günstig kaufen und im anderen mit Gewinn verkaufen lassen, bewertet nach Preisunterschied, Absatz im Zielhaus und wie beständig der Unterschied ist. Die besten 10 gehen nach jedem neuen Stand an Broker (Chancen, Markttausch), die Anzahl stellst du auf der Seite ein.
+- **Pakete:** Auf der Seite Marktvergleich stellt der Manager je Richtung ein Paket aus kleinen, gestreuten Angeboten zusammen, das auch bei halbem Verkauf Gewinn bringt. Broker zeigt es mit Knöpfen zum Kaufen und Verkaufen.
 - **Beobachten:** Unterreiter Aufkauf, Schnellkauf und Markttausch wie im Spiel. Änderungen gleicht der Manager mit Broker ab.
 - **Händler:** alles, was Broker bei Händlern gesehen hat, mit dem Preis im Auktionshaus.
 

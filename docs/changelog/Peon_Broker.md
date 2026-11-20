@@ -2,6 +2,31 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.129.0
+
+Kurz: Neuer Unterreiter Pakete in Chancen (mit eingeschaltetem Markttausch): kleine, gestreute Angebote vom Peon Manager mit Knopf Kaufen am einen und Verkaufen am anderen Haus, beide mit Prüfung des Live-Preises.
+Kurz: Liefert das Spiel keinen Realm-Namen, zeigt Broker trotzdem deine Daten. Was in dieser Zeit unter „?“ gespeichert wurde, kommt zu deinem Markt.
+
+- 0.129.0 (20.11.2026, Wunsch und Fehlermeldung KarloDerBaer, Konzept `Peon_Broker_Pakete.md`):
+  - **Neu, Unterreiter Pakete** (`Packages.lua`): Angebote beider Pakete mit Richtung, Menge, Kaufen bis, Verkaufen ab, Zustand und Spalte Aktion. Gekauft liest Broker aus Ledger (`mod:HouseLots`), eingestellt aus den eigenen Auktionen. Laufende Abfrage der Zeilen für das Haus hier, „Alle prüfen“ (Radar, Auswahl `pkgcheck`).
+  - **Neu, Kaufen** (Spalte Aktion am Haus der Quelle): genau die fehlende Menge, nur Preisstufen bis Kaufen bis, ein Klick (`R.BuyStep` Art `pkg`, bestätigt selbst wie der Fokus). Grau mit Hinweis, wenn der Live-Preis darüber liegt.
+  - **Neu, Verkaufen** (am Haus des Ziels): 1 Kupfer unter dem günstigsten Angebot, nie unter Verkaufen ab. Liegt die Konkurrenz darunter, warnt der erste Klick, der zweite verkauft. Massenware stellt Broker selbst ein (`PostCommodity`), Einzelstücke legt der sichere Knopf unter der Liste ins Verkaufsfenster und trägt den Preis ein.
+  - **Behoben, leerer Realm-Name:** Markt mit Rückfall aus dem Kern (API 27). Märkte und Speicher je Markt unter „? / Fraktion“ wandern beim Anmelden zum echten Markt (fehlende Gegenstände dazu, vorhandene bleiben), danach fällt „?“ weg.
+  - Tests: Pakete mit Kaufen, Verkaufen, Warnung und Zustand aus Ledger, Zusammenführen der Märkte (`test_broker.lua`).
+
+## 0.128.2
+
+Kurz: Markttausch ist ab Werk aus. Chancen und Beobachten zeigen ihn erst, wenn du ihn in den Einstellungen der Chancen einschaltest. Mehr, Neutral bleibt immer da.
+
+- 0.128.2 (20.11.2026, Wunsch KarloDerBaer): neue Einstellung `tradeOn` (Vorgabe aus) statt `chancesShowT` (Vorgabe an). Aus: kein Unterreiter Markttausch in Chancen und Beobachten, kein Haken „Beobachten: Markttausch“ im Menü, kein Hinweis am Zielhaus, keine laufende Abfrage.
+  - Tests: ab Werk aus, Beobachten fällt auf Aufkauf zurück, kein Haken im Menü (`test_broker.lua`).
+
+## 0.128.1
+
+Kurz: Der Hinweis am Auktionshaus auf Ware aus dem Markttausch kennt jetzt alles, was du im anderen Haus gekauft hast, auch ohne Klick in der Liste Markttausch. Dafür braucht es Peon_Ledger 0.17.
+
+- 0.128.1 (20.11.2026): `Trade.lua` nimmt die Ware für das andere Haus aus Peon_Ledger (`mod:HouseLots`, Posten mit Haus des Kaufs). Die Merker aus dem Markttausch (`tradeGoods`) bleiben für Käufe, die Ledger noch keinem Haus zuordnen kann.
+
 ## 0.128.0
 
 Kurz: Markttausch zeigt nur noch die Auswahl des Peon Managers und hält die Preise am Auktionshaus aktuell. Passt eine Chance mit neuen Preisen nicht mehr, verschwindet sie bis zum nächsten Stand des Managers.

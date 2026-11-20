@@ -46,7 +46,7 @@ end
 
 function C.Me()
     local name = rawget(_G, "UnitName") and UnitName("player")
-    local realm = rawget(_G, "GetRealmName") and GetRealmName()
+    local realm = (Peon.RealmName and Peon.RealmName()) or (rawget(_G, "GetRealmName") and GetRealmName())   -- ab 0.7.4 mit Rueckfall
     if not Str(name) then return nil end
     return Str(realm) and (name .. "-" .. realm) or name
 end

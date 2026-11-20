@@ -47,7 +47,7 @@ end
 
 local function CharKey()
     local name = UnitName and UnitName("player")
-    local realm = GetRealmName and GetRealmName()
+    local realm = Peon.RealmName and Peon.RealmName() or (GetRealmName and GetRealmName())   -- ab API 27 mit Rueckfall
     if type(name) ~= "string" or Peon.IsSecret(name) then return nil end
     if type(realm) == "string" and not Peon.IsSecret(realm) and realm ~= "" then return name .. "-" .. realm end
     return name

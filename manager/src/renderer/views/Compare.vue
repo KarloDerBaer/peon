@@ -9,14 +9,16 @@ const props = defineProps({ market: Object, stamp: Number, now: Number, settings
 const emit = defineEmits(['open', 'save']);
 const api = window.peon;
 
-const TABS = [{ key: 'chances', label: 'Chancen' }, { key: 'all', label: 'Alle Gegenstände' }, { key: 'sum', label: 'Übersicht' }, { key: 'rules', label: 'Einstellen' }];
+const TABS = [{ key: 'chances', label: 'Chancen' }, { key: 'pkg', label: 'Pakete' }, { key: 'all', label: 'Alle Gegenstände' }, { key: 'sum', label: 'Übersicht' }, { key: 'rules', label: 'Einstellen' }];   // ab 0.53.0 Pakete
 const saved = (props.settings && props.settings.compareView) || {};
 const tab = ref(saved.tab || 'chances');
 const d = ref(null);
 const busy = ref(false);
 const search = ref('');
 const dir = ref(saved.dir || 'all');            // all, n (nach Neutral), h (nach Fraktion)
-const light = ref(saved.light || 'all');        // all, green, pick (ab 0.51.0: Auswahl fuer Broker)
+const light = ref(saved.light === 'green' ? 'green' : 'all');   // all, green
+// ab 0.52.0 (KarloDerBaer 20.11.2026): Vorgabe ist die Auswahl fuer Broker, alle Kandidaten nur auf Wunsch
+const scope = ref(saved.scope === 'all' ? 'all' : 'pick');   // pick, all
 const onlyCommodity = ref(!!saved.commodity);
 const quality = ref(saved.quality || 0);
 const showHidden = ref(false);
@@ -33,10 +35,10 @@ async function load() {
 }
 onMounted(load);
 watch(() => [props.market && props.market.key, props.stamp], load);
-watch([tab, dir, light, onlyCommodity, quality], () => {
-  emit('save', { compareView: { tab: tab.value, dir: dir.value, light: light.value, commodity: onlyCommodity.value, quality: quality.value } });
+watch([tab, dir, light, scope, onlyCommodity, quality], () => {
+  emit('save', { compareView: { tab: tab.value, dir: dir.value, light: light.value, scope: scope.value, commodity: onlyCommodity.value, quality: quality.value } });
 });
-watch([search, dir, light, onlyCommodity, quality, tab], () => { limit.value = 300; });
+watch([search, dir, light, scope, onlyCommodity, quality, tab], () => { limit.value = 300; });
 
 const hidden = computed(() => new Set(d.value && d.value.hidden ? d.value.hidden : []));
 const pins = computed(() => new Set(d.value && d.value.pins ? d.value.pins : []));
@@ -51,7 +53,7 @@ function pass(r) {
   if (quality.value && (r.quality ?? 0) < quality.value) return false;
   if (dir.value !== 'all' && r.dir !== dir.value) return false;
   if (light.value === 'green' && r.light !== 'green') return false;
-  if (light.value === 'pick' && !r.pick && !pins.value.has(r.key)) return false;
+  if (tab.value === 'chances' && scope.value === 'pick' && !r.pick && !pins.value.has(r.key)) return false;
   return true;
 }
 function sorted(list) {
@@ -89,17 +91,23 @@ const pctText = (v) => (v == null ? '–' : `${v > 0 ? '+' : ''}${Math.round(v *
 const consText = (v) => `${Math.round((v || 0) * 100)} %`;
 const supplyText = (v) => (v == null ? '–' : v >= 100 ? '99+' : perDay(v));
 
+// ab 0.53.0: Angebot aus dem Paket nehmen oder zurueckholen (der Manager rechnet das Paket neu)
+const pkgEx = computed(() => new Set(d.value && d.value.pkg ? d.value.pkg.excluded : []));
+async function excludePkg(dir, key, on) { busy.value = true; await api.excludePkg(dir, key, on); await load(); }
+const pkgDirs = computed(() => (d.value && d.value.pkg ? ['n', 'h'].map((x) => ({ dir: x, p: d.value.pkg[x] })).filter((x) => x.p) : []));
 async function pin(r) { await api.pinCompare(r.key, !pins.value.has(r.key)); await load(); }
 async function hide(r) { busy.value = true; await api.hideCompare(r.key, !hidden.value.has(r.key)); await load(); }
 
 // Einstellen: Prozente als ganze Zahlen, Silber statt Kupfer
 function toForm(ru) {
   return { days: ru.days, share: Math.round(ru.share * 100), hold: ru.hold, minPct: Math.round(ru.minPct * 100), minNet: ru.minNet / 100,
-    minSales: ru.minSales, minCons: Math.round(ru.minCons * 100), cutN: Math.round(ru.cutN * 100), top: ru.top };
+    minSales: ru.minSales, minCons: Math.round(ru.minCons * 100), cutN: Math.round(ru.cutN * 100), top: ru.top,
+    pkgSize: ru.pkgSize, pkgGold: Math.round(ru.pkgGold * 100), pkgSafe: Math.round(ru.pkgSafe * 100) };
 }
 function fromForm(f) {
   return { days: Number(f.days), share: Number(f.share) / 100, hold: Number(f.hold), minPct: Number(f.minPct) / 100, minNet: Number(f.minNet) * 100,
-    minSales: Number(f.minSales), minCons: Number(f.minCons) / 100, cutN: Number(f.cutN) / 100, top: Number(f.top) };
+    minSales: Number(f.minSales), minCons: Number(f.minCons) / 100, cutN: Number(f.cutN) / 100, top: Number(f.top),
+    pkgSize: Number(f.pkgSize), pkgGold: Number(f.pkgGold) / 100, pkgSafe: Number(f.pkgSafe) / 100 };
 }
 const ruleNote = ref('');
 async function saveRules() {
@@ -133,7 +141,7 @@ async function resetRules() {
 
       <div class="tabs" role="tablist">
         <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key">
-          {{ t.label }}<span class="cnt" v-if="t.key === 'chances' && d.chances">{{ num(d.chances.length) }}</span>
+          {{ t.label }}<span class="cnt" v-if="t.key === 'chances' && d.chances">{{ num(scope === 'pick' && d.sum ? (d.sum.picked || 0) : d.chances.length) }}</span>
         </button>
       </div>
 
@@ -145,10 +153,13 @@ async function resetRules() {
             <option value="n">{{ home }} → {{ neutral }}</option>
             <option value="h">{{ neutral }} → {{ home }}</option>
           </select>
+          <select v-model="scope" aria-label="Umfang" v-if="tab === 'chances'" title="Die Auswahl geht an Broker. Alle Kandidaten erfüllen die Bedingungen, kamen aber nicht unter die besten.">
+            <option value="pick">Auswahl für Broker ({{ num((d.sum && d.sum.picked) || 0) }})</option>
+            <option value="all">Alle Kandidaten ({{ num(d.chances.length) }})</option>
+          </select>
           <select v-model="light" aria-label="Ampel" v-if="tab === 'chances'">
             <option value="all">Grün und Gelb</option>
             <option value="green">Nur Grün</option>
-            <option value="pick">Nur Auswahl für Broker</option>
           </select>
           <select v-model.number="quality" aria-label="Qualität">
             <option :value="0">Jede Qualität</option>
@@ -243,6 +254,38 @@ async function resetRules() {
         <p v-if="!total" class="muted">Nichts gefunden.</p>
       </template>
 
+      <template v-if="tab === 'pkg' && d.t">
+        <p class="small muted">Ein Paket streut den Einsatz auf mehrere kleine Angebote: Einzelstücke oder wenige Stück Massenware, die sich im Ziel schnell verkaufen.
+          Es bleibt im Gewinn, wenn nur {{ Math.round(d.rules.pkgSafe * 100) }} % der Angebote verkauft werden (gerechnet mit den schlechtesten, der Rest zählt mit 0, alle Einstellgebühren abgezogen).
+          Einsatz höchstens {{ Math.round(d.rules.pkgGold * 100) }} % deines Golds<template v-if="d.pkg && d.pkg.gold != null"> (<Gold :copper="d.pkg.budget" compact />)</template><template v-else-if="d.pkg"> (ohne Ledger höchstens <Gold :copper="d.pkg.budget" compact />)</template>, {{ d.rules.pkgSize }} Angebote. Beides unter Einstellen.</p>
+        <p v-if="!pkgDirs.length" class="muted">Noch kein Paket. Es entsteht mit der nächsten Rechnung, wenn genug passende Kandidaten da sind.</p>
+        <section v-for="x in pkgDirs" :key="x.dir" class="pkg">
+          <h3>{{ dirText(x.dir) }}</h3>
+          <p v-if="!x.p.offers.length" class="muted small">Kein Paket möglich: Kein Satz an Angeboten bleibt bei {{ Math.round(d.rules.pkgSafe * 100) }} % Verkauf im Gewinn.</p>
+          <template v-else>
+            <p class="small">Einsatz <Gold :copper="x.p.stake" compact />, erwarteter Gewinn <Gold :copper="x.p.gain" compact />,
+              Gewinn bei {{ Math.round(x.p.safe * 100) }} % Verkauf <Gold :copper="x.p.gainSafe" compact />.</p>
+            <table class="tbl">
+              <thead><tr><th>Gegenstand</th><th class="num">Menge</th><th class="num">Kaufen bis</th><th class="num">Verkaufen für</th><th class="num" title="Wahrscheinlichkeit, dass das Angebot verkauft wird (Absatzquote, Vorrat im Ziel)">Verkauft</th><th class="num">Erwartet</th><th></th></tr></thead>
+              <tbody>
+                <tr v-for="o in x.p.offers" :key="o.key">
+                  <td class="name"><span class="click" tabindex="0" :style="{ color: qualityColor(o.quality) }" @click="emit('open', o.key)" @keydown.enter="emit('open', o.key)">{{ o.name || o.key }}</span>
+                    <span v-if="o.gap" class="pin small" title="Im Ziel gerade kein Angebot">Lücke</span></td>
+                  <td class="num">{{ num(o.qty) }}</td>
+                  <td class="num"><Gold :copper="o.buy" compact /></td>
+                  <td class="num"><Gold :copper="o.sell" compact /></td>
+                  <td class="num">{{ Math.round(o.p * 100) }} %</td>
+                  <td class="num good"><Gold :copper="o.exp" compact /></td>
+                  <td class="acts"><button class="small" @click="excludePkg(x.dir, o.key, true)" title="Aus dem Paket nehmen, der Manager rechnet neu">Ausschließen</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
+        </section>
+        <p v-if="pkgEx.size" class="small muted">Ausgeschlossen: {{ pkgEx.size }}.
+          <button class="small" v-for="id in [...pkgEx]" :key="id" @click="excludePkg(id.split('|')[0], id.split('|').slice(1).join('|'), false)">{{ (d.items.find((i) => i.key === id.split('|').slice(1).join('|')) || {}).name || id.split('|')[1] }} zurück</button></p>
+      </template>
+
       <template v-if="tab === 'sum' && d.t">
         <div class="cards">
           <div class="card"><div class="big">{{ num(d.sum.n) }}</div><div class="muted small">Chancen {{ home }} → {{ neutral }}</div></div>
@@ -271,6 +314,9 @@ async function resetRules() {
           <label>Absatz im Ziel mindestens <input type="number" min="0" step="0.5" v-model.number="form.minSales" /> je Tag</label>
           <label>Gewinn an mindestens <input type="number" min="0" max="100" v-model.number="form.minCons" /> % der Tage</label>
           <label>An Broker die besten <input type="number" min="1" max="100" v-model.number="form.top" /></label>
+          <label>Paket: Angebote <input type="number" min="4" max="24" v-model.number="form.pkgSize" /></label>
+          <label>Paket: Einsatz höchstens <input type="number" min="1" max="100" v-model.number="form.pkgGold" /> % des Golds</label>
+          <label>Paket: Gewinn noch bei <input type="number" min="10" max="100" v-model.number="form.pkgSafe" /> % verkauft</label>
           <label>Anteil des neutralen Hauses, solange nicht gemessen <input type="number" min="0" max="50" v-model.number="form.cutN" /> %</label>
         </div>
         <p class="small muted">Eigener Anteil und Haltedauer bestimmen die Menge: so viel, wie du in der Haltedauer bei deinem Anteil am Absatz los wirst.
@@ -297,6 +343,8 @@ async function resetRules() {
 .light.yellow { background: rgba(255, 209, 0, 0.18); color: #e0b000; }
 .light.red { background: rgba(255, 112, 112, 0.15); color: var(--warn, #ff7070); }
 .pin { margin-left: 6px; color: var(--accent); }
+.pkg { margin: 12px 0 18px; }
+.pkg h3 { margin: 0 0 6px; }
 tr.dim td { opacity: 0.5; }
 tr.more td { background: var(--panel, rgba(127, 127, 127, 0.06)); }
 .acts { white-space: nowrap; }

@@ -8,6 +8,7 @@ import ItemTip from '../components/ItemTip.vue';
 import Star from '../components/Star.vue';
 import ShopButton from '../components/ShopButton.vue';
 import WhyNot from '../components/WhyNot.vue';
+import CompareChart from '../components/CompareChart.vue';   // ab 0.52.0
 import { ago, when, num, perDay, qualityColor, itemName, pl, verdict } from '../util.js';
 
 const props = defineProps({ market: Object, itemKey: String, now: Number, theme: String, stamp: Number });
@@ -56,6 +57,10 @@ async function loadCompare() {
   const r = await api.compareItem(props.market.key, key);
   if (props.itemKey === key) cmpItem.value = r;
 }
+// ab 0.52.0: Diagramm im Reiter Neutral, abschaltbar (gemerkt in diesem Fenster)
+const readChart = () => { try { return localStorage.getItem('peonCompareChart') !== 'off'; } catch { return true; } };
+const cmpChart = ref(readChart());
+watch(cmpChart, (on) => { try { localStorage.setItem('peonCompareChart', on ? 'on' : 'off'); } catch { /* ohne Speicher */ } });
 const cmpDir = (x) => (x === 'n' ? `${cmpItem.value.home} → ${cmpItem.value.neutral}` : `${cmpItem.value.neutral} → ${cmpItem.value.home}`);
 onMounted(() => { load(); loadInfo(); loadCompare(); });
 watch(() => [props.itemKey, props.market && props.market.key, props.stamp], loadCompare);
@@ -210,6 +215,10 @@ const levelsTop = computed(() => (d.value && d.value.levels ? d.value.levels.lis
     </section>
 
     <section class="block" v-else-if="tab === 'neutral'">
+      <template v-if="cmpItem && cmpItem.series">
+        <label class="check small"><input type="checkbox" v-model="cmpChart" /> Diagramm zeigen</label>
+        <CompareChart v-if="cmpChart" :series="cmpItem.series" :home="cmpItem.home" :neutral="cmpItem.neutral" />
+      </template>
       <template v-if="cmpItem && cmpItem.row">
         <table class="tbl">
           <thead><tr><th></th><th class="num">{{ cmpItem.home }}</th><th class="num">{{ cmpItem.neutral }}</th></tr></thead>
@@ -222,7 +231,7 @@ const levelsTop = computed(() => (d.value && d.value.levels ? d.value.levels.lis
         <p v-for="c in cmpItem.chances" :key="c.dir"><b>Chance {{ cmpDir(c.dir) }}:</b> {{ c.say }} Gewinn je Stück <Gold :copper="c.net" compact />, Menge {{ c.qty }}.</p>
         <p v-if="!cmpItem.chances.length" class="muted">Keine Chance im Markttausch: Spanne, Absatz im Ziel oder Beständigkeit reichen nicht.</p>
       </template>
-      <p v-else class="muted">Kein Vergleich mit dem neutralen Haus. Dafür braucht es Preise aus beiden Häusern in den letzten Tagen (Seite Marktvergleich).</p>
+      <p v-else-if="!cmpItem || !cmpItem.series" class="muted">Kein Vergleich mit dem neutralen Haus. Dafür braucht es Preise aus beiden Häusern in den letzten Tagen (Seite Marktvergleich).</p>
     </section>
 
     <section class="block" v-else>

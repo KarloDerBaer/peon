@@ -44,7 +44,7 @@ C.blink = false  -- ab 0.105: neue Treffer nach einem Komplettscan, Zahl blinkt 
 C.notified = {}  -- [Schluessel .. Fenster] = true: Meldung zum Fenster schon gegeben (diese Sitzung)
 C.KIND_SETTING = { s = "chancesShowS", l = "chancesShowL", b = "chancesShowB", m = "chancesShowM" }
 -- ab 0.119: Unterreiter
-C.TABS = { "spec", "buyout", "quick", "trade" }
+C.TABS = { "spec", "buyout", "quick", "trade", "pkg" }   -- ab 0.129 Pakete
 C.TAB_OF_MK = { s = "spec", l = "spec", m = "spec", b = "buyout" }
 C.TAB_OF_KIND = { buyout = "buyout", vendor = "buyout" }
 
@@ -67,13 +67,14 @@ function C.TabOn(tab)
     end
     if tab == "quick" then return mod.db.chancesShowQ ~= false end
     if tab == "trade" then return ns.Trade ~= nil and ns.Trade.On() end   -- ab 0.127
+    if tab == "pkg" then return ns.Packages ~= nil and ns.Packages.On() end   -- ab 0.129
     return false
 end
 
 -- Offener Unterreiter: der gemerkte, wenn er an ist, sonst der erste eingeschaltete
 function C.Tab()
     local t = mod.db.chancesTab
-    if t ~= "spec" and t ~= "buyout" and t ~= "quick" and t ~= "trade" then t = "spec" end
+    if t ~= "spec" and t ~= "buyout" and t ~= "quick" and t ~= "trade" and t ~= "pkg" then t = "spec" end
     if C.TabOn(t) then return t end
     for _, k in ipairs(C.TABS) do if C.TabOn(k) then return k end end
     return t
@@ -260,6 +261,7 @@ function C.BadgeCount(mode, tab)
     end
     if (tab == nil or tab == "quick") and ns.QuickChances then n = n + ns.QuickChances.LivelyCount() end
     if (tab == nil or tab == "trade") and ns.Trade then n = n + ns.Trade.Count() end   -- ab 0.127: gruene Eintraege
+    if (tab == nil or tab == "pkg") and ns.Packages then n = n + ns.Packages.Count() end   -- ab 0.129: Kaufen oder Verkaufen moeglich
     return n
 end
 
@@ -407,7 +409,7 @@ end
 
 -- ab 0.119: Auswahl nur im Unterreiter Aufkauf, Spekulation prueft immer die Chancen des Managers
 function C.Mode()
-    if C.Tab() == "spec" or C.Tab() == "trade" then return "mgr" end
+    if C.Tab() == "spec" or C.Tab() == "trade" or C.Tab() == "pkg" then return "mgr" end
     local v = mod.db.chancesScan
     for _, m in ipairs(C.MODES()) do if m[1] == v then return v end end
     return "mgr"
@@ -447,6 +449,13 @@ function C.CheckAll()
         if ns.Trade then ns.Trade.CheckAll() end
         return
     end
+    if C.Tab() == "pkg" then   -- ab 0.129: Zeilen der Pakete fuer das Haus hier
+        if R.running then R.Stop(); return end
+        R.forceMode = "pkgcheck"
+        R.search = nil
+        R.Start()
+        return
+    end
     if R.running then R.Stop(); return end
     local mode = C.Mode()
     if mode == "mgr" then
@@ -466,7 +475,7 @@ function C.Build(c)
     C.checkButton:SetPoint("TOPRIGHT", -2, -2)
     UI.SetTooltip(C.checkButton, function()
         if C.Tab() == "quick" then return { L.QC_RENEW, L.QC_RENEW_TIP } end
-        if C.Tab() == "trade" then return { L.CH_CHECK_ALL, L.TR_CHECK_TIP } end
+        if C.Tab() == "trade" or C.Tab() == "pkg" then return { L.CH_CHECK_ALL, L.TR_CHECK_TIP } end
         return { C.Tab() == "spec" and L.CH_CHECK_ALL or L.RADAR_START, L.CH_SCAN_TIP }
     end)
     C.modeDrop = UI.Dropdown(c, 140, C.MODES(), function() return C.Mode() end, function(v) C.SetMode(v) end)
@@ -589,8 +598,9 @@ function C.Build(c)
     })
     -- ab 0.127: Liste Markttausch (Trade.lua)
     if ns.Trade then C.tpanel = ns.Trade.BuildList(c, -62) end
+    if ns.Packages then C.kpanel = ns.Packages.BuildList(c, -62) end   -- ab 0.129
     -- ab 0.119: Unterreiter ueber der Liste
-    local defs = { { "spec", L.CH_TAB_SPEC }, { "buyout", L.CH_TAB_BUYOUT }, { "quick", L.CH_TAB_QUICK }, { "trade", L.CH_TAB_TRADE } }
+    local defs = { { "spec", L.CH_TAB_SPEC }, { "buyout", L.CH_TAB_BUYOUT }, { "quick", L.CH_TAB_QUICK }, { "trade", L.CH_TAB_TRADE }, { "pkg", L.CH_TAB_PKG } }
     C.tabs = UI.TopTabs(c, defs, function(key) mod:Call("Chancen", C.SelectTab, key) end)
     C.LayoutTabs()
     C.tabs:Select(C.Tab())
@@ -623,7 +633,9 @@ function C.SelectTab(key)
         R.search = nil
     end
     local tab = C.Tab()
-    if C.panel then C.panel:SetShown(tab ~= "quick" and tab ~= "trade") end
+    if C.panel then C.panel:SetShown(tab ~= "quick" and tab ~= "trade" and tab ~= "pkg") end
+    if C.kpanel then C.kpanel:SetShown(tab == "pkg") end   -- ab 0.129
+    if ns.Packages and ns.Packages.sellButton and tab ~= "pkg" and not (InCombatLockdown and InCombatLockdown()) then ns.Packages.sellButton:Hide() end
     if C.qpanel then C.qpanel:SetShown(tab == "quick") end
     if C.tpanel then C.tpanel:SetShown(tab == "trade") end   -- ab 0.127
     C.Refresh()
@@ -649,6 +661,7 @@ function C.StatusText()
         return st
     end
     if tab == "trade" and ns.Trade then return ns.Trade.StatusText() end   -- ab 0.127
+    if tab == "pkg" and ns.Packages then return ns.Packages.StatusText() end   -- ab 0.129
     local _, t = Sp.All()
     if tab == "buyout" and not (R.running and R.forceMode == "mgronly") and (R.running or ns.Scan.state) then
         return R.StatusText()   -- ab 0.105: Scan des Radars (enthaelt Erneuern und "nicht live")
@@ -684,6 +697,7 @@ function C.UpdateView()
     local text
     if tab == "quick" then text = L.QC_RENEW
     elseif tab == "trade" then text = (R.running and R.forceMode == "trade") and L.RADAR_STOP or L.CH_CHECK_ALL   -- ab 0.127
+    elseif tab == "pkg" then text = (R.running and R.forceMode == "pkgcheck") and L.RADAR_STOP or L.CH_CHECK_ALL   -- ab 0.129
     elseif R.running then text = L.RADAR_STOP
     else text = C.Mode() == "mgr" and L.CH_CHECK_ALL or L.RADAR_START end
     C.checkButton:SetText(text)
@@ -696,7 +710,7 @@ function C.UpdateView()
     if hidden > 0 then C.unhideButton:SetText(L.QC_UNHIDE_N:format(hidden)) end
     -- Statuszeile endet vor dem ersten sichtbaren Knopf
     C.settingsButton:ClearAllPoints()
-    C.settingsButton:SetPoint("RIGHT", (tab == "spec" or tab == "trade") and C.checkButton or C.modeDrop, "LEFT", -6, 0)
+    C.settingsButton:SetPoint("RIGHT", (tab == "spec" or tab == "trade" or tab == "pkg") and C.checkButton or C.modeDrop, "LEFT", -6, 0)
     C.status:ClearAllPoints()
     C.status:SetPoint("TOPLEFT", 8, -8)
     C.status:SetPoint("RIGHT", hidden > 0 and C.unhideButton or C.settingsButton, "LEFT", -12, 0)
@@ -711,6 +725,8 @@ function C.Refresh()
             local resort = C.qStamp ~= QC.sortStamp
             C.qStamp = QC.sortStamp
             W.FillTable(C.qlist, QC.Rows(), resort)
+        elseif tab == "pkg" then   -- ab 0.129
+            if ns.Packages then ns.Packages.Refresh() end
         elseif tab == "trade" then   -- ab 0.127
             if ns.Trade then ns.Trade.Refresh(C.tStamp ~= ns.Trade.stamp) end
             C.tStamp = ns.Trade and ns.Trade.stamp

@@ -197,3 +197,10 @@ Vor M2 eine Messung mit der echten Datenbank: Wie viele grüne Chancen bleiben m
 - Schnellkauf und Haken der Listen werden mit dem Manager abgeglichen und sind dort änderbar.
 - Beobachten Markttausch nur beobachten, ohne eigene Grenzen.
 - Entfernte Chancen kommen erst mit einem neueren Stand des Managers wieder.
+
+## 11. Dritte Runde (KarloDerBaer, 20.11.2026, umgesetzt in Ledger 0.17.0, Broker 0.128.1, Manager 0.52.0)
+
+- **Einstellgebühr:** 5 % vom Händlerpreis mal 4 (8 Std.), im neutralen Haus gleich hoch gemessen. Verlust je Verkauf = Gebühr mal (1 durch Absatzquote minus 1).
+- **Lücke im Ziel:** Verkäufe an mindestens 3 Tagen in 14 Tagen, aber kein Angebot jetzt oder kein Preis im Zeitraum. Verkaufspreis = Median der echten Verkäufe.
+- **Ledger:** Haus an Bewegungen (`h`) und Posten. Ein Verkauf im anderen Haus als dem Kauf ist ein Markttausch, das Buch zeigt ihn als „davon Markttausch“. Broker nimmt die Ware für das andere Haus aus Ledger.
+- **Manager:** Liste Chancen zeigt zuerst die Auswahl für Broker. Diagramm im Reiter Neutral, abschaltbar. Erfolgskontrolle: Auswahl je Tag gemerkt, nach 3 Tagen nachgeprüft, dazu echte Tausche aus Ledger.

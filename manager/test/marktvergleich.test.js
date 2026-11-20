@@ -236,3 +236,115 @@ test('Beobachten: neuere Werte des Schnellkaufs aus dem Spiel gewinnen, aeltere 
   assert.equal(g.qlim, 70);
   assert.equal(g.qon, true);
 });
+
+// ---------- ab 0.52.0: Einstellgebuehr, Luecke im Ziel, Verlauf, Erfolgskontrolle ----------
+test('Einstellgebuehr: verloren nur fuer abgelaufene Angebote', () => {
+  assert.equal(cmp.depositLoss(100, 1), 0, 'alles verkauft');
+  assert.equal(cmp.depositLoss(100, 0.5), 20, '5 % von 1s = 5c, mal 4 = 20c, je Verkauf ein Ablauf');
+  assert.equal(cmp.depositLoss(100, 0.01), 80, 'Absatzquote hoechstens bis 20 % gerechnet');
+  assert.equal(cmp.depositLoss(null, 0.5), 0);
+  const db = setup();
+  fill(db, 1, 7, { 100: 1000 });
+  fill(db, 2, 7, { 100: 3000 });
+  sales(db, 2, 7, '100', 20, 3000, 20);   // Absatzquote 50 %
+  const res = cmp.computePair(db, 1, 2, { now: NOW, vendor: new Map([['100', 1000]]) });
+  const c = res.chances.find((x) => x.key === '100');
+  assert.equal(c.depLoss, 200, '5 % von 10s = 50c x 4 = 2s je Ablauf');
+  assert.equal(c.net, Math.round(3000 * 0.85 - 1000 - 200));
+});
+
+test('Luecke: im Ziel kein Angebot, aber Verkaeufe', () => {
+  const db = setup();
+  fill(db, 1, 7, { 300: 1000 });
+  // Neutral hat keine Preise fuer 300, verkauft aber an 5 Tagen zu 30s
+  const ins = db.prepare('INSERT INTO sales_day(market_id, item_key, day, secs, cmp, sold, expired, cancelled, listed, value, max_sold) VALUES (2, ?, ?, 86400, 24, 4, 0, 0, 0, ?, ?)');
+  for (let d = 1; d <= 5; d++) ins.run('300', DAY - d + 1, 4 * 3000, 3000);
+  fill(db, 2, 7, { 999: 50 });   // damit der Markt Staende hat
+  const res = cmp.computePair(db, 1, 2, { now: NOW });
+  const c = res.chances.find((x) => x.key === '300');
+  assert.ok(c && c.gap && c.dir === 'n', 'Chance in die Luecke');
+  assert.equal(c.sell, 3000);
+  assert.match(c.say, /Im Ziel gerade kein Angebot/);
+});
+
+test('Verlauf beider Haeuser und Erfolgskontrolle der Auswahl', () => {
+  const db = setup();
+  fill(db, 1, 10, { 100: 1000 });
+  fill(db, 2, 10, { 100: 3000 });
+  sales(db, 2, 10, '100', 20, 2500);
+  const s = cmp.itemSeries(db, 1, 2, '100', NOW, 14);
+  assert.equal(s.days.length, 14);
+  assert.ok(s.home.filter((v) => v === 1000).length >= 9 && s.neutralSold.filter((v) => v === 2500).length >= 9);
+  const meta = new Map();
+  const c = Object.assign(Object.create(methods), {
+    db, snaps: null, now: () => NOW, readOnly: false, settings: { wowDir: '' },
+    meta(k, v) { if (v === undefined) return meta.has(k) ? meta.get(k) : null; meta.set(k, v); return v; },
+  });
+  // Vorschlag von vor 5 Tagen, erwartet 11s 25c
+  meta.set('compareLog', [{ m: 1, n: 2, key: '100', dir: 'n', day: DAY - 5, t: NOW - 5 * 86400, buy: 1000, sell: 2500, net: 1125, cut: 0.15, minNet: 1000 }]);
+  const v = c.compareSuccess(HOME);
+  assert.equal(v.checked, 1);
+  assert.equal(v.held, 1, `gehalten: ${JSON.stringify(v.rows[0])}`);
+  assert.equal(v.rows[0].real, Math.round(2500 * 0.85 - 1000));
+  // Auswahl merken: je Tag nur einmal
+  const res = { t: NOW, cutN: 0.15, cutH: 0.05, rules: cmp.rules({}), chances: [{ key: '100', dir: 'n', buy: 1, sell: 2, net: 1, pick: true }, { key: '7', dir: 'h', pick: false }] };
+  assert.equal(c.compareLogPicks({ home: { id: 1 }, neutral: { id: 2 } }, res), 1);
+  assert.equal(c.compareLogPicks({ home: { id: 1 }, neutral: { id: 2 } }, res), 0);
+});
+
+// ---------- ab 0.53.0: Pakete ----------
+const packages = require('../src/core/packages');
+
+test('Pakete: Gewinn auch bei halbem Verkauf, Streuung, Budget', () => {
+  const ru = cmp.rules({});
+  assert.equal(ru.pkgSize, 8);
+  assert.equal(ru.pkgGold, 0.1);
+  assert.equal(ru.pkgSafe, 0.5);
+  const ch = [];
+  for (let i = 0; i < 20; i++) ch.push({ key: String(100 + i), dir: 'n', ok: true, buy: 1000, sell: 4000, perDay: 2, rate: 0.8, supply: 1 });
+  ch.push({ key: '999', dir: 'n', ok: true, buy: 90000, sell: 400000, perDay: 2, rate: 0.9, supply: 1 });
+  const info = (k) => ({ commodity: false, cls: Number(k) % 5, vendor: 100 });
+  const pk = packages.build(ch, 'n', info, ru, 50000, new Set(), 0.15);
+  assert.ok(pk.offers.length >= 4 && pk.offers.length <= 8, `Angebote ${pk.offers.length}`);
+  assert.ok(!pk.offers.some((o) => o.key === '999'), 'zu teuer fuer Budget und Streuung');
+  assert.ok(pk.stake <= 50000);
+  assert.ok(pk.gainSafe > 0, 'Gewinn bei halbem Verkauf');
+  const perCat = new Map();
+  for (const o of pk.offers) perCat.set(o.cls, (perCat.get(o.cls) || 0) + 1);
+  assert.ok([...perCat.values()].every((v) => v <= packages.PER_CAT), 'hoechstens 3 je Kategorie');
+  const pk2 = packages.build(ch, 'n', info, ru, 50000, new Set(pk.offers.map((o) => `n|${o.key}`)), 0.15);
+  assert.ok(!pk2.offers.some((o) => pk.offers.some((x) => x.key === o.key)), 'ausgeschlossene fehlen');
+  const fb = packages.forBroker(pk, 0.15);
+  const [key, qty, buy, minSell, sell] = fb.list[0].split(':');
+  assert.ok(key);
+  assert.equal(Number(qty), 1);
+  assert.equal(Number(minSell), Math.ceil((Number(buy) + 20) / 0.85), 'Mindestpreis deckt Kauf und Einstellgebuehr');
+  assert.equal(Number(sell), 4000);
+});
+
+test('Pakete: safeGain rechnet mit den schlechtesten Verkaeufen', () => {
+  const offers = [{ revenue: 100, cost: 50, dep: 10 }, { revenue: 1000, cost: 50, dep: 10 }];
+  assert.equal(packages.safeGain(offers, 0.5), 100 - 100 - 10, 'nur das schlechteste verkauft');
+});
+
+test('Pakete: Erfolgskontrolle mit Bewegungen aus Ledger', () => {
+  const c = Object.create(methods);
+  const e = { dir: 'n', t: NOW, offers: [{ key: '100', qty: 2, buy: 100 }, { key: '200', qty: 1, buy: 100 }] };
+  const moves = [[
+    { k: 'ahbuy', id: 100, h: 'f', t: NOW + 10, m: -200, n: 2 },
+    { k: 'ahbuy', id: 200, h: 'f', t: NOW + 20, m: -100, n: 1 },
+    { k: 'ahsold', id: 100, h: 'n', t: NOW + 100, m: 500, q: 2 },
+    { k: 'ahsold', id: 200, h: 'f', t: NOW + 100, m: 999, q: 1 },
+  ]];
+  const r = c.pkgResult(e, moves);
+  assert.equal(r.bought, 2);
+  assert.equal(r.sold, 1, 'im falschen Haus verkauft zaehlt nicht');
+  assert.equal(r.cost, 300);
+  assert.equal(r.income, 500);
+  assert.equal(r.profit, 200);
+  const meta = new Map();
+  const d = Object.assign(Object.create(methods), { meta(k, v) { if (v === undefined) return meta.has(k) ? meta.get(k) : null; meta.set(k, v); return v; } });
+  const pk = { t: NOW, n: { offers: [{ key: '1', qty: 1, buy: 5 }], stake: 5, gain: 3, gainSafe: 1, safe: 0.5 }, h: { offers: [] } };
+  assert.equal(d.pkgLogDay({ home: { id: 1 } }, pk), 1);
+  assert.equal(d.pkgLogDay({ home: { id: 1 } }, pk), 0, 'je Tag und Richtung einmal');
+});

@@ -44,7 +44,8 @@ local function Now() return GetTime and GetTime() or time() end
 -- ab 0.119: offener Unterreiter ("buyout", "quick", ab 0.128 "trade")
 function P.Tab()
     local t = mod.db.watchTab
-    if t == "quick" or t == "trade" then return t end
+    if t == "quick" then return t end
+    if t == "trade" and ns.Trade and ns.Trade.On() then return t end   -- ab 0.128.2 nur eingeschaltet
     return "buyout"
 end
 
@@ -417,6 +418,7 @@ function P.Build(c)
         mod:Call("Beobachten", P.SelectTab, key)
     end)
     if P.tabs[1] then P.tabs[1]:SetPoint("BOTTOMLEFT", P.panels.buyout, "TOPLEFT", 10, -2) end
+    P.LayoutTabs()
     P.removeButton = UI.Button(c, L.WATCH_REMOVE, 130, function()
         if P.selected then ns.Watch.Remove(P.selected.key); P.selected = nil; P.Refresh() end
     end)
@@ -448,6 +450,14 @@ function P.Build(c)
     UI.SetTooltip(sb, function() return { L.WATCH_SELL, P.sellWhy or L.WATCH_SELL_TIP } end)
     P.sellButton = sb
     P.tabs:Select(P.Tab())   -- zeigt die Liste (P.SelectTab)
+end
+
+-- ab 0.128.2: Unterreiter Markttausch nur, wenn Markttausch eingeschaltet ist (letzter Reiter, einfach ausblenden)
+function P.LayoutTabs()
+    if not P.tabs then return end
+    for _, t in ipairs(P.tabs) do
+        if t.key == "trade" then t:SetShown(ns.Trade ~= nil and ns.Trade.On()) end
+    end
 end
 
 -- ab 0.119: Unterreiter waehlen (Klick oder beim Aufbau)
@@ -516,6 +526,8 @@ end
 function P.Refresh()
     P.UpdateBadge()
     if not P.list then return end
+    P.LayoutTabs()   -- ab 0.128.2
+    if P.tabs and P.tabs.selected ~= P.Tab() and P.tabs.Select then P.tabs:Select(P.Tab()); return end
     if P.Shown() and ns.Radar and ns.Radar.Wake then ns.Radar.Wake() end   -- ab 0.83: laufend abfragen
     if P.live then P.live:SetText(P.LiveText()) end
     if P.Shown() then P.StartTick() end

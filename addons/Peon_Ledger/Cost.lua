@@ -28,6 +28,11 @@
 -- dem Beuteanteil der Stuecke: Handelsteil (Handelsgewinn) und Beuteteil (Verkauf Beute). Einzahlungen und
 -- Gebuehren gehoeren ganz zum Handelsgewinn. Die Sondereinnahme entfaellt.
 
+-- Ab 0.17 (Konzept Peon_Broker_Marktvergleich.md, KarloDerBaer 20.11.2026): Markttausch. Bewegungen im Auktionshaus tragen
+-- das Haus (e.h = "f" eigene Fraktion, "n" neutral, Moves.lua). Posten aus Auktionskaeufen merken es (h). Wird ein Stueck
+-- im anderen Haus verkauft, als es gekauft wurde, ist es ein Markttausch: Der Verkauf traegt dann swap = { n, profit }
+-- (Stueck und ihr Anteil am Handelsgewinn), das Buch zeigt ihn als eigene graue Zeile unter dem Handelsgewinn.
+
 local ADDON_NAME, ns = ...
 local L = ns.L
 local mod = ns.mod
@@ -127,12 +132,12 @@ local function LB(lot) if Num(lot.b) then return lot.b end return (lot.c or 0) <
 local function LA(lot) if Num(lot.a) then return lot.a end return (lot.c or 0) * (1 - LB(lot)) end
 C.LB, C.LA = LB, LA
 
-local function Same(x, c, s, b, a)
-    return x.s == s and math.abs(x.c - c) < 0.5 and math.abs(LB(x) - b) < 0.001 and math.abs(LA(x) - a) < 0.5
+local function Same(x, c, s, b, a, h)
+    return x.s == s and x.h == h and math.abs(x.c - c) < 0.5 and math.abs(LB(x) - b) < 0.001 and math.abs(LA(x) - a) < 0.5
 end
 
 -- b = Beuteanteil (nil: Kosten 0 ist Beute, sonst 0), a = AH-Kosten je Stueck (nil: 0)
-local function AddLot(st, id, n, c, t, noMerge, s, b, a)
+local function AddLot(st, id, n, c, t, noMerge, s, b, a, h)
     if not id or not Num(n) or n <= 0 then return nil end
     c = (Num(c) and c > 0) and c or 0
     s = s and true or nil
@@ -141,11 +146,11 @@ local function AddLot(st, id, n, c, t, noMerge, s, b, a)
     local q = st.lots[id]
     if not q then q = {}; st.lots[id] = q end
     local last = q[#q]
-    if not noMerge and last and not last.wait and Day(last.t) == Day(t) and Same(last, c, s, b, a) then
+    if not noMerge and last and not last.wait and Day(last.t) == Day(t) and Same(last, c, s, b, a, h) then
         last.n = last.n + n
         return last
     end
-    local lot = { t = t or 0, n = n, c = c, s = s, b = b, a = a }
+    local lot = { t = t or 0, n = n, c = c, s = s, b = b, a = a, h = h }
     q[#q + 1] = lot
     C.Cap(q)
     return lot
@@ -158,12 +163,14 @@ function C.Cap(q)
         local k = #q - C.MAX_LOTS + 1
         local n2, v2, b2, a2 = 0, 0, 0, 0
         local allS = true
+        local h = q[1].h   -- ab 0.17: Haus bleibt nur, wenn alle Posten es teilen
         for i = 1, k do
             n2 = n2 + q[i].n; v2 = v2 + q[i].n * q[i].c; b2 = b2 + q[i].n * LB(q[i]); a2 = a2 + q[i].n * LA(q[i])
             if not q[i].s then allS = false end
+            if q[i].h ~= h then h = nil end
         end
         local merged = { t = q[k].t, n = n2, c = n2 > 0 and v2 / n2 or 0, s = allS or nil,
-                         b = n2 > 0 and b2 / n2 or 1, a = n2 > 0 and a2 / n2 or 0 }
+                         b = n2 > 0 and b2 / n2 or 1, a = n2 > 0 and a2 / n2 or 0, h = h }
         for _ = 1, k do table.remove(q, 1) end
         table.insert(q, 1, merged)
     end
@@ -178,11 +185,11 @@ local function InsertLot(st, id, lot)
     for i, x in ipairs(q) do if (x.t or 0) > (lot.t or 0) then pos = i; break end end
     local prev = q[pos - 1]
     local c, b, a = lot.c or 0, LB(lot), LA(lot)
-    if prev and not prev.wait and Day(prev.t) == Day(lot.t) and Same(prev, c, lot.s or nil, b, a) then
+    if prev and not prev.wait and Day(prev.t) == Day(lot.t) and Same(prev, c, lot.s or nil, b, a, lot.h) then
         prev.n = prev.n + lot.n
         return
     end
-    table.insert(q, pos, { t = lot.t or 0, n = lot.n, c = c, s = lot.s or nil, b = b, a = a })
+    table.insert(q, pos, { t = lot.t or 0, n = lot.n, c = c, s = lot.s or nil, b = b, a = a, h = lot.h })
     C.Cap(q)
 end
 C.InsertLot = InsertLot
@@ -196,7 +203,7 @@ local function TakeLots(st, id, n)
         local i = lifo and #q or 1
         local lot = q[i]
         local k = math.min(left, lot.n)
-        out[#out + 1] = { t = lot.t, n = k, c = lot.c, s = lot.s, b = LB(lot), a = LA(lot) }
+        out[#out + 1] = { t = lot.t, n = k, c = lot.c, s = lot.s, b = LB(lot), a = LA(lot), h = lot.h }
         lot.n = lot.n - k
         left = left - k
         if lot.n <= 0 then table.remove(q, i) end
@@ -207,10 +214,12 @@ end
 C.TakeLots = TakeLots
 
 -- n Stueck entnehmen (neueste oder aelteste zuerst, C.LIFO); Rueckgabe: Kosten zusammen, Stueck ohne Posten,
--- Beute in Stueck (Summe der Beuteanteile, ab 0.15), AH-Kosten zusammen (ab 0.15), Stueck aus dem Startbestand
+-- Beute in Stueck (Summe der Beuteanteile, ab 0.15), AH-Kosten zusammen (ab 0.15), Stueck aus dem Startbestand,
+-- ab 0.17 Stueck aus einem anderen Haus als C.saleHouse (Markttausch, nur waehrend eines Verkaufs gesetzt)
 local function Take(st, id, n)
     local q = id and st.lots[id]
-    local cost, left, loot, acost, sn = 0, n or 0, 0, 0, 0
+    local cost, left, loot, acost, sn, sw = 0, n or 0, 0, 0, 0, 0
+    local house = C.saleHouse
     local lifo = C.LIFO()
     while q and left > 0 and #q > 0 do
         local i = lifo and #q or 1
@@ -220,12 +229,13 @@ local function Take(st, id, n)
         loot = loot + k * LB(lot)
         acost = acost + k * LA(lot)
         if lot.s then sn = sn + k end
+        if house and lot.h and lot.h ~= house then sw = sw + k end
         lot.n = lot.n - k
         left = left - k
         if lot.n <= 0 then table.remove(q, i) end
     end
     if q and #q == 0 then st.lots[id] = nil end
-    return cost, left, loot, acost, sn
+    return cost, left, loot, acost, sn, sw
 end
 C.Take = Take
 
@@ -254,6 +264,16 @@ local function SaleResult(m, cnt, cost, miss, loot, acost, fee, dep)
     return r
 end
 C.SaleResult = SaleResult
+
+-- ab 0.17: Markttausch an einem Verkaufsergebnis vermerken. sw = Stueck aus dem anderen Haus, cnt = verkaufte Stueck.
+-- Anteil am Handelsgewinn nach Stueck im Handelsteil (gekaufte Stueck, ohne Beute)
+function C.MarkSwap(r, sw, cnt)
+    if type(r) ~= "table" or not Num(sw) or sw <= 0 then return r end
+    local tradeN = math.max(cnt or 1, 1) * (1 - (r.lootShare or 0))
+    local share = tradeN > 0 and math.min(1, sw / tradeN) or 0
+    r.swap = { n = sw, profit = (r.profit or 0) * share }
+    return r
+end
 
 -- Beitrag einer Bewegung zum Handelsgewinn (ab 0.15): Handelsteil eines Verkaufs, Abbruchkosten ohne Gegenstand
 function C.TradeProfit(r)
@@ -329,13 +349,14 @@ local function PopBuy(st, id, t, n)
         while i <= #st.buy and got < n do
             local p = st.buy[i]
             if t - p.t <= C.MATCH_DAYS * 86400 and p.id == id and Num(p.q) and p.q > 0 and (got == 0 or got + p.q <= n) then
+                if got == 0 then st.popH = p.h end   -- ab 0.17: Haus des Kaufs
                 paid, got = paid + p.m, got + p.q
                 table.remove(st.buy, i)
             else
                 i = i + 1
             end
         end
-        if got > 0 then return paid * math.min(1, n / got) end
+        if got > 0 then return paid * math.min(1, n / got), st.popH end
     end
     local best
     for i, p in ipairs(st.buy) do
@@ -347,7 +368,8 @@ local function PopBuy(st, id, t, n)
         end
     end
     if not best then return nil end
-    return table.remove(st.buy, best).m
+    local p = table.remove(st.buy, best)
+    return p.m, p.h
 end
 
 local function Use(st, e, id, n)
@@ -513,12 +535,14 @@ function C.Apply(st, e, groups)
     end
     if k == "ahbuy" then
         if id and n > 0 then
-            local paid = m < 0 and -m or PopBuy(st, id, e.t or 0, n)
+            local paid, h = nil, e.h
+            if m < 0 then paid = -m else paid, h = PopBuy(st, id, e.t or 0, n) end
+            st.popH = nil
             local unit = paid and paid / n or 0
-            AddLot(st, id, n, unit, e.t, nil, nil, nil, unit)   -- ab 0.15: Kosten aus dem Auktionshaus
+            AddLot(st, id, n, unit, e.t, nil, nil, nil, unit, h or e.h)   -- ab 0.15: Kosten aus dem Auktionshaus, ab 0.17 mit Haus
             st.res[e] = { unit = paid and paid / n or 0 }
         elseif n == 0 and m < 0 then
-            st.buy[#st.buy + 1] = { m = -m, id = id, t = e.t or 0, q = Num(e.q) and e.q or nil }
+            st.buy[#st.buy + 1] = { m = -m, id = id, t = e.t or 0, q = Num(e.q) and e.q or nil, h = e.h }
         elseif n == 0 and m > 0 then
             -- Gebot zurueck (ueberboten): passenden Kauf aus der Warteschlange nehmen
             for i, p in ipairs(st.buy) do if p.m == m then table.remove(st.buy, i); break end end
@@ -542,6 +566,36 @@ function C.Apply(st, e, groups)
         return
     end
     if k == "ahsold" then
+        C.saleHouse = e.h   -- ab 0.17: Markttausch erkennen (Take zaehlt Stueck aus dem anderen Haus)
+        local ok, err = pcall(C.ApplySale, st, e, id, n, m)
+        C.saleHouse = nil
+        if not ok then error(err, 0) end
+        return
+    end
+    if k == "craft" then if id and n ~= 0 then Craft(st, e, id, n) end return end
+    if k == "trade" then Trade(st, e, id, n, m, groups); return end
+    if k == "mail" then
+        if id and n > 0 then
+            local unit = Num(e.paid) and e.paid / n or 0   -- Nachnahme
+            AddLot(st, id, n, unit, e.t, nil, nil, nil, 0)
+            st.res[e] = { unit = unit }
+        elseif id and n < 0 then
+            Use(st, e, id, -n)                             -- Post an andere: wie Verbrauch
+        end
+        return
+    end
+    -- Beute, Quest, Sonstiges, Benutzt, Zerstoert
+    if id and n > 0 then
+        AddLot(st, id, n, 0, e.t)
+        st.res[e] = { unit = 0 }
+    elseif id and n < 0 then
+        Use(st, e, id, -n)
+    end
+end
+
+-- Verkauf im Auktionshaus (bis 0.16 Teil von C.Apply)
+function C.ApplySale(st, e, id, n, m)
+    do
         if e.sp and m > 0 then
             -- ab 0.14.2: Sondereinnahme (Auktion von vor dem Neustart): Ware geht, kein Handelsgewinn
             local cost = 0
@@ -574,12 +628,14 @@ function C.Apply(st, e, groups)
             local use = math.min(pre, cnt)
             st.pre[id] = pre - use
             local cost, miss, loot, acost = 0, 0, use, 0   -- vorgemerkte Stueck ohne Kosten zaehlen als Beute
+            local sw = 0
             if cnt - use > 0 then
                 local l2
-                cost, miss, l2, acost = Take(st, id, cnt - use)
+                local _s
+                cost, miss, l2, acost, _s, sw = Take(st, id, cnt - use)
                 loot = loot + l2
             end
-            st.res[e] = SaleResult(m, cnt, cost, miss, loot, acost, TakeFee(st, id, cnt), C.Deposit(e))
+            st.res[e] = C.MarkSwap(SaleResult(m, cnt, cost, miss, loot, acost, TakeFee(st, id, cnt), C.Deposit(e)), sw, cnt)
         elseif id and n < 0 then
             -- Gegenstand weg (Auktionsliste): Kosten fuer den Erloes vormerken
             local cnt = -n
@@ -588,10 +644,10 @@ function C.Apply(st, e, groups)
             st.pre[id] = pre - use
             cnt = cnt - use
             if cnt > 0 then
-                local cost, miss, loot, acost = Take(st, id, cnt)
+                local cost, miss, loot, acost, _, sw = Take(st, id, cnt)
                 local sq = st.soldQ[id]
                 if not sq then sq = {}; st.soldQ[id] = sq end
-                sq[#sq + 1] = { n = cnt, cost = cost, loot = loot + miss, acost = acost }
+                sq[#sq + 1] = { n = cnt, cost = cost, loot = loot + miss, acost = acost, sw = sw }
             end
         elseif m > 0 then
             if not id then
@@ -601,47 +657,27 @@ function C.Apply(st, e, groups)
                 return
             end
             local q = e.q or 1
-            local cost, left, loot, acost = 0, q, 0, 0
+            local cost, left, loot, acost, sw = 0, q, 0, 0, 0
             local sq = st.soldQ[id]
             while sq and left > 0 and sq[1] do
                 local s = sq[1]
                 local kk = math.min(left, s.n)
                 local f = s.n > 0 and kk / s.n or 0
-                local part, lpart, apart = s.cost * f, (s.loot or 0) * f, (s.acost or 0) * f
-                cost, loot, acost = cost + part, loot + lpart, acost + apart
-                s.cost, s.loot, s.acost = s.cost - part, (s.loot or 0) - lpart, (s.acost or 0) - apart
+                local part, lpart, apart, spart = s.cost * f, (s.loot or 0) * f, (s.acost or 0) * f, (s.sw or 0) * f
+                cost, loot, acost, sw = cost + part, loot + lpart, acost + apart, sw + spart
+                s.cost, s.loot, s.acost, s.sw = s.cost - part, (s.loot or 0) - lpart, (s.acost or 0) - apart, (s.sw or 0) - spart
                 s.n, left = s.n - kk, left - kk
                 if s.n <= 0 then table.remove(sq, 1) end
             end
             local miss = 0
             if left > 0 then
                 -- Auktionsliste kam (noch) nicht: jetzt aus dem Bestand nehmen und fuer spaeter vormerken
-                local c2, mm, l2, a2 = Take(st, id, left)
-                cost, miss, loot, acost = cost + c2, mm, loot + l2, acost + a2
+                local c2, mm, l2, a2, _, s2 = Take(st, id, left)
+                cost, miss, loot, acost, sw = cost + c2, mm, loot + l2, acost + a2, sw + (s2 or 0)
                 st.pre[id] = (st.pre[id] or 0) + (left - mm)
             end
-            st.res[e] = SaleResult(m, q, cost, miss, loot, acost, TakeFee(st, id, q), C.Deposit(e))
+            st.res[e] = C.MarkSwap(SaleResult(m, q, cost, miss, loot, acost, TakeFee(st, id, q), C.Deposit(e)), sw, q)
         end
-        return
-    end
-    if k == "craft" then if id and n ~= 0 then Craft(st, e, id, n) end return end
-    if k == "trade" then Trade(st, e, id, n, m, groups); return end
-    if k == "mail" then
-        if id and n > 0 then
-            local unit = Num(e.paid) and e.paid / n or 0   -- Nachnahme
-            AddLot(st, id, n, unit, e.t, nil, nil, nil, 0)
-            st.res[e] = { unit = unit }
-        elseif id and n < 0 then
-            Use(st, e, id, -n)                             -- Post an andere: wie Verbrauch
-        end
-        return
-    end
-    -- Beute, Quest, Sonstiges, Benutzt, Zerstoert
-    if id and n > 0 then
-        AddLot(st, id, n, 0, e.t)
-        st.res[e] = { unit = 0 }
-    elseif id and n < 0 then
-        Use(st, e, id, -n)
     end
 end
 

@@ -32,7 +32,7 @@ const RECALC_DELAY_MS = 1000;
 const CALC_CALLS = new Set(['chanceItem', 'brief', 'chanceView', 'marketOverview']);
 // Eingaben, nach denen die Chancen neu zu rechnen sind (Data.lua bekommt die neuen Kandidaten)
 const RULE_CALLS = new Set(['setChanceRules', 'resetChanceRules', 'setOverride', 'setEvents', 'rateChance', 'deleteChanceRating',
-  'setCompareRules', 'resetCompareRules', 'hideCompare']);   // ab 0.50.0 auch der Marktvergleich
+  'setCompareRules', 'resetCompareRules', 'hideCompare', 'excludePkg']);   // ab 0.50.0 auch der Marktvergleich
 
 // Zweiter oder dritter Arbeitsprozess (Lesen, Rechnen). send liefert null, wenn es ihn gerade nicht gibt.
 class Side {

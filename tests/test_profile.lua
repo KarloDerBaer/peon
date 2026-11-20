@@ -251,4 +251,22 @@ P.option.delete.scripts.OnClick()
 check(not P.Find("Seite"), "Knopf Loeschen")
 check(#reported == 0, "keine Fehler: " .. table.concat(reported, " | "))
 
+-- ===== API 27: Realm-Name mit Rueckfall (das Spiel lieferte zeitweise einen leeren Namen) =====
+do
+  local oldRN = GetRealmName
+  check(Peon.API >= 27 and Peon.RealmName() == "Forever" and PeonDB.lastRealm == "Forever", "API 27: echter Name wird gemerkt")
+  GetRealmName = function() return "" end
+  check(Peon.RealmName() == "Forever", "API 27: leerer Name: der gemerkte")
+  PeonDB.lastRealm = nil
+  local keepUsers = PeonDB.profileUsers
+  PeonDB.profileUsers = { [CHAR .. "-Realm X"] = "Standard", ["Andere-Realm Y"] = "Standard" }
+  check(Peon.RealmName() == "Realm X" and PeonDB.lastRealm == "Realm X", "API 27: ohne Merker aus der Liste der Profile")
+  PeonDB.profileUsers = {}
+  PeonDB.lastRealm = nil
+  check(Peon.RealmName() == nil, "API 27: ganz ohne Hinweis nil")
+  GetRealmName = oldRN
+  PeonDB.profileUsers = keepUsers
+  Peon.RealmName()
+end
+
 print("ALLE TESTS OK")

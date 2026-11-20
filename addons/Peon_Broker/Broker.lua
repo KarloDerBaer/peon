@@ -96,7 +96,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         chancesTab   = "spec",  -- ab 0.119: zuletzt offener Unterreiter in Chancen (spec, buyout, quick)
         watchTab     = "buyout", -- ab 0.119: zuletzt offener Unterreiter in Beobachten (buyout, quick)
         chancesShowQ = true,    -- ab 0.119: Chancen der Art Schnellkauf (QuickChances.lua)
-        chancesShowT = true,    -- ab 0.127: Unterreiter Markttausch (Trade.lua)
+        tradeOn = false,        -- ab 0.128.2: Markttausch in Chancen und Beobachten (Trade.lua), erst nach Einschalten (KarloDerBaer)
         chancesTradeNote = true,   -- ab 0.127: Hinweis am Zielhaus auf Ware aus dem Markttausch
         qcCount      = 10,      -- ab 0.119: so viele Vorschlaege fuer den Schnellkauf
         qcMinPrice   = 100,     -- ab 0.119: guenstigster Preis je Stueck mindestens (Kupfer, 1 Silber)
@@ -339,7 +339,8 @@ end
 -- ns.WithHome(...) (dann der Heimatmarkt). So greifen auch verschachtelte Abfragen (Lookup, Bereich vom Manager,
 -- Absatz) auf denselben Markt zu.
 local function RealmFaction()
-    local realm = GetRealmName and GetRealmName() or nil
+    -- ab 0.129.0: mit Rueckfall des Kerns (API 27), das Spiel lieferte zeitweise einen leeren Namen
+    local realm = (Peon.RealmName and Peon.RealmName()) or (GetRealmName and GetRealmName()) or nil
     local faction = UnitFactionGroup and UnitFactionGroup("player") or nil
     if Peon.IsSecret(realm) or type(realm) ~= "string" or realm == "" then realm = "?" end
     if Peon.IsSecret(faction) or type(faction) ~= "string" or faction == "" then faction = "?" end
@@ -606,8 +607,43 @@ local function CreateMinimapButton()
     mod:On("SCAN_DONE", function() if mod.launcher then mod.launcher:Refresh() end end)
 end
 
+-- ab 0.129.0: Lieferte das Spiel einen leeren Realm-Namen (gesehen 20.11.2026), lagen Daten unter "? / Fraktion".
+-- Sobald der echte Name bekannt ist (Kern API 27), wandern sie zum echten Markt: Gegenstaende, die dort fehlen, kommen
+-- dazu, vorhandene bleiben (sie haben den Verlauf). Dasselbe fuer die Speicher je Markt. Danach fallen die "?"-Maerkte weg.
+function ns.MergeUnknownRealm()
+    local acc = mod.acc
+    local realm = Peon.RealmName and Peon.RealmName()
+    if type(acc) ~= "table" or type(realm) ~= "string" or realm == "" then return 0 end
+    local n = 0
+    local function MoveTable(t, deep)
+        if type(t) ~= "table" then return end
+        local olds = {}
+        for k in pairs(t) do if type(k) == "string" and k:match("^%? / ") then olds[#olds + 1] = k end end
+        for _, k in ipairs(olds) do
+            local target = realm .. " / " .. k:match("^%? / (.+)$")
+            if t[target] == nil then
+                t[target] = t[k]
+            elseif deep and type(t[k]) == "table" and type(t[k].items) == "table" and type(t[target].items) == "table" then
+                for key, e in pairs(t[k].items) do
+                    if t[target].items[key] == nil then t[target].items[key] = e; n = n + 1 end
+                end
+            end
+            t[k] = nil
+            n = n + 1
+        end
+    end
+    MoveTable(acc.markets, true)
+    for _, name in ipairs({ "chancesGone", "quickMove", "quickStats", "tradeGone", "quickHide" }) do MoveTable(acc[name]) end
+    if type(acc.owned) == "table" and type(acc.owned.market) == "string" and acc.owned.market:match("^%? / ") then
+        acc.owned.market = realm .. " / " .. acc.owned.market:match("^%? / (.+)$")
+    end
+    if n > 0 then mod:Print(L.MSG_REALM_MERGED:format(realm)) end
+    return n
+end
+
 -- Neuerer Stand vom Peon Manager (ab 0.36): Data.lua liest das Spiel nur beim Laden, also einmal je Login oder /reload
 mod:On("LOGIN", function()
+    mod:Call("Realm", ns.MergeUnknownRealm)   -- ab 0.129.0, vor allem anderen
     if (Peon.API or 0) < 18 then return end
     local n = ns.Data.ApplyManagerAll()   -- ab 0.80: Heimat und Neutral
     if n > 0 then mod:Dbg(("Stand vom Manager: %d Gegenstaende neu"):format(n)) end
@@ -642,6 +678,7 @@ mod:On("INIT", function()
     mod:Call("Radar", ns.Radar.Init)
     mod:Call("Chancen", ns.Chances.Init)   -- ab 0.96
     if ns.Trade then mod:Call("Markttausch", ns.Trade.Init) end   -- ab 0.127
+    if ns.Packages then mod:Call("Pakete", ns.Packages.Init) end   -- ab 0.129
     if ns.Lots then mod:Call("Posten", ns.Lots.Init) end   -- ab 0.67 (H3)
     if ns.Quick then mod:Call("Schnellkauf", ns.Quick.Init) end   -- ab 0.104
     if ns.SellVariant then mod:Call("Varianten", ns.SellVariant.Init) end   -- ab 0.98

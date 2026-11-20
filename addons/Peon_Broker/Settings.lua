@@ -141,7 +141,7 @@ S.SPECS.chances = {
     { "check", "chancesShowB", "SET_CH_B", "SET_CH_B_TIP" },
     { "check", "chancesShowM", "SET_CH_M", "SET_CH_M_TIP" },
     { "check", "chancesShowQ", "SET_CH_Q", "SET_CH_Q_TIP" },   -- ab 0.119
-    { "check", "chancesShowT", "SET_CH_T", "SET_CH_T_TIP" },   -- ab 0.127
+    { "check", "tradeOn", "SET_CH_T", "SET_CH_T_TIP" },   -- ab 0.127, ab 0.128.2 Vorgabe aus (tradeOn)
     { "head", "SET_CH_NOTES" },
     { "check", "chancesAhNote", "SET_CH_AH_NOTE", "SET_CH_AH_NOTE_TIP" },
     { "check", "chancesNotify", "SET_CH_NOTIFY", "SET_CH_NOTIFY_TIP" },

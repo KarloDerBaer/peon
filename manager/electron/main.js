@@ -463,6 +463,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('compareItem', (_e, market, key) => (svc.broker ? rd('compareItem', String(market), String(key)) : null));
     ipcMain.handle('setCompareRules', (_e, patch) => compareChanged(broker().setCompareRules(patch || {})));
     ipcMain.handle('resetCompareRules', () => compareChanged(broker().resetCompareRules()));
+    ipcMain.handle('excludePkg', (_e, dir, key, on) => compareChanged(broker().excludePkg(String(dir), String(key), !!on)));   // ab 0.53.0
     ipcMain.handle('hideCompare', (_e, key, on) => compareChanged(broker().hideCompare(String(key), !!on)));
     ipcMain.handle('pinCompare', async (_e, key, on) => { const r = await broker().pinCompare(String(key), !!on); await broker().writeBridge('marktvergleich'); return r; });
     ipcMain.handle('stabilityView', (_e, market) => (svc.broker ? rd('stabilityView', String(market)) : null));   // ab 0.45.0

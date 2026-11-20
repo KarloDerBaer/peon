@@ -3,7 +3,7 @@
 ## Notes: Profession leveling guide with prices and shopping list from Peon Broker, codex for recipes and gathering zones.
 ## Notes-deDE: Guide zum Leveln der Berufe, mit Preisen und Einkaufsliste von Peon Broker, Codex für Rezepte und Sammelgebiete.
 ## Author: KarloDerBaer
-## Version: 0.7.3
+## Version: 0.7.4
 ## Dependencies: Peon
 ## OptionalDeps: Peon_Broker, Peon_Ledger, Peon_Fishing
 ## Group: Peon

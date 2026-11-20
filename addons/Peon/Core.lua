@@ -13,7 +13,7 @@ ns.Peon = Peon
 Peon.name      = ADDON_NAME
 Peon.L         = L
 Peon.NewLocale = ns.NewLocale
-Peon.API       = 26         -- wird erhoeht, wenn Funktionen dazukommen (Module koennen pruefen)
+Peon.API       = 27         -- wird erhoeht, wenn Funktionen dazukommen (Module koennen pruefen)
 Peon.COLOR     = "ff8ccf4d" -- Peon-Gruen fuer Chat-Ausgaben
 Peon.modules   = {}         -- addonName -> Modul
 Peon.order     = {}         -- Module in Ladereihenfolge
@@ -46,6 +46,29 @@ end
 local issecretvalue = issecretvalue
 function Peon.IsSecret(v)
     return issecretvalue ~= nil and issecretvalue(v) == true
+end
+
+-- Name des Realms mit Rueckfall (API 27, gesehen 20.11.2026): Das Spiel lieferte nach einem Neustart fuer GetRealmName()
+-- einen leeren Text. Ledger und Broker legten ihre Daten dann unter "?" ab und zeigten nichts mehr an. Jetzt merkt sich der
+-- Kern den letzten echten Namen (PeonDB.lastRealm). Ohne ihn hilft die Liste der Profile ("Name-Realm" dieses Charakters).
+-- Rueckgabe: Name oder nil, wenn er nicht bekannt ist.
+function Peon.RealmName()
+    local r = GetRealmName and GetRealmName()
+    local db = rawget(_G, "PeonDB")
+    if type(r) == "string" and not Peon.IsSecret(r) and r ~= "" then
+        if type(db) == "table" and db.lastRealm ~= r then db.lastRealm = r end
+        return r
+    end
+    if type(db) ~= "table" then return nil end
+    if type(db.lastRealm) == "string" and db.lastRealm ~= "" then return db.lastRealm end
+    local name = UnitName and UnitName("player")
+    if type(name) == "string" and not Peon.IsSecret(name) and type(db.profileUsers) == "table" then
+        for k in pairs(db.profileUsers) do
+            local n, realm = tostring(k):match("^(.-)%-(.+)$")
+            if n == name and realm and realm ~= "" then db.lastRealm = realm; return realm end
+        end
+    end
+    return nil
 end
 
 -- Wert sicher als Text; geheime Werte werden nicht ausgewertet

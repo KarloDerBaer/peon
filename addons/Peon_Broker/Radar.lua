@@ -466,6 +466,10 @@ function R.SearchKeys(mode)
     if mode == "trade" then
         return ns.Trade and ns.Trade.Keys() or {}
     end
+    -- ab 0.129: "Alle pruefen" im Unterreiter Pakete
+    if mode == "pkgcheck" then
+        return ns.Packages and ns.Packages.Keys() or {}
+    end
     local market = D.Market()
     if not market then return keys end
     for key, e in pairs(market.items) do
@@ -493,11 +497,11 @@ function R.NextSearch(peek)
     end
     for _ = 1, 50 do
         if sc.index >= #sc.keys then
-            if (mode == "mgronly" or mode == "trade") and sc.rounds >= 1 then   -- ab 0.96: eine Runde, dann fertig (ab 0.127 auch Markttausch)
+            if (mode == "mgronly" or mode == "trade" or mode == "pkgcheck") and sc.rounds >= 1 then   -- ab 0.96: eine Runde, dann fertig (ab 0.127 auch Markttausch)
                 if not peek then R.Stop() end
                 return nil
             end
-            sc.keys = (mode == "watch" or mode == "mgronly" or mode == "trade") and R.SearchKeys(mode) or Shuffle(R.SearchKeys(mode))
+            sc.keys = (mode == "watch" or mode == "mgronly" or mode == "trade" or mode == "pkgcheck") and R.SearchKeys(mode) or Shuffle(R.SearchKeys(mode))
             sc.index, sc.rounds = 0, sc.rounds + 1
             if #sc.keys == 0 then return nil end
         end
@@ -1218,7 +1222,7 @@ function R.OnPriceUpdated(unitPrice, totalPrice)
     -- ab 0.91: Kauf aus dem Fokus mit einem Klick (Fehlerbericht 24). Nur der Start des Kaufs braucht einen echten
     -- Klick (StartCommoditiesPurchase HasRestrictions), die Bestaetigung nicht (AuctionHouseDocumentation.lua, Zweig
     -- forever). Ist der Gesamtpreis hoeher als erwartet, bleibt es beim zweiten Klick mit Warnung.
-    if job.mode == "best" and not job.warn then
+    if (job.mode == "best" or job.mode == "pkg") and not job.warn then   -- ab 0.129 auch Pakete (Grenze = Kaufen bis)
         job.stage = "wait"
         local ok = pcall(AHApi().ConfirmCommoditiesPurchase, job.id, job.qty)
         R.Trace("confirm qty=%s ok=%s", B2S(job.qty), B2S(ok))

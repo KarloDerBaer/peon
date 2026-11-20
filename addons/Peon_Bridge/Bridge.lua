@@ -77,6 +77,16 @@ end
 function ns.Prepare()
     local acc = mod.acc
     if type(acc.queue) ~= "table" then acc.queue = {} end
+    -- ab 0.14.0: Eintraege, die ohne Realm-Namen entstanden ("? / Fraktion"), bekommen den echten (Kern API 27)
+    local realm = Peon.RealmName and Peon.RealmName()
+    if type(realm) == "string" and realm ~= "" then
+        for _, e in ipairs(acc.queue) do
+            if type(e) == "table" and type(e.market) == "string" and e.market:match("^%? / ") then
+                e.market = realm .. " / " .. e.market:match("^%? / (.+)$")
+                e.realm = realm
+            end
+        end
+    end
     if type(acc.nameIds) ~= "table" then acc.nameIds = {} end   -- itemIDs, deren Namen der Manager schon hat
     if type(acc.tipIds) ~= "table" then acc.tipIds = {} end     -- Schluessel, deren Werte der Manager schon hat (ab 0.6.0)
     if type(acc.seq) ~= "number" then acc.seq = 0 end
@@ -202,6 +212,7 @@ mod:On("INIT", function()
 end)
 
 mod:On("LOGIN", function()
+    ns.Prepare()   -- ab 0.14.0: Realm-Name ist beim Anmelden sicherer bekannt als beim Laden
     ns.StartChannels()
 end)
 

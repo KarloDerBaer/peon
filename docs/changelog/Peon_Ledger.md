@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.17.0
+
+Kurz: Liefert das Spiel keinen Realm-Namen, zeigt Ledger trotzdem deine Daten. Was in dieser Zeit unter „?“ gespeichert wurde, kommt zu deinem Realm.
+Kurz: Ledger merkt sich bei Käufen und Verkäufen im Auktionshaus, ob sie im eigenen oder im neutralen Haus stattfanden. Verkaufst du etwas im anderen Haus, als du es gekauft hast, zeigt das Buch den Gewinn als „davon Markttausch“.
+
+- 0.17.0 (20.11.2026, Wunsch KarloDerBaer, Konzept `Peon_Broker_Marktvergleich.md`):
+  - **Neu, Haus an Bewegungen im Auktionshaus** (`Moves.lua`, Feld `h`: `f` eigene Fraktion, `n` neutral): bei offenem Auktionshaus aus dem Auktionator (ohne Fraktion = neutral), bei Rechnungen aus dem Absender wie in Broker (mit Allianz oder Horde im Namen das eigene Haus). Ältere Bewegungen haben kein Haus.
+  - **Neu, Haus an Posten aus Auktionskäufen** (`Cost.lua`, Posten-Feld `h`). Posten verschiedener Häuser werden nicht zusammengelegt, Post an Twinks nimmt das Haus mit.
+  - **Neu, Markttausch im Buch:** Ein Verkauf im anderen Haus als dem Kauf trägt `swap` (Stück und Anteil am Handelsgewinn). Das Buch zeigt ihn als graue Zeile „davon Markttausch“ unter dem Handelsgewinn.
+  - **Neu, Schnittstelle `mod:HouseLots(char)`** für Broker: Posten je Gegenstand nach Haus des Kaufs.
+  - **Behoben, leerer Realm-Name** (gemeldet von KarloDerBaer): Realm mit Rückfall aus dem Kern (API 27). Was in dieser Zeit unter „?“ lag, wandert beim Anmelden zum echten Realm (Bewegungen dazu, der neuere Bestand ersetzt den alten), danach fällt „?“ weg.
+  - Tests: Markttausch und Verkauf im selben Haus, Buch, Posten nach Haus, Haus aus dem Absender (`test_ledger.lua`).
+
 ## 0.16.3
 
 Kurz: Verkaufst du einen Gegenstand mit offenen Gebühren an einen Händler, zieht Ledger die Gebühren jetzt von diesem Verkauf ab. Geht der letzte Bestand anders weg, etwa verbraucht oder zerstört, zählen sie als Verlust im Handelsgewinn.

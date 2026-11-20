@@ -2094,6 +2094,62 @@ Mv.Changed()
 end)()
 
 
+-- ----- 0.17: Markttausch (Haus an Bewegungen und Posten, Anteil im Buch) -----
+;(function()
+  local me = realm.chars["Mirel Dorna"]
+  local keepS, keepM, keepB = me.start, realm.moves, realm.lotBase
+  local t0 = time() - 1000
+  realm.lotBase = nil
+  me.start = { t = t0, places = { bags = { t = t0, items = {} } } }
+  realm.moves = {
+    { t = t0 + 10, c = "Mirel Dorna", k = "ahbuy", id = 7101, n = 4, m = -400, h = "f" },        -- 4 im eigenen Haus zu 1s
+    { t = t0 + 11, c = "Mirel Dorna", k = "ahbuy", id = 7101, n = 2, m = -300, h = "n" },        -- 2 im neutralen zu 1,5s
+    { t = t0 + 20, c = "Mirel Dorna", k = "ahsold", id = 7101, n = -4, m = 1000, q = 4, h = "n" }, -- 4 im neutralen verkauft
+    { t = t0 + 30, c = "Mirel Dorna", k = "ahsold", id = 7101, n = -2, m = 400, q = 2, h = "n" },  -- 2 im neutralen verkauft
+  }
+  mod.db.costOrder = "fifo"
+  ns.Cost.Invalidate()
+  local a = ns.Cost.Result(realm.moves[3])
+  local b = ns.Cost.Result(realm.moves[4])
+  check(a.swap and a.swap.n == 4 and math.abs(a.swap.profit - 600) < 0.01, "0.17: im eigenen Haus gekauft, im neutralen verkauft: Markttausch")
+  check(b.swap == nil, "0.17: im selben Haus gekauft und verkauft: kein Markttausch")
+  local bk = ns.Book.Collect("all", false)
+  check(bk.swapN == 4 and math.abs(bk.swap - 600) < 0.01, "0.17: Buch zaehlt den Markttausch")
+  local found
+  for _, r in ipairs(ns.Book.BookRows(bk)) do if r.k == "swap" then found = r end end
+  check(found and found.label:find("4", 1, true) and math.abs(found.sum - 600) < 0.01, "0.17: graue Zeile davon Markttausch")
+  -- Ware je Haus fuer Broker: 2 im neutralen gekauft, noch nicht verkauft
+  realm.moves = { realm.moves[1], realm.moves[2] }
+  ns.Cost.Invalidate()
+  local hl = mod:HouseLots("Mirel Dorna")
+  check(hl[7101] and hl[7101].f == 4 and hl[7101].n == 2, "0.17: Posten nach Haus (mod:HouseLots)")
+  -- Absender und offenes Haus
+  check(ns.Moves.HouseOfSender("Auktionshaus") == "n" and ns.Moves.HouseOfSender("Auktionshaus der Allianz") == "f"
+    and ns.Moves.HouseOfSender("Horde Auction House") == "f" and ns.Moves.HouseOfSender("Mirel") == nil, "0.17: Haus aus dem Absender")
+  mod.db.costOrder = "lifo"
+  me.start, realm.moves, realm.lotBase = keepS, keepM, keepB
+  ns.Cost.Invalidate()
+end)()
+
+-- ----- 0.17: leerer Realm-Name, Daten unter "?" wandern zum echten Realm -----
+;(function()
+  local acc = PeonLedgerDB
+  local real = realm
+  local keepMoves = #real.moves
+  acc.realms["?"] = { chars = { ["Mirel Dorna"] = { places = { bags = { t = 1, items = { [7999] = 3 } } }, money = 4242 }, ["Neu Name"] = { places = {} } },
+    account = { places = {} }, moves = { { t = time() - 5, c = "Mirel Dorna", k = "loot", id = 7999, n = 3 } } }
+  local oldRN = Peon.RealmName
+  Peon.RealmName = function() return "Classic Beta PvE" end
+  local n = ns.MergeUnknownRealm()
+  check(n == 1 and acc.realms["?"] == nil and #real.moves == keepMoves + 1, "0.17: Bewegungen aus ? beim echten Realm")
+  check(real.chars["Mirel Dorna"].places.bags.items[7999] == 3 and real.chars["Mirel Dorna"].money == 4242 and real.chars["Neu Name"], "0.17: neuerer Bestand aus ? uebernommen")
+  check(ns.MergeUnknownRealm() == 0, "0.17: nichts mehr zu tun")
+  Peon.RealmName = oldRN
+  real.chars["Neu Name"] = nil
+  table.remove(real.moves)
+  ns.Cost.Invalidate()
+end)()
+
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end
 check(n == 0, "keine Fehlermeldungen")
 print("ALLE TESTS OK")

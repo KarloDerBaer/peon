@@ -35,7 +35,7 @@ const DEFAULTS = {
   keepDays: 7,            // Kennzahlen je Stand aufheben (Tage, 0 = unbegrenzt), ab 0.41.0 7 statt 14
   retentionV: 3,          // Stand der Standardwerte der Aufbewahrung (Umstellung im Konstruktor)
   chances: { days: 7, minProfit: 1000, quality: 0 },   // Ansicht Chancen: Zeitraum, Mindestgewinn je Tag (Kupfer), Qualitaet ab
-  compareView: { tab: 'chances', dir: 'all', light: 'all', commodity: false, quality: 0 },   // ab 0.50.0: Ansicht Marktvergleich
+  compareView: { tab: 'chances', dir: 'all', light: 'all', scope: 'pick', commodity: false, quality: 0 },   // ab 0.50.0: Ansicht Marktvergleich
   watchTab: 'buyout',     // ab 0.51.0: Unterreiter in Beobachten (buyout, quick, trade)
   hourDays: 28,           // danach 3-Stunden-Werte bis zu so vielen Tagen, dann Tageswerte (mindestens 28, retention.js)
 };

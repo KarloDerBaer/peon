@@ -2,6 +2,32 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.53.0
+
+Kurz: Neu sind Pakete im Marktvergleich: je Richtung mehrere kleine Angebote, die zusammen auch dann Gewinn bringen, wenn nur die Hälfte verkauft wird. Die Erfolgskontrolle zeigt, was aus jedem Paket geworden ist.
+
+- 0.53.0 (20.11.2026, Wunsch KarloDerBaer, Konzept `Peon_Broker_Pakete.md`):
+  - **Neu, Pakete** (`packages.js`): aus allen Kandidaten des Marktvergleichs je Richtung ein Paket. Einzelstücke oder kleine Mengen Massenware (höchstens ein Tag im Ziel, höchstens ein Stapel), höchstens ein Angebot je Gegenstand und drei je Kategorie (Varianten mit der Kategorie des Grundgegenstands), ein Angebot höchstens ein Viertel des Einsatzes. Gewinnprüfung: verkauft werden nur die schlechtesten 50 %, der Rest zählt mit 0, alle Einstellgebühren abgezogen. Gierige Auswahl nach erwartetem Gewinn mit 30 Startangeboten, gestreute Pakete (ab 4 Angeboten) gehen vor.
+  - **Neu, Regeln** `pkgSize` (8), `pkgGold` (10 % des Golds laut Ledger, ohne Ledger höchstens 25 Gold), `pkgSafe` (50 %), unter Einstellen auf der Seite Marktvergleich.
+  - **Neu, Unterreiter Pakete** auf der Seite Marktvergleich mit Einsatz, erwartetem Gewinn, Gewinn im schlechten Fall und allen Angeboten. Angebote lassen sich ausschließen (`meta pkgExclude`), der Manager rechnet neu.
+  - **Neu, Weitergabe an Broker** in `Data.lua` (`markets[Heimat].pkg`, je Angebot Menge, Kaufen bis, Verkaufen ab und erwarteter Preis).
+  - **Neu, Erfolgskontrolle der Pakete:** das erste Paket je Tag und Richtung wird gemerkt (`meta pkgLog`) und mit den Bewegungen aus Ledger ausgewertet (gekauft im Haus der Quelle, verkauft im Haus des Ziels, Ausgaben, Erlös, Ergebnis).
+  - Mit echten Daten (20.11.2026, Einsatz 200 Gold zum Vergleich): je Richtung 8 Angebote, Gewinn auch im schlechten Fall.
+  - Tests: Streuung, Budget, Gewinnprüfung, Ausschließen, Mindestpreis für Broker, Auswertung mit Ledger (`test/marktvergleich.test.js`).
+
+## 0.52.0
+
+Kurz: Die Seite Marktvergleich zeigt jetzt zuerst nur die Auswahl, die an Broker geht. Alle Kandidaten gibt es über die Auswahlliste.
+Kurz: Neu sind die Einstellgebühr in der Rechnung, Chancen für Gegenstände, die im anderen Haus gerade fehlen, ein Diagramm im Reiter Neutral und der Marktvergleich in der Erfolgskontrolle.
+
+- 0.52.0 (20.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Liste Chancen:** Vorgabe ist die Auswahl für Broker (die besten 10), „Alle Kandidaten“ über die Auswahlliste. Die Zahl am Reiter folgt der Auswahl.
+  - **Neu, Einstellgebühr** (`compare.js`, `depositLoss`): 5 % vom Händlerpreis, mal 4 für 8 Std., wie in Broker. Im neutralen Haus gleich hoch gemessen (20 Seidenstoff 1s 50c). Verloren ist sie je Verkauf so oft, wie Angebote ablaufen (1 durch Absatzquote minus 1, Absatzquote höchstens bis 20 % gerechnet).
+  - **Neu, Lücke im Ziel:** Gegenstände, die im Zielhaus verkauft werden, dort aber gerade kein Angebot oder im Zeitraum keinen Preis haben. Verkaufspreis ist der Median der echten Verkäufe über 14 Tage, mindestens 3 Tage mit Verkäufen. Der Satz sagt „Im Ziel gerade kein Angebot“.
+  - **Neu, Diagramm im Reiter Neutral** der Gegenstandsseite (`components/CompareChart.vue`, `compare.itemSeries`): günstigster Preis und Verkaufspreise beider Häuser über 30 Tage, abschaltbar.
+  - **Neu, Erfolgskontrolle für den Marktvergleich** (`compare-client.js`, `meta compareLog`): Die Auswahl wird je Tag gemerkt und nach 3 Tagen nachgeprüft (gehalten, teilweise, nicht gehalten). Dazu echte Tausche aus Peon_Ledger.lua (ab Ledger 0.17 mit Haus).
+  - Tests: Einstellgebühr, Lücke, Verlauf, Erfolgskontrolle (`test/marktvergleich.test.js`).
+
 ## 0.51.0
 
 Kurz: Der Marktvergleich wählt nach jedem neuen Stand die besten 10 Chancen für Broker aus und berücksichtigt dabei auch die letzten 14 Tage. Die Anzahl ist einstellbar.

@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.5.1
+
+Kurz: Rückmeldungen tragen den richtigen Realm auch dann, wenn das Spiel kurz keinen Namen liefert.
+
+- 0.5.1 (20.11.2026): Realm-Name mit Rückfall aus dem Kern (`Peon.RealmName`, API 27).
+
 ## 0.5.0
 
 Kurz: Andere Peon-Module können jetzt selbst eine Rückmeldung anlegen, die dann wie gewohnt im Peon Manager erscheint.

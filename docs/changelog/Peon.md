@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.27.0
+
+Kurz: Liefert das Spiel keinen Realm-Namen, nimmt Peon den zuletzt bekannten. Vorher zeigten Ledger und Broker in diesem Fall leere Fenster.
+
+- 0.27.0 (20.11.2026, Fehler gemeldet von KarloDerBaer): **Neu, `Peon.RealmName()` (API 27).** Nach einem Neustart lieferte `GetRealmName()` einen leeren Text, Ledger und Broker suchten ihre Daten dann unter „?“. Der Kern merkt sich den letzten echten Namen (`PeonDB.lastRealm`), ohne ihn hilft die Liste der Profile („Name-Realm“ dieses Charakters). Die Profile nutzen ihn ebenfalls.
+  - Tests: echter Name gemerkt, leerer Name mit Merker, aus der Liste der Profile, ganz ohne Hinweis (`test_profile.lua`).
+
 ## 0.26.0
 
 Kurz: Profile laufen jetzt mit. Alle Charaktere nutzen das Profil „Standard“, für einzelne Charaktere wählst du unter Peon > Profile ein eigenes.

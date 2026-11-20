@@ -23,9 +23,12 @@ const DEFAULTS = {
   minCons: 0.5,     // Bestaendigkeit mindestens 50 %
   cutN: 0.15,       // Anteil des neutralen Hauses, solange Broker ihn nicht gemessen hat (KarloDerBaer 20.11.2026)
   top: 10,          // ab 0.51.0: so viele Chancen gehen an Broker (KarloDerBaer 20.11.2026, einstellbar)
+  pkgSize: 8,       // ab 0.53.0: Pakete (packages.js), so viele Angebote je Paket (KarloDerBaer 20.11.2026)
+  pkgGold: 0.1,     // hoechstens dieser Anteil des Golds laut Ledger als Einsatz
+  pkgSafe: 0.5,     // Paket muss Gewinn machen, wenn nur dieser Anteil der Angebote verkauft wird
 };
 const CHOICES = { days: [3, 7, 14] };
-const LIMITS = { share: [0.01, 1], hold: [0.25, 14], minPct: [0, 5], minNet: [0, 1e9], minSales: [0, 1e6], minCons: [0, 1], cutN: [0, 0.5], top: [1, 100] };
+const LIMITS = { share: [0.01, 1], hold: [0.25, 14], minPct: [0, 5], minNet: [0, 1e9], minSales: [0, 1e6], minCons: [0, 1], cutN: [0, 0.5], top: [1, 100], pkgSize: [4, 24], pkgGold: [0.01, 1], pkgSafe: [0.1, 1] };
 const CUT_HOME = 0.05;
 const SUPPLY_OK = 3;       // bis 3 Tage Vorrat im Ziel kein Abschlag
 const SUPPLY_MAX = 10;     // ab 10 Tagen Vorrat keine Chance
@@ -34,6 +37,21 @@ const BROKER_MAX = 150;    // bis 0.50.x: so viele Chancen je Richtung gingen an
 // ab 0.51.0 (KarloDerBaer 20.11.2026): Langzeitwerte ueber 14 Tage fliessen in die Bewertung ein
 const LONG = 14;           // Tage fuer die Langzeitwerte
 const TREND_MIN = 0.6, TREND_MAX = 1.2;   // Faktor fuer einen schrumpfenden oder wachsenden Unterschied
+// ab 0.52.0: Einstellgebuehr wie im Spiel (Broker Data.lua D.Deposit): 5 % vom Haendlerpreis je Stueck, abgerundet, mal 4
+// fuer 8 Std. Im neutralen Haus gemessen gleich hoch (20.11.2026: 20 Seidenstoff 1s 50c, wie 17 Stueck 1s 27c im eigenen).
+// Sie kommt beim Verkauf zurueck. Verloren ist sie fuer jedes abgelaufene Angebot: je Verkauf (1 / Absatzquote - 1) mal.
+const DEP_PCT = 0.05, DEP_FACTOR = 4, RATE_MIN = 0.2;
+// ab 0.52.0 (KarloDerBaer 20.11.2026): Luecke im Ziel. Der Gegenstand verkauft sich dort, steht aber gerade nicht im Angebot
+// oder hatte im Zeitraum keinen Preis. Verkaufspreis = Median der echten Verkaufspreise ueber LONG Tage, mindestens GAP_DAYS
+// Tage mit Verkaeufen.
+const GAP_DAYS = 3;
+
+// Verlust an Einstellgebuehren je verkauftem Stueck (Kupfer)
+function depositLoss(vendor, rate) {
+  if (!(vendor > 0) || rate == null) return 0;
+  const dep = Math.floor(vendor * DEP_PCT) * DEP_FACTOR;
+  return dep * (1 / Math.max(RATE_MIN, rate) - 1);
+}
 
 // Regeln aus den Einstellungen, auf erlaubte Werte gebracht
 function rules(r) {
@@ -108,34 +126,52 @@ function daySales(db, mid, fromDay) {
 // Kurzfristig (Zeitraum der Regeln): Preise, Absatz, Bestaendigkeit. Langfristig (LONG Tage, ab 0.51.0): Bestaendigkeit ueber
 // alle Tage (cons14), wie gleichmaessig im Ziel verkauft wird (even = Anteil der Tage mit Verkaeufen) und ob der Unterschied
 // waechst oder schrumpft (trend = Gewinn der juengeren Haelfte geteilt durch die aeltere, begrenzt).
-function direction(key, src, dst, cutDst, ru, minDays, today) {
-  const spAll = src.prices.get(key), dpAll = dst.prices.get(key);
-  if (!spAll || !dpAll) return null;
+function direction(key, src, dst, cutDst, ru, minDays, today, vendor = null) {
+  const spAll = src.prices.get(key);
+  const dpAll = dst.prices.get(key) || new Map();
+  if (!spAll) return null;
   const from = today - ru.days;
   const recent = (m) => new Map([...m].filter(([d]) => d > from));
   const sp = recent(spAll), dp = recent(dpAll);
-  if (!sp.size || !dp.size) return null;
+  if (!sp.size) return null;
   const buy = median([...sp.values()].map((x) => x.min));
-  const dstMin = median([...dp.values()].map((x) => x.min));
-  if (!(buy > 0) || !(dstMin > 0)) return null;
+  if (!(buy > 0)) return null;
   const dsAll = dst.sales.items.get(key);
+  const last = dst.last.items.get(key);
+  // ab 0.52.0: Luecke im Ziel (kein Preis im Zeitraum oder gerade kein Angebot), aber echte Verkaeufe ueber LONG Tage
+  let gap = !dp.size || !last;
+  const pxLong = [];
+  if (dsAll) for (const x of dsAll.values()) if (x.px && x.sold >= 0.5) pxLong.push(x.px);
+  if (!dp.size && pxLong.length < GAP_DAYS) return null;
+  if (gap && pxLong.length < GAP_DAYS) gap = false;
+  const dstMin = dp.size ? median([...dp.values()].map((x) => x.min)) : null;
   let sold = 0, expired = 0;
   const pxs = [];
   if (dsAll) for (const [d, x] of dsAll) if (d > from) { sold += x.sold; expired += x.expired; if (x.px) pxs.push(x.px); }
-  const soldPx = median(pxs);
-  const sell = soldPx ? Math.min(soldPx, dstMin) : dstMin;
-  const net = sell * (1 - cutDst) - buy;
+  const soldPx = gap ? median(pxLong) : median(pxs);
+  let sell = soldPx ? (gap || !dstMin ? soldPx : Math.min(soldPx, dstMin)) : dstMin;
+  if (!(sell > 0)) return null;
   const salesDays = [...dst.sales.daySet].filter((d) => d > from).length;
-  const perDay = salesDays ? sold / salesDays : 0;
+  let perDay = salesDays ? sold / salesDays : 0;
+  if (gap && !(perDay > 0)) {   // Luecke: Absatz ueber alle Tage mit Daten
+    let s14 = 0;
+    if (dsAll) for (const x of dsAll.values()) s14 += x.sold;
+    perDay = dst.sales.daySet.size ? s14 / dst.sales.daySet.size : 0;
+  }
   const rate = sold + expired > 0 ? sold / (sold + expired) : null;
+  const depLoss = depositLoss(vendor, rate);   // ab 0.52.0
+  const net = sell * (1 - cutDst) - buy - depLoss;
   // Gewinn je Tag nach Preisen beider Maerkte, Ziel = Verkaufspreis des Tages oder sein guenstigster Preis
+  // (ab 0.52.0 ohne Preis im Ziel an diesem Tag der Verkaufspreis des Tages)
   const dayNet = new Map();
   for (const [d, s] of spAll) {
     const t = dpAll.get(d);
-    if (!t) continue;
     const dx = dsAll && dsAll.get(d);
-    const px = dx && dx.px ? Math.min(dx.px, t.min) : t.min;
-    dayNet.set(d, (px * (1 - cutDst) - s.min) / s.min);
+    let px = null;
+    if (t) px = dx && dx.px ? Math.min(dx.px, t.min) : t.min;
+    else if (dx && dx.px) px = dx.px;
+    if (px == null) continue;
+    dayNet.set(d, (px * (1 - cutDst) - s.min - depLoss) / s.min);
   }
   let both = 0, plus = 0;
   for (const [d, v] of dayNet) if (d > from) { both++; if (v > 0) plus++; }
@@ -159,7 +195,6 @@ function direction(key, src, dst, cutDst, ru, minDays, today) {
     else if (newer > 0) trend = TREND_MAX;
   }
   const longF = (0.5 + 0.5 * cons14) * (0.5 + 0.5 * even) * trend;
-  const last = dst.last.items.get(key);
   const stock = last ? last.qty : 0;
   const supply = perDay > 0 ? stock / perDay : (stock > 0 ? Infinity : 0);
   const srcQty = median([...sp.values()].map((x) => x.qty)) || 0;
@@ -178,8 +213,8 @@ function direction(key, src, dst, cutDst, ru, minDays, today) {
   const light = !ok ? 'red' : cons >= GREEN_CONS && supply <= SUPPLY_OK ? 'green' : 'yellow';
   return { buy: Math.round(buy), sell: Math.round(sell), soldPx: soldPx ? Math.round(soldPx) : null, net: Math.round(net), pct,
     perDay, rate, stock, supply: Number.isFinite(supply) ? supply : null, cons, days: both, plus, qty, gainDay: Math.round(gainDay),
-    cons14, days14: both14, plus14, even, trend, longF,
-    score: Math.round(score), ok, light, why, dstMin: Math.round(dstMin), srcNow: (src.last.items.get(key) || {}).min ?? null, dstNow: last ? last.min : null };
+    cons14, days14: both14, plus14, even, trend, longF, gap, depLoss: Math.round(depLoss),
+    score: Math.round(score), ok, light, why, dstMin: dstMin != null ? Math.round(dstMin) : null, srcNow: (src.last.items.get(key) || {}).min ?? null, dstNow: last ? last.min : null };
 }
 
 // Satz zu einer Chance: "Fraktion kauft fuer 1g 20s, Neutral verkauft im Mittel fuer 2g 10s, 14 am Tag. Unterschied an 6 von 7 Tagen."
@@ -200,7 +235,47 @@ function say(dir, x) {
   if (x.days14 > x.days) t += `, über ${x.days14} Tage an ${x.plus14}`;
   if (x.trend != null && x.trend >= 1.1) t += ', wachsend';
   else if (x.trend != null && x.trend <= 0.8) t += ', schrumpfend';
-  return t + '.';
+  t += '.';
+  if (x.gap) t += ` Im Ziel gerade kein Angebot.`;
+  return t;
+}
+
+// ab 0.52.0: Verlauf eines Gegenstands in beiden Haeusern fuer das Diagramm im Reiter Neutral.
+// Rueckgabe { days: [Tag], home, neutral (guenstigster Preis je Tag, Mittel der Staende), homeSold, neutralSold
+// (Mittel der Verkaufspreise je Tag) }, fehlende Werte null
+function itemSeries(db, homeId, neutralId, key, now, span = 30) {
+  const today = Math.floor((now || Math.floor(Date.now() / 1000)) / 86400);
+  const from = today - span;
+  const prices = (mid) => {
+    const m = new Map();
+    for (const r of db.prepare("SELECT t, min FROM item_snap WHERE market_id = ? AND item_key = ? AND t >= ? AND source = 'scan' AND min > 0").iterate(mid, String(key), (from + 1) * 86400)) {
+      const d = Math.floor(r.t / 86400);
+      const x = m.get(d) || { s: 0, n: 0 };
+      x.s += r.min; x.n++; m.set(d, x);
+    }
+    for (const r of db.prepare("SELECT t, min, n FROM item_hour WHERE market_id = ? AND item_key = ? AND t >= ? AND source = 'scan' AND min > 0").iterate(mid, String(key), (from + 1) * 86400)) {
+      const d = Math.floor(r.t / 86400);
+      if (m.has(d) && !m.get(d).h) continue;   // Stand des Tages geht vor
+      const x = m.get(d) || { s: 0, n: 0, h: true };
+      x.s += r.min * (r.n || 1); x.n += r.n || 1; m.set(d, x);
+    }
+    return m;
+  };
+  const sold = (mid) => {
+    const m = new Map();
+    for (const r of db.prepare('SELECT day, sold, value FROM sales_day WHERE market_id = ? AND item_key = ? AND day > ?').iterate(mid, String(key), from)) {
+      if (r.sold > 0 && r.value > 0) m.set(r.day, r.value / r.sold);
+    }
+    return m;
+  };
+  const hp = prices(homeId), np = prices(neutralId), hs = sold(homeId), ns = sold(neutralId);
+  const out = { days: [], home: [], neutral: [], homeSold: [], neutralSold: [] };
+  for (let d = from + 1; d <= today; d++) {
+    const v = (m) => { const x = m.get(d); return x ? Math.round(x.s / x.n) : null; };
+    const w = (m) => (m.has(d) ? Math.round(m.get(d)) : null);
+    out.days.push(d); out.home.push(v(hp)); out.neutral.push(v(np)); out.homeSold.push(w(hs)); out.neutralSold.push(w(ns));
+  }
+  return out;
 }
 
 // Ganze Rechnung fuer ein Paar. now in Sekunden. cutN: gemessener Anteil Neutral oder null (dann Annahme aus den Regeln)
@@ -220,13 +295,17 @@ function computePair(db, homeId, neutralId, opts = {}) {
     return { prices, sales: daySales(db, mid, fromDay + 1), last };
   };
   const H = side(homeId), N = side(neutralId);
+  const vendor = opts.vendor || new Map();   // ab 0.52.0: Haendlerpreis je Gegenstand (Einstellgebuehr)
   const items = [], chances = [];
   let both = 0;
-  for (const key of H.prices.keys()) {
-    if (!N.prices.has(key)) continue;
-    both++;
-    const n = direction(key, H, N, cutN, ru, minDays, today);   // Fraktion kaufen, Neutral verkaufen
-    const h = direction(key, N, H, CUT_HOME, ru, minDays, today); // Neutral kaufen, Fraktion verkaufen
+  // ab 0.52.0 auch Gegenstaende, die nur in einem Haus Preise haben, im anderen aber Absatz (Luecke)
+  const keys = new Set([...H.prices.keys()].filter((k) => N.prices.has(k) || N.sales.items.has(k)));
+  for (const k of N.prices.keys()) if (H.prices.has(k) || H.sales.items.has(k)) keys.add(k);
+  for (const key of keys) {
+    if (H.prices.has(key) && N.prices.has(key)) both++;
+    const v = vendor.get(key) ?? vendor.get(String(key).split(':')[0]) ?? null;
+    const n = direction(key, H, N, cutN, ru, minDays, today, v);   // Fraktion kaufen, Neutral verkaufen
+    const h = direction(key, N, H, CUT_HOME, ru, minDays, today, v); // Neutral kaufen, Fraktion verkaufen
     if (!n && !h) continue;
     let best = 'h';
     if (!h) best = 'n';
@@ -235,7 +314,7 @@ function computePair(db, homeId, neutralId, opts = {}) {
     const r1 = (v) => (v == null ? null : Math.round(v * 10) / 10);
     // Liste Alle (knapp): Preise und Absatz beider Seiten, bessere Richtung
     items.push({ key, hm: n ? n.buy : h.dstMin, nm: h ? h.buy : n.dstMin, sh: h ? r1(h.perDay) : null, sn: n ? r1(n.perDay) : null,
-      dir: best, pct: Math.round(b.pct * 100), net: b.net, light: b.light });
+      dir: best, pct: Math.round(b.pct * 100), net: b.net, light: b.light, gap: b.gap || undefined });
     for (const [dir, x] of [['n', n], ['h', h]]) if (x && x.ok) chances.push({ key, dir, ...x, say: say(dir, x) });
   }
   chances.sort((a, b) => b.score - a.score);
@@ -283,4 +362,4 @@ function forBroker(res, pinned = new Set()) {
   return { t: res.t, cutN: Math.round(res.cutN * 10000), cutSure: !!res.cutSure, minPct: Math.round(ru.minPct * 100), minNet: Math.round(ru.minNet), list, say };
 }
 
-module.exports = { DEFAULTS, CHOICES, rules, median, computePair, forBroker, pickTop, say, money, BROKER_MAX, SUPPLY_OK, SUPPLY_MAX, LONG };
+module.exports = { DEFAULTS, CHOICES, rules, median, computePair, itemSeries, forBroker, pickTop, depositLoss, GAP_DAYS, say, money, BROKER_MAX, SUPPLY_OK, SUPPLY_MAX, LONG };

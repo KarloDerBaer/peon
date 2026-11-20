@@ -111,7 +111,7 @@ local function CharName()
 end
 
 local function Market()
-    local realm = GetRealmName and GetRealmName() or "?"
+    local realm = (Peon.RealmName and Peon.RealmName()) or (GetRealmName and GetRealmName()) or "?"   -- ab 0.5.1 mit Rueckfall
     local faction = UnitFactionGroup and UnitFactionGroup("player") or "?"
     return realm .. " / " .. tostring(faction)
 end

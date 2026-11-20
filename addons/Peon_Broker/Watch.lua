@@ -432,7 +432,7 @@ function Wt.AddMenu(root, item, key)
         end
         Add(L.MENU_WATCH_BUYOUT, function() return Wt.InBuyout(key) end, Wt.SetBuyoutOn)
         Add(L.MENU_WATCH_QUICK, function() return Wt.InQuick(key) end, Wt.SetQuickOn)
-        Add(L.MENU_WATCH_TRADE, function() return Wt.InTrade(key) end, Wt.SetTradeOn)   -- ab 0.128
+        if ns.Trade and ns.Trade.On() then Add(L.MENU_WATCH_TRADE, function() return Wt.InTrade(key) end, Wt.SetTradeOn) end   -- ab 0.128, ab 0.128.2 nur eingeschaltet
     elseif root.CreateCheckbox then
         root:CreateCheckbox(L.MENU_WATCH, function() return Wt.Is(key) end,
             function() mod:Call("Beobachtung", Wt.Toggle, key, info) end)
@@ -440,7 +440,7 @@ function Wt.AddMenu(root, item, key)
         root:CreateButton(on and L.MENU_UNWATCH or L.MENU_WATCH, function() mod:Call("Beobachtung", Wt.Toggle, key, info) end)
     end
     -- ab 0.128: Markttausch auch fuer Gegenstaende, die keine Massenware sind
-    if key ~= nil and not ns.Data.IsCommodity(key) then
+    if key ~= nil and not ns.Data.IsCommodity(key) and ns.Trade and ns.Trade.On() then
         local get = function() return Wt.InTrade(key) end
         local set = function() mod:Call("Beobachtung", Wt.SetTradeOn, key, not get(), info) end
         if root.CreateCheckbox then root:CreateCheckbox(L.MENU_WATCH_TRADE, get, set)

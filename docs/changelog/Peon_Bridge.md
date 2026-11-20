@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.14.0
+
+Kurz: Die Bridge gibt die Pakete des Markttauschs an Broker weiter und ordnet Stände richtig zu, auch wenn das Spiel kurz keinen Realm-Namen liefert.
+
+- 0.14.0 (20.11.2026):
+  - **Neu, `mod:Packages(market)`** (Konzept `Peon_Broker_Pakete.md` Abschnitt 3.4): liest `markets[Heimat].pkg` aus `Data.lua`.
+  - **Behoben, leerer Realm-Name:** Realm mit Rückfall aus dem Kern (API 27). Einträge der Warteschlange mit dem Markt „? / Fraktion“ bekommen beim Laden und Anmelden den echten Namen.
+  - Tests: Pakete (`test_bridge.lua`).
+
 ## 0.13.1
 
 Kurz: Die Bridge gibt zusätzlich die Grenzen des Marktvergleichs an Broker weiter, damit Broker unpassende Chancen selbst entfernen kann.

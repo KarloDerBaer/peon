@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('peon', {
   setCompareRules: (patch) => ipcRenderer.invoke('setCompareRules', patch),
   resetCompareRules: () => ipcRenderer.invoke('resetCompareRules'),
   hideCompare: (key, on) => ipcRenderer.invoke('hideCompare', key, on),
+  excludePkg: (dir, key, on) => ipcRenderer.invoke('excludePkg', dir, key, on),   // ab 0.53.0
   pinCompare: (key, on) => ipcRenderer.invoke('pinCompare', key, on),
   chanceItem: (market, key) => ipcRenderer.invoke('chanceItem', market, key),
   brief: (market, key, days) => ipcRenderer.invoke('brief', market, key, days),

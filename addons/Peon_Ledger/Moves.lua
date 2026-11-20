@@ -13,6 +13,8 @@
 --   m = Gold in Kupfer (+/-), x = Zusatz (Handelspartner, Absender, Rezept ...)
 --   Beute und Benutzt werden je Tag, Charakter und Gegenstand zusammengefasst (d = Tag).
 --   Eintraege aelter als M.KEEP_DAYS -> Wochensummen realms[Realm].weeks["JJJJ-WW"][c|k|id] = { n, m }.
+--   ab 0.17: h = Haus bei Bewegungen im Auktionshaus ("f" eigene Fraktion, "n" neutral), aus dem offenen Auktionshaus
+--   (Auktionator ohne Fraktion = neutral) oder aus dem Absender des Briefs. Fehlt h, ist das Haus unbekannt.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -88,6 +90,32 @@ end
 
 local function Day(t) return date("%Y-%m-%d", t) end
 
+-- ab 0.17: Haus der Bewegungen im Auktionshaus (Markttausch, Cost.lua)
+M.AH_KINDS = { ahbuy = true, ahsold = true, ahfee = true, posted = true, ahreturn = true }
+
+-- Haus des offenen Auktionshauses: "n" (Auktionator ohne Fraktion) oder "f", nil wenn keins offen ist
+function M.HouseNow()
+    if not M.IsOpen("auction") then return nil end
+    return M.house
+end
+
+function M.NoteHouse()
+    local f = UnitExists and UnitExists("npc") and UnitFactionGroup and UnitFactionGroup("npc") or nil
+    if Peon.IsSecret(f) then M.house = nil; return end
+    M.house = (f == nil or f == "" or f == "Neutral") and "n" or "f"
+end
+
+-- Haus aus dem Absender eines Briefs vom Auktionshaus, wie Broker (Cut.lua C.FactionOfSender): mit Allianz oder Horde im
+-- Namen das eigene Haus ("f"), sonst ein Auktionshaus ohne Fraktion ("n"). nil, wenn es kein Auktionshaus ist
+function M.HouseOfSender(sender)
+    sender = Str(sender)
+    if not sender then return nil end
+    local s = sender:lower()
+    if s:find("allianz", 1, true) or s:find("alliance", 1, true) or s:find("horde", 1, true) then return "f" end
+    if s:find("auktionshaus", 1, true) or s:find("auction house", 1, true) then return "n" end
+    return nil
+end
+
 -- Eintrag anlegen (oder zur Tagessumme addieren)
 function M.Add(k, id, n, m, x, c)
     local kind = M.KINDS[k] or M.KINDS.other
@@ -116,6 +144,7 @@ function M.Add(k, id, n, m, x, c)
         return e
     end
     local e = { t = t, c = c, k = k, id = id, n = n, m = m, x = x }
+    if M.AH_KINDS[k] then e.h = M.HouseNow() end   -- ab 0.17
     list[#list + 1] = e
     M.Changed()
     return e
@@ -417,11 +446,12 @@ function M.LetterMoney(l)
     if kind == "sold" then
         local inv = l.invoice
         local info = inv and { id = inv.item and ns.Inventory.FindItemID(inv.item), q = inv.count or 1, cut = inv.cut, gross = inv.gross } or nil
+        if info then info.h = M.HouseOfSender(l.sender) end   -- ab 0.17
         if not inv then
             -- Rechnung noch nicht geladen (ab 0.6): Gegenstand aus dem Betreff ("Auktion erfolgreich: Name")
             local name = (Str(l.subject) or ""):match(":%s*(.-)%s*$")
             local id = name and name ~= "" and ns.Inventory.FindItemID(name) or nil
-            if id then return "ahsold", name, { id = id, guess = true } end
+            if id then return "ahsold", name, { id = id, guess = true, h = M.HouseOfSender(l.sender) } end
         end
         return "ahsold", inv and inv.item and (inv.item .. ((inv.count or 1) > 1 and (" ×" .. inv.count) or "")) or nil, info
     end
@@ -884,6 +914,7 @@ function M.Flush()
                 local k, x, info = M.LetterMoney(l)
                 local e = M.Add(k, info and info.id, nil, l.money, x)
                 if e and info then e.q, e.cut, e.gross = info.q, info.cut, info.gross end
+                if e and info and info.h and M.AH_KINDS[k] then e.h = info.h end   -- ab 0.17
                 if e and k == "ahsold" and (not info or info.guess) then M.MatchSale(e, info and info.id) end
                 if e and k == "ahsold" then M.MarkSpecial(e, l.invoice and l.invoice.item) end
                 if e and k == "ahsold" and info and info.id and not info.guess then M.SaleItems(e, info.id, info.q or 1) end
@@ -900,6 +931,7 @@ function M.Flush()
             local e = M.Add(k, info and info.id, nil, m, x)
             -- Verkauf im Auktionshaus: Menge und Anteil aus der Rechnung (Buch, Verkaufsquote)
             if e and info then e.q, e.cut, e.gross = info.q, info.cut, info.gross end
+            if e and info and info.h and M.AH_KINDS[k] then e.h = info.h end   -- ab 0.17
             -- ohne Rechnung: Gegenstand und Menge aus dem passenden Verkauf (ab 0.6)
             if e and k == "ahsold" and m > 0 and (not info or info.guess) then M.MatchSale(e, info and info.id) end
             if e and k == "ahsold" and m > 0 then M.MarkSpecial(e, x and x:match("^(.-)%s*×") or x) end
@@ -1042,7 +1074,7 @@ function M.InitEvents()
     Ev("MERCHANT_CLOSED", function() M.Close("merchant") end)
     Ev("MAIL_SHOW", function() M.Open("mail") end)
     Ev("MAIL_CLOSED", function() M.CloseMail() end)
-    Ev("AUCTION_HOUSE_SHOW", function() M.Open("auction") end)
+    Ev("AUCTION_HOUSE_SHOW", function() M.NoteHouse(); M.Open("auction") end)   -- ab 0.17 mit Haus
     Ev("AUCTION_HOUSE_CLOSED", function() M.Close("auction") end)
     Ev("TAXIMAP_OPENED", function() M.Open("taxi") end)
     Ev("TAXIMAP_CLOSED", function() M.Close("taxi") end)

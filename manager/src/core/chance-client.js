@@ -421,7 +421,9 @@ const methods = {
     const sig = forecast.signalRates(this.db, mid, now);
     const own = this.meta('ownUse') || {};
     const buys = this.ledgerTrades(mid).map((b) => ({ ...b, own: !!own[`${b.key}|${b.t}`] }));
-    return { market: marketKey, rates, signals: [...sig].map(([id, r]) => ({ id, label: forecast.SIGNALS[id].label, ...r })), buys };
+    let compare = null;   // ab 0.52.0: Marktvergleich
+    try { compare = this.compareSuccess ? this.compareSuccess(marketKey) : null; } catch { compare = null; }
+    return { market: marketKey, rates, signals: [...sig].map(([id, r]) => ({ id, label: forecast.SIGNALS[id].label, ...r })), buys, compare };
   },
 
   // ab 0.36.0: Kauf aus der Erfolgskontrolle nehmen („Behalte ich selbst“), je Kauf (Gegenstand und Zeit). Eintraege

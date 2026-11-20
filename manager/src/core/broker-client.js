@@ -156,6 +156,8 @@ class BrokerClient {
       if (ch) { lua[m.key].chances = ch; values[m.key].chances = ch.list; }
       const cm = this.compareForBroker(m.id);   // ab 0.50.0: Marktvergleich (Heimatmarkt)
       if (cm) { lua[m.key].cmp = cm; values[m.key].cmp = cm.list; }
+      const pk = this.packagesForBroker(m.id);   // ab 0.53.0: Pakete
+      if (pk) { lua[m.key].pkg = pk; values[m.key].pkg = pk; }
       count += v.n || 0;
       salesCount += v.ns || 0;
       day = v.day;
@@ -220,6 +222,8 @@ class BrokerClient {
     for (const p of this.comparePairs()) {
       const cm = lua[p.home.key] && this.compareForBroker(p.home.id);
       if (cm) { lua[p.home.key].cmp = cm; values[p.home.key].cmp = cm.list; }
+      const pk = lua[p.home.key] && this.packagesForBroker(p.home.id);   // ab 0.53.0
+      if (pk) { lua[p.home.key].pkg = pk; values[p.home.key].pkg = pk; }
     }
     this.lastLua = lua;
     return { lua, values, count, salesCount, day };

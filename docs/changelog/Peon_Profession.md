@@ -2,6 +2,12 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.7.4
+
+Kurz: Funktioniert auch, wenn das Spiel kurz keinen Realm-Namen liefert.
+
+- 0.7.4 (20.11.2026): Codex nimmt den Realm-Namen mit Rückfall aus dem Kern (`Peon.RealmName`, API 27).
+
 ## 0.7.3
 
 Kurz: Alt + Klick in der Tasche entzaubert und knackt Schlösser jetzt wirklich, auch mit Peon_Bags. Vorher passierte beim Klick nichts.

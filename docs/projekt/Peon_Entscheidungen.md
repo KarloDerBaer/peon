@@ -3,6 +3,27 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 20.11.2026: Leerer Realm-Name, Pakete gebaut (Peon 0.27.0, Broker 0.129.0, Ledger 0.17.0, Bridge 0.14.0, Manager 0.53.0)
+
+- **Realm-Name mit Rückfall im Kern** (Claude, nach Fehlermeldung KarloDerBaer): Das Spiel lieferte einen leeren Namen, Ledger und Broker zeigten leere Fenster. `Peon.RealmName()` merkt sich den letzten Namen, ohne ihn hilft die Liste der Profile. Daten, die unter „?“ entstanden, wandern beim Anmelden zum echten Realm und Markt.
+- **Broker-Datei repariert, nicht zurückgesetzt** (KarloDerBaer): Die nicht mehr ladbare Datei wurde ohne den doppelten Markt „? / Alliance“ zurückgelegt, so blieb alles seit dem letzten guten Stand erhalten. Sicherungen im Archiv.
+- **Größe der Broker-Datei in eigener Sitzung** (KarloDerBaer).
+- **Pakete gebaut wie im Konzept**, Auswahl mit mehreren Startangeboten und Vorrang für gestreute Pakete (Claude, nach Messung mit echten Daten: sonst nahm ein teures Angebot das ganze Paket ein).
+
+## 20.11.2026: Markttausch erst nach Einschalten, Konzept Pakete (Broker 0.128.2)
+
+- **Markttausch in Broker ab Werk aus** (KarloDerBaer): Chancen und Beobachten zeigen ihn erst nach dem Einschalten in den Einstellungen der Chancen. Der Manager zeigt den Marktvergleich immer.
+- **Pakete im Markttausch** (Konzept `docs/konzepte/broker/Peon_Broker_Pakete.md`, Entscheidungen dort in Abschnitt 7): 8 Angebote, höchstens 10 % des Golds, knapp unterbieten, Massenware stellt Broker selbst ein, Post an Twinks ohne eigenen Schritt.
+
+## 20.11.2026: Markttausch im Ledger, Einstellgebühr, Lücken, Erfolgskontrolle (Ledger 0.17.0, Broker 0.128.1, Manager 0.52.0)
+
+- **Markttausch im Ledger verorten** (KarloDerBaer): Das Haus hängt an der Bewegung und am Posten, nicht an einem eigenen Merker in Broker. Das Buch zeigt den Gewinn als graue Zeile unter dem Handelsgewinn, getrennt von der Überleitung (Claude).
+- **Einstellgebühr im neutralen Haus wie im eigenen** (Messung 20.11.2026 aus Ledger, KarloDerBaer hat dort eingestellt). Verlust je Verkauf nach der Absatzquote (Claude).
+- **Lücken im Ziel sind Chancen** (KarloDerBaer): Absatz vorhanden, gerade kein Angebot.
+- **Diagramm nur im Manager, abschaltbar** (KarloDerBaer). In Broker wäre es zu unübersichtlich.
+- **Seite Marktvergleich zeigt zuerst die Auswahl für Broker** (Frage KarloDerBaer, warum dort viel mehr stehen als in Broker).
+- **Erfolgskontrolle:** Nachprüfung nach 3 Tagen über die Preise beider Häuser, echte Tausche aus Ledger (Claude).
+
 ## 20.11.2026: Markttausch nur mit Auswahl des Managers, Beobachten Markttausch (Broker 0.128.0, Bridge 0.13.1, Manager 0.51.0)
 
 Konzept `docs/konzepte/broker/Peon_Broker_Marktvergleich.md`, Abschnitt 10.

@@ -184,8 +184,8 @@ local function Head(kind, market, t)
     local acc = mod.acc
     acc.seq = (acc.seq or 0) + 1
     local e = { id = ("%s-%d"):format(Int(t), acc.seq), kind = kind, fmt = ns.FMT, market = market, t = t }
-    local realm = GetRealmName and GetRealmName()
-    if type(realm) == "string" and not Peon.IsSecret(realm) then e.realm = realm end
+    local realm = (Peon.RealmName and Peon.RealmName()) or (GetRealmName and GetRealmName())   -- ab 0.14.0 mit Rueckfall
+    if type(realm) == "string" and not Peon.IsSecret(realm) and realm ~= "" then e.realm = realm end
     local faction = UnitFactionGroup and UnitFactionGroup("player")
     if type(faction) == "string" and not Peon.IsSecret(faction) then e.faction = faction end
     -- neutrales Auktionshaus (ab 0.8.0): die Fraktion steht im Markt
@@ -473,6 +473,17 @@ function mod:Compare(market)
         { cutN = tonumber(c.cutN), cutSure = c.cutSure == true, minPct = tonumber(c.minPct), minNet = tonumber(c.minNet) }
 end
 
+-- Pakete im Markttausch (ab 0.14.0, Peon_Broker_Pakete.md Abschnitt 3.4): t, pkg oder nil. Steht beim Heimatmarkt.
+-- pkg = { safe (Prozent), n = { stake, gain, gainSafe, list = { "Schluessel:Menge:KaufenBis:VerkaufenAb:Erwartet" } }, h = { ... } }
+function mod:Packages(market)
+    if not ns.ChannelOn("broker") then return nil end
+    local d = ns.ManagerData()
+    local m = d and type(d.markets) == "table" and type(market) == "string" and d.markets[ns.MarketOf(d, market)]
+    local p = type(m) == "table" and m.pkg
+    if type(p) ~= "table" then return nil end
+    return tonumber(p.t), p
+end
+
 -- Wie viele Gegenstaende hat der Manager fuer einen Markt (Anzeige)
 function ns.MarketCount(market)
     local d = ns.ManagerData()
@@ -501,7 +512,7 @@ end
 
 -- Markt wie Broker (Realm / Fraktion)
 function ns.MarketKeyOf()
-    local realm = GetRealmName and GetRealmName() or nil
+    local realm = (Peon.RealmName and Peon.RealmName()) or (GetRealmName and GetRealmName()) or nil   -- ab 0.14.0 mit Rueckfall
     local faction = UnitFactionGroup and UnitFactionGroup("player") or nil
     if type(realm) ~= "string" or Peon.IsSecret(realm) or realm == "" then return nil end
     if type(faction) ~= "string" or Peon.IsSecret(faction) or faction == "" then return nil end

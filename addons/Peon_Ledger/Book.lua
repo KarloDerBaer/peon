@@ -9,6 +9,8 @@
 -- Unterschied zum Geldfluss erklaeren (ins Lager ist der Rest, so geht die Rechnung immer auf). In der Mitte der
 -- Spielalltag (uebrige Arten, dazu "AH: Verkauf Beute"), unten die Summen. Verkaufsquote = verkauft /
 -- (verkauft + zurueck) in Stueck, letzte 30 Tage, ab 3 Stueck.
+-- Ab 0.17 (Markttausch): graue Zeile "davon Markttausch" unter dem Handelsgewinn, Gewinn aus Ware, die im anderen Haus
+-- gekauft als verkauft wurde (Cost.lua, swap). Sie gehoert nicht zur Ueberleitung darunter.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -85,6 +87,10 @@ function B.Collect(period, onlyMe, now, char)
         if not r then return end
         local p = ns.Cost.TradeProfit(r)
         res.trade = res.trade + p
+        if r.swap then   -- ab 0.17: Markttausch (im anderen Haus gekauft als verkauft)
+            res.swap = (res.swap or 0) + (r.swap.profit or 0)
+            res.swapN = (res.swapN or 0) + (r.swap.n or 0)
+        end
         if r.lost then   -- ab 0.16.3: offene Gebuehren, deren Bestand ohne Verkauf weg ist
             res.tfee = res.tfee + r.lost
             feesUsed = feesUsed + r.lost
@@ -234,6 +240,9 @@ function B.BookRows(res)
     end
     Add({ style = "blank" })
     Add({ k = "htrade", style = "total", label = L.BK_R_TRADE, sum = res.trade })
+    if res.swapN and res.swapN > 0 then   -- ab 0.17: Anteil des Markttauschs (nicht Teil der Ueberleitung darunter)
+        Add({ k = "swap", style = "sub", label = L.BK_SWAP:format(math.floor(res.swapN + 0.5)), sum = res.swap or 0 })
+    end
     for _, k in ipairs(B.BRIDGE) do
         local v = res.bridge and res.bridge[k]
         if v and math.abs(v) >= 0.5 then Add({ k = "bridge_" .. k, style = "sub", label = L["BK_B_" .. k:upper()], sum = v }) end
