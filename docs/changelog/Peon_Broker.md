@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.130.0
+
+Kurz: Broker speichert seine Preisdaten jetzt viel kompakter. So bleibt die Datei sicher unter der Grenze, ab der das Spiel sie nicht mehr lädt. Im Spiel ändert sich nichts.
+Kurz: Fehlen beim Start die Preisdaten, obwohl beim letzten Mal viele da waren, sagt Broker Bescheid und nennt die Sicherung im Peon Manager.
+
+- 0.130.0 (20.11.2026, Auftrag KarloDerBaer nach der nicht mehr ladbaren Datei vom selben Tag):
+  - **Messung** mit der echten, reparierten Datei: 230.868 verschiedene Werte (Grenze etwa 262.000). Jeder Text zählt als ein Wert, egal wie lang. Fast alles waren die Texte je Gegenstand: Tageswerte `d` 42.800, Name `nm` 40.200, Schlüssel 38.900, Link `lk` 36.300, Absatz `ab` 29.100, `ss` 18.600. Drei Viertel der Gegenstände sind Varianten (Ausrüstung mit Zusatz). Tageswerte kürzen, Wochenwerte weglassen oder runden hätte fast nichts gespart.
+  - **Neu, Speicherform** (`Store.lua`): Beim Abmelden und vor `/reload` kommen alle Texte eines Gegenstands in einen Text `e.x`, beim Laden (Migration) werden sie wieder getrennt. Zahlen bleiben eigene Felder. Mit der echten Datei 108.050 Werte statt 230.868, Hin- und Rückweg ohne Abweichung, Packen etwa 0,6 Sek., Entpacken etwa 0,3 Sek. (Lua 5.1 auf dem PC).
+  - **Geändert:** Varianten speichern keinen Namen mehr, er steht im Schlüssel. Nach dem Laden ist `nm` der volle Name der Variante.
+  - **Geändert:** Varianten ohne Angebot seit 7 Tagen fallen beim Abmelden weg (`Store.VARIANT_DAYS`), die Langzeitwerte hat der Peon Manager.
+  - **Neu, Warnungen:** Beim Packen schätzt Broker die Zahl der Werte (`svEst`), ab 180.000 kommt beim Laden ein Hinweis im Chat. Je Charakter merkt er sich die Zahl der Gegenstände (`PeonBrokerCharDB.svItems`). Startet Broker leer, obwohl dort mindestens 1.000 standen, nennt ein Hinweis die Spielsicherung im Manager.
+  - Braucht Peon Manager 0.53.1, ältere Manager lesen den Verlauf aus der Datei nicht mehr (Langzeitwerte aus der Blizzard-API und eigenen Ständen bleiben).
+  - Tests: Packen und Entpacken, Name aus dem Schlüssel, ungeeignete Werte bleiben ungepackt, Abmelden und Laden, alte Varianten entfernt, beide Hinweise (`test_broker.lua`).
+
 ## 0.129.0
 
 Kurz: Neuer Unterreiter Pakete in Chancen (mit eingeschaltetem Markttausch): kleine, gestreute Angebote vom Peon Manager mit Knopf Kaufen am einen und Verkaufen am anderen Haus, beide mit Prüfung des Live-Preises.

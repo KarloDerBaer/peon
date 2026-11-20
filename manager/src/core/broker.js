@@ -59,6 +59,27 @@ function keyInfo(key) {
   return { key: k, item: Number(m[1]), variant: rest && !/^-?\d+$/.test(rest) ? rest : null };
 }
 
+// Ab Broker 0.130.0 (Store.lua) stehen die Texte eines Gegenstands in der Datei gepackt in e.x:
+// "Feld=sWert\nFeld=tName=nZahl\tName=sText..." (s Text, t Tabelle einer Ebene). Rueckgabe: Eintrag mit getrennten Feldern
+function unpackItem(e) {
+  if (!e || typeof e !== 'object' || typeof e.x !== 'string') return e;
+  const out = { ...e };
+  delete out.x;
+  for (const line of e.x.split('\n')) {
+    const m = /^([A-Za-z_][A-Za-z0-9_]*)=([\s\S])([\s\S]*)$/.exec(line);
+    if (!m || out[m[1]] !== undefined) continue;
+    if (m[2] !== 't') { out[m[1]] = m[3]; continue; }
+    const t = {};
+    for (const part of m[3].split('\t')) {
+      const p = /^([A-Za-z_][A-Za-z0-9_]*)=([\s\S])([\s\S]*)$/.exec(part);
+      if (!p) continue;
+      t[p[1]] = p[2] === 'n' ? Number(p[3]) : p[2] === 'b' ? p[3] === '1' : p[3];
+    }
+    out[m[1]] = t;
+  }
+  return out;
+}
+
 // Eine Peon_Broker.lua einlesen. Rueckgabe { markets: [{ key, items, rows }] }
 function importFile(db, file) {
   const g = parseLua(fs.readFileSync(file));
@@ -113,8 +134,9 @@ function importFile(db, file) {
       const up = db.prepare(`INSERT INTO items(key, item_id, variant, name, quality, updated) VALUES (?, ?, ?, ?, ?, ?)
           ON CONFLICT(key) DO UPDATE SET name = COALESCE(items.name, excluded.name), quality = COALESCE(items.quality, excluded.quality)`);
       let items = 0, rows = 0;
-      for (const [k, e] of Object.entries(m.items)) {
+      for (const [k, raw] of Object.entries(m.items)) {
         const ki = keyInfo(k);
+        const e = unpackItem(raw);
         if (!ki || !e || typeof e !== 'object') continue;
         let any = false;
         for (const x of parseList(e.d)) {
@@ -151,4 +173,4 @@ function importFile(db, file) {
   return res;
 }
 
-module.exports = { findFiles, importFile, dayOf, dayTime, parseList, keyInfo, FILE };
+module.exports = { findFiles, importFile, dayOf, dayTime, parseList, keyInfo, unpackItem, FILE };

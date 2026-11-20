@@ -6142,4 +6142,60 @@ end)()
   if not hadNeutral then acc.markets["Classic Beta PvE / Neutral"] = nil end
 end)()
 
+-- ===== 0.130: Speicherform der Preisdaten (Store.lua), Datei unter der Grenze des Spiels =====
+;(function()
+  local S, acc = ns.Store, mod.acc
+  check(S and S.VARIANT_DAYS == 7, "0.130: Store geladen")
+  -- ein Gegenstand hin und zurueck
+  local e = { m = 5, md = 6.5, q = 2, t = clock, d = "1:2:3:4:1;5:6:7:8:2", lk = "|Hitem:7:|h[A=B]|h", nm = "Klinge des Wolfs",
+              ss = { t = clock, cap = 0, s = "1:2:3:4", ok = true }, ab = "1:0:0:0:5:1" }
+  check(S.PackItem("6611:Klinge des Wolfs", e) and type(e.x) == "string", "0.130: Texte in e.x gepackt")
+  check(e.d == nil and e.lk == nil and e.ss == nil and e.ab == nil and e.nm == nil and e.m == 5 and e.md == 6.5 and e.t == clock,
+    "0.130: Zahlen bleiben eigene Felder, Name der Variante faellt weg")
+  check(not S.PackItem("6611:Klinge des Wolfs", e), "0.130: schon gepackt bleibt gepackt")
+  S.UnpackItem("6611:Klinge des Wolfs", e)
+  check(e.x == nil and e.d == "1:2:3:4:1;5:6:7:8:2" and e.lk == "|Hitem:7:|h[A=B]|h" and e.ab == "1:0:0:0:5:1", "0.130: Texte zurueck")
+  check(type(e.ss) == "table" and e.ss.t == clock and e.ss.cap == 0 and e.ss.s == "1:2:3:4" and e.ss.ok == true, "0.130: Tabelle einer Ebene zurueck")
+  check(e.nm == "Klinge des Wolfs", "0.130: Name der Variante aus dem Schluessel")
+  -- normale Gegenstaende behalten den Namen, Texte mit Zeilenumbruch und tiefe Tabellen bleiben ungepackt
+  local n = { nm = "Kupfererz", bad = "a\nb", deep = { x = { 1 } }, d = "1:1:1:1:1" }
+  S.PackItem(2770, n)
+  check(n.bad == "a\nb" and type(n.deep) == "table" and n.d == nil and n.nm == nil, "0.130: unpassende Werte bleiben ungepackt")
+  S.UnpackItem(2770, n)
+  check(n.nm == "Kupfererz" and n.d == "1:1:1:1:1" and n.bad == "a\nb", "0.130: Name normaler Gegenstaende bleibt")
+  -- Alles packen: alte Varianten ohne Angebot fallen weg, Schaetzung und Merker je Charakter
+  local key = "Classic Beta PvE / Horde"
+  local items = acc.markets[key].items
+  local old = clock - 8 * 86400
+  items["7777:Alter Ring des Affen"] = { m = 100, md = 100, q = 0, t = old, gone = old + 3600, d = "1:1:1:1:1" }
+  items["7777:Neuer Ring des Affen"] = { m = 100, md = 100, q = 0, t = clock - 2 * 86400, d = "1:1:1:1:1" }
+  items["7777:Ring des Baeren"] = { m = 100, md = 100, q = 1, t = old }
+  items[424242] = { m = 9, md = 9, q = 0, t = old, d = "1:9:9:1:1" }
+  local before = items[2770] and items[2770].d
+  fire("PLAYER_LOGOUT")
+  check(items["7777:Alter Ring des Affen"] == nil, "0.130: Variante ohne Angebot seit 8 Tagen entfernt")
+  check(items["7777:Neuer Ring des Affen"] and items["7777:Ring des Baeren"] and items[424242], "0.130: juengere, angebotene und normale bleiben")
+  check(type(items[424242].x) == "string" and items[424242].d == nil, "0.130: beim Abmelden gepackt")
+  check(type(acc.svEst) == "number" and acc.svEst > 0 and (mod.char.svItems or 0) > 0, "0.130: Schaetzung und Merker je Charakter")
+  -- Laden: Migration entpackt
+  ns.Data.Migrate(acc)
+  check(items[424242].x == nil and items[424242].d == "1:9:9:1:1" and (before == nil or items[2770].d == before), "0.130: beim Laden entpackt")
+  check(items["7777:Ring des Baeren"].nm == "Ring des Baeren", "0.130: Variante hat nach dem Laden ihren Namen")
+  items["7777:Neuer Ring des Affen"], items["7777:Ring des Baeren"], items[424242] = nil, nil, nil
+  -- Warnungen
+  acc.svEst = 200000
+  S.Check()
+  check(said("200"), "0.130: Warnung bei vielen Werten")
+  acc.svEst = 1000
+  local markets = acc.markets
+  acc.markets = {}
+  mod.char.svItems = 5000
+  S.Check()
+  check(said("5000"), "0.130: Hinweis bei verlorenen Daten")
+  acc.markets = markets
+  local said0 = #out
+  S.Check()
+  check(#out == said0, "0.130: sonst kein Hinweis")
+end)()
+
 print("ALLE TESTS OK")

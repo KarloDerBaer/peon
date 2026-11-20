@@ -75,6 +75,25 @@ test('Broker-Verlauf einlesen, ersetzen, Namen', () => {
   svc.close();
 });
 
+test('Broker-Verlauf gepackt (Broker 0.130.0, e.x)', () => {
+  const day = 20748;
+  assert.deepEqual(broker.unpackItem({ m: 5, x: `d=s${day}:1:2:3:1\nss=tcap=n0\ts=s1:2:3:4\tt=n99\tok=b1\nlk=s|Hitem:1|h[A=B]|h` }),
+    { m: 5, d: `${day}:1:2:3:1`, ss: { cap: 0, s: '1:2:3:4', t: 99, ok: true }, lk: '|Hitem:1|h[A=B]|h' });
+  assert.deepEqual(broker.unpackItem({ m: 1 }), { m: 1 });
+  const { wow, sv } = fakeWow();
+  fs.writeFileSync(path.join(sv, 'Peon_Broker.lua'), 'PeonBrokerDB = ' + toLua({ markets: { [M]: { items: {
+    2770: { ql: 1, x: `d=s${day - 1}:130:170:90:1\nnm=sKupfererz` },
+    '6611:Klinge des Wolfs': { ql: 2, x: `d=s${day - 1}:9000:9000:1:1\nw=s${Math.floor((day - 40) / 7)}:100:150:80:5` },
+  } } } }));
+  const svc = new Service({ enable: ['broker-client'], dbDir: tmp(), now: () => at(day, 20) });
+  svc.saveSettings({ wowDir: wow });
+  const r = svc.broker.importBroker();
+  assert.deepEqual(r[0].markets, [{ key: M, items: 2, rows: 3 }]);
+  assert.equal(svc.broker.db.prepare("SELECT name FROM items WHERE key = '2770'").get().name, 'Kupfererz');
+  assert.equal(svc.broker.db.prepare("SELECT name FROM items WHERE key = '6611:Klinge des Wolfs'").get().name, 'Klinge des Wolfs');
+  svc.close();
+});
+
 // Datenbank mit Broker-Verlauf und eigenen Scans an mehreren Tagen
 function setup() {
   const { wow, sv } = fakeWow();

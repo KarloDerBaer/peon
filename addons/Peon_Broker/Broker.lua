@@ -661,6 +661,7 @@ mod:On("INIT", function()
         mod:Print(L.MSG_MIGRATED)
     end
     mod:AcctId()   -- ab 0.85: Kennung des Kontos fuer den Manager, gleich beim ersten Laden
+    if ns.Store then mod:Call("Speicher", ns.Store.Check) end   -- ab 0.130: Groesse der Datei, verlorene Daten
     if ns.CreateOptions then mod:Call("Options", ns.CreateOptions) end
     mod:Call("Scan", ns.Scan.Init)
     mod:Call("Tooltip", ns.Tooltip.Init)

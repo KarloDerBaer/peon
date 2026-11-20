@@ -75,6 +75,8 @@ function D.Migrate(acc)
         acc.dataVersion = D.VERSION
         acc.migrated = true
     end
+    -- ab 0.130.0 (Store.lua): Texte der Gegenstaende liegen in der Datei gepackt in e.x, hier wieder trennen
+    if ns.Store then ns.Store.UnpackAll(acc) end
     acc.tooltipSales = nil   -- Einstellung entfaellt (Abverkauf gestrichen)
     -- ab 0.28 (Aufraeumen, mit KarloDerBaer abgestimmt 06.10.2026): alte Listen fuers Buch (Buch ist in Peon_Ledger),
     -- entfallene Einstellungen und der erledigte Abgleich der Einstellgebuehr

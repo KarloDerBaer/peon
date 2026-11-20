@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.53.1
+
+Kurz: Der Manager liest den Preisverlauf von Peon Broker auch in dessen neuer, kompakter Speicherform.
+
+- 0.53.1 (20.11.2026, passend zu Broker 0.130.0):
+  - **Geändert, Einleser Broker-Verlauf** (`broker.js`, `unpackItem`): Ab Broker 0.130.0 stehen die Texte eines Gegenstands gepackt in `e.x`. Der Einleser trennt sie wieder, alte Dateien liest er wie bisher. Varianten ohne Namen bekommen ihn aus dem Schlüssel (wie bisher).
+  - Tests: gepackte Einträge mit Text und Tabelle, Einlesen einer gepackten Datei (`c3.test.js`).
+
 ## 0.53.0
 
 Kurz: Neu sind Pakete im Marktvergleich: je Richtung mehrere kleine Angebote, die zusammen auch dann Gewinn bringen, wenn nur die Hälfte verkauft wird. Die Erfolgskontrolle zeigt, was aus jedem Paket geworden ist.

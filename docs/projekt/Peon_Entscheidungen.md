@@ -3,6 +3,13 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 20.11.2026: Broker-Datei unter der Grenze des Spiels (Broker 0.130.0, Manager 0.53.1)
+
+- **Erst messen, dann bauen** (KarloDerBaer). Ergebnis: Das Spiel zählt verschiedene Werte, nicht die Größe. Jeder Text zählt einmal, egal wie lang. Tageswerte kürzen, Wochenwerte weglassen, runden oder alte Gegenstände entfernen hätte fast nichts gespart (Claude, Messung mit der reparierten Datei).
+- **Texte je Gegenstand nur in der Datei bündeln** (KarloDerBaer, Vorschlag Claude): Beim Abmelden kommen sie in einen Text, beim Laden werden sie getrennt. Im Spiel bleibt alles gleich, nichts geht verloren. Von 230.868 auf 108.050 Werte. Der Manager liest die neue Form im selben Release.
+- **Varianten ohne Namen und nach 7 Tagen ohne Angebot entfernen** (KarloDerBaer). Der Name steht im Schlüssel, die Langzeitwerte hat der Manager.
+- **Warnen statt verhindern** (KarloDerBaer): Ab 180.000 geschätzten Werten ein Hinweis. Startet Broker leer, nennt ein Hinweis die Spielsicherung im Manager. Das Überschreiben der Datei kann ein Addon nicht verhindern.
+
 ## 20.11.2026: Leerer Realm-Name, Pakete gebaut (Peon 0.27.0, Broker 0.129.0, Ledger 0.17.0, Bridge 0.14.0, Manager 0.53.0)
 
 - **Realm-Name mit Rückfall im Kern** (Claude, nach Fehlermeldung KarloDerBaer): Das Spiel lieferte einen leeren Namen, Ledger und Broker zeigten leere Fenster. `Peon.RealmName()` merkt sich den letzten Namen, ohne ihn hilft die Liste der Profile. Daten, die unter „?“ entstanden, wandern beim Anmelden zum echten Realm und Markt.
