@@ -104,14 +104,14 @@ function QS.Dip(prev, s, ref)
 end
 
 -- Zwei Abfragen hintereinander (Fokus: Quick.OnSample, Pruefung: QuickChances.OnAnswer). Nur Massenware.
+-- Ab 0.125 Rueckgabe Einbruch (Preisstufe) und Tiefstpreis davor oder nil (fuer den Fokus, Quick.OnSample).
 function QS.OnPair(key, prev, s)
-    if key == nil or not (prev and type(s) == "table" and Num(prev.t) and Num(s.t)) then return end
-    if not ns.Data.IsCommodity(key) then return end
+    if key == nil or not (prev and type(s) == "table" and Num(prev.t) and Num(s.t)) then return nil end
+    if not ns.Data.IsCommodity(key) then return nil end
     local gap = s.t - prev.t
-    if gap <= 0 then return end
+    if gap <= 0 then return nil end
     local d = Day(key)
-    if not d then return end
-    d.s = d.s + math.min(gap, QS.GAP_MAX)
+    if d then d.s = d.s + math.min(gap, QS.GAP_MAX) end
     -- ab 0.124: Tiefstpreis der letzten Minute (prev und gemerkte Abfragen davor)
     local ref, keep, hasPrev = QS.Low(prev), {}, false
     for _, e in ipairs(QS.lows[key] or {}) do
@@ -125,8 +125,13 @@ function QS.OnPair(key, prev, s)
     local low = QS.Low(s)
     if Num(low) then keep[#keep + 1] = { t = s.t, p = low } end
     QS.lows[key] = keep
-    if QS.Dip(prev, s, ref) then d.e = (d.e or 0) + 1 end
-    if ns.Quick and ns.Quick.NewBaits then d.b = d.b + #ns.Quick.NewBaits(prev, s, nil) end
+    local dip = QS.Dip(prev, s, ref)
+    if d then
+        if dip then d.e = (d.e or 0) + 1 end
+        if ns.Quick and ns.Quick.NewBaits then d.b = d.b + #ns.Quick.NewBaits(prev, s, nil) end
+    end
+    if dip then return dip, ref end
+    return nil
 end
 
 -- Lockangebot mit Nachahmern (Quick.OnSample, beim ersten Nachahmer)

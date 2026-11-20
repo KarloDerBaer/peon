@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.125.0
+
+Kurz: Der Knopf „Auto“ im Schnellkauf reagiert jetzt auch auf Einbrüche, also billige Angebote mit mehreren Stück. Statt der Zeile „Letztes“ zeigt der Fokus den tiefsten Einbruch dieser Sitzung und wie viele es waren.
+Kurz: Hinter „Gekauft“ steht der Durchschnittspreis, unter dem Kaufknopf der letzte Kauf mit Menge und Durchschnittspreis.
+
+- 0.125.0 (20.11.2026, Wunsch KarloDerBaer nach dem fünften Kaufprotokoll):
+  - **Neu, Einbrüche im Fokus** (`Quick.AddDip`): `QuickStats.OnPair` gibt den Einbruch und den Tiefstpreis davor zurück, `Quick.OnSample` merkt ihn in der Bilanz der Sitzung (`dips`, `dipLow`, `lastDip`). Regel wie bei Langfristig.
+  - **Geändert, Auto auch für Einbrüche** (`Quick.AutoLimit`): Es gilt das jüngere von letztem fremden Lockangebot und letztem Einbruch. Regulär ist beim Einbruch die günstigste Stufe ab 2 Stück mindestens `quickDipPct` Prozent darüber, sonst der Tiefstpreis davor. Neuer Rückgabewert `kind` („bait“ oder „dip“), der Tooltip nennt den Einbruch.
+  - **Geändert, Zeile Einbruch statt Letztes** (`Quick.DipText`): tiefster Einbruch dieser Sitzung und Anzahl in Klammern, der letzte im Tooltip. Das letzte Lockangebot steht jetzt im Tooltip der Zeile Lockangebote.
+  - **Neu, Durchschnitt hinter Gekauft** (`Quick.BoughtText`) und **letzter Kauf unter dem Kaufknopf** (`Quick.LastBuyText`, Menge, Durchschnittspreis, wie lange her). Der Kaufknopf steht im Schnellkauf dafür etwas höher (`F.QUICK_BUY_Y`).
+  - Tests: Einbruch gemerkt, Auto über Einbruch mit Stufe knapp darüber, Leuchten auf Kaufen bis, Zeile und Tooltip, jüngeres Lockangebot geht vor, letzter Kauf und Durchschnitt. Ältere Tests auf die neue Zeile angepasst (`test_broker.lua`).
+
 ## 0.124.0
 
 Kurz: Die Zeile „Langfristig“ im Schnellkauf zählt jetzt einfach mit, zum Beispiel „29 Einbrüche, 6 Lockangebote (3 Min.)“, statt auf eine Stunde hochzurechnen. Als Einbruch zählt nur noch ein echtes neues Tief, nicht mehr das Wiedereinstellen nach einem Auskauf.

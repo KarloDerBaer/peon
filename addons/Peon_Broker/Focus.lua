@@ -825,7 +825,7 @@ end
 
 F.TIER_H = 152     -- Hoehe der Preisstufen (Kopf und 6 Zeilen)
 F.MEASURE_ROWS = { "MEASURE_OUT", "MEASURE_IN", "MEASURE_UNDER", "MEASURE_MIN" }
-F.QUICK_ROWS = { "QUICK_MV_IN", "QUICK_MV_OUT", "QUICK_MV_MOVE", "QUICK_MV_BAITS_L", "QUICK_MV_LAST", "QUICK_MV_BOUGHT_L", "QS_LABEL" }   -- ab 0.108: Marktbewegung, ab 0.109 fuenf Zeilen, ab 0.122 Langfristig
+F.QUICK_ROWS = { "QUICK_MV_IN", "QUICK_MV_OUT", "QUICK_MV_MOVE", "QUICK_MV_BAITS_L", "QUICK_DIP_L", "QUICK_MV_BOUGHT_L", "QS_LABEL" }   -- ab 0.108: Marktbewegung, ab 0.109 fuenf Zeilen, ab 0.122 Langfristig, ab 0.125 Einbruch statt Letztes
 F.ROW_H = 15       -- ab 0.122: sieben Zeilen (vorher 17)
 
 local function AxisMoney(v)
@@ -954,6 +954,7 @@ F.QUICK_LIMIT_Y, F.QUICK_QTY_Y, F.QUICK_HEAD_Y, F.QUICK_PRICE_Y, F.QUICK_BTN_Y, 
 F.QUICK_SKIP_Y, F.QUICK_LINE1_Y, F.QUICK_LINE2_Y, F.QUICK_X = -152, -180, -294, 16   -- ab 0.114 Linie hoeher (ohne Zeile Sitzung)
 F.QUICK_FIELD_X = 93   -- ab 0.112.1: Felder im Schnellkauf so weit rechts von der Beschriftung (wie bisher 8 + 93 - 8)
 F.QUICK_AVG_X = 186   -- ab 0.112: Haken "Durchschnitt zaehlt"
+F.QUICK_BUY_Y = 88    -- ab 0.125: Kaufknopf im Schnellkauf (sonst 70), darunter der letzte Kauf
 function F.BuildQuick(left, Label)
     local UI = Peon.UI
     local Q = ns.Quick
@@ -1003,13 +1004,18 @@ function F.BuildQuick(left, Label)
     end)
     q.auto:SetPoint("LEFT", F.limitInput, "RIGHT", 6, 0)
     UI.SetTooltip(q.auto, function()
-        local v, bait, reg, high = Q.AutoLimit(F.key)
+        local v, bait, reg, high, kind = Q.AutoLimit(F.key)
         if not v then return { L.QUICK_AUTO, L.QUICK_AUTO_TIP, GREY .. L.QUICK_AUTO_NONE .. "|r" } end
-        local lines = { L.QUICK_AUTO, L.QUICK_AUTO_TIP, L.QUICK_AUTO_VALUES:format(Money(bait), Money(reg), Money(v)) }
+        local fmt = kind == "dip" and L.QUICK_AUTO_VALUES_DIP or L.QUICK_AUTO_VALUES   -- ab 0.125
+        local lines = { L.QUICK_AUTO, L.QUICK_AUTO_TIP, fmt:format(Money(bait), Money(reg), Money(v)) }
         if high then lines[#lines + 1] = ORANGE .. L.QUICK_AUTO_HIGH .. "|r" end   -- ab 0.123
         return lines
     end)
-    q.all = { q.head, q.priceLabel, q.priceInput, q.priceHint, q.post, q.cancel, q.state, q.skip, q.line1, q.line2, q.avg, q.auto }
+    -- ab 0.125 (Wunsch KarloDerBaer 20.11.2026): letzter Kauf unter dem Kaufknopf, der Knopf rueckt dafuer hoch
+    q.lastBuy = UI.Text(left, "small", "", UI.LEFT_W - 20)
+    q.lastBuy:SetJustifyH("CENTER")
+    q.lastBuy:SetPoint("TOP", F.buyButton, "BOTTOM", 0, -4)
+    q.all = { q.head, q.priceLabel, q.priceInput, q.priceHint, q.post, q.cancel, q.state, q.skip, q.line1, q.line2, q.avg, q.auto, q.lastBuy }
 end
 
 local function MoveLabel(label, y, x)
@@ -1062,6 +1068,9 @@ function F.ApplyMode()
         F.goldInput:ClearAllPoints()
         F.goldInput:SetPoint("LEFT", F.qtyLabel, "LEFT", fx, 0)
     end
+    -- ab 0.125: im Schnellkauf steht der Kaufknopf hoeher, darunter der letzte Kauf
+    F.buyButton:ClearAllPoints()
+    F.buyButton:SetPoint("BOTTOMLEFT", 10, quick and F.QUICK_BUY_Y or 70)
     if F.sectionTab and F.sectionTab.SetText then F.sectionTab:SetText(quick and L.FOCUS_MODE_QUICK or L.FOCUS_HEAD_CHANCE) end
     if F.modeQuick.LockHighlight then
         if quick then F.modeQuick:LockHighlight(); F.modeBuyout:UnlockHighlight()
@@ -1098,6 +1107,7 @@ function F.UpdateQuick(d, live)
     On(q.cancel, live and b ~= nil and b.state == "up" and b.id ~= nil)
     local av, _, _, high = nil, nil, nil, false
     if live and key ~= nil then av, _, _, high = Q.AutoLimit(key) end
+    q.lastBuy:SetText(key ~= nil and Q.LastBuyText(key) or "")   -- ab 0.125
     On(q.auto, av ~= nil)
     -- ab 0.123: leuchtet, wenn das letzte Lockangebot bei oder ueber Kaufen bis liegt
     if q.auto.LockHighlight then
@@ -1140,16 +1150,14 @@ function F.UpdateQuickMove(v)
         tips[4] = { ruleTip }
     else
         vals[4] = L.QUICK_MV_BAITS:format(st.n, win, st.withFollow)
-        tips[4] = { L.QUICK_MV_TIP_AVG:format(R(st.added / st.n)), ruleTip }
+        -- ab 0.125: das letzte Lockangebot nur noch im Tooltip (die Zeile Letztes ist jetzt Einbruch)
         local f = st.last
-        local own = f.own and (GREY .. " " .. L.QUICK_MV_OWN .. "|r") or ""
-        if f.running then
-            vals[5] = (f.added > 0 and GREEN or GREY) .. L.QUICK_MV_BAIT_RUN:format(f.added, f.left) .. "|r" .. own
-        elseif f.added > 0 then vals[5] = GREEN .. L.QUICK_MV_BAIT_DONE:format(f.added, f.sec) .. "|r" .. own
-        else vals[5] = ORANGE .. L.QUICK_MV_BAIT_ZERO:format(f.sec) .. "|r" .. own end
-        tips[5] = { L.QUICK_MV_TIP_LAST:format(f.own and L.QUICK_MV_OWN_L or L.QUICK_MV_FOREIGN_L, Money(f.price),
-                    ns.Radar.ShortAge(math.max(0, math.floor(Now() - f.t)))), L.QUICK_MV_TIP_LAST2:format(f.added, f.times, f.sec) }
+        tips[4] = { L.QUICK_MV_TIP_AVG:format(R(st.added / st.n)),
+                    L.QUICK_MV_TIP_LAST:format(f.own and L.QUICK_MV_OWN_L or L.QUICK_MV_FOREIGN_L, Money(f.price),
+                        ns.Radar.ShortAge(math.max(0, math.floor(Now() - f.t)))) .. " " .. L.QUICK_MV_TIP_LAST2:format(f.added, f.times, f.sec),
+                    ruleTip }
     end
+    if F.key ~= nil and (v or AHOpen()) then vals[5], tips[5] = Q.DipText(F.key) end   -- ab 0.125
     if F.key ~= nil then vals[6], tips[6] = Q.BoughtText(F.key) end   -- ab 0.111
     if F.key ~= nil and ns.QuickStats then vals[7], tips[7] = ns.QuickStats.FocusText(F.key) end   -- ab 0.122
     for i, r in ipairs(F.mRows) do r.value:SetText(vals[i]); r.tip = tips[i] end

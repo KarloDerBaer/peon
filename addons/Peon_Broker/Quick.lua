@@ -531,6 +531,30 @@ function Q.OnCanceled(auctionID)
     end
 end
 
+-- ab 0.125 (Wunsch KarloDerBaer 20.11.2026): Zeile "Einbruch" statt "Letztes": tiefster Einbruch dieser Sitzung und
+-- Anzahl. Rueckgabe Text, Tooltip-Zeilen
+function Q.DipText(key)
+    local s = key ~= nil and Q.sessions[key]
+    local rule = ns.QuickStats and L.QS_TIP_DIP:format(tonumber(mod.db.quickDipPct) or 5) or nil
+    if not (s and (s.dips or 0) > 0 and Num(s.dipLow)) then return GREY .. L.QUICK_DIP_NONE .. "|r", { rule } end
+    local tip = {}
+    local d = s.lastDip
+    if d then
+        tip[#tip + 1] = L.QUICK_DIP_TIP_LAST:format(Money(d.price), d.qty or 0, ns.Radar.ShortAge(math.max(0, math.floor(Now() - d.t))))
+    end
+    tip[#tip + 1] = rule
+    return L.QUICK_DIP:format(Money(s.dipLow), s.dips), tip
+end
+
+-- ab 0.125: letzter Kauf dieser Sitzung unter dem Kaufknopf
+function Q.LastBuyText(key)
+    local s = key ~= nil and Q.sessions[key]
+    local b = s and s.lastBuy
+    if not b then return GREY .. L.QUICK_LASTBUY_NONE .. "|r" end
+    local avg = Num(b.cost) and b.n > 0 and Money(math.floor(b.cost / b.n + 0.5)) or "-"
+    return L.QUICK_LASTBUY:format(b.n, avg, ns.Radar.ShortAge(math.max(0, math.floor(Now() - b.t))))
+end
+
 -- Zustand des Lockangebots als Text
 function Q.StateText(key)
     local b = Q.BaitFor(key)
@@ -558,6 +582,7 @@ function Q.OnBought(job, n, cost)
     s.bought = s.bought + n
     s.cost = s.cost + (Num(cost) and cost or 0)
     s.buys = (s.buys or 0) + 1
+    s.lastBuy = { n = n, cost = Num(cost) and cost or nil, t = Now() }   -- ab 0.125: unter dem Kaufknopf
     -- ab 0.111: die letzte Gelegenheit gilt als genutzt (einmal)
     local o = Q.opp[job.key]
     if o and not o.won then o.won = true; s.won = (s.won or 0) + 1 end
@@ -571,12 +596,16 @@ function Q.OnFailed(job)
 end
 
 -- ab 0.111: Zeile "Gekauft": Stueck, Quote der genutzten Gelegenheiten. Rueckgabe Text, Tooltip-Zeilen
+-- ab 0.125 mit Durchschnittspreis dieser Sitzung
 function Q.BoughtText(key)
     local s = key ~= nil and Q.sessions[key]
     local opps, won = s and s.opps or 0, s and s.won or 0
     local bought = s and s.bought or 0
     local pct = opps > 0 and math.floor(won * 100 / opps + 0.5) or nil
     local text = pct and L.QUICK_MV_BOUGHT:format(bought, pct) or L.QUICK_MV_BOUGHT0:format(bought)
+    if bought > 0 and Num(s.cost) and s.cost > 0 then
+        text = text .. ", " .. L.QUICK_AVG_SHORT:format(Money(math.floor(s.cost / bought + 0.5)))
+    end
     local tip = { L.QUICK_MV_TIP_BOUGHT:format(won, opps, s and s.buys or 0, s and s.fails or 0) }
     tip[#tip + 1] = Q.SkipOn(key) and L.QUICK_MV_TIP_BOUGHT_SKIP or L.QUICK_MV_TIP_BOUGHT_ALL
     return text, tip
@@ -677,7 +706,11 @@ function Q.OnSample(key, prev, s)
         end
     end
     -- ab 0.122: Gelegenheiten langfristig (QuickStats.lua), unabhaengig von Kaufen bis
-    if prev and ns.QuickStats then ns.QuickStats.OnPair(key, prev, s) end
+    -- ab 0.125 (Wunsch KarloDerBaer 20.11.2026): Einbrueche auch fuer den Fokus merken (Zeile Einbruch, Knopf Auto)
+    if prev and ns.QuickStats then
+        local dip, ref = ns.QuickStats.OnPair(key, prev, s)
+        if dip then Q.AddDip(key, s.t, dip.price, dip.qty - QtyAt(prev, dip.price), ref) end
+    end
     -- ab 0.110: gemeldet (Zeile, Nachahmer, Ton) wird nur bis Kaufen bis (was man ohnehin nicht kaufen wuerde, zaehlt
     -- nicht). Ohne Kaufen bis alle. Ab 0.123 (Wunsch KarloDerBaer 19.11.2026) erkannt werden alle, die darueber mit
     -- above, damit der Knopf Auto Kaufen bis auch anheben kann (Q.AutoLimit).
@@ -693,6 +726,17 @@ function Q.OnSample(key, prev, s)
             Q.Trace("bait above price=%s min=%s limit=%s", l.price, prev.min, limit)
         end
     end
+end
+
+-- Einbruch im Fokus (ab 0.125, Regel in QuickStats.Dip): in die Bilanz dieser Sitzung. Gezaehlt, tiefster Preis und
+-- der letzte (fuer Q.AutoLimit). ref = Tiefstpreis davor (der regulaere Preis).
+function Q.AddDip(key, t, price, qty, ref)
+    if key == nil or not Num(price) then return end
+    local s = Q.Session(key)
+    s.dips = (s.dips or 0) + 1
+    if not Num(s.dipLow) or price < s.dipLow then s.dipLow = price end
+    s.lastDip = { t = t, price = price, qty = qty, reg = ref }
+    Q.Trace("dip price=%s qty=%s low=%s", price, qty, ref)
 end
 
 -- Neue fremde Lockangebote in der Abfrage s gegenueber prev (ab 0.119 eigene Funktion, auch fuer QuickChances.lua)
@@ -736,21 +780,29 @@ end
 -- Knopf Auto neben Kaufen bis (ab 0.121, Wunsch KarloDerBaer 19.11.2026): die Mitte zwischen dem letzten fremden
 -- Lockangebot und dem guenstigsten regulaeren Angebot darueber, abgerundet. Regulaer ist eine fremde Stufe ueber dem
 -- Lockpreis mit mindestens 2 Stueck in der letzten Abfrage, ohne Abfrage der guenstigste Preis bei der Erkennung.
--- Rueckgabe value, bait, regular, high oder nil (noch kein fremdes Lockangebot oder kein Abstand).
+-- Rueckgabe value, bait, regular, high, kind oder nil (noch kein fremdes Lockangebot oder kein Abstand).
 -- Ab 0.123 zaehlen auch Lockangebote ueber Kaufen bis. high = das letzte Lockangebot liegt bei oder ueber dem
 -- aktuellen Kaufen bis (Kaufen bis haengt an der Grenze, der Knopf leuchtet).
+-- Ab 0.125 (Wunsch KarloDerBaer 20.11.2026) zaehlt auch der letzte Einbruch (Q.AddDip), es gilt das juengere. kind =
+-- "bait" oder "dip". Regulaer ist beim Einbruch die guenstigste Stufe ab 2 Stueck mindestens quickDipPct Prozent
+-- ueber dem Einbruch (knapp darueber liegen oft weitere billige Stufen), sonst der Tiefstpreis davor.
 function Q.AutoLimit(key)
     if key == nil then return nil end
     local last
     for _, b in ipairs(Q.baits[key] or {}) do
         if not b.own and (not last or b.t >= last.t) then last = b end
     end
+    local kind = "bait"
+    local sd = Q.sessions[key] and Q.sessions[key].lastDip
+    if sd and Num(sd.price) and (not last or sd.t >= last.t) then last, kind = sd, "dip" end
     if not last then return nil end
+    local over = last.price
+    if kind == "dip" then over = last.price * (1 + (tonumber(mod.db.quickDipPct) or 5) / 100) - 1 end
     local reg
     local live = ns.Buy.live and ns.Buy.live[key]
     if type(live) == "table" and type(live.rows) == "table" then
         for _, l in ipairs(ns.Data.Available(live.rows)) do
-            if l.price > last.price and l.qty >= 2 then reg = l.price; break end
+            if l.price > over and l.qty >= 2 then reg = l.price; break end
         end
     end
     if not reg and Num(last.reg) and last.reg > last.price then reg = last.reg end
@@ -758,7 +810,7 @@ function Q.AutoLimit(key)
     local F = ns.Focus
     local limit = F and F.ManualLimit and F.ManualLimit(key) or nil
     local high = Num(limit) and limit <= last.price or false
-    return math.floor((last.price + reg) / 2), last.price, reg, high
+    return math.floor((last.price + reg) / 2), last.price, reg, high, kind
 end
 
 ---------------------------------------------------------------------------

@@ -4932,11 +4932,11 @@ end)()
   F.UpdateQuickMove(v)
   local t1, t3, t4, t5 = plain(F.mRows[1].value.text), plain(F.mRows[3].value.text), plain(F.mRows[4].value.text), plain(F.mRows[5].value.text)
   check(plain(F.mRows[1].label.text) == "Zufluss" and plain(F.mRows[3].label.text) == "Bewegung"
-    and plain(F.mRows[4].label.text) == "Lockangebote" and plain(F.mRows[5].label.text) == "Letztes"
-    and t1 == "42 je Min. (10×)" and t3 == "lebhaft (2 Sprünge)" and t4 == "2 in 10 Min., 1 mit Folge" and t5 == "+10, noch 26 Sek. (eigenes)",
+    and plain(F.mRows[4].label.text) == "Lockangebote" and plain(F.mRows[5].label.text) == "Einbruch"
+    and t1 == "42 je Min. (10×)" and t3 == "lebhaft (2 Sprünge)" and t4 == "2 in 10 Min., 1 mit Folge" and t5 == "noch keiner",
     "0.110: kurze Zeilen ueber dem Diagramm: " .. t1 .. " / " .. t3 .. " / " .. t4 .. " / " .. t5)
   check(F.mRows[1].tip and F.mRows[1].tip[1]:find("in 10 Einstellungen je Minute", 1, true) and F.mRows[3].tip and #F.mRows[3].tip == 2
-    and F.mRows[5].tip and F.mRows[5].tip[1]:find("Eigenes Lockangebot", 1, true), "0.110: Einzelheiten im Tooltip der Zeilen")
+    and F.mRows[4].tip and F.mRows[4].tip[2]:find("Eigenes Lockangebot", 1, true), "0.110/0.125: Einzelheiten im Tooltip der Zeilen (letztes Lockangebot ab 0.125 bei Lockangebote)")
   -- Folge ohne einzelne Stuecke: 80 mit 1 Stueck (Lockangebot), dann +1 (noch ein Lockangebot, zaehlt nicht), dann +20
   Q.baits[7986] = nil
   local p0 = { t = 100, min = 100, lv = { { price = 100, qty = 10 } } }
@@ -5081,7 +5081,7 @@ end)()
   Q.OnFailed({ key = 7988, quick = true })
   Q.CheckAlarm(7988, {}, 0, nil)
   local text, tip = Q.BoughtText(7988)
-  check(plain(text) == "5 Stück (50 %)" and tip[1]:find("1 von 2", 1, true) and tip[1]:find("Käufe: 1, fehlgeschlagen oder zu teuer: 1", 1, true),
+  check(plain(text) == "5 Stück (50 %), Ø 1s" and tip[1]:find("1 von 2", 1, true) and tip[1]:find("Käufe: 1, fehlgeschlagen oder zu teuer: 1", 1, true),
     "0.111: Gekauft mit Quote der genutzten Gelegenheiten: " .. plain(text) .. " / " .. tip[1])
   check(plain(F.mRows[6].label.text) == "" or plain(F.mRows[6].label.text) == "Gekauft", "0.111: sechste Zeile vorhanden")
   R.PlayAlert, F.key = keepPlay, keepKey
@@ -5575,6 +5575,70 @@ end)()
   Q.baits[7993], Q.baitPing = nil, nil
   GetTime, ns.Scan.ahOpen, GetMoney = keepTime, keepOpen, keepMoney
   market.items[7993], ns.Buy.live[7993], mod.acc.commodity[7993] = nil, nil, nil
+  Rd.entries, Rd.gone, Rd.job, Rd.focus = {}, {}, nil, nil
+end)()
+
+-- ===== 0.125: Einbrueche im Fokus, Auto auch fuer Einbrueche, letzter Kauf =====
+;(function()
+  local F, Q, QS = ns.Focus, ns.Quick, ns.QuickStats
+  local keepOpen, keepMoney, keepTime = ns.Scan.ahOpen, GetMoney, GetTime
+  local now = 900
+  GetTime = function() return now end
+  GetMoney = function() return 10000000 end
+  ns.Scan.ahOpen = true
+  local key = 7994
+  mod.acc.commodity[key] = true
+  market.items[key] = { m = 200, md = 200, q = 25, n = 2, t = clock, nm = "Seidenprobe", ql = 1 }
+  Rd.entries, Rd.gone, Rd.job = {}, {}, nil
+  Q.baits[key], Q.sessions[key], QS.lows[key] = nil, nil, nil
+  F.Set(key)
+  Q.SetMode("quick")
+  F.SetLimit(150)
+  check(plain((Q.DipText(key))) == "noch keiner", "0.125: Zeile Einbruch ohne Einbruch")
+  check(plain(Q.LastBuyText(key)) == "Noch nichts gekauft.", "0.125: ohne Kauf")
+  -- Einbruch mit 20 Stueck zu 150 (genau auf Kaufen bis), regulaer 200, 152 knapp darueber
+  local p0 = { t = 900, min = 200, lv = { { price = 200, qty = 100 } } }
+  local s1 = { t = 901, min = 150, lv = { { price = 150, qty = 20 }, { price = 152, qty = 5 }, { price = 200, qty = 100 } } }
+  Q.OnSample(key, p0, s1)
+  local ss = Q.sessions[key]
+  check(ss and ss.dips == 1 and ss.dipLow == 150 and ss.lastDip.qty == 25 - 5, "0.125: Einbruch im Fokus gemerkt (Menge der Stufe)")
+  -- Folge: keine Lockangebote, Auto trotzdem frei ueber den Einbruch
+  ns.Buy.live[key] = { rows = { { price = 150, qty = 20, own = 0 }, { price = 152, qty = 5, own = 0 }, { price = 200, qty = 100, own = 0 }, commodity = true }, t = clock, commodity = true }
+  local v, low, reg, high, kind = Q.AutoLimit(key)
+  check(v == 175 and low == 150 and reg == 200 and high and kind == "dip", "0.125: Auto ueber Einbruch, regulaer nicht die Stufe knapp darueber: " .. tostring(v) .. "/" .. tostring(reg))
+  F.Update()
+  check(not F.quick.auto.disabled and F.quick.auto.locked, "0.125: Auto frei und leuchtet beim Einbruch auf Kaufen bis")
+  -- noch ein Einbruch nach einer Minute, tiefer
+  now = 980
+  local p2 = { t = 979, min = 200, lv = { { price = 200, qty = 100 } } }
+  local s2 = { t = 980, min = 120, lv = { { price = 120, qty = 8 }, { price = 200, qty = 100 } } }
+  Q.OnSample(key, p2, s2)
+  F.UpdateQuickMove(ns.Measure.Values())
+  check(plain(F.mRows[5].label.text) == "Einbruch" and plain(F.mRows[5].value.text) == "tiefster 1s 20c (2)", "0.125: Zeile Einbruch: " .. plain(F.mRows[5].value.text))
+  check(F.mRows[5].tip and F.mRows[5].tip[1]:find("8 Stück", 1, true), "0.125: Tooltip mit dem letzten Einbruch")
+  -- juengeres Lockangebot geht vor
+  local s3 = { t = 985, min = 90, lv = { { price = 90, qty = 1 }, { price = 120, qty = 8 }, { price = 200, qty = 100 } } }
+  Q.OnSample(key, s2, s3)
+  local _, low3, _, _, kind3 = Q.AutoLimit(key)
+  check(kind3 == "bait" and low3 == 90, "0.125: das juengere zaehlt, hier das Lockangebot")
+  -- letzter Kauf und Durchschnitt
+  Q.OnBought({ key = key, quick = true }, 10, 1500)
+  Q.OnBought({ key = key, quick = true }, 4, 520)
+  now = 990
+  check(plain(Q.LastBuyText(key)):find("Letzter Kauf: 4 Stück, Ø 1s 30c, vor ", 1, true) == 1, "0.125: letzter Kauf: " .. plain(Q.LastBuyText(key)))
+  check(plain((Q.BoughtText(key))):find("14 Stück", 1, true) and plain((Q.BoughtText(key))):find("Ø 1s 44c", 1, true), "0.125: Gekauft mit Durchschnitt: " .. plain((Q.BoughtText(key))))
+  F.Update()
+  check(F.quick.lastBuy.shown ~= false and plain(F.quick.lastBuy.text):find("4 Stück", 1, true), "0.125: letzter Kauf unter dem Kaufknopf")
+  -- aufraeumen
+  Q.SetMode("buyout", true)
+  check(F.quick.lastBuy.shown == false, "0.125: im Aufkauf kein letzter Kauf")
+  F.SetLimit(nil)
+  F.manualGold = nil
+  Q.hold = nil
+  Q.baits[key], Q.sessions[key], QS.lows[key], Q.baitPing = nil, nil, nil, nil
+  GetTime, ns.Scan.ahOpen, GetMoney = keepTime, keepOpen, keepMoney
+  market.items[key], ns.Buy.live[key], mod.acc.commodity[key] = nil, nil, nil
+  mod.acc.quickStats = nil
   Rd.entries, Rd.gone, Rd.job, Rd.focus = {}, {}, nil, nil
 end)()
 

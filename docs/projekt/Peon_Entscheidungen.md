@@ -9,6 +9,13 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Eigene, höhere Schicht** (Claude, im Spiel bestätigt): Der Knopf liegt in der Schicht DIALOG, nicht in der Schicht des fremden Knopfes. Fenster mit `SetToplevel` (Peon_Bags) heben sich sonst samt Plätzen über ihn.
 - **Nicht ständig neu setzen** (Claude, im Spiel bestätigt): Der Tooltip baut sich alle 0,2 Sekunden neu auf. Liegt der Knopf schon über demselben Platz, bleibt er unberührt, sonst verliert er bei jedem Neusetzen die Maus.
 
+## 20.11.2026: Auto auch für Einbrüche, Zeile Einbruch, letzter Kauf (Broker 0.125.0)
+
+- **Auto auch für Einbrüche** (KarloDerBaer): Die billigen Angebote bei Seidenstoff hatten mehrere Stück, waren also keine Lockangebote, und Auto blieb grau. Es gilt das jüngere von Lockangebot und Einbruch.
+- **Regulär beim Einbruch** (Vorschlag Claude): die günstigste Stufe mindestens `quickDipPct` Prozent darüber, weil knapp über einem Einbruch oft weitere billige Stufen liegen.
+- **Zeile Einbruch statt Letztes** (KarloDerBaer): tiefster Einbruch der Sitzung und Anzahl. Das letzte Lockangebot steht nur noch im Tooltip.
+- **Durchschnitt hinter Gekauft, letzter Kauf unter dem Kaufknopf** (KarloDerBaer).
+
 ## 19.11.2026: Langfristig einfach zählen (Broker 0.124.0)
 
 - **Zählen statt hochrechnen** (KarloDerBaer): Werte je Stunde nach wenigen Minuten Beobachtung springen stark und sagen nichts. Der Fokus zeigt Anzahl und beobachtete Zeit, ohne Gewichtung der Tage. Je Stunde bleibt nur für den Vergleich in den Listen, ab 30 Min. Beobachtung.
