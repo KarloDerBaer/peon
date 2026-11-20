@@ -99,7 +99,8 @@ const methods = {
     const c = this.calcGet(homeId, 'compare');
     if (!c || !c.value) return null;
     const hide = this.compareHidden();
-    const v = { ...c.value, chances: c.value.chances.filter((x) => !hide.has(x.key)) };
+    const v = { ...c.value, chances: c.value.chances.filter((x) => !hide.has(x.key)).map((x) => ({ ...x })) };
+    compare.pickTop(v.chances, (v.rules && v.rules.top) || compare.DEFAULTS.top);   // ab 0.51.0: Ausgeblendete ruecken nach
     return compare.forBroker(v, this.comparePins());
   },
 

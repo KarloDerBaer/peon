@@ -498,6 +498,8 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('watchView', (_e, market) => (svc.broker ? rd('watchView', String(market)) : { rows: [] }));
     ipcMain.handle('watchSetBuy', (_e, key, kind, value) => watchChanged(broker().setWatchBuy(String(key), kind || null, value == null ? null : Number(value))));
     ipcMain.handle('watchSetUp', (_e, key, value) => watchChanged(broker().setWatchUp(String(key), value == null ? null : Number(value))));
+    ipcMain.handle('watchSetQuick', (_e, key, qlim, qgold) => watchChanged(broker().setWatchQuick(String(key), qlim == null ? null : Number(qlim), Number(qgold) || 0)));   // ab 0.51.0
+    ipcMain.handle('watchSetList', (_e, key, list, on) => watchChanged(broker().setWatchList(String(key), String(list), !!on)));
     ipcMain.handle('watchSetBell', (_e, key, which, on) => watchChanged(broker().setWatchBell(String(key), which || null, !!on)));
     // Abgleich nachvollziehen (ab 0.31.0): Protokoll, Geloeschtes, Wiederherstellen
     ipcMain.handle('syncLog', (_e, area, origin) => (svc.broker ? (svc.broker.read ? svc.broker.read('syncLog', { area: area || null, origin: origin || null }) : svc.broker.syncLog({ area: area || null, origin: origin || null })) : []));

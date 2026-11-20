@@ -52,7 +52,7 @@ const ALL = [
   { key: 'chances', label: 'Chancen' },
   { key: 'compare', label: 'Marktvergleich' },   // ab 0.50.0: Heimat gegen Neutral (Peon_Broker_Marktvergleich.md)
   { key: 'success', label: 'Erfolgskontrolle' },
-  { key: 'vendors', label: 'Händler (WIP)', wip: true },
+  { key: 'vendors', label: 'Händler' },   // ab 0.51.0 wieder an (KarloDerBaer 20.11.2026), Aufbau wie Mehr, Händler in Broker
   { key: 'sources', label: 'Datenlage' },
   { key: 'modules', label: 'Updates', always: true },
   { key: 'reports', label: 'Rückmeldungen', always: true },

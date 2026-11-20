@@ -7,6 +7,12 @@
 --             oder "unterboten", dazu "im Gepaeck" fuer Ware, die hier verkauft werden soll. Grundlage ist der juengste
 --             Preis im Markt dieses Hauses, "Alle pruefen" fragt alle Zeilen fuer dieses Haus einmal live ab (Radar.lua,
 --             Auswahl "trade").
+-- Ab 0.128 (KarloDerBaer 20.11.2026, Konzept Abschnitt 10.1): nur noch die Auswahl des Managers, ohne ihn ein Hinweis
+--             (die Liste nach Preisunterschied entfaellt). Broker fuegt nie etwas hinzu, er entfernt eine Chance, wenn neuere
+--             Preise als der Stand des Managers ihre Bedingungen nicht mehr erfuellen (Spanne und Gewinn je Stueck nach dem
+--             Anteil des Zielhauses, Grenzen vom Manager). Entfernte bleiben weg, bis ein neuerer Stand sie wieder bringt
+--             (PeonBrokerDB.tradeGone[Heimatmarkt][Schluessel] = "Stand:Zeit"). Neue Preise kommen aus der laufenden Abfrage
+--             (solange die Liste offen ist, reihum die Zeilen fuer das Haus hier, T.NextKey), dem Komplettscan und dem Manager.
 --   Klick     am Haus der Quelle: Fokus im Aufkauf mit Kaufen bis, am Haus des Ziels: Gegenstand. Unterwegs: Fokus fuer
 --             den naechsten Besuch.
 --   Gepaeck   (Konzept 6.2, M5) Was aus dem Markttausch in den Fokus ging, merkt sich Broker mit dem Zielhaus
@@ -23,7 +29,6 @@ ns.Trade = T
 
 T.GOODS_KEEP = 14 * 86400
 T.FRESH = 15 * 60          -- so lange gilt ein Live-Preis als "geprueft"
-T.FALLBACK_MIN = 20        -- ohne Manager: mindestens 20 % Unterschied nach Gebuehr
 
 local GREY, ORANGE, GREEN, GOLD, BLUE = "|cff999999", "|cffff9933", "|cff60e060", "|cffffd100", "|cff66bbff"
 local function Money(v) return ns.Tooltip.Money(v) end
@@ -64,41 +69,108 @@ function T.Markets(dir)
     return nk, hk
 end
 
--- Alle Eintraege: Liste { key, dir, buy, sell, net, perDay, qty, supply, cons, score, light, fallback }, Stand, vom Manager?
+---------------------------------------------------------------------------
+-- Entfernte Chancen (ab 0.128)
+---------------------------------------------------------------------------
+function T.GoneStore()
+    local acc = mod.acc
+    if type(acc.tradeGone) ~= "table" then acc.tradeGone = {} end
+    local hk = ns.HomeMarketKey()
+    if type(acc.tradeGone[hk]) ~= "table" then acc.tradeGone[hk] = {} end
+    return acc.tradeGone[hk]
+end
+
+local function GoneStand(v)
+    if type(v) ~= "string" then return nil end
+    return tonumber(v:match("^(%d+)"))
+end
+
+-- Zur Liste des Managers mit Stand t entfernt?
+function T.GoneAt(key, t)
+    local g = GoneStand(T.GoneStore()[key])
+    return g ~= nil and Num(t) and g >= t
+end
+
+-- Eintraege aelterer Staende vergessen
+function T.PruneGone(t)
+    if not Num(t) then return end
+    local st = T.GoneStore()
+    for k, v in pairs(st) do
+        local g = GoneStand(v)
+        if not g or g < t then st[k] = nil end
+    end
+end
+
+-- Juengster Preis eines Markts, wenn er neuer ist als der Stand t: Preis (nil = kein Angebot), true. Sonst nil, false
+local function NewerPrice(market, key, t)
+    local m = ns.Data.Markets()[market]
+    local e = type(m) == "table" and m.items and m.items[key]
+    if type(e) ~= "table" then return nil, false end
+    local seen = math.max(Num(e.t) and e.t or 0, Num(e.lt) and e.lt or 0)
+    if not Num(t) or seen <= t then return nil, false end
+    if e.gone or not Num(e.m) or e.m <= 0 then return nil, true end
+    return e.m, true
+end
+
+-- Anteil des Zielhauses einer Richtung (gemessen, sonst die Annahme des Managers)
+function T.CutDst(dir, info)
+    local _, dst = T.Markets(dir)
+    if dir == "n" and not ns.Data.CutSure(dst) and info and Num(info.cutN) then return info.cutN / 10000 end
+    return ns.Pages and ns.Pages.CutOf(dst) or ns.Data.Cut(dst)
+end
+
+-- Erfuellt die Chance mit den neueren Preisen noch die Bedingungen? Rueckgabe ok, Kaufpreis, Verkaufspreis (mit neuen Preisen)
+function T.Recheck(x, t, info)
+    local src, dst = T.Markets(x.dir)
+    local buyNow, srcNew = NewerPrice(src, x.key, t)
+    local dstNow, dstNew = NewerPrice(dst, x.key, t)
+    if not srcNew and not dstNew then return true, x.buy, x.sell end
+    local buy = (srcNew and buyNow) or x.buy
+    local sell = x.sell
+    if dstNew and dstNow then sell = math.min(sell, dstNow) end
+    local net = sell * (1 - T.CutDst(x.dir, info)) - buy
+    local minNet = info and Num(info.minNet) and info.minNet or 1000
+    local minPct = info and Num(info.minPct) and info.minPct or 20
+    local ok = net >= minNet and buy > 0 and net / buy * 100 >= minPct
+    return ok, buy, sell
+end
+
+-- Alle Eintraege der Auswahl des Managers: Liste { key, dir, buy, sell, net, perDay, qty, supply, cons, score, light,
+-- buyNow, sellNow }, Stand, vom Manager? Ohne Manager eine leere Liste (ab 0.128).
 function T.Entries()
-    local t, list = T.Manager()
+    local t, list, _, info = T.Manager()
     local out = {}
-    T.stamp = t or "own"   -- neuer Stand des Managers: Liste neu sortieren
-    if list then
-        for key, s in pairs(list) do
-            local x = T.Parse(s)
-            if x then
-                local k = (type(key) == "string" and key:match("^%d+$")) and tonumber(key) or key
-                x.key = k
-                out[#out + 1] = x
+    T.stamp = t or "none"   -- neuer Stand des Managers: Liste neu sortieren
+    if not list then return out, nil, false end
+    T.PruneGone(t)
+    local gone = T.GoneStore()
+    for key, s in pairs(list) do
+        local x = T.Parse(s)
+        if x then
+            local k = (type(key) == "string" and key:match("^%d+$")) and tonumber(key) or key
+            x.key = k
+            if not T.GoneAt(k, t) then
+                local ok, buy, sell = T.Recheck(x, t, info)
+                if ok then
+                    x.buyNow, x.sellNow = buy, sell
+                    out[#out + 1] = x
+                else
+                    gone[k] = ("%d:%d"):format(t, time())   -- ab 0.128: entfernt bis zum naechsten Stand
+                    T.removed = (T.removed or 0) + 1
+                end
             end
         end
-        return out, t, true
     end
-    -- ohne Manager: einfache Liste nach Preisunterschied (Entscheidung KarloDerBaer 20.11.2026)
-    local G = ns.Pages
-    if not G then return out, nil, false end
-    local hk, nk = ns.HomeMarketKey(), ns.NeutralMarketKey()
-    local cutH, cutN = G.CutOf(hk), G.CutOf(nk)
-    for _, r in ipairs(G.CompareRows(T.FALLBACK_MIN, false)) do
-        if r.better and r.home and r.neutral then
-            local x = { key = r.key, fallback = true, light = "yellow", score = r.pct }
-            if r.better == "neutral" then
-                x.dir, x.buy, x.sell = "n", r.home, r.neutral
-                x.net = math.floor(r.neutral * (1 - cutN) - r.home)
-            else
-                x.dir, x.buy, x.sell = "h", r.neutral, r.home
-                x.net = math.floor(r.home * (1 - cutH) - r.neutral)
-            end
-            out[#out + 1] = x
-        end
-    end
-    return out, nil, false
+    return out, t, true
+end
+
+-- Zahl der entfernten Eintraege zum jetzigen Stand
+function T.GoneCount()
+    local t = T.Manager()
+    local n = 0
+    if not t then return 0 end
+    for _, v in pairs(T.GoneStore()) do local g = GoneStand(v); if g and g >= t then n = n + 1 end end
+    return n
 end
 
 -- Wo steht man? "src", "dst" oder nil (unterwegs oder anderes Haus)
@@ -169,13 +241,10 @@ function T.Rows()
     return rows
 end
 
--- Zahl am Unterreiter: gruene Eintraege (ohne Manager alle)
+-- Zahl am Unterreiter: alle Eintraege der Auswahl
 function T.Count()
     if not T.On() then return 0 end
-    local n = 0
-    local entries, _, mgr = T.Entries()
-    for _, x in ipairs(entries) do if not mgr or x.light == "green" then n = n + 1 end end
-    return n
+    return #(T.Entries())
 end
 
 -- Schluessel fuer "Alle pruefen": alle Zeilen, deren Quelle oder Ziel das Haus ist, an dem man steht
@@ -199,6 +268,8 @@ function T.StatusText()
         local age = math.max(0, time() - t)
         st = GREY .. L.CH_STAND:format(age < 3600 and L.SPEC_MIN:format(math.max(1, math.floor(age / 60))) or L.SPEC_HOURS:format(math.floor(age / 3600))) .. "|r"
         if info and info.cutSure == false then st = st .. "  " .. GREY .. L.TR_CUT_GUESS:format(math.floor((info.cutN or 1500) / 100 + 0.5)) .. "|r" end
+        local gone = T.GoneCount()
+        if gone > 0 then st = st .. "  " .. GREY .. L.TR_GONE_N:format(gone) .. "|r" end
     else
         st = ORANGE .. L.TR_NO_MANAGER .. "|r"
     end
@@ -209,6 +280,50 @@ function T.StatusText()
     end
     if not (ns.Scan.ahOpen and rawget(_G, "C_AuctionHouse")) then st = st .. "  " .. ORANGE .. L.ST_NOT_LIVE .. "|r" end
     return st
+end
+
+---------------------------------------------------------------------------
+-- Laufende Abfrage (ab 0.128): solange die Liste Markttausch (oder Beobachten, Markttausch) offen ist, fragt Broker die
+-- Zeilen fuer das Haus hier reihum ab, die am laengsten nicht gefragte zuerst (Radar.lua R.NextKey, Art "trade").
+---------------------------------------------------------------------------
+T.sent = {}   -- Schluessel -> Zeit der letzten Abfrage (GetTime)
+
+function T.ListShown()
+    local C = ns.Chances
+    return C ~= nil and C.Shown() and C.Tab() == "trade"
+end
+
+-- Schluessel der offenen Liste (Chancen oder Beobachten), nil wenn keine offen ist
+function T.ActiveKeys()
+    if not (ns.Scan and ns.Scan.ahOpen) then return nil end
+    if T.ListShown() then return T.Keys() end
+    local P = ns.WatchPage
+    if P and P.Shown and P.Shown() and P.Tab() == "trade" and ns.Watch and ns.Watch.TradeKeys then return ns.Watch.TradeKeys() end
+    return nil
+end
+
+function T.Active()
+    local keys = T.ActiveKeys()
+    return keys ~= nil and #keys > 0
+end
+
+function T.NextKey()
+    local keys = T.ActiveKeys()
+    if not keys then return nil end
+    local best, bestT
+    for _, k in ipairs(keys) do
+        local s = T.sent[k] or -1e9
+        if best == nil or s < bestT then best, bestT = k, s end
+    end
+    if best ~= nil then T.sent[best] = GetTime and GetTime() or time() end
+    return best
+end
+
+-- Antwort einer Abfrage (Radar.lua R.Apply): Liste neu zeigen
+function T.OnAnswer(key)
+    if T.ListShown() and ns.Chances then ns.Chances.Refresh() end
+    local P = ns.WatchPage
+    if P and P.Shown and P.Shown() and P.Tab() == "trade" and P.Refresh then P.Refresh() end
 end
 
 -- Knopf "Alle pruefen": eine Runde fuer das Haus, an dem man steht
@@ -300,14 +415,14 @@ function T.RowTooltip(row, r)
     if r.supply then GameTooltip:AddDoubleLine(L.TR_TIP_SUPPLY, ns.Pages.FmtSales(r.supply), 0.8, 0.8, 0.8, 1, 1, 1) end
     local say = T.Say(r.key)
     if say then GameTooltip:AddLine(" "); GameTooltip:AddLine(say, 0.6, 0.9, 1, true) end
-    if r.fallback then GameTooltip:AddLine(" "); GameTooltip:AddLine(L.TR_TIP_FALLBACK, 0.6, 0.6, 0.6, true) end
+    if r.buyNow and r.buyNow ~= r.buy then GameTooltip:AddDoubleLine(L.TR_TIP_BUY_NOW, Money(r.buyNow), 0.8, 0.8, 0.8, 1, 1, 1) end
+    if r.sellNow and r.sellNow ~= r.sell then GameTooltip:AddDoubleLine(L.TR_TIP_SELL_NOW, Money(r.sellNow), 0.8, 0.8, 0.8, 1, 1, 1) end
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine(T.Where(r.dir) == "dst" and L.TR_TIP_CLICK_DST or L.TR_TIP_CLICK_SRC, 0.6, 0.6, 0.6, true)
     GameTooltip:Show()
 end
 
 function T.LightText(r)
-    if r.fallback then return GREY .. L.TR_LIGHT_PRICE .. "|r" end
     return r.light == "green" and (GREEN .. L.TR_LIGHT_GREEN .. "|r") or (GOLD .. L.TR_LIGHT_YELLOW .. "|r")
 end
 

@@ -542,7 +542,7 @@ end
 -- Abfrage-Schleife: laeuft fuer Fokus, Erneuern, Radar-Scan, Beobachten und die zweite Pruefung "keine Angebote"
 function R.Wake()
     if R.loop or not AHOpen() or ns.Scan.state then return end
-    if not (R.running or R.focus or R.soon or R.Renewing() or R.Watching()) then return end
+    if not (R.running or R.focus or R.soon or R.Renewing() or R.Watching() or (ns.Trade and ns.Trade.Active())) then return end
     R.loop = true
     R.gen = (R.gen or 0) + 1
     R.Schedule()
@@ -631,6 +631,12 @@ function R.NextKey()
         local qk = QC.Next()
         if qk ~= nil then return qk, "probe" end
         return nil
+    end
+    -- ab 0.128: Liste Markttausch offen (Chancen oder Beobachten): ihre Zeilen fuer das Haus hier reihum (Trade.lua)
+    local T = ns.Trade
+    if T and T.Active() then
+        local tk = T.NextKey()
+        if tk ~= nil then return tk, "trade" end
     end
     if R.Watching() then   -- ab 0.83: Reiter Beobachten offen, nur die Beobachtung
         local wk = R.NextWatch()
@@ -765,7 +771,7 @@ function R.Tick()
             ns.QuickChances.Send(key)   -- ab 0.119: Pruefung der Chancen im Schnellkauf
         elseif key ~= nil then
             R.Send(key)
-        elseif not R.running and not R.focus and not R.soon and not R.Renewing() and not R.Watching() then
+        elseif not R.running and not R.focus and not R.soon and not R.Renewing() and not R.Watching() and not (ns.Trade and ns.Trade.Active()) then
             R.watchCur = nil
             R.loop = false
             R.UpdateView()
@@ -870,6 +876,7 @@ function R.Apply(p, rows, commodity, cached)
         if not cached then mod:Call("Beobachtung", ns.Watch.Check, { p.key }) end
         if ns.WatchPage and ns.WatchPage.Shown and ns.WatchPage.Shown() then mod:Call("Beobachten", ns.WatchPage.Refresh) end
     end
+    if ns.Trade and not cached then mod:Call("Markttausch", ns.Trade.OnAnswer, p.key) end   -- ab 0.128
     if rows.partial then R.stats.partial = (R.stats.partial or 0) + 1 end
     -- ab 0.66 (H2): Antwort auf die Abfrage im Fokus in die Messung
     if p.focus and R.focus and R.focus.key == p.key and not cached then

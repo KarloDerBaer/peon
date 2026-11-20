@@ -164,3 +164,36 @@ Vor M2 eine Messung mit der echten Datenbank: Wie viele grüne Chancen bleiben m
 - M1 bis M4 gebaut wie oben (Broker 0.127.0, Bridge 0.13.0, Manager 0.50.0).
 - M5 vereinfacht: Gepäck für das Zielhaus mit Hinweis (`PeonBrokerDB.tradeGoods`), kein eigener Posten im Buch. Erfolgskontrolle für den Marktvergleich steht noch aus.
 - Abweichungen: Der Manager vergleicht nur Gegenstände, die in beiden Häusern vorkommen (Gegenstände aus nur einem Haus findet die Suche in Broker). Die Einstellgebühr ist in der Rechnung noch nicht enthalten. Der Abschnitt Neutral auf der Seite eines Gegenstands zeigt Zahlen ohne eigenes Diagramm.
+
+## 10. Zweite Runde (Vorgaben KarloDerBaer, 20.11.2026, umgesetzt in Broker 0.128.0, Bridge 0.13.1, Manager 0.51.0)
+
+### 10.1 Markttausch in Broker nur mit Auswahl des Managers
+
+- Der Unterreiter zeigt nur die Chancen, die der Manager ausgewählt hat. Ohne Daten vom Manager steht dort ein Hinweis, die einfache Liste nach Preisunterschied entfällt (ersetzt Entscheidung 5 aus Abschnitt 8).
+- Broker fügt nie selbst etwas hinzu. Er entfernt eine Chance, wenn neue Preise ihre Bedingungen nicht mehr erfüllen: Spanne und Gewinn je Stück nach dem Anteil des Zielhauses, gerechnet mit dem jüngsten Preis beider Häuser. Entfernte bleiben weg, bis der Manager sie mit einem neueren Stand wieder schickt (wie `chancesGone`).
+- Neue Preise kommen aus drei Quellen: laufende Abfrage der Zeilen am Haus, an dem man steht (solange der Unterreiter offen ist, reihum wie Beobachten), Komplettscan und Stand vom Manager.
+
+### 10.2 Auswahl im Manager
+
+- Nach jedem neuen Stand vergleicht der Manager beide Märkte und schickt die besten N an Broker, Vorgabe 10, einstellbar.
+- Bewertung wie bisher (Gewinn je Tag, Beständigkeit, Vorrat im Ziel), dazu Langzeitwerte über 14 Tage: wie beständig der Unterschied über 14 Tage war, wie gleichmäßig der Absatz im Ziel ist (Tage mit Verkäufen) und ob der Unterschied wächst oder schrumpft.
+
+### 10.3 Beobachten Markttausch
+
+- Dritter Unterreiter in Beobachten (Broker) neben Aufkauf und Schnellkauf, und dieselbe Liste im Manager.
+- Zeilen: Gegenstand, Richtung, Preis Fraktion, Preis Neutral, Spanne nach Gebühr, Absatz im Ziel, Zustand am Haus, an dem man steht.
+- Hinzufügen über das Gegenstandsmenü („Beobachten: Markttausch“), aus der Liste Markttausch und im Manager.
+
+### 10.4 Beobachten im Manager wie in Broker
+
+- Unterreiter Aufkauf, Schnellkauf und Markttausch wie im Spiel.
+
+### 10.5 Händler im Manager
+
+- Seite wieder an (ohne WIP). Die Daten kommen schon heute aus `Peon_Broker.lua` (`vendors`). Aufbau wie Mehr, Händler in Broker.
+
+### 10.6 Entscheidungen (KarloDerBaer, 20.11.2026)
+
+- Schnellkauf und Haken der Listen werden mit dem Manager abgeglichen und sind dort änderbar.
+- Beobachten Markttausch nur beobachten, ohne eigene Grenzen.
+- Entfernte Chancen kommen erst mit einem neueren Stand des Managers wieder.

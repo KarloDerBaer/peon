@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.128.0
+
+Kurz: Markttausch zeigt nur noch die Auswahl des Peon Managers und hält die Preise am Auktionshaus aktuell. Passt eine Chance mit neuen Preisen nicht mehr, verschwindet sie bis zum nächsten Stand des Managers.
+Kurz: Beobachten hat einen dritten Unterreiter Markttausch, und die Werte des Schnellkaufs werden jetzt mit dem Peon Manager abgeglichen.
+
+- 0.128.0 (20.11.2026, Wunsch KarloDerBaer, Konzept `Peon_Broker_Marktvergleich.md` Abschnitt 10):
+  - **Geändert, Markttausch nur mit Auswahl des Managers** (`Trade.lua`): Ohne Daten vom Manager steht ein Hinweis da, die Liste nach Preisunterschied entfällt.
+  - **Neu, Entfernen nach neuen Preisen** (`T.Recheck`, `PeonBrokerDB.tradeGone[Heimatmarkt]`): Preise, die neuer sind als der Stand des Managers (Live-Abfrage, Komplettscan, Manager), prüfen Spanne und Gewinn je Stück nach dem Anteil des Zielhauses gegen die Grenzen des Managers. Entfernte kommen erst mit einem neueren Stand wieder. Broker fügt nie etwas hinzu.
+  - **Neu, laufende Abfrage** (`T.NextKey`, Radar Art `trade`): Solange die Liste offen ist, fragt Broker ihre Zeilen für das Haus hier reihum ab.
+  - **Neu, Beobachten, Unterreiter Markttausch** (`WatchPage.lua`, `Watch.lua` `ton`): Richtung, beide Preise, Spanne nach Gebühr, Absatz im Ziel und Zustand am Haus hier, nur beobachten. Haken „Beobachten: Markttausch“ im Gegenstandsmenü, auch für Ausrüstung.
+  - **Geändert, Abgleich mit dem Manager:** Werte des Schnellkaufs (`qlim`, `qgold`, `qskip`, `qavg`, Zeit `t.q`) und Haken der Listen (`bon`, `qon`, `ton`, Zeit `t.lists`) gehen je Gruppe mit eigener Zeit in beide Richtungen. `qmax` und `mode` bleiben im Spiel.
+  - Tests: Entfernen und Wiederkommen, ohne Manager, laufende Abfrage, Liste Markttausch in Beobachten, Zeiten und Abgleich (`test_broker.lua`).
+
 ## 0.127.0
 
 Kurz: Neuer Unterreiter Markttausch in Chancen: im eigenen Haus kaufen und im neutralen verkaufen oder umgekehrt. Die Liste kommt vom Peon Manager, ohne ihn zeigt Broker die Preisunterschiede.

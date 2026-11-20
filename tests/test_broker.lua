@@ -2907,10 +2907,10 @@ end)()
   local root = { CreateButton = function(_, t, fn) local c = { text = t, fn = fn, CreateButton = function(self2, t2, f2) items[#items + 1] = t2; return {} end }; items[#items + 1] = t; return c end }
   Wt.AddMenu(root, { name = "Kupfererz" }, 2770)
   if ns.Data.IsCommodity(2770) then
-    check(items[1] == "[x] " .. ns.L.MENU_WATCH_BUYOUT and items[2] == "[ ] " .. ns.L.MENU_WATCH_QUICK and items[3] == ns.L.MENU_WATCH_LIMIT,
+    check(items[1] == "[x] " .. ns.L.MENU_WATCH_BUYOUT and items[2] == "[ ] " .. ns.L.MENU_WATCH_QUICK and items[3] == "[ ] " .. ns.L.MENU_WATCH_TRADE and items[4] == ns.L.MENU_WATCH_LIMIT,
       "U8/0.120: Menue mit Haken Aufkauf und Schnellkauf, dann Preisgrenze: " .. tostring(items[1]) .. " / " .. tostring(items[2]))
   else
-    check(items[1] == ns.L.MENU_UNWATCH and items[2] == ns.L.MENU_WATCH_LIMIT, "U8: Menue Nicht mehr beobachten und Preisgrenze")
+    check(items[1] == ns.L.MENU_UNWATCH and items[2] == "[ ] " .. ns.L.MENU_WATCH_TRADE and items[3] == ns.L.MENU_WATCH_LIMIT, "U8: Menue Nicht mehr beobachten, Markttausch (ab 0.128) und Preisgrenze")
   end
   check(Wt.Toggle(2770) == false and not Wt.Is(2770) and PeonBrokerDB.watchGone[2770], "U8: Beobachtung entfernen mit Loeschmarke")
   -- Live-Abfrage prueft den Alarm
@@ -5892,13 +5892,13 @@ end)()
   local fake = { Compare = function(_, market)
       if market ~= HK then return nil end
       return bridgeT, { [2770] = "n:80:200:90:120:2:15:86:900:g", ["7001"] = "h:100:300:185:30:1:9999:50:40:y", [7002] = "kaputt" },
-        { [2770] = "Fraktion kauft für 80c" }, { cutN = 1500, cutSure = false } end }
+        { [2770] = "Fraktion kauft für 80c" }, { cutN = 1500, cutSure = false, minPct = 20, minNet = 10 } end }
   Peon.GetModule = function(self, k) if k == "bridge" then return fake end return oldGet(self, k) end
   check(T.Parse("n:80:200:90:120:2:15:86:900:g").perDay == 12 and T.Parse("n:1:2:3:4:5:9999:50:7:y").supply == nil and T.Parse("x") == nil, "0.127: Eintrag lesen")
   local entries, t, mgr = T.Entries()
   check(#entries == 2 and t == bridgeT and mgr, "0.127: Liste des Managers, kaputte Zeile uebersprungen")
   check(T.Say(2770) == "Fraktion kauft für 80c", "0.127: Satz des Managers")
-  check(C.TabOn("trade") and T.Count() == 1, "0.127: Unterreiter an, Zahl = gruene Eintraege")
+  check(C.TabOn("trade") and T.Count() == 2, "0.127/0.128: Unterreiter an, Zahl = alle Eintraege der Auswahl")
   mod.db.chancesShowT = false
   check(not C.TabOn("trade") and T.Count() == 0, "0.127: Unterreiter abschaltbar")
   mod.db.chancesShowT = true
@@ -5921,8 +5921,34 @@ end)()
   check(select(1, T.State({ key = 2770, dir = "n", buy = 80, sell = 200 })) == "dear", "0.127: zu teuer")
   e.lt = clock - 3600
   check(select(1, T.State({ key = 2770, dir = "n", buy = 80, sell = 200 })) == "open", "0.127: alter Preis: ungeprueft")
+  -- 0.128: neuere Preise als der Stand des Managers entfernen eine Chance, die nicht mehr passt
+  local oldT = e.t
+  e.t, e.lt, e.m = bridgeT - 10, nil, 300   -- aelter als der Stand: zaehlt nicht
+  check(#T.Entries() == 2, "0.128: aeltere Preise aendern nichts")
+  e.lt, e.m = clock, 150                    -- neuer: Gewinn 200 x 0,85 - 150 = 20, Spanne 13 % < 20 %
+  local list1 = T.Entries()
+  check(#list1 == 1 and list1[1].key == 7001 and T.GoneAt(2770, bridgeT) and T.GoneCount() == 1, "0.128: Chance mit neuem Preis entfernt")
+  e.m = 80
+  check(#T.Entries() == 1, "0.128: entfernt bleibt weg, auch wenn der Preis wieder passt")
+  check(plain(T.StatusText()):find("1 entfernt", 1, true), "0.128: Status nennt Entfernte")
+  bridgeT = clock + 5
+  check(#T.Entries() == 2 and not T.GoneAt(2770, bridgeT), "0.128: neuerer Stand des Managers bringt sie zurueck")
+  bridgeT = clock - 600
+  T.GoneStore()[2770] = nil
+  e.t, e.lt, e.m = oldT, clock, 80
   local keys = T.Keys()
   check(#keys == 2, "0.127: Alle pruefen: beide Zeilen betreffen das eigene Haus")
+  -- 0.128: laufende Abfrage, solange die Liste offen ist
+  local oldShown = C.Shown
+  C.Shown = function() return true end
+  C.SelectTab("trade")
+  T.sent = {}
+  local k1 = T.NextKey()
+  local k2 = T.NextKey()
+  check(T.Active() and k1 ~= nil and k2 ~= nil and k1 ~= k2, "0.128: Zeilen reihum abgefragt")
+  local rk, rkind = R.NextKey()
+  check(rk ~= nil and rkind == "trade", "0.128: Radar fragt die offene Liste Markttausch ab")
+  C.Shown = oldShown
   R.forceMode = "trade"
   check(#R.SearchKeys("trade") == 2, "0.127: Radar fragt die Zeilen des Markttauschs ab")
   R.forceMode = nil
@@ -5954,15 +5980,41 @@ end)()
   C.SelectTab("trade")
   check(C.Tab() == "trade" and (not C.tpanel or C.tpanel:IsShown()), "0.127: Unterreiter Markttausch waehlbar")
   check(plain(T.StatusText()):find("Anteil Neutral 15 % angenommen", 1, true), "0.127: Status mit angenommenem Anteil")
-  -- ohne Manager: Liste nach Preisunterschied aus Brokers Preisen
+  -- ohne Manager: keine Liste, nur ein Hinweis (ab 0.128)
   Peon.GetModule = oldGet
-  hm.items[2770].m = 100
-  nm.items[2770] = { m = 300, md = 300, q = 2, n = 1, t = clock, nm = "Kupfererz" }
-  local fe = T.Entries()
-  local f2770
-  for _, x in ipairs(fe) do if x.key == 2770 then f2770 = x end end
-  check(f2770 and f2770.fallback and f2770.dir == "n" and f2770.net == math.floor(300 * 0.85 - 100), "0.127: ohne Manager nach Preisunterschied")
-  check(plain(T.StatusText()):find("Ohne Peon Manager", 1, true), "0.127: Status ohne Manager")
+  local fe, ft, fm = T.Entries()
+  check(#fe == 0 and ft == nil and fm == false, "0.128: ohne Manager keine Chancen")
+  check(plain(T.StatusText()):find("Keine Daten vom Peon Manager", 1, true), "0.128: Status ohne Manager")
+  -- 0.128: Beobachten, Liste Markttausch
+  local Wt, WP = ns.Watch, ns.WatchPage
+  Wt.Remove(2589)
+  check(Wt.SetTradeOn(2589, true, { name = "Zinnerz" }) and Wt.InTrade(2589) and not Wt.InBuyout(2589) and not Wt.InQuick(2589), "0.128: nur in Markttausch")
+  local w89 = Wt.Store()[2589]
+  check(type(w89.t) == "table" and (w89.t.lists or 0) > 0, "0.128: Zeit der Listen gesetzt (Abgleich mit dem Manager)")
+  local trows = WP.Rows("trade")
+  check(#trows == 1 and trows[1].key == 2589 and trows[1].mode == "trade", "0.128: Zeile in Beobachten, Markttausch")
+  check(#Wt.TradeKeys() == 1, "0.128: Schluessel fuer die laufende Abfrage")
+  mod.db.watchTab = "trade"
+  check(WP.Tab() == "trade", "0.128: Unterreiter Markttausch in Beobachten")
+  mod.db.watchTab = "buyout"
+  Wt.SetQuick(2589, 500, 0, false, false)
+  check((Wt.Store()[2589].t.q or 0) > 0, "0.128: Zeit des Schnellkaufs gesetzt")
+  Wt.SetQuickOn(2589, false)
+  check(Wt.Is(2589) and Wt.InTrade(2589) and not Wt.InQuick(2589), "0.128: Schnellkauf aus, Markttausch bleibt")
+  Wt.SetBuyoutOn(2589, true)
+  Wt.SetTradeOn(2589, false)
+  check(Wt.Is(2589) and Wt.InBuyout(2589) and not Wt.InTrade(2589), "0.128: Markttausch aus: bleibt im Aufkauf")
+  Wt.Remove(2589)
+  Wt.SetTradeOn(2589, true)
+  Wt.SetTradeOn(2589, false)
+  check(not Wt.Is(2589), "0.128: nur Markttausch aus: Beobachtung endet")
+  -- Abgleich: neuere Werte des Schnellkaufs aus dem Manager gelten
+  Wt.SetQuickOn(2589, true, { name = "Zinnerz" })
+  local tq = Wt.Store()[2589].t.q
+  local inc = { u = Wt.Store()[2589].u + 10, qlim = 777, qgold = 0, t = { q = tq + 10, lists = 0, buy = 0, up = 0 } }
+  Wt.Merge(Wt.Store(), PeonBrokerDB.watchGone, { items = { [2589] = inc }, gone = {} })
+  check(Wt.Store()[2589].qlim == 777, "0.128: Kaufen bis des Schnellkaufs aus dem Manager uebernommen")
+  Wt.Remove(2589)
   -- aufraeumen
   C.SelectTab("spec")
   mod.acc.tradeGoods = nil

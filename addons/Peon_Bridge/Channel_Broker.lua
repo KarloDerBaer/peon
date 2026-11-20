@@ -461,14 +461,16 @@ end
 
 -- Marktvergleich mit dem neutralen Haus (ab 0.13.0, Peon_Broker_Marktvergleich.md Abschnitt 5): t, list, say, info oder nil.
 -- Steht beim Heimatmarkt. list[Schluessel] = "Richtung:KaufenBis:Verkaufspreis:Netto:Absatz x10:Menge:Vorrat x10:Bestaendigkeit:
--- Bewertung:Ampel", say[Schluessel] = Satz, info = { cutN (Anteil Neutral in Hundertstel Prozent), cutSure }.
+-- Bewertung:Ampel", say[Schluessel] = Satz, info = { cutN (Anteil Neutral in Hundertstel Prozent), cutSure, minPct, minNet }.
 function mod:Compare(market)
     if not ns.ChannelOn("broker") then return nil end
     local d = ns.ManagerData()
     local m = d and type(d.markets) == "table" and type(market) == "string" and d.markets[ns.MarketOf(d, market)]
     local c = type(m) == "table" and m.cmp
     if type(c) ~= "table" or type(c.list) ~= "table" then return nil end
-    return tonumber(c.t), c.list, type(c.say) == "table" and c.say or {}, { cutN = tonumber(c.cutN), cutSure = c.cutSure == true }
+    -- ab 0.13.1: dazu die Grenzen, nach denen Broker eine Chance mit neuen Preisen entfernt (minPct in %, minNet in Kupfer)
+    return tonumber(c.t), c.list, type(c.say) == "table" and c.say or {},
+        { cutN = tonumber(c.cutN), cutSure = c.cutSure == true, minPct = tonumber(c.minPct), minNet = tonumber(c.minNet) }
 end
 
 -- Wie viele Gegenstaende hat der Manager fuer einen Markt (Anzeige)

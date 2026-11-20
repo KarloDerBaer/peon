@@ -3,6 +3,17 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 20.11.2026: Markttausch nur mit Auswahl des Managers, Beobachten Markttausch (Broker 0.128.0, Bridge 0.13.1, Manager 0.51.0)
+
+Konzept `docs/konzepte/broker/Peon_Broker_Marktvergleich.md`, Abschnitt 10.
+
+- **Markttausch nur mit Auswahl des Managers** (KarloDerBaer): Ohne Daten vom Manager ein Hinweis, die Liste nach Preisunterschied entfällt. Das ersetzt die Entscheidung „Ohne Manager eine einfache Liste“ vom selben Tag.
+- **Broker entfernt nur, fügt nie hinzu** (KarloDerBaer). Entfernte kommen erst mit einem neueren Stand des Managers wieder (KarloDerBaer, Vorschlag Claude).
+- **Die besten 10 an Broker, einstellbar, mit Langzeitwerten** (KarloDerBaer). Langzeit über 14 Tage: Beständigkeit, gleichmäßiger Absatz im Ziel, wachsender oder schrumpfender Unterschied (Claude).
+- **Beobachten Markttausch nur beobachten**, ohne eigene Grenzen (KarloDerBaer, Vorschlag Claude).
+- **Werte des Schnellkaufs und Haken der Listen mit dem Manager abgleichen** (KarloDerBaer, Vorschlag Claude). Das ändert die Entscheidung von 0.106, dass sie nur im Spiel bleiben. `qmax` und `mode` bleiben im Spiel.
+- **Händler im Manager wieder an** (KarloDerBaer). Der Datenaustausch lief schon.
+
 ## 20.11.2026: Marktvergleich mit dem neutralen Haus (Broker 0.127.0, Bridge 0.13.0, Manager 0.50.0)
 
 Konzept `docs/konzepte/broker/Peon_Broker_Marktvergleich.md`, freigegeben von KarloDerBaer.

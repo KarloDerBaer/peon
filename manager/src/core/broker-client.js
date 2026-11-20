@@ -964,7 +964,10 @@ class BrokerClient {
     return { key, name: (cur && cur.name) || w.name || (info && info.name) || null, quality: cur ? cur.quality : (w.q ?? (info && info.quality) ?? null),
       price, qty: cur && cur.inLast ? cur.qty : 0, band: (cur && cur.band) || null, ref,
       buy: w.lim != null ? { lim: w.lim } : w.pct != null ? { pct: w.pct } : null, buyLimit, up: w.up ?? null, advice,
-      bells: { buy: !!(bell && bell.buy), up: !!(bell && bell.up) }, wait: wait.some((p) => p.startsWith(`w|${key}|`)) };
+      bells: { buy: !!(bell && bell.buy), up: !!(bell && bell.up) }, wait: wait.some((p) => p.startsWith(`w|${key}|`)),
+      // ab 0.51.0: Listen und Schnellkauf wie in Broker
+      lists: { buyout: watching.inBuyout(w), quick: watching.inQuick(w), trade: watching.inTrade(w) },
+      qlim: w.qlim ?? null, qgold: w.qgold ?? 0, quickHit: price != null && w.qlim != null && price <= w.qlim };
   }
 
   // Ansicht Beobachten fuer einen Markt (gewaehltes Konto). Rat zuerst, dann nach Name
@@ -980,7 +983,18 @@ class BrokerClient {
     const order = { buy: 0, sell: 1 };
     const rows = Object.entries(d.items).map(([k, w]) => this.watchRow(k, w, byKey.get(k), bells[k], wait))
       .sort((a, b) => (order[a.advice] ?? 2) - (order[b.advice] ?? 2) || String(a.name || a.key).localeCompare(String(b.name || b.key), 'de'));
-    return { rows, lastScan: list.lastScan || null, running: !!(this.gameState && this.gameState.running) };
+    // ab 0.51.0: Liste Markttausch mit den Werten des Marktvergleichs (beide Haeuser)
+    let pair = null;
+    try {
+      const p = this.comparePairOf(marketKey);
+      const c = p && this.calcGet(p.home.id, 'compare');
+      if (c && c.value) {
+        const byCmp = new Map(c.value.items.map((x) => [x.key, x]));
+        pair = { home: marketLabel(p.home.key), neutral: marketLabel(p.neutral.key), cutSure: c.value.cutSure, cutN: c.value.cutN };
+        for (const r of rows) if (r.lists.trade) r.cmp = byCmp.get(r.key) || null;
+      }
+    } catch { /* ohne Marktvergleich bleibt die Liste ohne Werte */ }
+    return { rows, pair, lastScan: list.lastScan || null, running: !!(this.gameState && this.gameState.running) };
   }
 
   // Nach neuen Daten: Welche Grenze mit Glocke ist gerade erreicht? Gemeldet wird einmal und erst wieder, nachdem der
@@ -1022,6 +1036,20 @@ class BrokerClient {
   setWatchBuy(key, kind, value) { return this.watchEdit((d, now) => watching.setBuy(d, key, kind || null, value, now)); }
   // Zielpreis in Kupfer, leer = keine Grenze (ab 0.30.0)
   setWatchUp(key, value) { return this.watchEdit((d, now) => watching.setUp(d, key, value, now)); }
+  // ab 0.51.0: Schnellkauf (Kaufen bis, Limit pro Kauf) und Haken der Listen wie in Broker
+  setWatchQuick(key, qlim, qgold) { return this.watchEdit((d, now) => watching.setQuick(d, key, { qlim, qgold }, now)); }
+  setWatchList(key, list, on) {
+    const n = on ? this.db.prepare('SELECT name, quality FROM items WHERE key = ?').get(String(key)) : null;
+    const r = this.watchEdit((d, now) => {
+      const fresh = !d.items[String(key)];
+      const x = watching.setList(d, key, list, on, now);
+      const w = d.items[String(key)];
+      if (fresh && w && n) { if (n.name) w.name = n.name; if (n.quality != null) w.q = n.quality; }
+      return x;
+    });
+    if (r === 'removed') this.setWatchBell(key, null, false);
+    return r;
+  }
 
   // Beobachtung aus dem Spiel einmischen (ab 0.24, ab 0.29.0 je Konto, ab 0.30.0 je Wert). Rueckgabe: true bei Aenderung
   watchFromGame(results) {

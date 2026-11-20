@@ -16,7 +16,7 @@ const d = ref(null);
 const busy = ref(false);
 const search = ref('');
 const dir = ref(saved.dir || 'all');            // all, n (nach Neutral), h (nach Fraktion)
-const light = ref(saved.light || 'all');        // all, green
+const light = ref(saved.light || 'all');        // all, green, pick (ab 0.51.0: Auswahl fuer Broker)
 const onlyCommodity = ref(!!saved.commodity);
 const quality = ref(saved.quality || 0);
 const showHidden = ref(false);
@@ -51,6 +51,7 @@ function pass(r) {
   if (quality.value && (r.quality ?? 0) < quality.value) return false;
   if (dir.value !== 'all' && r.dir !== dir.value) return false;
   if (light.value === 'green' && r.light !== 'green') return false;
+  if (light.value === 'pick' && !r.pick && !pins.value.has(r.key)) return false;
   return true;
 }
 function sorted(list) {
@@ -94,11 +95,11 @@ async function hide(r) { busy.value = true; await api.hideCompare(r.key, !hidden
 // Einstellen: Prozente als ganze Zahlen, Silber statt Kupfer
 function toForm(ru) {
   return { days: ru.days, share: Math.round(ru.share * 100), hold: ru.hold, minPct: Math.round(ru.minPct * 100), minNet: ru.minNet / 100,
-    minSales: ru.minSales, minCons: Math.round(ru.minCons * 100), cutN: Math.round(ru.cutN * 100) };
+    minSales: ru.minSales, minCons: Math.round(ru.minCons * 100), cutN: Math.round(ru.cutN * 100), top: ru.top };
 }
 function fromForm(f) {
   return { days: Number(f.days), share: Number(f.share) / 100, hold: Number(f.hold), minPct: Number(f.minPct) / 100, minNet: Number(f.minNet) * 100,
-    minSales: Number(f.minSales), minCons: Number(f.minCons) / 100, cutN: Number(f.cutN) / 100 };
+    minSales: Number(f.minSales), minCons: Number(f.minCons) / 100, cutN: Number(f.cutN) / 100, top: Number(f.top) };
 }
 const ruleNote = ref('');
 async function saveRules() {
@@ -147,6 +148,7 @@ async function resetRules() {
           <select v-model="light" aria-label="Ampel" v-if="tab === 'chances'">
             <option value="all">Grün und Gelb</option>
             <option value="green">Nur Grün</option>
+            <option value="pick">Nur Auswahl für Broker</option>
           </select>
           <select v-model.number="quality" aria-label="Qualität">
             <option :value="0">Jede Qualität</option>
@@ -180,7 +182,8 @@ async function resetRules() {
             <template v-for="r in shown" :key="r.key + r.dir">
               <tr :class="{ dim: hidden.has(r.key), sel: open === r.key + r.dir }" @click="open = open === r.key + r.dir ? null : r.key + r.dir">
                 <td class="name"><span class="click" tabindex="0" :style="{ color: qualityColor(r.quality) }" @click.stop="emit('open', r.key)" @keydown.enter="emit('open', r.key)">{{ r.name || r.key }}</span>
-                  <span v-if="pins.has(r.key)" class="pin small" title="Geht immer an Broker">An Broker</span></td>
+                  <span v-if="pins.has(r.key)" class="pin small" title="Geht immer an Broker">An Broker</span>
+                  <span v-else-if="r.pick" class="pin small" title="Unter den besten, geht an Broker">Auswahl</span></td>
                 <td class="small">{{ dirText(r.dir) }}</td>
                 <td class="num"><Gold :copper="r.buy" compact /></td>
                 <td class="num"><Gold :copper="r.sell" compact /></td>
@@ -203,6 +206,8 @@ async function resetRules() {
                   Ziel jetzt: <Gold v-if="r.dstNow != null" :copper="r.dstNow" compact /><span v-else>kein Angebot</span>, {{ num(Math.round(r.stock)) }} im Angebot.
                   Echte Verkäufe: <template v-if="r.soldPx != null">im Mittel <Gold :copper="r.soldPx" compact /></template><template v-else>keine gesehen, gerechnet mit dem günstigsten Angebot</template>.
                   Absatzquote: {{ r.rate != null ? Math.round(r.rate * 100) + ' %' : '–' }}. Gewinn an {{ r.plus }} von {{ r.days }} Tagen.</p>
+                <p class="small muted" v-if="r.days14 != null">Langfristig: Gewinn an {{ r.plus14 }} von {{ r.days14 }} Tagen, im Ziel an {{ Math.round((r.even || 0) * 100) }} % der Tage verkauft,
+                  Unterschied {{ r.trend >= 1.1 ? 'wachsend' : r.trend <= 0.8 ? 'schrumpfend' : 'gleichbleibend' }}. Das ergibt den Faktor {{ (r.longF || 0).toFixed(2).replace('.', ',') }} in der Bewertung.</p>
               </td></tr>
             </template>
           </tbody>
@@ -251,7 +256,8 @@ async function resetRules() {
         <p class="small muted">Eine Chance braucht mindestens {{ Math.round(d.rules.minPct * 100) }} % Spanne, {{ d.rules.minNet / 100 }} Silber Gewinn je Stück,
           {{ d.rules.minSales }} verkauftes Stück am Tag im Ziel und Gewinn an {{ Math.round(d.rules.minCons * 100) }} % der Tage. Ab 10 Tagen Vorrat im Ziel fällt sie weg, ab 3 Tagen zählt sie weniger.
           Grün heißt: Gewinn an mindestens 70 % der Tage und höchstens 3 Tage Vorrat.</p>
-        <p class="small muted">An Broker gehen je Richtung die besten 150, dazu alle mit „An Broker“. Ausgeblendete gehen nicht an Broker.</p>
+        <p class="small muted">An Broker gehen die besten {{ d.rules.top }} ({{ num(d.sum.picked || 0) }} gerade ausgewählt), dazu alle mit „An Broker“. Ausgeblendete gehen nicht an Broker, für sie rückt die nächste nach.
+          Die Bewertung nimmt Gewinn je Tag, Beständigkeit und den Vorrat im Ziel, dazu die letzten 14 Tage: wie beständig der Unterschied war, wie gleichmäßig im Ziel verkauft wird und ob der Unterschied wächst oder schrumpft.</p>
       </template>
 
       <template v-if="tab === 'rules' && form">
@@ -264,6 +270,7 @@ async function resetRules() {
           <label>Gewinn je Stück mindestens <input type="number" min="0" v-model.number="form.minNet" /> Silber</label>
           <label>Absatz im Ziel mindestens <input type="number" min="0" step="0.5" v-model.number="form.minSales" /> je Tag</label>
           <label>Gewinn an mindestens <input type="number" min="0" max="100" v-model.number="form.minCons" /> % der Tage</label>
+          <label>An Broker die besten <input type="number" min="1" max="100" v-model.number="form.top" /></label>
           <label>Anteil des neutralen Hauses, solange nicht gemessen <input type="number" min="0" max="50" v-model.number="form.cutN" /> %</label>
         </div>
         <p class="small muted">Eigener Anteil und Haltedauer bestimmen die Menge: so viel, wie du in der Haltedauer bei deinem Anteil am Absatz los wirst.

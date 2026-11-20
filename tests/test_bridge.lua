@@ -688,9 +688,9 @@ do
   PeonBridgeData.markets[nsb.MarketKey()].chances = nil
   -- 0.13.0 (Peon_Broker_Marktvergleich.md 5): Marktvergleich mit dem neutralen Haus
   check(mod:Compare(nsb.MarketKey()) == nil, "0.13.0: ohne Liste kein Marktvergleich")
-  PeonBridgeData.markets[nsb.MarketKey()].cmp = { t = T, cutN = 1500, cutSure = false, list = { [90001] = "n:80:200:90:120:2:15:86:900:g" }, say = { [90001] = "Satz" } }
+  PeonBridgeData.markets[nsb.MarketKey()].cmp = { t = T, cutN = 1500, cutSure = false, minPct = 20, minNet = 1000, list = { [90001] = "n:80:200:90:120:2:15:86:900:g" }, say = { [90001] = "Satz" } }
   local mt, ml, ms, mi = mod:Compare(nsb.MarketKey())
-  check(mt == T and ml[90001] and ms[90001] == "Satz" and mi.cutN == 1500 and mi.cutSure == false, "0.13.0: Marktvergleich mit Zeit, Satz und Anteil")
+  check(mt == T and ml[90001] and ms[90001] == "Satz" and mi.cutN == 1500 and mi.cutSure == false and mi.minPct == 20 and mi.minNet == 1000, "0.13.0: Marktvergleich mit Zeit, Satz, Anteil und Grenzen")
   PeonBridgeData.channels.broker = false
   check(mod:Compare(nsb.MarketKey()) == nil, "0.13.0: ohne Freischaltung kein Marktvergleich")
   PeonBridgeData.channels.broker = true

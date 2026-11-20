@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.51.0
+
+Kurz: Der Marktvergleich wählt nach jedem neuen Stand die besten 10 Chancen für Broker aus und berücksichtigt dabei auch die letzten 14 Tage. Die Anzahl ist einstellbar.
+Kurz: Beobachten hat jetzt Unterreiter wie im Spiel: Aufkauf, Schnellkauf und Markttausch. Die Seite Händler ist wieder da.
+
+- 0.51.0 (20.11.2026, Wunsch KarloDerBaer, Konzept `Peon_Broker_Marktvergleich.md` Abschnitt 10):
+  - **Neu, Auswahl für Broker** (`compare.js`, `pickTop`, Regel `top`, Vorgabe 10): beide Richtungen zusammen, je Gegenstand eine. Ausgeblendete rücken nach, Angeheftete kommen dazu. Bis 0.50.x gingen je Richtung die besten 150.
+  - **Neu, Langzeitwerte in der Bewertung** über 14 Tage: Beständigkeit des Unterschieds, wie gleichmäßig im Ziel verkauft wird und ob der Unterschied wächst oder schrumpft. Sie stehen beim Aufklappen einer Chance und im Satz.
+  - **Neu, Grenzen für Broker** in `Data.lua` (`cmp.minPct`, `cmp.minNet`).
+  - **Neu, Beobachten mit Unterreitern** (`views/Watch.vue`): Aufkauf wie bisher, Schnellkauf mit Kaufen bis und Limit pro Kauf, Markttausch mit beiden Häusern aus dem Marktvergleich. Hinzufügen und Entfernen wirken auf die Liste des offenen Unterreiters.
+  - **Neu, Abgleich des Schnellkaufs** (`watching.js`): Kaufen bis, Limit pro Kauf, Lockangebot ignorieren, Durchschnitt zählt und die Haken der Listen je Gruppe mit eigener Zeit (`t.q`, `t.lists`).
+  - **Geändert, Seite Händler** wieder an (ohne WIP). Die Händlerdaten kamen schon aus `Peon_Broker.lua`.
+  - Tests: Auswahl der besten, schrumpfender Unterschied, Grenzen für Broker, Listen und Abgleich der Beobachtung (`test/marktvergleich.test.js`).
+
 ## 0.50.1
 
 Kurz: Die Seite Marktvergleich steht jetzt wirklich in der Seitenleiste unter Chancen.

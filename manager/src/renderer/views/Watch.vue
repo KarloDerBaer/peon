@@ -2,6 +2,8 @@
 // Beobachten (ab 0.32.0, Angleichung A4, Konzept docs/konzepte/manager/Peon_Manager_Angleichung.md 4.1 und 4.3).
 // Dieselbe Beobachtung wie im Spiel unter Beobachten: je Gegenstand Kaufen bis (Betrag oder % unter dem ueblichen Preis)
 // und Zielpreis, Rat wie im Spiel. Die Glocken je Grenze gelten nur hier im Manager (Meldung von Windows).
+// Ab 0.51.0 (KarloDerBaer 20.11.2026) Unterreiter wie in Broker: Aufkauf, Schnellkauf (Kaufen bis und Limit pro Kauf) und
+// Markttausch (beide Haeuser aus dem Marktvergleich). Ein Gegenstand steht in jeder Liste, deren Haken an ist.
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import Gold from '../components/Gold.vue';
 import SyncPanel from '../components/SyncPanel.vue';
@@ -18,6 +20,14 @@ const accts = ref({ list: [], selected: null });
 const addText = ref('');
 const catalog = ref([]);
 const flash = ref(null);
+const TABS = [{ key: 'buyout', label: 'Aufkauf' }, { key: 'quick', label: 'Schnellkauf' }, { key: 'trade', label: 'Markttausch' }];
+const tab = ref((props.settings && props.settings.watchTab) || 'buyout');
+watch(tab, (t) => emit('save', { watchTab: t }));
+const tabRows = computed(() => (view.value ? view.value.rows.filter((r) => r.lists && r.lists[tab.value]) : []));
+const tabCount = (k) => (view.value ? view.value.rows.filter((r) => r.lists && r.lists[k]).length : 0);
+async function setQuick(r, qlim, qgold) { await api.watchSetQuick(r.key, qlim ?? null, qgold ?? 0); await load(); }
+async function offList(r) { await api.watchSetList(r.key, tab.value, false); await loadFavorites(); await load(); }
+const dirText = (d) => (!view.value || !view.value.pair ? '' : d === 'n' ? `${view.value.pair.home} → ${view.value.pair.neutral}` : `${view.value.pair.neutral} → ${view.value.pair.home}`);
 
 async function load() {
   const [v, a] = await Promise.all([api.watchView(props.market ? props.market.key : ''), api.accounts()]);
@@ -63,7 +73,6 @@ async function setKind(r, kind) {
 }
 async function setUp(r, copper) { await api.watchSetUp(r.key, copper); await load(); }
 async function bell(r, which) { await api.watchSetBell(r.key, which, !r.bells[which]); await load(); }
-async function remove(r) { await api.setFavorite(r.key, false); await loadFavorites(); await load(); }
 
 // Hinzufuegen ueber den Namen: Vorschlaege aus der Gegenstandsliste des Markts
 async function loadCatalog() {
@@ -78,7 +87,7 @@ const suggestions = computed(() => {
   return catalog.value.filter((x) => x.folded.includes(q) && !view.value.rows.some((r) => r.key === x.key)).slice(0, 8);
 });
 async function add(s) {
-  await api.setFavorite(s.key, true);
+  await api.watchSetList(s.key, tab.value, true);   // ab 0.51.0 in die Liste des offenen Unterreiters
   addText.value = '';
   await loadFavorites();
   await load();
@@ -103,6 +112,12 @@ const bandTip = (b) => (b ? `Üblich ${Math.round(b.low / 100) / 100} bis ${Math
       </div>
     </div>
 
+    <div class="tabs" role="tablist">
+      <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key">
+        {{ t.label }}<span class="cnt" v-if="tabCount(t.key)">{{ tabCount(t.key) }}</span>
+      </button>
+    </div>
+
     <div class="add">
       <input type="text" v-model="addText" placeholder="Gegenstand beobachten" aria-label="Gegenstand beobachten" spellcheck="false" @focus="loadCatalog" />
       <div class="sugg" v-if="suggestions.length">
@@ -110,7 +125,67 @@ const bandTip = (b) => (b ? `Üblich ${Math.round(b.low / 100) / 100} bis ${Math
       </div>
     </div>
 
-    <p v-if="!view.rows.length" class="muted">Noch nichts unter Beobachten. Suche oben nach einem Gegenstand, klicke unter <button class="link" @click="emit('go', 'market:items')">Marktübersicht, Markt</button> auf den Stern oder speichere im Spiel im Fokus.</p>
+    <template v-if="tab === 'quick'">
+      <p v-if="!tabRows.length" class="muted">Noch nichts für den Schnellkauf beobachtet. Suche oben nach einem Gegenstand oder speichere im Spiel im Schnellkauf des Fokus.</p>
+      <table v-else class="tbl">
+        <thead><tr>
+          <th>Gegenstand</th>
+          <th class="num" title="Günstigstes Angebot im letzten Stand des gewählten Markts">Günstigster</th>
+          <th class="num" title="Kaufen bis im Schnellkauf">Kaufen bis</th>
+          <th class="num" title="Höchstens so viel Gold je Kauf, leer = ohne Grenze">Limit pro Kauf</th>
+          <th></th>
+        </tr></thead>
+        <tbody>
+          <tr v-for="r in tabRows" :key="r.key" :data-watch-key="r.key" :class="{ buy: r.quickHit, flash: flash === r.key }">
+            <td class="name">
+              <span class="click" tabindex="0" :style="{ color: qualityColor(r.quality) }" @click="emit('open', r.key)" @keydown.enter="emit('open', r.key)">{{ r.name || r.key }}</span>
+              <span v-if="r.wait" class="wait small" :title="'Änderung ist noch nicht im Spiel'">{{ waitText }}</span>
+            </td>
+            <td class="num"><Gold :copper="r.price" compact /></td>
+            <td class="num"><MoneyInput :value="r.qlim" :label="`Kaufen bis im Schnellkauf für ${r.name || r.key}`" @change="setQuick(r, $event, r.qgold)" /></td>
+            <td class="num"><MoneyInput :value="r.qgold || null" :label="`Limit pro Kauf für ${r.name || r.key}`" @change="setQuick(r, r.qlim, $event)" /></td>
+            <td class="num"><button class="small" @click="offList(r)">Entfernen</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small muted">Marktbewegung, Treffer und Einbrüche misst Broker im Spiel und zeigt sie dort unter Beobachten, Schnellkauf.</p>
+    </template>
+
+    <template v-else-if="tab === 'trade'">
+      <p v-if="!tabRows.length" class="muted">Noch nichts für den Markttausch beobachtet. Suche oben nach einem Gegenstand oder wähle im Spiel im Menü eines Gegenstands „Beobachten: Markttausch“.</p>
+      <template v-else>
+        <p v-if="!view.pair" class="small muted">Noch kein Marktvergleich für diesen Markt. Die Werte kommen, sobald der Manager beide Häuser verglichen hat.</p>
+        <table class="tbl">
+          <thead><tr>
+            <th>Gegenstand</th>
+            <th>Bessere Richtung</th>
+            <th class="num">{{ view.pair ? view.pair.home : 'Fraktion' }}</th>
+            <th class="num">{{ view.pair ? view.pair.neutral : 'Neutral' }}</th>
+            <th class="num" title="Gewinn in Prozent des Kaufpreises nach dem Anteil des Zielhauses">Spanne</th>
+            <th class="num" title="Verkaufte Stück je Tag im Zielhaus">Absatz Ziel</th>
+            <th></th>
+          </tr></thead>
+          <tbody>
+            <tr v-for="r in tabRows" :key="r.key" :data-watch-key="r.key" :class="{ flash: flash === r.key }">
+              <td class="name">
+                <span class="click" tabindex="0" :style="{ color: qualityColor(r.quality) }" @click="emit('open', r.key)" @keydown.enter="emit('open', r.key)">{{ r.name || r.key }}</span>
+                <span v-if="r.wait" class="wait small" :title="'Änderung ist noch nicht im Spiel'">{{ waitText }}</span>
+              </td>
+              <td class="small">{{ r.cmp ? dirText(r.cmp.dir) : '' }}</td>
+              <td class="num"><Gold v-if="r.cmp && r.cmp.hm != null" :copper="r.cmp.hm" compact /><span v-else class="faint">–</span></td>
+              <td class="num"><Gold v-if="r.cmp && r.cmp.nm != null" :copper="r.cmp.nm" compact /><span v-else class="faint">–</span></td>
+              <td class="num" :class="{ good: r.cmp && r.cmp.pct > 0 }">{{ r.cmp ? (r.cmp.pct > 0 ? '+' : '') + r.cmp.pct + ' %' : '–' }}</td>
+              <td class="num">{{ r.cmp ? (r.cmp.dir === 'n' ? r.cmp.sn : r.cmp.sh) ?? '–' : '–' }}</td>
+              <td class="num"><button class="small" @click="offList(r)">Entfernen</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="small muted">Üblicher günstigster Preis in beiden Häusern und Spanne aus dem Marktvergleich<template v-if="view.pair && !view.pair.cutSure"> (Anteil Neutral {{ Math.round(view.pair.cutN * 100) }} % angenommen)</template>. Den Zustand am Auktionshaus prüft Broker im Spiel.</p>
+      </template>
+    </template>
+
+    <template v-else>
+    <p v-if="!tabRows.length" class="muted">Noch nichts unter Beobachten. Suche oben nach einem Gegenstand, klicke unter <button class="link" @click="emit('go', 'market:items')">Marktübersicht, Markt</button> auf den Stern oder speichere im Spiel im Fokus.</p>
     <table v-else class="tbl">
       <thead>
         <tr>
@@ -125,7 +200,7 @@ const bandTip = (b) => (b ? `Üblich ${Math.round(b.low / 100) / 100} bis ${Math
         </tr>
       </thead>
       <tbody>
-        <tr v-for="r in view.rows" :key="r.key" :data-watch-key="r.key" :class="{ buy: r.advice === 'buy', sell: r.advice === 'sell', flash: flash === r.key }">
+        <tr v-for="r in tabRows" :key="r.key" :data-watch-key="r.key" :class="{ buy: r.advice === 'buy', sell: r.advice === 'sell', flash: flash === r.key }">
           <td class="name">
             <span class="click" tabindex="0" :style="{ color: qualityColor(r.quality) }" @click="emit('open', r.key)" @keydown.enter="emit('open', r.key)">{{ r.name || r.key }}</span>
             <span v-if="r.wait" class="wait small" :title="'Änderung ist noch nicht im Spiel'">{{ waitText }}</span>
@@ -154,10 +229,11 @@ const bandTip = (b) => (b ? `Üblich ${Math.round(b.low / 100) / 100} bis ${Math
             <button class="bell" :class="{ on: r.bells.buy }" :disabled="r.buy == null" :aria-pressed="r.bells.buy" :title="r.buy == null ? 'Erst Kaufen bis eintragen' : r.bells.buy ? 'Meldung bei Kaufen bis ist an' : 'Meldung bei Kaufen bis einschalten'" @click="bell(r, 'buy')">🔔<small>▼</small></button>
             <button class="bell" :class="{ on: r.bells.up }" :disabled="r.up == null" :aria-pressed="r.bells.up" :title="r.up == null ? 'Erst einen Zielpreis eintragen' : r.bells.up ? 'Meldung beim Zielpreis ist an' : 'Meldung beim Zielpreis einschalten'" @click="bell(r, 'up')">🔔<small>▲</small></button>
           </td>
-          <td class="num"><button class="small" @click="remove(r)">Entfernen</button></td>
+          <td class="num"><button class="small" @click="offList(r)">Entfernen</button></td>
         </tr>
       </tbody>
     </table>
+    </template>
     <p class="small muted">Preise und Rat gelten für den gewählten Markt. Änderungen hier kommen beim nächsten Laden ins Spiel, Änderungen im Spiel von selbst hierher. Die Glocken gelten nur im Manager, die Warnung im Spiel stellst du dort unter Beobachten ein.</p>
 
     <SyncPanel area="watch" :stamp="stamp" :now="now" />
@@ -166,6 +242,12 @@ const bandTip = (b) => (b ? `Üblich ${Math.round(b.low / 100) / 100} bis ${Math
 
 <style scoped>
 .watch { display: grid; gap: 14px; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.tabs button { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 14px; color: var(--muted); font-weight: 500; margin-bottom: -1px; }
+.tabs button:hover { color: var(--text); }
+.tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+.cnt { margin-left: 6px; font-size: 0.85em; color: var(--muted); }
+.good { color: var(--good, #60e060); }
 .head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .head h1 { margin: 0; }
 .tools { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }

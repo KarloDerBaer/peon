@@ -24,6 +24,9 @@
 -- Ab 0.126 (KarloDerBaer 20.11.2026): Schnellkauf ohne Rat, Bewegung als Ampel (gespeichert), dazu Treffer und
 -- Einbrueche im Zeitraum (quickStatDays) und der Tiefstpreis der letzten 24 Std. (QuickStats.lua). Gekauft im Tooltip
 -- ueber den Zeitraum statt nur fuer die Sitzung. Der Rat zaehlt weiter fuer die Zahl am Reiter und das Aufleuchten.
+-- Ab 0.128 (KarloDerBaer 20.11.2026, Konzept Peon_Broker_Marktvergleich.md 10.3): dritter Unterreiter Markttausch
+--   Richtung, Preis Fraktion, Preis Neutral, Spanne nach dem Anteil des Zielhauses, Absatz im Ziel, Zustand am Haus hier.
+--   Nur beobachten, ohne eigene Grenzen. Laufend abgefragt werden die Zeilen, solange die Liste offen ist (Trade.lua).
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -38,9 +41,11 @@ local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
 local function Money(v) return ns.Tooltip.Money(v) end
 local function Now() return GetTime and GetTime() or time() end
 
--- ab 0.119: offener Unterreiter ("buyout" oder "quick")
+-- ab 0.119: offener Unterreiter ("buyout", "quick", ab 0.128 "trade")
 function P.Tab()
-    return mod.db.watchTab == "quick" and "quick" or "buyout"
+    local t = mod.db.watchTab
+    if t == "quick" or t == "trade" then return t end
+    return "buyout"
 end
 
 -- Reiter Beobachten zu sehen? (wie Focus.Shown)
@@ -160,8 +165,10 @@ function P.Rows(tab)
         local mode
         if tab == "active" then mode = Wt.Mode(key)   -- ab 0.106
         elseif tab == "quick" then mode = Wt.InQuick(key) and "quick" or nil
+        elseif tab == "trade" then mode = Wt.InTrade(key) and "trade" or nil   -- ab 0.128
         else mode = Wt.InBuyout(key) and "buyout" or nil end
-        if mode then rows[#rows + 1] = mode == "quick" and P.QuickRow(key, w) or P.BuyoutRow(key, w) end
+        if mode == "trade" then rows[#rows + 1] = P.TradeRow(key, w)
+        elseif mode then rows[#rows + 1] = mode == "quick" and P.QuickRow(key, w) or P.BuyoutRow(key, w) end
     end
     return rows
 end
@@ -224,6 +231,36 @@ function P.QuickRow(key, w)
     r.dips = st and st.dips or nil
     r.hits = st and r.limit and st.hits or nil
     r.low24 = QS and QS.Low24(key) or nil
+    return r
+end
+
+-- ab 0.128: Zeile der Liste Markttausch: beide Haeuser, Richtung und Spanne nach Gebuehr, Absatz im Ziel, Zustand
+function P.TradeRow(key, w)
+    local D, G, T = ns.Data, ns.Pages, ns.Trade
+    local hk, nk = ns.HomeMarketKey(), ns.NeutralMarketKey()
+    local function Price(market)
+        local m = D.Markets()[market]
+        local e = type(m) == "table" and m.items and m.items[key]
+        if type(e) ~= "table" or e.gone or not Num(e.m) or e.m <= 0 then return nil, e end
+        return e.m, e
+    end
+    local home, he = Price(hk)
+    local neutral, ne = Price(nk)
+    local r = BaseRow(key, w, he or ne)
+    r.mode = "trade"
+    r.home, r.neutral = home, neutral
+    if home and neutral and G then
+        r.pct, r.dir = G.Spread(home, neutral, G.CutOf(hk), G.CutOf(nk))
+        r.dir = r.dir == "neutral" and "n" or r.dir == "home" and "h" or nil
+    end
+    if r.dir then
+        r.sales = G and G.SalesPerDay(key, r.dir == "n" and nk or hk) or nil
+        if T then
+            local x = { key = key, dir = r.dir, buy = r.dir == "n" and home or neutral, sell = r.dir == "n" and neutral or home }
+            local _, text = T.State(x)
+            r.stateText = text
+        end
+    end
     return r
 end
 
@@ -303,15 +340,28 @@ function P.Build(c)
               sort = function(r) return r.low24 or math.huge end },
         },
     }
+    -- ab 0.128: Liste Markttausch
+    COLS.trade = {
+        nameCol,
+        { key = "dir", title = L.TR_COL_DIR, width = 92, align = "RIGHT",
+          format = function(v) return v and ("|cff66bbff" .. ns.Trade.DirText(v) .. "|r") or (GREY .. "-|r") end },
+        { key = "home", title = L.PG_COL_HOME, width = 92, align = "RIGHT", format = Price },
+        { key = "neutral", title = L.PG_COL_NEUTRAL, width = 92, align = "RIGHT", format = Price },
+        { key = "pct", title = L.PG_COL_DIFF, width = 80, align = "RIGHT",
+          format = function(v) if not Num(v) then return GREY .. "-|r" end return (v > 0 and GREEN .. "+" or GREY) .. v .. " %|r" end,
+          sort = function(r) return r.pct and -r.pct or nil end },
+        { key = "sales", title = L.TR_COL_SALES, width = 60, align = "RIGHT", format = function(v) return ns.Pages.FmtSales(v) end },
+        { key = "stateText", title = L.CH_COL_STATE, width = 120, align = "RIGHT", format = function(v) return v or "" end, sort = function(r) return r.stateText or "" end },
+    }
     P.panels, P.lists = {}, {}
-    for _, tab in ipairs({ "buyout", "quick" }) do
+    for _, tab in ipairs({ "buyout", "quick", "trade" }) do
         local lp = UI.Panel(c, "list", true)
         lp:SetPoint("TOPLEFT", 0, -62)
         lp:SetPoint("BOTTOMRIGHT", 0, 34)
         P.panels[tab] = lp
         local list = UI.Table(lp, {
             columns = COLS[tab],
-            sortKey = "name", icon = true, empty = tab == "quick" and L.WATCH_EMPTY_QUICK or L.WATCH_EMPTY,
+            sortKey = "name", icon = true, empty = tab == "quick" and L.WATCH_EMPTY_QUICK or tab == "trade" and L.WATCH_EMPTY_TRADE or L.WATCH_EMPTY,
             rowBg = function(r)   -- ab 0.83: kurz aufleuchten bei neuem Rat (Kern API 19)
                 if r and r.flash == "buy" then return 0.38, 0.88, 0.38, 0.28 end
                 if r and r.flash == "sell" then return 1, 0.82, 0, 0.28 end
@@ -351,6 +401,11 @@ function P.Build(c)
                     return
                 end
                 if r.mode == "quick" and GameTooltip then P.QuickTooltip(row, r); return end
+                if r.mode == "trade" and ns.Pages then   -- ab 0.128: beide Haeuser
+                    ns.Pages.CompareTooltip(row, { key = r.key, home = r.home, neutral = r.neutral,
+                        salesH = ns.Pages.SalesPerDay(r.key, ns.HomeMarketKey()), salesN = ns.Pages.SalesPerDay(r.key, ns.NeutralMarketKey()) })
+                    return
+                end
                 W.ShowItemTooltip(row, r.key)
             end,
         })
@@ -358,7 +413,7 @@ function P.Build(c)
         P.lists[tab] = list
     end
     P.panel, P.list = P.panels[P.Tab()], P.lists[P.Tab()]
-    P.tabs = UI.TopTabs(c, { { "buyout", L.FOCUS_MODE_BUYOUT }, { "quick", L.FOCUS_MODE_QUICK } }, function(key)
+    P.tabs = UI.TopTabs(c, { { "buyout", L.FOCUS_MODE_BUYOUT }, { "quick", L.FOCUS_MODE_QUICK }, { "trade", L.CH_TAB_TRADE } }, function(key)
         mod:Call("Beobachten", P.SelectTab, key)
     end)
     if P.tabs[1] then P.tabs[1]:SetPoint("BOTTOMLEFT", P.panels.buyout, "TOPLEFT", 10, -2) end
@@ -397,7 +452,7 @@ end
 
 -- ab 0.119: Unterreiter waehlen (Klick oder beim Aufbau)
 function P.SelectTab(key)
-    mod.db.watchTab = key == "quick" and "quick" or "buyout"
+    mod.db.watchTab = (key == "quick" or key == "trade") and key or "buyout"
     local tab = P.Tab()
     for k, panel in pairs(P.panels or {}) do panel:SetShown(k == tab) end
     P.panel, P.list = P.panels[tab], P.lists[tab]

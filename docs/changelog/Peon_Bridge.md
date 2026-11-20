@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.13.1
+
+Kurz: Die Bridge gibt zusätzlich die Grenzen des Marktvergleichs an Broker weiter, damit Broker unpassende Chancen selbst entfernen kann.
+
+- 0.13.1 (20.11.2026): `mod:Compare` liefert in `info` dazu `minPct` und `minNet`. Gehört zu Manager 0.51.0 und Broker 0.128.0.
+  - Tests: Grenzen in `info` (`test_bridge.lua`).
+
 ## 0.13.0
 
 Kurz: Die Bridge gibt die Chancen des Marktvergleichs aus dem Peon Manager an Broker weiter.

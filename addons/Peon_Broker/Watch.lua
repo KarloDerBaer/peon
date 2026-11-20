@@ -13,6 +13,9 @@
 -- und qmax (hoechste Menge) zum Schnellkauf, mode = "quick" oder nil (Aufkauf) ist der zuletzt gespeicherte Modus.
 -- qlim, qmax und mode bleiben im Spiel, der Abgleich mit dem Manager laesst sie aus (Wt.SKIP). Der Preisalarm nimmt
 -- Kaufen bis des gespeicherten Modus, den Zielpreis nur im Aufkauf.
+-- Ab 0.128 (KarloDerBaer 20.11.2026): Liste Markttausch (ton = true, Haken "Beobachten: Markttausch"). Werte des
+-- Schnellkaufs (qlim, qgold, qskip, qavg, Zeit t.q) und die Haken der Listen (bon, qon, ton, Zeit t.lists) gleicht Broker
+-- jetzt mit dem Manager ab, je Gruppe mit eigener Zeit wie Kaufen bis und Zielpreis. qmax und mode bleiben im Spiel.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -24,10 +27,12 @@ ns.Watch = Wt
 Wt.PCTS = { 10, 20, 30 }   -- Vorschlaege im Menue: % unter dem Vergleichspreis
 
 -- Werte mit eigener Zeit (ab 0.89, Regeln in Shop.lua): Kaufen bis und Zielpreis. hit und upHit sind Merker des Alarms
-Wt.SPEC = { { f = "buy", keys = { "lim", "pct" }, reset = "hit" }, { f = "up", keys = { "up" }, reset = "upHit" } }
+Wt.SPEC = { { f = "buy", keys = { "lim", "pct" }, reset = "hit" }, { f = "up", keys = { "up" }, reset = "upHit" },
+            { f = "q", keys = { "qlim", "qgold", "qskip", "qavg" }, reset = "hit" },   -- ab 0.128: Schnellkauf
+            { f = "lists", keys = { "bon", "qon", "ton" } } }                         -- ab 0.128: Listen
 Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, upHit = true, sDown = true, sUp = true, muteDown = true, muteUp = true,
-            qlim = true, qmax = true, mode = true, qskip = true, qgold = true, qavg = true,   -- ab 0.106: Werte des Schnellkaufs nur im Spiel
-            bon = true, qon = true }   -- ab 0.120: Haken Beobachten Aufkauf und Schnellkauf, nur im Spiel
+            qlim = true, qmax = true, mode = true, qskip = true, qgold = true, qavg = true,   -- ab 0.106: Werte des Schnellkaufs (ab 0.128 ueber t.q)
+            bon = true, qon = true, ton = true }   -- ab 0.120: Haken der Listen (ab 0.128 ueber t.lists)
 -- ab 0.91 (Fehlerberichte 20 und 21): Warnton je Richtung, einstellbar fuer alle (watchSoundDown, watchSoundUp, dazu
 -- Chatnachricht watchChatDown, watchChatUp) und je Gegenstand (sDown, sUp: Ton oder "off", nil = wie eingestellt).
 -- Die Werte je Gegenstand bleiben im Spiel, der Manager kennt sie nicht.
@@ -35,6 +40,27 @@ Wt.SOUND_CHOICES = { "off", "raid", "ready", "alarm", "tell" }
 
 local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
 local function Money(v) return ns.Tooltip.Money(v) end
+
+-- ab 0.128: Werte einer Gruppe merken und nach einer Aenderung die Zeit der Gruppe setzen (Abgleich mit dem Manager)
+local GROUP_KEYS = { q = { "qlim", "qgold", "qskip", "qavg" }, lists = { "bon", "qon", "ton" } }
+function Wt.Snap(w)
+    local o = {}
+    if type(w) ~= "table" then return o end
+    for g, keys in pairs(GROUP_KEYS) do
+        local parts = {}
+        for _, k in ipairs(keys) do parts[#parts + 1] = tostring(w[k]) end
+        o[g] = table.concat(parts, "|")
+    end
+    return o
+end
+
+function Wt.StampChanged(w, old)
+    if type(w) ~= "table" or not ns.Shop then return end
+    local now = Wt.Snap(w)
+    for g in pairs(GROUP_KEYS) do
+        if now[g] ~= (old and old[g]) then ns.Shop.Stamp(w, Wt.SPEC, g, time and time() or 0) end
+    end
+end
 
 function Wt.Store()
     local acc = mod.acc
@@ -122,8 +148,10 @@ function Wt.SetMode(key, mode)
     local w = Wt.Store()[key]
     if not w then return false end
     local m = mode == "quick" and "quick" or nil
+    local old = Wt.Snap(w)
     if w.mode ~= m then w.mode, w.hit = m, nil end
     if m == "quick" then w.qon = true else w.bon = true end   -- ab 0.120: in die Liste des Modus
+    Wt.StampChanged(w, old)
     return true
 end
 
@@ -144,7 +172,46 @@ function Wt.InBuyout(key)
     if not w then return false end
     if w.bon ~= nil then return w.bon end
     if Num(w.lim) or Num(w.pct) or Num(w.up) then return true end
+    if w.ton then return false end   -- ab 0.128: nur in Markttausch
     return not Wt.InQuick(key)
+end
+
+-- ab 0.128: Liste Markttausch
+function Wt.InTrade(key)
+    local w = Wt.Store()[key]
+    return w ~= nil and w.ton == true
+end
+
+-- Schluessel der Liste Markttausch (bekannte Suchschluessel), sortiert
+function Wt.TradeKeys()
+    local keys = {}
+    for key, w in pairs(Wt.Store()) do
+        if w.ton == true and (not ns.Buy or ns.Buy.KnownKey(key)) then keys[#keys + 1] = key end
+    end
+    table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+    return keys
+end
+
+-- Haken "Beobachten: Markttausch". Aus: steht der Gegenstand in keiner anderen Liste, endet die Beobachtung.
+function Wt.SetTradeOn(key, on, info)
+    if key == nil then return false end
+    if on then
+        local fresh = not Wt.Is(key)
+        if fresh then Wt.Add(key, info) end
+        local w = Wt.Store()[key]
+        local old = Wt.Snap(w)
+        if fresh then w.bon, w.qon = false, false end
+        w.ton = true
+        Wt.StampChanged(w, old)
+    else
+        local w = Wt.Store()[key]
+        if not w then return false end
+        local old = Wt.Snap(w)
+        w.ton = false
+        if not Wt.InBuyout(key) and not Wt.InQuick(key) then Wt.Remove(key); return true end
+        Wt.StampChanged(w, old)
+    end
+    return true
 end
 
 -- ab 0.120: Haken "Beobachten: Aufkauf". Aus: steht der Gegenstand noch im Schnellkauf, bleibt er dort, sonst endet
@@ -154,15 +221,21 @@ function Wt.SetBuyoutOn(key, on, info)
     if on then
         if not Wt.Is(key) then Wt.Add(key, info) end
         local w = Wt.Store()[key]
+        local old = Wt.Snap(w)
         w.bon = true
         if not Wt.InQuick(key) then w.mode = nil end
+        Wt.StampChanged(w, old)
     else
         local w = Wt.Store()[key]
         if not w then return false end
-        if not Wt.InQuick(key) then Wt.Remove(key); return true end
+        if not Wt.InQuick(key) and not Wt.InTrade(key) then Wt.Remove(key); return true end
+        local old = Wt.Snap(w)
         w.bon = false
-        if w.mode ~= "quick" then w.mode, w.hit = "quick", nil end   -- Alarm nach Kaufen bis des Schnellkaufs
-        w.qon = true
+        if Wt.InQuick(key) or not Wt.InTrade(key) then
+            if w.mode ~= "quick" then w.mode, w.hit = "quick", nil end   -- Alarm nach Kaufen bis des Schnellkaufs
+            w.qon = true
+        end
+        Wt.StampChanged(w, old)
     end
     Wt.Check({ key })
     return true
@@ -177,6 +250,7 @@ function Wt.SetQuickOn(key, on, info)
         local fresh = not Wt.Is(key)
         if fresh then Wt.Add(key, info) end
         local w = Wt.Store()[key]
+        local old = Wt.Snap(w)
         if not Num(w.qlim) then
             local limit, gold = nil, nil
             if ns.QuickChances then limit, gold = ns.QuickChances.Defaults(key) end
@@ -187,13 +261,17 @@ function Wt.SetQuickOn(key, on, info)
         w.qon = true
         if fresh then w.bon = false end
         if fresh or not Wt.InBuyout(key) then w.mode, w.hit = "quick", nil end
+        Wt.StampChanged(w, old)
     else
         local w = Wt.Store()[key]
         if not w then return false end
         local inB = Wt.InBuyout(key)   -- vor dem Ausschalten: steht er auch im Aufkauf?
-        if not inB then Wt.Remove(key); return true end
-        w.qon, w.bon = false, true
+        if not inB and not Wt.InTrade(key) then Wt.Remove(key); return true end
+        local old = Wt.Snap(w)
+        w.qon = false
+        if inB or not Wt.InTrade(key) then w.bon = true end
         if w.mode == "quick" then w.mode, w.hit = nil, nil end
+        Wt.StampChanged(w, old)
     end
     Wt.Check({ key })
     return true
@@ -203,6 +281,7 @@ end
 function Wt.SetQuick(key, limit, gold, skip, avg)
     local w = Wt.Store()[key]
     if not w then return false end
+    local old = Wt.Snap(w)
     w.qlim = Num(limit) and limit > 0 and math.floor(limit) or nil
     w.qmax = nil   -- bis 0.111 Max. Menge
     w.qgold = Num(gold) and gold > 0 and math.floor(gold) or 0   -- ab 0.112 Limit pro Kauf, ab 0.113 0 = ohne Grenze
@@ -210,6 +289,7 @@ function Wt.SetQuick(key, limit, gold, skip, avg)
     w.qskip = skip and true or false   -- ab 0.109: Haken "Lockangebot ignorieren", ab 0.113 auch aus gespeichert
     w.mode, w.hit = "quick", nil
     w.qon = true   -- ab 0.120: Speichern im Schnellkauf stellt ihn in die Liste Schnellkauf
+    Wt.StampChanged(w, old)
     Wt.Check({ key })
     return true
 end
@@ -352,11 +432,19 @@ function Wt.AddMenu(root, item, key)
         end
         Add(L.MENU_WATCH_BUYOUT, function() return Wt.InBuyout(key) end, Wt.SetBuyoutOn)
         Add(L.MENU_WATCH_QUICK, function() return Wt.InQuick(key) end, Wt.SetQuickOn)
+        Add(L.MENU_WATCH_TRADE, function() return Wt.InTrade(key) end, Wt.SetTradeOn)   -- ab 0.128
     elseif root.CreateCheckbox then
         root:CreateCheckbox(L.MENU_WATCH, function() return Wt.Is(key) end,
             function() mod:Call("Beobachtung", Wt.Toggle, key, info) end)
     else
         root:CreateButton(on and L.MENU_UNWATCH or L.MENU_WATCH, function() mod:Call("Beobachtung", Wt.Toggle, key, info) end)
+    end
+    -- ab 0.128: Markttausch auch fuer Gegenstaende, die keine Massenware sind
+    if key ~= nil and not ns.Data.IsCommodity(key) then
+        local get = function() return Wt.InTrade(key) end
+        local set = function() mod:Call("Beobachtung", Wt.SetTradeOn, key, not get(), info) end
+        if root.CreateCheckbox then root:CreateCheckbox(L.MENU_WATCH_TRADE, get, set)
+        else root:CreateButton((get() and "[x] " or "[ ] ") .. L.MENU_WATCH_TRADE, set) end
     end
     if not on then return end
     if not Wt.InBuyout(key) then return end

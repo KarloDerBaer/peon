@@ -72,7 +72,8 @@ function importFile(db, file) {
     for (const [k, w] of Object.entries(acc.watch || {})) {
       if (!w || typeof w !== 'object') { items[String(k)] = Number(w) || 0; continue; }
       const e = { u: Number(w.u) || 0 };
-      for (const f of ['lim', 'pct', 'up', 'name', 'q', 'icon']) if (w[f] !== undefined && w[f] !== null && typeof w[f] !== 'object') e[f] = w[f];
+      // ab 0.51.0 dazu Schnellkauf und Haken der Listen (Broker 0.128)
+      for (const f of ['lim', 'pct', 'up', 'name', 'q', 'icon', 'qlim', 'qgold', 'qskip', 'qavg', 'bon', 'qon', 'ton']) if (w[f] !== undefined && w[f] !== null && typeof w[f] !== 'object') e[f] = w[f];
       if (w.t && typeof w.t === 'object') e.t = { ...w.t };
       items[String(k)] = e;
     }

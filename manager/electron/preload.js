@@ -77,6 +77,8 @@ contextBridge.exposeInMainWorld('peon', {
   watchSetBuy: (key, kind, value) => ipcRenderer.invoke('watchSetBuy', key, kind, value),
   watchSetUp: (key, value) => ipcRenderer.invoke('watchSetUp', key, value),
   watchSetBell: (key, which, on) => ipcRenderer.invoke('watchSetBell', key, which, on),
+  watchSetQuick: (key, qlim, qgold) => ipcRenderer.invoke('watchSetQuick', key, qlim, qgold),   // ab 0.51.0
+  watchSetList: (key, list, on) => ipcRenderer.invoke('watchSetList', key, list, on),
   syncLog: (area, origin) => ipcRenderer.invoke('syncLog', area, origin),
   syncTrash: (area) => ipcRenderer.invoke('syncTrash', area),
   syncRestore: (id) => ipcRenderer.invoke('syncRestore', id),

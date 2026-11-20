@@ -12,7 +12,9 @@
 const { stamp, nextU, newFrom, mergeFields } = require('./shopping');
 
 const GONE_DAYS = 365;   // so lange bleiben Loeschmarken stehen (bis 0.29.0 60 Tage)
-const SPEC = [{ f: 'buy', keys: ['lim', 'pct'], reset: 'hit' }, { f: 'up', keys: ['up'], reset: 'upHit' }];
+// ab 0.51.0 (Broker 0.128, KarloDerBaer 20.11.2026): Werte des Schnellkaufs (t.q) und Haken der Listen (t.lists) mit eigener Zeit
+const SPEC = [{ f: 'buy', keys: ['lim', 'pct'], reset: 'hit' }, { f: 'up', keys: ['up'], reset: 'upHit' },
+  { f: 'q', keys: ['qlim', 'qgold', 'qskip', 'qavg'], reset: 'hit' }, { f: 'lists', keys: ['bon', 'qon', 'ton'] }];
 const SKIP = new Set(['u', 't', 'm', 'lim', 'pct', 'up', 'hit', 'upHit']);
 
 const num = (v) => Number(v) || 0;
@@ -140,4 +142,52 @@ function setUp(doc, key, value, now) {
   return true;
 }
 
-module.exports = { empty, clean, merge, purge, forGame, add, remove, setBuy, setUp, SPEC, GONE_DAYS, BARE_T };
+// ab 0.51.0: Listen wie in Broker (Watch.lua InQuick, InBuyout, InTrade)
+const has = (v) => v !== undefined && v !== null;
+function inQuick(w) { return has(w.qon) ? !!w.qon : has(w.qlim); }
+function inBuyout(w) {
+  if (has(w.bon)) return !!w.bon;
+  if (has(w.lim) || has(w.pct) || has(w.up)) return true;
+  if (w.ton) return false;
+  return !inQuick(w);
+}
+function inTrade(w) { return w.ton === true; }
+
+// Werte des Schnellkaufs: qlim (Kaufen bis, Kupfer) und qgold (Limit pro Kauf, 0 = ohne Grenze)
+function setQuick(doc, key, { qlim, qgold } = {}, now) {
+  const w = doc.items[String(key)];
+  if (!w) return false;
+  const lim = Number(qlim) > 0 ? Math.floor(Number(qlim)) : null;
+  const gold = Number(qgold) > 0 ? Math.floor(Number(qgold)) : 0;
+  if ((w.qlim ?? null) === lim && (w.qgold ?? 0) === gold) return false;
+  if (lim === null) delete w.qlim; else w.qlim = lim;
+  w.qgold = gold;
+  stamp(w, SPEC, 'q', now);
+  w.m = 1;
+  return true;
+}
+
+// Haken einer Liste ('buyout', 'quick', 'trade') wie im Gegenstandsmenue von Broker. Rueckgabe 'removed', true oder false
+function setList(doc, key, list, on, now) {
+  const k = String(key);
+  const f = { buyout: 'bon', quick: 'qon', trade: 'ton' }[list];
+  if (!f) return false;
+  let w = doc.items[k];
+  if (!w) {
+    if (!on) return false;
+    add(doc, k, now);
+    w = doc.items[k];
+    w.bon = false; w.qon = false; w.ton = false;
+  }
+  const before = [inBuyout(w), inQuick(w), inTrade(w)].join();
+  const keep = { bon: inBuyout(w), qon: inQuick(w), ton: inTrade(w) };
+  keep[f] = !!on;
+  if (!keep.bon && !keep.qon && !keep.ton) { remove(doc, k, now); return 'removed'; }
+  w.bon = keep.bon; w.qon = keep.qon; w.ton = keep.ton;
+  if ([inBuyout(w), inQuick(w), inTrade(w)].join() === before && w.t && w.t.lists) return false;
+  stamp(w, SPEC, 'lists', now);
+  w.m = 1;
+  return true;
+}
+
+module.exports = { empty, clean, merge, purge, forGame, add, remove, setBuy, setUp, setQuick, setList, inQuick, inBuyout, inTrade, SPEC, GONE_DAYS, BARE_T };
