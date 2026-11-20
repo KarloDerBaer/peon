@@ -6198,4 +6198,44 @@ end)()
   check(#out == said0, "0.130: sonst kein Hinweis")
 end)()
 
+-- ===== 0.130.1: Namensverzeichnis der Paketliste ohne Ruckeln =====
+;(function()
+  local P, D = ns.Pack, ns.Data
+  local mk = D.Market(nil, true)
+  mk.items[7811] = { m = 10, md = 10, q = 5, n = 1, t = clock, nm = "Magiestoffballen" }
+  mk.items["7812:Robe des Adlers"] = { m = 10, md = 10, q = 1, n = 1, t = clock, nm = "Robe des Adlers" }
+  P.cache, P.job = nil, nil
+  local idx, c = P.Index()
+  check(idx[P.Norm("Magiestoffballen")] == 7811, "0.130.1: Gegenstand mit Nummer im Verzeichnis")
+  check(idx[P.Norm("Robe des Adlers")] == nil, "0.130.1: Varianten nicht im Verzeichnis")
+  -- ohne neue Daten kein Neuaufbau, auch nach langer Zeit
+  now = now + 3600
+  local _, c2 = P.Index()
+  check(c2 == c, "0.130.1: kein Neuaufbau nach einer Stunde ohne neue Daten")
+  -- neuer Scan: neues Verzeichnis
+  local oldScan = mk.lastScan
+  mk.lastScan = (mk.lastScan or clock) + 60
+  local _, c3 = P.Index()
+  check(c3 ~= c2, "0.130.1: nach einem Scan neu aufgebaut")
+  -- Aufbau im Hintergrund in Schritten
+  local keepStep = P.STEP
+  P.STEP = 1
+  mk.lastScan = mk.lastScan + 60
+  local before = #timers
+  check(P.Prepare() and P.job ~= nil, "0.130.1: Aufbau im Hintergrund gestartet")
+  check(not P.Prepare(), "0.130.1: kein zweiter Aufbau fuer denselben Stand")
+  local runs = 0
+  while #timers > before and runs < 100000 do
+    local fn = table.remove(timers, before + 1)
+    fn(); runs = runs + 1
+  end
+  check(runs > 1 and P.job == nil and P.cache.sig == P.Sig() and P.cache.idx[P.Norm("Magiestoffballen")] == 7811, "0.130.1: in mehreren Schritten fertig")
+  local _, c4 = P.Index()
+  check(c4 == P.cache, "0.130.1: fertiges Verzeichnis wird benutzt")
+  P.STEP = keepStep
+  mk.lastScan = oldScan
+  mk.items[7811], mk.items["7812:Robe des Adlers"] = nil, nil
+  P.cache, P.job = nil, nil
+end)()
+
 print("ALLE TESTS OK")

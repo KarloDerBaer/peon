@@ -3,6 +3,11 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 20.11.2026: Ruckeln bei Kisten mit Paketliste (Broker 0.130.1)
+
+- **Erst mit echten Daten messen** (Claude, nach Fehlermeldung KarloDerBaer): Nicht der Tooltip war langsam (unter 0,1 ms), sondern das Namensverzeichnis des Paketvergleichs, das beim Zeigen einer Kiste jede Minute neu entstand (190 ms).
+- **Verzeichnis nur mit Gegenständen mit Nummer, neu nur bei neuen Preisdaten, Aufbau im Hintergrund** (KarloDerBaer, Vorschlag Claude). Namen aus Live-Abfragen zwischen zwei Scans findet Broker wie bisher über das Spiel.
+
 ## 20.11.2026: Broker-Datei unter der Grenze des Spiels (Broker 0.130.0, Manager 0.53.1)
 
 - **Erst messen, dann bauen** (KarloDerBaer). Ergebnis: Das Spiel zählt verschiedene Werte, nicht die Größe. Jeder Text zählt einmal, egal wie lang. Tageswerte kürzen, Wochenwerte weglassen, runden oder alte Gegenstände entfernen hätte fast nichts gespart (Claude, Messung mit der reparierten Datei).

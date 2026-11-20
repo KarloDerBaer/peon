@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.130.1
+
+Kurz: Kein kurzes Ruckeln mehr, wenn du den Tooltip einer Kiste mit Paketliste öffnest.
+
+- 0.130.1 (20.11.2026, Fehlermeldung KarloDerBaer, „Abgefangene Kiste: Stoffe des Experten“):
+  - **Behoben, Ruckeln bei Kisten:** Der Paketvergleich baute sein Namensverzeichnis aus allen gespeicherten Gegenständen spätestens jede Minute und nach jedem Scan neu, und zwar beim Zeigen der Kiste. Mit echten Daten waren das 57.500 Einträge und etwa 190 ms (Lua 5.1 auf dem PC). Der übrige Tooltip brauchte unter 0,1 ms.
+  - Jetzt nur Gegenstände mit Nummer (Varianten tragen seit 0.130.0 den vollen Namen und passen nie zu einer Paketliste), echte Daten 8.900 Einträge und 32 ms. Neu gebaut wird nur bei neuen Preisdaten (`P.Sig`: Scan oder Stand vom Manager in einem Markt), nicht mehr nach Zeit (`INDEX_AGE` entfällt).
+  - Aufbau im Hintergrund nach dem Anmelden (5 Sek. danach) und nach jedem Scan, je Bild 1.000 Einträge (`P.Prepare`, `P.STEP`, gemessen etwa 3 ms je Schritt). Wird eine Kiste gezeigt, bevor er fertig ist, baut Broker das Verzeichnis sofort ganz.
+  - Tests: Varianten nicht im Verzeichnis, kein Neuaufbau ohne neue Daten, Neuaufbau nach Scan, Aufbau in Schritten (`test_broker.lua`).
+
 ## 0.130.0
 
 Kurz: Broker speichert seine Preisdaten jetzt viel kompakter. So bleibt die Datei sicher unter der Grenze, ab der das Spiel sie nicht mehr lädt. Im Spiel ändert sich nichts.

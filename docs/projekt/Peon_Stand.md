@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 20.11.2026. Peon 0.27.0 (API 27) / Broker 0.130.0 / Ledger 0.17.0 / Bridge 0.14.0 / Peon Manager 0.53.1 / Fishing 1.7.1 / Tooltip 0.7.5 / ClassBuddy 0.4.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.1 / Panel 0.4.1 / Profession 0.7.4 / Warhorn 0.5.3.
+Stand: 20.11.2026. Peon 0.27.0 (API 27) / Broker 0.130.1 / Ledger 0.17.0 / Bridge 0.14.0 / Peon Manager 0.53.1 / Fishing 1.7.1 / Tooltip 0.7.5 / ClassBuddy 0.4.0 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.1 / Panel 0.4.1 / Profession 0.7.4 / Warhorn 0.5.3.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -47,7 +47,7 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Takte: Tasten nur im Angelmodus (`ns.UpdateLureTick`), Schwarm-Zeile nur bei sichtbarer Fangliste (`ns.CatchListTick`), ab 1.7.1.
 - Befehle: `/fp` (Optionen), `/fp toggle|an|aus`, `/fp set <Name>`, `/fp saveset`, `/fp kampf fragen|verlassen|bleiben`, `/fp waffenversuch`, `/fp klick doppel|aus`, `/fp status`, `/fp minimap`, `/fp koeder`, `/fp fische`, `/fp statistik`, `/fp debug`.
 
-## Peon_Broker – 0.130.0 (Auktionshaus-Helfer)
+## Peon_Broker – 0.130.1 (Auktionshaus-Helfer)
 
 - Konzepte: `docs\konzepte\broker\` (Konzept, Rechenmodell, Verkaufen, Einkaufen, Absatz, Umbau, Neuaufbau, Chancen im Schnellkauf, Marktvergleich). Der Neuaufbau (11.11.2026) gilt, der Umbau nur noch für Tooltip, Märkte und Gegenstandsmenü.
 - Dateien: siehe `Peon_Broker.toc` (48 Dateien), dazu Bindings.xml und `Media\` (Trend-Symbole, Punkt für neue Radar-Treffer).

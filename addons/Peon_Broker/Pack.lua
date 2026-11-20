@@ -22,7 +22,6 @@ local GREY, GREEN = "|cff999999", "|cff60e060"
 -- Haken hinter dem guenstigsten Paket (0.87.2: die Schrift des Spiels kennt keinen Pfeil "←", es kam ein Kasten)
 P.BEST_ICON = " |TInterface\\RaidFrame\\ReadyCheck-Ready:12:12:0:0|t"
 P.MIN_LINES = 2                 -- erst ab zwei Paketen ist es eine Auswahl
-P.INDEX_AGE = 60                -- Namensverzeichnis spaetestens nach so vielen Sekunden neu aufbauen
 -- Mehrzahl im Tooltip, Einzahl im Namen: "Kupferrohre" -> "Kupferrohr", "Kupfermodulatoren" -> "Kupfermodulator",
 -- "Copper Tubes" -> "Copper Tube". Laengste Endung zuerst.
 P.ENDINGS = { "en", "er", "es", "e", "n", "s" }
@@ -116,16 +115,42 @@ end
 -- Verzeichnis Name (P.Norm) -> Schluessel. 0.87.3: aus den Namen aller Maerkte, nicht nur des Heimatmarkts.
 -- Gegenstandsnummern gelten ueberall, der Preis kommt danach aus dem Heimatmarkt. Viele Eintraege (etwa aus dem
 -- Peon Manager) haben keinen Namen, der steht dann oft in einem anderen Markt.
-function P.BuildIndex()
-    local idx = {}
+-- Ab 0.130.1 (Ruckeln bei Kisten, KarloDerBaer 20.11.2026): nur Gegenstaende mit Nummer. Varianten tragen seit 0.130 den
+-- vollen Namen mit Zusatz und passen nie zu einer Paketliste, sie waren drei Viertel der Arbeit (echte Daten: 57.500
+-- Eintraege, etwa 190 ms fuer das ganze Verzeichnis).
+-- Erst die Namen sammeln (schnell), danach in Schritten einordnen (P.Norm ist der teure Teil)
+function P.NewJob(sig)
+    local list = {}
     for _, market in pairs(ns.Data.Markets()) do
         if type(market) == "table" and type(market.items) == "table" then
             for key, e in pairs(market.items) do
-                if type(e) == "table" and type(e.nm) == "string" then Put(idx, e.nm, key) end
+                if type(key) == "number" and type(e) == "table" and type(e.nm) == "string" then
+                    list[#list + 1] = key
+                    list[#list + 1] = e.nm
+                end
             end
         end
     end
-    return idx
+    return { sig = sig, list = list, i = 1, idx = {} }
+end
+
+-- Hoechstens max Eintraege einordnen (ohne max: alle). Rueckgabe true, wenn das Verzeichnis fertig ist
+function P.Work(job, max)
+    local list, i = job.list, job.i
+    local last = #list
+    local stop = max and math.min(last, i + 2 * max - 1) or last
+    while i <= stop do
+        Put(job.idx, list[i + 1], list[i])
+        i = i + 2
+    end
+    job.i = i
+    return i > last
+end
+
+function P.BuildIndex()
+    local job = P.NewJob(nil)
+    P.Work(job)
+    return job.idx
 end
 
 -- Eintraege des Heimatmarkts ohne Namen: Namen beim Spiel nachfragen (nur bei einem Fehlgriff, je Gegenstand
@@ -150,17 +175,57 @@ function P.FillHome(idx)
     return got
 end
 
-function P.Index()
-    local now = GetTime and GetTime() or 0
-    local c = P.cache
-    local market = ns.WithHome(ns.Data.Market)
-    local sig = tostring(market) .. "|" .. tostring(market and market.lastScan)
-    if not c or c.sig ~= sig or now - c.at > P.INDEX_AGE then
-        c = { idx = P.BuildIndex(), sig = sig, at = now }
-        P.cache = c
+-- Stand der Preisdaten: neu bei jedem Scan und jedem Stand vom Manager, in irgendeinem Markt (ab 0.130.1 statt alle
+-- 60 Sekunden, das Neuaufbauen beim Zeigen einer Kiste war das Ruckeln)
+function P.Sig()
+    local parts = {}
+    for k, m in pairs(ns.Data.Markets()) do
+        if type(m) == "table" then parts[#parts + 1] = tostring(k) .. "=" .. tostring(m.lastScan) .. ":" .. tostring(m.mgrAt) end
     end
+    table.sort(parts)
+    return table.concat(parts, "|")
+end
+
+function P.Index()
+    local sig = P.Sig()
+    local c = P.cache
+    if c and c.sig == sig then return c.idx, c end
+    -- gebraucht, bevor der Aufbau im Hintergrund fertig ist (selten, er dauert nur wenige Bilder): jetzt ganz bauen
+    local job = P.NewJob(sig)
+    P.Work(job)
+    P.job = nil
+    c = { idx = job.idx, sig = sig }
+    P.cache = c
     return c.idx, c
 end
+
+-- Verzeichnis im Hintergrund aufbauen (ab 0.130.1): nach dem Anmelden und nach einem Scan, je Bild P.STEP Eintraege
+P.STEP = 1000
+function P.Prepare()
+    local after = C_Timer and C_Timer.After
+    if not after then return false end
+    local sig = P.Sig()
+    if (P.cache and P.cache.sig == sig) or (P.job and P.job.sig == sig) then return false end
+    local job = P.NewJob(sig)
+    P.job = job
+    local function Step()
+        if P.job ~= job then return end   -- inzwischen fertig gebaut oder ersetzt
+        if P.Work(job, P.STEP) then
+            P.job = nil
+            P.cache = { idx = job.idx, sig = job.sig }
+        else
+            after(0, function() mod:Call("Pakete", Step) end)
+        end
+    end
+    after(0, function() mod:Call("Pakete", Step) end)
+    return true
+end
+
+mod:On("LOGIN", function()
+    -- nach dem Stand vom Manager (Broker.lua meldet sich vorher an), mit etwas Abstand zum Laden
+    if C_Timer and C_Timer.After then C_Timer.After(5, function() mod:Call("Pakete", P.Prepare) end) end
+end)
+mod:On("SCAN_DONE", function() mod:Call("Pakete", P.Prepare) end)
 
 -- Moegliche Namen: wie geschrieben, dann ohne Mehrzahl-Endung
 function P.Candidates(name)
