@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.130.2
+
+Kurz: Nach einem fehlgeschlagenen Kauf im Schnellkauf zeigt der Fokus keine längst verkauften Angebote mehr. Der Kaufknopf wird erst wieder frei, wenn die Liste wirklich neu ist.
+
+- 0.130.2 (21.11.2026, Kaufprotokoll KarloDerBaer):
+  - **Behoben, alte Liste nach einem Fehlschlag:** Das Spiel beantwortet das „Neu laden“ direkt nach einem fehlgeschlagenen Kauf mit Code 10. Der Fokus wartete dann 1 Sek. und schaltete auf die Suche um. Die Suche lieferte die alte Liste mit den schon verkauften billigen Angeboten, der Kaufknopf wurde frei und der nächste Klick war zu teuer. Das betraf mindestens 6 von 11 „zu teuer“ im Protokoll. Jetzt beendet eine Meldung des Auktionshauses die laufende Abfrage des Fokus sofort, der Fokus bleibt bei „Neu laden“ (im Protokoll `focus retry`).
+  - Auswertung des fünften Kaufprotokolls (21:05 bis 21:13 Uhr, Seidenstoff): 9 bestätigte Käufe, alle fehlgeschlagen. Vom Erscheinen des Angebots bis zum Klick 0,05 bis 0,6 Sek. Nach dem Preis des Spiels (0,15 Sek.) wartet die Bestätigung etwa 0,5 Sek. auf die Bremse des Spiels, die Absage kommt 0,2 Sek. später. In dieser Zeit waren die Angebote weg. Ob gekauft oder zurückgezogen, meldet das Spiel gleich.
+  - Tests: Meldung beendet die Abfrage des Fokus, nächste Abfrage wieder mit Neu laden, Prüfung vor einem Kauf unverändert (`test_broker.lua`).
+
 ## 0.130.1
 
 Kurz: Kein kurzes Ruckeln mehr, wenn du den Tooltip einer Kiste mit Paketliste öffnest.

@@ -1546,6 +1546,15 @@ function R.Init()
         R.Trace("ev error code=%s job=%s pending=%s", B2S(code), B2S(R.job and R.job.stage),
             B2S(R.pending and math.floor((Now() - R.pending.sent) * 100) / 100))
         R.stats.errors = R.stats.errors + 1; R.LogAHError(code); R.OnError()
+        -- ab 0.130.2 (Kaufprotokoll 21.11.2026): Nach einem fehlgeschlagenen Kauf beantwortet das Spiel das folgende
+        -- "Neu laden" mit diesem Fehler. Bisher wartete der Fokus 1 Sek. und schaltete dann auf die Suche um. Die
+        -- lieferte die alte Liste mit den laengst verkauften billigen Angeboten, der Kaufknopf wurde frei und der
+        -- naechste Klick war zu teuer. Jetzt gilt die Abfrage als beendet, der Fokus bleibt bei Neu laden.
+        local p = R.pending
+        if p and p.focus and not p.browse and not p.forBuy then
+            R.Trace("focus retry")
+            R.pending = nil
+        end
     end)
     -- Bremse des Spiels (aus dem modernen Auktionshaus; in Forever unbekannt, deshalb geschuetzt)
     pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED", function()

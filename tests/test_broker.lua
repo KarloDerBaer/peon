@@ -3860,6 +3860,27 @@ end)()
   local n0 = #out
   R.ErrorReport()
   check(#out > n0 and plain(out[#out]):find("Nummer 9", 1, true), "0.74: /broker pruefen fehler zeigt die Meldung")
+  -- 0.130.2: Fehler auf "Neu laden" im Fokus: Abfrage beendet, der Fokus bleibt bei Neu laden (keine alte Liste per Suche)
+  do
+    local keepRefresh, keepSearch = AHs.RefreshCommoditySearchResults, AHs.SendSearchQuery
+    local refreshed, searched = 0, 0
+    AHs.RefreshCommoditySearchResults = function() refreshed = refreshed + 1 end
+    AHs.SendSearchQuery = function() searched = searched + 1 end
+    mod.acc.commodity[2775] = true
+    R.pending, R.job = nil, nil
+    R.focus = { key = 2775, at = 0, answered = true }
+    R.SendFocus()
+    check(refreshed == 1 and R.pending and R.pending.focus, "0.130.2: Fokus fragt mit Neu laden")
+    fire("AUCTION_HOUSE_SHOW_ERROR", 10)
+    check(R.pending == nil and R.focus.answered == true, "0.130.2: Meldung beendet die Abfrage, Fokus bleibt bei Neu laden")
+    R.SendFocus()
+    check(refreshed == 2 and searched == 0, "0.130.2: naechste Abfrage wieder mit Neu laden, nicht mit der Suche")
+    R.pending = { key = 2775, sent = 0, forBuy = true, ev = {} }
+    fire("AUCTION_HOUSE_SHOW_ERROR", 10)
+    check(R.pending ~= nil, "0.130.2: Pruefung vor einem Kauf bleibt wie bisher")
+    R.pending, R.focus = nil, nil
+    AHs.RefreshCommoditySearchResults, AHs.SendSearchQuery = keepRefresh, keepSearch
+  end
   -- Fokus: Stufe des Ziels gelb, ueblicher Bereich
   ns.Buy.live[7982] = { rows = { { price = 50, qty = 5, own = 0 }, { price = 80, qty = 7, own = 0 } }, t = time() + 1, commodity = true }
   local keepKey, keepOpen = F.key, ns.Scan.ahOpen
