@@ -105,6 +105,14 @@ end
 ---------------------------------------------------------------------------
 local MAX_ERRORS, MAX_ERROR_TEXT = 100, 1000
 
+-- ab 0.27.1: "script ran too long" nennt die Stelle, an der das Spiel die Rechnung abbrach. Die ist fast jedes Mal
+-- eine andere, gemeint ist aber derselbe Fehler. Darum zaehlen solche Meldungen ohne Datei und Zeile als einer.
+local TOO_LONG = "script ran too long"
+local function SameError(a, b)
+    if a == b then return true end
+    return a:find(TOO_LONG, 1, true) ~= nil and b:find(TOO_LONG, 1, true) ~= nil
+end
+
 local function BuildNumber()
     if not GetBuildInfo then return nil end
     local ok, _, build = pcall(GetBuildInfo)
@@ -120,7 +128,7 @@ function Peon.RecordError(addon, where, err, version)
     local msg = Peon.S(err):sub(1, MAX_ERROR_TEXT)
     local now = time and time() or 0
     for _, e in ipairs(db.errors) do
-        if e.addon == addon and e.where == where and e.msg == msg then
+        if e.addon == addon and e.where == where and type(e.msg) == "string" and SameError(e.msg, msg) then
             e.n, e.last, e.version = (e.n or 1) + 1, now, version or e.version
             return
         end

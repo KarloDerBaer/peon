@@ -49,18 +49,36 @@ local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
 local function Day(t) return math.floor((t or 0) / 86400) end   -- Tag (schnell, ohne date())
 
 -- Marktwert je Stueck: Zeile 1 des Broker-Tooltips, sonst Haendlerpreis; nil wenn unbekannt
+-- ab 0.17.2: waehrend einer Rechnung (C.mv) je Gegenstand nur einmal fragen. Beim Nachspielen kamen dieselben
+-- Gegenstaende hunderte Male (echte Daten: 483 Abfragen fuer 21 Gegenstaende), jede Abfrage geht an Broker.
 function C.MarketValue(id)
+    local mv = C.mv
+    if mv and id ~= nil and mv[id] ~= nil then return mv[id] or nil end
     local v = ns.Value and ns.Value(id, 1)
-    if Num(v) and v > 0 then return v end
-    local p = ns.Moves.SellPrice and ns.Moves.SellPrice(id)
-    if Num(p) and p > 0 then return p end
-    return nil
+    if not (Num(v) and v > 0) then
+        local p = ns.Moves.SellPrice and ns.Moves.SellPrice(id)
+        v = (Num(p) and p > 0) and p or nil
+    end
+    if mv and id ~= nil then mv[id] = v or false end
+    return v
+end
+
+-- fn mit gemerkten Marktwerten ausfuehren (verschachtelt: der aeussere Aufruf merkt)
+function C.WithValues(fn, ...)
+    if C.mv then return fn(...) end
+    C.mv = {}
+    local r = { pcall(fn, ...) }
+    C.mv = nil
+    if not r[1] then error(r[2], 0) end
+    return unpack(r, 2, table.maxn(r))
 end
 
 ---------------------------------------------------------------------------
 -- Posten
 ---------------------------------------------------------------------------
-local function NewState() return { chars = {}, transit = {}, craft = {}, trade = {}, res = {}, general = 0 } end
+local function NewState()
+    return { chars = {}, transit = {}, craft = {}, trade = {}, res = {}, general = 0, seq = 0, touch = {}, touchAll = {}, at = {} }
+end
 
 -- Tabellen eines Charakters (ohne den Teilstand zu wechseln)
 local function Char(st, c)
@@ -406,7 +424,7 @@ local function Craft(st, e, id, n)
         local cost, miss, loot, acost, sn = Take(st, id, -n)
         if (sn or 0) < (-n - (miss or 0)) or (miss or 0) > 0 then pool.start = false end   -- ab 0.14.5: nicht nur Startbestand
         -- ab 0.15: Wert des erbeuteten Materials (Marktwert, sonst Haendlerpreis)
-        local lv = ((loot or 0) + (miss or 0)) * (C.MarketValue(id) or 0)
+        local lv = ((loot or 0) + (miss or 0)) > 0 and ((loot or 0) + (miss or 0)) * (C.MarketValue(id) or 0) or 0
         pool.used = true
         st.res[e] = { mat = cost }
         LoseFee(st, id, st.res[e])
@@ -737,9 +755,28 @@ local function LoadBase(st, base)
     return base.untilT or 0
 end
 
+-- ab 0.17.2: was eine Bewegung beruehrt, fuer das Nachtragen (C.Add). touch["Charakter|itemID"] und touchAll[Charakter]
+-- (Herstellen und Handel wirken auf mehrere Gegenstaende) = laufende Nummer der letzten Bewegung, at[Eintrag] = seine
+-- Nummer. lastT, lastClass = Zeit und Rang (Class) der letzten Bewegung.
+local function Touch(st, e)
+    st.seq = (st.seq or 0) + 1
+    local s, c = st.seq, tostring(e.c or "?")
+    if not e.start then st.at[e] = s end
+    if e.k == "craft" or e.k == "trade" then st.touchAll[c] = s end
+    if e.id then
+        st.touch[c .. "|" .. tostring(e.id)] = s
+        if e.k == "twink" and type(e.x) == "string" then st.touch[e.x .. "|" .. tostring(e.id)] = s end   -- Gebuehren wandern mit
+    end
+    st.lastT, st.lastClass = e.t or 0, Class(e)
+end
+
 -- Alles nachspielen: Stand aus lotBase + Anfangsbestand ab untilT + Bewegungen
 -- observer(st, x) (ab 0.9, fuer den Tagesverlauf): nach jedem Ereignis aufgerufen
 function C.Replay(observer)
+    return C.WithValues(C.ReplayNow, observer)
+end
+
+function C.ReplayNow(observer)
     local r = ns.Inventory.RealmData()
     local base = type(r.lotBase) == "table" and r.lotBase or nil
     local st = NewState()
@@ -750,19 +787,76 @@ function C.Replay(observer)
     Sorted(ev)
     local groups = TradeGroups(moves)
     for _, x in ipairs(ev) do
-        if x.start then C.Apply(st, x, groups) else C.Apply(st, x.e, groups) end
-        if observer then observer(st, x.start and x or x.e) end
+        local e = x.start and x or x.e
+        C.Apply(st, e, groups)
+        Touch(st, e)
+        if observer then observer(st, e) end
     end
+    st.moves = moves
     return st, fromT
 end
 
+-- ab 0.17.2: Im Kampf nimmt der Tooltip (C.lenient) einen veralteten Stand, statt alles nachzuspielen. Neu gerechnet
+-- wird danach im Hintergrund (C.Soon).
 function C.State()
+    if C.dirty and C.state and C.lenient and C.realm == ns.Realm() then
+        local ic = rawget(_G, "InCombatLockdown")
+        if (ic and ic()) or (Peon.InCombat and Peon.InCombat()) then C.Soon(); return C.state end
+    end
     if C.dirty or not C.state or C.realm ~= ns.Realm() then
         C.state = C.Replay()
         C.realm = ns.Realm()
         C.dirty = false
     end
     return C.state
+end
+
+-- ab 0.17.2: Nachtragen. Eine neue Bewegung wird auf den gespeicherten Stand angewendet, statt alles neu nachzuspielen
+-- (Fehlerberichte "script ran too long" im Tooltip, etwa beim Pluendern im Dungeon). Das geht nur fuer Arten, deren
+-- Eintrag nach dem Anlegen nicht mehr ergaenzt wird (C.ADD_KINDS), und nur wenn die Bewegung zeitlich hinter allem
+-- liegt, was schon gerechnet ist. Waechst ein Tageseintrag (Beute, Benutzt: Moves.Add zaehlt dazu), kommt nur der
+-- Zuwachs dazu, wenn seit seiner letzten Rechnung nichts anderes denselben Gegenstand dieses Charakters beruehrt hat.
+-- Dann ist das Ergebnis dasselbe wie beim vollen Nachspielen. Sonst Rueckgabe false: voll neu rechnen (C.dirty).
+C.ADD_KINDS = { loot = true, use = true, quest = true, destroy = true }
+
+local function Grow(st, e, dn, dm, oldT)
+    local seq = st.at[e]
+    if not seq or (e.k ~= "loot" and e.k ~= "use") then return false end
+    local c = tostring(e.c or "?")
+    if e.id and (st.touch[c .. "|" .. tostring(e.id)] or 0) > seq then return false end
+    if (st.touchAll[c] or 0) > seq then return false end
+    local p = { t = e.t, c = e.c, k = e.k, id = e.id, n = dn ~= 0 and dn or nil, m = dm ~= 0 and dm or nil }
+    C.Apply(st, p, {})
+    local new = st.res[p]
+    st.res[p] = nil
+    if new then
+        local old = st.res[e]
+        if not old then st.res[e] = new
+        else for k, v in pairs(new) do if Num(v) then old[k] = (Num(old[k]) and old[k] or 0) + v end end end
+    end
+    -- eigener Posten der Beute: beim vollen Nachspielen traegt er die Zeit des gewachsenen Eintrags
+    if e.id and (dn or 0) > 0 and oldT then
+        local q = st.chars[e.c or "?"] and st.chars[e.c or "?"].lots[e.id]
+        local last = q and q[#q]
+        if last and last.t == oldT then last.t = e.t end
+    end
+    return true
+end
+
+function C.Add(e, dn, dm, oldT)
+    local st = C.state
+    if type(e) ~= "table" or not C.ADD_KINDS[e.k] then return false end
+    if C.dirty or not st or C.realm ~= ns.Realm() or st.moves ~= ns.Moves.List() then return false end
+    local t, cl = e.t or 0, Class(e)
+    if t < (st.lastT or 0) or (t == st.lastT and cl < (st.lastClass or 0)) then return false end
+    if dn ~= nil or dm ~= nil then
+        if not Grow(st, e, dn or 0, dm or 0, oldT) then return false end
+    else
+        if st.at[e] then return false end
+        C.Apply(st, e, {})
+    end
+    Touch(st, e)
+    return true
 end
 
 function C.Invalidate() C.dirty = true end
@@ -787,6 +881,10 @@ end
 
 -- Vor dem Zusammenfassen alter Bewegungen (Moves.Prune): ihren Stand in lotBase uebernehmen
 function C.Absorb(old, limit)
+    return C.WithValues(C.AbsorbNow, old, limit)
+end
+
+function C.AbsorbNow(old, limit)
     local r = ns.Inventory.RealmData()
     local base = type(r.lotBase) == "table" and r.lotBase or nil
     local st = NewState()

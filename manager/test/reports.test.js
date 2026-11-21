@@ -412,6 +412,9 @@ test('Worker: gleicher Fehler kommt als Kommentar an das offene Issue', async ()
   assert.equal(await errorKey(errItem({ version: '9.9.9', n: 99 })), k);
   assert.notEqual(await errorKey(errItem({ msg: 'anders' })), k);
   assert.notEqual(await errorKey(errItem({ where: 'Anders' })), k);
+  // script ran too long: Datei und Zeile zaehlen nicht
+  assert.equal(await errorKey(errItem({ msg: 'Interface/AddOns/Peon_Ledger/Cost.lua:232: script ran too long' })),
+    await errorKey(errItem({ msg: 'Interface/AddOns/Peon_Ledger/Ledger.lua:202: script ran too long' })));
   // 4. Suche gescheitert: lieber ein neues Issue als gar keins
   const down = async (url, o) => (o.method === 'GET' ? new Response('', { status: 403 }) : new Response(JSON.stringify({ number: 50 }), { status: 201 }));
   res = await handle(post(good([errItem()])), ENV, { fetchImpl: down, cache: fakeCache() });

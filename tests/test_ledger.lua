@@ -2178,6 +2178,91 @@ end)()
   ns.Cost.Invalidate()
 end)()
 
+-- ----- 0.17.2: Nachtragen neuer Bewegungen statt alles nachzuspielen -----
+;(function()
+  local me = realm.chars["Mirel Dorna"]
+  local keepS, keepM, keepB, keepTime, keepIC = me.start, realm.moves, realm.lotBase, time, InCombatLockdown
+  local C = ns.Cost
+  local who = "Mirel Dorna"
+  local t0 = math.floor(keepTime() / 86400) * 86400 - 86400 + 1000   -- gestern, alles am selben Tag
+  realm.lotBase = nil
+  me.start = { t = t0, places = { bags = { t = t0, items = { [7400] = 5, [7401] = 3 } } } }
+  realm.moves = { { t = t0 + 10, c = who, k = "vendor", id = 7400, n = 2, m = -200 } }
+  C.Invalidate()
+  C.State()
+  local now = t0
+  time = function(x) if x then return keepTime(x) end return now end
+  -- gleicher Stand wie beim vollen Nachspielen? Posten, Gebuehren und Ergebnis je Bewegung
+  local function Same()
+    local a, b = C.state, C.Replay()
+    local function lots(x, y)
+      for id, q in pairs(x) do
+        local r = y[id]
+        if not r or #r ~= #q then return false end
+        for i, l in ipairs(q) do
+          local m = r[i]
+          if m.t ~= l.t or m.n ~= l.n or math.abs(m.c - l.c) > 1e-6 or m.s ~= l.s or m.h ~= l.h
+            or math.abs(C.LB(m) - C.LB(l)) > 1e-6 or math.abs(C.LA(m) - C.LA(l)) > 1e-6 then return false end
+        end
+      end
+      return true
+    end
+    for c, x in pairs(a.chars) do
+      local y = b.chars[c]
+      if not y or not lots(x.lots, y.lots) or not lots(y.lots, x.lots) then return false end
+      for id, f in pairs(x.fee) do if math.abs((y.fee[id] or 0) - f) > 1e-6 then return false end end
+    end
+    for _, e in ipairs(realm.moves) do
+      local r1, r2 = a.res[e], b.res[e]
+      if (r1 == nil) ~= (r2 == nil) then return false end
+      for k, v in pairs(r1 or {}) do if type(v) == "number" and math.abs((r2[k] or 0) - v) > 1e-6 then return false end end
+    end
+    return true
+  end
+  local function add(dt, k, id, n, m) now = t0 + dt; return ns.Moves.Add(k, id, n, m, nil, who) end
+  local st = C.state
+  add(100, "loot", 7400, 3)
+  check(not C.dirty and C.state == st and Same(), "0.17.2: neue Beute nachgetragen, gleich wie volles Nachspielen")
+  add(110, "loot", 7401, 2)
+  local e = add(120, "loot", 7400, 1)
+  check(#realm.moves == 3 and e.n == 4 and not C.dirty and C.state == st and Same(), "0.17.2: Beute waechst am Tageseintrag, nur der Zuwachs kommt dazu")
+  check(st.chars[who].lots[7400][#st.chars[who].lots[7400]].t == t0 + 120, "0.17.2: Posten der Beute traegt die neue Zeit")
+  add(130, "use", 7400, -2)
+  add(140, "use", 7400, -1)
+  add(150, "loot", 7401, 4)
+  check(not C.dirty and C.state == st and Same(), "0.17.2: Verbrauch nachgetragen und gewachsen, gleich wie volles Nachspielen")
+  check(math.abs(C.Result(realm.moves[4]).use or -1) < 1e-6 and C.Result(realm.moves[4]) == st.res[realm.moves[4]], "0.17.2: Ergebnis des gewachsenen Verbrauchs zusammengezaehlt")
+  -- andere Arten: voll neu rechnen
+  add(160, "vendor", 7400, 1, -50)
+  check(C.dirty, "0.17.2: Haendlerkauf wird nicht nachgetragen, sondern neu gerechnet")
+  st = C.State()
+  -- Beute waechst, aber dazwischen hat etwas anderes denselben Gegenstand beruehrt: neu rechnen
+  add(170, "loot", 7400, 2)
+  check(C.dirty, "0.17.2: dazwischen anderer Abgang desselben Gegenstands, neu rechnen")
+  st = C.State()
+  add(180, "loot", 7401, 1)
+  check(not C.dirty and Same(), "0.17.2: anderer Gegenstand waechst weiter ohne Neurechnen")
+  -- Bewegung mit aelterer Zeit als der gerechnete Stand: neu rechnen
+  now = t0 + 50
+  ns.Moves.Add("quest", 7402, 1, nil, nil, who)
+  check(C.dirty, "0.17.2: Bewegung vor dem letzten gerechneten Stand, neu rechnen")
+  C.State()
+  -- im Kampf nimmt der Tooltip den alten Stand
+  st = C.state
+  C.dirty = true
+  InCombatLockdown = function() return true end
+  C.pending = nil
+  C.lenient = true
+  check(C.State() == st and C.dirty and C.pending, "0.17.2: im Kampf zeigt der Tooltip den letzten Stand, gerechnet wird spaeter")
+  C.lenient = nil
+  check(C.State() ~= st and not C.dirty, "0.17.2: ausserhalb des Tooltips wird wie bisher sofort gerechnet")
+  InCombatLockdown = keepIC
+  C.pending = nil
+  time = keepTime
+  me.start, realm.moves, realm.lotBase = keepS, keepM, keepB
+  C.Invalidate()
+end)()
+
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end
 check(n == 0, "keine Fehlermeldungen")
 print("ALLE TESTS OK")

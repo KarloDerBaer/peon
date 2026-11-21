@@ -3,6 +3,13 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 21.11.2026: Ledger rechnet neue Bewegungen nach (Ledger 0.17.2, Peon 0.27.1)
+
+- **Ursache der neuen Fehlerberichte** (Claude): Im Dungeon ist jedes Plündern eine Bewegung. Ledger verwarf danach den ganzen Stand, und der nächste Tooltip spielte alles nach. Im Kampf wurde das Rechnen im Hintergrund (0.17.1) immer weiter verschoben, darum blieb es beim Tooltip. Dazu fragte jede Rechnung den Marktwert bei Broker hunderte Male für dieselben Gegenstände ab (echte Daten: 483 Abfragen für 21 Gegenstände).
+- **Nachtragen statt Neurechnen** (KarloDerBaer): Neue Beute, Benutzt, Quest und Zerstört kommen auf den gespeicherten Stand. Wächst ein Tageseintrag, kommt nur der Zuwachs dazu, wenn seitdem nichts anderes denselben Gegenstand dieses Charakters berührt hat. Andere Arten werden nach dem Anlegen noch ergänzt (Haus, Menge, Nachnahme) oder hängen an mehreren Gegenständen (Herstellen, Handel), sie rechnen weiter neu. Mit echten Daten (4.506 Bewegungen) gleiche Posten und Ergebnisse wie beim vollen Nachspielen.
+- **Im Kampf zeigt der Tooltip den letzten Stand**, gerechnet wird danach im Hintergrund. Die erste Rechnung nach dem Einloggen läuft ebenfalls im Hintergrund.
+- **„script ran too long“ als ein Fehler** (Claude, weil 20 Berichte einzeln ankamen): Die Zeile in der Meldung ist nur die Stelle, an der das Spiel abbrach. Kern und Fehler-Worker vergleichen solche Meldungen ohne Datei und Zeile.
+
 ## 21.11.2026: Ledger-Tooltip zu lang (Ledger 0.17.1)
 
 - **Andere Ursache als das Ruckeln bei Kisten** (Claude, nach Fehlerberichten): Die Fehler lagen in der Kostenrechnung des Ledger, die nach einer Bewegung beim nächsten Tooltip alles nachspielt. Abgelaufene Gebote blieben in der Liste und machten jede Suche länger.

@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.27.1
+
+Kurz: Die Fehlermeldung „script ran too long“ zählt als ein Fehler, auch wenn sie an verschiedenen Stellen auftritt. So kommt sie im Peon Manager als ein Bericht an und nicht als viele.
+
+- 0.27.1 (21.11.2026, 20 einzelne Fehlerberichte aus dem Peon Manager): **Geändert, Fehlerspeicher:** Die Meldung nennt die Stelle, an der das Spiel abbrach, die ist fast jedes Mal eine andere. `Peon.RecordError` vergleicht solche Meldungen ohne Datei und Zeile und zählt hoch. Der Fehler-Worker bildet seine Kennung ebenso (`worker\peon-fehler\worker.mjs`, wirkt nach dem Hochladen).
+  - Tests: zwei Stellen ein Fehler, andere Meldung bleibt eigen (`test.lua`), Kennung im Worker (`reports.test.js`).
+
 ## 0.27.0
 
 Kurz: Liefert das Spiel keinen Realm-Namen, nimmt Peon den zuletzt bekannten. Vorher zeigten Ledger und Broker in diesem Fall leere Fenster.

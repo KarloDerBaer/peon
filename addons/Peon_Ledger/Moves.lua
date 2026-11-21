@@ -130,29 +130,35 @@ function M.Add(k, id, n, m, x, c)
             local e = list[i]
             if e.d ~= nil and e.d ~= d then break end
             if e.d == d and e.c == c and e.k == k and e.id == id and e.s == sign then
+                local oldT = e.t
                 if n then e.n = (e.n or 0) + n end
                 if m then e.m = (e.m or 0) + m end
                 e.t = t
                 e.cnt = (e.cnt or 1) + 1
-                M.Changed()
+                M.Changed(e, n or 0, m or 0, oldT)   -- ab 0.17.2: nur den Zuwachs nachtragen
                 return e
             end
         end
         local e = { t = t, c = c, k = k, id = id, n = n, m = m, x = x, d = d, s = sign }
         list[#list + 1] = e
-        M.Changed()
+        M.Changed(e)
         return e
     end
     local e = { t = t, c = c, k = k, id = id, n = n, m = m, x = x }
     if M.AH_KINDS[k] then e.h = M.HouseNow() end   -- ab 0.17
     list[#list + 1] = e
-    M.Changed()
+    M.Changed(e)
     return e
 end
 
-function M.Changed()
+-- Daten geaendert. Mit e (ab 0.17.2): neue Bewegung aus M.Add, dn und dm = Zuwachs eines Tageseintrags, oldT = seine
+-- Zeit davor. Dann traegt Ledger sie in den gespeicherten Stand nach (Cost.Add), wenn das geht.
+function M.Changed(e, dn, dm, oldT)
     M.cache = nil
-    if ns.Cost then ns.Cost.dirty = true; if ns.Cost.Soon then ns.Cost.Soon() end end   -- ab 0.17.1 im Hintergrund
+    if ns.Cost and not (e and ns.Cost.Add and ns.Cost.Add(e, dn, dm, oldT)) then
+        ns.Cost.dirty = true
+        if ns.Cost.Soon then ns.Cost.Soon() end   -- ab 0.17.1 im Hintergrund
+    end
     if ns.Last then ns.Last.dirty = true end
     if ns.Trend then ns.Trend.tradeDirty = true end
     if ns.Window and ns.Window.OnData then ns.Window.OnData() end

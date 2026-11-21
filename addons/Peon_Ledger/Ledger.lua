@@ -412,6 +412,7 @@ mod:On("LOGIN", function()
     mod:Call("Buch", ns.MigrateBook)
     mod:Call("Kontrollrechnung", ns.Check.OnLogin)
     mod:Call("Verlauf Gold", ns.Trend.OnLogin)
+    if ns.Cost and ns.Cost.Soon then ns.Cost.Soon() end   -- ab 0.17.2: erste Rechnung im Hintergrund, nicht im Tooltip
 end)
 -- Reihenfolge der Kosten geaendert: neu rechnen (ab 0.14.3)
 mod:On("CHANGED", function()

@@ -293,7 +293,12 @@ function T.OnItem(tooltip, data)
     if not tooltip.GetItem then return end
     local _, link = tooltip:GetItem()
     if link == nil or Peon.IsSecret(link) then return end
-    if T.AddLines(tooltip, link) and tooltip.Show then tooltip:Show() end
+    -- ab 0.17.2: im Kampf mit dem letzten Stand der Kosten zeigen, nicht alles nachspielen (Cost.State)
+    if ns.Cost then ns.Cost.lenient = true end
+    local ok, shown = pcall(T.AddLines, tooltip, link)
+    if ns.Cost then ns.Cost.lenient = nil end
+    if not ok then error(shown, 0) end
+    if shown and tooltip.Show then tooltip:Show() end
 end
 
 function T.Init()

@@ -97,6 +97,7 @@ function I.SetPlace(c, place, items, extra)
         for id, n in pairs(items) do copy[id] = n end
         c.start.places[place] = { t = p.t, items = copy }
         if not c.start.t then c.start.t = p.t end
+        if ns.Cost then ns.Cost.dirty = true end   -- ab 0.17.2: neuer Anfangsbestand, sonst fehlte er beim Nachtragen
         mod:Dbg("Inventur " .. place)
     end
     I.Changed()

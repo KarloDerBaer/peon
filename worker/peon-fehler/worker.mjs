@@ -54,8 +54,10 @@ export function cleanReport(data) {
 }
 
 // Kennung eines Fehlers: gleiches Addon, gleiche Stelle, gleiche Meldung (Version egal). Steht unter dem Issue.
+// "script ran too long" nennt die Zeile, an der das Spiel abbrach, die ist fast jedes Mal anders: ohne Datei und Zeile.
 export async function errorKey(i) {
-  return (await sha256(`${i.addon}|${i.where}|${i.msg}`)).slice(0, 16);
+  const msg = /script ran too long/.test(i.msg || '') ? 'script ran too long' : i.msg;
+  return (await sha256(`${i.addon}|${i.where}|${msg}`)).slice(0, 16);
 }
 
 export function buildIssue(i, manager, key, sender) {

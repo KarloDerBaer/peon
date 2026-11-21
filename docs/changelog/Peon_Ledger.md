@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.17.2
+
+Kurz: Beim Plündern und im Kampf bringt der Tooltip eines Gegenstands keine Fehlermeldung „script ran too long“ mehr.
+
+- 0.17.2 (21.11.2026, Fehlerberichte aus dem Peon Manager, „script ran too long“ im Tooltip, im Dungeon beim Plündern):
+  - **Geändert, Nachtragen:** Neue Beute, Benutzt, Quest und Zerstört trägt Ledger in den gespeicherten Stand der Kosten nach (`Cost.Add`), statt beim nächsten Tooltip alle Bewegungen nachzuspielen. Wächst ein Tageseintrag, kommt nur der Zuwachs dazu. Hat seitdem etwas anderes denselben Gegenstand dieses Charakters berührt, eine Bewegung eine ältere Zeit oder eine andere Art, rechnet Ledger wie bisher neu. Das Ergebnis bleibt gleich (echte Daten von KarloDerBaer: 4.506 Bewegungen, gleiche Posten und Ergebnisse).
+  - **Geändert, im Kampf:** Der Tooltip zeigt den letzten Stand der Kosten, gerechnet wird danach im Hintergrund. Die erste Rechnung nach dem Einloggen läuft ebenfalls im Hintergrund.
+  - **Behoben, Marktwerte:** Eine Rechnung fragt den Marktwert je Gegenstand nur noch einmal bei Broker (vorher 483 Abfragen für 21 Gegenstände), beim Herstellen nur noch für erbeutetes Material.
+  - Ein neuer Anfangsbestand (erster Blick auf einen Ort) lässt neu rechnen.
+  - Tests: Beute und Verbrauch nachgetragen und gewachsen, gleich wie volles Nachspielen, Neurechnen bei Händlerkauf, bei berührtem Gegenstand und bei älterer Zeit, Tooltip im Kampf (`test_ledger.lua`).
+
 ## 0.17.1
 
 Kurz: Der Tooltip eines Gegenstands bringt keine Fehlermeldung „script ran too long“ mehr, auch wenn du viel im Auktionshaus bietest.

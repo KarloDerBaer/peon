@@ -174,6 +174,13 @@ do
   for i = 1, 120 do Peon.RecordError("Peon_Test", "Viele" .. i, "f") end
   check(#PeonDB.errors == 100 and PeonDB.errors[100].where == "Viele120", "hoechstens 100, aelteste fallen weg")
 
+  PeonDB.errors = {}
+  Peon.RecordError("Peon_Ledger", "Tooltip", "Interface/AddOns/Peon_Ledger/Cost.lua:232: script ran too long")
+  Peon.RecordError("Peon_Ledger", "Tooltip", "Interface/AddOns/Peon_Ledger/Ledger.lua:202: script ran too long")
+  Peon.RecordError("Peon_Ledger", "Tooltip", "Interface/AddOns/Peon_Ledger/Cost.lua:232: anderer Fehler")
+  check(#PeonDB.errors == 2 and PeonDB.errors[1].n == 2 and PeonDB.errors[1].msg:find("Cost.lua:232", 1, true),
+    "script ran too long an verschiedenen Zeilen zaehlt als ein Fehler")
+
   PeonDB.errors = { { addon = "A", where = "alt", msg = "m", last = 500, n = 1 }, { addon = "A", where = "neu", msg = "m", last = 900, n = 3 } }
   check(Peon.ClearErrors(500) == 1 and #PeonDB.errors == 1 and PeonDB.errors[1].where == "neu", "ClearErrors bis Zeitpunkt, neuere bleiben")
   SlashCmdList.PEON("fehler")
