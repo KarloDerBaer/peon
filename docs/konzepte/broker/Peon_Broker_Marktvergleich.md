@@ -204,3 +204,7 @@ Vor M2 eine Messung mit der echten Datenbank: Wie viele grüne Chancen bleiben m
 - **Lücke im Ziel:** Verkäufe an mindestens 3 Tagen in 14 Tagen, aber kein Angebot jetzt oder kein Preis im Zeitraum. Verkaufspreis = Median der echten Verkäufe.
 - **Ledger:** Haus an Bewegungen (`h`) und Posten. Ein Verkauf im anderen Haus als dem Kauf ist ein Markttausch, das Buch zeigt ihn als „davon Markttausch“. Broker nimmt die Ware für das andere Haus aus Ledger.
 - **Manager:** Liste Chancen zeigt zuerst die Auswahl für Broker. Diagramm im Reiter Neutral, abschaltbar. Erfolgskontrolle: Auswahl je Tag gemerkt, nach 3 Tagen nachgeprüft, dazu echte Tausche aus Ledger.
+
+## 12. Messung Anteil Neutral (20.11.2026)
+
+Erster Verkauf im neutralen Haus: 20 Seidenstoff für 38s 20c, Anteil 5s 73c, also 15,0 %. Die Annahme von 15 % stimmt. Broker misst den Anteil beim Nehmen des Briefs, der Manager liest ihn danach aus `Peon_Broker.lua`.

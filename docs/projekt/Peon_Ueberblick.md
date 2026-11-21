@@ -219,6 +219,7 @@ UI.BottomTabs(win, { { "a", "Übersicht" } }, fn):Select("a"); UI.StatusBar(win)
 ## Wichtige Erkenntnisse zu WoW Forever
 
 - **Leerer Realm-Name (gesehen 20.11.2026):** Nach einem Neustart des Spiels lieferte `GetRealmName()` einen leeren Text. Module, die Daten je Realm speichern, sahen dann nichts mehr. Immer `Peon.RealmName()` nutzen (API 27).
+- **Neutrales Auktionshaus (gemessen 20.11.2026):** Anteil 15 % (Verkauf 38s 20c, Anteil 5s 73c), Einstellgebühr gleich hoch wie im eigenen Haus. Absender der Briefe „Auktionshaus der Schwarzmeerräuber“ (ohne Allianz oder Horde im Namen, so erkennen Broker und Ledger das neutrale Haus).
 - **Grenze für SavedVariables (gesehen 20.11.2026):** Das Spiel lädt eine Datei mit mehr als etwa 262.000 verschiedenen Werten nicht („constant table overflow“). Das Modul startet dann leer und überschreibt beim nächsten Speichern die Datei. `Peon_Broker.lua` lag bei 231.000.
 
 - **Kampflog für Addons gesperrt (gesehen beim Entwickeln, 19.11.2026):** Schon `frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")` löst ADDON_ACTION_FORBIDDEN „UNKNOWN()“ aus, auch innerhalb von `pcall`. Nie anmelden. Ersatz: Tod des eigenen Ziels (`UnitIsDead("target")`, nicht `UnitIsTapDenied`), Erfahrungsmeldung `CHAT_MSG_COMBAT_XP_GAIN`, `UNIT_COMBAT` am eigenen Charakter (Ausweichen, Schaden). Kritische Treffer, Fallschaden und Heilung anderer lassen sich so nicht erkennen.
