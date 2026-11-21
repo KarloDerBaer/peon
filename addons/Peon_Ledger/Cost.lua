@@ -344,6 +344,17 @@ end
 local function PopBuy(st, id, t, n)
     -- ab 0.15: Kaeufe mit Menge (q) zusammenzaehlen, bis die angekommenen Stueck erreicht sind. Vorher bekam ein
     -- Schwung aus der Post (z. B. 21 + 1 + 85 + 1 Stueck) nur den Preis des ersten Kaufs.
+    -- ab 0.17.1: abgelaufene Gebote vorn entfernen (die Liste ist nach Zeit geordnet, sie passen nie wieder).
+    -- Vorher blieben sie stehen und jede Suche lief ueber alle, bei vielen Geboten wurde das Nachspielen zu lang.
+    local limit = C.MATCH_DAYS * 86400
+    local drop = 0
+    while st.buy[drop + 1] and t - st.buy[drop + 1].t > limit do drop = drop + 1 end
+    if drop > 0 then
+        local rest = {}
+        for i = drop + 1, #st.buy do rest[#rest + 1] = st.buy[i] end
+        for i = #st.buy, 1, -1 do st.buy[i] = nil end
+        for i, p in ipairs(rest) do st.buy[i] = p end
+    end
     if Num(n) and n > 0 then
         local paid, got, i = 0, 0, 1
         while i <= #st.buy and got < n do
@@ -755,6 +766,24 @@ function C.State()
 end
 
 function C.Invalidate() C.dirty = true end
+
+-- ab 0.17.1: nach einer neuen Bewegung kurz danach im Hintergrund neu rechnen statt erst beim naechsten Tooltip.
+-- Mehrere Bewegungen kurz hintereinander (Beute, Post) ergeben nur eine Rechnung. Im Kampf wird verschoben.
+-- Kommt ein Tooltip vorher, rechnet C.State wie bisher sofort.
+C.LATER = 2
+function C.Soon()
+    if C.pending then return end
+    local CT = rawget(_G, "C_Timer")
+    if not (CT and CT.After) then return end
+    C.pending = true
+    CT.After(C.LATER, function()
+        C.pending = nil
+        if not C.dirty then return end
+        local cl = rawget(_G, "InCombatLockdown")
+        if cl and cl() then C.Soon() return end
+        pcall(C.State)
+    end)
+end
 
 -- Vor dem Zusammenfassen alter Bewegungen (Moves.Prune): ihren Stand in lotBase uebernehmen
 function C.Absorb(old, limit)

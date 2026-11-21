@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.17.1
+
+Kurz: Der Tooltip eines Gegenstands bringt keine Fehlermeldung „script ran too long“ mehr, auch wenn du viel im Auktionshaus bietest.
+
+- 0.17.1 (21.11.2026, Fehlerberichte aus dem Peon Manager, „Cost.lua: script ran too long“ im Tooltip):
+  - **Behoben, abgelaufene Gebote:** Gebote ohne passende Ware blieben in der Liste offener Gebote (`st.buy`), auch nach den 7 Tagen, in denen sie noch zugeordnet werden (`C.MATCH_DAYS`). Jede Ware aus der Post durchsuchte die ganze Liste, bei vielen Geboten wuchs das Nachspielen stark an. Jetzt fallen abgelaufene Gebote vorn heraus, bevor gesucht wird (`PopBuy`). Das Ergebnis bleibt gleich (echte Daten von KarloDerBaer: 4.263 Bewegungen, gleicher Lagerwert und gleiche Ergebnisse vorher und nachher).
+  - **Geändert, Neurechnen im Hintergrund:** Nach einer neuen Bewegung rechnet Ledger 2 Sekunden später neu (`C.Soon`, `C.LATER`), im Kampf erst danach. Mehrere Bewegungen kurz hintereinander ergeben eine Rechnung. Vorher geschah das erst beim nächsten Tooltip. Kommt ein Tooltip früher, rechnet Ledger wie bisher sofort.
+  - Tests: abgelaufene Gebote entfernt, Ware mit dem Preis des frischen Gebots, ein Zeitgeber für mehrere Bewegungen, danach muss der Tooltip nicht mehr rechnen (`test_ledger.lua`).
+
 ## 0.17.0
 
 Kurz: Liefert das Spiel keinen Realm-Namen, zeigt Ledger trotzdem deine Daten. Was in dieser Zeit unter „?“ gespeichert wurde, kommt zu deinem Realm.

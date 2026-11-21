@@ -152,7 +152,7 @@ end
 
 function M.Changed()
     M.cache = nil
-    if ns.Cost then ns.Cost.dirty = true end
+    if ns.Cost then ns.Cost.dirty = true; if ns.Cost.Soon then ns.Cost.Soon() end end   -- ab 0.17.1 im Hintergrund
     if ns.Last then ns.Last.dirty = true end
     if ns.Trend then ns.Trend.tradeDirty = true end
     if ns.Window and ns.Window.OnData then ns.Window.OnData() end

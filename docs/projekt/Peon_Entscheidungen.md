@@ -3,6 +3,11 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 21.11.2026: Ledger-Tooltip zu lang (Ledger 0.17.1)
+
+- **Andere Ursache als das Ruckeln bei Kisten** (Claude, nach Fehlerberichten): Die Fehler lagen in der Kostenrechnung des Ledger, die nach einer Bewegung beim nächsten Tooltip alles nachspielt. Abgelaufene Gebote blieben in der Liste und machten jede Suche länger.
+- **Abgelaufene Gebote entfernen und nach einer Bewegung im Hintergrund rechnen** (KarloDerBaer): Das Ergebnis bleibt im Speicher und wird nur nach einer Bewegung neu gerechnet, jetzt kurz danach statt beim Tooltip. Schrittweises Weiterrechnen nur mit der neuen Bewegung wäre schneller, aber Tausche und Startbestand hängen an allen Bewegungen. Das bleibt offen, falls es noch einmal nötig wird.
+
 ## 20.11.2026: Ruckeln bei Kisten mit Paketliste (Broker 0.130.1)
 
 - **Erst mit echten Daten messen** (Claude, nach Fehlermeldung KarloDerBaer): Nicht der Tooltip war langsam (unter 0,1 ms), sondern das Namensverzeichnis des Paketvergleichs, das beim Zeigen einer Kiste jede Minute neu entstand (190 ms).

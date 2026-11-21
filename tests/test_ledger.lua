@@ -2150,6 +2150,34 @@ end)()
   ns.Cost.Invalidate()
 end)()
 
+-- ----- 0.17.1: abgelaufene Gebote, Neurechnen im Hintergrund -----
+;(function()
+  local me = realm.chars["Mirel Dorna"]
+  local keepS, keepM, keepB = me.start, realm.moves, realm.lotBase
+  local t0 = time() - 1000
+  me.start = { t = t0 - 40 * 86400, places = {} }
+  realm.lotBase = nil
+  local moves = {}
+  for i = 1, 500 do moves[#moves + 1] = { t = t0 - 30 * 86400 + i, c = "Mirel Dorna", k = "ahbuy", id = 7300, n = 0, m = -100 } end
+  moves[#moves + 1] = { t = t0, c = "Mirel Dorna", k = "ahbuy", id = 7300, n = 0, m = -700 }     -- Gebot, 7 Stueck zu 1s
+  moves[#moves + 1] = { t = t0 + 60, c = "Mirel Dorna", k = "ahbuy", id = 7300, n = 7, m = 0 }  -- Ware aus der Post
+  realm.moves = moves
+  ns.Cost.Invalidate()
+  local st = ns.Cost.State()
+  check(#st.chars["Mirel Dorna"].buy == 0, "0.17.1: abgelaufene Gebote aus der Liste entfernt")
+  local info = ns.Cost.Info(7300, "Mirel Dorna")
+  check(info and info.n == 7 and info.value == 700, "0.17.1: Ware bekommt den Preis des frischen Gebots")
+  -- neue Bewegung: Rechnung im Hintergrund, mehrere Bewegungen ergeben nur einen Zeitgeber
+  ns.Cost.pending = nil   -- Zeitgeber frueherer Abschnitte laufen im Test nie
+  local nt = #timers
+  ns.Moves.Changed(); ns.Moves.Changed()
+  check(#timers == nt + 1 and ns.Cost.dirty, "0.17.1: nach Bewegungen ein Zeitgeber zum Neurechnen")
+  timers[#timers]()
+  check(not ns.Cost.dirty and ns.Cost.state, "0.17.1: im Hintergrund neu gerechnet, der Tooltip muss nicht mehr rechnen")
+  me.start, realm.moves, realm.lotBase = keepS, keepM, keepB
+  ns.Cost.Invalidate()
+end)()
+
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end
 check(n == 0, "keine Fehlermeldungen")
 print("ALLE TESTS OK")
