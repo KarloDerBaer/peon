@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.130.3
+
+Kurz: Kommt nach einem Klick auf Kaufen kein Preis vom Spiel, hängt der Schnellkauf nicht mehr 20 Sekunden lang. Nach höchstens 3 Sekunden fragt Broker wieder ab und du kannst erneut klicken.
+
+- 0.130.3 (22.11.2026, Kaufprotokoll KarloDerBaer):
+  - **Behoben, keine Abfragen nach einem Kaufversuch:** Im Protokoll (14:36 Uhr) war die Bremse des Spiels beim Klick belegt. Das Spiel stellte den Start des Kaufs in die Warteschlange und verwarf ihn dort (`AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED`). Ein Preis kam nie, der Kauf wartete 20 Sek. auf ihn, und so lange liefen weder Abfragen noch Klicks. Jetzt gilt ein verworfener Start sofort als fehlgeschlagen (im Protokoll `dropped quote`), der Fokus fragt gleich neu ab.
+  - **Geändert, Wartezeit auf den Preis:** höchstens 3 Sek. (`R.QUOTE_WAIT`), sonst kommt er nach 0,15 bis 1,2 Sek. Mit dem Preis gelten für Bestätigung und Ergebnis wieder 20 Sek.
+  - Tests: Wartezeiten, verworfener Start ohne Preis beendet den Kauf, nach dem Preis bleibt er (`test_broker.lua`).
+
 ## 0.130.2
 
 Kurz: Nach einem fehlgeschlagenen Kauf im Schnellkauf zeigt der Fokus keine längst verkauften Angebote mehr. Der Kaufknopf wird erst wieder frei, wenn die Liste wirklich neu ist.

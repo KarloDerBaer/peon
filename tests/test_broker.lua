@@ -1325,12 +1325,25 @@ end
     PeonBroker_RadarNext()
     check(F.key == 7803 and T.current == "focus", "N6: Taste naechste Chance: in den Fokus")
     started = nil
+    local keepAfter, delays = C_Timer.After, {}
+    C_Timer.After = function(sec, fn) delays[#delays + 1] = sec; return keepAfter(sec, fn) end
     PeonBroker_RadarBuy()
     check(started and started[1] == 7803, "N6: Taste kaufen: Chance im Fokus")
+    check(delays[#delays] == Rd.QUOTE_WAIT and Rd.QUOTE_WAIT == 3, "0.130.3: auf den Preis des Spiels nur 3 Sek. warten")
     -- ab 0.91: Gesamtpreis hoeher als erwartet: kein Kauf ohne zweiten Klick
     confirmed = nil
     fire("COMMODITY_PRICE_UPDATED", Rd.job.limit, (Rd.job.expect or 0) * 2 + 100)
     check(Rd.job and Rd.job.stage == "confirm" and Rd.job.warn and confirmed == nil, "0.91: Preiswarnung: wartet auf den zweiten Klick")
+    check(delays[#delays] == 20, "0.130.3: mit dem Preis wieder volle 20 Sek. fuer Bestaetigung und Ergebnis")
+    C_Timer.After = keepAfter
+    -- 0.130.3: Start des Kaufs vom Spiel verworfen: Kauf sofort beendet statt 20 Sek. zu haengen
+    local job = Rd.job
+    fire("AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED")
+    check(Rd.job == job, "0.130.3: verworfene Nachricht nach dem Preis aendert den Kauf nicht")
+    job.stage = "quote"
+    fire("AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED")
+    check(Rd.job == nil, "0.130.3: verworfener Start ohne Preis: Kauf beendet, Abfragen laufen weiter")
+    Rd.loop = false; Rd.Wake()   -- Schleife frisch ans Ende der Zeitgeber (tick nimmt nur die letzten 5)
     Rd.job = nil
     Rd.buyUntil = nil
     -- ein Gegenstand ohne Chance im Fokus (ohne fruehere Live-Antwort aus anderen Tests)

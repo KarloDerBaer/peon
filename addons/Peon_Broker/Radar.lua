@@ -667,6 +667,7 @@ end
 -- Vermutung zu "Interner Auktionsfehler" (KarloDerBaer 12.11.2026, kam schon vor dem Neuaufbau): Eine Suche
 -- zwischen Preis holen und Bestaetigen stoert den Kauf. Erkannt ueber die Ereignisse des Spiels, ohne Blizzards
 -- Funktionen anzufassen: COMMODITY_PRICE_UPDATED (Preis da) bis COMMODITY_PURCHASE_SUCCEEDED/FAILED.
+R.QUOTE_WAIT = 3   -- Sekunden: so lange auf den Preis des Spiels nach dem Start eines Kaufs warten (ab 0.130.3)
 R.BUY_HOLD = 15   -- Sekunden: so lange gilt ein Kauf nach dem Preis als laufend (ohne Abschluss-Ereignis)
 
 -- Anschluss fuer ein Kaufprotokoll (ab 0.118, Wunsch KarloDerBaer). Broker zeichnet selbst nichts auf und speichert
@@ -1192,7 +1193,9 @@ function R.BuyStep(d, mode)
     if d.commodity and Num(d.avgLimit) then R.job.limit, R.job.avg = math.max(R.job.limit or 0, d.avgLimit), true end
     if Num(d.goldCap) then R.job.goldCap = d.goldCap end
     R.Trace("job limit=%s avg=%s gold=%s", B2S(R.job.limit), B2S(R.job.avg), B2S(R.job.goldCap))
-    JobTimer(R.job, 20)
+    -- ab 0.130.3: Auf den Preis des Spiels nur R.QUOTE_WAIT Sek. warten (er kommt nach 0,15 bis 1,2 Sek.). Bisher
+    -- 20 Sek., in denen weder Abfragen noch Klicks gingen, wenn das Spiel die Anfrage verworfen hatte.
+    JobTimer(R.job, R.job.stage == "quote" and R.QUOTE_WAIT or 20)
     R.UpdateView()
 end
 
@@ -1219,6 +1222,7 @@ function R.OnPriceUpdated(unitPrice, totalPrice)
     -- ab 0.66: Gesamtpreis hoeher als erwartet -> Warnung vor dem zweiten Klick (Konzept 6.1)
     job.warn = (not job.avg and Num(totalPrice) and Num(job.expect) and job.expect > 0 and totalPrice > job.expect * (1 + R.PriceTol())) or nil
     job.stage = "confirm"
+    JobTimer(job, 20)   -- ab 0.130.3: Bestaetigung und Ergebnis haben wieder die volle Zeit
     -- ab 0.91: Kauf aus dem Fokus mit einem Klick (Fehlerbericht 24). Nur der Start des Kaufs braucht einen echten
     -- Klick (StartCommoditiesPurchase HasRestrictions), die Bestaetigung nicht (AuctionHouseDocumentation.lua, Zweig
     -- forever). Ist der Gesamtpreis hoeher als erwartet, bleibt es beim zweiten Klick mit Warnung.
@@ -1560,6 +1564,16 @@ function R.Init()
     pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED", function()
         R.stats.dropped = R.stats.dropped + 1
         if R.pending then R.pending = nil end
+        -- ab 0.130.3 (Kaufprotokoll 22.11.2026): Bei belegter Bremse stellt das Spiel den Start des Kaufs in die
+        -- Warteschlange und kann ihn dort verwerfen. Dann kommt nie ein Preis, der Kauf hing 20 Sek. und mit ihm
+        -- alle Abfragen. Jetzt gilt er sofort als fehlgeschlagen, der Fokus fragt gleich neu ab.
+        local job = R.job
+        if job and job.stage == "quote" then
+            R.Trace("dropped quote")
+            R.FinishJob(false)
+            mod:Print(L.BUY_FAILED)
+            R.Refresh()
+        end
     end)
     -- Fehlersuche: welche Ereignisse kamen waehrend einer Abfrage (landet bei "ohne Antwort" in radarStats.timeoutLog)
     local short = { AUCTION_HOUSE_THROTTLED_MESSAGE_SENT = "S", AUCTION_HOUSE_THROTTLED_MESSAGE_RESPONSE_RECEIVED = "R",
