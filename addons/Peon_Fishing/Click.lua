@@ -107,6 +107,7 @@ end
 -- Angelmodus aus, Kampfbeginn, Login und Logout.
 ---------------------------------------------------------------------------
 local INTERACT_ARC = "2"
+local INTERACT_SOUND = "softTargettingInteractKeySound"   -- Name so im Client 1.60.1
 -- Anzeige ueber dem erkannten Schwimmer: Symbol, Text (Namensplakette) oder nichts
 local MARKER_GUARD = {
     off  = { SoftTargetIconGameObject = "0", SoftTargetIconInteract = "0", SoftTargetNameplateInteract = "0" },
@@ -165,6 +166,10 @@ function ns.CVarApply()
     -- Anzeige nur, solange die Angel draussen ist (sonst erscheinen Symbole ueber Erzen, Kraeutern usw.)
     guard(ns.IsFishingChannel() and (MARKER_GUARD[db.bobberMarker] or MARKER_GUARD.icon) or MARKER_GUARD.off)
     db.cvarMarker = db.bobberMarker
+    -- Interaktionston des Spiels: klingt, sobald der Schwimmer Ziel der Interaktion wird (auch bei
+    -- anderen Objekten in Reichweite). Nur einschalten, nie ausschalten: der eigene Wert bleibt sonst.
+    if db.interactSound then guard({ [INTERACT_SOUND] = "1" }) end
+    db.cvarSound = db.interactSound
     local si = CV("SoftTargetInteract")
     if si then backup.SoftTargetInteract = si end
     db.cvarBackup = backup
@@ -386,7 +391,8 @@ table.insert(ns.onModeChanged, function(mode)
     elseif mode == "fishing" and not InCombatLockdown() then
         -- Einstellungen (z. B. Symbol) geaendert: neu setzen
         local db = ns.GetDB()
-        if type(db.cvarBackup) == "table" and (db.cvarMarker ~= db.bobberMarker or db.cvarRange ~= db.interactRange) then
+        if type(db.cvarBackup) == "table" and (db.cvarMarker ~= db.bobberMarker or db.cvarRange ~= db.interactRange
+            or db.cvarSound ~= db.interactSound) then
             ns.CVarRestore("Optionen")
         end
         ns.CVarApply()

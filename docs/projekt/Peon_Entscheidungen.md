@@ -3,6 +3,13 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 24.11.2026: Angeln mit der Interaktionstaste (Fishing 1.8.0, ClassBuddy 0.4.1)
+
+- **Combo-Punkte an Objekten** (Claude): Über Soft Interact bekommen auch Objekte ein Nameplate. ClassBuddy prüft jetzt `UnitIsGameObject`. Fishing war nicht die Ursache, es schaltet Namen über Objekten nur bei Anzeige „Text“ und nur mit Angel im Wasser.
+- **Einholen mit der Interaktionstaste des Spiels nur als Hinweis** (KarloDerBaer, Vorschlag A): Das geht schon, weil Fishing die Zielerkennung einschaltet und die Angel-Taste beim Einholen dieselbe Bindung nutzt. Die Optionen zeigen die Taste jetzt an.
+- **Interaktionston als Option, Standard an** (KarloDerBaer, Vorschlag B): Im Angelmodus an, danach der alte Wert, gesichert wie die übrigen CVars. Er klingt auch bei anderen Objekten, deshalb abschaltbar.
+- **Interaktionstaste nicht zum Auswerfen** (KarloDerBaer, Vorschlag C abgelehnt): Sie würde im Angelmodus für Truhen und NPCs fehlen.
+
 ## 24.11.2026: Fehler gebündelt melden (Peon 0.27.2, Peon Manager 0.54.0, Fehler-Worker)
 
 - **Ursache der 28 doppelten Issues vom 21.11.2026** (Claude, aus den Issues abgelesen): Ein Manager schickte dreimal je 11 Einträge, zwei Schwünge waren gleich bis auf die Sekunde. Der Worker brauchte je Eintrag vier Abrufe (Cache, Suche, Anlegen, Cache) und riss beim zwölften Eintrag die Grenze von Cloudflare (50 je Anfrage in der Gratis-Stufe). Die Issues waren da angelegt, der Manager bekam einen Fehler, behielt alles und schickte es erneut. Die wechselnden Zeilennummern bei „script ran too long“ machten zusätzlich aus einem Fehler viele.

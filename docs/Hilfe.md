@@ -75,6 +75,7 @@ Angeln mit einem Klick und automatischem Ausrüstungswechsel.
 - `/fp` öffnet die Einstellungen, `/fp toggle` schaltet den Angelmodus an oder aus.
 - Im Angelmodus angelst du per Doppelklick oder mit der Angel-Taste (Auswerfen und Einholen auf einer Taste).
 - Köder legt Peon Fishing selbst an, wenn du es einstellst. Ein Warnton meldet, wenn ein Fisch anbeißt.
+- Einholen geht im Angelmodus auch mit der Taste „Mit Ziel interagieren“ des Spiels. Auf Wunsch klingt dabei der Interaktionston, sobald du den Schwimmer einholen kannst.
 - **Tasten:** „Angelmodus an/aus“, „Angeln (Auswerfen / Einholen)“, „Waffen anlegen (auch im Kampf)“.
 - `/fp fische` zeigt deine Fänge je Gebiet, `/fp statistik` eine Übersicht.
 

@@ -28,6 +28,7 @@ ns.defaults = {
     interactRange = 60,         -- Reichweite der Zielerkennung im Angelmodus (Meter, experimentell)
     bobberMarker = "icon",      -- "off" | "icon" | "text": Anzeige ueber dem erkannten Schwimmer
     lostSound    = "raid",      -- "off" oder Schluessel aus ns.LOST_SOUNDS
+    interactSound = true,       -- Interaktionston des Spiels im Angelmodus an (danach alter Wert)
     combatWeaponTry = true,     -- bei Kampfbeginn automatisch Waffen anlegen versuchen
     afterCombat  = "stay",      -- "stay" | "ask" | "leave"
     showCatchList = true,       -- Fangliste im Angelmodus

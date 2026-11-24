@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 1.8.0
+
+Kurz: Neue Option „Interaktionston beim Angeln“: Im Angelmodus klingt der Interaktionston des Spiels, sobald du den Schwimmer einholen kannst. Danach gilt wieder deine eigene Einstellung.
+Kurz: Die Optionen zeigen jetzt, dass du auch mit der Taste „Mit Ziel interagieren“ des Spiels einholen kannst.
+
+- 1.8.0 (24.11.2026, Entscheidung KarloDerBaer, Vorschlag A und B):
+  - **Neu:** Option `interactSound` (Standard an). Im Angelmodus setzt Fishing den CVar `softTargettingInteractKeySound` auf 1 und sichert den alten Wert mit den übrigen CVars in `cvarBackup`. Zurück kommt er wie diese beim Verlassen des Angelmodus, bei Kampfbeginn, Login und Logout. Ist die Option aus, bleibt der Ton, wie er ist. Der Ton klingt auch bei anderen Objekten in Reichweite.
+  - **Neu:** Unter Steuerung steht die Taste „Mit Ziel interagieren“ (`INTERACTTARGET`). Im Angelmodus holt sie den Schwimmer ein, weil Fishing die Zielerkennung dafür einschaltet. Die Angel-Taste nutzt beim Einholen dieselbe Bindung.
+  - Tests: `test_fish.lua` mit nachgebauten CVars (Ton an, alter Wert zurück, Option aus) und Hinweis.
+
 ## 1.7.1
 
 Kurz: Peon Fishing braucht außerhalb des Angelmodus keine Leistung mehr.

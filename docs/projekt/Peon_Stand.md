@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 21.11.2026. Peon 0.27.2 (API 27) / Broker 0.130.3 / Ledger 0.17.2 / Bridge 0.14.0 / Peon Manager 0.54.0 / Fishing 1.7.1 / Tooltip 0.7.5 / ClassBuddy 0.4.1 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.1 / Panel 0.4.1 / Profession 0.7.4 / Warhorn 0.5.3.
+Stand: 21.11.2026. Peon 0.27.2 (API 27) / Broker 0.130.3 / Ledger 0.17.2 / Bridge 0.14.0 / Peon Manager 0.54.0 / Fishing 1.8.0 / Tooltip 0.7.5 / ClassBuddy 0.4.1 / Mover 0.1.1 / Bags 0.7.0 / Feedback 0.5.1 / Panel 0.4.1 / Profession 0.7.4 / Warhorn 0.5.3.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -37,11 +37,11 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Befehle: `/peon classbuddy`, `/peon classbuddy gifte`, `/peon classbuddy splitter`, `/peon debug classbuddy`.
 - Offen: Ob das Spiel das Bestätigen beim Ersetzen eines Gifts erlaubt, zeigt der Alltag (sonst Hinweis und Blizzards Frage). Erkannt werden nur die Gifte aus der Liste in `Rogue_Poisons.lua`.
 
-## Peon_Fishing – 1.7.1
+## Peon_Fishing – 1.8.0
 
 - Dateien: Locales.lua, Fishing.lua, Sets.lua, Click.lua, Lure.lua, Keys.lua, Combat.lua, Sound.lua, Minimap.lua, Catches.lua, Options.lua, Bindings.xml
 - SavedVariables: `PeonFishingDB` (Konto), `PeonFishingCharDB` (je Charakter), `dbVersion` 3.
-- Funktionen: Angelmodus mit Ausrüstungswechsel, Angeln per Doppelklick oder Taste, Köder, Kampfverhalten, Ton beim Angeln, Schwimmer-Erkennung mit Warnton, Minimap-Button, Fangdatenbank je Zone.
+- Funktionen: Angelmodus mit Ausrüstungswechsel, Angeln per Doppelklick oder Taste, Köder, Kampfverhalten, Ton beim Angeln, Schwimmer-Erkennung mit Warnton, Interaktionston im Angelmodus (`interactSound`, ab 1.8.0), Minimap-Button, Fangdatenbank je Zone.
 - Tastenbelegungen: `PEON_FISHING_TOGGLE`, `PEON_FISHING_ACTION`, `CLICK PeonFishingWeaponButton:LeftButton`.
 - Schnittstelle: `mod:CatchZones()` für Profession (ab 1.7.0).
 - Takte: Tasten nur im Angelmodus (`ns.UpdateLureTick`), Schwarm-Zeile nur bei sichtbarer Fangliste (`ns.CatchListTick`), ab 1.7.1.

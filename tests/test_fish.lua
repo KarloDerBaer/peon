@@ -92,6 +92,9 @@ assert(loadfile(SV .. "/SavedVariables/Peon_Fishing.lua"))()
 assert(loadfile(SV .. "/70/Mirel-Dorna/SavedVariables/Peon_Fishing.lua"))()
 PeonFishingDB.lure = 6529   -- gewaehlter Koeder
 PeonFishingDB.soundDelay = 99   -- ausserhalb des Bereichs (wird geklemmt)
+-- CVars nachgebaut (fuer den Interaktionston, ab 1.8.0)
+local cvars = { softTargettingInteractKeySound = "0", SoftTargetInteract = "3" }
+C_CVar = { GetCVar = function(n) return cvars[n] end, SetCVar = function(n, v) cvars[n] = v end }
 local ns = load("Peon_Fishing", "Peon_Fishing")
 fire("ADDON_LOADED", "Peon_Fishing")
 local mod = ns.mod
@@ -132,7 +135,7 @@ local checks = {}
 -- ohne den Schalter "Daten teilen" der Kern-Seite (Peon 0.23.0)
 local commCheck = Peon.Comm and Peon.Comm.option and Peon.Comm.option.check
 for _, f in ipairs(frames) do if f.kind == "CheckButton" and f ~= commCheck then checks[#checks + 1] = f end end
-check(#checks == 11, "11 Haekchen (" .. #checks .. ")")
+check(#checks == 12, "12 Haekchen (" .. #checks .. ")")
 PeonFishingDB.clickMode = "double"
 checks[1].GetChecked = function() return false end
 checks[1].scripts.OnClick(checks[1])
@@ -247,6 +250,25 @@ do
   check(hooked, "1.7.1: Takt folgt dem Wechsel des Modus")
   check(type(ns.CatchListTick) == "function", "1.7.1: Schwarm-Zeile mit eigenem Takt an der Fangliste")
   if _G.PeonFishingCatchList then check(_G.PeonFishingCatchList.scripts.OnUpdate ~= nil, "1.7.1: Takt haengt an der Fangliste") end
+end
+-- 1.8.0: Interaktionston im Angelmodus an, danach alter Wert
+do
+  local db = ns.GetDB()
+  ns.CVarRestore("Test")
+  check(db.interactSound == true, "1.8.0: Interaktionston standardmaessig an")
+  ns.CVarApply()
+  check(cvars.softTargettingInteractKeySound == "1" and db.cvarBackup.softTargettingInteractKeySound == "0",
+      "1.8.0: Ton im Angelmodus an, alter Wert gesichert")
+  ns.CVarRestore("Test")
+  check(cvars.softTargettingInteractKeySound == "0", "1.8.0: alter Wert zurueck")
+  db.interactSound = false
+  ns.CVarApply()
+  check(cvars.softTargettingInteractKeySound == "0" and db.cvarBackup.softTargettingInteractKeySound == nil,
+      "1.8.0: Option aus: Ton bleibt, wie er war")
+  ns.CVarRestore("Test")
+  db.interactSound = true
+  local _, n = ns.L.OPT_KEY_INFO:gsub("%%s", "")
+  check(n == 3 and ns.L.OPT_KEY_INFO:find("interagieren", 1, true), "1.8.0: Hinweis auf die Interaktionstaste")
 end
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler in") then n = n + 1; io.write("!! ", l, "\n") end end
 check(n == 0, "keine Fehlermeldungen")

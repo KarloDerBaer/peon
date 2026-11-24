@@ -27,8 +27,10 @@ end
 local function KeyText()
     local keys = { GetBindingKey("PEON_FISHING_ACTION") }
     local w = { GetBindingKey("CLICK PeonFishingWeaponButton:LeftButton") }
+    local i = { GetBindingKey("INTERACTTARGET") }
     return L.OPT_KEY_INFO:format(#keys > 0 and table.concat(keys, ", ") or L.OPT_NOT_BOUND,
-        #w > 0 and table.concat(w, ", ") or L.OPT_NOT_BOUND)
+        #w > 0 and table.concat(w, ", ") or L.OPT_NOT_BOUND,
+        #i > 0 and table.concat(i, ", ") or L.OPT_NOT_BOUND)
 end
 
 ---------------------------------------------------------------------------
@@ -62,8 +64,9 @@ function ns.CreateOptions()
     do
         local opts = { { "off", L.OPT_SOUND_OFF } }
         for _, s in ipairs(ns.LOST_SOUNDS) do opts[#opts + 1] = { s.key, L["SOUND_" .. s.key] } end
-        page:Add(left, page:Dropdown("lostSound", L.OPT_LOST_SOUND, opts), 20)
+        page:Add(left, page:Dropdown("lostSound", L.OPT_LOST_SOUND, opts))
     end
+    page:Add(left, page:Check("interactSound", L.OPT_INTERACT_SOUND, L.OPT_INTERACT_SOUND_HINT), 20)
 
     page:Add(left, page:Header(L.HDR_CATCHES), 6)
     page:Add(left, page:Check("showCatchList", L.OPT_CATCH_LIST), 6)
