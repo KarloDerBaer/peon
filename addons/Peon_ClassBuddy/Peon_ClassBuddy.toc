@@ -3,7 +3,7 @@
 ## Notes: Class buddy: small helpers per class. Rogue: combo points above the enemy nameplate, poisons with one key. Warlock: destroys surplus soul shards.
 ## Notes-deDE: Klassenbuddy: kleine Helfer je Klasse. Schurke: Combo-Punkte über dem Nameplate des Gegners, Gifte mit einer Taste. Hexenmeister: vernichtet überzählige Seelensplitter.
 ## Author: KarloDerBaer
-## Version: 0.4.0
+## Version: 0.4.1
 ## Dependencies: Peon
 ## Group: Peon
 ## IconTexture: Interface\Icons\INV_Misc_Gem_Amethyst_02

@@ -200,6 +200,47 @@ local nTimers = #timers
 slider:SetValue(20)
 check(db.size == 20 and pips[1].w == 20 and #timers == nTimers + 1, "Regler -> Vorschau, Nameplates neu gezeichnet")
 
+-- Nameplates: Gegner (nameplate1, Ziel) und ein Fass mit Soft-Interact-Nameplate (nameplate2).
+-- Das Fass meldet sich hier sogar als angreifbar: nur UnitIsGameObject haelt es fern.
+do
+  local plates, kind = {}, { nameplate1 = "enemy", nameplate2 = "object", nameplate3 = "enemy" }
+  local function plate(token) local uf = CreateFrame("Frame"); uf.healthBar = W(); local np = { UnitFrame = uf, namePlateUnitToken = token }; uf.namePlateFrame = np; plates[token] = np; return uf end
+  local enemyUF, barrelUF = plate("nameplate1"), plate("nameplate2")
+  local target = "nameplate1"
+  local oldNP, oldExists = C_NamePlate.GetNamePlateForUnit, UnitExists
+  C_NamePlate.GetNamePlateForUnit = function(u) if u == "target" then u = target end return u and plates[u] end
+  UnitExists = function(u) if u == "target" then u = target end return u ~= nil and kind[u] ~= nil end
+  function UnitCanAttack() return true end
+  function UnitIsGameObject(u) return kind[u] == "object" end
+  function UnitGUID(u) return "GUID-" .. tostring(u == "target" and target or u) end
+  function UnitPower() return 2 end
+  for _, f in ipairs(allFrames) do if f.unitev.UNIT_POWER_UPDATE and f.scripts.OnEvent then f.scripts.OnEvent(f, "UNIT_POWER_UPDATE", "player", "COMBO_POINTS") end end
+  runTimers()
+  check(enemyUF.cpRow and enemyUF.cpRow.shown and enemyUF.cpRow.pips[1].value == 2, "Combo-Punkte am Gegner")
+  fire("NAME_PLATE_UNIT_ADDED", "nameplate2")
+  runTimers()
+  check(not (barrelUF.cpRow and barrelUF.cpRow.shown), "keine Combo-Punkte am Fass (Objekt-Nameplate)")
+  -- Fass als Ziel des Soft Interact und als Traeger-Rahmen: trotzdem nichts
+  target = "nameplate2"
+  fire("PLAYER_TARGET_CHANGED")
+  runTimers()
+  check(not (barrelUF.cpRow and barrelUF.cpRow.shown), "kein Fass, auch wenn es als Ziel gemeldet wird")
+  check(enemyUF.cpRow.shown and enemyUF.cpRow.pips[1].value == 2, "Traeger behaelt seine Punkte")
+  -- Traeger-Rahmen mit altem Token, das inzwischen zu einem anderen Plate gehoert (ohne Ereignis)
+  enemyUF.namePlateFrame, enemyUF.unit = nil, "nameplate1"
+  plate("nameplate1")
+  target = "nameplate3"
+  plate("nameplate3")
+  fire("PLAYER_TARGET_CHANGED")
+  runTimers()
+  check(not enemyUF.cpRow.shown, "Rahmen mit fremdem Token zeigt nichts")
+  target = nil
+  fire("PLAYER_REGEN_ENABLED")
+  runTimers()
+  C_NamePlate.GetNamePlateForUnit, UnitExists = oldNP, oldExists
+  UnitCanAttack, UnitIsGameObject, UnitGUID, UnitPower = nil, nil, nil, nil
+end
+
 -- ===== Auswahl =====
 check(P.Best("instant") == INSTANT6 and P.Count("instant") == 13, "hoechster Rang, alle Raenge gezaehlt")
 tooHigh[INSTANT6] = true

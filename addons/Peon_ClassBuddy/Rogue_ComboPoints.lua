@@ -113,6 +113,32 @@ local function UnitOf(uf)
     return (np and np.namePlateUnitToken) or uf.unit
 end
 
+-- Nur echte Gegner bekommen Punkte. Seit das Spiel Soft Interact nutzt
+-- (Interaktionstaste), erhalten auch Objekte in der Welt ein Nameplate, etwa
+-- ein Fass oder eine Truhe in Reichweite. UnitCanAttack allein schliesst sie
+-- nicht sicher aus, deshalb zusaetzlich UnitIsGameObject (auf Client 1.60.1
+-- vorhanden). Ein geheimes Ergebnis gilt als "kein Gegner": lieber keine
+-- Punkte als Punkte am Fass.
+local function IsObject(unit)
+    if not UnitIsGameObject then return false end
+    local ok, v = pcall(UnitIsGameObject, unit)
+    if not ok or Peon.IsSecret(v) then return true end
+    return v and true or false
+end
+
+local function IsEnemy(unit)
+    if not unit or not UnitExists(unit) or IsObject(unit) then return false end
+    local ok, v = pcall(UnitCanAttack, "player", unit)
+    return ok and not Peon.IsSecret(v) and v and true or false
+end
+
+-- Gehoert der Rahmen wirklich zu diesem Unit-Token? Ein wiederverwendeter
+-- Rahmen kann noch ein altes Token tragen. Reiner Objektvergleich.
+local function OwnsUnit(uf, unit)
+    local np = C_NamePlate.GetNamePlateForUnit(unit)
+    return np ~= nil and np.UnitFrame == uf
+end
+
 local function TargetFrame()
     local np = C_NamePlate.GetNamePlateForUnit("target")
     return np and np.UnitFrame or nil
@@ -244,7 +270,7 @@ end
 local function Render(uf, unit, targetFrame)
     local row = uf.cpRow
 
-    if not unit or not UnitExists(unit) or not UnitCanAttack("player", unit) then
+    if not IsEnemy(unit) or not OwnsUnit(uf, unit) then
         if row then row:Hide() end
         return
     end

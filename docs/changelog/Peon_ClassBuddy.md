@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Konzept: `docs/konzepte/classbuddy/Peon_ClassBuddy_Konzept.md`.
 
+## 0.4.1
+
+Kurz: Combo-Punkte erscheinen nicht mehr über Fässern, Truhen und anderen Objekten in der Welt, sondern nur noch über echten Gegnern.
+
+- 0.4.1 (24.11.2026, Meldung KarloDerBaer):
+  - **Behoben:** Seit das Spiel die Interaktionstaste mit Soft Targeting nutzt, bekommen auch Objekte in Reichweite ein Nameplate. Die Combo-Punkte prüften nur `UnitCanAttack` und zeigten sich deshalb auch an solchen Objekten. Jetzt gilt ein Nameplate nur als Gegner, wenn `UnitIsGameObject` nein sagt (ein geheimes Ergebnis zählt als Objekt) und der Rahmen wirklich zum Unit-Token gehört. Ein wiederverwendeter Rahmen mit altem Token zeigt nichts mehr.
+  - Peon_Fishing schaltet Namen über Objekten (`SoftTargetNameplateInteract`) nur in der Anzeige „Text“ und nur bei ausgeworfener Angel ein und setzt den alten Wert danach zurück. Die Meldung kommt also vom Spiel selbst, nicht von Fishing.
+  - Test: `test_classbuddy_schurke.lua` mit Nameplates (Gegner, Fass, Fass als Ziel, Rahmen mit altem Token).
+
 ## 0.4.0
 
 Kurz: Schurken tragen Gifte jetzt mit einer Taste auf. Jeder Druck legt das nächste fehlende oder bald ablaufende Gift auf, zuerst auf die Haupthand, dann auf die Nebenhand.
