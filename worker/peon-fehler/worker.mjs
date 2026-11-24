@@ -4,13 +4,18 @@
 // Die IP-Adresse wird nur als Pruefsumme fuer die Sperre gegen zu viele Anfragen genutzt und nach einer Stunde verworfen.
 // Ab 18.11.2026: Die Sperre zaehlt Eintraege statt Sendungen (vorher bis zu 20 Eintraege je Sendung), und ein Fehler,
 // der schon als offenes Issue da ist, kommt als Kommentar an dieses Issue statt als neues.
+// Ab 24.11.2026: Der Worker liest die offenen Issues einmal je Sendung als Verzeichnis (Kennung zu Issue) statt fuer jeden
+// Eintrag die Suche zu fragen, gleiche Fehler einer Sendung werden zu einer Meldung gebuendelt, und er hoert vor der
+// Grenze von Cloudflare (50 Abrufe je Anfrage in der Gratis-Stufe) auf. Vorher brach er nach 11 Eintraegen ab, der Manager
+// hielt alles fuer gescheitert und schickte dieselben Eintraege spaeter noch einmal.
 
 const MAX_BODY = 64 * 1024;
 const MAX_ITEMS = 20;              // Der Manager schickt nicht mehr, Cloudflare erlaubt je Anfrage nur begrenzt viele Abrufe
 const LIMIT_PER_IP = 20;           // Eintraege je Stunde und Adresse
 const LIMIT_TOTAL = 60;            // Eintraege je Stunde insgesamt
 const LIMIT_SECONDS = 3600;
-const KEY_SECONDS = 3600;          // so lange merkt sich der Worker, welches Issue zu einem Fehler gehoert (danach fragt er die Suche)
+const MAX_CALLS = 45;              // Abrufe je Anfrage (GitHub und Cache), Cloudflare erlaubt in der Gratis-Stufe 50
+const DIR_PAGES = 3;               // so viele Seiten offener Issues (je 100) liest das Verzeichnis hoechstens
 
 const KINDS = { bug: ['Fehler', 'fehler'], improve: ['Verbesserung', 'verbesserung'], idea: ['Neue Idee', 'idee'], other: ['Sonstiges', 'sonstiges'] };
 const PRIOS = { low: 'Niedrig', mid: 'Mittel', high: 'Hoch' };
@@ -53,11 +58,26 @@ export function cleanReport(data) {
   return { manager: plain(str(data.manager, 40)), sender: SENDER.test(str(data.sender, 8)) ? data.sender : '', items };
 }
 
+// Meldung ohne wechselnde Teile. "script ran too long" nennt die Zeile, an der das Spiel abbrach, die ist fast jedes Mal
+// anders: ohne Datei und Zeile. Adressen von Tabellen und Funktionen wechseln mit jedem Laden.
+// Gleiche Regeln im Kern (Core.lua) und im Manager (reports.js).
+export function errorText(msg) {
+  const s = String(msg || '');
+  if (s.includes('script ran too long')) return 'script ran too long';
+  return s.replace(/\b(table|function|userdata|thread): (?:0x)?[0-9A-Fa-f]{6,}/g, '$1: <Adresse>');
+}
+
 // Kennung eines Fehlers: gleiches Addon, gleiche Stelle, gleiche Meldung (Version egal). Steht unter dem Issue.
-// "script ran too long" nennt die Zeile, an der das Spiel abbrach, die ist fast jedes Mal anders: ohne Datei und Zeile.
 export async function errorKey(i) {
-  const msg = /script ran too long/.test(i.msg || '') ? 'script ran too long' : i.msg;
-  return (await sha256(`${i.addon}|${i.where}|${msg}`)).slice(0, 16);
+  return (await sha256(`${i.addon}|${i.where}|${errorText(i.msg)}`)).slice(0, 16);
+}
+
+// Gleiche Fehler einer Sendung zu einer Meldung: Anzahl zusammen, Zeitraum gesamt, Version und Text der neuesten
+export function mergeErrors(list) {
+  const newest = list.reduce((a, b) => (b.last > a.last ? b : a));
+  const notes = [...new Set(list.map((i) => i.note).filter(Boolean))];
+  return { ...newest, n: list.reduce((s, i) => s + i.n, 0), first: Math.min(...list.map((i) => i.first || newest.last)),
+    last: newest.last, note: notes.join('\n').slice(0, 2000) };
 }
 
 export function buildIssue(i, manager, key, sender) {
@@ -102,27 +122,23 @@ async function allow(cache, name, max, add = 1) {
   return true;
 }
 
-// Offenes Issue zu einer Fehlerkennung: erst im Cache, sonst ueber die Suche von GitHub. Rueckgabe: Nummer oder null
-async function findIssue(key, env, gh, cache) {
-  const ck = new Request(`https://peon-fehler.invalid/fehler/${key}`);
-  const hit = cache ? await cache.match(ck) : null;
-  if (hit) {
-    const n = Number(await hit.text());
-    if (Number.isInteger(n) && n > 0) return n;
+// Verzeichnis der offenen Issues: Fehlerkennung -> Nummer. Liest die Liste der Issues direkt (nicht die Suche, die neue
+// Issues erst nach einer Weile kennt). Scheitert das Lesen, ist das Verzeichnis leer: lieber ein neues Issue als keins.
+async function openIssues(env, gh) {
+  const dir = new Map();
+  for (let page = 1; page <= DIR_PAGES; page++) {
+    const res = await gh(`https://api.github.com/repos/${env.GITHUB_REPO}/issues?state=open&per_page=100&page=${page}`);
+    if (!res || !res.ok) break;
+    let list;
+    try { list = await res.json(); } catch { break; }
+    if (!Array.isArray(list)) break;
+    for (const i of list) {
+      const m = !i.pull_request && typeof i.body === 'string' && /\npeon-key:\s*([0-9a-f]{16})\s*$/.exec(i.body);
+      if (m && Number.isInteger(i.number) && !dir.has(m[1])) dir.set(m[1], i.number);
+    }
+    if (list.length < 100) break;
   }
-  const q = encodeURIComponent(`repo:${env.GITHUB_REPO} is:issue is:open in:body "peon-key: ${key}"`);
-  const res = await gh(`https://api.github.com/search/issues?q=${q}&per_page=1`);
-  if (!res.ok) return null;
-  let body;
-  try { body = await res.json(); } catch { return null; }
-  const n = body && Array.isArray(body.items) && body.items[0] ? Number(body.items[0].number) : null;
-  return Number.isInteger(n) && n > 0 ? n : null;
-}
-
-async function rememberIssue(key, number, cache) {
-  if (!cache) return;
-  const ck = new Request(`https://peon-fehler.invalid/fehler/${key}`);
-  await cache.put(ck, new Response(String(number), { headers: { 'Cache-Control': `max-age=${KEY_SECONDS}` } }));
+  return dir;
 }
 
 export async function handle(request, env, { fetchImpl = fetch, cache = globalThis.caches && globalThis.caches.default } = {}) {
@@ -134,9 +150,14 @@ export async function handle(request, env, { fetchImpl = fetch, cache = globalTh
   const report = cleanReport(data);
   if (!report) return json(400, { ok: false, error: 'invalid report' });
 
+  // Jeder Abruf (GitHub und Cache) zaehlt gegen die Grenze von Cloudflare. Wer sie reisst, bricht mit Fehler ab, und
+  // der Manager erfaehrt nicht, was schon angelegt ist. Darum zaehlt der Worker mit und hoert vorher auf.
+  let calls = 0;
+  const counted = cache && { match: (k) => { calls++; return cache.match(k); }, put: (k, r) => { calls++; return cache.put(k, r); } };
+
   const n = report.items.length;
   const ip = await sha256(request.headers.get('CF-Connecting-IP') || 'unbekannt');
-  if (!(await allow(cache, `ip-${ip}`, LIMIT_PER_IP, n)) || !(await allow(cache, 'gesamt', LIMIT_TOTAL, n))) {
+  if (!(await allow(counted, `ip-${ip}`, LIMIT_PER_IP, n)) || !(await allow(counted, 'gesamt', LIMIT_TOTAL, n))) {
     return json(429, { ok: false, error: 'too many reports' });
   }
 
@@ -144,23 +165,35 @@ export async function handle(request, env, { fetchImpl = fetch, cache = globalTh
     Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'peon-fehler-worker', 'Content-Type': 'application/json',
   };
-  const gh = (url, body) => fetchImpl(url, body ? { method: 'POST', headers, body: JSON.stringify(body) } : { method: 'GET', headers });
+  const gh = (url, body) => { calls++; return fetchImpl(url, body ? { method: 'POST', headers, body: JSON.stringify(body) } : { method: 'GET', headers }); };
+
+  // Gleiche Fehler zu einer Gruppe, Reihenfolge wie gesendet. Rueckmeldungen bleiben einzeln.
+  const groups = [], byKey = new Map();
+  for (const item of report.items) {
+    const key = item.type === 'error' ? await errorKey(item) : null;
+    if (key && byKey.has(key)) { byKey.get(key).items.push(item); continue; }
+    const g = { key, items: [item] };
+    groups.push(g);
+    if (key) byKey.set(key, g);
+  }
+  const dir = byKey.size ? await openIssues(env, gh) : new Map();
 
   // Nacheinander anlegen und beim ersten Fehler aufhoeren: Was bestaetigt ist, loescht der Manager, der Rest bleibt bei ihm.
   // Gleicher Fehler wie ein offenes Issue: Kommentar daran statt neuem Issue.
   const done = [], numbers = [];
   let failed = null;
-  for (const item of report.items) {
-    const key = item.type === 'error' ? await errorKey(item) : null;
-    const open = key ? await findIssue(key, env, gh, cache) : null;
+  for (const g of groups) {
+    if (calls >= MAX_CALLS) { failed = 'limit'; break; }
+    const item = g.items.length > 1 ? mergeErrors(g.items) : g.items[0];
+    const open = g.key ? dir.get(g.key) : null;
     const res = open
       ? await gh(`https://api.github.com/repos/${env.GITHUB_REPO}/issues/${open}/comments`, buildComment(item, report.manager, report.sender))
-      : await gh(`https://api.github.com/repos/${env.GITHUB_REPO}/issues`, buildIssue(item, report.manager, key, report.sender));
+      : await gh(`https://api.github.com/repos/${env.GITHUB_REPO}/issues`, buildIssue(item, report.manager, g.key, report.sender));
     if (!res.ok) { failed = res.status; break; }
-    const number = open || (await res.json()).number;
-    if (key) await rememberIssue(key, number, cache);
-    done.push(item.ref);
-    numbers.push(number);
+    let number = open;
+    if (!number) { try { number = (await res.json()).number; } catch { number = null; } }
+    if (g.key && number) dir.set(g.key, number);
+    for (const i of g.items) { done.push(i.ref); numbers.push(number); }
   }
   if (!done.length) return json(502, { ok: false, error: `github ${failed}` });
   return json(200, { ok: !failed, done, numbers });

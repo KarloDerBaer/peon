@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.54.0
+
+Kurz: Gleiche Fehler gehen als eine Meldung mit Anzahl an KarloDerBaer. Beim Senden vieler Fehler auf einmal kommt keine falsche Fehlermeldung mehr, und nichts wird doppelt geschickt.
+
+- 0.54.0 (24.11.2026, 28 doppelte Fehlerberichte am 21.11.2026):
+  - **Ursache:** Ein Manager schickte am 21.11.2026 dreimal je 11 Einträge. Der Fehler-Worker stieß dabei an die Grenze von Cloudflare (50 Abrufe je Anfrage, je Eintrag brauchte er vier) und brach ab, nachdem die Issues schon angelegt waren. Der Manager meldete „Senden fehlgeschlagen“, behielt alles und schickte es später noch einmal. Dazu bekam „script ran too long“ mit jeder Zeilennummer eine eigene Kennung.
+  - **Geändert, Kennung eines Fehlers** (`reports.js`, `errorText`): ohne wechselnde Teile, also „script ran too long“ ohne Datei und Zeile und Adressen von Tabellen und Funktionen ohne Wert. Gleiche Regeln wie im Kern 0.27.2 und im Worker. Vorhandene Zeilen bekommen beim nächsten Einlesen die neue Kennung und zählen weiter, nicht doppelt.
+  - **Neu, Bündeln vor dem Senden** (`errorGroups`): Gleiche Fehler (Addon, Stelle, Meldung) gehen als eine Meldung mit der Summe der Anzahl, dem ganzen Zeitraum und der Version der neuesten. Bestätigt der Worker sie, fallen alle zugehörigen Zeilen weg.
+  - **Fehler-Worker** (`worker\peon-fehler\worker.mjs`, wirkt erst nach `npx wrangler deploy`): liest die offenen Issues einmal je Sendung als Verzeichnis „Kennung zu Issue“ statt für jeden Eintrag die Suche von GitHub zu fragen (die kennt neue Issues erst nach einer Weile). Gleiche Fehler einer Sendung werden zu einer Meldung. Er zählt seine Abrufe und hört vor der Grenze auf, bestätigt wird dann nur das Angelegte. Eine volle Sendung mit 20 Einträgen braucht jetzt höchstens 27 Abrufe.
+  - Tests: Bündeln und Löschen beim Senden, Umstellung alter Kennungen, Verzeichnis statt Suche, gleiche Fehler einer Sendung, volle Sendung unter der Grenze, Adressen in der Kennung (`reports.test.js`).
+
 ## 0.53.1
 
 Kurz: Der Manager liest den Preisverlauf von Peon Broker auch in dessen neuer, kompakter Speicherform.

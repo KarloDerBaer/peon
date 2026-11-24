@@ -278,6 +278,53 @@ test('Senden: hoechstens 20 und unter der Grenze des Workers, der Rest bleibt', 
   svc.close();
 });
 
+test('Gleiche Fehler (ab 0.54.0): wechselnde Teile zaehlen nicht, eine Meldung mit Anzahl, Senden loescht alle', async () => {
+  const calls = [];
+  const { svc, rep, core } = setup({ fetchImpl: async (url, o) => { calls.push(JSON.parse(o.body)); return { ok: true, status: 200, json: async () => ({ done: [0] }) }; } });
+  const tooLong = (file, last, n) => err({ where: 'Tooltip', msg: `Interface/AddOns/Peon_Ledger/${file}: script ran too long`, first: last, last, n });
+  core([tooLong('Cost.lua:329', 1100, 1), tooLong('Cost.lua:73', 1200, 2), err({ msg: 'x.lua:1: bad (table: 000001A2B3C4D5E6)', last: 1300 })]);
+  rep.scan();
+  assert.equal(rep.errorRows().length, 2, 'script ran too long an zwei Stellen ist eine Zeile');
+  core([tooLong('Cost.lua:329', 1100, 1), tooLong('Cost.lua:73', 1200, 2), err({ msg: 'x.lua:1: bad (table: 000001A2B3C4D5E6)', last: 1300 }),
+    err({ msg: 'x.lua:1: bad (table: 0x7f00aa11bb22)', first: 1400, last: 1400, n: 5 })]);
+  rep.scan();
+  assert.equal(rep.errorRows().length, 2, 'andere Adresse ist derselbe Fehler');
+
+  // Zeilen aus aelteren Versionen mit eigener Kennung: beim Senden eine Meldung, danach alle weg
+  svc.db.prepare(`INSERT INTO errors(key, source, addon, version, build, place, msg, stack, first, last, n, note)
+      VALUES ('alt1', 'peon', 'Peon_Ledger', '0.16.3', '1', 'Kosten', 'Cost.lua:1: script ran too long', '', 900, 950, 3, 'erste'),
+             ('alt2', 'peon', 'Peon_Ledger', '0.17.1', '2', 'Kosten', 'Ledger.lua:2: script ran too long', '', 960, 990, 4, '')`).run();
+  const g = rep.nextItems().next.find((e) => e.item.where === 'Kosten');
+  assert.deepEqual(g.keys.sort(), ['alt1', 'alt2']);
+  assert.equal(g.item.n, 7);
+  assert.equal(g.item.version, '0.17.1', 'Version der neuesten');
+  assert.equal(g.item.first, 900);
+  assert.equal(g.item.last, 990);
+  assert.equal(g.item.note, 'erste');
+  process.env.PEON_MANAGER_REPORT_URL = 'https://test.invalid/bericht';
+  try {
+    await rep.send();
+    assert.equal(calls[0].items[0].where, 'Kosten', 'aelteste zuerst');
+    assert.equal(rep.errorRows().length, 2, 'beide alten Zeilen geloescht, die anderen bleiben');
+  } finally { delete process.env.PEON_MANAGER_REPORT_URL; svc.close(); }
+});
+
+test('Kennung ab 0.54.0: alte Zeile wird umgestellt und zaehlt weiter, nicht doppelt', () => {
+  const { svc, rep, core } = setup();
+  const crypto = require('node:crypto');
+  const msg = 'x.lua:1: bad (table: 000001A2B3C4D5E6)';
+  const old = crypto.createHash('sha1').update(['peon', 'Peon_Tooltip', 'Border', msg].join('\n')).digest('hex');
+  svc.db.prepare(`INSERT INTO errors(key, source, addon, version, build, place, msg, stack, first, last, n, base_first, base_n)
+      VALUES (?, 'peon', 'Peon_Tooltip', '0.7.4', '1', 'Border', ?, '', 1000, 1000, 2, 1000, 2)`).run(old, msg);
+  core([err({ msg, first: 1000, last: 1500, n: 5 })]);
+  rep.scan();
+  const rows = rep.errorRows();
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].n, 5, 'nur der Zuwachs kommt dazu');
+  assert.notEqual(rows[0].key, old);
+  svc.close();
+});
+
 test('Alles loeschen', () => {
   const { svc, rep, core } = setup();
   core([err()]);
@@ -310,8 +357,8 @@ test('Worker: je Eintrag ein Issue mit Label, Nummern und Bestaetigung zurueck',
   const res = await handle(post(good()), ENV, { fetchImpl, cache: fakeCache() });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true, done: [0, 1], numbers: [7, 8] });
-  assert.equal(searched.length, 1, 'nur der Fehler wird gesucht, die Rueckmeldung nicht');
-  assert.match(decodeURIComponent(searched[0]), /^https:\/\/api\.github\.com\/search\/issues\?q=repo:KarloDerBaer\/peon-fehler is:issue is:open in:body "peon-key: [0-9a-f]{16}"/);
+  assert.deepEqual(searched, ['https://api.github.com/repos/KarloDerBaer/peon-fehler/issues?state=open&per_page=100&page=1'],
+    'einmal die offenen Issues als Verzeichnis lesen, nicht die Suche');
   assert.match(seen[0].issue.body, /\n\npeon-key: [0-9a-f]{16}$/);
   assert.equal(seen[0].url, 'https://api.github.com/repos/KarloDerBaer/peon-fehler/issues');
   assert.equal(seen[0].o.headers.Authorization, 'Bearer test');
@@ -386,12 +433,16 @@ test('Worker: gleicher Fehler kommt als Kommentar an das offene Issue', async ()
   const { handle, errorKey } = await worker();
   const calls = [];
   let openIssue = null;
+  const key = await errorKey(errItem());
   const fetchImpl = async (url, o) => {
     calls.push({ url, method: o.method, body: o.body ? JSON.parse(o.body) : null });
-    if (o.method === 'GET') return new Response(JSON.stringify({ items: openIssue ? [{ number: openIssue }] : [] }));
+    if (o.method === 'GET') {
+      return new Response(JSON.stringify(openIssue ? [{ number: 3, body: 'ohne Kennung' }, { number: 9, pull_request: {}, body: `x\n\npeon-key: ${key}` },
+        { number: openIssue, body: `Text\n\npeon-key: ${key}` }] : []));
+    }
     return new Response(JSON.stringify({ number: 41 }), { status: 201 });
   };
-  // 1. Suche findet ein offenes Issue: Kommentar statt neuem Issue
+  // 1. Verzeichnis kennt ein offenes Issue: Kommentar statt neuem Issue
   openIssue = 12;
   let res = await handle(post(good([errItem({ version: '0.7.5', n: 4 })])), ENV, { fetchImpl, cache: fakeCache() });
   assert.deepEqual(await res.json(), { ok: true, done: [0], numbers: [12] });
@@ -400,13 +451,15 @@ test('Worker: gleicher Fehler kommt als Kommentar an das offene Issue', async ()
   assert.equal(post1[0].url, 'https://api.github.com/repos/KarloDerBaer/peon-fehler/issues/12/comments');
   assert.match(post1[0].body.body, /Wieder gemeldet von Peon Manager 1\.2\.3: Peon_Tooltip 0\.7\.5 \| 4x/);
   assert.match(post1[0].body.body, /Notiz:\nbeim Kampf/);
-  // 2. Neues Issue, danach findet der Worker es ueber seinen Cache (die Suche von GitHub kennt es noch nicht)
+  // 2. Gleicher Fehler zweimal in einer Sendung: ein Issue mit beiden Anzahlen, beide bestaetigt
   calls.length = 0; openIssue = null;
   const cache = fakeCache();
-  res = await handle(post(good([errItem(), errItem({ ref: 1, version: '0.7.6' })])), ENV, { fetchImpl, cache });
+  res = await handle(post(good([errItem({ last: 5, n: 2 }), errItem({ ref: 1, version: '0.7.6', first: 3, last: 9, n: 4, note: 'zweite' })])), ENV, { fetchImpl, cache });
   assert.deepEqual(await res.json(), { ok: true, done: [0, 1], numbers: [41, 41] });
-  const posts = calls.filter((c) => c.method === 'POST').map((c) => c.url);
-  assert.deepEqual(posts, ['https://api.github.com/repos/KarloDerBaer/peon-fehler/issues', 'https://api.github.com/repos/KarloDerBaer/peon-fehler/issues/41/comments']);
+  const posts = calls.filter((c) => c.method === 'POST');
+  assert.deepEqual(posts.map((c) => c.url), ['https://api.github.com/repos/KarloDerBaer/peon-fehler/issues']);
+  assert.match(posts[0].body.body, /Peon_Tooltip 0\.7\.6 \| Border \| 6x \|/);
+  assert.match(posts[0].body.body, /Notiz:\nbeim Kampf\nzweite/);
   // 3. Kennung: Version egal, andere Meldung oder Stelle ergibt eine andere Kennung
   const k = await errorKey(errItem());
   assert.equal(await errorKey(errItem({ version: '9.9.9', n: 99 })), k);
@@ -415,10 +468,28 @@ test('Worker: gleicher Fehler kommt als Kommentar an das offene Issue', async ()
   // script ran too long: Datei und Zeile zaehlen nicht
   assert.equal(await errorKey(errItem({ msg: 'Interface/AddOns/Peon_Ledger/Cost.lua:232: script ran too long' })),
     await errorKey(errItem({ msg: 'Interface/AddOns/Peon_Ledger/Ledger.lua:202: script ran too long' })));
-  // 4. Suche gescheitert: lieber ein neues Issue als gar keins
+  // Adressen von Tabellen und Funktionen zaehlen nicht, die Art schon
+  assert.equal(await errorKey(errItem({ msg: 'x.lua:1: bad (table: 000001A2B3C4D5E6)' })), await errorKey(errItem({ msg: 'x.lua:1: bad (table: 0x7f00aa11bb22)' })));
+  assert.notEqual(await errorKey(errItem({ msg: 'x.lua:1: bad (table: 000001A2B3C4D5E6)' })), await errorKey(errItem({ msg: 'x.lua:1: bad (function: 000001A2B3C4D5E6)' })));
+  // 4. Verzeichnis nicht lesbar: lieber ein neues Issue als gar keins
   const down = async (url, o) => (o.method === 'GET' ? new Response('', { status: 403 }) : new Response(JSON.stringify({ number: 50 }), { status: 201 }));
   res = await handle(post(good([errItem()])), ENV, { fetchImpl: down, cache: fakeCache() });
   assert.deepEqual(await res.json(), { ok: true, done: [0], numbers: [50] });
+});
+
+test('Worker: volle Sendung bleibt unter der Grenze von Cloudflare (50 Abrufe), alles bestaetigt', async () => {
+  // 21.11.2026: Der Worker brach nach 11 Eintraegen ab (je Eintrag Cache, Suche, Anlegen, Cache), der Manager schickte alles noch einmal
+  const { handle } = await worker();
+  let calls = 0, number = 100;
+  const fetchImpl = async (url, o) => { calls++; return new Response(JSON.stringify(o.method === 'GET' ? [] : { number: number++ }), { status: 201 }); };
+  const base = fakeCache();
+  const cache = { match: (k) => { calls++; return base.match(k); }, put: (k, r) => { calls++; return base.put(k, r); } };
+  const voll = good(Array.from({ length: 20 }, (_, i) => errItem({ ref: i, msg: `Interface/AddOns/Peon_Ledger/Cost.lua:${i}: kaputt ${i}` })));
+  const res = await handle(post(voll), ENV, { fetchImpl, cache });
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.done.length, 20);
+  assert.ok(calls <= 45, `${calls} Abrufe`);
 });
 
 test('Worker: Text kann den Codeblock nicht verlassen und niemanden benachrichtigen', async () => {

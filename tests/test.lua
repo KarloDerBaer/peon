@@ -181,6 +181,13 @@ do
   check(#PeonDB.errors == 2 and PeonDB.errors[1].n == 2 and PeonDB.errors[1].msg:find("Cost.lua:232", 1, true),
     "script ran too long an verschiedenen Zeilen zaehlt als ein Fehler")
 
+  PeonDB.errors = {}
+  Peon.RecordError("Peon_Broker", "Liste", "Broker.lua:10: bad self (table: 000001A2B3C4D5E6)")
+  Peon.RecordError("Peon_Broker", "Liste", "Broker.lua:10: bad self (table: 0x7f00aa11bb22)")
+  Peon.RecordError("Peon_Broker", "Liste", "Broker.lua:10: bad self (function: 000001A2B3C4D5E6)")
+  Peon.RecordError("Peon_Broker", "Liste", "Broker.lua:11: bad self (table: 000001A2B3C4D5E6)")
+  check(#PeonDB.errors == 3 and PeonDB.errors[1].n == 2, "wechselnde Adressen zaehlen als ein Fehler, Art und Zeile nicht")
+
   PeonDB.errors = { { addon = "A", where = "alt", msg = "m", last = 500, n = 1 }, { addon = "A", where = "neu", msg = "m", last = 900, n = 3 } }
   check(Peon.ClearErrors(500) == 1 and #PeonDB.errors == 1 and PeonDB.errors[1].where == "neu", "ClearErrors bis Zeitpunkt, neuere bleiben")
   SlashCmdList.PEON("fehler")

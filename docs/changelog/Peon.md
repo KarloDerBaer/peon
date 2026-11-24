@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.27.2
+
+Kurz: Gleiche Fehler mit wechselnden Speicheradressen zählen jetzt als ein Fehler. So kommen sie im Peon Manager gebündelt an.
+
+- 0.27.2 (24.11.2026, viele einzelne Fehlerberichte am 21.11.2026): **Geändert, Fehlerspeicher:** Meldungen wie „table: 000001A2B3C4“ nennen eine Adresse, die sich mit jedem Laden ändert. `Peon.RecordError` vergleicht Meldungen jetzt ohne diese Adressen (wie schon „script ran too long“ ohne Datei und Zeile) und zählt hoch. Gleiche Regeln gelten im Peon Manager 0.54.0 und im Fehler-Worker. Die Kern-API bleibt unverändert.
+  - Tests: zwei Adressen ein Fehler, andere Art oder Zeile bleibt eigen (`test.lua`).
+
 ## 0.27.1
 
 Kurz: Die Fehlermeldung „script ran too long“ zählt als ein Fehler, auch wenn sie an verschiedenen Stellen auftritt. So kommt sie im Peon Manager als ein Bericht an und nicht als viele.

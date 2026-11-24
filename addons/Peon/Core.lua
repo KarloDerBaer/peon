@@ -107,10 +107,19 @@ local MAX_ERRORS, MAX_ERROR_TEXT = 100, 1000
 
 -- ab 0.27.1: "script ran too long" nennt die Stelle, an der das Spiel die Rechnung abbrach. Die ist fast jedes Mal
 -- eine andere, gemeint ist aber derselbe Fehler. Darum zaehlen solche Meldungen ohne Datei und Zeile als einer.
+-- ab 0.27.2: Adressen von Tabellen und Funktionen ("table: 000001A2B3C4") wechseln mit jedem Laden und zaehlen auch nicht.
+-- Gleiche Regeln im Peon Manager (reports.js) und im Fehler-Worker (worker.mjs), Name dort errorText.
 local TOO_LONG = "script ran too long"
+local ADDRESS_TYPES = { "table", "function", "userdata", "thread" }
+local function ErrorText(msg)
+    if msg:find(TOO_LONG, 1, true) then return TOO_LONG end
+    for _, t in ipairs(ADDRESS_TYPES) do
+        msg = msg:gsub("%f[%w]" .. t .. ": 0?x?%x%x%x%x%x%x+", t .. ": <Adresse>")
+    end
+    return msg
+end
 local function SameError(a, b)
-    if a == b then return true end
-    return a:find(TOO_LONG, 1, true) ~= nil and b:find(TOO_LONG, 1, true) ~= nil
+    return a == b or ErrorText(a) == ErrorText(b)
 end
 
 local function BuildNumber()

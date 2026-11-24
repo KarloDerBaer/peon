@@ -3,6 +3,13 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 24.11.2026: Fehler gebündelt melden (Peon 0.27.2, Peon Manager 0.54.0, Fehler-Worker)
+
+- **Ursache der 28 doppelten Issues vom 21.11.2026** (Claude, aus den Issues abgelesen): Ein Manager schickte dreimal je 11 Einträge, zwei Schwünge waren gleich bis auf die Sekunde. Der Worker brauchte je Eintrag vier Abrufe (Cache, Suche, Anlegen, Cache) und riss beim zwölften Eintrag die Grenze von Cloudflare (50 je Anfrage in der Gratis-Stufe). Die Issues waren da angelegt, der Manager bekam einen Fehler, behielt alles und schickte es erneut. Die wechselnden Zeilennummern bei „script ran too long“ machten zusätzlich aus einem Fehler viele.
+- **Verzeichnis aus der Liste der offenen Issues** statt Suche oder eigenem Speicher (Claude): Die Liste ist sofort aktuell und kostet einen Abruf je Sendung. Ein eigener Speicher bei Cloudflare (KV) hätte zusätzliche Einrichtung durch KarloDerBaer gebraucht. Gelesen werden höchstens 300 offene Issues.
+- **Gleiche Regeln an allen drei Stellen** (Claude): Kern, Manager und Worker vergleichen Meldungen ohne Datei und Zeile bei „script ran too long“ und ohne Adressen von Tabellen und Funktionen. Zahlen und Zeilen sonst bleiben, weil sie verschiedene Fehler unterscheiden.
+- **Bündeln im Manager vor dem Senden und im Worker je Sendung** (Claude): Eine Meldung mit der Summe der Anzahl und der Version des neuesten Eintrags. So helfen auch Fehler, die noch aus älteren Versionen einzeln im Manager liegen.
+
 ## 21.11.2026: Ledger rechnet neue Bewegungen nach (Ledger 0.17.2, Peon 0.27.1)
 
 - **Ursache der neuen Fehlerberichte** (Claude): Im Dungeon ist jedes Plündern eine Bewegung. Ledger verwarf danach den ganzen Stand, und der nächste Tooltip spielte alles nach. Im Kampf wurde das Rechnen im Hintergrund (0.17.1) immer weiter verschoben, darum blieb es beim Tooltip. Dazu fragte jede Rechnung den Marktwert bei Broker hunderte Male für dieselben Gegenstände ab (echte Daten: 483 Abfragen für 21 Gegenstände).

@@ -44,6 +44,14 @@ const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const sha = (...parts) => crypto.createHash('sha1').update(parts.join('\n')).digest('hex');
 const day = (t) => new Date(t * 1000).toISOString().slice(0, 16).replace('T', ' ');
 
+// Ab 0.54.0: Meldung ohne wechselnde Teile, gleiche Regeln wie im Kern (Core.lua) und im Worker (errorText).
+// "script ran too long" nennt die Zeile, an der das Spiel abbrach, Adressen von Tabellen und Funktionen wechseln mit jedem Laden.
+function errorText(msg) {
+  const s = text(msg);
+  if (s.includes('script ran too long')) return 'script ran too long';
+  return s.replace(/\b(table|function|userdata|thread): (?:0x)?[0-9A-Fa-f]{6,}/g, '$1: <Adresse>');
+}
+
 // Konten und Charaktere unter WTF\Account: <Konto>\<Realm>\<Charakter>
 function privateNames(wowDir) {
   const base = path.join(wowDir, 'WTF', 'Account');
@@ -184,9 +192,13 @@ class ReportStore {
   }
 
   // Gleicher Fehler: Der Zaehler im Spiel laeuft weiter, bis das Spiel ihn loescht. Addiert wird nur der Zuwachs.
+  // Ab 0.54.0 ohne wechselnde Teile in der Kennung. Eine Zeile mit der alten Kennung bekommt die neue, damit nichts doppelt zaehlt.
   saveError(r) {
-    const key = sha(r.source, r.addon, r.where, r.msg);
-    const row = this.db.prepare('SELECT n, last, base_first, base_n FROM errors WHERE key = ?').get(key);
+    const key = sha(r.source, r.addon, r.where, errorText(r.msg));
+    const get = (k) => this.db.prepare('SELECT n, last, base_first, base_n FROM errors WHERE key = ?').get(k);
+    let row = get(key);
+    const old = sha(r.source, r.addon, r.where, r.msg);
+    if (!row && old !== key && (row = get(old))) this.db.prepare('UPDATE errors SET key = ? WHERE key = ?').run(key, old);
     if (!row) {
       this.db.prepare(`INSERT INTO errors(key, source, addon, version, build, place, msg, stack, first, last, n, base_first, base_n)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
@@ -283,15 +295,32 @@ class ReportStore {
       canSend: !!this.reportUrl(), bridge, preview: this.preview() };
   }
 
+  // Ab 0.54.0: gleiche Fehler (gleiches Addon, gleiche Stelle, gleiche Meldung ohne wechselnde Teile) als eine Meldung.
+  // Anzahl zusammen, Zeitraum gesamt, Version und Text vom neuesten. keys nennt alle Zeilen, die nach dem Senden wegfallen.
+  errorGroups() {
+    const groups = new Map();
+    for (const r of this.errorRows()) {
+      const k = [r.addon, r.place, errorText(r.msg)].join('\n');
+      const g = groups.get(k);
+      if (!g) { groups.set(k, { ...r, keys: [r.key], notes: r.note ? [r.note] : [] }); continue; }
+      g.keys.push(r.key);
+      if (r.note && !g.notes.includes(r.note)) g.notes.push(r.note);
+      if (r.last > g.last) Object.assign(g, { version: r.version, build: r.build, msg: r.msg, stack: r.stack, source: r.source, last: r.last });
+      g.n += r.n;
+      g.first = Math.min(g.first || r.first, r.first || g.first);
+    }
+    return [...groups.values()].map((g) => ({ ...g, note: g.notes.join('\n').slice(0, MAX_TEXT) }));
+  }
+
   // Was als Naechstes gesendet wird: die aeltesten zuerst, so viele wie passen. Namen auch aus Selbstgeschriebenem ersetzt.
   nextItems() {
     const names = privateNames(this.host.settings.wowDir);
     const clean = (v) => sanitize(v, names);
     const all = [
-      ...this.feedbackRows().map((r) => ({ key: r.key, at: r.edited, table: 'feedback', item: {
+      ...this.feedbackRows().map((r) => ({ keys: [r.key], at: r.edited, table: 'feedback', item: {
         type: 'feedback', module: r.module, kind: r.kind, area: clean(r.area), prio: r.prio, text: clean(r.text), version: r.ver || '',
         zone: clean(r.zone), market: clean(r.market), origin: r.origin, t: r.t } })),
-      ...this.errorRows().map((r) => ({ key: r.key, at: r.last, table: 'errors', item: {
+      ...this.errorGroups().map((r) => ({ keys: r.keys, at: r.last, table: 'errors', item: {
         type: 'error', addon: r.addon, version: r.version || '', build: r.build || '', where: clean(r.place), msg: clean(r.msg), stack: clean(r.stack),
         note: clean(r.note), source: r.source, first: r.first, last: r.last, n: r.n } })),
     ].sort((a, b) => a.at - b.at);
@@ -357,7 +386,7 @@ class ReportStore {
     try { const b = await res.json(); done = Array.isArray(b.done) ? b.done : []; } catch { /* unten als Fehler gemeldet */ }
     for (const ref of done) {
       const e = next[ref];
-      if (e) this.db.prepare(`DELETE FROM ${e.table} WHERE key = ?`).run(e.key);
+      if (e) for (const k of e.keys) this.db.prepare(`DELETE FROM ${e.table} WHERE key = ?`).run(k);
     }
     if (!done.length) throw new Error(`Senden fehlgeschlagen. ${keep}`);
     log(this.db, 'rueckmeldung', done.length === next.length, `${done.length} von ${next.length} Einträgen gesendet`);
@@ -365,4 +394,4 @@ class ReportStore {
   }
 }
 
-module.exports = { ReportStore, sanitize, privateNames, MANAGER_MODULE, REPORT_FMT, MAX_ITEMS };
+module.exports = { ReportStore, sanitize, privateNames, errorText, MANAGER_MODULE, REPORT_FMT, MAX_ITEMS };
