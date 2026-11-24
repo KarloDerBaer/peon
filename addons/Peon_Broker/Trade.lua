@@ -194,11 +194,33 @@ local function PriceIn(market, key)
     return Num(e.m) and e.m or nil, e.lt, e.gone ~= nil
 end
 
--- Wie viele hat man in den Taschen?
+-- Wie viele hat man in den Taschen? Ab 0.131 (Fehlermeldung KarloDerBaer 24.11.2026) nur verkaufbare: Das Spiel zaehlt
+-- auch Angelegtes mit, der Hinweis am neutralen Haus nannte so ein getragenes, seelengebundenes Stirnband. Jetzt zaehlen
+-- nur Stuecke in den Taschen, die nicht gebunden sind (T.Unbound), hoechstens so viele, wie das Spiel meldet.
+function T.Unbound(id)
+    local C = rawget(_G, "C_Container")
+    if not (C and C.GetContainerNumSlots and C.GetContainerItemInfo) or id == nil then return nil end
+    local n = 0
+    for bag = 0, (rawget(_G, "NUM_BAG_SLOTS") or 4) do
+        local okn, slots = pcall(C.GetContainerNumSlots, bag)
+        for slot = 1, (okn and tonumber(slots) or 0) do
+            local ok, info = pcall(C.GetContainerItemInfo, bag, slot)
+            if ok and type(info) == "table" and info.itemID == id and info.isBound ~= true then
+                n = n + (Num(info.stackCount) and info.stackCount or 1)
+            end
+        end
+    end
+    return n
+end
+
 local function InBags(key)
     if not ns.Stock then return 0 end
-    local bags = ns.Stock.Counts(ns.Data.ItemID(key), nil)
-    return Num(bags) and bags or 0
+    local id = ns.Data.ItemID(key)
+    local bags = ns.Stock.Counts(id, nil)
+    bags = Num(bags) and bags or 0
+    local free = T.Unbound(id)
+    if free then bags = math.min(bags, free) end
+    return bags
 end
 
 -- Zustand einer Zeile: Code, Text
@@ -433,25 +455,23 @@ function T.Click(r, button, owner)
     if where == "src" and F and F.key == r.key and F.SetLimit then F.SetLimit(r.buy) end
 end
 
-function T.RowTooltip(row, r)
-    if not GameTooltip then return end
-    W.ShowItemTooltip(row, r.key)
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine(L.CH_TAB_TRADE .. ": " .. T.DirText(r.dir), 1, 0.82, 0)
-    GameTooltip:AddDoubleLine(L.TR_COL_BUY, Money(r.buy), 0.8, 0.8, 0.8, 1, 1, 1)
-    GameTooltip:AddDoubleLine(L.TR_COL_SELL, Money(r.sell), 0.8, 0.8, 0.8, 1, 1, 1)
-    GameTooltip:AddDoubleLine(L.TR_COL_NET, Money(math.max(0, r.net or 0)), 0.8, 0.8, 0.8, 0.4, 0.9, 0.4)
-    if r.perDay then GameTooltip:AddDoubleLine(L.TR_COL_SALES, ns.Pages.FmtSales(r.perDay), 0.8, 0.8, 0.8, 1, 1, 1) end
-    if r.qty then GameTooltip:AddDoubleLine(L.TR_COL_QTY, tostring(r.qty), 0.8, 0.8, 0.8, 1, 1, 1) end
-    if r.cons then GameTooltip:AddDoubleLine(L.TR_TIP_CONS, math.floor(r.cons * 100 + 0.5) .. " %", 0.8, 0.8, 0.8, 1, 1, 1) end
-    if r.supply then GameTooltip:AddDoubleLine(L.TR_TIP_SUPPLY, ns.Pages.FmtSales(r.supply), 0.8, 0.8, 0.8, 1, 1, 1) end
-    local say = T.Say(r.key)
-    if say then GameTooltip:AddLine(" "); GameTooltip:AddLine(say, 0.6, 0.9, 1, true) end
-    if r.buyNow and r.buyNow ~= r.buy then GameTooltip:AddDoubleLine(L.TR_TIP_BUY_NOW, Money(r.buyNow), 0.8, 0.8, 0.8, 1, 1, 1) end
-    if r.sellNow and r.sellNow ~= r.sell then GameTooltip:AddDoubleLine(L.TR_TIP_SELL_NOW, Money(r.sellNow), 0.8, 0.8, 0.8, 1, 1, 1) end
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine(T.Where(r.dir) == "dst" and L.TR_TIP_CLICK_DST or L.TR_TIP_CLICK_SRC, 0.6, 0.6, 0.6, true)
-    GameTooltip:Show()
+function T.RowTooltip(row, r)   -- ab 0.131: Zusatzzeilen ueber W.ShowItemTooltip (bleiben nach Umschalt)
+    W.ShowItemTooltip(row, r.key, function(GameTooltip)
+        GameTooltip:AddLine(L.CH_TAB_TRADE .. ": " .. T.DirText(r.dir), 1, 0.82, 0)
+        GameTooltip:AddDoubleLine(L.TR_COL_BUY, Money(r.buy), 0.8, 0.8, 0.8, 1, 1, 1)
+        GameTooltip:AddDoubleLine(L.TR_COL_SELL, Money(r.sell), 0.8, 0.8, 0.8, 1, 1, 1)
+        GameTooltip:AddDoubleLine(L.TR_COL_NET, Money(math.max(0, r.net or 0)), 0.8, 0.8, 0.8, 0.4, 0.9, 0.4)
+        if r.perDay then GameTooltip:AddDoubleLine(L.TR_COL_SALES, ns.Pages.FmtSales(r.perDay), 0.8, 0.8, 0.8, 1, 1, 1) end
+        if r.qty then GameTooltip:AddDoubleLine(L.TR_COL_QTY, tostring(r.qty), 0.8, 0.8, 0.8, 1, 1, 1) end
+        if r.cons then GameTooltip:AddDoubleLine(L.TR_TIP_CONS, math.floor(r.cons * 100 + 0.5) .. " %", 0.8, 0.8, 0.8, 1, 1, 1) end
+        if r.supply then GameTooltip:AddDoubleLine(L.TR_TIP_SUPPLY, ns.Pages.FmtSales(r.supply), 0.8, 0.8, 0.8, 1, 1, 1) end
+        local say = T.Say(r.key)
+        if say then GameTooltip:AddLine(" "); GameTooltip:AddLine(say, 0.6, 0.9, 1, true) end
+        if r.buyNow and r.buyNow ~= r.buy then GameTooltip:AddDoubleLine(L.TR_TIP_BUY_NOW, Money(r.buyNow), 0.8, 0.8, 0.8, 1, 1, 1) end
+        if r.sellNow and r.sellNow ~= r.sell then GameTooltip:AddDoubleLine(L.TR_TIP_SELL_NOW, Money(r.sellNow), 0.8, 0.8, 0.8, 1, 1, 1) end
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(T.Where(r.dir) == "dst" and L.TR_TIP_CLICK_DST or L.TR_TIP_CLICK_SRC, 0.6, 0.6, 0.6, true)
+    end)
 end
 
 function T.LightText(r)

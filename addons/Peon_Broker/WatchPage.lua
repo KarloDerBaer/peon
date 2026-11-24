@@ -471,19 +471,18 @@ function P.SelectTab(key)
 end
 
 -- ab 0.119: Tooltip einer Zeile im Schnellkauf: Bewegung, Werte des Schnellkaufs, Bilanz der Sitzung
+-- ab 0.131: Tooltip des Gegenstands wie ueberall in Broker, die Werte des Schnellkaufs darunter (vorher nur eigener Text)
 function P.QuickTooltip(row, r)
-    local GT = GameTooltip
     local w = ns.Watch.Store()[r.key] or {}
-    GT:SetOwner(row, "ANCHOR_RIGHT")
-    GT:AddLine(r.name or tostring(r.key), 1, 1, 1)
-    GT:AddLine(L.FOCUS_MODE_QUICK, 1, 0.82, 0)
-    if ns.QuickChances then ns.QuickChances.TipLines(GT, r.key) end
-    if Num(w.qgold) and w.qgold > 0 then GT:AddLine(L.WATCH_TIP_QGOLD:format(Money(w.qgold)), 0.85, 0.85, 0.85) end
-    if w.qskip then GT:AddLine(L.QUICK_SKIP, 0.85, 0.85, 0.85) end
-    if w.qavg then GT:AddLine(L.WATCH_TIP_QAVG, 0.85, 0.85, 0.85) end
-    if ns.Quick then GT:AddLine(ns.Quick.BalanceText(r.key), 0.85, 0.85, 0.85, true) end
-    GT:AddLine(L.WATCH_TIP_DOUBLE, 0.6, 0.6, 0.6)
-    GT:Show()
+    W.ShowItemTooltip(row, r.key, function(GT)
+        GT:AddLine(L.FOCUS_MODE_QUICK, 1, 0.82, 0)
+        if ns.QuickChances then ns.QuickChances.TipLines(GT, r.key) end
+        if Num(w.qgold) and w.qgold > 0 then GT:AddLine(L.WATCH_TIP_QGOLD:format(Money(w.qgold)), 0.85, 0.85, 0.85) end
+        if w.qskip then GT:AddLine(L.QUICK_SKIP, 0.85, 0.85, 0.85) end
+        if w.qavg then GT:AddLine(L.WATCH_TIP_QAVG, 0.85, 0.85, 0.85) end
+        if ns.Quick then GT:AddLine(ns.Quick.BalanceText(r.key), 0.85, 0.85, 0.85, true) end
+        GT:AddLine(L.WATCH_TIP_DOUBLE, 0.6, 0.6, 0.6)
+    end)
 end
 
 local function InCombat() return InCombatLockdown and InCombatLockdown() or false end

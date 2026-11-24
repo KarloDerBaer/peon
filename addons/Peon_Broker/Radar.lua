@@ -1460,19 +1460,7 @@ end
 -- Tooltip einer Zeile (ab 0.57): Blizzards normaler Tooltip mit Brokers Zeilen (Umschalt fuer mehr), darunter die
 -- Angaben des Radars. Die Radar-Zeilen haengt Tooltip.lua bei jedem Neuaufbau unten an (T.SetExtra), auch nach Umschalt.
 function R.RowTooltip(row, r)
-    local T = ns.Tooltip
-    local extra = { done = false }
-    if T and T.SetExtra then
-        extra = T.SetExtra(row, function(tt) R.TipLines(tt, r) end)
-    end
-    W.ShowItemTooltip(row, r.key)
-    if not GameTooltip then return end
-    -- ohne Neuaufbau durch das Spiel (aeltere Fassung, Test): Zeilen direkt anhaengen
-    if not extra.done then
-        GameTooltip:AddLine(" ")
-        R.TipLines(GameTooltip, r)
-        GameTooltip:Show()
-    end
+    W.ShowItemTooltip(row, r.key, function(tt) R.TipLines(tt, r) end)   -- ab 0.131 der gemeinsame Weg
 end
 
 function R.TipLines(GameTooltip, r)

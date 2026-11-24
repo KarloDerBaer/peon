@@ -6001,6 +6001,18 @@ end)()
   check(select(1, T.State({ key = 2770, dir = "n", buy = 80, sell = 200 })) == "bags", "0.127: im Gepaeck")
   local here = T.GoodsHere()
   check(#here == 1 and here[1].n == 3, "0.127: Ware fuer dieses Haus")
+  -- ab 0.131: angelegt oder seelengebunden zaehlt nicht (das Spiel zaehlt Angelegtes mit)
+  local keepCC = C_Container
+  C_Container = { GetContainerNumSlots = function(bag) return bag == 0 and 2 or 0 end,
+    GetContainerItemInfo = function(bag, slot) if slot == 1 then return { itemID = 2770, stackCount = 1, isBound = true } end end }
+  check(#T.GoodsHere() == 0 and select(1, T.State({ key = 2770, dir = "n", buy = 80, sell = 200 })) ~= "bags", "0.131: gebunden oder angelegt nie als Ware vorgeschlagen")
+  local n1 = #out
+  T.OnAHShow()
+  check(#out == n1, "0.131: kein Hinweis fuer Gebundenes")
+  C_Container = { GetContainerNumSlots = function(bag) return bag == 0 and 2 or 0 end,
+    GetContainerItemInfo = function(bag, slot) if slot == 1 then return { itemID = 2770, stackCount = 2, isBound = false } end end }
+  check(#T.GoodsHere() == 1 and T.GoodsHere()[1].n == 2, "0.131: ungebundene Stuecke in den Taschen zaehlen")
+  C_Container = keepCC
   local n0 = #out
   T.OnAHShow()
   check(#out == n0 + 1 and plain(out[#out]):find("Markttausch: 1", 1, true), "0.127: Hinweis am Zielhaus")
@@ -6270,6 +6282,71 @@ end)()
   mk.lastScan = oldScan
   mk.items[7811], mk.items["7812:Robe des Adlers"] = nil, nil
   P.cache, P.job = nil, nil
+end)()
+
+-- ===== 0.131: Schnellkauf laedt die gespeicherten Werte, bevor er Vorgaben setzt =====
+;(function()
+  local F, Q, Wt = ns.Focus, ns.Quick, ns.Watch
+  local keepOpen, keepMoney = ns.Scan.ahOpen, GetMoney
+  GetMoney = function() return 10000000 end
+  ns.Scan.ahOpen = true
+  mod.acc.commodity[7993] = true
+  market.items[7993] = { m = 1000, md = 1200, q = 25, n = 2, t = clock, nm = "Ladestein", ql = 1 }
+  ns.Buy.live[7993] = { rows = { { price = 1000, qty = 10, own = 0 }, { price = 1200, qty = 10, own = 0 } }, t = clock, commodity = true }
+  Rd.entries, Rd.gone, Rd.job = {}, {}, nil
+  Wt.Add(7993, { name = "Ladestein" })
+  Wt.SetQuick(7993, 800, 9000, true, true)
+  local w = Wt.Store()[7993]
+  Q.SetMode("quick", true)
+  -- wie nach /reload: Gegenstand aus focusKey, keine Werte geladen, Reiter direkt geoeffnet
+  F.key, F.manualLimit, F.manualGold, F.loaded = 7993, nil, nil, nil
+  Q.limitCleared, Q.goldCleared = {}, {}
+  F.since = 0
+  F.Open()
+  check(F.ManualLimit(7993) == 800 and F.ManualGold(7993) == 9000, "0.131: Reiter direkt geoeffnet laedt Kaufen bis und Limit aus Beobachten: " .. tostring(F.ManualLimit(7993)))
+  ns.Window.pages.focus.leave()
+  check(w.qlim == 800 and w.qgold == 9000, "0.131: Verlassen ueberschreibt die gespeicherten Werte nicht mit Vorgaben")
+  -- Sprung aus Chancen (Unterreiter Schnellkauf) in einen beobachteten Gegenstand
+  F.Set(7994)
+  F.Set(7993)
+  F.FromPage(7993, "chances", "quick")
+  check(F.ManualLimit(7993) == 800, "0.131: aus Chancen gelten die gespeicherten Werte")
+  check(F.AutoSave() and w.qlim == 800, "0.131: Speichern danach behaelt Kaufen bis")
+  -- eigene Aenderung wird gespeichert und beim naechsten Oeffnen geladen
+  F.SetLimitTyped(850)
+  ns.Window.pages.focus.leave()
+  F.key, F.manualLimit, F.manualGold, F.loaded = 7993, nil, nil, nil
+  F.Open()
+  check(w.qlim == 850 and F.ManualLimit(7993) == 850, "0.131: geaenderter Wert gespeichert und wieder geladen")
+  -- ohne geladene Werte speichert AutoSave nichts
+  F.loaded = nil
+  F.manualLimit = { key = 7993, price = 1 }
+  check(F.AutoSave() == false and w.qlim == 850, "0.131: nie ungeladene Werte speichern")
+  -- aufraeumen
+  Wt.Remove(7993)
+  Q.skip, Q.avg, Q.goldCleared, Q.limitCleared = {}, {}, {}, {}
+  Q.SetMode("buyout", true)
+  F.manualLimit, F.manualGold, F.loaded = nil, nil, nil
+  ns.Scan.ahOpen, GetMoney = keepOpen, keepMoney
+  market.items[7993], ns.Buy.live[7993], mod.acc.commodity[7993] = nil, nil, nil
+  Rd.entries, Rd.gone, Rd.job, Rd.focus = {}, {}, nil, nil
+end)()
+
+-- ===== 0.131: ein Tooltip fuer Gegenstaende ueberall in Broker =====
+;(function()
+  local W, P = ns.Window, ns.WatchPage
+  tt.lines, tt.hyper = {}, nil
+  P.QuickTooltip({}, { key = 2770, name = "Kupfererz" })
+  local txt = plain(table.concat(tt.lines, " | "))
+  check(tt.hyper ~= nil and tt.hyper:find("item:2770", 1, true), "0.131: Beobachten/Schnellkauf zeigt den Tooltip des Gegenstands")
+  check(txt:find(plain(ns.L.FOCUS_MODE_QUICK), 1, true) and txt:find(plain(ns.L.WATCH_TIP_DOUBLE), 1, true), "0.131: Werte des Schnellkaufs darunter")
+  -- dieselbe Zeile danach ohne Zusatz: kein alter Zusatz
+  local row = {}
+  W.ShowItemTooltip(row, 2770, function(gt) gt:AddLine("ZUSATZ") end)
+  check(ns.Tooltip.extra and ns.Tooltip.extra.owner == row, "0.131: Zusatz an der Zeile gemerkt")
+  tt.lines = {}
+  W.ShowItemTooltip(row, 2770)
+  check(ns.Tooltip.extra == nil and not table.concat(tt.lines, " | "):find("ZUSATZ", 1, true), "0.131: ohne Zusatz kein alter Zusatz")
 end)()
 
 print("ALLE TESTS OK")

@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.131.0
+
+Kurz: Kaufen bis und Limit pro Kauf im Schnellkauf bleiben gespeichert. Vorher konnte Broker sie beim Öffnen des Fokus durch die Vorgabe ersetzen.
+Kurz: Im Diagramm des Schnellkaufs bestimmt der Preis die Auflösung. Kurze Angebote mit großen Mengen machen das Diagramm nicht mehr unlesbar.
+Kurz: Der Markttausch schlägt keine angelegten oder seelengebundenen Gegenstände mehr vor.
+Kurz: Beim Überfahren eines Gegenstands zeigt Broker überall denselben Tooltip mit Preisen, darunter die Angaben der jeweiligen Liste.
+
+- 0.131.0 (25.11.2026, Fehlermeldungen vom 24.11.2026, KarloDerBaer):
+  - **Behoben, Kaufen bis nicht zuverlässig gespeichert:** Die Werte aus Beobachten kamen nur beim Sprung aus Beobachten in den Fokus. Öffnete man den Reiter direkt (auch nach `/reload`) oder kam aus Chancen, setzte der Schnellkauf seine Vorgaben (Kaufen bis die Hälfte des günstigsten, Limit pro Kauf 5 Gold). Beim Verlassen speicherte das automatische Speichern diese Vorgaben über die eigenen Werte. Der Knopf Auto war nicht die Ursache, er ändert Kaufen bis nur per Klick. Jetzt lädt der Schnellkauf die gespeicherten Werte einmal je Gegenstand, bevor er Vorgaben setzt (`F.EnsureLoaded`), und speichert nie Werte, die er nicht geladen hat.
+  - **Behoben, Diagramm im Schnellkauf:** Die Menge richtet ihre Achse nach 90 % der Werte. Einzelne große Mengen stauchen die übrigen Balken nicht mehr, sie enden am Rand mit hellem Abschluss. Kaufen bis bestimmt den Bereich der Preisachse nicht mehr mit, liegt es außerhalb, steht es gestrichelt am Rand (Kern API 28).
+  - **Behoben, Markttausch:** Der Hinweis am Zielhaus und der Zustand „im Gepäck“ zählen nur ungebundene Stücke in den Taschen. Das Spiel zählt Angelegtes mit, so kam ein getragenes, seelengebundenes Stirnband in den Hinweis.
+  - **Geändert, Tooltip:** Ein Weg für jeden Gegenstand (`W.ShowItemTooltip` mit Zusatzzeilen). Abweichend waren Beobachten/Schnellkauf, Chancen (Aufkauf und Spekulation sowie Schnellkauf), dort stand nur eigener Text ohne die Preise. Markttausch, Pakete und Neutral verloren ihre Zusatzzeilen beim Drücken von Umschalt, jetzt bleiben sie.
+  - Tests: Werte nach direktem Öffnen und aus Chancen geladen, nichts Ungeladenes gespeichert (`test_broker.lua`), Gebundenes nie als Ware, gemeinsamer Tooltip ohne alten Zusatz (`test_broker.lua`), Achsen mit `trim` und `fit` (`test_chart.lua`).
+
 ## 0.130.3
 
 Kurz: Kommt nach einem Klick auf Kaufen kein Preis vom Spiel, hängt der Schnellkauf nicht mehr 20 Sekunden lang. Nach höchstens 3 Sekunden fragt Broker wieder ab und du kannst erneut klicken.

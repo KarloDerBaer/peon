@@ -172,4 +172,27 @@ ch5:SetData(5, { { key = "a", kind = "line", values = { 1, nil, 3, nil, nil }, c
 check(dots(ch5) == 0 and count(ch5, "line") == 1, "mit connect: ueberbrueckte Werte bleiben Linie")
 ch5:SetData(5, { { key = "a", kind = "line", values = { 1, 2, 3, 4, 5 }, color = RED } })
 check(dots(ch5) == 0, "durchgehende Linie ohne Punkte")
+-- API 28: trim (Ausreisser stauchen die Achse nicht) und fit = false
+local ch6 = Peon.NewChart(UIParent, { width = 300, height = 100, trim = { right = 0.9 } })
+local vals = {}
+for i = 1, 20 do vals[i] = 10 end
+vals[20] = 2000
+ch6:SetData(20, { { key = "q", kind = "bar", axis = "right", values = vals, color = RED },
+                  { key = "p", kind = "line", values = { 100, 110, 105 }, color = RED },
+                  { key = "lim", kind = "hline", value = 50, color = RED, fit = false } })
+local lo, hi = ch6:GetRange("right")
+check(hi and hi < 100, "API 28: Ausreisser bestimmt die Mengenachse nicht: " .. tostring(hi))
+check(ch6:Outside("right", 2000) and not ch6:Outside("right", 10), "API 28: Ausreisser liegt ausserhalb")
+local plo, phi = ch6:GetRange("left")
+check(plo and plo >= 90 and phi <= 120, "API 28: Linie mit fit = false bestimmt den Bereich nicht: " .. tostring(plo) .. " bis " .. tostring(phi))
+check(ch6:Outside("left", 50), "API 28: waagerechte Linie ausserhalb des Bereichs")
+local ch7 = Peon.NewChart(UIParent, { width = 300, height = 100 })
+ch7:SetData(20, { { key = "q", kind = "bar", axis = "right", values = vals, color = RED } })
+local _, hi7 = ch7:GetRange("right")
+check(hi7 >= 2000, "API 28: ohne trim wie bisher bis zum groessten Wert")
+local ch8 = Peon.NewChart(UIParent, { width = 300, height = 100, trim = { right = 0.9 } })
+ch8:SetData(3, { { key = "q", kind = "bar", axis = "right", values = { 10, 12, 11 }, color = RED } })
+local _, hi8 = ch8:GetRange("right")
+check(hi8 >= 12, "API 28: ohne Ausreisser bleibt alles sichtbar")
+
 print("ALLE TESTS OK")

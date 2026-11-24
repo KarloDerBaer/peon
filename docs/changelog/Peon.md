@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.28.0
+
+Kurz: Diagramme können Ausreißer abschneiden, damit einzelne große Werte die übrigen nicht stauchen. Davon profitiert zuerst der Schnellkauf in Peon Broker.
+
+- 0.28.0 (25.11.2026, Wunsch KarloDerBaer): **Neu, Kern-API 28, Diagramm:** Option `trim = { right = 0.9 }` richtet eine Achse nach diesem Anteil der Werte statt nach dem größten, höhere Balken enden am Rand mit hellem Abschluss. Eine Reihe mit `fit = false` bestimmt den Bereich ihrer Achse nicht mit, eine waagerechte Linie außerhalb steht gestrichelt am Rand. Neu `ch:Outside(achse, wert)` und `ch:Quantile(achse, anteil)`. Bestehendes bleibt unverändert.
+  - Tests: `test_chart.lua`.
+
 ## 0.27.2
 
 Kurz: Gleiche Fehler mit wechselnden Speicheradressen zählen jetzt als ein Fehler. So kommen sie im Peon Manager gebündelt an.

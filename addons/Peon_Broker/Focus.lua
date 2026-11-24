@@ -26,6 +26,7 @@ F.manualLimit = nil   -- ab 0.76: eigenes "Kaufen bis" { key, price }: nur bis z
 F.manualSrc = nil     -- ab 0.82: "watch" = eigene Werte kommen aus der Beobachtung (Art "Beobachten"), sonst "own"
 F.manualQty = nil     -- ab 0.99: feste Hoechstmenge { key, qty } (nur diese Sitzung), nil = alle
 F.manualGold = nil    -- ab 0.112: Schnellkauf, hoechster Betrag je Kauf { key, gold } in Kupfer, nil = ohne Grenze
+F.loaded = nil        -- ab 0.131: { key, mode }: fuer diesen Gegenstand und Modus gelten die Werte aus Beobachten (F.EnsureLoaded)
 F.origin = "watch"    -- ab 0.82: wohin "Zurueck" fuehrt: "chances" (ab 0.105 auch statt Radar) oder "watch" (sonst)
 F.since = 0      -- ab 0.70: Live-Daten zaehlen erst ab hier (time(), neuer Gegenstand oder Auktionshaus geoeffnet)
 
@@ -290,6 +291,7 @@ function F.LoadWatch(key)
         F.manualSrc = F.manualLimit and "watch" or nil
         ns.Quick.skip[key] = nil   -- ab 0.109: Haken aus Beobachten
         ns.Quick.avg[key] = nil    -- ab 0.112
+        F.loaded = { key = key, mode = "quick" }
         return true
     end
     local limit = Wt.Limit(key)
@@ -299,6 +301,26 @@ function F.LoadWatch(key)
     F.manualSrc = (F.manual or F.manualLimit) and "watch" or nil
     if ns.Measure and ns.Measure.cur and ns.Measure.cur.key == key then ns.Measure.Start(key) end
     return true
+end
+
+-- ab 0.131 (Fehlermeldung KarloDerBaer 24.11.2026, Kaufen bis wurde nicht zuverlaessig gespeichert): Die Werte aus
+-- Beobachten kamen nur beim Sprung aus Beobachten in den Fokus. Oeffnete man den Reiter direkt (auch nach /reload)
+-- oder kam aus Chancen, fuellte Q.EnsureLimit Kaufen bis mit der Vorgabe (Haelfte des guenstigsten) und Q.EnsureGold
+-- das Limit pro Kauf mit 5 Gold. Beim Verlassen speicherte F.AutoSave diese Vorgaben ueber die gespeicherten Werte.
+-- Jetzt laedt der Schnellkauf die Werte einmal je Gegenstand, bevor er Vorgaben setzt. Nicht beobachtet: die Werte
+-- im Fokus gehoeren zum Gegenstand, kommt er spaeter in Beobachten, werden sie gespeichert.
+function F.EnsureLoaded()
+    local key = F.key
+    if key == nil or not (ns.Quick and ns.Quick.On()) then return end
+    local l = F.loaded
+    if l and l.key == key and l.mode == "quick" then return end
+    F.loaded = { key = key, mode = "quick" }
+    F.LoadWatch(key)
+end
+
+function F.Loaded(key)
+    local l = F.loaded
+    return l ~= nil and key ~= nil and l.key == key and l.mode == mod.db.focusMode
 end
 
 -- Speichern: Gegenstand in die Beobachtung, mit den geltenden Werten (Kaufen bis = Grenze nach unten,
@@ -347,6 +369,7 @@ function F.AutoSave()
     if key == nil or not (Wt and Wt.Is(key)) then return false end
     local quick = ns.Quick and ns.Quick.On()
     if quick and mod.db.autoSaveQuick == false then return false end
+    if quick and not F.Loaded(key) then return false end   -- ab 0.131: nie Werte speichern, die nicht geladen waren
     if not quick and mod.db.autoSaveBuyout == false then return false end
     return F.Save(true)
 end
@@ -869,7 +892,9 @@ function F.BuildMeasure(c, above)
     end
     local cw = W.WIDTH - 2 * W.SIDE - UI.LEFT_W - UI.GAP
     if Peon.NewChart then
-        F.chart = Peon.NewChart(mp, { width = cw - 12, height = 104, left = 46, right = 40, top = 6, bottom = 6, grid = 2,
+        -- ab 0.131 (Wunsch KarloDerBaer 24.11.2026): die Menge richtet ihre Achse nach 90 % der Werte (Kern API 28,
+        -- trim). Kurze Angebote mit grossen Mengen stauchten sonst alle anderen Balken.
+        F.chart = Peon.NewChart(mp, { width = cw - 12, height = 104, left = 46, right = 40, top = 6, bottom = 6, grid = 2, trim = { right = 0.9 },
             leftFormat = AxisMoney, rightFormat = function(v) return Num(v) and Peon.ShortNumber and Peon.ShortNumber(v) or "" end })
         if F.chart and F.chart.frame then F.chart.frame:SetPoint("BOTTOMLEFT", mp, "BOTTOMLEFT", 6, 6) end
         -- ab 0.75: nichts zeichnet ueber den Rand des Diagramms hinaus
@@ -1188,7 +1213,9 @@ function F.UpdateQuickChart(limit)
         { key = "under", kind = "bar", axis = "right", values = under, color = { 0.6, 0.6, 0.6, 0.4 } },
         { key = "min", kind = "line", values = mins, color = { 1, 0.82, 0.2, 1 }, width = 2, connect = true },
     }
-    if Num(limit) and limit > 0 then series[#series + 1] = { key = "limit", kind = "hline", value = limit, color = { 0.3, 0.55, 1, 0.95 } } end
+    -- ab 0.131: der Preis bestimmt die Aufloesung. Kaufen bis weit unter dem Preis stauchte die Linie, jetzt steht es
+    -- dann gestrichelt am unteren Rand (Kern API 28, fit = false).
+    if Num(limit) and limit > 0 then series[#series + 1] = { key = "limit", kind = "hline", value = limit, color = { 0.3, 0.55, 1, 0.95 }, fit = false } end
     ns.Radar.Perf("diagramm", function() F.chart:SetData(math.max(n, F.CHART_SLOTS or 60), series); F.chart:Draw() end)
     F.chartN = stamp
 end
@@ -1237,6 +1264,7 @@ function F.Update()
     local key = F.key
     local has = key ~= nil
     local live = AHOpen()
+    if has and ns.Quick.On() then F.EnsureLoaded() end   -- ab 0.131: erst die gespeicherten Werte, dann Vorgaben
     if has and live and ns.Quick.On() then
         ns.Quick.EnsureLimit()   -- ab 0.107, ab 0.120 Haelfte des guenstigsten, mindestens Haendlerpreis
         ns.Quick.EnsureGold()    -- ab 0.113, ab 0.120 fester Betrag (quickGoldDefault)
@@ -1312,6 +1340,7 @@ function F.Set(key)
     if key ~= F.key then
         if F.key ~= nil then F.AutoSave() end   -- ab 0.113: Werte des bisherigen Gegenstands
         F.manual, F.manualLimit, F.manualSrc, F.manualQty, F.manualGold = nil, nil, nil, nil, nil
+        F.loaded = nil   -- ab 0.131
         ClearMoney(F.limitInput)
         F.since = time()
         F.chartN = nil

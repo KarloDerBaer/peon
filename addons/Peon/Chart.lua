@@ -22,6 +22,10 @@
 --       { key = "ven", kind = "hline", value = 33 },                                          -- waagerechte Linie
 --   })                                                 -- nil in values = Luecke; hidden = true = aus
 --   ch:SetRange("left", min, max)  -- fester Bereich (nil = automatisch); ch:GetRange("left")
+--   ab API 28: fit = false an einer Reihe: sie bestimmt den Bereich ihrer Achse nicht mit. Liegt eine waagerechte
+--   Linie dann ausserhalb, steht sie gestrichelt am Rand.
+--   ab API 28: Option trim = { right = 0.9 }: die Achse richtet sich nach diesem Anteil der Werte (hier 90 %), nicht
+--   nach dem groessten. Einzelne Ausreisser stauchen sie dann nicht. Hoehere Balken enden am Rand mit hellem Abschluss.
 --   connect = true bei line/step: Luecken (nil) werden ueberbrueckt
 --   ch:SetSize(breite, hoehe)      -- Groesse aendern (danach Draw)
 --   ch:Draw(); ch:SetShown(key, bool); ch:IsShownKey(key); ch:SetHover(index oder nil)
@@ -156,7 +160,7 @@ function Chart:Extent(axis)
     local lo, hi
     local function add(v) if Num(v) then lo = (lo == nil or v < lo) and v or lo; hi = (hi == nil or v > hi) and v or hi end end
     for _, s in ipairs(self.series) do
-        if (s.axis or "left") == axis and self:IsShownKey(s.key) and s.kind ~= "marks" then
+        if (s.axis or "left") == axis and self:IsShownKey(s.key) and s.kind ~= "marks" and s.fit ~= false then
             if s.kind == "hline" then add(s.value)
             else
                 for i = 1, self.n do add(s.values and s.values[i]); if s.values2 then add(s.values2[i]) end end
@@ -173,10 +177,33 @@ function Chart:GetRange(axis)
     return nil
 end
 
+-- ab API 28: Wert, unter dem der Anteil q aller Werte der Achse liegt (ohne 0, ohne waagerechte Linien), oder nil
+function Chart:Quantile(axis, q)
+    local vals = {}
+    for _, s in ipairs(self.series) do
+        if (s.axis or "left") == axis and self:IsShownKey(s.key) and s.kind ~= "marks" and s.kind ~= "hline" and s.fit ~= false and s.values then
+            for i = 1, self.n do
+                local v = s.values[i]
+                if Num(v) and v ~= 0 then vals[#vals + 1] = math.abs(v) end
+            end
+        end
+    end
+    if #vals == 0 then return nil end
+    table.sort(vals)
+    return vals[math.max(1, math.min(#vals, math.ceil(#vals * q)))]
+end
+
 function Chart:ComputeRange(axis)
     if self.fixed[axis] then self.range[axis] = self.fixed[axis]; return end
     local lo, hi = self:Extent(axis)
     if lo == nil then self.range[axis] = nil; return end
+    -- ab API 28: Ausreisser nach oben abschneiden (Option trim). Etwas Luft ueber dem Anteil, damit gewoehnliche
+    -- Werte nicht am Rand kleben.
+    local q = type(self.o.trim) == "table" and tonumber(self.o.trim[axis]) or nil
+    if q and q > 0 and q < 1 and hi > 0 then
+        local top = self:Quantile(axis, q)
+        if top and top * 1.25 < hi then hi = math.max(top * 1.25, lo + 1) end
+    end
     if axis == "right" or (self.o.zeroBased and self.o.zeroBased[axis]) then lo = math.min(0, lo) end
     local a, b = Peon.NiceRange(lo, hi, self.o.grid or 2)
     self.range[axis] = { a, b }
@@ -185,6 +212,12 @@ end
 function Chart:X(i)
     if self.n <= 1 then return self.plotW / 2 end
     return (i - 1) * self.plotW / (self.n - 1)
+end
+-- ab API 28: liegt v ueber oder unter dem Bereich der Achse?
+function Chart:Outside(axis, v)
+    local r = self.range[axis]
+    if not r or not Num(v) then return false end
+    return v > r[2] or v < r[1]
 end
 function Chart:Y(axis, v)
     local r = self.range[axis]
@@ -364,6 +397,11 @@ function DRAW.bar(ch, s, axis)
             local c = s.color
             if s.colorBelow and s.values[i] < 0 then c = s.colorBelow end
             Rect(ch, ch:X(i) - w / 2, math.min(y, y0), w, math.abs(y - y0), c, "ARTWORK", s.layer or 0)
+            -- ab API 28: abgeschnittener Balken (Option trim) mit hellem Abschluss am Rand
+            if ch:Outside(axis, s.values[i]) then
+                local r, g, b = Col(c)
+                Rect(ch, ch:X(i) - w / 2, y - 2, w, 2, { r, g, b, 1 }, "ARTWORK", (s.layer or 0) + 1)
+            end
         end
     end
 end
@@ -383,7 +421,10 @@ function DRAW.marks(ch, s)
 end
 function DRAW.hline(ch, s, axis)
     local y = ch:Y(axis, s.value)
-    if y then ch.dashPos = 0; DSeg(ch, 0, y, ch.plotW, y, s.color, s.width or 1, s.dash, "ARTWORK", 1) end
+    -- ab API 28: ausserhalb des Bereichs (fit = false) gestrichelt am Rand
+    local dash = s.dash
+    if ch:Outside(axis, s.value) then dash = dash or 4 end
+    if y then ch.dashPos = 0; DSeg(ch, 0, y, ch.plotW, y, s.color, s.width or 1, dash, "ARTWORK", 1) end
 end
 
 local ORDER = { band = 1, zone = 1, marks = 2, bar = 3, hline = 4, line = 5, step = 5, points = 6 }

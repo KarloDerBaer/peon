@@ -187,19 +187,17 @@ end
 
 -- Tooltip einer Zeile: Gegenstand, dazu beide Haeuser mit Gebuehr und Absatz, und der Satz des Managers
 function G.CompareTooltip(row, r)
-    W.ShowItemTooltip(row, r.key)
-    if not GameTooltip or not GameTooltip.AddLine then return end
     local hk, nk = ns.HomeMarketKey(), ns.NeutralMarketKey()
-    GameTooltip:AddLine(" ")
-    for _, x in ipairs({ { hk, r.home, r.salesH }, { nk, r.neutral, r.salesN } }) do
-        local cut = G.CutOf(x[1])
-        GameTooltip:AddDoubleLine(G.MarketLabel(x[1]), (x[2] and Money(x[2]) or L.PG_MISSING), 1, 0.82, 0, 1, 1, 1)
-        GameTooltip:AddLine(L.PG_TIP_CUT:format(("%.0f"):format(cut * 100), ns.Data.CutSure(x[1]) and "" or L.PG_TIP_GUESS) ..
-            "  " .. L.PG_TIP_SALES:format(G.FmtSales(x[3])), 0.7, 0.7, 0.7)
-    end
-    local say = ns.Trade and ns.Trade.Say and ns.Trade.Say(r.key)
-    if say then GameTooltip:AddLine(" "); GameTooltip:AddLine(say, 0.6, 0.9, 1, true) end
-    GameTooltip:Show()
+    W.ShowItemTooltip(row, r.key, function(GameTooltip)   -- ab 0.131 Zusatzzeilen bleiben nach Umschalt
+        for _, x in ipairs({ { hk, r.home, r.salesH }, { nk, r.neutral, r.salesN } }) do
+            local cut = G.CutOf(x[1])
+            GameTooltip:AddDoubleLine(G.MarketLabel(x[1]), (x[2] and Money(x[2]) or L.PG_MISSING), 1, 0.82, 0, 1, 1, 1)
+            GameTooltip:AddLine(L.PG_TIP_CUT:format(("%.0f"):format(cut * 100), ns.Data.CutSure(x[1]) and "" or L.PG_TIP_GUESS) ..
+                "  " .. L.PG_TIP_SALES:format(G.FmtSales(x[3])), 0.7, 0.7, 0.7)
+        end
+        local say = ns.Trade and ns.Trade.Say and ns.Trade.Say(r.key)
+        if say then GameTooltip:AddLine(" "); GameTooltip:AddLine(say, 0.6, 0.9, 1, true) end
+    end)
 end
 
 function G.RefreshMarket()

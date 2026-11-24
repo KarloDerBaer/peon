@@ -63,6 +63,7 @@ function Q.SetMode(mode, quiet)
     -- (Haelfte des guenstigsten Angebots) beim Wechsel in den Aufkauf stehen, der Aufkauf kaufte dann nichts.
     if changed then
         F.manual, F.manualLimit, F.manualSrc, F.manualQty, F.manualGold = nil, nil, nil, nil, nil
+        F.loaded = nil   -- ab 0.131: Werte des neuen Modus erst laden (F.EnsureLoaded)
         if F.limitInput then F.ClearLimitInput() end
         if F.targetInput then F.ClearInput() end
     end

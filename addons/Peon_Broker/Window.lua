@@ -428,13 +428,31 @@ function W.Colored(name, quality)
     return "|c" .. c .. name .. "|r"
 end
 
--- Gegenstand im Tooltip zeigen (mit den Broker-Zeilen)
-function W.ShowItemTooltip(owner, key)
+-- Gegenstand im Tooltip zeigen (mit den Broker-Zeilen). Ab 0.131 (Wunsch KarloDerBaer 24.11.2026) der eine Weg fuer
+-- jeden Gegenstand in Broker: Blizzards Tooltip mit Brokers Preiszeilen (Umschalt fuer mehr), darunter die Zeilen der
+-- Liste aus extra(tooltip). Tooltip.lua haengt sie bei jedem Neuaufbau an (T.SetExtra), auch nach Umschalt. Ohne Link
+-- (unbekannter Gegenstand) Name und Zusatzzeilen. Vorher zeigten Beobachten/Schnellkauf und Chancen nur eigenen Text.
+function W.ShowItemTooltip(owner, key, extra)
+    local GT = GameTooltip
+    if not GT then return end
+    local T = ns.Tooltip
+    -- immer setzen: Zeilen einer Liste werden wiederverwendet, ein alter Zusatz darf nicht am naechsten Gegenstand haengen
+    local ex = T and T.SetExtra and T.SetExtra(extra and owner or nil, extra) or nil
     local link = ns.Data.LinkFromKey(key)
-    if not link or not GameTooltip then return end
-    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-    local ok = pcall(GameTooltip.SetHyperlink, GameTooltip, link)
-    if ok then GameTooltip:Show() else GameTooltip:Hide() end
+    GT:SetOwner(owner, "ANCHOR_RIGHT")
+    local ok = link ~= nil and pcall(GT.SetHyperlink, GT, link)
+    if not ok then
+        if not extra then GT:Hide(); return end
+        GT:AddLine(ns.Data.ItemName(key) or tostring(key), 1, 1, 1)
+    end
+    -- ohne Neuaufbau durch das Spiel (aeltere Fassung, Test, ohne Link): Zeilen direkt anhaengen
+    if extra and not (ex and ex.done) then
+        GT:AddLine(" ")
+        local okx, err = pcall(extra, GT)
+        if not okx then mod:Dbg("Zusatzzeilen: " .. tostring(err)) end
+        if ex then ex.done = true end
+    end
+    GT:Show()
 end
 
 ---------------------------------------------------------------------------

@@ -182,7 +182,7 @@ Peon.Profiles.Save("Abend"); Peon.Profiles.List(); Peon.Profiles.Delete("Hexer")
 Peon.RecordError(addonName, where, err, version)   -- speichern ohne Chat-Ausgabe, gleiche Fehler zaehlen hoch
 Peon.ClearErrors(upTo)                             -- bis Zeitpunkt loeschen, ohne Angabe alle. Rueckgabe: Anzahl
 ```
-- **Diagramm (API 10, Chart.lua):** zwei Achsen, Linien/Stufen/Flächen/Balken/Punkte/Markierungen, Mauslinie, Legende, verknüpfte Diagramme.
+- **Diagramm (API 10, Chart.lua):** zwei Achsen, Linien/Stufen/Flächen/Balken/Punkte/Markierungen, Mauslinie, Legende, verknüpfte Diagramme. Ab API 28 Option `trim = { right = 0.9 }` (Achse nach 90 % der Werte, Ausreißer am Rand abgeschnitten) und `fit = false` an einer Reihe (bestimmt den Bereich nicht mit, waagerechte Linie außerhalb gestrichelt am Rand).
 ```lua
 local ch = Peon.NewChart(parent, { width = 480, height = 130, left = 46, right = 46, grid = 2,
     leftFormat = function(v) return v .. "c" end, rightFormat = function(v) return v .. " St." end,

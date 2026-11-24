@@ -363,14 +363,13 @@ function K.RowTooltip(row, x)
         GameTooltip:Show()
         return
     end
-    W.ShowItemTooltip(row, x.key)
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine(L.CH_TAB_PKG .. ": " .. ns.Trade.DirText(x.dir), 1, 0.82, 0)
-    GameTooltip:AddDoubleLine(L.TR_COL_BUY, Money(x.buy), 0.8, 0.8, 0.8, 1, 1, 1)
-    GameTooltip:AddDoubleLine(L.PK_COL_MIN, Money(x.minSell), 0.8, 0.8, 0.8, 1, 1, 1)
-    GameTooltip:AddDoubleLine(L.PK_TIP_EXPECT, Money(x.sell), 0.8, 0.8, 0.8, 1, 1, 1)
-    GameTooltip:AddDoubleLine(L.PK_TIP_PROGRESS, L.PK_PROGRESS:format(x.have, x.posted, x.qty), 0.8, 0.8, 0.8, 1, 1, 1)
-    GameTooltip:Show()
+    W.ShowItemTooltip(row, x.key, function(GameTooltip)   -- ab 0.131 Zusatzzeilen bleiben nach Umschalt
+        GameTooltip:AddLine(L.CH_TAB_PKG .. ": " .. ns.Trade.DirText(x.dir), 1, 0.82, 0)
+        GameTooltip:AddDoubleLine(L.TR_COL_BUY, Money(x.buy), 0.8, 0.8, 0.8, 1, 1, 1)
+        GameTooltip:AddDoubleLine(L.PK_COL_MIN, Money(x.minSell), 0.8, 0.8, 0.8, 1, 1, 1)
+        GameTooltip:AddDoubleLine(L.PK_TIP_EXPECT, Money(x.sell), 0.8, 0.8, 0.8, 1, 1, 1)
+        GameTooltip:AddDoubleLine(L.PK_TIP_PROGRESS, L.PK_PROGRESS:format(x.have, x.posted, x.qty), 0.8, 0.8, 0.8, 1, 1, 1)
+    end)
 end
 
 function K.BuildList(c, top)

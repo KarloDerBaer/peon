@@ -384,19 +384,17 @@ function C.StateText(r)
     return GREY .. L.CH_STATE_NEW .. "|r"
 end
 
+-- ab 0.131: Tooltip des Gegenstands wie ueberall in Broker, die Angaben der Chance darunter
 function C.RowTooltip(row, r)
-    local GT = GameTooltip
-    if not GT then return end
-    GT:SetOwner(row, "ANCHOR_RIGHT")
-    GT:AddLine(r.name or tostring(r.key), 1, 1, 1)
-    GT:AddLine(L["CH_KIND_" .. r.mk:upper()] or r.mk, 1, 0.82, 0)
-    local focus = ns.Spec.FocusText(r.key)
-    if focus then GT:AddLine(focus, 0.85, 0.85, 0.85, true) end
-    GT:AddLine(L.CH_TIP_PRICES:format(Money(r.limit or 0), Money(r.target or 0), r.qty or 1), 1, 1, 1)
-    if r.x.buyWin then GT:AddLine(L.CH_TIP_WINDOW:format(C.WindowText(r.x.buyWin), C.WindowText(r.x.sellWin)), 0.6, 1, 0.6, true) end
-    if r.checked and r.checked.offer then GT:AddLine(L.CH_TIP_OFFER:format(Money(r.checked.offer)), 0.85, 0.85, 0.85) end
-    GT:AddLine(L.CH_TIP_CLICK, 0.6, 0.6, 0.6)
-    GT:Show()
+    W.ShowItemTooltip(row, r.key, function(GT)
+        GT:AddLine(L["CH_KIND_" .. r.mk:upper()] or r.mk, 1, 0.82, 0)
+        local focus = ns.Spec.FocusText(r.key)
+        if focus then GT:AddLine(focus, 0.85, 0.85, 0.85, true) end
+        GT:AddLine(L.CH_TIP_PRICES:format(Money(r.limit or 0), Money(r.target or 0), r.qty or 1), 1, 1, 1)
+        if r.x.buyWin then GT:AddLine(L.CH_TIP_WINDOW:format(C.WindowText(r.x.buyWin), C.WindowText(r.x.sellWin)), 0.6, 1, 0.6, true) end
+        if r.checked and r.checked.offer then GT:AddLine(L.CH_TIP_OFFER:format(Money(r.checked.offer)), 0.85, 0.85, 0.85) end
+        GT:AddLine(L.CH_TIP_CLICK, 0.6, 0.6, 0.6)
+    end)
 end
 
 ---------------------------------------------------------------------------
@@ -585,15 +583,14 @@ function C.Build(c)
             if button == "RightButton" then ns.Go.Menu(r, C.qpanel); return end
             mod:Call("Sprung", ns.Go.Focus, { key = r.key, name = r.name, from = "chances", mode = "quick" })
         end,
-        onEnter = function(row, r)
-            if not r or not GameTooltip then return end
-            GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-            GameTooltip:AddLine(r.name or tostring(r.key), 1, 1, 1)
-            GameTooltip:AddLine(L.CH_TAB_QUICK, 1, 0.82, 0)
-            QC.TipLines(GameTooltip, r.key)
-            GameTooltip:AddLine(QC.SourceText(), 0.6, 0.6, 0.6)
-            GameTooltip:AddLine(L.QC_TIP_CLICK, 0.6, 0.6, 0.6)
-            GameTooltip:Show()
+        onEnter = function(row, r)   -- ab 0.131 der gemeinsame Weg (W.ShowItemTooltip)
+            if not r then return end
+            W.ShowItemTooltip(row, r.key, function(GT)
+                GT:AddLine(L.CH_TAB_QUICK, 1, 0.82, 0)
+                QC.TipLines(GT, r.key)
+                GT:AddLine(QC.SourceText(), 0.6, 0.6, 0.6)
+                GT:AddLine(L.QC_TIP_CLICK, 0.6, 0.6, 0.6)
+            end)
         end,
     })
     -- ab 0.127: Liste Markttausch (Trade.lua)
