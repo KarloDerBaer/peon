@@ -2,6 +2,8 @@
 -- Gildenbank (vorbereitet nach Blizzards Retail-Schnittstelle, im Spiel noch nicht getestet):
 -- Reiter je Fach, 98 Plaetze je Fach, Nehmen/Ablegen/Stapel teilen, Gold mit Einzahlen/Abheben.
 -- Fehlt eine noetige Funktion, bleibt Blizzards Gildenbank-Fenster wie gehabt.
+-- Ab 0.8 wie Taschen und Bank: Rahmen mit rundem Bild (Symbol des Fachs), Gildenname im Titel, Anordnung
+-- Klassisch, Nach Art oder Individuell mit den eigenen Bereichen, dieselben Layout-Einstellungen.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -221,6 +223,7 @@ function ns.RefreshGuild()
         list[i] = b
     end
     w.note:SetText((info.viewable == false) and L.GUILD_NO_VIEW or "")
+    if info.icon then w:SetPortrait(info.icon) end
     local sections = ns.BuildSections(w:SectionConfig(), list)
     w:Arrange(sections, list)
     UpdateFooter()
@@ -246,9 +249,20 @@ end
 ---------------------------------------------------------------------------
 -- Gildenbank auf/zu
 ---------------------------------------------------------------------------
+-- Titel wie bei den Taschen: "Gilde – Gildenbank"
+local function UpdateTitle()
+    local gname = ns.Try(rawget(_G, "GetGuildInfo"), "player")
+    if type(gname) == "string" and gname ~= "" and not Peon.IsSecret(gname) then
+        w.title:SetText(gname .. " – " .. L.TITLE_GUILD)
+    else
+        w.title:SetText(L.TITLE_GUILD)
+    end
+end
+
 local function OnGuildShow()
     ns.guildOpen = true
     if not Replacing() then return end
+    UpdateTitle()
     ns.Tuck(GBFrame())
     w:Show()
     ns.Try(rawget(_G, "QueryGuildBankTab"), CurrentTab())
@@ -274,14 +288,17 @@ end
 function ns.InitGuild()
     w = ns.NewWindow("guild", {
         title = L.TITLE_GUILD,
+        -- ab 0.8 derselbe Rahmen wie die Bank, das Bild zeigt das Symbol des gewaehlten Fachs
+        template = "PortraitFrameTemplate", portrait = "Interface\Icons\INV_Misc_Bag_10_Blue",
         point = { "TOPLEFT", 50, -120 },
-        minWidth = 370,   -- drei Knoepfe links und "Einstellen" rechts
+        minWidth = 430,   -- drei Knoepfe links neben dem Bild und "Einstellen" rechts
         onHide = function()
             if ns.guildOpen and not byGame then CloseGuild() end
             if StaticPopup_Hide then pcall(StaticPopup_Hide, "PEON_BAGS_GB_DEPOSIT"); pcall(StaticPopup_Hide, "PEON_BAGS_GB_WITHDRAW") end
         end,
     })
     w.Refresh = function() ns.RefreshGuild() end
+    w.useGroups = true   -- ab 0.8: eigene Bereiche wie in Taschen und Bank
     w.note = w.content:CreateFontString(nil, "OVERLAY", "GameFontRedSmall")
     w.note:SetPoint("BOTTOMLEFT", w.content, "TOPLEFT", 0, 2)
     w:AddButton(L.BTN_DEPOSIT, 80, nil, function()

@@ -58,7 +58,7 @@ local function StackFree(sec)
         if b.peonInfo then
             keep[#keep + 1] = b
         else
-            local fam = ns.BagFamily(b.peonBag or 0)
+            local fam = b.peonFam or ns.BagFamily(b.peonBag or 0)   -- peonFam: gespeicherte Ansicht (ab 0.8)
             local rep = byFam[fam]
             if rep then
                 rep.peonFree = rep.peonFree + 1
@@ -198,7 +198,7 @@ end
 ns.CollectBagSlots = BagSlots
 
 local function UpdateFooter()
-    if not w then return end
+    if not w or (ns.SavedActive and ns.SavedActive()) then return end
     local free, total = 0, 0
     for _, bag in ipairs(ns.BagIDs()) do
         free = free + ns.FreeSlots(bag)
@@ -208,6 +208,9 @@ local function UpdateFooter()
     local rb = ns.ReagentBagID()
     local rn = rb and ns.NumSlots(rb) or 0
     if rn > 0 then left = left .. "   " .. L.FREE_REAGENT:format(ns.FreeSlots(rb), rn) end
+    local kb = ns.KeyringID()
+    local kn = kb and ns.NumSlots(kb) or 0
+    if kn > 0 then left = left .. "   " .. L.FREE_KEYRING:format(kn - ns.FreeSlots(kb), kn) end
     w:SetFooter(left, ns.Money(GetMoney and GetMoney() or 0))
 end
 
@@ -218,6 +221,8 @@ end
 local function Refresh()
     if not w then return end
     stale = false
+    -- gespeicherter Stand eines Charakters (ab 0.8, Saved.lua)
+    if ns.SavedActive and ns.SavedActive() then ns.RefreshSaved() return end
     local main, all, extra = {}, {}, {}
     local complete = true
     for _, bag in ipairs(ns.BagIDs()) do
@@ -230,6 +235,15 @@ local function Refresh()
         extra[1] = { title = L.SEC_REAGENT, items = r, key = "reagent" }
     elseif rb then
         BagSlots(rb, w.content, {}, all)
+    end
+    -- Schluesselbund als eigener Abschnitt am Ende (ab 0.8)
+    local kb = ns.KeyringID()
+    if kb and ns.NumSlots(kb) > 0 then
+        local k = {}
+        if not BagSlots(kb, w.content, k, all) then complete = false end
+        extra[#extra + 1] = { title = L.SEC_KEYRING, items = k, key = "keyring" }
+    elseif kb then
+        BagSlots(kb, w.content, {}, all)
     end
     if not complete then
         if not ns.queue["bags:refresh"] then mod:Print(L.MSG_COMBAT) end
@@ -247,6 +261,8 @@ local function ForSlots(fn)
     end
     local rb = ns.ReagentBagID()
     if rb then for _, b in pairs(ns.slots[rb] or {}) do fn(b) end end
+    local kb = ns.KeyringID()
+    if kb then for _, b in pairs(ns.slots[kb] or {}) do fn(b) end end
 end
 
 ---------------------------------------------------------------------------
@@ -255,8 +271,10 @@ end
 local EMPTY_BAG = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Bag"
 local BACKPACK_TEX = "Interface\\Buttons\\Button-Backpack-Up"
 
+local KEYRING_TEX = "Interface\ContainerFrame\KeyRing-Bag-Icon"
+
 local function InvID(bag)
-    if bag == 0 then return nil end
+    if bag == 0 or bag == ns.KeyringID() then return nil end
     local id = ns.Try(ns.C().ContainerIDToInventoryID, bag)
     if ns.Num(id) then return id end
     local f = rawget(_G, "ContainerIDToInventoryID")
@@ -274,14 +292,23 @@ local function NewBarButton(parent, bag, x, forSlots)
     b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     b:RegisterForClicks("AnyUp")
     b:RegisterForDrag("LeftButton")
+    local keyring = bag == ns.KeyringID()
     function b:Refresh()
         if self.bag == 0 then self.icon:SetTexture(BACKPACK_TEX) return end
+        if keyring then
+            self.icon:SetTexture(KEYRING_TEX)
+            self:SetShown(ns.NumSlots(self.bag) > 0)
+            return
+        end
         local inv = InvID(self.bag)
         local tex = inv and GetInventoryItemTexture and GetInventoryItemTexture("player", inv)
         self.icon:SetTexture(tex or EMPTY_BAG)
     end
     local function Drop(self)
-        if self.bag == 0 then
+        if keyring then
+            local put = rawget(_G, "PutKeyInKeyRing")
+            if type(put) == "function" then pcall(put) end
+        elseif self.bag == 0 then
             if PutItemInBackpack then PutItemInBackpack() end
         else
             local inv = InvID(self.bag)
@@ -305,7 +332,7 @@ local function NewBarButton(parent, bag, x, forSlots)
         local inv = InvID(self.bag)
         local has = inv and GameTooltip.SetInventoryItem and GameTooltip:SetInventoryItem("player", inv)
         if not has then
-            GameTooltip:SetText(self.bag == 0 and L.BACKPACK or L.EMPTY_BAG, 1, 1, 1)
+            GameTooltip:SetText(keyring and L.SEC_KEYRING or self.bag == 0 and L.BACKPACK or L.EMPTY_BAG, 1, 1, 1)
         end
         GameTooltip:Show()
         ns.focusBag = self.bag
@@ -326,6 +353,8 @@ local function BuildBar()
     local ids = ns.BagIDs()
     local rb = ns.ReagentBagID()
     if rb then ids[#ids + 1] = rb end
+    local kb = ns.KeyringID()
+    if kb then ids[#ids + 1] = kb end
     for _, bag in ipairs(ids) do
         barButtons[#barButtons + 1] = NewBarButton(w.bar, bag, x, ForSlots)
         x = x + 26
@@ -363,11 +392,18 @@ local function HookToggles()
             if not s:find("ToggleAllBags") and not s:find("Manager") then ns.ToggleBags() end
         end)
     end
+    -- Schluesselbund-Knopf des Spiels (ab 0.8): oeffnet das Taschenfenster mit dem Abschnitt Schluesselbund
+    if type(rawget(_G, "ToggleKeyRing")) == "function" then
+        hooksecurefunc("ToggleKeyRing", function()
+            if ns.Replacing() and ns.KeyringID() and not Stack():find("Manager") then ns.ToggleBags() end
+        end)
+    end
     if type(rawget(_G, "ToggleBag")) == "function" then
         hooksecurefunc("ToggleBag", function(bag)
             if not ns.Replacing() or not ns.IsInventoryBag(bag) then return end
             local s = Stack()
-            if not s:find("OpenBackpack") and not s:find("ToggleBackpack") and not s:find("ToggleAllBags") and not s:find("Manager") then
+            if not s:find("OpenBackpack") and not s:find("ToggleBackpack") and not s:find("ToggleAllBags") and not s:find("Manager")
+                and not s:find("ToggleKeyRing") then
                 ns.ToggleBags()
             end
         end)
@@ -465,7 +501,11 @@ function ns.InitInventory()
         border = "HeldBagLayout",
         point = { "BOTTOMRIGHT", -60, 100 },
         onShow = function() Refresh() end,
-        onHide = function() autoOpened = nil end,
+        onHide = function()
+            autoOpened = nil
+            if ns.ResetView then ns.ResetView() end   -- beim naechsten Oeffnen wieder die echten Taschen
+            if ns.SaveBags then mod:Call("Speichern", ns.SaveBags) end
+        end,
     })
     local name = UnitName and UnitName("player")
     if name then w.title:SetText(name .. " – " .. L.TITLE_BAGS) end
@@ -477,15 +517,17 @@ function ns.InitInventory()
             if not InCombatLockdown() then pcall(C.SortBags) end
         end)
     end
+    if ns.InitSavedView then ns.InitSavedView(w) end   -- Auswahl des Charakters (ab 0.8)
     w:AddSetupButton()
     BuildBar()
     w.OnSearch = function()
         if w.search and w.search:GetText() ~= ns.searchRaw then w.search:SetText(ns.searchRaw or "") end
         ForSlots(ns.UpdateMatch)
+        for _, b in ipairs(w.viewButtons or {}) do ns.UpdateMatch(b) end
     end
     w.Apply = function()
         w:ApplyPosition()
-        w.bar:SetShown(mod.db.bagBar and true or false)
+        w.bar:SetShown(mod.db.bagBar and not (ns.SavedActive and ns.SavedActive()) and true or false)
         if w:IsShown() then Refresh() else stale = true end
     end
     w.Apply()
@@ -496,6 +538,8 @@ function ns.InitInventory()
         for _, bag in ipairs(ns.BagIDs()) do BagSlots(bag, w.content, main, all) end
         local rb = ns.ReagentBagID()
         if rb then BagSlots(rb, w.content, main, all) end
+        local kb = ns.KeyringID()
+        if kb then BagSlots(kb, w.content, main, all) end
         for _, b in ipairs(all) do b:Hide() end
     end
 

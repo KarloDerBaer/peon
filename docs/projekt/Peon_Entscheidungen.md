@@ -3,6 +3,15 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 25.11.2026: Gespeicherte Ansicht, Gildenbank und Schlüsselbund (Bags 0.8.0)
+
+- **Speichern ohne Schalter** (Claude, nach Leitfaden Regel 7 und 8): Gespeichert wird immer. Löschen eines Charakters steht in den Optionen und kommt beim Umbau der Seite in den Reiter Erweitert.
+- **Wann gespeichert wird** (Claude, Abweichung vom Konzept „beim Schließen“): Die Bank meldet ihre Plätze nach dem Schließen nicht mehr. Deshalb speichert Bags die Bank beim Öffnen und bei jeder Änderung, die Taschen nach dem Einloggen, beim Schließen des Fensters und beim Abmelden.
+- **Eigene SavedVariable `PeonBagsSaved`** (Claude): Die Stände gehören nicht zu Profilen und nicht zu „Standardwerte“, deshalb nicht in `PeonBagsDB`.
+- **Knöpfe Taschen, Bank, Gildenbank an der Stelle der Taschenleiste** (Claude, Konzept zeigte zwei Knöpfe oben rechts): Dort ist Platz, und die Leiste hat in der Ansicht keine Aufgabe. Ein Knopf Taschen braucht es, um von der Bank zurückzukommen.
+- **Gildenbank mit eigenen Bereichen** (KarloDerBaer, 24.11.2026, „dasselbe Aussehen“): derselbe Rahmen wie die Bank, alle drei Anordnungen und dieselben Layout-Einstellungen.
+- **Schlüsselbund nie Teil der Bank** (Claude): Forever meldet `KEYRING_CONTAINER` = −1, die Nummer, die sonst das Hauptfach der Bank hat. Bags schließt den Schlüsselbund deshalb aus der Bank aus und zeigt ihn als eigenen Abschnitt der Taschen.
+
 ## 24.11.2026: Offene Fragen vor dem Umbau geklärt
 
 - **Ledger: Reiter Charaktere freigegeben** (KarloDerBaer), wie in `Peon_Ledger_Schlank.md` Abschnitt 3.

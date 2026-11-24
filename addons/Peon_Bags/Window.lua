@@ -188,14 +188,17 @@ function Window:ArrangeButtons(list)
     end
 end
 
-function Window:Setting(name) return mod.db[self.key .. name] end
+-- Schluessel der Einstellungen: sonst der des Fensters, in der gespeicherten Ansicht der Bank "bank" (ab 0.8)
+function Window:SKey() return self.cfgKey or self.key end
+
+function Window:Setting(name) return mod.db[self:SKey() .. name] end
 
 function Window:Cols() return self:Setting("Cols") or 10 end
 function Window:Layout() return self:Setting("Layout") or "classic" end
 
 -- Einstellung des Fensters aendern und alle benachrichtigen (Fenster, Leiste "Einstellen", Optionsseite)
 function Window:Set(name, value)
-    local k = self.key .. name
+    local k = self:SKey() .. name
     mod.db[k] = value
     mod:Fire("CHANGED", k)
     if mod.page and mod.page.Refresh then pcall(mod.page.Refresh, mod.page) end
@@ -203,7 +206,7 @@ end
 
 -- Tabelle des Fensters (CatsOff, GroupsOff, Collapsed), fehlt sie, wird sie angelegt
 function Window:Table(name)
-    local k = self.key .. name
+    local k = self:SKey() .. name
     if type(mod.db[k]) ~= "table" then mod.db[k] = {} end
     return mod.db[k]
 end
@@ -222,7 +225,7 @@ end
 function Window:ToggleCollapse(key)
     local t = self:Table("Collapsed")
     t[key] = (not t[key]) or nil
-    mod:Fire("CHANGED", self.key .. "Collapsed")
+    mod:Fire("CHANGED", self:SKey() .. "Collapsed")
 end
 
 -- Knopf als gewaehlt (farbig) oder nicht (grau) zeigen

@@ -15,9 +15,8 @@ if not Peon or (Peon.API or 0) < 7 then
     return
 end
 
--- Anordnungen (ab 0.5): Klassisch, Nach Art, Individuell. Die Gildenbank kennt kein Individuell.
+-- Anordnungen (ab 0.5): Klassisch, Nach Art, Individuell. Ab 0.8 auch in der Gildenbank Individuell.
 local LAYOUTS = { classic = true, type = true, custom = true }
-local GUILD_LAYOUTS = { classic = true, type = true }
 -- Leere eigene Bereiche (ab 0.7): mit Hinweis in der Ueberschrift, mit einem Ablage-Platz, nur beim Ziehen
 local EMPTY_MODES = { hint = true, slot = true, drag = true }
 
@@ -98,7 +97,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         groupItems   = {},        -- [Gegenstand] = Bereich
         -- ab 0.5: je Fenster abgewaehlte Kategorien und Bereiche, eingeklappte Abschnitte
         bagCatsOff   = {}, bankCatsOff = {}, guildCatsOff = {},
-        bagGroupsOff = {}, bankGroupsOff = {},
+        bagGroupsOff = {}, bankGroupsOff = {}, guildGroupsOff = {},   -- Gildenbank ab 0.8
         bagCollapsed = {}, bankCollapsed = {}, guildCollapsed = {},
         catOrder     = CatList(), -- gemeinsame Reihenfolge der Kategorien
         bagPack      = true, bankPack = true, guildPack = true,   -- ab 0.6: Abschnitte nebeneinander
@@ -116,13 +115,13 @@ local mod = Peon:NewModule(ADDON_NAME, {
         bagCols = { 6, 24, 1 }, bankCols = { 6, 24, 1 }, guildCols = { 6, 24, 1 },
         bagScale = { 50, 200, 5 }, bankScale = { 50, 200, 5 }, guildScale = { 50, 200, 5 },
     },
-    choices  = { bagLayout = LAYOUTS, bankLayout = LAYOUTS, guildLayout = GUILD_LAYOUTS,
+    choices  = { bagLayout = LAYOUTS, bankLayout = LAYOUTS, guildLayout = LAYOUTS,
                  bagEmpty = EMPTY_MODES, bankEmpty = EMPTY_MODES, guildEmpty = EMPTY_MODES,
                  setupTab = { cats = true, layout = true } },
     migrate  = Migrate,
     keepOnReset = { pos = true, groups = true, groupItems = true, catOrder = true, layoutVer = true,
                     bagCatsOff = true, bankCatsOff = true, guildCatsOff = true, bagGroupsOff = true, bankGroupsOff = true,
-                    bagWidths = true, bankWidths = true, guildWidths = true },
+                    guildGroupsOff = true, bagWidths = true, bankWidths = true, guildWidths = true },
     onSlash  = function(m, cmd)
         if cmd == "optionen" or cmd == "options" or cmd == "config" then
             m:OpenOptions()
@@ -195,11 +194,21 @@ function ns.ReagentBagID()
     return nil
 end
 
+-- Schluesselbund (ab 0.8): Forever meldet KEYRING_CONTAINER = -1 (Pruefung vom 02.10.2026), Classic -2.
+-- Gibt es weder die Konstante noch Enum.BagIndex.Keyring, hat das Spiel keinen Schluesselbund (nil).
+function ns.KeyringID()
+    local k = rawget(_G, "KEYRING_CONTAINER")
+    if ns.Num(k) then return k end
+    local E = rawget(_G, "Enum")
+    local id = type(E) == "table" and type(E.BagIndex) == "table" and (E.BagIndex.Keyring or E.BagIndex.KeyRing) or nil
+    return ns.Num(id) and id or nil
+end
+
 function ns.IsInventoryBag(bag)
     if not ns.Num(bag) then return false end
     local last = tonumber(rawget(_G, "NUM_BAG_SLOTS")) or 4
     if bag >= 0 and bag <= last then return true end
-    return bag == ns.ReagentBagID()
+    return bag == ns.ReagentBagID() or bag == ns.KeyringID()
 end
 
 -- Bank: aus Enum.BagIndex (Namen mit "bank"), sonst die klassische Belegung.
@@ -227,6 +236,12 @@ function ns.BankBags()
         res[1] = { id = -1, kind = "bank" }
         local first = (tonumber(rawget(_G, "NUM_TOTAL_EQUIPPED_BAG_SLOTS")) or 4) + 1
         for b = first, first + 6 do res[#res + 1] = { id = b, kind = "bank" } end
+    end
+    -- Der Schluesselbund gehoert nie zur Bank (ab 0.8): In Forever traegt er die Nummer -1, die sonst das
+    -- Hauptfach der Bank hat. Sonst stand er im Bankfenster und Blizzards Schluesselbund blieb versteckt.
+    local key = ns.KeyringID()
+    if key then
+        for i = #res, 1, -1 do if res[i].id == key then table.remove(res, i) end end
     end
     -- Hauptfach (-1) zuerst, dann nach Nummer
     table.sort(res, function(a, b)
@@ -470,17 +485,15 @@ end)
 ---------------------------------------------------------------------------
 -- Vorauswahlen (ab 0.7)
 ---------------------------------------------------------------------------
--- Vorauswahl eines Fensters, "custom" = Individuell. Die Gildenbank kennt keine eigenen Bereiche (Empty egal).
+-- Vorauswahl eines Fensters, "custom" = Individuell. Ab 0.8 gilt das fuer alle drei Fenster gleich.
 function ns.CurrentPreset(key)
     local db = mod.db
     for _, p in ipairs(ns.PRESETS) do
         local same = true
         for _, k in ipairs(ns.PRESET_KEYS) do
-            if not (k == "Empty" and key == "guild") then
-                local v = db[key .. k]
-                if type(p[k]) == "boolean" then v = v and true or false end
-                if v ~= p[k] then same = false break end
-            end
+            local v = db[key .. k]
+            if type(p[k]) == "boolean" then v = v and true or false end
+            if v ~= p[k] then same = false break end
         end
         if same then return p.key end
     end

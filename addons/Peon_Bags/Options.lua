@@ -74,12 +74,57 @@ function ns.AddGroupOptions(page, col)
     Refresh()
 end
 
+-- Gespeicherte Staende der Charaktere: Liste mit Alter und Knopf Loeschen (ab 0.8)
+function ns.AddSavedOptions(page, col)
+    local mod = ns.mod
+    local list, selected, delBtn
+    local function Refresh()
+        if not mod.db or not mod.SavedChars then return end
+        local rows, sel = {}, nil
+        for _, c in ipairs(mod:SavedChars()) do
+            if c.bags or c.bank then
+                rows[#rows + 1] = { name = c.name, bags = c.bags and ns.AgeText(c.bags) or "-",
+                                    bank = c.bank and ns.AgeText(c.bank) or "-" }
+                if c.name == selected then sel = rows[#rows] end
+            end
+        end
+        selected = sel and sel.name or nil
+        list:SetData(rows)
+        if sel then list:Select(sel) end
+        if delBtn then if selected then delBtn:Enable() else delBtn:Disable() end end
+    end
+    local listC = page:List({
+        columns = {
+            { key = "name", title = L.SAVED_COL_NAME, width = 130 },
+            { key = "bags", title = L.SAVED_COL_BAGS, width = 70 },
+            { key = "bank", title = L.SAVED_COL_BANK, width = 70 },
+        },
+        rows = 5, rowHeight = 18, sortKey = "name",
+        emptyText = L.SAVED_LIST_EMPTY,
+        onClick = function(_, item)
+            selected = item.name
+            if delBtn then delBtn:Enable() end
+        end,
+    })
+    list = listC.list
+    listC.Refresh = Refresh
+    page:Add(col, listC, 4)
+    local btnC = page:NewContainer(24)
+    delBtn = ns.SmallButton(btnC, L.SAVED_DELETE, 150, L.SAVED_DELETE_TIP, function()
+        if selected and StaticPopup_Show then StaticPopup_Show("PEON_BAGS_SAVED_DELETE", selected, nil, selected) end
+    end)
+    delBtn:SetPoint("TOPLEFT", 0, 0)
+    page:Add(col, btnC)
+    ns.OnSavedChanged = Refresh
+    mod:On("LOGIN", Refresh)
+    Refresh()
+end
+
 function ns.CreateOptions()
     local mod = ns.mod
     if not mod or mod.page then return end
     local page = mod:NewOptionsPage({ desc = L.DESC })
     local layouts = { { "classic", L.LAYOUT_CLASSIC }, { "type", L.LAYOUT_TYPE }, { "custom", L.LAYOUT_CUSTOM } }
-    local guildLayouts = { { "classic", L.LAYOUT_CLASSIC }, { "type", L.LAYOUT_TYPE } }
 
     local left = page:Column(16, -60)
     page:Add(left, page:Header(L.HDR_GENERAL), 6)
@@ -111,7 +156,7 @@ function ns.CreateOptions()
     page:Add(right, page:Header(L.HDR_GUILD), 6)
     page:Add(right, page:Slider("guildCols", L.COLS))
     page:Add(right, page:Slider("guildScale", L.SCALE, nil, "%"))
-    page:Add(right, page:Dropdown("guildLayout", L.LAYOUT, guildLayouts))
+    page:Add(right, page:Dropdown("guildLayout", L.LAYOUT, layouts))
 
     page:Add(right, page:Header(L.HDR_AUTO), 6)
     page:Add(right, page:Check("autoMerchant", L.AUTO_MERCHANT), 20)
@@ -125,6 +170,11 @@ function ns.CreateOptions()
         for _, w in pairs(ns.windows or {}) do if w.ApplyPosition then w:ApplyPosition() end end
         mod:Print(L.MSG_POS_RESET)
     end))
+
+    -- Gespeicherte Staende (ab 0.8). Gehoert nach dem Leitfaden in den Reiter Erweitert, sobald die Seite Reiter hat.
+    page:Add(right, page:Header(L.HDR_SAVED), 6)
+    page:Add(right, page:Text(function() return L.SAVED_HINT end), 6)
+    ns.AddSavedOptions(page, right)
 
     page:AddResetButton(L.SLASH_HINT, left, right)
     page:Register()

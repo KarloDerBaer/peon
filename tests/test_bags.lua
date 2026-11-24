@@ -639,10 +639,10 @@ sp.grpRows[1].check.checked = true
 sp.grpRows[1].check.scripts.OnClick(sp.grpRows[1].check)
 check(not PeonBagsDB.bagGroupsOff[1] and headers(w):find("^Behalten") ~= nil, "Behalten wieder angehakt")
 
--- Gildenbank bleibt ohne Bereiche
+-- Klassisch ohne Bereiche (die Gildenbank hat ab 0.8 auch eigene Bereiche, siehe unten)
 do
   local secs = ns.BuildSections("classic", { ns.slots[0][1] })
-  check(#secs == 1 and secs[1].title == nil and secs[1].target == nil, "ohne useGroups keine Bereiche (Gildenbank)")
+  check(#secs == 1 and secs[1].title == nil and secs[1].target == nil, "Klassisch: ein Abschnitt ohne Bereiche")
 end
 
 -- Kampf: Zuordnung sofort gespeichert, Plaetze danach
@@ -786,15 +786,24 @@ do
   w:Hide()
 end
 
--- ===== Gildenbank: Leiste ohne Individuell =====
+-- ===== Gildenbank wie Taschen und Bank (ab 0.8): Individuell mit eigenen Bereichen =====
 do
   fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 10)
   ShowUIPanel(GuildBankFrame)
   check(gw:IsShown() and gw.setupBtn, "Gildenbank hat Einstellen")
+  check(gw.template == "PortraitFrameTemplate" and gw.portrait, "Gildenbank: Rahmen mit Bild wie die Bank")
   gw:ToggleSetup()
-  check(#gw.setup.layoutBtns == 2 and gw.setup.grpHdr == nil, "Gildenbank: Klassisch und Nach Art, keine eigenen Bereiche")
+  check(#gw.setup.layoutBtns == 3 and gw.setup.grpHdr ~= nil and gw.setup.emptyRow ~= nil, "Gildenbank: drei Anordnungen, eigene Bereiche, leere Bereiche")
   gw.setup.layoutBtns[2].scripts.OnClick(gw.setup.layoutBtns[2])
   check(PeonBagsDB.guildLayout == "type" and headers(gw) == "Freie Plätze", "Gildenbank nach Art (leeres Fach): " .. headers(gw))
+  local gg = ns.AddGroup("Gildensachen")
+  gw.setup.layoutBtns[3].scripts.OnClick(gw.setup.layoutBtns[3])
+  check(PeonBagsDB.guildLayout == "custom" and headers(gw):find("^Gildensachen") ~= nil, "Gildenbank Individuell zeigt eigene Bereiche: " .. headers(gw))
+  PeonBagsDB.groupItems[2589] = gg.id; mod:Fire("CHANGED", "groupItems")
+  check(headers(gw):find("^Gildensachen,") ~= nil, "Leinenstoff der Gildenbank im eigenen Bereich: " .. headers(gw))
+  ns.DeleteGroup(gg.id)
+  PeonBagsDB.guildLayout = "type"; mod:Fire("CHANGED", "guildLayout")
+  gw.setup:Hide()
   gw:Hide()
   fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 10)
 end
@@ -843,7 +852,7 @@ do
   check(not apply("gibtsnicht"), "unbekannte Vorauswahl aendert nichts")
   apply("balanced")
   ns.ApplyPreset("guild", "balanced"); PeonBagsDB.guildEmpty = "drag"
-  check(ns.CurrentPreset("guild") == "balanced", "Gildenbank: leere Bereiche zaehlen nicht")
+  check(ns.CurrentPreset("guild") == "custom", "Gildenbank: leere Bereiche zaehlen ab 0.8 mit")
   ns.ApplyPreset("guild", "balanced")
   -- Standardwerte sind Ausgewogen
   local d = mod.opts.defaults
@@ -978,6 +987,102 @@ do
   w:Set("Cols", 10)
   w:Set("Layout", "classic")
   ns.HideBags()
+end
+
+-- ===== Schluesselbund (ab 0.8) =====
+do
+  KEYRING_CONTAINER = -1   -- wie in Forever (Pruefung 02.10.2026)
+  bags[-1] = { n = 4, items = { [2] = Item(5396, "Schlüssel zum Kloster", 1, 1) } }
+  check(ns.KeyringID() == -1 and ns.IsInventoryBag(-1), "Schluesselbund gehoert zu den Taschen")
+  Enum.BagIndex.Bank = -1; ns.bankBags = nil
+  local ids = {} for _, b in ipairs(ns.BankBags()) do ids[#ids + 1] = b.id end
+  check(not ("," .. table.concat(ids, ",") .. ","):find(",%-1,"), "Schluesselbund nie in der Bank: " .. table.concat(ids, ","))
+  Enum.BagIndex.Bank = nil; ns.bankBags = nil
+  ns.ShowBags()
+  check(headers(w):find("Schlüsselbund") ~= nil, "eigener Abschnitt Schluesselbund: " .. headers(w))
+  check(ns.slots[-1][2] and ns.slots[-1][2]:GetParent():GetID() == -1, "Platz im Schluesselbund mit Taschennummer -1")
+  check(w.footLeft.text:find("Schlüssel 1/4") ~= nil, "Fusszeile zeigt Schluessel: " .. w.footLeft.text)
+  ns.HideBags()
+  ToggleKeyRing = function() end
+end
+
+-- ===== Gespeicherte Ansicht (ab 0.8) =====
+do
+  time = function() return 1000000 end
+  local me = ns.CharName()
+  check(me == "Mirel Dorna", "Charakter mit Vor- und Nachname")
+  check(ns.SaveBags(), "Taschen gespeichert")
+  local realm = PeonBagsSaved.realms[ns.RealmKey()]
+  local d = realm[me]
+  local b0 = d.bags.list[1]
+  check(b0.id == 0 and b0.n == 16 and b0[1] == "2589,20,1" and b0[16] == nil, "Platz als Text, freie Plaetze nicht gespeichert: " .. tostring(b0[1]))
+  local kinds = {} for _, b in ipairs(d.bags.list) do if b.kind then kinds[#kinds + 1] = b.kind .. b.id end end
+  check(table.concat(kinds, ",") == "reagent5,keyring-1", "Reagenzientasche und Schluesselbund gespeichert: " .. table.concat(kinds, ","))
+  check(d.money == 123456, "Gold gespeichert")
+  check(not ns.SaveBank(), "Bank nur bei offener Bank")
+  fire("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", 8)
+  check(d.bank and d.bank.list[1].id == 6 and d.bank.list[1][1] == "2589,200,1", "Bank beim Oeffnen gespeichert")
+  fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 8)
+
+  -- Variante mit Zusatz: Link-Inhalt und Name bleiben
+  local info = ns.DecodeSlot("25:0:0:0:0:0:1234,1,2,Kurzschwert des Affen")
+  check(info.itemID == 25 and info.quality == 2 and ns.ItemKey(info.itemID, info.hyperlink) == "25:Kurzschwert des Affen", "Variante bleibt unterscheidbar")
+  check(ns.DecodeSlot("2589,20,1").stackCount == 20 and ns.DecodeSlot("kaputt") == nil, "Text lesen")
+
+  -- anderer Charakter
+  realm["Anna Beispiel"] = { level = 20, money = 5000, bags = { t = 1000000 - 3 * 86400, list = {
+      { id = 0, n = 4, [1] = "2589,5,1", [3] = "25:0:0:0:0:0:1234,1,2,Kurzschwert des Affen" },
+      { id = -1, n = 2, kind = "keyring", [1] = "5396,1,1" } } } }
+  check(mod:HasSaved("Anna Beispiel", "bags") and not mod:HasSaved("Anna Beispiel", "bank") and not mod:HasSaved("Anna Beispiel", "guild"), "HasSaved je Ort")
+  local chars = mod:SavedChars()
+  check(chars[1].me and chars[1].name == me and chars[2].name == "Anna Beispiel", "eigener Charakter zuerst")
+  check(mod:ShowSaved("Anna Beispiel", "bags"), "ShowSaved zeigt den Stand")
+  check(w:IsShown() and ns.SavedActive() and w.title.text:find("Taschen von Anna Beispiel") and w.title.text:find("vor 3 Tg."), "Titel mit Stand: " .. tostring(w.title.text))
+  check(not ns.bagFrames[0].shown and not w.bar.shown and not w.sortBtn.shown and w.ortBar.shown, "echte Plaetze, Leiste und Sortieren aus, Ortknoepfe an")
+  local shown = 0 for _, vb in ipairs(w.viewButtons) do if vb.shown then shown = shown + 1 end end
+  check(shown == 6, "sechs gespeicherte Plaetze (" .. shown .. ")")
+  check(headers(w) == "Schlüsselbund", "Abschnitte wie im echten Fenster: " .. headers(w))
+  check(w.footLeft.text == "2/4 Plätze belegt · 2 frei" and w.footRight.text == "5000c", "Fusszeile: " .. w.footLeft.text)
+  check(w.viewButtons[3].peonInfo.hyperlink:find("Affen") and w.viewButtons[3]._quality == 2, "Variante mit Qualitaet gezeigt")
+  check(w.ortBtns[1].enabled ~= false and w.ortBtns[2].enabled == false and w.ortBtns[3].enabled == false, "Bank und Gildenbank grau ohne Stand")
+  -- Suche gilt auch fuer die Ansicht
+  ns.SetSearch("kurz")
+  check(w.viewButtons[3].alpha == 1 and w.viewButtons[1].alpha == 0.3, "Suche in der Ansicht")
+  ns.SetSearch("")
+  -- Kategorien nach Art wie im echten Fenster, ohne Ablegen
+  w:Set("Layout", "type")
+  check(headers(w):find("Ausrüstung") and headers(w):find("Handwerkswaren"), "nach Art: " .. headers(w))
+  for _, h in ipairs(w.headers) do if h.shown then check(h.target == nil, "Ueberschrift nimmt nichts an: " .. tostring(h.text)) end end
+  w:Set("Layout", "classic")
+
+  -- Bank unterwegs: eigener Charakter, mit den Einstellungen der Bank
+  check(mod:ShowSaved(me, "bank") and w.title.text:find("Bank von Mirel Dorna") and w.cfgKey == "bank", "Bank unterwegs: " .. tostring(w.title.text))
+  check(w.ortBtns[2].peonOn and w.ortBtns[1].enabled ~= false, "Knopf Bank gewaehlt, Taschen waehlbar")
+  -- Auswahl im Fenster
+  w.charDD.Choose("Anna Beispiel")
+  check(ns.savedView.char == "Anna Beispiel" and ns.savedView.ort == "bags", "Auswahl: Anna ohne Bank zeigt Taschen")
+  w.charDD.Choose(me)
+  check(not ns.SavedActive() and ns.bagFrames[0].shown and w.cfgKey == nil and w.title.text == "Mirel Dorna – Taschen", "eigener Charakter: echte Taschen")
+  -- Schliessen setzt zurueck
+  mod:ShowSaved("Anna Beispiel")
+  w:Hide()
+  check(not ns.SavedActive() and ns.bagFrames[0].shown, "Schliessen: wieder echte Taschen")
+  -- im Kampf erst danach
+  combat = true
+  check(not mod:ShowSaved("Anna Beispiel"), "im Kampf vorgemerkt")
+  combat = false
+  fire("PLAYER_REGEN_ENABLED")
+  check(ns.savedView.char == "Anna Beispiel" and w:IsShown(), "nach dem Kampf gezeigt")
+  w:Hide()
+  check(not mod:ShowSaved("Niemand"), "ohne Stand: nichts")
+  check(not mod:ShowSaved(me, "guild"), "Gildenbank noch nicht")
+  -- Loeschen ueber die Optionen
+  StaticPopupDialogs.PEON_BAGS_SAVED_DELETE.OnAccept(nil, "Anna Beispiel")
+  check(not mod:HasSaved("Anna Beispiel", "bags") and realm["Anna Beispiel"] == nil, "Stand geloescht")
+  -- Abmelden speichert die Taschen
+  realm[me] = nil
+  fire("PLAYER_LOGOUT")
+  check(realm[me] and realm[me].bags, "beim Abmelden gespeichert")
 end
 
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") then n = n + 1 end end

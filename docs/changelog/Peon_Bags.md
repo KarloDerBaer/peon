@@ -2,6 +2,22 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.8.0
+
+Kurz: Im Taschenfenster wählst du oben einen Charakter und siehst seine Taschen und seine Bank so, wie sie zuletzt waren. Damit siehst du auch die eigene Bank unterwegs.
+Kurz: Die Gildenbank sieht jetzt aus wie Taschen und Bank und kennt dieselben Einstellungen, auch eigene Bereiche.
+Kurz: Der Schlüsselbund steht als eigener Abschnitt im Taschenfenster.
+
+- 0.8.0 (25.11.2026, Konzept `docs/konzepte/ledger/Peon_Ledger_Schlank.md` Abschnitt 3.3 und Bauabschnitt S3, Wünsche KarloDerBaer):
+  - **Gespeicherte Ansicht** (`Saved.lua`, neue SavedVariable `PeonBagsSaved`): Bags speichert Taschen (mit Reagenzientasche und Schlüsselbund) und Bank je Charakter platzgenau. Taschen kurz nach dem Einloggen, beim Schließen des Taschenfensters und beim Abmelden, die Bank beim Öffnen und bei jeder Änderung, solange sie offen ist. Ein Platz ist ein kurzer Text aus Gegenstand, Stückzahl und Qualität, bei Varianten („… des Affen“) mit Name. Freie Plätze zählen nur als Zahl je Tasche.
+  - **Auswahl des Charakters** im Taschenfenster neben „Sortieren“: der eingeloggte Charakter oben mit den echten Taschen, darunter alle Charaktere des Realms mit gespeichertem Stand. Ein anderer Charakter zeigt seinen Stand nur zum Ansehen: Titel „Taschen von … · vor 3 Tg.“ (ab 7 Tagen gelb), Fußzeile mit belegten und freien Plätzen und Gold, Tooltip und Umschalt-Klick gehen, Ziehen und Ablegen nicht. Statt der Taschenleiste stehen dort die Knöpfe Taschen, Bank und Gildenbank. Ohne gespeicherten Stand sind sie grau, der Tooltip sagt, wie man ihn bekommt. Die Gildenbank bleibt grau, bis sie gespeichert wird (Bauabschnitt S6).
+  - Die Ansicht ordnet wie das echte Fenster: dieselben Kategorien, eigenen Bereiche, eingeklappten Abschnitte und Layout-Einstellungen. Die Bank erscheint mit den Einstellungen des Bankfensters. Schließen des Fensters führt zurück zu den echten Taschen. Im Kampf wechselt die Ansicht erst danach.
+  - **Bank unterwegs**: Mit dem eigenen Charakter zeigt der Knopf Bank die zuletzt gesehene Bank.
+  - **Schnittstelle** für andere Module (Ledger, Reiter Charaktere): `bags:ShowSaved(name, ort)` mit `ort` = `"bags"`, `"bank"` oder `"guild"`, Rückgabe true, wenn gezeigt. Dazu `bags:HasSaved(name, ort)` und `bags:SavedChars()`. `name` ist der volle Name mit Nachname wie in Ledger.
+  - **Optionen:** Liste „Gespeicherte Charaktere“ mit dem Alter von Taschen und Bank und Knopf „Gewählten löschen“ (mit Rückfrage). Sie kommt beim Umbau der Seite nach dem Leitfaden in den Reiter Erweitert. Kein neuer Schalter, gespeichert wird immer.
+  - **Gildenbank wie Taschen und Bank** (KarloDerBaer, 24.11.2026): derselbe Rahmen wie die Bank mit rundem Bild (Symbol des gewählten Fachs), Titel „Gilde – Gildenbank“, Anordnung Klassisch, Nach Art oder Individuell mit den eigenen Bereichen, dazu „Leere eigene Bereiche“ im Reiter Layout. Die Vorauswahl zählt bei der Gildenbank jetzt alle Einstellungen mit (`guildGroupsOff` neu).
+  - **Schlüsselbund:** eigener Abschnitt „Schlüsselbund“ am Ende des Taschenfensters, Knopf in der Taschenleiste, „Schlüssel x/y“ in der Fußzeile. Der Knopf Schlüsselbund des Spiels öffnet das Taschenfenster. Die Nummer kommt aus `KEYRING_CONTAINER` (Forever: −1) oder `Enum.BagIndex.Keyring`. Der Schlüsselbund gehört nie zur Bank, auch wenn das Spiel die Nummer −1 als Bankfach meldet.
+
 ## 0.7.0
 
 Kurz: Unter „Einstellen“ gibt es jetzt zwei Reiter. „Kategorien“ enthält die bisherigen Einstellungen, „Layout“ die neuen zum Platzsparen.

@@ -101,18 +101,20 @@ Der Knopf **[Bags]** an Taschen und Bank im Reiter Charaktere öffnet das Tasche
 - Bags bekommt dafür auch eine eigene Auswahl des Charakters im Taschenfenster, damit man die Ansicht ohne Ledger erreicht (KarloDerBaer, 24.11.2026). Der eingeloggte Charakter steht oben und zeigt die echten Taschen, jeder andere den gespeicherten Stand.
 - Ohne Peon_Bags fehlt der Knopf [Bags], die Liste im Reiter Charaktere reicht dann.
 
+**Gebaut in Bags 0.8.0 (25.11.2026):** Statt zweier Knöpfe oben stehen drei Knöpfe **Taschen**, **Bank**, **Gildenbank** an der Stelle der Taschenleiste, die in der Ansicht nichts zu tun hat. Die Auswahl des Charakters sitzt in der Knopfreihe neben „Sortieren“. Die Bank erscheint mit den Einstellungen des Bankfensters. Schließen führt zurück zu den echten Taschen. Für Ledger: `bags:ShowSaved(name, ort)` (Rückgabe true, wenn gezeigt), `bags:HasSaved(name, ort)` zum Ausgrauen des Knopfs [Bags], `bags:SavedChars()`. `name` ist der volle Name mit Nachname wie in Ledger (`ns.CharName`).
+
 ### 3.4 Was dafür neu gebaut wird
 
 | Teil | Wo | Was |
 |---|---|---|
 | Reiter Charaktere | Ledger (`Chars.lua` neu, ersetzt `Stock.lua`) | Liste je Ort, Suche über alle Charaktere, Knopf [Bags] |
-| Stand speichern | Peon_Bags | beim Schließen von Taschen, Bank und Gildenbank je Platz Gegenstand und Stückzahl speichern, je Charakter (Gildenbank je Gilde) |
+| Stand speichern | Peon_Bags | je Platz Gegenstand, Stückzahl und Qualität speichern, je Charakter (Gildenbank später je Gilde). Gebaut: Taschen kurz nach dem Einloggen, beim Schließen des Fensters und beim Abmelden, Bank beim Öffnen und bei jeder Änderung, solange sie offen ist (nach dem Schließen meldet das Spiel die Bank nicht mehr) |
 | Gespeicherten Stand zeigen | Peon_Bags, neue Schnittstelle `bags:ShowSaved(name, ort)` | Taschenfenster nur zum Ansehen, mit Knöpfen Bank und Gildenbank |
 | Gildenbank | Peon_Bags (`Guild.lua`) | Fächer beim Öffnen lesen, die der Charakter sehen darf |
 
 Zur Gildenbank: Sie ist in Bags vorbereitet, aber im Spiel noch nicht getestet. Gespeichert werden kann sie erst, wenn KarloDerBaer sie mit einer Gildenbank prüfen kann. Bis dahin bleibt der Knopf ausgegraut. Ledger erfasst die Gildenbank weiter nicht (Ein- und Auslagern erscheint dort wie bisher als Verbrauch oder Zugang).
 
-Größe: Ein Platz kostet zwei Werte (Gegenstand, Stück). Bei 10 Charakteren mit je 100 Plätzen in Taschen und 200 in der Bank sind das rund 6.000 Werte, weit unter der Grenze des Spiels von etwa 262.000 je Datei.
+Größe: Ein Platz kostet einen kurzen Text (Gegenstand, Stück, Qualität, bei Varianten der Name), freie Plätze nur eine Zahl je Tasche. Bei 10 Charakteren mit je 100 Plätzen in Taschen und 200 in der Bank sind das rund 6.000 Werte, weit unter der Grenze des Spiels von etwa 262.000 je Datei.
 
 ## 4. Übersicht
 
