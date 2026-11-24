@@ -14,7 +14,7 @@ Stand: 07.10.2026, mit KarloDerBaer abgestimmt; T1–T4 umgesetzt in Peon_Bags 0
 - **Installiert:** Bagnon 12.1.5 mit BagBrother (rund 13.500 Zeilen Lua inkl. Bibliotheken), Bagnon_Bank, Bagnon_Config, Bagnon_GuildBank (Fassung „Mainline“ = Retail-Oberfläche, die Forever nutzt).
 - **KarloDerBaers Bagnon-Einstellungen** sind fast Standard: Taschenfenster unten rechts mit sichtbarer Taschenleiste, Seitenleiste mit Filtern „alle / normale Taschen / Handwerk“; Bankfenster oben links. Keine eigenen Regeln, Farben oder Profile.
 - **Forever (aus den Prüfungen von Ledger):**
-  - 6 Taschen (0–5), Tasche 5 mit 12 Plätzen (vermutlich die Reagenzientasche), Schlüsselbund −1.
+  - 6 Taschen (0–5), Tasche 5 mit 12 Plätzen (vermutlich die Reagenzientasche), Schlüsselbund −1 (bestätigt 25.11.2026: `Enum.BagIndex.Keyring` = −1, 32 Plätze, ab Bags 0.8 eigener Abschnitt im Taschenfenster). Tasche 5 ist der Platz `ReagentBag`, dort kann auch ein normaler Beutel stecken (gesehen: Kräuterbeutel, 12 Plätze).
   - Bank: Tasche 6 mit 48 Plätzen, dazu 7–14 ohne Plätze (kaufbare Fächer oder Bank-Taschenplätze – im Spiel prüfen). Accountbank-Nummern ohne Plätze. `IsReagentBankUnlocked` fehlt.
   - Gildenbank gibt es (100 Gold); KarloDerBaer hat noch keine.
 - **Bagnon ist „All Rights Reserved“.** Kein Code wird übernommen, nur das Wissen, wie Blizzards Schnittstellen funktionieren (wie beim Mover mit BlizzMove).

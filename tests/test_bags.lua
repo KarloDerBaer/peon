@@ -1003,7 +1003,10 @@ do
   check(ns.slots[-1][2] and ns.slots[-1][2]:GetParent():GetID() == -1, "Platz im Schluesselbund mit Taschennummer -1")
   check(w.footLeft.text:find("Schlüssel 1/4") ~= nil, "Fusszeile zeigt Schluessel: " .. w.footLeft.text)
   ns.HideBags()
-  ToggleKeyRing = function() end
+  -- Blizzards Schluesselbund-Fenster (ein ContainerFrame mit ID -1) wird versteckt wie die Taschen
+  ContainerFrame3:SetID(-1)
+  check(ContainerFrame3:GetParent() ~= UIParent, "Blizzards Schluesselbund-Fenster versteckt")
+  ContainerFrame3:SetID(0)
 end
 
 -- ===== Gespeicherte Ansicht (ab 0.8) =====

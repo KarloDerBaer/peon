@@ -10,7 +10,7 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Eigene SavedVariable `PeonBagsSaved`** (Claude): Die Stände gehören nicht zu Profilen und nicht zu „Standardwerte“, deshalb nicht in `PeonBagsDB`.
 - **Knöpfe Taschen, Bank, Gildenbank an der Stelle der Taschenleiste** (Claude, Konzept zeigte zwei Knöpfe oben rechts): Dort ist Platz, und die Leiste hat in der Ansicht keine Aufgabe. Ein Knopf Taschen braucht es, um von der Bank zurückzukommen.
 - **Gildenbank mit eigenen Bereichen** (KarloDerBaer, 24.11.2026, „dasselbe Aussehen“): derselbe Rahmen wie die Bank, alle drei Anordnungen und dieselben Layout-Einstellungen.
-- **Schlüsselbund nie Teil der Bank** (Claude): Forever meldet `KEYRING_CONTAINER` = −1, die Nummer, die sonst das Hauptfach der Bank hat. Bags schließt den Schlüsselbund deshalb aus der Bank aus und zeigt ihn als eigenen Abschnitt der Taschen.
+- **Schlüsselbund als Abschnitt der Taschen** (Claude, Werte aus Forever vom 25.11.2026: `Enum.BagIndex.Keyring` = −1, 32 Plätze, Bank über `CharacterBankTab_1` bis `_9` = 6 bis 14): Blizzards eigenes Schlüsselbund-Fenster ist neben Peon_Bags nicht bedienbar (grau überlagert). Bags versteckt es wie die übrigen Taschenfenster und zeigt den Schlüsselbund im Taschenfenster. Er gehört nie zur Bank, weil −1 in anderen Spielversionen das Hauptfach der Bank ist.
 
 ## 24.11.2026: Offene Fragen vor dem Umbau geklärt
 

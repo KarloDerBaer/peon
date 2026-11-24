@@ -194,7 +194,9 @@ function ns.ReagentBagID()
     return nil
 end
 
--- Schluesselbund (ab 0.8): Forever meldet KEYRING_CONTAINER = -1 (Pruefung vom 02.10.2026), Classic -2.
+-- Schluesselbund (ab 0.8): Forever meldet KEYRING_CONTAINER = Enum.BagIndex.Keyring = -1 mit 32 Plaetzen
+-- (gesehen 25.11.2026), Classic -2. Bis 0.7 zaehlte er nicht zu den Taschen: Blizzards eigenes Schluesselbund-
+-- Fenster blieb dann offen, grau ueberlagert, nicht anklickbar und nicht verschiebbar.
 -- Gibt es weder die Konstante noch Enum.BagIndex.Keyring, hat das Spiel keinen Schluesselbund (nil).
 function ns.KeyringID()
     local k = rawget(_G, "KEYRING_CONTAINER")
@@ -237,8 +239,8 @@ function ns.BankBags()
         local first = (tonumber(rawget(_G, "NUM_TOTAL_EQUIPPED_BAG_SLOTS")) or 4) + 1
         for b = first, first + 6 do res[#res + 1] = { id = b, kind = "bank" } end
     end
-    -- Der Schluesselbund gehoert nie zur Bank (ab 0.8): In Forever traegt er die Nummer -1, die sonst das
-    -- Hauptfach der Bank hat. Sonst stand er im Bankfenster und Blizzards Schluesselbund blieb versteckt.
+    -- Der Schluesselbund gehoert nie zur Bank (ab 0.8): Er traegt in Forever die Nummer -1, die in anderen
+    -- Spielversionen das Hauptfach der Bank hat (auch die klassische Belegung oben).
     local key = ns.KeyringID()
     if key then
         for i = #res, 1, -1 do if res[i].id == key then table.remove(res, i) end end
