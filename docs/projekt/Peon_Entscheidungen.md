@@ -3,6 +3,17 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 24.11.2026: Broker schlank (Konzept)
+
+- **Entwurf A mit Seitenleiste** (KarloDerBaer, von drei Entwürfen): Die Reiter bleiben fast wie bisher, jede Seite wird entrümpelt. Dazu eine aufklappbare Leiste rechts am Fenster mit Beobachten und Einkaufsliste für den schnellen Wechsel. Die Leiste zeigt nur die Gegenstände, Werte und Einstellungen stehen im Reiter Beobachten. Verworfen: Reiter Beobachten ganz in die Leiste (zu wenig Platz für die Werte), Kaufen und Einstellen in einem Fenster (größter Umbau, doppelt sich mit Blizzards Verkaufen, vorgemerkt). Konzept `docs/konzepte/broker/Peon_Broker_Schlank.md`.
+- **Fokus wird Einkaufen, nur noch Schnellkauf** (KarloDerBaer): Der Schnellkauf bringt am meisten Gold. Der Modus Aufkauf wird nicht mehr genutzt und ruht hinter einem Schalter. Speichern geschieht von selbst, Gegenstand und Im Markt zeigen nur noch im Menü.
+- **Goldreserve und Menge statt Limit pro Kauf** (KarloDerBaer): Mit Regler Menge (ganz rechts „Alle“) taugt die Seite auch zum normalen Einkaufen. Vorgabe 1 für Gegenstände, die keine Massenware sind.
+- **Zufluss und Abfluss sichtbar** (KarloDerBaer): nebeneinander mit Symbolen. Bewegung und Langfristig wandern in den Tooltip.
+- **Einkaufsliste zieht sofort ab** (KarloDerBaer): Erledigtes wird grau und bleibt, × löscht, Regler setzt eine neue Menge.
+- **Beobachten eine Liste** (KarloDerBaer): gleiche Spalten für alle, Treffer und Einbrüche je Stunde über 7 Tage, dazu Jetzt mit Punkt.
+- **Chancen: nur Schnellkauf sichtbar** (KarloDerBaer): Die übrigen sind zurzeit zu riskant. Sie ruhen hinter dem Schalter „Weitere Chancen“ und können auf Stufe 60 bei seltenen Gegenständen wieder lohnen. Pakete dann eine Zeile je Paket.
+- **Lockangebot bleibt** (KarloDerBaer): Ein Freund nutzt es oft. Sofort als kleiner Schritt mit Menge und Knopf „Einstellen“, ohne Zurückziehen. Einstellen in Teilen zum Preisdrücken ist vorgemerkt.
+
 ## 24.11.2026: Angeln mit der Interaktionstaste (Fishing 1.8.0, ClassBuddy 0.4.1)
 
 - **Combo-Punkte an Objekten** (Claude): Über Soft Interact bekommen auch Objekte ein Nameplate. ClassBuddy prüft jetzt `UnitIsGameObject`. Fishing war nicht die Ursache, es schaltet Namen über Objekten nur bei Anzeige „Text“ und nur mit Angel im Wasser.
