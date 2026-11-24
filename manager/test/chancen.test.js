@@ -114,13 +114,64 @@ test('Regler: Grenzen, Standard, Probe mit Rueckmeldungen', () => {
 test('Nachpruefung: Ziel erreicht, Kaufpreis wieder drin, nicht', () => {
   const db = openDb(tmp());
   const x = spec.evalFast(ctx(), '2589');
-  book.log(db, 1, NOW - 5 * 86400, [x], []);
+  const t = NOW - 5 * 86400, d = Math.floor(t / 86400);
+  const proof = require('../src/core/proof');
+  const again = () => { db.prepare('UPDATE chance_log SET outcome = NULL, checked = NULL').run(); book.check(db, 1, NOW); return db.prepare('SELECT outcome FROM chance_log').get().outcome; };
+  book.log(db, 1, t, [x], []);
+  // ab 0.55.0: ohne Vergleiche der Blizzard-API keine Daten, der Median der Angebote zaehlt nicht mehr
   db.prepare("INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, qty) VALUES (?, 1, '2589', ?, 'scan', 90000, 96000, 3)").run(sidOf(db, 's1', 1, NOW - 4 * 86400), NOW - 4 * 86400);
-  book.check(db, 1, NOW);
-  assert.equal(db.prepare('SELECT outcome FROM chance_log').get().outcome, 'hit');
+  assert.equal(again(), 'none');
+  db.prepare("INSERT INTO sales_pair(market_id, a_id, b_id, ta, tb, src) VALUES (1, 'a', 'b', ?, ?, 'api')").run(t + 3600, t + 7200);
+  assert.equal(again(), 'miss', 'nichts verkauft');
+  // verkauft zum Zielpreis, aber weniger Stueck als vorgeschlagen
+  const sell = db.prepare("INSERT INTO sale_px(market_id, item_key, day, b, qty) VALUES (1, '2589', ?, ?, ?)");
+  sell.run(d + 1, proof.bucket(x.target), x.qty * 0.9 - 0.5);
+  assert.equal(again(), 'miss', 'Menge nicht gedeckt');
+  sell.run(d + 2, proof.bucket(x.target), 0.5);
+  assert.equal(again(), 'hit', 'Menge gedeckt');
+  // Tage vor dem Umstieg auf die strenge Erkennung zaehlen nicht
+  db.prepare("UPDATE meta SET value = ? WHERE key = 'saleStrictDay'").run(JSON.stringify(d + 10));
+  assert.equal(again(), 'none');
+  db.prepare("UPDATE meta SET value = '0' WHERE key = 'saleStrictDay'").run();
+  assert.equal(again(), 'hit');
   const rates = book.rates(db, 1, NOW);
   assert.ok(rates.s.n === 1 && rates.s.rate === 1);
   db.close();
+});
+
+test('0.55.0: gerade so, wenn die Verkaeufe nur Kaufpreis und Gebuehr decken', () => {
+  const db = openDb(tmp());
+  const proof = require('../src/core/proof');
+  const x = spec.evalFast(ctx(), '2589');
+  const t = NOW - 5 * 86400, d = Math.floor(t / 86400);
+  book.log(db, 1, t, [x], []);
+  db.prepare("INSERT INTO sales_pair(market_id, a_id, b_id, ta, tb, src) VALUES (1, 'a', 'b', ?, ?, 'api')").run(t + 3600, t + 7200);
+  const between = Math.round((x.buy / 0.95 + x.target * 0.98) / 2);
+  assert.ok(between > x.buy / 0.95 * 1.02 && between < x.target * 0.96, 'Preis liegt zwischen Kaufpreis mit Gebuehr und Ziel');
+  db.prepare("INSERT INTO sale_px(market_id, item_key, day, b, qty) VALUES (1, '2589', ?, ?, ?)").run(d + 1, proof.bucket(between), x.qty);
+  book.check(db, 1, NOW);
+  assert.equal(db.prepare('SELECT outcome FROM chance_log').get().outcome, 'even');
+  db.close();
+});
+
+test('0.55.0: gleich teuer oder billiger neu eingestellt zaehlt nicht als Verkauf', () => {
+  const sales = require('../src/core/sales');
+  const T = 3600, L = { lo: 7200, hi: 43200 };
+  // Einzelgegenstand: zum gleichen Preis neu eingestellt
+  const A = [{ id: 1, q: 1, p: 500, ...L }];
+  const B = [{ id: 2, q: 1, p: 500, ...L }];
+  assert.equal(sales.compare(A, B, 0, T, { withIds: true, singles: true }).sold, 0);
+  // Massenware: gleiche Menge zum gleichen Preis neu, und ein billigeres Angebot anderer Menge neu
+  const r = sales.compare([{ id: 1, q: 20, p: 100, ...L }], [{ id: 2, q: 20, p: 100, ...L }], 0, T, { withIds: true, singles: true, commodity: true });
+  assert.equal(r.sold, 0);
+  const r2 = sales.compare([{ id: 1, q: 20, p: 100, ...L }], [{ id: 2, q: 5, p: 90, ...L }], 0, T, { withIds: true, singles: true, commodity: true });
+  assert.ok(r2.sold === 0 && r2.cancelled === 20, JSON.stringify(r2));
+  // ohne billigeres neues Angebot: Verkauf
+  const r3 = sales.compare([{ id: 1, q: 20, p: 100, ...L }], [{ id: 2, q: 5, p: 120, ...L }], 0, T, { withIds: true, singles: true, commodity: true });
+  assert.equal(r3.sold, 20);
+  // Teilkauf bleibt Verkauf
+  const r4 = sales.compare([{ id: 1, q: 20, p: 100, ...L }], [{ id: 1, q: 15, p: 100, ...L }, { id: 2, q: 5, p: 90, ...L }], 0, T, { withIds: true, singles: true, commodity: true });
+  assert.equal(r4.sold, 5);
 });
 
 test('Prognosen: Knappheit, Sicherheit aus Signalen, neue Signale zaehlen nicht, schlechte schalten sich aus', () => {

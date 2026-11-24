@@ -143,7 +143,7 @@ const hist = computed(() => (d.value && d.value.hist) || []);
           <th class="num click" tabindex="0" @click="sortBy('i')" @keydown.enter="sortBy('i')">Stufe{{ arrow('i') }}</th>
           <th class="num click" tabindex="0" @click="sortBy('i')" @keydown.enter="sortBy('i')">Index</th>
           <th class="num click" tabindex="0" @click="sortBy('h')" @keydown.enter="sortBy('h')" title="Mittlere Bewegung je Stunde">Stunden{{ arrow('h') }}</th>
-          <th class="num click" tabindex="0" @click="sortBy('d')" @keydown.enter="sortBy('d')" title="Schwankung der Tageswerte">Tage{{ arrow('d') }}</th>
+          <th class="num click" tabindex="0" @click="sortBy('d')" @keydown.enter="sortBy('d')" title="Schwankung der Tageswerte, die Richtung zählt zur Hälfte mit">Tage{{ arrow('d') }}</th>
           <th class="num click" tabindex="0" @click="sortBy('dir')" @keydown.enter="sortBy('dir')" title="Erster zu letztem Tageswert">Richtung{{ arrow('dir') }}</th>
           <th class="num click" tabindex="0" @click="sortBy('a')" @keydown.enter="sortBy('a')" title="Angebote im Schnitt">Angebote{{ arrow('a') }}</th>
         </tr></thead>

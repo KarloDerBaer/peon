@@ -26,6 +26,7 @@ const DEFAULTS = {
   updateNotify: true,     // ab 0.20.0: Meldung von Windows, wenn die Suche etwas Neues findet
   shopNotify: true,       // Einkaufsliste: Meldung von Windows, wenn ein Angebot unter dem Hoechstpreis liegt
   watchNotify: true,      // ab 0.32.0: Beobachten, Hauptschalter fuer die Meldungen von Windows (je Gegenstand und Grenze die Glocken)
+  dataNotify: false,      // ab 0.55.0: Meldung von Windows, wenn neue Daten eingelesen und ausgewertet sind
   market: '',             // gewaehlter Markt
   itemColumns: [],        // Spalten unter Gegenstaende, leer = Standard
   checklistHidden: false, // Einrichtungsliste ausgeblendet

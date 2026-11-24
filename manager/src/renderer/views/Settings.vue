@@ -168,6 +168,8 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
         </select>
       </label>
       <p class="small muted">Die Größe geht auch mit Strg und Plus oder Minus und mit Strg und dem Mausrad. Strg und 0 stellt 100 % ein.</p>
+      <label class="check" v-if="broker"><input type="checkbox" :checked="settings.dataNotify" @change="emit('save', { dataNotify: $event.target.checked })" /> Meldung von Windows, wenn neue Daten ausgewertet sind</label>
+      <p class="small muted" v-if="broker">Kommt nach jedem neuen Stand der Blizzard-API (etwa stündlich) und nach neuen Scans aus dem Spiel, sobald Chancen und Werte für Broker neu gerechnet sind.</p>
       <p class="small muted">Das Fenster schließen lässt den Manager im Infobereich weiterlaufen. Beenden geht über das Symbol im Infobereich.</p>
     </section>
 

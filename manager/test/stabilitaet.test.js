@@ -74,8 +74,13 @@ test('Tage: Schwankung wie F36, Richtung vom ersten zum letzten Tag', () => {
   [100, 100, 101, 99, 100, 50].forEach((v, i) => days.set(20000 + i, [v, v, v]));
   const d = st.dayPart(days);
   assert.equal(d.days, 6);
-  assert.equal(d.schw, 0.05);   // Median-Abweichung klein, Mindestwert
+  assert.equal(d.wobble, 0.05);   // Median-Abweichung klein, Mindestwert
   assert.equal(d.dir, -0.5);
+  // ab 0.55.0: die Richtung zaehlt mit halbem Gewicht, halbiert ist das ln(2) / 2 = 34,7 %
+  assert.ok(Math.abs(d.schw - Math.log(2) / 2) < 1e-9, String(d.schw));
+  const calm = new Map();
+  [100, 100, 101, 99, 100, 104].forEach((v, i) => calm.set(20000 + i, [v, v, v]));
+  assert.equal(st.dayPart(calm).schw, 0.05, 'kleine Richtung aendert nichts');
   assert.equal(d.span, 5);
   // Tage mit weniger als 3 Preisen zaehlen nicht, unter 5 Tagen kein Ergebnis
   days.set(20003, [99]);

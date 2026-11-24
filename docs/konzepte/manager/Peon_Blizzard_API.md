@@ -59,6 +59,12 @@ Vermutung: 5 Märkte mit je einem Allianz-, Horde- und Neutral-Haus. Angebote ge
 - **`static-forever` kennt viele Gegenstände nicht**, auch ohne Zusatz (404 zum Beispiel bei 14097, 16802, 9449, 11996). `static-classic1x` kennt die meisten und hat denselben Aufbau, die Werte stammen aber aus Classic (zum Beispiel `static-1.15.9_68185-classic1x-eu`) und können in Forever abweichen. Bei ersten Einlesungen kam etwa die Hälfte aus den Classic-Daten. Einige fehlen in beiden (7779).
 - **Zusätze:** Die Abfrage kennt nur die Gegenstandsnummer. Die Werte eines Zusatzes wie „des Wolfs“ fehlen deshalb, die Antwort zeigt nur die Grundwerte. Geprüft am 06.11.2026 mit `bonus`, `bonus_lists`, `bonusList`, `bonusLists`, `bonus_list`, `bl` und `context`: die Antwort bleibt Zeichen für Zeichen gleich. `item-bonus`, `item-suffix` und ähnliche Wege liefern 404. Peon_Bridge liest die Werte deshalb ab 0.6.0 im Spiel aus dem Tooltip. Im Spiel bestätigt (06.11.2026): `C_TooltipInfo.GetHyperlink("item:3192::::::::20:1488:::1:12723")` liefert nach `C_Item.RequestLoadItemDataByID` den vollen Namen und die Werte des Zusatzes. Davor kommt nur eine Zeile „Frage Gegenstandsinformationen ab“. Ein Link aus Gegenstand und `bonus_lists` der API reicht also, ein echter Gegenstand ist nicht nötig. Ob die Werte von der Stufe im Link abhängen (hier 20), ist noch offen.
 
+## Gegenseite (Horde) und Restzeit (25.11.2026)
+
+- Die Liste der Häuser enthält auch die Horde-Häuser. Für unseren Markt (Gruppe 2) ist 111 Allianz durch ein Testangebot bestätigt, 117 Neutral durch den Vergleich mit einem Scan. 114 ist damit sehr wahrscheinlich die Horde. Ein eigener Abruf war außerhalb des Managers nicht möglich, weil der Zugang nur für den Manager entschlüsselbar ist. Test: unter Einstellungen, Quellen Haus 114 wählen.
+- Vorhaben (KarloDerBaer 25.11.2026, erst Daten sammeln): Steht ein Gegenstand bei der Horde nach Abzug des Anteils von 15 % deutlich teurer als im neutralen Haus, kaufen Hordler dort, der neutrale Preis steigt bald. Ist er bei der Horde billiger, bringen Hordler Ware ins neutrale Haus, der Preis fällt. Nach 1 bis 2 Wochen Stände der Horde messen, ob das Signal trägt, erst dann eine Anzeige vorschlagen.
+- Restzeit `time_left` je Stand: Übergänge in 2 Tagen (Allianz) lang zu mittel 1,1 Mio., mittel zu kurz 0,75 Mio., kurz zu kurz nur 2. Kurz verschwindet also immer bis zum nächsten Stand. Siehe `Peon_Manager_Chancen.md` 8.1.
+
 ## Offene Fragen
 
 1. Welche Regelsätze gehören zu den anderen Gruppen? Klärt sich mit Scans von Freunden auf anderen Regelsätzen.

@@ -215,6 +215,25 @@ Drei Wege, vom einfachsten zum stärksten. Alle Änderungen stehen im Protokoll 
 
 Die Seite Radar (WIP) wird durch Chancen ersetzt.
 
+### 8.1 Nachprüfung und strenge Verkäufe (ab Manager 0.55.0, KarloDerBaer 25.11.2026)
+
+**Messung mit der echten Datenbank (24.11.2026):** Die Erfolgskontrolle zeigte 97 % Treffer bei Spekulationen (776 von 802) und 96 % beim Aufkauf. Bis 0.54.0 zählte ein Treffer, wenn in den 3 Tagen danach der höchste Wert aus irgendeinem erkannten Verkauf, dem Median der Angebote eines Stands oder dem höchsten Median eines 3-Stunden-Abschnitts das Ziel erreichte. Das Ziel ist aber der Median früherer Verkäufe (F56), also liegt die Hälfte aller Verkäufe darüber. 91,5 % der Treffer kamen schon aus einem einzigen Verkauf. Die Menge zählte nicht.
+
+**Verkaufserkennung bei Ständen der Blizzard-API (`sales.compare`):** Ein verschwundenes Angebot zählt nur als Verkauf, wenn
+
+- es nicht aus der Restzeit kurz verschwand (abgelaufen) und nicht aus mittel (bei stündlichen Ständen nicht entscheidbar),
+- kein billigeres Angebot desselben Gegenstands stehen blieb,
+- kein Angebot gleicher Menge zum gleichen oder billigeren Preis neu kam (umgestellt, neu ab 0.55.0 auch zum gleichen Preis),
+- kein billigeres Angebot neu eingestellt wurde (neu ab 0.55.0).
+
+Teilkäufe bei Massenware (Menge derselben Nummer sinkt) bleiben Verkäufe. Einzelgegenstände zählen wie bisher zu 90 %. In 2 Tagen (Allianz) waren rund 440.000 der bisher erkannten Verkäufe zum gleichen Preis neu eingestellte Angebote.
+
+**Nachprüfung (`chancebook.check`):** gelohnt, wenn im Zeitraum mindestens die vorgeschlagene Menge (× 0,9) zu mindestens 98 % des Zielpreises verkauft wurde. „Gerade so“, wenn diese Menge wenigstens zu Kaufpreis plus Gebühr verkauft wurde. Sonst nicht. Ohne Vergleiche der Blizzard-API im Zeitraum: keine Daten. Angebotspreise zählen nicht mehr. Nachgerechnet für Chancen mit 12 bis 42 Stunden Beobachtung sank die Quote von 64 % (nur Verkäufe, alte Regel) auf 56 %.
+
+**Übergang:** Die bisherigen belegten Verkäufe bleiben und fallen nach 30 Tagen weg, der belegte Verkaufspreis (14 Tage) ist also erst ab etwa 9.12.2026 ganz streng. Die Nachprüfung zählt nur Tage ab dem Tag nach dem Update (`meta saleStrictDay`).
+
+**Ablaufzeiten:** Jedes Angebot trägt in jedem Stand seine Restzeit (`SHORT` unter 30 Min., `MEDIUM` bis 2 Std., `LONG` bis 12 Std., `VERY_LONG` darüber). Aus kurz verschwindet alles innerhalb einer Stunde (in 2 Tagen nur 2 von 750.000 Angeboten in zwei Ständen kurz). Weg aus mittel ist bei stündlichen Ständen nicht zu trennen, auch nicht über den Zeitpunkt des Wechsels von lang zu mittel: Das mögliche Ende liegt dann genau im nächsten Stand.
+
 ## 9. Übergabe an Broker
 
 ### 9.1 Kandidatenliste

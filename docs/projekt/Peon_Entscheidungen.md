@@ -3,6 +3,16 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 25.11.2026: Erfolgskontrolle streng, Richtung in der Stabilität, Horde-Haus (Manager 0.55.0)
+
+- **Nur glaubwürdige Verkäufe zählen** (KarloDerBaer, Messung Claude): verschwunden als günstigstes Angebot, nicht abgelaufen, kein gleich billiges Angebot gleicher Menge und kein billigeres neu eingestellt. Grund: Die Erfolgskontrolle zeigte 97 % Treffer, ein guter Teil der „Verkäufe“ waren neu eingestellte Angebote.
+- **Überall streng** (KarloDerBaer): auch belegter Verkaufspreis, Absatz und Marktvergleich, nicht nur die Erfolgskontrolle. Folge: vermutlich weniger und vorsichtigere Chancen.
+- **Menge muss gedeckt sein, Angebotspreise zählen nicht** (Vorschlag Claude, zugestimmt).
+- **Übergang ohne Löschen** (Claude, beim Bau): Bisherige belegte Verkäufe bleiben und laufen in 30 Tagen aus. Löschen hätte die Chancen für Tage leer gemacht, weil die Angebote älterer Stände nicht mehr da sind. Die Nachprüfung zählt erst die Tage nach dem Update.
+- **Stabilität: Grenzen bleiben, die Richtung zählt mit halbem Gewicht** (Vorschlag Claude nach Messung mit 14 vollen Tagen, KarloDerBaer zugestimmt).
+- **Horde-Haus: erst Daten sammeln** (KarloDerBaer): Haus 114 unter Quellen wählen, nach 1 bis 2 Wochen messen, ob der Preisabstand Horde zu Neutral steigende oder fallende Preise im neutralen Haus ankündigt. Erst danach eine Anzeige bauen.
+- **Meldung bei neuen Daten** (Wunsch KarloDerBaer): eine Einstellung, Standard aus, nach jeder fertigen Auswertung.
+
 ## 25.11.2026: Gespeicherte Ansicht, Gildenbank und Schlüsselbund (Bags 0.8.0)
 
 - **Speichern ohne Schalter** (Claude, nach Leitfaden Regel 7 und 8): Gespeichert wird immer. Löschen eines Charakters steht in den Optionen und kommt beim Umbau der Seite in den Reiter Erweitert.

@@ -8,7 +8,9 @@
 //   Tage:    Schwankung der Tageswerte wie F36 (1,4826 x MAD / Mitte, mindestens 5 %), 14 Tage, Tageswert = Median aller
 //            Preise des Tages (Kennzahlen und 3-Stunden-Werte), mindestens 3 Preise je Tag und 5 Tage.
 // Stufe je Teil nach Grenzen, Index 0 bis 100 so, dass die Grenzen bei 80, 60, 40 und 20 liegen. Gesamt zaehlt der
-// schlechtere Teil. Die Richtung (erster zu letztem Tageswert) steht daneben und zaehlt nicht.
+// schlechtere Teil. Die Richtung (erster zu letztem Tageswert) steht daneben. Ab 0.55.0 zaehlt sie im Tagesteil mit halbem
+// Gewicht mit (KarloDerBaer 25.11.2026): Tagesteil = groessere aus Schwankung und halbem Betrag von ln(letzter / erster).
+// Grund: Messung mit 14 vollen Tagen, 251 von 2.518 Gegenstaenden galten trotz ueber 30 % Bewegung als (sehr) stabil.
 // Kategorien und Markt: Median der Gegenstaende, ohne Gegenstaende mit weniger als 20 Angeboten im Schnitt (alle Staende).
 
 const { dayOf } = require('./broker');
@@ -17,6 +19,7 @@ const { hourFrom } = require('./db');
 const HOUR_DAYS = 7, DAY_DAYS = 14;
 const MIN_STANDS = 48, MIN_MOVES = 40, MIN_AUC = 3, MAX_GAP = 2 * 3600 + 600, TRIM = 0.95;
 const MIN_DAY_VALUES = 3, MIN_DAYS = 5, MIN_SCHW = 0.05;
+const DIR_WEIGHT = 0.5;                // ab 0.55.0: Richtung zaehlt mit halbem Gewicht im Tagesteil
 const FEW = 20;                        // darunter: wenig Angebote, zaehlt nicht fuer Kategorie und Markt (Messung: duenne Maerkte springen)
 const CRAFT_CLASS = 7;                 // Klasse Handwerkswaren
 const HOUR_LIMITS = [0.01, 0.03, 0.06, 0.10];
@@ -76,9 +79,10 @@ function dayPart(days) {
   const xs = dv.map(([, v]) => median(v));
   const mitte = median(xs);
   if (!(mitte > 0)) return null;
-  const schw = Math.max(1.4826 * median(xs.map((x) => Math.abs(x - mitte))) / mitte, MIN_SCHW);
+  const wobble = Math.max(1.4826 * median(xs.map((x) => Math.abs(x - mitte))) / mitte, MIN_SCHW);
   const first = xs[0], last = xs[xs.length - 1];
-  return { schw, days: xs.length, dir: first > 0 ? last / first - 1 : null, span: dv[dv.length - 1][0] - dv[0][0] };
+  const move = first > 0 && last > 0 ? Math.abs(Math.log(last / first)) * DIR_WEIGHT : 0;
+  return { schw: Math.max(wobble, move), wobble, days: xs.length, dir: first > 0 ? last / first - 1 : null, span: dv[dv.length - 1][0] - dv[0][0] };
 }
 
 // Ablage je Gegenstand als Liste (bei vielen tausend Gegenstaenden etwa halb so gross wie Objekte)

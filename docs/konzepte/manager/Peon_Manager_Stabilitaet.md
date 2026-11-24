@@ -15,7 +15,7 @@ Der Index hat zwei Teile.
 
 Beide Teile messen Verschiedenes. Die Stundensicht sieht Zappeln um einen festen Preis, die Tagessicht sieht langsame Verschiebungen. Deshalb zählt der schlechtere Teil.
 
-**Richtung:** erster zu letztem Tageswert, mit der Zahl der Tage. Sie steht daneben und zählt nicht in den Index.
+**Richtung:** erster zu letztem Tageswert, mit der Zahl der Tage. Ab Manager 0.55.0 zählt sie mit halbem Gewicht in den Tagesteil (KarloDerBaer 25.11.2026): Tagesteil = größerer Wert aus Schwankung und ½ × |ln(letzter ÷ erster Tageswert)|. Ein Sprung um +100 % oder −50 % zählt also wie 35 % Schwankung.
 
 ## 2. Stufen und Index
 
@@ -55,8 +55,11 @@ Nach jedem neuen Stand im Rechen-Prozess, nachdem Data.lua geschrieben ist (`sta
 - Beispiele Allianz (Stunden, Tage): Seidenstoff 0,4 % und 5,0 %, Leinenstoff 2,0 % und 5,3 %, Kupfererz 2,1 % und 16,8 %, Rauer Stein 7,2 % und 7,1 %, Malachit 11,4 % und 18,3 %.
 - Die Rangfolgen beider Sichten hängen nur schwach zusammen (Allianz 0,52, Neutral 0,17). Beispiele: Teufelsleder je Stunde 1,9 %, aber 98 % gefallen in 8 Tagen. Aquamarin je Stunde 7 %, aber jeden Tag beim selben Preis.
 
-## 7. Offen
+## 7. Messung mit vollen 14 Tagen (24.11.2026, 167 Stände je Haus)
 
-- Grenzen in 2 bis 4 Wochen mit vollen 14 Tagen prüfen, wenn der Markt nach dem Start ruhiger ist.
-- Ein einmaliger großer Sprung über die Tage (zum Beispiel Seidenstoff um 75 % gefallen, danach ruhig) bleibt bei der robusten Schwankung „sehr stabil“. Die Richtung zeigt ihn. Ob sie mitzählen soll, entscheidet KarloDerBaer.
+- Allianz: 2.519 zählende Gegenstände, je Stufe 518 / 482 / 587 / 463 / 469. Die Grenzen trennen also gleichmäßig, sie bleiben. Markt Index 52 (mittel). Neutral: 29 / 42 / 104 / 120 / 200, Index 29 (dünner Markt).
+- Massenware Allianz, Bewegung je Stunde zu 25/50/75/90 % unter 1,2 / 2,9 / 5,8 / 9,4 % (ruhiger als am 17.11.), Schwankung der Tage 5,7 / 15,6 / 31,9 / 53,7 %.
+- Richtung: 1.270 von 2.518 Gegenständen haben sich über 14 Tage um mehr als 30 % bewegt, 251 davon galten trotzdem als stabil oder sehr stabil (Gnollspeichel +351 % mit Index 88). Mit halbem Gewicht ändern 659 Gegenstände ihre Stufe, der Markt fällt von 52 auf 39. Deshalb zählt die Richtung ab 0.55.0 mit.
+
+## 8. Offen
 - Anzeige im Spiel (Broker-Tooltip) über Data.lua, wenn gewünscht.

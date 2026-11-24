@@ -186,6 +186,12 @@ function openDb(dir, { now = Math.floor(Date.now() / 1000) } = {}) {
     db.prepare("INSERT INTO meta(key, value) VALUES ('apiRedoMax', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(JSON.stringify(mx == null ? 0 : Number(mx)));
     db.exec("INSERT INTO meta(key, value) VALUES ('singlesRecheck', '1')");
   }
+  // Manager 0.55.0: Verkaeufe werden streng erkannt (sales.compare). Die bisherigen belegten Verkaeufe bleiben und fallen nach
+  // 30 Tagen von selbst weg, die Nachpruefung nutzt erst die Tage ab morgen (proof.strictDay). Neue Datenbank: alles streng.
+  if (!db.prepare("SELECT value FROM meta WHERE key = 'saleStrictDay'").get()) {
+    const had = db.prepare('SELECT 1 FROM sale_px LIMIT 1').get();
+    db.prepare("INSERT INTO meta(key, value) VALUES ('saleStrictDay', ?)").run(JSON.stringify(had ? Math.floor(Date.now() / 86400000) + 1 : 0));
+  }
   // Schema 13 (Manager 0.38.0): Haendler gibt es nur noch im Radar von Broker. Gespeicherte Haendler-Vorschlaege fallen weg
   // (KarloDerBaer 15.11.2026: loeschen), Rueckmeldungen dazu bleiben.
   if (!db.prepare("SELECT value FROM meta WHERE key = 'vendorKindGone'").get()) {

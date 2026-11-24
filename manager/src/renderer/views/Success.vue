@@ -34,7 +34,7 @@ function path(days) {
 <template>
   <div class="sc" v-if="market">
     <div class="head"><h1>Erfolgskontrolle</h1><span class="small muted">letzte 30 Tage</span></div>
-    <p class="small muted intro">Jeder Vorschlag wird nach seinem Zeitraum nachgeprüft: gelohnt, wenn der Preis danach den Zielpreis erreichte, „gerade so“, wenn immerhin Kaufpreis und Gebühr wieder drin waren. Jedes Signal der Prognosen zählt, wenn sich der Preis um mindestens die Hälfte des Erwarteten in die genannte Richtung bewegte.</p>
+    <p class="small muted intro">Jeder Vorschlag wird nach seinem Zeitraum nachgeprüft: gelohnt, wenn danach mindestens die vorgeschlagene Menge zum Zielpreis verkauft wurde, „gerade so“, wenn die Verkäufe immerhin Kaufpreis und Gebühr brachten. Als Verkauf zählt nur ein Angebot, das als günstigstes verschwand, ohne dass ein gleich billiges oder billigeres neu kam und ohne dass es einfach ablief. Angebotspreise allein zählen nicht. Jedes Signal der Prognosen zählt, wenn sich der Preis um mindestens die Hälfte des Erwarteten in die genannte Richtung bewegte.</p>
     <template v-if="d">
       <section class="box">
         <h3>Vorschläge je Art</h3>
@@ -99,7 +99,7 @@ function path(days) {
       <!-- ab 0.52.0: Marktvergleich mit dem neutralen Haus -->
       <section class="box" v-if="d.compare">
         <h3>Marktvergleich: Auswahl für Broker</h3>
-        <p class="small muted">Jeder Vorschlag aus dem Marktvergleich wird {{ d.compare.checkDays }} Tage danach nachgeprüft: gehalten, wenn der Unterschied in diesen Tagen im Mittel mindestens die Hälfte des erwarteten Gewinns brachte, „teilweise“, wenn immerhin Gewinn blieb.</p>
+        <p class="small muted">Jeder Vorschlag aus dem Marktvergleich wird {{ d.compare.checkDays }} Tage danach nachgeprüft: gehalten, wenn ein Verkauf im Zielhaus nach Anteil und Kaufpreis mindestens die Hälfte des erwarteten Gewinns brachte, „teilweise“, wenn immerhin Gewinn blieb, „nicht gehalten“ auch dann, wenn dort nichts verkauft wurde.</p>
         <p v-if="!d.compare.total" class="muted">Noch keine Vorschläge gemerkt. Das beginnt mit der nächsten Rechnung des Marktvergleichs.</p>
         <template v-else>
           <p>{{ num(d.compare.total) }} Vorschläge in 30 Tagen, {{ num(d.compare.checked) }} nachgeprüft:

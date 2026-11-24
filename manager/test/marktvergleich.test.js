@@ -281,11 +281,20 @@ test('Verlauf beider Haeuser und Erfolgskontrolle der Auswahl', () => {
     meta(k, v) { if (v === undefined) return meta.has(k) ? meta.get(k) : null; meta.set(k, v); return v; },
   });
   // Vorschlag von vor 5 Tagen, erwartet 11s 25c
-  meta.set('compareLog', [{ m: 1, n: 2, key: '100', dir: 'n', day: DAY - 5, t: NOW - 5 * 86400, buy: 1000, sell: 2500, net: 1125, cut: 0.15, minNet: 1000 }]);
+  const log = () => [{ m: 1, n: 2, key: '100', dir: 'n', day: DAY - 5, t: NOW - 5 * 86400, buy: 1000, sell: 2500, net: 1125, cut: 0.15, minNet: 1000 }];
+  // ab 0.55.0: ohne Vergleiche der Blizzard-API im Ziel keine Daten, ohne Verkauf nicht gehalten
+  meta.set('compareLog', log());
+  assert.equal(c.compareSuccess(HOME).rows[0].outcome, 'nodata', 'das Tagesmittel allein zaehlt nicht mehr');
+  db.prepare("INSERT INTO sales_pair(market_id, a_id, b_id, ta, tb, src) VALUES (2, 'a', 'b', ?, ?, 'api')").run(NOW - 4 * 86400, NOW - 4 * 86400 + 3600);
+  meta.set('compareLog', log());
+  assert.equal(c.compareSuccess(HOME).rows[0].outcome, 'failed', 'nichts verkauft');
+  const proof = require('../src/core/proof');
+  db.prepare("INSERT INTO sale_px(market_id, item_key, day, b, qty) VALUES (2, '100', ?, ?, 2)").run(DAY - 3, proof.bucket(2500));
+  meta.set('compareLog', log());
   const v = c.compareSuccess(HOME);
   assert.equal(v.checked, 1);
   assert.equal(v.held, 1, `gehalten: ${JSON.stringify(v.rows[0])}`);
-  assert.equal(v.rows[0].real, Math.round(2500 * 0.85 - 1000));
+  assert.equal(v.rows[0].real, Math.round(proof.priceOf(proof.bucket(2500)) * 0.85 - 1000));
   // Auswahl merken: je Tag nur einmal
   const res = { t: NOW, cutN: 0.15, cutH: 0.05, rules: cmp.rules({}), chances: [{ key: '100', dir: 'n', buy: 1, sell: 2, net: 1, pick: true }, { key: '7', dir: 'h', pick: false }] };
   assert.equal(c.compareLogPicks({ home: { id: 1 }, neutral: { id: 2 } }, res), 1);

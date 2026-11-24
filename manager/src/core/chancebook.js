@@ -43,16 +43,30 @@ function bestPrice(db, mid, key, from, to) {
 }
 
 // Abgelaufene Vorschlaege nachpruefen (Erfolgskontrolle, F55 ist darin aufgegangen)
+// ab 0.55.0 (KarloDerBaer 25.11.2026): Bis dahin reichte, dass irgendein Verkauf oder der Median der Angebote in den Tagen
+// danach den Zielpreis erreichte. Das Ziel ist aber der Median frueherer Verkaeufe, das war fast immer wahr (97 %).
+// Jetzt zaehlen nur streng erkannte Verkaeufe (sales.compare) der Blizzard-API, und sie muessen die vorgeschlagene Menge
+// decken: gelohnt, wenn so viele Stueck zu mindestens 98 % des Zielpreises verkauft wurden, gerade so, wenn sie
+// wenigstens Kaufpreis und Gebuehr brachten. Einzelgegenstaende zaehlen im Absatz zu 90 % (sales CANCEL), darum NEED.
+// Ohne Vergleiche der API im Zeitraum: keine Daten.
+const NEED = 0.9;
 function check(db, mid, now) {
-  const open = db.prepare('SELECT id, item_key, kind, t, buy, target, until FROM chance_log WHERE market_id = ? AND checked IS NULL').all(mid);
+  const open = db.prepare('SELECT id, item_key, kind, t, buy, target, until, data FROM chance_log WHERE market_id = ? AND checked IS NULL').all(mid);
   const up = db.prepare('UPDATE chance_log SET outcome = ?, checked = ? WHERE id = ?');
   let n = 0;
   for (const x of open) {
     const end = x.kind === 'l' ? Math.max(x.until || 0, x.t + 86400) : x.t + (WINDOW[x.kind] || 3) * 86400;
     if (end > now) continue;
-    const p = bestPrice(db, mid, x.item_key, x.t, end);
+    let qty = 1;
+    try { qty = Math.max(1, Number(JSON.parse(x.data).qty) || 1); } catch { /* ohne Werte: 1 Stueck */ }
+    const need = qty * NEED - 1e-9;
+    const d0 = dayOf(x.t), d1 = dayOf(end);
     let out = 'none';
-    if (p && x.target > 0) out = p.price >= x.target * 0.98 ? 'hit' : x.buy > 0 && p.price * (1 - spec.CUT) >= x.buy ? 'even' : 'miss';
+    if (x.target > 0 && proof.covered(db, mid, x.t, end)) {
+      if (proof.soldQty(db, mid, x.item_key, d0, d1, x.target * 0.98) >= need) out = 'hit';
+      else if (x.buy > 0 && proof.soldQty(db, mid, x.item_key, d0, d1, x.buy / (1 - spec.CUT)) >= need) out = 'even';
+      else out = 'miss';
+    }
     up.run(out, now, x.id);
     n++;
   }

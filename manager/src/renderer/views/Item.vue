@@ -242,7 +242,7 @@ const levelsTop = computed(() => (d.value && d.value.levels ? d.value.levels.lis
       <p v-else class="muted">Üblicher Bereich: noch zu wenig Tage. Ab 3 Tagen mit Daten in den letzten 14 Tagen bekommt Broker hier einen Bereich, bis dahin rechnet Broker selbst.</p>
       <p v-if="sb">
         Stabilität <b :class="'lv' + sb.g">{{ STAB[sb.g] }}</b> (Index {{ sb.i }}).
-        Stunden {{ sb.h == null ? 'noch zu wenig Stände' : `${p1(sb.h)} je Stand (${STAB[sb.hg]})` }}, Tage {{ sb.d == null ? 'noch zu wenig Tage' : `${p1(sb.d)} Schwankung (${STAB[sb.dg]})` }}<template v-if="sb.dir != null">, {{ sb.dir < 0 ? 'gefallen' : 'gestiegen' }} um {{ p1(Math.abs(sb.dir)) }} in {{ pl(sb.span, 'Tag', 'Tagen') }}</template>.
+        Stunden {{ sb.h == null ? 'noch zu wenig Stände' : `${p1(sb.h)} je Stand (${STAB[sb.hg]})` }}, Tage {{ sb.d == null ? 'noch zu wenig Tage' : `${p1(sb.d)} Schwankung mit Richtung (${STAB[sb.dg]})` }}<template v-if="sb.dir != null">, {{ sb.dir < 0 ? 'gefallen' : 'gestiegen' }} um {{ p1(Math.abs(sb.dir)) }} in {{ pl(sb.span, 'Tag', 'Tagen') }}</template>.
         <span class="muted"><template v-if="sb.f">Wenig Angebote, zählt nicht für Kategorie und Markt. </template><template v-if="sb.sub">{{ sb.sub.name }}: {{ STAB[sb.sub.g] }} ({{ sb.sub.i }}). </template><template v-else-if="sb.cat">{{ sb.cat.name }}: {{ STAB[sb.cat.g] }} ({{ sb.cat.i }}). </template><template v-if="sb.market">Ganzer Markt: {{ STAB[sb.market.g] }} ({{ sb.market.i }}).</template></span>
       </p>
       <p class="muted" v-if="d.sales">Den Absatz nimmt Broker, wenn er selbst in den letzten 6 Std. weniger als 1 Std. beobachtet hat.</p>

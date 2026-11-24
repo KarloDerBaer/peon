@@ -173,6 +173,18 @@ if (!app.requestSingleInstanceLock()) {
     if (hits.length > 5) new Notification({ title: 'Peon Manager: Beobachten', body: `Dazu ${hits.length - 5} weitere Grenzen erreicht.`, icon }).show();
   }
 
+  // ab 0.55.0: Meldung von Windows, wenn neue Daten eingelesen und fertig ausgewertet sind (Einstellung dataNotify, Standard aus).
+  // Kommt erst, wenn Chancen und Data.lua neu gerechnet sind. Ein Klick oeffnet das Fenster.
+  function notifyData(why, r) {
+    const api = why === 'Blizzard-API';
+    if (!r || r.error || (!api && !(r.imported > 0))) return;
+    if (!svc.settings.dataNotify || !Notification.isSupported()) return;
+    const what = api ? 'Ein neuer Stand der Blizzard-API' : r.imported === 1 ? 'Eine neue Momentaufnahme aus dem Spiel' : `${r.imported} neue Momentaufnahmen aus dem Spiel`;
+    const n = new Notification({ title: 'Peon Manager: Neue Daten', body: `${what} ${api || r.imported === 1 ? 'ist' : 'sind'} ausgewertet. Im Spiel lädt /reload die neuen Werte.`, icon });
+    n.on('click', showWindow);
+    n.show();
+  }
+
   // Laeuft WoW? Daraus folgt der Hinweis in der Kopfleiste
   async function watchGame() {
     if (!svc.broker) return;
@@ -206,6 +218,7 @@ if (!app.requestSingleInstanceLock()) {
       notifyShop().catch(() => {});
       notifyWatch().catch(() => {});
       await forwardRatings();   // ab 0.35.1: Rueckmeldungen zu Chancen, auch Einschaetzungen aus Broker
+      try { notifyData(why, r); } catch { /* Meldung ist nur ein Hinweis */ }
       send('changed', { what: 'spiel', why, imported: r.imported });
       return r;
     } catch (e) {

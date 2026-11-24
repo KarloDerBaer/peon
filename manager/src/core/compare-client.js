@@ -15,6 +15,7 @@ const CHECK_DAYS = 3;
 const LOG_DAYS = 45;
 const compare = require('./compare');
 const packages = require('./packages');
+const proof = require('./proof');
 const { parseKey, marketLabel } = require('./markets');
 
 const methods = {
@@ -199,24 +200,17 @@ const methods = {
     return added;
   },
 
-  // Nachpruefen: In den CHECK_DAYS Tagen nach dem Vorschlag, im Mittel Ziel (Verkaufspreis oder guenstigster) nach Anteil minus
-  // guenstigster Preis der Quelle. held = mindestens die Haelfte des erwarteten Gewinns, partly = immerhin Gewinn, failed = keiner
+  // Nachpruefen: In den CHECK_DAYS Tagen nach dem Vorschlag der hoechste streng erkannte Verkauf im Zielhaus nach Anteil minus
+  // Kaufpreis in der Quelle. held = mindestens die Haelfte des erwarteten Gewinns, partly = immerhin Gewinn, failed = keiner
+  // oder gar nicht verkauft, nodata = keine Vergleiche der Blizzard-API im Zielhaus.
+  // ab 0.55.0 (KarloDerBaer 25.11.2026): vorher zaehlte das Tagesmittel der Preise beider Haeuser, auch ganz ohne Verkauf.
   compareCheck(e, now) {
-    const series = compare.itemSeries(this.db, e.m, e.n, e.key, now, LOG_DAYS);
-    const idx = new Map(series.days.map((d, i) => [d, i]));
-    const nets = [];
-    for (let d = e.day + 1; d <= e.day + CHECK_DAYS; d++) {
-      const i = idx.get(d);
-      if (i == null) continue;
-      const src = e.dir === 'n' ? series.home[i] : series.neutral[i];
-      const dstMin = e.dir === 'n' ? series.neutral[i] : series.home[i];
-      const dstSold = e.dir === 'n' ? series.neutralSold[i] : series.homeSold[i];
-      const dst = dstSold != null ? (dstMin != null ? Math.min(dstSold, dstMin) : dstSold) : dstMin;
-      if (src == null || dst == null) continue;
-      nets.push(dst * (1 - (e.cut || 0.05)) - src);
-    }
-    if (!nets.length) return { outcome: 'nodata', real: null };
-    const real = nets.reduce((a, x) => a + x, 0) / nets.length;
+    const dst = e.dir === 'n' ? e.n : e.m;
+    const from = (e.day + 1) * 86400, to = Math.min((e.day + CHECK_DAYS + 1) * 86400, now);
+    if (!proof.covered(this.db, dst, from, to)) return { outcome: 'nodata', real: null };
+    const best = proof.soldMax(this.db, dst, String(e.key), e.day + 1, e.day + CHECK_DAYS);
+    if (best == null || !(e.buy > 0)) return { outcome: 'failed', real: null };
+    const real = best * (1 - (e.cut || 0.05)) - e.buy;
     const outcome = real >= (e.net || 0) * 0.5 ? 'held' : real > 0 ? 'partly' : 'failed';
     return { outcome, real: Math.round(real) };
   },

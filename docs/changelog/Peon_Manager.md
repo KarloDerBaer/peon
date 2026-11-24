@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.55.0
+
+Kurz: Die Erfolgskontrolle zählt nur noch echte Verkäufe. Ein Angebot, das zurückgezogen und neu eingestellt wurde oder einfach ablief, gilt nicht mehr als verkauft. Neu ist eine Meldung von Windows, wenn neue Daten ausgewertet sind (unter Einstellungen einschalten). Die Stabilität berücksichtigt jetzt auch, wie stark ein Preis über die Tage gestiegen oder gefallen ist.
+
+- 0.55.0 (25.11.2026, Rückmeldung KarloDerBaer: Trefferquote zu hoch):
+  - **Ursache:** Die Erfolgskontrolle zeigte 97 % Treffer. Ein Treffer zählte, wenn in den 3 Tagen danach irgendein Verkauf oder der Median der Angebote den Zielpreis erreichte. Der Zielpreis ist aber der Median früherer Verkäufe, die Hälfte aller Verkäufe liegt darüber. Die Menge zählte nicht. Dazu galten Angebote, die zum gleichen Preis neu eingestellt wurden, als Verkauf (in 2 Tagen rund 440.000).
+  - **Geändert, Verkäufe** (`sales.js`, `compare` bei Ständen der Blizzard-API): Ein verschwundenes Angebot ist nur ein Verkauf, wenn es das günstigste war, nicht ablief, kein Angebot gleicher Menge zum gleichen oder billigeren Preis neu kam und kein billigeres neu eingestellt wurde. Das gilt für Absatz, belegte Verkaufspreise und Chancen. Bisherige Werte bleiben und fallen nach 30 Tagen weg.
+  - **Geändert, Nachprüfung der Chancen** (`chancebook.js`, `check`): gelohnt nur, wenn mindestens die vorgeschlagene Menge zu 98 % des Zielpreises verkauft wurde, „gerade so“, wenn sie wenigstens Kaufpreis und Gebühr brachte. Angebotspreise zählen nicht mehr. Ohne Stände der API im Zeitraum: keine Daten. Gezählt werden nur Tage ab dem Tag nach dem Update (`meta saleStrictDay`, `proof.js`).
+  - **Geändert, Nachprüfung des Marktvergleichs** (`compare-client.js`, `compareCheck`): zählt der höchste echte Verkauf im Zielhaus statt des Tagesmittels der Preise. Ohne Verkauf „nicht gehalten“.
+  - **Geändert, Stabilität** (`stability.js`, `dayPart`): Die Richtung zählt mit halbem Gewicht in den Tagesteil (größerer Wert aus Schwankung und ½ × |ln(letzter ÷ erster Tageswert)|). Messung mit 14 vollen Tagen: Die Grenzen passen, aber 251 Gegenstände galten trotz über 30 % Bewegung als stabil.
+  - **Neu, Meldung bei neuen Daten** (`electron/main.js`, `notifyData`, Einstellung `dataNotify`, Standard aus): kommt, wenn ein neuer Stand der Blizzard-API oder neue Scans aus dem Spiel ausgewertet und die Werte für Broker geschrieben sind.
+  - Tests: strenge Verkäufe bei Einzelgegenständen und Massenware, Nachprüfung mit Menge, „gerade so“ und ohne Daten (`chancen.test.js`), Marktvergleich nur mit Verkauf (`marktvergleich.test.js`), Richtung im Tagesteil (`stabilitaet.test.js`), Meldung standardmäßig aus (`updates.test.js`).
+
 ## 0.54.0
 
 Kurz: Gleiche Fehler gehen als eine Meldung mit Anzahl an KarloDerBaer. Beim Senden vieler Fehler auf einmal kommt keine falsche Fehlermeldung mehr, und nichts wird doppelt geschickt.

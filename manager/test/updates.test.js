@@ -13,6 +13,10 @@ test('Standard: alle 10 Minuten suchen, Meldung an', () => {
   assert.deepStrictEqual(UPDATE_CHECK_CHOICES, [10, 30, 60, 360]);
 });
 
+test('Standard: Meldung bei neuen Daten aus (ab 0.55.0)', () => {
+  assert.strictEqual(DEFAULTS.dataNotify, false);
+});
+
 test('Abstand: nur erlaubte Werte, sonst 10 Minuten', () => {
   assert.strictEqual(updateCheckMs(10), 10 * 60 * 1000);
   assert.strictEqual(updateCheckMs(360), 6 * 60 * 60 * 1000);

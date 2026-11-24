@@ -62,11 +62,16 @@ function endState(o, tA, tB, scan) {
 // singles (ab Manager 0.37.0, nur Staende der Blizzard-API): Auch bei Einzelgegenstaenden gilt ein verschwundenes Angebot
 // als abgebrochen, wenn im selben Stand ein neues mit gleicher Menge billiger dasteht (umgestellt) oder ein billigeres
 // Angebot stehen blieb (ein Kaeufer haette das billigere genommen). Im Preiskampf wurden Umstellungen sonst zu Verkaeufen.
-// Neues Angebot mit gleicher Menge, billiger: aus der Liste nehmen und true
+// ab Manager 0.55.0 (KarloDerBaer 25.11.2026, streng): Bei Staenden der Blizzard-API zaehlt ein verschwundenes Angebot nur
+// noch als Verkauf, wenn es das guenstigste war, kein Angebot gleicher Menge zum gleichen oder billigeren Preis neu kam und
+// auch sonst kein billigeres neu eingestellt wurde. Messung 24.11.2026: rund 440.000 von 1,1 Mio. erkannten Verkaeufen in
+// 2 Tagen waren zum gleichen Preis neu eingestellt.
+// Neues Angebot mit gleicher Menge, nicht teurer: aus der Liste nehmen und true
 function repostOf(newB, a) {
-  for (let j = 0; j < newB.length; j++) if (newB[j].q === a.q && newB[j].p < a.p) { newB.splice(j, 1); return true; }
+  for (let j = 0; j < newB.length; j++) if (newB[j].q === a.q && newB[j].p <= a.p) { newB.splice(j, 1); return true; }
   return false;
 }
+const cheaperNew = (newB, a) => newB.some((b) => b.p < a.p);
 
 function compare(A, B, tA, tB, { commodity = false, withIds = false, cap = 0, cancelPct = CANCEL, singles = false } = {}) {
   let sold = 0, expired = 0, cancelled = 0, value = 0;
@@ -123,14 +128,14 @@ function compare(A, B, tA, tB, { commodity = false, withIds = false, cap = 0, ca
       if (commodity) {
         let repost = false;
         for (let j = 0; j < newB.length; j++) {
-          if (newB[j].q === a.q && newB[j].p < a.p) { repost = true; listed -= newB[j].q; newB.splice(j, 1); break; }
+          if (newB[j].q === a.q && (singles ? newB[j].p <= a.p : newB[j].p < a.p)) { repost = true; listed -= newB[j].q; newB.splice(j, 1); break; }
         }
-        if (repost || (anchor !== null && a.p > anchor)) cancelled += a.q;
+        if (repost || (anchor !== null && a.p > anchor) || (singles && cheaperNew(newB, a))) cancelled += a.q;
         else { sold += a.q; value += a.q * a.p; hi(a.p, a.q, a.id); }
       } else if (singles && repostOf(newB, a)) {
         cancelled += a.q;
         listed -= a.q;
-      } else if (singles && anchor !== null && a.p > anchor) {
+      } else if (singles && ((anchor !== null && a.p > anchor) || cheaperNew(newB, a))) {
         cancelled += a.q;
       } else {
         const c = a.q * cancelPct;

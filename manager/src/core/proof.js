@@ -123,10 +123,40 @@ function lifeOf(db, marketId, key, today) {
   return groups;
 }
 
+// ab 0.55.0: Ab diesem Tag sind die belegten Verkaeufe streng erkannt (sales.compare). Aeltere Tage zaehlen fuer die
+// Nachpruefung nicht (Ergebnis keine Daten), sie fallen nach KEEP Tagen von selbst weg. 0: alles streng
+function strictDay(db) {
+  const r = db.prepare("SELECT value FROM meta WHERE key = 'saleStrictDay'").get();
+  return r ? Number(JSON.parse(r.value)) || 0 : 0;
+}
+
+// Stueck, die zwischen fromDay und toDay zu mindestens price verkauft wurden (nur strenge Tage)
+function soldQty(db, marketId, key, fromDay, toDay, price) {
+  const from = Math.max(fromDay, strictDay(db));
+  if (from > toDay || !(price > 0)) return 0;
+  return db.prepare('SELECT SUM(qty) AS q FROM sale_px WHERE market_id = ? AND item_key = ? AND day >= ? AND day <= ? AND b >= ?')
+    .get(marketId, key, from, toDay, bucket(price)).q || 0;
+}
+
+// Hoechster Preis eines Verkaufs zwischen fromDay und toDay (nur strenge Tage) oder null
+function soldMax(db, marketId, key, fromDay, toDay) {
+  const from = Math.max(fromDay, strictDay(db));
+  if (from > toDay) return null;
+  const b = db.prepare('SELECT MAX(b) AS b FROM sale_px WHERE market_id = ? AND item_key = ? AND day >= ? AND day <= ? AND qty > 0').get(marketId, key, from, toDay).b;
+  return b == null ? null : priceOf(b);
+}
+
+// Gibt es zwischen from und to (Sekunden, nur strenge Tage) Vergleiche der Blizzard-API, also ueberhaupt belegte Verkaeufe?
+function covered(db, marketId, from, to) {
+  const t0 = Math.max(from, strictDay(db) * 86400);
+  if (t0 >= to) return false;
+  return !!db.prepare("SELECT 1 FROM sales_pair WHERE market_id = ? AND src = 'api' AND tb > ? AND ta < ? LIMIT 1").get(marketId, t0, to);
+}
+
 function prune(db, now, today) {
   db.prepare('DELETE FROM auc_first WHERE t < ?').run(now - FIRST_KEEP);
   db.prepare('DELETE FROM sale_px WHERE day < ?').run(today - KEEP);
   db.prepare('DELETE FROM sale_life WHERE day < ?').run(today - KEEP);
 }
 
-module.exports = { noteSeen, startOf, record, soldPrices, durability, durabilityAll, salesOf, lifeOf, prune, wMedian, bucket, priceOf, DAYS, KEEP };
+module.exports = { noteSeen, startOf, record, soldPrices, durability, durabilityAll, salesOf, lifeOf, prune, wMedian, bucket, priceOf, strictDay, soldQty, soldMax, covered, DAYS, KEEP };
