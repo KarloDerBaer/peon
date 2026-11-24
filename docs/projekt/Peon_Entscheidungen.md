@@ -14,6 +14,17 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Chancen: nur Schnellkauf sichtbar** (KarloDerBaer): Die übrigen sind zurzeit zu riskant. Sie ruhen hinter dem Schalter „Weitere Chancen“ und können auf Stufe 60 bei seltenen Gegenständen wieder lohnen. Pakete dann eine Zeile je Paket.
 - **Lockangebot bleibt** (KarloDerBaer): Ein Freund nutzt es oft. Sofort als kleiner Schritt mit Menge und Knopf „Einstellen“, ohne Zurückziehen. Einstellen in Teilen zum Preisdrücken ist vorgemerkt.
 
+## 24.11.2026: Peon schlank, Ledger, Manager und Einstellungen (Konzepte)
+
+- **Kein Nutzungszähler** (KarloDerBaer): Was gebraucht wird, klären wir im Gespräch statt durch eine Messwoche.
+- **Manager: Startseite „Heute“ und fünf Bereiche** (KarloDerBaer, Variante A von drei): Chancen, Listen, Markt, Addons, Mehr. Aus 14 Einträgen werden sechs, jede heutige Seite bekommt einen festen Platz als Unterreiter. Verworfen: Schalter Einfach und Experte (ändert für den Hauptnutzer wenig), Suche statt Menü (man muss wissen, wonach man sucht). Konzept `docs/konzepte/manager/Peon_Manager_Schlank.md`.
+- **Leitfaden für Einstellungen** (KarloDerBaer): drei Reiter Allgemein, Anzeige, Erweitert, höchstens sechs Schalter sichtbar, keine Prüfknöpfe, Einstellungen aus Fenstern nur im Fenster. `docs/konzepte/Peon_Einstellungen_Leitfaden.md`.
+- **Ledger: Reiter bleiben, Bestand wird Charaktere** (KarloDerBaer): Übersicht, Buch, Verlauf und Info bleiben. Vermögen und Marktwert fallen weg, dafür Goldänderung der letzten 24 Stunden. Statt Handelsgewinn zeigt die Kachel den AH-Erlös aus den Rechnungen, weil der Gewinn von den erfassten Kosten abhängt. Der Bestand wird ein Reiter Charaktere mit gespeicherten Taschen und Banken je Ort, Suche über alle Charaktere und Ansicht im Look von Bags. Der Tooltip bleibt wie heute. Entwurf `docs/konzepte/ledger/Peon_Ledger_Schlank.md`, der Reiter Charaktere liegt KarloDerBaer zur Prüfung vor.
+- **Ansicht wie im Inventar macht Bags, nicht Ledger** (KarloDerBaer): Ledger bleibt bei der einfachen Liste je Ort. Bags speichert selbst platzgenau, wie Taschen, Bank und später die Gildenbank zuletzt aussahen, und zeigt das für jeden Charakter. So muss Ledger keine Plätze erfassen. Bags bekommt dazu eine eigene Auswahl des Charakters im Taschenfenster.
+- **Diagramm der Übersicht einstellbar** (KarloDerBaer): Linien wählbar, Handelsgewinn als Linie, Vorgabe aus, bis die Kosten stimmen.
+- **Verlauf mit allen vier Vorschlägen** (KarloDerBaer): nach Tagen gegliedert, Vorgabe „Wichtiges“, Filter als Knöpfe, Sprung aus dem Buch.
+- **Manager: Händler unter Markt, Erfolgskontrolle unter Chancen** (KarloDerBaer): Händler zeigt, was bei Händlern zu kaufen ist, und gehört deshalb zum Markt.
+
 ## 24.11.2026: Angeln mit der Interaktionstaste (Fishing 1.8.0, ClassBuddy 0.4.1)
 
 - **Combo-Punkte an Objekten** (Claude): Über Soft Interact bekommen auch Objekte ein Nameplate. ClassBuddy prüft jetzt `UnitIsGameObject`. Fishing war nicht die Ursache, es schaltet Namen über Objekten nur bei Anzeige „Text“ und nur mit Angel im Wasser.
