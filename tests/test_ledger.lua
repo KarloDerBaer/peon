@@ -1317,6 +1317,12 @@ end
 check(Plain(ns.PanelMoney(4567)) == "45s 67c", "0.12: unter 1g mit Kupfer")
 check(Plain(ns.PanelMoney(123456789)) == "12,3kg","0.12: ab 1000g gekuerzt: " .. Plain(ns.PanelMoney(123456789)))
 check(mod.launcher:GetText("goldMe"):find("UI-GoldIcon", 1, true),"0.12: Gold mit Muenzsymbol: " .. mod.launcher:GetText("goldMe"))
+do
+  local t = mod.launcher:GetText("goldMeAll")
+  local all = Peon.ShortGold((ns.Inventory.TotalMoney()))
+  check(type(t) == "string" and t:find(ns.PanelMoney(GetMoney()), 1, true) == 1 and t:sub(-(#all + 3)) == " (" .. all .. ")",
+    "0.17.3: Text Gold des Charakters, in Klammern aller Charaktere: " .. Plain(t))
+end
 
 -- ===== 0.14: Neuaufbau =====
 ;(function()
@@ -1408,6 +1414,28 @@ Mv.Init()   -- Haken neu (PlaceBid gab es vorher nicht)
 C_AuctionHouse.PlaceBid(77, 2500)
 fire("AUCTION_HOUSE_PURCHASE_COMPLETED"); money = money - 2500; fire("PLAYER_MONEY"); settle()
 check(last().k == "ahbuy" and last().id == 6611 and last().q == 1, "Einzelgegenstand gekauft: Gegenstand bekannt (B6)")
+-- 0.17.3: Schnellkauf startet den naechsten Kauf, bevor das Gold verbucht ist: die Zahlung gehoert zum bestaetigten Kauf
+C_AuctionHouse.StartCommoditiesPurchase = function() end
+C_AuctionHouse.ConfirmCommoditiesPurchase = function() end
+Mv.Init()
+C_AuctionHouse.StartCommoditiesPurchase(4338, 46)
+fire("COMMODITY_PRICE_UPDATED", 400, 18400)
+C_AuctionHouse.ConfirmCommoditiesPurchase(4338, 46)
+fire("COMMODITY_PURCHASE_SUCCEEDED")
+C_AuctionHouse.StartCommoditiesPurchase(4338, 2)   -- naechster Kauf, noch ohne Bestaetigung
+money = money - 18400; fire("PLAYER_MONEY"); settle()
+check(last().k == "ahbuy" and last().m == -18400 and last().id == 4338 and last().q == 46, "0.17.3: Zahlung bekommt die Menge des bestaetigten Kaufs (vorher 2)")
+fire("COMMODITY_PRICE_UPDATED", 400, 800)
+C_AuctionHouse.ConfirmCommoditiesPurchase(4338, 2)
+C_AuctionHouse.StartCommoditiesPurchase(2772, 10)
+fire("COMMODITY_PRICE_UPDATED", 50, 500)
+C_AuctionHouse.ConfirmCommoditiesPurchase(2772, 10)
+fire("COMMODITY_PURCHASE_SUCCEEDED"); money = money - 500; fire("PLAYER_MONEY"); settle()
+fire("COMMODITY_PURCHASE_SUCCEEDED"); money = money - 800; fire("PLAYER_MONEY"); settle()
+local r1, r2 = realm.moves[#realm.moves - 1], last()
+check(r1.m == -500 and r1.id == 2772 and r1.q == 10 and r2.m == -800 and r2.id == 4338 and r2.q == 2, "0.17.3: Zahlungen nach Betrag den Kaeufen zugeordnet")
+fire("COMMODITY_PURCHASE_FAILED")
+check(#Mv.buys == 0, "0.17.3: keine offenen Kaeufe mehr")
 fire("AUCTION_HOUSE_CLOSED")
 clock = clock + 100
 -- Brief noch nicht geladen ("Rufe Daten ab"): offener Kauf -> Kauf, nicht "Auktion zurueck"
@@ -1952,6 +1980,32 @@ do
   local s2 = ns.Cost.Result(realm.moves[6])
   check(math.abs(ns.Cost.Info(7777, C).avg - 10) < 0.01, "0.15: zwei Kaeufe (21 + 85) aus einem Schwung Post: 10c je Stueck")
   check(math.abs(s2.fee - 20) < 0.01 and math.abs(s2.cost - 20) < 0.01, "0.15: Gebuehr anteilig: 2 von 10 eingestellten Stueck tragen 20c")
+  -- 0.17.3: Schnellkauf, Zahlungen mit der Menge des naechsten Kaufs (echte Daten Magiestoff). 30 Stueck fuer 9900c
+  realm.moves = {
+    { t = t0 + 1, c = C, k = "ahbuy", id = 7777, m = -9000, q = 2 },
+    { t = t0 + 2, c = C, k = "ahbuy", id = 7777, m = -900, q = 28 },
+    { t = t0 + 3, c = C, k = "ahbuy", id = 7777, n = 10 },
+    { t = t0 + 4, c = C, k = "ahbuy", id = 7777, n = 20 },
+  }
+  ns.Cost.Invalidate()
+  check(math.abs(ns.Cost.Result(realm.moves[3]).unit - 330) < 0.01 and math.abs(ns.Cost.Result(realm.moves[4]).unit - 330) < 0.01,
+    "0.17.3: Lieferungen tragen den Durchschnitt der offenen Kaeufe (vorher 900c fuer die ersten 10)")
+  -- weniger Stueck in den Zahlungen als geliefert: die Lieferung nimmt alles Gold
+  realm.moves = {
+    { t = t0 + 1, c = C, k = "ahbuy", id = 7777, m = -1800, q = 2 },
+    { t = t0 + 2, c = C, k = "ahbuy", id = 7777, m = -600, q = 4 },
+    { t = t0 + 3, c = C, k = "ahbuy", id = 7777, n = 8 },
+  }
+  ns.Cost.Invalidate()
+  check(math.abs(ns.Cost.Info(7777, C).avg - 300) < 0.01, "0.17.3: mehr Stueck als in den Zahlungen: alles Gold, 300c je Stueck")
+  -- Zahlung mit Ware in einer Zeile, der Rest des Kaufs kommt per Post
+  realm.moves = {
+    { t = t0 + 1, c = C, k = "ahbuy", id = 7777, m = -13500, n = 16, q = 30 },
+    { t = t0 + 2, c = C, k = "ahbuy", id = 7777, n = 14 },
+  }
+  ns.Cost.Invalidate()
+  check(math.abs(ns.Cost.Result(realm.moves[1]).unit - 450) < 0.01 and math.abs(ns.Cost.Result(realm.moves[2]).unit - 450) < 0.01,
+    "0.17.3: Zahlung mit 16 von 30 Stueck: 450c je Stueck (vorher 843c), der Rest per Post ebenso")
   me.start, realm.moves, realm.lotBase, ns.Value = keepS, keepM, keepB, keepV
   ns.Cost.Invalidate()
 end

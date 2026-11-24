@@ -223,6 +223,37 @@ function M.Note(name, data)
     return data
 end
 
+-- Bestaetigte Kaeufe im Auktionshaus (ab 0.17.3): { id, qty, total, kind ("c" Massenware, "b" Gebot/Sofortkauf), t },
+-- aelteste zuerst. Jede Zahlung nimmt einen Kauf: mit gleichem Gesamtpreis, sonst den aeltesten.
+M.buys = {}
+M.BUY_KEEP = 120   -- Sekunden
+
+local function PruneBuys()
+    local now = Now()
+    for i = #M.buys, 1, -1 do if now - (M.buys[i].t or 0) > M.BUY_KEEP then table.remove(M.buys, i) end end
+end
+
+function M.PushBuy(id, qty, total, kind)
+    PruneBuys()
+    M.buys[#M.buys + 1] = { id = Num(id) and id or nil, qty = Num(qty) and qty or nil, total = Num(total) and total or nil,
+                            kind = kind, t = Now() }
+end
+
+function M.TakeBuy(paid)
+    PruneBuys()
+    local pick
+    for i, b in ipairs(M.buys) do
+        if Num(paid) and b.total and math.abs(b.total - paid) < 1 then pick = i; break end
+        pick = pick or i
+    end
+    return pick and table.remove(M.buys, pick) or nil
+end
+
+-- gescheiterter Kauf: den aeltesten dieser Art entfernen
+function M.DropBuy(kind)
+    for i, b in ipairs(M.buys) do if b.kind == kind then table.remove(M.buys, i); return end end
+end
+
 -- Zusammenhang "gerade eben" (innerhalb von window Sekunden)
 function M.Recent(name, window)
     local c = M.ctx[name]
@@ -950,9 +981,17 @@ function M.Flush()
             end
             -- Auktion gekauft: Gegenstand des mitgelesenen Kaufs (ab 0.6), der Gegenstand aus der Post kommt dazu
             -- ab 0.14 nur einmal und hoechstens 60 Sekunden alt (vorher 120, konnte einem anderen Kauf zufallen)
+            -- ab 0.17.3 zuerst aus der Warteschlange der bestaetigten Kaeufe (nach Betrag, sonst der aelteste). Vorher
+            -- galt der zuletzt gestartete Kauf: Beim Schnellkauf war das oft schon der naechste, die Zahlung bekam
+            -- dann dessen Menge (Kosten je Stueck in Cost.lua falsch verteilt)
             if e and k == "ahbuy" and m < 0 then
+                local p = M.TakeBuy(-m)
                 local b = M.Recent("ahbuyitem", 60)
-                if b and Num(b.id) and not b.used then
+                if p then
+                    if Num(p.id) then e.id = p.id end
+                    e.q = Num(p.qty) and p.qty or nil
+                    if b and b.id == p.id then b.used = true end
+                elseif b and Num(b.id) and not b.used then
                     e.id, e.q = b.id, Num(b.qty) and b.qty or nil
                     b.used = true
                 end
@@ -1109,6 +1148,12 @@ function M.InitEvents()
         M.Note("cancel", { id = map and Num(auctionID) and map[auctionID] or nil })
     end)
     Ev("COMMODITY_PURCHASE_SUCCEEDED", function() M.Note("ahpurchase") end)
+    -- ab 0.17.3: Gesamtpreis des gestarteten Kaufs merken, ein gescheiterter Kauf verlaesst die Warteschlange
+    Ev("COMMODITY_PRICE_UPDATED", function(_, _, total)
+        local s = M.Recent("ahstart", M.BUY_KEEP)
+        if s and Num(total) and total > 0 then s.total = total end
+    end)
+    Ev("COMMODITY_PURCHASE_FAILED", function() M.DropBuy("c") end)
     Ev("AUCTION_HOUSE_PURCHASE_COMPLETED", function() M.Note("ahpurchase") end)
     Ev("CHAT_MSG_LOOT", function(_, msg)
         msg = Str(msg)
@@ -1180,13 +1225,23 @@ function M.InitHooks()
     end)
     Hook("AcceptTrade", function() M.Note("tradeaccept") end)
     -- Kauf von Massenware: Gegenstand und Menge (ab 0.6, fuer "Auktion gekauft" in einer Zeile)
-    Hook("C_AuctionHouse.StartCommoditiesPurchase", function(itemID, qty) M.Note("ahbuyitem", { id = itemID, qty = qty }) end)
+    Hook("C_AuctionHouse.StartCommoditiesPurchase", function(itemID, qty)
+        M.Note("ahbuyitem", { id = itemID, qty = qty })
+        M.Note("ahstart", { id = itemID, qty = qty })   -- ab 0.17.3: Preis des Spiels kommt dazu (COMMODITY_PRICE_UPDATED)
+    end)
     -- ab 0.14: Bestaetigen frischt den Kauf auf (zwischen Start und Bestaetigen koennen Sekunden liegen)
-    Hook("C_AuctionHouse.ConfirmCommoditiesPurchase", function(itemID, qty) M.Note("ahbuyitem", { id = itemID, qty = qty }) end)
+    -- ab 0.17.3: bestaetigte Kaeufe kommen in die Warteschlange M.buys (Gegenstand, Menge, Gesamtpreis)
+    Hook("C_AuctionHouse.ConfirmCommoditiesPurchase", function(itemID, qty)
+        M.Note("ahbuyitem", { id = itemID, qty = qty })
+        local s = M.Recent("ahstart", M.BUY_KEEP)
+        local total = s and s.id == itemID and s.qty == qty and s.total or nil
+        M.PushBuy(itemID, qty, total, "c")
+    end)
     -- ab 0.14: Einzelgegenstand gekauft (Sofortkauf oder Gebot): Gegenstand aus der Auktion bzw. Blizzards Kaufansicht
     Hook("C_AuctionHouse.PlaceBid", function(auctionID, amount)
         local id = M.BidItem(auctionID)
         M.Note("ahbuyitem", { id = id, qty = 1, amount = Num(amount) and amount or nil })
+        M.PushBuy(id, 1, Num(amount) and amount or nil, "b")
     end)
 end
 

@@ -373,19 +373,34 @@ local function PopBuy(st, id, t, n)
         for i = #st.buy, 1, -1 do st.buy[i] = nil end
         for i, p in ipairs(rest) do st.buy[i] = p end
     end
+    -- ab 0.17.3: offene Kaeufe des Gegenstands als ein Topf (Gold P, Stueck Q). Kommen n Stueck, tragen sie den
+    -- Durchschnitt P / Q, jeder Kauf gibt den Anteil n / Q ab. Sind es mehr Stueck als Q, nehmen sie alles Gold.
+    -- Vorher bekam jede Lieferung die Kaeufe der Reihe nach, bis die Menge passte. Beim Schnellkauf traegt die
+    -- Zahlung aber oft die Menge des naechsten Kaufs (Moves.lua bis 0.17.2), dann landeten teure Zahlungen bei
+    -- wenigen Stueck (echte Daten Magiestoff: 5 bis 8 Silber je Stueck bei gekauften 3,1 Silber im Schnitt).
     if Num(n) and n > 0 then
-        local paid, got, i = 0, 0, 1
-        while i <= #st.buy and got < n do
-            local p = st.buy[i]
-            if t - p.t <= C.MATCH_DAYS * 86400 and p.id == id and Num(p.q) and p.q > 0 and (got == 0 or got + p.q <= n) then
-                if got == 0 then st.popH = p.h end   -- ab 0.17: Haus des Kaufs
-                paid, got = paid + p.m, got + p.q
-                table.remove(st.buy, i)
-            else
-                i = i + 1
+        local paid, q, h = 0, 0, nil
+        for _, p in ipairs(st.buy) do
+            if t - p.t <= limit and p.id == id and Num(p.q) and p.q > 0 then
+                if h == nil then h = p.h end   -- ab 0.17: Haus des Kaufs
+                paid, q = paid + p.m, q + p.q
             end
         end
-        if got > 0 then return paid * math.min(1, n / got), st.popH end
+        if q > 0 then
+            local f = math.min(1, n / q)
+            local i = 1
+            while i <= #st.buy do
+                local p = st.buy[i]
+                if t - p.t <= limit and p.id == id and Num(p.q) and p.q > 0 then
+                    p.m, p.q = p.m * (1 - f), p.q * (1 - f)
+                    if p.q < 0.001 then table.remove(st.buy, i) else i = i + 1 end
+                else
+                    i = i + 1
+                end
+            end
+            st.popH = h
+            return paid * f, h
+        end
     end
     local best
     for i, p in ipairs(st.buy) do
@@ -565,7 +580,13 @@ function C.Apply(st, e, groups)
     if k == "ahbuy" then
         if id and n > 0 then
             local paid, h = nil, e.h
-            if m < 0 then paid = -m else paid, h = PopBuy(st, id, e.t or 0, n) end
+            if m < 0 then
+                -- ab 0.17.3: Zahlung mit Ware in einer Zeile kommt in den Topf der offenen Kaeufe. Vorher trugen die
+                -- gelieferten n Stueck das ganze Gold, auch wenn der Kauf mehr Stueck (q) umfasste.
+                st.buy[#st.buy + 1] = { m = -m, id = id, t = e.t or 0, q = math.max(Num(e.q) and e.q or n, n), h = e.h }
+            end
+            paid, h = PopBuy(st, id, e.t or 0, n)
+            if m < 0 then h = e.h or h end
             st.popH = nil
             local unit = paid and paid / n or 0
             AddLot(st, id, n, unit, e.t, nil, nil, nil, unit, h or e.h)   -- ab 0.15: Kosten aus dem Auktionshaus, ab 0.17 mit Haus

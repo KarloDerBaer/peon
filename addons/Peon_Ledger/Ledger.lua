@@ -313,9 +313,18 @@ local function CreateMinimapButton()
             { key = "goldAll", label = L.TEXT_GOLD_ALL, get = function() return ns.PanelMoney((ns.Inventory.TotalMoney())) end },
             { key = "goldMe", label = L.TEXT_GOLD_ME, get = function() return ns.PanelMoney(GetMoney()) end },
             { key = "goldSession", label = L.TEXT_GOLD_SESSION, get = function() return ns.SessionGoldText() end },
+            -- ab 0.17.3 (Wunsch KarloDerBaer): Gold des Charakters, in Klammern kurz das Gold aller Charaktere
+            { key = "goldMeAll", label = L.TEXT_GOLD_ME_ALL, get = function() return ns.GoldMeAllText() end },
         },
         defaultText = "goldAll",
     })
+end
+
+-- Panel-Text "Gold des Charakters (aller Charaktere)" (ab 0.17.3), die Klammer knapp mit Peon.ShortGold
+function ns.GoldMeAllText()
+    local total = ns.Inventory.TotalMoney()
+    local all = (type(total) == "number" and not Peon.IsSecret(total)) and Peon.ShortGold(total) or "?"
+    return ns.PanelMoney(GetMoney()) .. " (" .. all .. ")"
 end
 
 -- Gold der Sitzung (ab 0.12). Neu beim Einloggen und bei einem anderen Charakter, /reload zaehlt weiter.

@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.17.3
+
+Kurz: Die Kosten von Waren aus dem Auktionshaus stimmen jetzt auch, wenn du schnell hintereinander kaufst (etwa mit dem Schnellkauf von Broker).
+Kurz: Im Panel kannst du als Text das Gold des Charakters wählen, in Klammern steht das Gold aller Charaktere.
+
+- 0.17.3 (24.11.2026, Wunsch KarloDerBaer, Magiestoff unter 4 Silber gekauft, Ledger zeigte über 5 Silber):
+  - **Behoben, Zahlung und Menge beim Schnellkauf:** Ledger nahm für eine Zahlung im Auktionshaus den zuletzt gestarteten Kauf. Beim Schnellkauf war das oft schon der nächste Kauf, die Zahlung bekam dessen Menge (echte Daten: 18.400 Kupfer für 2 statt etwa 46 Stück). Jetzt merkt Ledger bestätigte Käufe mit Menge und Gesamtpreis (`M.buys`, Preis aus `COMMODITY_PRICE_UPDATED`) und ordnet jede Zahlung nach dem Betrag zu, sonst dem ältesten Kauf. Ein gescheiterter Kauf verlässt die Liste.
+  - **Behoben, Kosten je Lieferung:** Ware aus der Post bekam die offenen Zahlungen der Reihe nach, bis die Menge passte. Mit den falschen Mengen landeten teure Zahlungen bei wenigen Stück. Jetzt bilden die offenen Käufe eines Gegenstands einen Topf, jede Lieferung trägt seinen Durchschnitt (`PopBuy`). Sind es mehr Stück als in den Zahlungen, nimmt die Lieferung alles Gold. Eine Zahlung mit Ware in einer Zeile kommt mit ihrer ganzen Menge in den Topf (vorher trugen die ersten gelieferten Stück das ganze Gold). Echte Daten Magiestoff: im Schnitt 3,1 Silber gekauft, Lieferungen vorher bis 8,4 Silber je Stück, jetzt höchstens 4,6 Silber. Gespeicherte Daten werden beim Nachspielen mit der neuen Regel gerechnet.
+  - **Neu, Panel:** Text „Gold dieses Charakters (aller Charaktere)“ (`goldMeAll`), die Klammer knapp mit `Peon.ShortGold`.
+  - Tests: Zahlung bekommt den bestätigten Kauf, Zuordnung nach Betrag, gescheiterter Kauf, Durchschnitt der offenen Käufe, mehr Stück als Zahlungen, Zahlung mit Teillieferung, Panel-Text (`test_ledger.lua`).
+
 ## 0.17.2
 
 Kurz: Beim Plündern und im Kampf bringt der Tooltip eines Gegenstands keine Fehlermeldung „script ran too long“ mehr.
