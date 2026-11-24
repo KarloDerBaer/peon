@@ -3,10 +3,11 @@
 -- "Aufkauf". Beide teilen Gegenstand, laufende Abfrage und Preisstufen, der Umschalter steht oben rechts.
 -- Schnellkauf ist fuer guenstige Angebote, die nur Sekunden stehen (Lockangebote und ihre Nachahmer):
 --   links   Kaufen bis, Menge, Kaufknopf mit Alarm (Ton und Leuchten, sobald etwas unter Kaufen bis steht),
---           Block Lockangebot (Preisfeld, Einstellen, Zurueckziehen, Zustand) und die Bilanz der Sitzung
+--           Block Lockangebot (Preisfeld, ab 0.132 Menge und Einstellen, bis 0.131 Zurueckziehen, Zustand) und die Bilanz
+--           der Sitzung
 --   rechts  Preisstufen (eigene Angebote markiert, neue Stufen kurz gruen), darunter ein Diagramm mit dem
 --           guenstigsten Preis, der Menge unter Kaufen bis und senkrechten Strichen fuer eigene Lockangebote
--- Lockangebot: 1 Stueck aus den Taschen, kuerzeste Laufzeit. Der Preis steht als Vorschlag im Feld: ab 0.107
+-- Lockangebot: 1 Stueck aus den Taschen (ab 0.132 Menge einstellbar, Q.BaitQty), kuerzeste Laufzeit. Der Preis steht als Vorschlag im Feld: ab 0.107
 -- Kaufen bis minus quickBaitPct Prozent (Vorgabe 50, vorher die erste echte Stufe minus 20). Ein eigener Betrag im
 -- Feld gilt bis zum naechsten Gegenstand. Ab 0.107 fuellt der Schnellkauf ein leeres Kaufen bis (Q.EnsureLimit), bis
 -- 0.119 mit dem Wert des Aufkaufs, ab 0.120 mit der Haelfte des guenstigsten Angebots, mindestens dem Haendlerpreis. Nur Massenware (PostCommodity). Eigenes Einstellen per Knopf war in Forever bisher nicht erprobt:
@@ -403,6 +404,35 @@ function Q.SetPriceTyped(amount)
     F.Update()
 end
 
+-- ab 0.132 (U0, Konzept Peon_Broker_Schlank.md 4.2): Menge des Lockangebots je Gegenstand, Vorgabe 1. Gespeichert in
+-- PeonBrokerDB.baitQty[Schluessel], nur wenn nicht 1 (Speichern geschieht von selbst).
+Q.BAIT_QTY_MAX = 9999
+function Q.BaitQty(key)
+    local t = mod.acc.baitQty
+    local n = key ~= nil and type(t) == "table" and tonumber(t[key]) or nil
+    if n and n >= 1 then return math.min(Q.BAIT_QTY_MAX, math.floor(n)) end
+    return 1
+end
+
+function Q.SetBaitQty(n)
+    local F = ns.Focus
+    local key = F.key
+    if key == nil then return end
+    n = tonumber(n)
+    if not n or n < 1 then return end   -- leeres Feld beim Tippen: Wert bleibt, bis eine Zahl dasteht
+    n = math.min(Q.BAIT_QTY_MAX, math.floor(n))
+    if type(mod.acc.baitQty) ~= "table" then mod.acc.baitQty = {} end
+    mod.acc.baitQty[key] = n > 1 and n or nil
+    F.Update()
+end
+
+-- Stueck in den Taschen (wie das Spiel zaehlt) oder nil
+function Q.BagCount(key)
+    if not ns.Stock or key == nil then return nil end
+    local ok, bags = pcall(ns.Stock.Counts, ns.Data.ItemID(key), nil)
+    return ok and Num(bags) and bags or nil
+end
+
 -- Gegenstand in den Taschen finden: bag, slot
 function Q.FindBag(itemID)
     local C = rawget(_G, "C_Container")
@@ -447,7 +477,7 @@ function Q.Post()
     local ah = AHApi()
     local b = Q.bait
     if b and b.key == key and b.state == "confirm" then
-        local ok = ah.ConfirmPostCommodity and pcall(ah.ConfirmPostCommodity, b.loc, Q.DURATION, 1, b.price)
+        local ok = ah.ConfirmPostCommodity and pcall(ah.ConfirmPostCommodity, b.loc, Q.DURATION, b.qty or 1, b.price)
         if not ok then Q.bait = nil; mod:Print(L.QUICK_POST_FAILED) else b.state, b.t = "posting", Now() end
         F.Update()
         return
@@ -460,16 +490,22 @@ function Q.Post()
     local bag, slot = Q.FindBag(id)
     local IL = rawget(_G, "ItemLocation")
     if not bag then mod:Print(L.QUICK_NO_ITEM); return end
+    -- ab 0.132: Menge aus dem Feld. Das Spiel nimmt bei Massenware auch aus weiteren Stapeln.
+    local qty = Q.BaitQty(key)
+    if qty > 1 then
+        local have = Q.BagCount(key)
+        if have and have < qty then mod:Print(L.QUICK_FEW_ITEMS:format(have, qty)); return end
+    end
     local okl, loc = pcall(function() return IL:CreateFromBagAndSlot(bag, slot) end)
     if not (okl and loc and ah.PostCommodity) then mod:Print(L.QUICK_POST_FAILED); return end
-    local ok, needs = pcall(ah.PostCommodity, loc, Q.DURATION, 1, price)
+    local ok, needs = pcall(ah.PostCommodity, loc, Q.DURATION, qty, price)
     if not ok then mod:Print(L.QUICK_POST_FAILED); return end
     local dep
     if ah.CalculateCommodityDeposit then
-        local okd, v = pcall(ah.CalculateCommodityDeposit, id, Q.DURATION, 1)
+        local okd, v = pcall(ah.CalculateCommodityDeposit, id, Q.DURATION, qty)
         if okd and Num(v) then dep = v end
     end
-    Q.bait = { key = key, price = price, t = Now(), wall = time(), loc = loc, deposit = dep, state = needs == true and "confirm" or "posting" }
+    Q.bait = { key = key, price = price, qty = qty, t = Now(), wall = time(), loc = loc, deposit = dep, state = needs == true and "confirm" or "posting" }
     ns.Radar.lastSend = Now()   -- Einstellen zaehlt wie eine Abfrage (Bremse des Spiels)
     if needs == true then mod:Print(L.QUICK_CONFIRM_ASK) end
     F.Update()
@@ -498,7 +534,7 @@ function Q.OnCreated(auctionID)
     Q.marks[b.key] = m
     Q.AddBait(b.key, Now(), b.price, true)
     Q.Trace("bait up price=%s id=%s", b.price, b.id)
-    mod:Print(L.QUICK_POSTED:format(Money(b.price)))
+    mod:Print(L.QUICK_POSTED:format(b.qty or 1, Money(b.price)))
     if ns.Focus.Shown() then ns.Focus.Update() end
 end
 
@@ -512,7 +548,7 @@ function Q.OnError()
     end
 end
 
--- Knopf Zurueckziehen
+-- Zurueckziehen. Ab 0.132 ohne Knopf (Konzept Peon_Broker_Schlank.md 4.2), die Funktion bleibt.
 function Q.Cancel()
     local b = Q.bait
     if not (b and b.state == "up" and b.id) then return end
@@ -573,7 +609,7 @@ function Q.StateText(key)
     if b.state == "cancelling" then return GREY .. L.QUICK_BAIT_CANCELLING .. "|r" end
     if b.state == "cancelled" then return GREY .. L.QUICK_BAIT_CANCELLED .. "|r" end
     if b.state == "gone" then return YELLOW .. L.QUICK_BAIT_GONE:format(Money(b.price)) .. "|r" end
-    return GREEN .. L.QUICK_BAIT_UP:format(Money(b.price), ns.Radar.ShortAge(ago)) .. "|r"
+    return GREEN .. L.QUICK_BAIT_UP:format(b.qty or 1, Money(b.price), ns.Radar.ShortAge(ago)) .. "|r"
 end
 
 function Q.BalanceText(key)

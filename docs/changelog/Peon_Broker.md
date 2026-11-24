@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.132.0
+
+Kurz: Das Lockangebot im Schnellkauf hat jetzt eine Menge. Links steht die Menge, rechts der Knopf Einstellen. Den Knopf Zurückziehen gibt es nicht mehr.
+
+- 0.132.0 (25.11.2026, Schritt U0 aus dem Konzept `Peon_Broker_Schlank.md`, Abschnitt 4.2):
+  - **Neu, Menge des Lockangebots:** Feld Menge unter dem Lockpreis, dahinter grau, wie viele in den Taschen liegen (orange, wenn es zu wenige sind). Vorgabe 1, je Gegenstand gespeichert (`PeonBrokerDB.baitQty`, nur wenn nicht 1). Liegen zu wenige in den Taschen, stellt Broker nichts ein und sagt es im Chat. Einstellen, Bestätigen und Einzahlung rechnen mit der Menge, Zustand und Chat nennen sie.
+  - **Geändert:** Der Knopf heißt „Einstellen“ und steht rechts neben der Menge.
+  - **Entfernt:** Knopf Zurückziehen (das Zurückziehen selbst bleibt im Code, `Q.Cancel`).
+  - Tests: Menge gespeichert und gezeigt, Einstellen mit 3 Stück, zu wenige in den Taschen, Vorgabe 1 (`test_broker.lua`).
+
 ## 0.131.0
 
 Kurz: Kaufen bis und Limit pro Kauf im Schnellkauf bleiben gespeichert. Vorher konnte Broker sie beim Öffnen des Fokus durch die Vorgabe ersetzen.

@@ -1001,15 +1001,28 @@ function F.BuildQuick(left, Label)
     q.priceInput:SetPoint("LEFT", q.priceLabel, "LEFT", F.QUICK_FIELD_X / 0.8, 0)
     q.priceHint = UI.Text(left, "small", "")
     q.priceHint:SetPoint("LEFT", q.priceInput, "RIGHT", 4, 0)
-    local half = math.floor((UI.LEFT_W - 26) / 2)
-    -- ab 0.110 "Lockangebot einstellen" (vorher "1 einstellen"): dieser Knopf breiter
+    -- ab 0.132 (U0, Konzept Peon_Broker_Schlank.md 4.2): unter dem Lockpreis die Menge, rechts davon der Knopf Einstellen.
+    -- Der Knopf Zurueckziehen entfaellt (vorher rechts neben "Lockangebot einstellen").
     local cw = 110
-    q.post = UI.Button(left, L.QUICK_POST, 2 * half - cw, function() mod:Call("Schnellkauf", Q.Post) end)
-    q.post:SetPoint("TOPLEFT", 10, F.QUICK_BTN_Y)
+    q.qtyLabel = Label(L.QUICK_BAIT_QTY, F.QUICK_BTN_Y - 4)
+    q.qtyLabel:SetJustifyH("LEFT")
+    q.qtyLabel:SetWidth(0)
+    q.qtyLabel:ClearAllPoints()
+    q.qtyLabel:SetPoint("TOPLEFT", F.QUICK_X, F.QUICK_BTN_Y - 4)
+    q.qtyInput = UI.Input(left, 48, { numeric = true, maxLetters = 4 })
+    if q.qtyInput.SetScale then q.qtyInput:SetScale(0.8) end
+    if q.qtyInput.SetJustifyH then q.qtyInput:SetJustifyH("RIGHT") end
+    if q.qtyInput.SetTextInsets then q.qtyInput:SetTextInsets(6, 8, 0, 0) end
+    q.qtyInput:SetPoint("LEFT", q.qtyLabel, "LEFT", F.QUICK_FIELD_X / 0.8, 0)
+    q.qtyInput:HookScript("OnTextChanged", function(self, user)
+        if user then mod:Call("Schnellkauf", Q.SetBaitQty, tonumber(self:GetText() or "")) end
+    end)
+    UI.SetTooltip(q.qtyInput, { L.QUICK_BAIT_QTY, L.QUICK_BAIT_QTY_TIP })
+    q.qtyHint = UI.Text(left, "small", "")
+    q.qtyHint:SetPoint("LEFT", q.qtyInput, "RIGHT", 4, 0)
+    q.post = UI.Button(left, L.QUICK_POST, cw, function() mod:Call("Schnellkauf", Q.Post) end)
+    q.post:SetPoint("TOPLEFT", UI.LEFT_W - 10 - cw, F.QUICK_BTN_Y)
     UI.SetTooltip(q.post, { L.QUICK_POST, L.QUICK_POST_TIP })
-    q.cancel = UI.Button(left, L.QUICK_CANCEL, cw, function() mod:Call("Schnellkauf", Q.Cancel) end)
-    q.cancel:SetPoint("LEFT", q.post, "RIGHT", 6, 0)
-    UI.SetTooltip(q.cancel, { L.QUICK_CANCEL, L.QUICK_CANCEL_TIP })
     q.state = UI.Text(left, "text", "", UI.LEFT_W - 32)
     q.state:SetPoint("TOPLEFT", 16, F.QUICK_STATE_Y)
     q.balance = UI.Text(left, "small", "", UI.LEFT_W - 32)
@@ -1040,7 +1053,7 @@ function F.BuildQuick(left, Label)
     q.lastBuy = UI.Text(left, "small", "", UI.LEFT_W - 20)
     q.lastBuy:SetJustifyH("CENTER")
     q.lastBuy:SetPoint("TOP", F.buyButton, "BOTTOM", 0, -4)
-    q.all = { q.head, q.priceLabel, q.priceInput, q.priceHint, q.post, q.cancel, q.state, q.skip, q.line1, q.line2, q.avg, q.auto, q.lastBuy }
+    q.all = { q.head, q.priceLabel, q.priceInput, q.priceHint, q.qtyLabel, q.qtyInput, q.qtyHint, q.post, q.state, q.skip, q.line1, q.line2, q.avg, q.auto, q.lastBuy }
 end
 
 local function MoveLabel(label, y, x)
@@ -1124,12 +1137,16 @@ function F.UpdateQuick(d, live)
     if Q.ManualPrice(key) then q.priceHint:SetText(GREY .. L.QUICK_PRICE_OWN .. "|r")
     elseif Num(base) then q.priceHint:SetText(GREY .. L.QUICK_PRICE_HINT:format(tonumber(mod.db.quickBaitPct) or 50) .. "|r")
     else q.priceHint:SetText("") end
+    -- ab 0.132: Menge des Lockangebots, dahinter wie viele in den Taschen liegen
+    local qn = key ~= nil and Q.BaitQty(key) or 1
+    if not (q.qtyInput.HasFocus and q.qtyInput:HasFocus()) then q.qtyInput:SetText(tostring(qn)) end
+    local have = key ~= nil and Q.BagCount(key) or nil
+    q.qtyHint:SetText(have and (((have < qn) and ORANGE or GREY) .. L.QUICK_BAIT_HAVE:format(have) .. "|r") or "")
     local b = Q.BaitFor(key)
     local busy = b ~= nil and (b.state == "posting" or b.state == "cancelling")
     local canPost = live and key ~= nil and ns.Data.IsCommodity(key) and Num(Q.Price(key)) and not busy
     q.post:SetText((b and b.state == "confirm") and L.QUICK_CONFIRM or L.QUICK_POST)
     On(q.post, canPost and true or false)
-    On(q.cancel, live and b ~= nil and b.state == "up" and b.id ~= nil)
     local av, _, _, high = nil, nil, nil, false
     if live and key ~= nil then av, _, _, high = Q.AutoLimit(key) end
     q.lastBuy:SetText(key ~= nil and Q.LastBuyText(key) or "")   -- ab 0.125
@@ -1284,7 +1301,7 @@ function F.Update()
         F.stand:SetText("")
         F.UpdateMeasure(nil)
         F.buyButton:SetText(L.BUY_BUY); F.buyButton:Disable(); F.buyInfo:SetText(F.Summary(nil))
-        if F.quick then F.quick.state:SetText(""); F.quick.balance:SetText(""); F.quick.post:Disable(); F.quick.cancel:Disable() end
+        if F.quick then F.quick.state:SetText(""); F.quick.balance:SetText(""); F.quick.post:Disable() end
         return
     end
     local D = ns.Data

@@ -4632,6 +4632,28 @@ end)()
   Q.Post()
   check(posted and posted.qty == 1 and posted.dur == 1 and posted.price == 75 and posted.loc.slot == 2 and Q.bait.state == "posting",
     "0.104: 1 Stueck aus der Tasche, kuerzeste Laufzeit, zum Lockpreis")
+  -- ab 0.132 (U0): Menge einstellbar, Knopf rechts, ohne Zurueckziehen
+  check(F.quick.cancel == nil and F.quick.qtyInput.shown and F.quick.qtyInput.text == "1", "0.132: Feld Menge mit 1, kein Knopf Zurueckziehen")
+  local keepCounts = ns.Stock.Counts
+  ns.Stock.Counts = function() return 4, 0, 4, 0 end
+  Q.bait = nil
+  Q.SetBaitQty(3)
+  check(Q.BaitQty(7971) == 3 and mod.acc.baitQty[7971] == 3 and F.quick.qtyInput.text == "3" and plain(F.quick.qtyHint.text) == "von 4", "0.132: Menge gespeichert und gezeigt")
+  posted = nil
+  Q.Post()
+  check(posted and posted.qty == 3 and Q.bait.qty == 3, "0.132: Lockangebot mit 3 Stueck")
+  Q.bait = nil
+  Q.SetBaitQty(5)
+  posted = nil
+  Q.Post()
+  check(posted == nil and Q.bait == nil, "0.132: mehr als in den Taschen: nichts eingestellt")
+  Q.SetBaitQty(1)
+  check(mod.acc.baitQty[7971] == nil and Q.BaitQty(7971) == 1, "0.132: Menge 1 ist die Vorgabe, nichts gespeichert")
+  ns.Stock.Counts = keepCounts
+  Q.bait = nil
+  posted = nil
+  Q.Post()
+  check(posted and posted.qty == 1, "0.132: wieder 1 Stueck")
   fire("AUCTION_HOUSE_AUCTION_CREATED", 555)
   check(Q.bait.state == "up" and Q.bait.id == 555 and Q.sessions[7971].baits == 1 and #Q.marks[7971] == 1, "0.104: Lockangebot steht, in Bilanz und Diagramm")
   ns.Buy.live[7971] = { rows = { R(75, 1, 1), R(120, 3), R(200, 50), commodity = true }, t = clock + 1, commodity = true }
@@ -5042,7 +5064,7 @@ end)()
   F.key, F.manualLimit = keepKey, keepLim
   Q.baits[7986] = nil
   -- Mausbereiche der Aufkauf-Zeilen liegen im Schnellkauf nicht ueber dem Knopf
-  check(not F.rows[1].hover.shown and plain(F.quick.post.text) == "Lockangebot einstellen", "0.110: Mausbereiche verborgen, Knopf heisst Lockangebot einstellen")
+  check(not F.rows[1].hover.shown and plain(F.quick.post.text) == "Einstellen", "0.110/0.132: Mausbereiche verborgen, Knopf heisst Einstellen")
   Q.SetMode("buyout", true)
   check(plain(F.mRows[1].label.text) == "Abfluss" and plain(F.mRows[5].label.text) == "" and F.rows[1].hover.shown ~= false, "0.108: im Aufkauf wieder die Zeilen der Messung")
   -- aufraeumen
