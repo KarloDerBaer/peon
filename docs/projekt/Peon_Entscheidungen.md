@@ -3,6 +3,14 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 24.11.2026: Offene Fragen vor dem Umbau geklärt
+
+- **Ledger: Reiter Charaktere freigegeben** (KarloDerBaer), wie in `Peon_Ledger_Schlank.md` Abschnitt 3.
+- **Manager: Startseite Heute mit den vier Karten** aus `Peon_Manager_Schlank.md` Abschnitt 4 (KarloDerBaer, „passt erstmal so“). Kacheln, Diagramm und Stabilität der alten Übersicht wandern nach Markt, Übersicht. Der Unterreiter unter Listen heißt „Einkaufslisten“ wie in Broker.
+- **Broker: Reiter Markt behält seinen Namen** (KarloDerBaer).
+- **Bags: Gildenbank bekommt dasselbe Aussehen wie Taschen und Bank** (KarloDerBaer).
+- **Restliche offene Fehlerberichte zum Schluss** (KarloDerBaer): nach den Umbauten prüfen, ob sie noch auftreten.
+
 ## 24.11.2026: Broker schlank (Konzept)
 
 - **Entwurf A mit Seitenleiste** (KarloDerBaer, von drei Entwürfen): Die Reiter bleiben fast wie bisher, jede Seite wird entrümpelt. Dazu eine aufklappbare Leiste rechts am Fenster mit Beobachten und Einkaufsliste für den schnellen Wechsel. Die Leiste zeigt nur die Gegenstände, Werte und Einstellungen stehen im Reiter Beobachten. Verworfen: Reiter Beobachten ganz in die Leiste (zu wenig Platz für die Werte), Kaufen und Einstellen in einem Fenster (größter Umbau, doppelt sich mit Blizzards Verkaufen, vorgemerkt). Konzept `docs/konzepte/broker/Peon_Broker_Schlank.md`.

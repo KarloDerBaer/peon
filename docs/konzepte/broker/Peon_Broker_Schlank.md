@@ -39,7 +39,7 @@ Geprüfte Entwürfe: A Aufgeräumt, B Einkaufen mit Seitenleiste statt Reiter Be
 | Chancen | Schnellkauf-Vorschläge, der Rest hinter „Weitere Chancen“ (Abschnitt 8) | fünf Unterreiter |
 | Mehr | Gegenstand, Händler, Neutral, Datenlage | gleich |
 
-- Blizzards Reiter heißt im deutschen Spiel ohnehin „Kaufen“. Brokers Reiter Markt zeigt am Auktionator Blizzards Kaufen und unterwegs den Markt aus Scandaten. Ob er „Kaufen“ oder „Markt“ heißt, wird beim Bau mit KarloDerBaer geklärt. Wichtig ist nur, dass „Einkaufen“ eindeutig die Hauptseite meint.
+- Blizzards Reiter heißt im deutschen Spiel ohnehin „Kaufen“. Brokers Reiter Markt zeigt am Auktionator Blizzards Kaufen und unterwegs den Markt aus Scandaten. Er heißt weiter „Markt“ (KarloDerBaer, 24.11.2026). Wichtig ist nur, dass „Einkaufen“ eindeutig die Hauptseite meint.
 - Der Menüpunkt „In den Fokus“ heißt künftig „Einkaufen“.
 - Der Reiter Beobachten bleibt neben der Seitenleiste, weil man dort die Werte einstellt und alle Spalten sieht. Die Leiste dient nur dem schnellen Wechsel.
 
@@ -188,5 +188,5 @@ Jeder Schritt ist eine eigene Broker-Version und läuft in einer eigenen Session
 
 ### Offen
 
-- Name des Reiters Markt („Kaufen“ oder „Markt“), beim Bau von U1.
+- Keine. Der Reiter Markt behält seinen Namen (24.11.2026).
 - Freigabe: erteilt am 24.11.2026.

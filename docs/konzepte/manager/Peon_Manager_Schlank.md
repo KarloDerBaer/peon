@@ -1,6 +1,6 @@
 # Peon Manager: Konzept schlank und übersichtlich
 
-Stand: 24.11.2026, **Entwurf**, Richtung von KarloDerBaer gewählt (Variante A „Heute und fünf Bereiche“). Ausgangsversion Peon Manager 0.54.0. Skizzen der Varianten: Artifact-Seite „Peon schlank“.
+Stand: 24.11.2026, **freigegeben**, Richtung von KarloDerBaer gewählt (Variante A „Heute und fünf Bereiche“), Karten auf Heute wie in Abschnitt 4 bestätigt. Ausgangsversion Peon Manager 0.54.0. Skizzen der Varianten: Artifact-Seite „Peon schlank“.
 
 ## 1. Ausgangslage
 
@@ -21,7 +21,7 @@ Geprüfte Varianten: A Startseite „Heute“ und fünf Bereiche, B Schalter Ein
 |---|---|---|
 | **Heute** | keine | neue Startseite (Abschnitt 4) |
 | **Chancen** | Spekulation, Marktvergleich, Pakete, Erfolg | Chancen, Marktvergleich (mit Pakete), Erfolgskontrolle |
-| **Listen** | Einkaufen, Beobachten | Einkaufen, Beobachten (mit Aufkauf, Schnellkauf, Markttausch) |
+| **Listen** | Einkaufslisten, Beobachten | Einkaufen, Beobachten (mit Aufkauf, Schnellkauf, Markttausch) |
 | **Markt** | Übersicht, Gegenstände, Händler | Marktübersicht, Gegenstände, Händler (zeigt, was es bei Händlern zu kaufen gibt), Diagramme der alten Übersicht |
 | **Addons** | keine | Updates (Zahl am Eintrag bleibt) |
 | **Mehr** | Datenlage, Rückmeldungen, Hilfe, Einstellungen | wie heute, Zahl an Rückmeldungen erscheint auf Heute |

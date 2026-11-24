@@ -1,6 +1,6 @@
 # Peon_Ledger: Konzept schlank und übersichtlich
 
-Stand: 24.11.2026, **Entwurf**, Abschnitte 2 bis 6 von KarloDerBaer im Gespräch vorgegeben, Abschnitt 3 (Charaktere) liegt ihm zur Prüfung vor. Ausgangsversion Ledger 0.17.2. Baut auf `Peon_Ledger_Neuaufbau.md` und `Peon_Ledger_Buch_AH.md` auf. Skizzen der Varianten: Artifact-Seite „Peon schlank“.
+Stand: 24.11.2026, **freigegeben**, Abschnitte 2 bis 6 von KarloDerBaer im Gespräch vorgegeben, Abschnitt 3 (Charaktere) am 24.11.2026 freigegeben. Ausgangsversion Ledger 0.17.2. Baut auf `Peon_Ledger_Neuaufbau.md` und `Peon_Ledger_Buch_AH.md` auf. Skizzen der Varianten: Artifact-Seite „Peon schlank“.
 
 ## 1. Ausgangslage
 
