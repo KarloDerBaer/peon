@@ -17,7 +17,7 @@
 --                                     ab 0.9 je Charakter: ohne Angabe der eingeloggte, "*" = alle Charaktere
 --   mod:LastBuy(itemID)            -> zuletzt gezahlt je Stueck, Zeit, Stueck, Quelle ("ah", "vendor", "cod", "trade") (ab 0.14)
 --   mod:LastSale(itemID)           -> zuletzt verkauft je Stueck (netto), Zeit, Stueck, Quelle ("ah", "vendor") (ab 0.14)
---   mod:ShowItem(itemID)           -> Gegenstand zeigen: Seite Gegenstand in Broker (ab 0.14), sonst Bestand mit Suche
+--   mod:ShowItem(itemID)           -> Gegenstand zeigen: Seite Gegenstand in Broker (ab 0.14), sonst Charaktere mit Suche
 -- Ab 0.5 (L6): Vermoegen mit Brokers Wert (ns.Value, Broker: mod:ItemValue).
 -- PeonLedgerDB (accountweit): realms[Realm].chars[Vorname Nachname] = Bestand; items[itemID] = { n, q, i };
 --   probe*, bankLog (Fehlersuche Bank).
@@ -36,27 +36,29 @@ local mod = Peon:NewModule(ADDON_NAME, {
         tooltipLayout = {},      -- Bausteine im Tooltip (ab 0.14.2, Tooltip.lua: shifthint, lines)
         windowPos    = {},
         windowTab    = "overview",
-        historyMoves  = true,    -- Verlauf: Umbuchungen zeigen
+        historyMoves  = false,   -- Verlauf: Umbuchungen zeigen (ab 0.18 Vorgabe aus)
         historyOnlyMe = false,   -- Verlauf: nur eingeloggter Charakter (bis 0.13, ab 0.14 historyChar)
         historyChar   = "*",     -- Verlauf: Charakter ("*" = alle, ab 0.14)
-        historyKind   = "all",   -- Verlauf: Filter nach Art (ab 0.6)
+        historyKind   = "main",  -- Verlauf: Filter nach Art (ab 0.6, ab 0.18 Knoepfe, Vorgabe "Wichtiges")
         bookPeriod    = "d7",    -- Buch: Zeitraum (today, d7, d30, all)
         bookOnlyMe    = false,   -- (bis 0.13, ab 0.14 bookChar)
         bookChar      = "*",     -- Buch: Charakter (ab 0.14)
         bookView      = "kinds", -- Buch: Ansicht "Nach Art" oder "Nach Gegenstand" (ab 0.14)
         stockChar     = "*",     -- Bestand: Charakter (ab 0.14)
         stockPlace    = "all",   -- Bestand: Ort (ab 0.14)
-        stockCat      = "all",   -- Bestand: Kategorie (ab 0.14.2)
+        stockCat      = "all",   -- Bestand: Kategorie (ab 0.14.2, bis 0.17, ungenutzt)
+        charsChar     = "",      -- Reiter Charaktere: gewaehlter Charakter ("" = eingeloggter, "*" = alle, ab 0.18)
         costOrder     = "lifo",  -- Kosten: neueste zuerst (lifo) oder aelteste zuerst (fifo), ab 0.14.3
         trendRange    = "d7",    -- Diagramm der Uebersicht: Zeitraum (ab 0.14.5)
-        trendOff      = {},      -- Diagramm: ausgeblendete Linien
+        trendOff      = {},      -- Diagramm: ausgeblendete Linien (bis 0.17, Gold zaehlt noch)
+        trendLines    = {},      -- Diagramm: Linien an/aus (ab 0.18, gold, ah, trade, char:<Name>)
         mailWindow    = true,    -- eigenes Postfenster statt Blizzards Postfach (ab 0.14)
         mailFilter    = "all",   -- Postfenster: Filter nach Art (ab 0.14)
         mailRecent    = {},      -- Postfenster: zuletzt angeschriebene Empfaenger (ab 0.14)
         session       = {},      -- Gold zu Beginn der Sitzung (ab 0.12): who, money, uebersteht /reload
     },
     ranges   = { minimapAngle = { 0, 359, 1 } },
-    choices  = { windowTab = { overview = true, stock = true, history = true, book = true, info = true },
+    choices  = { windowTab = { overview = true, chars = true, stock = true, history = true, book = true, info = true },
                  bookPeriod = { today = true, d7 = true, d30 = true, all = true },
                  bookView = { kinds = true, items = true },
                  costOrder = { lifo = true, fifo = true },
@@ -64,11 +66,19 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  stockPlace = { all = true, bags = true, bank = true, mail = true, auctions = true, equip = true, transit = true },
                  stockCat = { all = true, equip = true, trade = true, consum = true, recipe = true, bag = true, quest = true, other = true },
                  mailFilter = { all = true, sale = true, buy = true, ["return"] = true, other = true },
-                 historyKind = { all = true, ah = true, vendor = true, loot = true, use = true, quest = true, craft = true,
+                 historyKind = { all = true, main = true, more = true, ah = true, vendor = true, loot = true, use = true, quest = true, craft = true,
                                  trade = true, mail = true, travel = true, destroy = true, fix = true, other = true } },
     keepOnReset = { windowPos = true, windowTab = true, historyMoves = true, historyOnlyMe = true, historyChar = true, bookPeriod = true,
                     bookOnlyMe = true, bookChar = true, bookView = true, historyKind = true, stockChar = true, stockPlace = true, stockCat = true, trendRange = true, trendOff = true,
-                    mailFilter = true, mailRecent = true, session = true },
+                    charsChar = true, trendLines = true, mailFilter = true, mailRecent = true, session = true },
+    -- ab 0.18 (Konzept Peon_Ledger_Schlank.md Abschnitt 5): Verlauf einmal auf "Wichtiges" ohne Umbuchungen,
+    -- Reiter Bestand heisst Charaktere
+    migrate  = function(_, acc)
+        if acc.historyV == nil then
+            acc.historyKind, acc.historyMoves, acc.historyV = "main", false, 1
+        end
+        if acc.windowTab == "stock" then acc.windowTab = "chars" end
+    end,
     slash    = { "/ledger" },
     onSlash  = function(m, cmd, rest)
         if cmd == "pruefen" or cmd == "prüfen" or cmd == "check" or cmd == "probe" then
@@ -151,7 +161,7 @@ function mod:LastSale(id)
     return b.unit, b.t, b.n, b.src
 end
 
--- Gegenstand zeigen (ab 0.14): Seite Gegenstand in Broker, ohne Broker der Bestand mit Suche nach dem Namen
+-- Gegenstand zeigen (ab 0.14): Seite Gegenstand in Broker, ohne Broker der Reiter Charaktere mit Suche (ab 0.18)
 function mod:ShowItem(id)
     if type(id) ~= "number" then return end
     local ok, b = pcall(Peon.GetModule, Peon, "broker")
@@ -160,9 +170,9 @@ function mod:ShowItem(id)
         if done then return end
     end
     local name = ns.Inventory.ItemInfo(id) or tostring(id)
-    ns.Window.Open("stock")
-    ns.Stock.search = name
-    if ns.Stock.searchBox then ns.Stock.searchBox:SetText(name) end
+    ns.Chars.search = name
+    ns.Window.Open("chars")
+    if ns.Chars.searchBox then ns.Chars.searchBox:SetText(name) end
     ns.Window.Refresh()
 end
 

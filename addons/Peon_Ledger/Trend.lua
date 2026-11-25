@@ -1,10 +1,13 @@
 -- Peon_Ledger - Trend.lua
--- Verlauf von Gold, Vermoegen und Handelsgewinn fuer das Diagramm der Uebersicht (ab 0.14.5, Wunsch KarloDerBaer).
--- Gold und Vermoegen (alle Charaktere des Realms) werden als Stand gemerkt, nur bei Ereignissen (Einloggen,
--- Goldaenderung, Taschen, Fenster), hoechstens einmal je Minute:
---   realms[Realm].trend = { { t, g = Gold, w = Vermoegen oder nil ohne Broker }, ... }  (aelteste zuerst)
+-- Verlauf von Gold, AH-Erloes und Handelsgewinn fuer das Diagramm der Uebersicht (ab 0.14.5, Wunsch KarloDerBaer).
+-- Gold (alle Charaktere des Realms) wird als Stand gemerkt, nur bei Ereignissen (Einloggen, Goldaenderung, Taschen,
+-- Fenster), hoechstens einmal je Minute:
+--   realms[Realm].trend = { { t, g = Gold, c = { [Name] = Gold } }, ... }  (aelteste zuerst)
+-- Ab 0.18 (Konzept Peon_Ledger_Schlank.md Abschnitt 4) ohne Vermoegen (w, aeltere Staende behalten es), dafuer das
+-- Gold je Charakter (c) fuer die Linien je Charakter und die Spalte "24 Std." der Uebersicht.
 -- Ausduennen beim Einloggen: aelter als 1 Tag hoechstens ein Stand je Stunde, aelter als 7 Tage einer je Tag.
--- Der Handelsgewinn kommt aus den Bewegungen (Cost.Result), aufsummiert ab dem Beginn des Zeitraums.
+-- Handelsgewinn (Cost.Result) und AH-Erloes (Rechnungen, ahsold) kommen aus den Bewegungen, aufsummiert ab dem
+-- Beginn des Zeitraums.
 
 local ADDON_NAME, ns = ...
 local mod = ns.mod
@@ -31,15 +34,13 @@ function TR.List()
     return r.trend
 end
 
--- Vermoegen aller Charaktere (nil ohne Broker)
-function TR.Worth()
-    if not ns.HasBroker() or not ns.Overview then return nil end
-    local cache, sum = {}, 0
-    for _, c in pairs(ns.Inventory.RealmData().chars) do
-        local w = ns.Overview.Worth(c, cache)
-        if w then sum = sum + w end
+-- Gold je Charakter (nur bekannte Staende)
+function TR.CharMoney()
+    local out = {}
+    for name, c in pairs(ns.Inventory.RealmData().chars) do
+        if Num(c.money) then out[name] = c.money end
     end
-    return sum
+    return out
 end
 
 function TR.Record(force, now)
@@ -49,8 +50,7 @@ function TR.Record(force, now)
     if not force and last and now - (last.t or 0) < TR.MIN_GAP then return false end
     local g = ns.Inventory.TotalMoney()
     if not Num(g) then return false end
-    local ok, w = pcall(TR.Worth)
-    local e = { t = now, g = g, w = ok and Num(w) and math.floor(w + 0.5) or nil }
+    local e = { t = now, g = g, c = TR.CharMoney() }
     if last and now - (last.t or 0) < TR.SLOT and math.floor((last.t or 0) / TR.SLOT) == math.floor(now / TR.SLOT) then
         list[#list] = e
     else
@@ -95,6 +95,57 @@ function TR.TradeEvents()
     return out
 end
 
+-- AH-Erloes als Zeitreihe (ab 0.18): Liste { t, p } aus den Rechnungen (Verkauf im Auktionshaus, Gold netto)
+function TR.AHEvents()
+    if TR.ahCache and not TR.ahDirty then return TR.ahCache end
+    local out = {}
+    for _, e in ipairs(ns.Moves.List()) do
+        if e.k == "ahsold" and Num(e.m) and e.m > 0 then out[#out + 1] = { t = e.t or 0, p = e.m } end
+    end
+    TR.ahCache, TR.ahDirty = out, false
+    return out
+end
+
+-- Gold vor 24 Stunden (ab 0.18): Aenderung, hoechster und tiefster Stand im Zeitraum, Beginn der Messung.
+-- name = ein Charakter (nil = alle). Ohne Stand von vor 24 Stunden zaehlt der erste Stand danach (since > now - 24h).
+-- nil, wenn es keinen Stand gibt.
+function TR.Change(name, now, span)
+    now = now or time()
+    span = span or 86400
+    local from = now - span
+    local list = TR.List()
+    local function Val(e)
+        if not e then return nil end
+        if name then return type(e.c) == "table" and Num(e.c[name]) and e.c[name] or nil end
+        return Num(e.g) and e.g or nil
+    end
+    local cur
+    if name then
+        local c = ns.Inventory.RealmData().chars[name]
+        cur = c and Num(c.money) and c.money or nil
+    else
+        cur = ns.Inventory.TotalMoney()
+        if not Num(cur) then cur = nil end
+    end
+    local base, since
+    local hi, lo = cur, cur
+    for _, e in ipairs(list) do
+        local v = Val(e)
+        if v then
+            local t = e.t or 0
+            if t <= from then
+                base, since = v, from
+            elseif t <= now then
+                if not base then base, since = v, t end
+                hi = math.max(hi or v, v); lo = math.min(lo or v, v)
+            end
+        end
+    end
+    if base then hi = math.max(hi or base, base); lo = math.min(lo or base, base) end
+    if not base or not cur then return nil end
+    return cur - base, hi, lo, since
+end
+
 -- Erster Zeitpunkt mit Daten: erster Stand oder erste Bewegung
 function TR.First(now)
     local list = TR.List()
@@ -104,7 +155,7 @@ function TR.First(now)
     return first or now or time()
 end
 
--- Reihen fuer einen Zeitraum: { n, from, step, ends = { t }, gold = {}, worth = {}, trade = {} }
+-- Reihen fuer einen Zeitraum: { n, from, step, ends = { t }, gold = {}, ah = {}, trade = {}, chars = { [Name] = {} } }
 -- Ab 0.14.6 (Wunsch KarloDerBaer): Das Diagramm beginnt links beim ersten Wert und fuellt sich nach rechts.
 -- Erst wenn der Zeitraum voll ist, wandert es mit. Punkte nach "jetzt" bleiben leer.
 function TR.Series(key, now)
@@ -124,10 +175,14 @@ function TR.Series(key, now)
     end
     local n = def.points
     local step = span / n
-    local res = { n = n, from = from, step = step, ends = {}, gold = {}, worth = {}, trade = {}, key = def.key }
+    local ahs = TR.AHEvents()
+    local res = { n = n, from = from, step = step, ends = {}, gold = {}, trade = {}, ah = {}, chars = {}, key = def.key }
+    for name in pairs(ns.Inventory.RealmData().chars) do res.chars[name] = {} end
     local si, cur = 1, nil
     local ti, sum = 1, 0
+    local ai, asum = 1, 0
     while trades[ti] and trades[ti].t < from do ti = ti + 1 end
+    while ahs[ai] and ahs[ai].t < from do ai = ai + 1 end
     res.now = now
     for i = 1, n do
         local te = from + i * step
@@ -137,9 +192,16 @@ function TR.Series(key, now)
             -- letzter Punkt bis "jetzt": der aktuelle Stand
             local upto = math.min(te, now)
             while list[si] and (list[si].t or 0) <= upto do cur = list[si]; si = si + 1 end
-            if cur then res.gold[i] = cur.g; res.worth[i] = cur.w end
+            if cur then
+                res.gold[i] = cur.g
+                if type(cur.c) == "table" then
+                    for name, v in pairs(cur.c) do if res.chars[name] then res.chars[name][i] = v end end
+                end
+            end
             while trades[ti] and trades[ti].t <= upto do sum = sum + trades[ti].p; ti = ti + 1 end
+            while ahs[ai] and ahs[ai].t <= upto do asum = asum + ahs[ai].p; ai = ai + 1 end
             res.trade[i] = sum
+            res.ah[i] = asum
             res.last = i
         end
     end

@@ -2,6 +2,9 @@
 -- Optionsseite unter Einstellungen > AddOns > Peon > Ledger.
 -- Stand 0.2: Anzeige (Minimap-Button, Tooltip, Fenster), Charaktere (Liste, loeschen), Pruefung.
 -- Ab 0.3.2: Buch zuruecksetzen (Verlauf loeschen, aktueller Stand = neuer Anfangsbestand).
+-- Ab 0.18 drei Reiter nach dem Leitfaden: Allgemein (Fenster, Minimap, Tooltip, Postfenster), Anzeige (Bausteine im
+-- Tooltip), Erweitert (Charaktere loeschen, Kosten, Inventur, Buch, Kontrollrechnung). Die Pruefung laeuft ueber
+-- /ledger pruefen.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -50,21 +53,26 @@ end
 function ns.CreateOptions()
     local mod = ns.mod
     if mod.page then return end
-    local page = mod:NewOptionsPage({ desc = L.DESC })
-    local left = page:Column(16, -60)
+    local page = mod:NewOptionsPage({ desc = L.DESC, tipHints = true })   -- Hinweise als Tooltip (Kern-API 29)
+    -- ab 0.18 nach dem Leitfaden (docs/konzepte/Peon_Einstellungen_Leitfaden.md): drei Reiter, ohne Block Pruefung
+    -- (/ledger pruefen bleibt)
+    page:Tabs({ { "general", L.OPT_TAB_GENERAL }, { "show", L.OPT_TAB_SHOW }, { "advanced", L.OPT_TAB_ADVANCED } }, -62)
 
-    -- Anzeige
-    page:Add(left, page:Header(L.HDR_SHOW), 6)
-    page:Add(left, page:Check("minimapShow", L.OPT_MINIMAP), 4)
-    page:Add(left, page:Check("tooltipShow", L.OPT_TOOLTIP, L.OPT_TOOLTIP_HINT), 4)
-    page:Add(left, page:Check("mailWindow", L.OPT_MAIL, L.OPT_MAIL_HINT), 4)
-    page:Add(left, page:Button(L.BTN_WINDOW, function() ns.Window.Toggle() end), 16)
+    -- Allgemein
+    local general = page:Column(16, -100, "general")
+    page:Add(general, page:Button(L.BTN_WINDOW, function() ns.Window.Toggle() end, L.BTN_WINDOW_HINT), 12)
+    page:Add(general, page:Check("minimapShow", L.OPT_MINIMAP, L.OPT_MINIMAP_HINT), 4)
+    page:Add(general, page:Check("tooltipShow", L.OPT_TOOLTIP, L.OPT_TOOLTIP_HINT), 4)
+    page:Add(general, page:Check("mailWindow", L.OPT_MAIL, L.OPT_MAIL_HINT), 4)
 
-    -- Tooltip (ab 0.14.2): Bausteine wie bei Broker
-    page:Add(left, page:Header(L.HDR_TOOLTIP), 6)
-    ns.Tooltip.BuildOptions(page, left)
+    -- Anzeige: Bausteine im Tooltip (ab 0.14.2, wie bei Broker)
+    local show = page:Column(16, -100, "show")
+    page:Add(show, page:Header(L.HDR_TOOLTIP), 6)
+    ns.Tooltip.BuildOptions(page, show)
 
-    -- Charaktere
+    -- Erweitert
+    local left = page:Column(16, -100, "advanced")
+    page:Add(left, page:Text(function() return L.OPT_ADVANCED_HINT end), 10)
     page:Add(left, page:Header(L.HDR_CHARS), 6)
     local chars = page:Add(left, page:List({
         columns = {
@@ -108,11 +116,6 @@ function ns.CreateOptions()
     end, L.BTN_CHECK_HINT), 4)
     page:Add(left, page:Text(function() return L.BOOK_INFO:format(#ns.Moves.List()) end), 16)
 
-    -- Pruefung (Entwicklung)
-    page:Add(left, page:Header(L.HDR_PROBE), 6)
-    page:Add(left, page:Button(L.PROBE_RUN, function(p) mod:Call("Pruefung", ns.Probe.Run); p:Refresh() end, L.PROBE_HINT))
-    page:Add(left, page:Text(function() return ns.Probe.Summary() end))
-
-    page:AddResetButton(L.SLASH_HINT, left)
+    page:AddResetButton(L.SLASH_HINT, general, show, left)
     page:Register()
 end

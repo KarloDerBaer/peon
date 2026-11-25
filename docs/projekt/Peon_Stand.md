@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 21.11.2026. Peon 0.29.0 (API 29) / Broker 0.132.0 / Ledger 0.17.3 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.7.5 / ClassBuddy 0.4.1 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.4.1 / Profession 0.8.0 / Warhorn 0.6.0.
+Stand: 25.11.2026. Peon 0.29.0 (API 29) / Broker 0.132.0 / Ledger 0.18.0 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.7.5 / ClassBuddy 0.4.1 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.4.1 / Profession 0.8.0 / Warhorn 0.6.0.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -93,11 +93,15 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Schnittstelle: `mod:Chances(market)` und ab 0.13.0 `mod:Compare(market)` (Marktvergleich, `markets[Heimat].cmp`), ab 0.14.0 `mod:Packages(market)` (`markets[Heimat].pkg`) für Broker.
 - Befehle: `/peon bridge`, `/peon bridge senden`, `/peon bridge status`, `/peon debug bridge`.
 
-## Peon_Ledger – 0.17.3 (Bestand, Buch und Postfenster)
+## Peon_Ledger – 0.18.0 (Charaktere, Buch und Postfenster)
 
-- Konzepte: `docs\konzepte\ledger\` (Konzept, Zuordnen, Gegenstand, Neuaufbau, Buch_AH). Es gilt der Neuaufbau (0.14.0) mit dem Buch nach `Peon_Ledger_Buch_AH.md` (0.15.0).
-- Dateien: Locales.lua, Ledger.lua, Inventory.lua, Moves.lua, Cost.lua, Check.lua, Last.lua, Trend.lua, Tooltip.lua, Window.lua, Overview.lua, Stock.lua, History.lua, Book.lua, Info.lua, Mail.lua, Pick.lua, Probe.lua, Options.lua, Bindings.xml
-- Fenster mit Reitern Übersicht, Bestand, Buch, Verlauf, Info. Eigenes Postfenster Peon Post (`mailWindow`).
+- Konzepte: `docs\konzepte\ledger\` (Konzept, Zuordnen, Gegenstand, Neuaufbau, Buch_AH, Schlank). Es gilt der Neuaufbau (0.14.0) mit dem Buch nach `Peon_Ledger_Buch_AH.md` (0.15.0) und der Oberfläche nach `Peon_Ledger_Schlank.md` (0.18.0, S1, S2, S4, S5).
+- Dateien: Locales.lua, Ledger.lua, Inventory.lua, Moves.lua, Cost.lua, Check.lua, Last.lua, Trend.lua, Tooltip.lua, Window.lua, Overview.lua, Chars.lua, History.lua, Book.lua, Info.lua, Mail.lua, Pick.lua, Probe.lua, Options.lua, Bindings.xml
+- Fenster mit Reitern Übersicht, Charaktere, Buch, Verlauf, Info. Eigenes Postfenster Peon Post (`mailWindow`).
+- Übersicht (ab 0.18.0): Kacheln Gold gesamt, Gold 24 Std., AH-Erlös heute. Charakterliste mit Spalte 24 Std., Klick öffnet den Charakter. Diagramm mit Menü „Linien“ (`trendLines`: Gold, AH-Erlös, Handelsgewinn geschätzt, Gold je Charakter).
+- Charaktere (ab 0.18.0): Orte je Charakter zum Aufklappen, Suche über alle Charaktere, Knöpfe „Taschen in Bags“ und „Bank in Bags“ (Peon_Bags `ShowSaved`).
+- Verlauf (ab 0.18.0): nach Tagen, Filter als Knöpfe mit Vorgabe „Wichtiges“, Umbuchungen erst mit Haken, Sprung aus dem Buch (Klick auf eine Zeile „Nach Art“).
+- Einstellungen (ab 0.18.0) nach dem Leitfaden: Allgemein, Anzeige, Erweitert.
 - SavedVariables `PeonLedgerDB` (Konto): Einstellungen, `realms[Realm]` mit `chars[Vorname Nachname]` (Bestand je Ort), `moves` (Bewegungen, älteste zuerst, nach 90 Tagen in `weeks`, ab 0.17.0 Haus `h` bei Bewegungen im Auktionshaus), `bookV`, `last`, `trend`, `pre`, dazu `items`, `session`, Fehlersuche `mailLog`, `bankLog`, Prüfung `probe`, `probeEvents`, `probeHooks`, `probeSnaps`.
 - Schnittstellen: `mod:Stock`, `mod:StockOthers`, `mod:Cost`, `mod:OpenFee`, `mod:SellRate`, `mod:LastBuy`, `mod:LastSale`, `mod:ShowItem`, `mod:HouseLots` (ab 0.17.0).
 - Kostenrechnung: Beute, Benutzt, Quest und Zerstört trägt Ledger ab 0.17.2 in den gespeicherten Stand nach (`Cost.Add`), alles andere rechnet 2 Sekunden später im Hintergrund neu (ab 0.17.1). Im Kampf zeigt der Tooltip den letzten Stand. Marktwerte fragt eine Rechnung je Gegenstand nur einmal.
@@ -140,7 +144,7 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Braucht Peon API 11 (Reiter), Hinweise als Tooltip ab API 29.
 - Optionsseite (ab 0.9.0, Leitfaden für Einstellungen): Reiter Allgemein, Anzeige, Erweitert. Eigene Bereiche nur im Fenster über „Einstellen“.
 - Befehle: `/peon bags`, `/peon bags optionen`, `/peon bags debug`.
-- Offen: Gildenbank speichern und zeigen (Ledger-Konzept S6, erst wenn mit einer Gildenbank prüfbar). Ledger hängt den Knopf [Bags] im Reiter Charaktere ein (Auftrag „Ledger schlank“).
+- Offen: Gildenbank speichern und zeigen (Ledger-Konzept S6, erst wenn mit einer Gildenbank prüfbar). Ledger 0.18.0 nutzt `ShowSaved` und `HasSaved` für Taschen und Bank.
 
 ## Peon_Profession – 0.8.0 (Berufe)
 

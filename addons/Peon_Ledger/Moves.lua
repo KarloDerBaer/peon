@@ -160,7 +160,7 @@ function M.Changed(e, dn, dm, oldT)
         if ns.Cost.Soon then ns.Cost.Soon() end   -- ab 0.17.1 im Hintergrund
     end
     if ns.Last then ns.Last.dirty = true end
-    if ns.Trend then ns.Trend.tradeDirty = true end
+    if ns.Trend then ns.Trend.tradeDirty = true; ns.Trend.ahDirty = true end
     if ns.Window and ns.Window.OnData then ns.Window.OnData() end
 end
 

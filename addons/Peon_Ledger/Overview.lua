@@ -1,11 +1,12 @@
 -- Peon_Ledger - Overview.lua
 -- Reiter "Uebersicht": "Wie stehe ich da?" (ab 0.14 mit Peon.UI, Konzept Peon_Ledger_Neuaufbau.md Abschnitt 6.1)
---   oben drei Kacheln: Gold gesamt (Aenderung heute), Vermoegen, Handelsgewinn heute
---   darunter alle Charaktere des Realms: Name, Stufe, Gold, Lagerwert, Vermoegen (ab 0.14.4), zuletzt gesehen
---   Lagerkosten = was die Waren gekostet haben, Vermoegen = Gold + heutiger Marktwert der Waren (Broker).
---   Ab 0.14.5 darunter ein Diagramm mit Gold, Vermoegen und Handelsgewinn (Trend.lua), Zeitraum 1 T bis Alles.
+-- Ab 0.18 schlank (Konzept Peon_Ledger_Schlank.md Abschnitt 4, KarloDerBaer): ohne Vermoegen und Marktwert.
+--   oben drei Kacheln: Gold gesamt (Anzahl Charaktere), Gold 24 Std. (Mausover: hoechster und tiefster Stand),
+--   AH-Erloes heute aus den Rechnungen (Mausover: Handelsgewinn, geschaetzt)
+--   darunter alle Charaktere des Realms: Name, Stufe, Gold, 24 Std., zuletzt gesehen. Klick oeffnet den Charakter im
+--   Reiter Charaktere.
+--   unten ein Diagramm mit waehlbaren Linien (Gold, AH-Erloes, Handelsgewinn, Gold je Charakter), Zeitraum 1 T bis Alles.
 --   Ab 0.14.1 ohne Post (KarloDerBaer): Das Spiel nennt die Post erst am Briefkasten, die Zahl war oft veraltet.
--- Vermoegen = Gold + Wert der Gegenstaende (Preise von Peon_Broker), Gebundenes zum Haendlerpreis (ns.Worth).
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -17,41 +18,17 @@ ns.Overview = O
 
 local GREY = W.GREY
 
--- Vermoegen eines Charakters: Gold (+ Gold an Twinks unterwegs) + Wert der Gegenstaende. nil ohne Broker.
-O.VALUE_PLACES = { "bags", "bank", "auctions", "transit", "equip" }
-function O.Worth(c, cache)
-    if not ns.HasBroker() then return nil end
-    local items, missing = 0, 0
-    for _, place in ipairs(O.VALUE_PLACES) do
-        local p = c.places[place]
-        if type(p) == "table" and type(p.items) == "table" then
-            for id, n in pairs(p.items) do
-                local b = ns.Inventory.BoundIn(p, place, id, n)
-                local k = id .. ":" .. n .. ":" .. b
-                local v = cache[k]
-                if v == nil then v = ns.Worth(id, n, b) or false; cache[k] = v end
-                if v then items = items + v else missing = missing + 1 end
-            end
-        end
-    end
-    local gold = (c.money or 0) + (type(c.places.transit) == "table" and tonumber(c.places.transit.money) or 0)
-    return gold + items, items, missing
-end
-
 function O.Rows()
     local I = ns.Inventory
     local rows, me = {}, ns.CharName()
-    local cache = {}
     for name, c in pairs(I.RealmData().chars) do
         local r = {
             name = name, class = c.class, me = name == me, money = c.money, level = c.level, faction = c.faction,
             bags = I.PlaceCount(c, "bags"), bank = I.PlaceCount(c, "bank"), auctions = I.PlaceCount(c, "auctions"),
             equip = I.PlaceCount(c, "equip"), transit = I.PlaceCount(c, "transit"),
-            seen = c.seen, slots = {}, mail = I.MailInfo(c),
-            lager = ns.Cost and ns.Cost.TotalValue(name) or nil,
+            seen = c.seen, slots = {},
         }
-        r.worth, r.itemsValue, r.missing = O.Worth(c, cache)
-        r.mailSort = r.mail and (r.mail.letters * 1e9 + r.mail.money) or -1
+        r.d24 = ns.Trend.Change(name)
         for _, key in ipairs({ "bags", "bank", "auctions" }) do
             local used, all = I.PlaceSlots(c, key)
             if used then r.slots[key] = { used, all } end
@@ -62,33 +39,15 @@ function O.Rows()
 end
 
 function O.Totals(rows)
-    local t = { money = 0, chars = 0, worth = 0, items = 0, missing = 0, hasWorth = false,
-                letters = 0, mailMoney = 0, nextExp = nil, mailKnown = false }
+    local t = { money = 0, chars = 0 }
     for _, r in ipairs(rows) do
         if type(r.money) == "number" then t.money = t.money + r.money; t.chars = t.chars + 1 end
-        if r.worth then t.hasWorth = true; t.worth = t.worth + r.worth; t.items = t.items + (r.itemsValue or 0); t.missing = t.missing + (r.missing or 0) end
-        if r.mail then
-            t.mailKnown = true
-            t.letters = t.letters + (r.mail.letters or 0)
-            t.mailMoney = t.mailMoney + (r.mail.money or 0)
-            if r.mail.next and (not t.nextExp or r.mail.next < t.nextExp) then t.nextExp = r.mail.next end
-        end
     end
     return t
 end
 
--- Ablauf als Text: "2 T.", gelb unter 3 Tagen, rot unter 1 Tag
-function O.ExpText(t)
-    if not t then return "" end
-    local d = (t - time()) / 86400
-    local txt = d >= 1 and L.AGE_DAYS:format(math.floor(d)) or L.AGE_HOURS:format(math.max(0, math.floor(d * 24)))
-    if d < 1 then return W.RED .. txt .. "|r" end
-    if d < 3 then return W.YELLOW .. txt .. "|r" end
-    return txt
-end
-
--- Kachel: Ueberschrift, grosser Wert, kleiner Zusatz
-local function Tile(parent, x, y, w, h, title)
+-- Kachel: Ueberschrift, grosser Wert, kleiner Zusatz, optional Tooltip (tip(self))
+local function Tile(parent, x, y, w, h, title, tip)
     local U = Peon.UI
     local p = U.Panel(parent, "left")
     p:SetPoint("TOPLEFT", x, y)
@@ -106,7 +65,35 @@ local function Tile(parent, x, y, w, h, title)
     p.sub:SetWidth(w - 24)
     if p.sub.SetWordWrap then p.sub:SetWordWrap(false) end
     function p:Set(big, sub) self.big:SetText(big or ""); self.sub:SetText(sub or "") end
+    if tip then
+        if p.EnableMouse then p:EnableMouse(true) end
+        p:SetScript("OnEnter", function(self) tip(self) end)
+        p:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    end
     return p
+end
+
+-- Beginn des heutigen Tages
+local function Today(now)
+    local d = date("*t", now or time())
+    return time({ year = d.year, month = d.month, day = d.day, hour = 0, min = 0, sec = 0 })
+end
+
+-- AH-Erloes ab einem Zeitpunkt aus den Rechnungen: Summe (Kupfer), Anzahl Verkaeufe
+function O.AHRevenue(from)
+    local sum, n = 0, 0
+    for _, e in ipairs(ns.Moves.List()) do
+        if e.k == "ahsold" and type(e.m) == "number" and e.m > 0 and (e.t or 0) >= from then
+            sum, n = sum + e.m, n + 1
+        end
+    end
+    return sum, n
+end
+
+-- Zusatz der Kachel Gold 24 Std.: "seit 24 Std." oder "seit 14:05" (Messung juenger)
+local function SinceText(since, now)
+    if not since or since <= (now or time()) - 86400 + 60 then return L.OV_D24_SUB end
+    return L.OV_D24_SINCE:format(date("%H:%M", since))
 end
 
 function O.Refresh()
@@ -115,73 +102,175 @@ function O.Refresh()
     O.table:SetData(rows)
     local t = O.Totals(rows)
     O.totals = t
-    local today = ns.Book.Collect("today", false)
-    O.tiles.gold:Set(ns.Money(t.money, true), L.OV_TODAY:format(W.Signed(today.profit)) .. "  ·  " .. ns.Plural(t.chars, "OV_CHARS"))
-    if ns.HasBroker() then
-        local sub = L.OV_ITEMS_VALUE:format(ns.Money(t.items, true))
-        if t.missing > 0 then sub = sub .. GREY .. "  ·  " .. L.OV_NOPRICE:format(t.missing) .. "|r" end
-        O.tiles.worth:Set(ns.Money(t.worth, true), sub)
-    else
-        O.tiles.worth:Set(GREY .. "–|r", GREY .. L.OV_NOBROKER .. "|r")
-    end
-    local lager = ns.Cost and ns.Cost.TotalValue() or 0
     if ns.Trend then mod:Call("Verlauf Gold", ns.Trend.Record) end
+    O.tiles.gold:Set(ns.Money(t.money, true), ns.Plural(t.chars, "OV_CHARS"))
+    local now = time()
+    local d, hi, lo, since = ns.Trend.Change(nil, now)
+    O.day = { d = d, hi = hi, lo = lo, since = since }
+    if d then O.tiles.day:Set(W.Signed(d), SinceText(since, now)) else O.tiles.day:Set(GREY .. "–|r", GREY .. L.OV_D24_NONE .. "|r") end
+    local sum, n = O.AHRevenue(Today(now))
+    O.ahToday = { sum = sum, n = n }
+    O.tiles.ah:Set(ns.Money(sum, true), ns.Plural(n, "OV_AH_SALES"))
     mod:Call("Diagramm", O.DrawChart)
-    O.tiles.trade:Set(W.Signed(today.trade or 0), ns.Plural(today.nsales or 0, "OV_TRADE_SUB", ns.Money(math.floor(lager + 0.5), true)))
+end
+
+-- Tooltip der Kachel Gold 24 Std.: hoechster und tiefster Stand
+function O.DayTooltip(owner)
+    if not GameTooltip then return end
+    local x = O.day or {}
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(L.OV_T_D24, 1, 0.82, 0)
+    if x.d then
+        GameTooltip:AddDoubleLine(L.OV_D24_HI, ns.Money(x.hi or 0, true), 0.9, 0.9, 0.9, 1, 1, 1)
+        GameTooltip:AddDoubleLine(L.OV_D24_LO, ns.Money(x.lo or 0, true), 0.9, 0.9, 0.9, 1, 1, 1)
+    end
+    GameTooltip:AddLine(L.OV_D24_TT, 0.6, 0.6, 0.6, true)
+    GameTooltip:Show()
+end
+
+-- Tooltip der Kachel AH-Erloes: Handelsgewinn heute, geschaetzt
+function O.AHTooltip(owner)
+    if not GameTooltip then return end
+    local today = ns.Book.Collect("today", false)
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(L.OV_T_AH, 1, 0.82, 0)
+    GameTooltip:AddLine(L.OV_AH_TT, 0.9, 0.9, 0.9, true)
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddDoubleLine(L.BK_R_TRADE, W.Signed(today.trade or 0), 1, 0.82, 0, 1, 1, 1)
+    GameTooltip:AddLine(L.OV_TRADE_EST, 0.6, 0.6, 0.6, true)
+    GameTooltip:Show()
 end
 
 ---------------------------------------------------------------------------
--- Diagramm (ab 0.14.5)
+-- Diagramm (ab 0.14.5, ab 0.18 mit waehlbaren Linien)
 ---------------------------------------------------------------------------
 O.CHART_H = 196
-O.COLORS = { gold = { 1, 0.82, 0, 1 }, worth = { 0.35, 0.85, 0.35, 1 }, trade = { 0.45, 0.7, 1, 1 } }
+O.COLORS = { gold = { 1, 0.82, 0, 1 }, ah = { 0.35, 0.85, 0.35, 1 }, trade = { 0.45, 0.7, 1, 1 } }
+-- Farben fuer die Linien je Charakter (der Reihe nach)
+O.CHAR_COLORS = {
+    { 0.95, 0.5, 0.25, 1 }, { 0.8, 0.45, 0.95, 1 }, { 0.3, 0.85, 0.85, 1 }, { 0.95, 0.4, 0.6, 1 },
+    { 0.7, 0.75, 0.3, 1 }, { 0.55, 0.6, 1, 1 }, { 0.9, 0.9, 0.9, 1 }, { 0.6, 0.4, 0.25, 1 },
+}
+-- feste Linien: Schluessel, Beschriftung, Vorgabe an (Konzept Abschnitt 4.3)
+O.LINES = { { key = "gold", label = "TR_GOLD", on = true }, { key = "ah", label = "TR_AH", on = true },
+            { key = "trade", label = "TR_TRADE_EST", on = false } }
 
 local function Short(v) if v == nil then return "" end return (v < 0 and "-" or "") .. Peon.ShortGold(math.abs(v)) end
+
+-- Linie sichtbar? mod.db.trendLines[key] (ab 0.18), sonst Vorgabe. Fuer Gold gilt noch trendOff aus 0.14.5.
+function O.LineOn(key)
+    local v = type(mod.db.trendLines) == "table" and mod.db.trendLines[key]
+    if v ~= nil and v ~= false and v ~= true then v = nil end
+    if v ~= nil then return v end
+    for _, l in ipairs(O.LINES) do
+        if l.key == key then
+            if key == "gold" and type(mod.db.trendOff) == "table" and mod.db.trendOff.gold then return false end
+            return l.on
+        end
+    end
+    return false   -- Linien je Charakter: Vorgabe aus
+end
+
+function O.SetLine(key, on)
+    if type(mod.db.trendLines) ~= "table" then mod.db.trendLines = {} end
+    mod.db.trendLines[key] = on and true or false
+    mod:Call("Diagramm", O.DrawChart)
+end
+
+-- Charaktere fuer das Menue und die Linien: eingeloggter zuerst, dann nach Name
+function O.ChartChars()
+    local names, me = {}, ns.CharName()
+    for name in pairs(ns.Inventory.RealmData().chars) do names[#names + 1] = name end
+    table.sort(names, function(a, b) if (a == me) ~= (b == me) then return a == me end return a < b end)
+    return names
+end
+
+function O.CharColor(i) return O.CHAR_COLORS[((i - 1) % #O.CHAR_COLORS) + 1] end
+
+local function Hex(c) return ("|cff%02x%02x%02x"):format(math.floor(c[1] * 255), math.floor(c[2] * 255), math.floor(c[3] * 255)) end
+
+-- sichtbare Linien als { key, label, color, kind = "gold"|"sum" }
+function O.VisibleLines()
+    local out = {}
+    for _, l in ipairs(O.LINES) do
+        if O.LineOn(l.key) then out[#out + 1] = { key = l.key, label = L[l.label], color = O.COLORS[l.key], sum = l.key ~= "gold" } end
+    end
+    for i, name in ipairs(O.ChartChars()) do
+        local key = "char:" .. name
+        if O.LineOn(key) then out[#out + 1] = { key = key, name = name, label = ns.Tooltip.Short(name), color = O.CharColor(i) } end
+    end
+    return out
+end
 
 function O.DrawChart()
     local ch = O.chart
     if not ch then return end
     local d = ns.Trend.Series(mod.db.trendRange or "d7")
     O.series = d
-    ch:SetData(d.n, {
-        { key = "gold", kind = "line", axis = "left", values = d.gold, color = O.COLORS.gold, width = 2, connect = true, label = L.TR_GOLD },
-        { key = "worth", kind = "line", axis = "left", values = d.worth, color = O.COLORS.worth, width = 2, connect = true, label = L.TR_WORTH },
-        { key = "trade", kind = "step", axis = "right", values = d.trade, color = O.COLORS.trade, width = 2, label = L.TR_TRADE },
-        { key = "zero", kind = "hline", axis = "right", value = 0, color = { 0.45, 0.7, 1, 0.3 } },
-    })
-    for k, off in pairs(mod.db.trendOff or {}) do if off then ch:SetShown(k, false) end end
-    -- rechte Achse (Handelsgewinn) mindestens 1g hoch, sonst stuenden bei 0 nur "0s"-Beschriftungen (ab 0.14.6)
+    local series = {}
+    O.lines = O.VisibleLines()
+    local anyRight = false
+    for _, l in ipairs(O.lines) do
+        if l.key == "gold" then
+            series[#series + 1] = { key = "gold", kind = "line", axis = "left", values = d.gold, color = l.color, width = 2, connect = true, label = l.label }
+        elseif l.name then
+            series[#series + 1] = { key = l.key, kind = "line", axis = "left", values = d.chars[l.name] or {}, color = l.color, width = 2, connect = true, label = l.label }
+        else
+            anyRight = true
+            series[#series + 1] = { key = l.key, kind = "step", axis = "right", values = d[l.key], color = l.color, width = 2, label = l.label }
+        end
+    end
+    if anyRight then series[#series + 1] = { key = "zero", kind = "hline", axis = "right", value = 0, color = { 0.45, 0.7, 1, 0.3 } } end
+    ch:SetData(d.n, series)
+    -- rechte Achse (Erloes, Handelsgewinn) mindestens 1g hoch, sonst stuenden bei 0 nur "0s"-Beschriftungen (ab 0.14.6)
     local lo, hi = 0, 0
-    for i = 1, d.n do local v = d.trade[i]; if v then lo, hi = math.min(lo, v), math.max(hi, v) end end
+    for _, l in ipairs(O.lines) do
+        if l.sum then for i = 1, d.n do local v = d[l.key][i]; if v then lo, hi = math.min(lo, v), math.max(hi, v) end end end
+    end
     if hi - lo < 10000 then ch:SetRange("right", lo, lo + 10000) else ch:SetRange("right", nil, nil) end
     ch:Draw()
-    if not O.legend and ch.CreateLegend then
-        O.legend = ch:CreateLegend(O.chartPanel, { "gold", "worth", "trade" }, function(key, on)
-            mod.db.trendOff = mod.db.trendOff or {}
-            mod.db.trendOff[key] = not on
-        end)
-        if O.legend and O.legend.frame then O.legend.frame:SetPoint("TOPRIGHT", O.chartPanel, "TOPRIGHT", -200, -8) end
-    end
     for _, b in ipairs(O.rangeButtons or {}) do
         if b.key == (mod.db.trendRange or "d7") then b:Disable() else b:Enable() end
     end
     O.ChartHover(nil)
 end
 
--- Werte unter der Maus (oder Hinweis)
+-- Werte unter der Maus, sonst die sichtbaren Linien in ihrer Farbe
 function O.ChartHover(i)
     local d = O.series
     if not O.chartInfo then return end
+    local lines = O.lines or {}
     if not i or not d or not d.ends[i] or not d.last or i > d.last then
-        O.chartInfo:SetText(W.GREY .. L.TR_HINT .. "|r")
+        local parts = {}
+        for _, l in ipairs(lines) do parts[#parts + 1] = Hex(l.color) .. "■|r " .. l.label end
+        O.chartInfo:SetText(table.concat(parts, "   ") .. (#parts > 0 and "   " or "") .. W.GREY .. L.TR_HINT .. "|r")
         return
     end
     local fmt = (d.key == "d1" or d.key == "d7") and "%d.%m. %H:%M" or "%d.%m."
     local parts = { date(fmt, math.min(d.ends[i], d.now or d.ends[i])) }
-    if d.gold[i] then parts[#parts + 1] = L.TR_GOLD .. " " .. ns.Money(d.gold[i], true) end
-    if d.worth[i] then parts[#parts + 1] = L.TR_WORTH .. " " .. ns.Money(d.worth[i], true) end
-    parts[#parts + 1] = L.TR_TRADE .. " " .. W.Signed(d.trade[i] or 0)
+    for _, l in ipairs(lines) do
+        local v
+        if l.name then v = d.chars[l.name] and d.chars[l.name][i] else v = d[l.key] and d[l.key][i] end
+        if v then
+            parts[#parts + 1] = Hex(l.color) .. l.label .. "|r " .. (l.sum and W.Signed(v) or ns.Money(v, true))
+        end
+    end
     O.chartInfo:SetText(table.concat(parts, "   "))
+end
+
+-- Menue "Linien": feste Linien und je Charakter ein Haken
+function O.BuildLineMenu(root)
+    for _, l in ipairs(O.LINES) do
+        root:CreateCheckbox(Hex(O.COLORS[l.key]) .. L[l.label] .. "|r", function() return O.LineOn(l.key) end,
+            function() O.SetLine(l.key, not O.LineOn(l.key)) end)
+    end
+    if root.CreateDivider then root:CreateDivider() end
+    if root.CreateTitle then root:CreateTitle(L.TR_CHARS) end
+    for i, name in ipairs(O.ChartChars()) do
+        local key = "char:" .. name
+        root:CreateCheckbox(Hex(O.CharColor(i)) .. name .. "|r", function() return O.LineOn(key) end,
+            function() O.SetLine(key, not O.LineOn(key)) end)
+    end
 end
 
 function O.BuildChart(c, a)
@@ -203,6 +292,8 @@ function O.BuildChart(c, a)
         O.rangeButtons[#O.rangeButtons + 1] = b
         prev = b
     end
+    O.lineMenu = U.FilterDropdown(p, L.TR_LINES, O.BuildLineMenu)
+    O.lineMenu:SetPoint("TOPRIGHT", -10, -6)
     O.chartInfo = p:CreateFontString(nil, "ARTWORK", U.FONT.small)
     O.chartInfo:SetPoint("BOTTOMLEFT", 12, 8)
     O.chartInfo:SetPoint("BOTTOMRIGHT", -12, 8)
@@ -245,14 +336,9 @@ function O.RowTooltip(row, r)
             GameTooltip:AddDoubleLine(L["PLACE_" .. key:upper()], right, 1, 1, 1, 0.8, 0.8, 0.8)
         end
     end
-    if r.worth then
-        GameTooltip:AddDoubleLine(L.TT_WORTH, ns.Money(r.worth), 1, 0.82, 0, 1, 1, 1)
-        GameTooltip:AddDoubleLine(L.TT_WORTH_ITEMS, ns.Money(r.itemsValue or 0), 0.8, 0.8, 0.8, 0.8, 0.8, 0.8)
-        if (r.missing or 0) > 0 then GameTooltip:AddLine(L.TT_WORTH_MISSING:format(r.missing), 0.6, 0.6, 0.6, true) end
-    end
     local p7 = ns.Book.Collect("d7", true, nil, r.name)
-    GameTooltip:AddDoubleLine(L.TT_TRADE7, W.Signed(p7.trade or 0), 1, 0.82, 0, 1, 1, 1)
     GameTooltip:AddDoubleLine(L.TT_PROFIT7, W.Signed(p7.profit), 1, 0.82, 0, 1, 1, 1)
+    GameTooltip:AddLine(L.OV_ROW_CLICK, 0.6, 0.6, 0.6, true)
     GameTooltip:Show()
 end
 
@@ -261,11 +347,11 @@ function O.Build(c)
     local a = W.Area()
     O.tiles = {}
     local gap = 4
-    local defs = { { "gold", L.OV_T_GOLD }, { "worth", L.OV_T_WORTH }, { "trade", L.OV_T_TRADE } }
+    local defs = { { "gold", L.OV_T_GOLD }, { "day", L.OV_T_D24, O.DayTooltip }, { "ah", L.OV_T_AH, O.AHTooltip } }
     local tw = math.floor((a.width - (#defs - 1) * gap) / #defs)
     local th = 64
     for i, d in ipairs(defs) do
-        O.tiles[d[1]] = Tile(c, a.left + (i - 1) * (tw + gap), -a.top, tw, th, d[2])
+        O.tiles[d[1]] = Tile(c, a.left + (i - 1) * (tw + gap), -a.top, tw, th, d[2], d[3])
     end
     local panel = U.Panel(c, "list", true)
     panel:SetPoint("TOPLEFT", a.left, -(a.top + th + 6))
@@ -278,16 +364,16 @@ function O.Build(c)
               format = function(v, r) return W.ClassColored(v, r.class) .. (r.me and (GREY .. " " .. L.OV_ME .. "|r") or "") end,
               sort = function(r) return W.Lower(r.name) end },
             { key = "level", title = L.COL_LEVEL, width = 60, align = "RIGHT" },
-            { key = "money", title = L.COL_GOLD, width = 120, align = "RIGHT", format = function(v) return v and ns.Money(v, true) or (GREY .. "–|r") end },
-            { key = "lager", title = L.COL_LAGER, width = 120, align = "RIGHT", format = function(v) return v and v > 0 and ns.Money(math.floor(v + 0.5), true) or (GREY .. "–|r") end },
-            { key = "worth", title = L.COL_WORTH, width = 130, align = "RIGHT", format = function(v) return v and ns.Money(math.floor(v + 0.5), true) or (GREY .. "–|r") end,
-              sort = function(r) return r.worth or -1 end },
-            { key = "seen", title = L.COL_SEEN, width = 90, align = "RIGHT", format = function(v, r) return r.me and L.AGE_NOW or ns.Age(v) end,
+            { key = "money", title = L.COL_GOLD, width = 130, align = "RIGHT", format = function(v) return v and ns.Money(v, true) or (GREY .. "–|r") end },
+            { key = "d24", title = L.COL_D24, width = 130, align = "RIGHT", format = function(v) return v and W.Signed(v) or (GREY .. "–|r") end,
+              sort = function(r) return r.d24 or -math.huge end },
+            { key = "seen", title = L.COL_SEEN, width = 100, align = "RIGHT", format = function(v, r) return r.me and L.AGE_NOW or ns.Age(v) end,
               sort = function(r) return r.me and math.huge or (r.seen or 0) end },
         },
         sortKey = "money", sortDesc = true,
         empty = L.OV_EMPTY,
         onEnter = function(row, r) O.RowTooltip(row, r) end,
+        onClick = function(r, button) if button == "LeftButton" and r and ns.Chars then ns.Chars.Open(r.name) end end,
     })
 end
 

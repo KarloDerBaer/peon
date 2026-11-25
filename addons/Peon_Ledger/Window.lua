@@ -2,7 +2,7 @@
 -- Ledger-Fenster. Ab 0.14 (Neuaufbau E4, Konzept Peon_Ledger_Neuaufbau.md Abschnitt 6) mit Peon.UI wie Broker:
 -- Fenster 800 x 538 im Look des Auktionshauses, vier Reiter unten, Statuszeile mit Kontrollrechnung und Gold.
 --   Uebersicht (Overview.lua)  "Wie stehe ich da?"
---   Bestand (Stock.lua)        "Was habe ich wo?"
+--   Charaktere (Chars.lua)     "Was liegt wo, bei welchem Charakter?" (ab 0.18, ersetzt Bestand)
 --   Buch (Book.lua)            "Was habe ich verdient, und wofuer ging Gold weg?"
 --   Verlauf (History.lua)      "Was ist passiert?"
 -- Jeder Reiter meldet sich mit W.pages[key] = { build = fn(content), refresh = fn() } an.
@@ -17,7 +17,7 @@ ns.Window = W
 
 W.TABS = {
     { key = "overview", label = "TAB_OVERVIEW" },
-    { key = "stock",    label = "TAB_STOCK" },
+    { key = "chars",    label = "TAB_CHARS" },     -- ab 0.18 statt Bestand
     { key = "book",     label = "TAB_BOOK" },
     { key = "history",  label = "TAB_HISTORY" },
     { key = "info",     label = "TAB_INFO" },      -- ab 0.14.5: Begriffe und Abweichungen
@@ -86,6 +86,7 @@ function W.IsOpen() return W.frame ~= nil and W.frame:IsShown() end
 
 function W.Select(key)
     W.Create()
+    if key == "stock" then key = "chars" end   -- bis 0.17 Bestand
     if not W.pages[key] then key = "overview" end
     W.current = key
     mod.db.windowTab = key

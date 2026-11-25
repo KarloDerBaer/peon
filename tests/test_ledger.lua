@@ -333,53 +333,78 @@ SlashCmdList.PEON_LEDGER("")
 local W = ns.Window
 local function rowsOf(t) return t.items end
 check(W.IsOpen() and W.current == "overview" and #rowsOf(ns.Overview.table) == 2, "Fenster: Uebersicht mit zwei Charakteren")
-check(#W.tabButtons == 5 and W.tabButtons[1].text == "Übersicht" and W.tabButtons[3].text == "Buch" and W.tabButtons[5].text == "Info", "0.14.5: fuenf Reiter (Uebersicht, Bestand, Buch, Verlauf, Info)")
+check(#W.tabButtons == 5 and W.tabButtons[1].text == "Übersicht" and W.tabButtons[2].text == "Charaktere" and W.tabButtons[3].text == "Buch" and W.tabButtons[5].text == "Info", "0.18: fuenf Reiter (Uebersicht, Charaktere, Buch, Verlauf, Info)")
 check(ns.Overview.TileText("gold"):find("2 Charaktere", 1, true), "Kachel Gold gesamt: " .. ns.Overview.TileText("gold"))
-check(ns.Overview.TileText("worth"):find("Peon_Broker", 1, true), "Kachel Vermoegen ohne Broker: Hinweis")
+check(ns.Overview.tiles.worth == nil and ns.Overview.tiles.day and ns.Overview.tiles.ah, "0.18: Kacheln ohne Vermoegen, mit Gold 24 Std. und AH-Erloes")
 check(ns.Overview.tiles.mail == nil, "0.14.1: keine Kachel Post (erst am Briefkasten bekannt)")
-check(ns.Overview.TileText("trade"):find("Verkäufe", 1, true), "Kachel Handelsgewinn heute")
+check(ns.Overview.TileText("ah"):find("Verkäufe", 1, true) and ns.Overview.tiles.ah.title.text == "AH-Erlös heute", "Kachel AH-Erloes heute: " .. ns.Overview.TileText("ah"))
 check(W.statusText and W.statusText:find("Charaktere", 1, true), "Statuszeile: " .. tostring(W.statusText))
 do
   local rowT
   for _, r in ipairs(rowsOf(ns.Overview.table)) do if r.me then rowT = r end end
-  local hasMail = false
-  for _, c in ipairs(ns.Overview.table.o.columns) do if c.key == "mailSort" then hasMail = true end end
-  local hasWorth = false
-  for _, c in ipairs(ns.Overview.table.o.columns) do if c.key == "worth" then hasWorth = true end end
-  check(not hasMail and hasWorth and #ns.Overview.table.o.columns == 6, "0.14.4: Uebersicht ohne Post, mit Vermoegen je Charakter")
-  check(ns.Overview.tiles.worth.title.text == "Vermögen gesamt", "Kachel heisst Vermoegen gesamt")
+  local keys = {}
+  for _, c in ipairs(ns.Overview.table.o.columns) do keys[#keys + 1] = c.key end
+  check(table.concat(keys, ",") == "name,level,money,d24,seen", "0.18: Charakterliste Name, Stufe, Gold, 24 Std., zuletzt gesehen (" .. table.concat(keys, ",") .. ")")
   tt.lines = {}
   ns.Overview.RowTooltip({}, rowT)
   local found
   for _, l in ipairs(tt.lines) do if l:find(" frei)", 1, true) and l:find("Stück", 1, true) then found = l end end
   check(found, "Zeilen-Tooltip: Stueck und Plaetze (" .. tostring(found) .. ")")
+  tt.lines = {}
+  ns.Overview.AHTooltip({})
+  local est = false
+  for _, l in ipairs(tt.lines) do if l:find("Geschätzt", 1, true) then est = true end end
+  check(est, "0.18: Handelsgewinn nur im Mausover, mit Hinweis geschaetzt")
+  -- Klick auf einen Charakter oeffnet ihn im Reiter Charaktere
+  ns.Overview.table.o.onClick({ name = "Borin Stein" }, "LeftButton")
+  check(W.current == "chars" and ns.Chars.Selected() == "Borin Stein", "0.18: Klick in der Uebersicht oeffnet den Charakter")
 end
-W.Select("stock")
-local rows = rowsOf(ns.Stock.table)
-check(#rows == 4, "Bestand: alle Gegenstaende, ab 0.14 mit Ware in der Post (" .. #rows .. ")")
-ns.Stock.searchBox:SetText("lein"); ns.Stock.searchBox.scripts.OnTextChanged(ns.Stock.searchBox, true)
-rows = rowsOf(ns.Stock.table)
-check(#rows == 1 and rows[1].total == 48 and rows[1].where:find("Mirel: Taschen 15, Bank 20, Auktionen 8 · Borin: Taschen 5", 1, true), "Suche, Wo-Spalte")
-mod.db.stockChar = "Borin Stein"; W.Refresh()
-rows = rowsOf(ns.Stock.table)
-check(#rows == 1 and rows[1].total == 5 and rows[1].where == "Taschen 5", "Bestand: nur ein Charakter")
-mod.db.stockChar = "*"; mod.db.stockPlace = "mail"; ns.Stock.searchBox:SetText(""); ns.Stock.searchBox.scripts.OnTextChanged(ns.Stock.searchBox, true)
-rows = rowsOf(ns.Stock.table)
-check(#rows == 1 and rows[1].id == 1529 and rows[1].where:find("Post 4", 1, true), "Bestand: Ort Post (gekauft, noch nicht abgeholt)")
-mod.db.stockPlace = "all"; W.Refresh()
--- 0.14.2: Summenzeile und Kategorie
-local ft = ns.Stock.footer.texts
-check(ft and ft.label:find("Summe: 4 Gegenstände", 1, true) and ft.total == tostring(2 + 7 + 48 + 1 + 4), "Summenzeile: Anzahl und Stueck (" .. tostring(ft and ft.label) .. " / " .. tostring(ft and ft.total) .. ")")
+-- Reiter Charaktere (ab 0.18, ersetzt Bestand)
 C_Item.GetItemInfoInstant = function(id) local c = ({ [118] = 0, [2589] = 7, [6129] = 4, [1529] = 3 })[id] return id, "", "", "", 1, c, 0 end
-mod.db.stockCat = "trade"; W.Refresh()
-local ids = {} for _, r in ipairs(ns.Stock.table.items) do ids[#ids + 1] = r.id end
-table.sort(ids)
-check(table.concat(ids, ",") == "1529,2589" and ns.Stock.footer.texts.label:find("2 Gegenstände", 1, true), "Kategorie Handelswaren (mit Edelsteinen)")
-mod.db.stockCat = "equip"; W.Refresh()
-check(#ns.Stock.table.items == 1 and ns.Stock.table.items[1].id == 6129 and ns.Stock.footer.texts.label:find("1 Gegenstand", 1, true), "Kategorie Ausruestung, Einzahl in der Summe")
-mod.db.stockCat = "other"; W.Refresh()
-check(#ns.Stock.table.items == 0, "Kategorie Sonstiges: nichts")
-mod.db.stockCat = "all"; W.Refresh()
+local Ch = ns.Chars
+local function heads(rows) local t = {} for _, r in ipairs(rows) do if r.kind == "head" then t[#t + 1] = r.place .. (r.open and "+" or "-") end end return table.concat(t, ",") end
+local function itemsOf(rows) local t = {} for _, r in ipairs(rows) do if r.kind == "item" then t[#t + 1] = r.id end end return t end
+mod.db.charsChar = ""; W.Refresh()
+check(Ch.Selected() == "Mirel Dorna" and #rowsOf(Ch.list) == 3 and rowsOf(Ch.list)[1].name == "*", "Charaktere: links Alle und zwei Charaktere, Vorgabe der eingeloggte")
+local rows = rowsOf(Ch.table)
+check(heads(rows):find("^bags%+,bank%-") and heads(rows):find("equip%+"), "Orte: Taschen und Angelegt offen, Bank zu (" .. heads(rows) .. ")")
+-- Bank aufklappen
+for _, r in ipairs(rows) do if r.kind == "head" and r.place == "bank" then Ch.OnClick(r, "LeftButton") end end
+rows = rowsOf(Ch.table)
+check(heads(rows):find("bank%+"), "Kopfzeile klappt auf")
+mod.db.charsChar = "*"; W.Refresh()
+rows = rowsOf(Ch.table)
+local bagIds = {}
+for _, r in ipairs(rows) do if r.kind == "item" and r.place == "bags" then bagIds[#bagIds + 1] = r.id end end
+check(#bagIds >= 2, "Alle Charaktere: Taschen zusammengezaehlt (" .. table.concat(bagIds, ",") .. ")")
+local ranks = true
+for i = 2, #bagIds do if Ch.CatRank(bagIds[i]) < Ch.CatRank(bagIds[i - 1]) then ranks = false end end
+check(ranks, "Sortiert nach Kategorie wie in Bags")
+local mailHead
+for _, r in ipairs(rows) do if r.kind == "head" and r.place == "mail" then mailHead = r end end
+check(mailHead and mailHead.info:find("4", 1, true), "Ort Post (gekauft, noch nicht abgeholt)")
+-- Suche ueber alle Charaktere
+Ch.searchBox:SetText("lein"); Ch.searchBox.scripts.OnTextChanged(Ch.searchBox, true)
+rows = rowsOf(Ch.table)
+check(rows[1].kind == "match" and rows[1].total == 48 and rows[2].kind == "who" and rows[2].char == "Mirel Dorna"
+  and rows[2].text == "Taschen 15 · Bank 20 · Auktionen 8" and rows[3].char == "Borin Stein" and rows[3].text == "Taschen 5", "Suche: Summe und je Charakter die Orte")
+check(ns.Chars.Status():find("1 Gegenstand", 1, true), "Statuszeile bei Suche")
+Ch.OnClick(rows[3], "LeftButton")
+check(Ch.Selected() == "Borin Stein" and (Ch.search == nil or Ch.search == "") and Ch.IsOpen("bags"), "Klick auf Treffer waehlt den Charakter")
+check(Ch.Matches("1529") and Ch.Matches("1529")[1529] and Ch.Matches("|cnIQ1:|Hitem:1529::|h[x]|h|r")[1529], "Suche mit Nummer und Link")
+-- Bags: ohne Peon_Bags kein Knopf, mit Stand ein Knopf
+check(Ch.Bags() == nil and #Ch.bagButtons == 2, "ohne Peon_Bags kein Knopf [Bags]")
+do
+  local shown
+  Peon.modules.bags = { HasSaved = function(_, n, o) return o == "bags" end, ShowSaved = function(_, n, o) shown = n .. "|" .. o return true end }
+  W.Refresh()
+  local bb
+  for _, b in ipairs(Ch.bagButtons) do if b.ort == "bags" then bb = b end end
+  check(bb and Ch.Bags() and Ch.ShowInBags("bags") and shown == "Borin Stein|bags", "0.18: Knopf Taschen in Bags zeigt den gespeicherten Stand")
+  Peon.modules.bags = nil
+end
+mod.db.charsChar = ""
+W.Refresh()
 -- Optionen: Twink loeschen
 if mod.panel.scripts.OnShow then mod.panel.scripts.OnShow(mod.panel) end
 local cl
@@ -726,28 +751,45 @@ check(nfix == 2 and fx and fx.n == 3 and Mv.Side(fx) == "move" and Mv.Label(fx) 
 check(ns.Book.Collect("all", false).profit == p0 and #realm.moves == n0 + 2, "Korrektur zaehlt nicht als Gewinn")
 BAGS[0][13] = nil
 Mv.paused = true; bags(); settle(); Mv.paused = nil
--- Verlauf: Filter nach Art
+-- Verlauf: Filter nach Art (ab 0.18 Knoepfe, Tageszeilen)
 ns.Window.Select("history")
+check(mod.db.historyKind == "main" and mod.db.historyMoves == false and #ns.History.filterButtons == 10, "0.18: Vorgabe Wichtiges ohne Umbuchungen, zehn Knoepfe")
+local HE = ns.History.Entries
+local mainOk = #HE() > 0
+for _, r in ipairs(HE()) do if not ns.History.InFilter(r.e.k, "main") or r.side == "move" then mainOk = false end end
+check(mainOk, "Wichtiges: Auktionshaus, Haendler, Post, Handel ohne Umbuchungen")
+check(ns.History.table.items[1].day and ns.History.table.items[1].t == ns.History.DayStart(ns.History.table.items[2].t), "0.18: Kopfzeile je Tag vor den Zeilen")
+ns.History.filterButtons[10].scripts.OnClick()
+check(mod.db.historyKind == "more", "Knopf Weitere waehlt den Filter")
 mod.db.historyKind = "fix"; ns.History.Refresh()
-local onlyFix = true for _, r in ipairs(ns.History.table.items) do if r.e.k ~= "fix" then onlyFix = false end end
+local onlyFix = true for _, r in ipairs(HE()) do if r.e.k ~= "fix" then onlyFix = false end end
 local function nEnt(rows) local n = 0 for _, r in ipairs(rows) do n = n + (r.grp and #r.grp.list or 1) end return n end
-check(onlyFix and nEnt(ns.History.table.items) == 2 and #ns.History.table.items == 1, "Verlauf: nur Korrekturen (ab 0.8.1 eine Zeile)")
+check(onlyFix and nEnt(HE()) == 2 and #HE() == 1, "Verlauf: nur Korrekturen (ab 0.8.1 eine Zeile)")
 mod.db.historyKind = "ah"; ns.History.Refresh()
-local onlyAh = #ns.History.table.items > 0
-for _, r in ipairs(ns.History.table.items) do if not Mv.InGroup(r.e.k, "ah") then onlyAh = false end end
+local onlyAh = #HE() > 0
+for _, r in ipairs(HE()) do if not Mv.InGroup(r.e.k, "ah") then onlyAh = false end end
 check(onlyAh, "Verlauf: nur Auktionshaus")
-mod.db.historyKind = "all"
+mod.db.historyKind = "all"; mod.db.historyMoves = true
 -- Verlauf
 ns.Window.Select("history")
-local rows = ns.History.table.items
+local rows = HE()
 local nEntries = 0 for _, r in ipairs(rows) do nEntries = nEntries + (r.grp and #r.grp.list or 1) end
 check(nEntries == #realm.moves and (rows[1].e == realm.moves[#realm.moves] or (rows[1].grp and rows[1].grp.list[1] == realm.moves[#realm.moves])), "Verlauf: alle Eintraege (Herstellen zusammengefasst), neueste zuerst")
+-- Sprung aus dem Buch: Zeile AH: Kaeufe zeigt nur Kaeufe im Auktionshaus
+mod.db.bookPeriod = "all"
+check(ns.Book.JumpToHistory({ k = "ahsold", label = "AH: Verkäufe" }) and ns.History.jump and ns.Window.current == "history", "0.18: Klick im Buch springt in den Verlauf")
+local onlySold = true for _, r in ipairs(HE()) do if r.e.k ~= "ahsold" then onlySold = false end end
+check(onlySold and #HE() > 0 and ns.History.jumpButton.text:find("AH: Verkäufe", 1, true), "Filter aus dem Buch: nur Verkaeufe, Knopf zum Loeschen")
+check(not ns.Book.JumpToHistory({ k = "result" }), "Gesamtergebnis hat keinen Sprung")
+ns.History.jumpButton.scripts.OnClick()
+check(ns.History.jump == nil and nEnt(HE()) == #realm.moves, "Filter aus dem Buch geloescht")
+mod.db.bookPeriod = "d7"
 ns.History.searchBox:SetText("kupfer"); ns.History.searchBox.scripts.OnTextChanged(ns.History.searchBox, true)
-rows = ns.History.table.items
+rows = HE()
 check(#rows >= 3, "Verlauf: Suche (" .. #rows .. ")")
 ns.History.searchBox:SetText(""); ns.History.searchBox.scripts.OnTextChanged(ns.History.searchBox, true)
 ns.History.moves:SetChecked(false); ns.History.moves.scripts.OnClick(ns.History.moves)
-local nm = 0 for _, r in ipairs(ns.History.table.items) do if r.side == "move" then nm = nm + 1 end end
+local nm = 0 for _, r in ipairs(HE()) do if r.side == "move" then nm = nm + 1 end end
 check(nm == 0 and mod.db.historyMoves == false, "Verlauf: Umbuchungen ausblenden")
 ns.History.moves:SetChecked(true); ns.History.moves.scripts.OnClick(ns.History.moves)
 local col for _, c in ipairs(ns.History.table.o.columns) do if c.key == "m" then col = c end end
@@ -853,34 +895,20 @@ realm.chars["Borin Stein"] = { class = "MAGE", money = 50000, places = { bags = 
 realm.account.places.warband = { t = 1, items = { [2589] = 4 } }
 I.Changed()
 check(mod:StockOthers(2589) == 5 + 7 + 2 + 4, "Vorrat der Twinks fuer Broker: Taschen, Bank, unterwegs, Accountbank (ohne Briefkasten, Auktionen, Angelegtes)")
--- ohne Broker: kein Vermoegen
+-- ab 0.18 ohne Vermoegen in der Uebersicht, ns.Worth bleibt (Wert fuer Gebundenes)
 ns.Window.Select("overview")
-local rows = ns.Overview.table.items
-local g for _, r in ipairs(rows) do if r.name == "Borin Stein" then g = r end end
-check(g and g.worth == nil and ns.Overview.TileText("worth"):find("Peon_Broker", 1, true), "ohne Broker: kein Vermoegen, Hinweis in der Kachel")
+local g for _, r in ipairs(ns.Overview.table.items) do if r.name == "Borin Stein" then g = r end end
+check(g and g.worth == nil and g.money == 50000, "0.18: Charakterliste ohne Vermoegen")
 -- Broker (nachgebaut): 10c je Stueck
 Peon.modules.broker = { ItemValue = function(_, id, n) if id == 2589 then return 10 * n end return nil end }
-ns.Overview.Refresh()
-rows = ns.Overview.table.items
-for _, r in ipairs(rows) do if r.name == "Borin Stein" then g = r end end
-check(g.worth == 50000 + 10 * (5 + 7 + 2 + 9) and g.itemsValue == 230, "Vermoegen: Gold + Gegenstaende (ab 0.7.1 ohne Post-Gold, ohne Angelegtes)")
-check(ns.Overview.TileText("worth"):find("Waren", 1, true), "Vermoegen aller Charaktere in der Kachel: " .. ns.Overview.TileText("worth"))
--- ab 0.7.3: angelegte Ausruestung zaehlt immer, Gebundenes (auch Angelegtes) nur mit dem Haendlerpreis
+-- ab 0.7.3: Gebundenes nur mit dem Haendlerpreis
 local origGII = C_Item.GetItemInfo
 C_Item.GetItemInfo = function(id) local p = ({ [2589] = 3 })[id] return "x", nil, 1, 1, 1, "", "", 20, "", 1, p end
 realm.chars["Borin Stein"].places.bags.bound = { [2589] = 2 }
 realm.chars["Borin Stein"].places.bank.bound = { [2589] = 99 }   -- mehr gebunden als da: hoechstens alle
 I.Changed()
-ns.Overview.Refresh()
-for _, r in ipairs(ns.Overview.table.items) do if r.name == "Borin Stein" then g = r end end
-check(g.worth == 50000 + 10 * (3 + 2 + 9) + 3 * (2 + 7 + 1), "Vermoegen: Gebundenes und Angelegtes zum Haendlerpreis (" .. tostring(g.worth) .. ")")
 check(ns.Worth(2589, 4, 4) == 12 and ns.Worth(2589, 4, 0) == 40 and ns.Worth(2589, 4, 1) == 33, "ns.Worth: gebunden Haendlerpreis, sonst Broker")
 check(ns.Worth(4306, 2, 0) == nil and ns.Worth(4306, 2, 2) == 0, "ns.Worth: ohne Brokerpreis nil, nur gebunden ohne Haendlerpreis 0")
-ns.Window.Select("stock")
-local sv for _, r in ipairs(ns.Stock.table.items) do if r.id == 2589 then sv = r end end
-local e = ns.Stock.Collect("*", "all")[2589]
-check(sv and e.bound == 2 + 7 + 1 and sv.value == 10 * (sv.total - e.bound) + 3 * e.bound and ns.Stock.Status():find("Marktwert", 1, true), "Bestand: Spalte Marktwert (Gebundenes Haendlerpreis) und Summe")
-check(sv.startAll and sv.open == nil and ns.Stock.footer.texts.open ~= nil, "0.14.5: nur Startbestand: Kosten 0 (Start), kein offener Gewinn")
 -- Taschen lesen: gebundene Stueck werden gemerkt
 BAGS[0][9] = { itemID = 6129, stackCount = 1, isBound = true }
 I.quiet = true; I.ScanBags(); I.quiet = false
@@ -1170,7 +1198,7 @@ Mv.Changed()
 mod.db.historyKind = "all"
 ns.Window.Select("history")
 ns.History.Refresh()
-local rows = ns.History.table.items
+local rows = ns.History.Entries()
 local grp, single
 for _, r in ipairs(rows) do if r.grp then grp = r elseif r.x == "Anderes Rezept" then single = r end end
 check(#rows == 3, "Herstellen: ein Vorgang = eine Zeile (" .. #rows .. " Zeilen)")
@@ -1184,7 +1212,7 @@ ns.History.RowTooltip({}, grp)
 local hasMat for _, l in ipairs(tt.lines) do if l:find("Material:", 1, true) then hasMat = true end end
 check(hasMat, "Herstellen: Tooltip mit Material")
 ns.History.searchBox:SetText(string.lower(select(1, ns.Inventory.ItemInfo(159)) or "#159")); ns.History.searchBox.scripts.OnTextChanged(ns.History.searchBox, true)
-check(#ns.History.table.items >= 1 and ns.History.table.items[1].grp, "Suche findet Herstellen auch ueber das Material")
+check(#ns.History.Entries() >= 1 and ns.History.Entries()[1].grp, "Suche findet Herstellen auch ueber das Material")
 ns.History.searchBox:SetText(""); ns.History.searchBox.scripts.OnTextChanged(ns.History.searchBox, true)
 realm.moves = saved
 Mv.Changed()
@@ -1222,7 +1250,7 @@ Mv.Changed()
 mod.db.historyKind = "all"; mod.db.historyMoves = true; mod.db.historyOnlyMe = false
 ns.Window.Select("history")
 ns.History.Refresh()
-local rows = ns.History.table.items
+local rows = ns.History.Entries()
 local by = {}
 for _, r in ipairs(rows) do by[#by + 1] = r end
 local function find(fn) for _, r in ipairs(rows) do if fn(r) then return r end end end
@@ -1253,7 +1281,7 @@ ns.History.RowTooltip({}, vs)
 local tsum, tgrp for _, l in ipairs(tt.lines) do if l:find("Summe", 1, true) then tsum = true end if l:find("zusammengefasst", 1, true) then tgrp = true end end
 check(tsum and tgrp, "Tooltip: Eintraege einzeln mit Summe")
 mod.db.historyMoves = false; ns.History.Refresh()
-p1 = nil for _, r in ipairs(ns.History.table.items) do if r.e.k == "ahfee" and r.id == 2589 then p1 = r end end
+p1 = nil for _, r in ipairs(ns.History.Entries()) do if r.e.k == "ahfee" and r.id == 2589 then p1 = r end end
 check(p1 and not p1.grp, "ohne Umbuchungen: Gebuehr allein")
 mod.db.historyMoves = true
 realm.moves = saved
@@ -1266,7 +1294,7 @@ mod.acc.items[2592] = { n = "Wollstoff", q = 1, i = 132889 }
 check(ns.FindItem("wollstoff") == 2592 and ns.FindItem("woll") == 2592 and ns.FindItem("2592") == 2592 and ns.FindItem("|cnIQ1:|Hitem:2592::|h[x]|h|r") == 2592, "Gegenstand finden: Name, Teil, Nummer, Link")
 -- ohne Broker: Bestand mit Suche
 mod:ShowItem(2592)
-check(ns.Window.current == "stock" and ns.Stock.search == "Wollstoff", "ohne Broker: Bestand mit Suche nach dem Namen")
+check(ns.Window.current == "chars" and ns.Chars.search == "Wollstoff" and ns.Chars.searchBox.text == "Wollstoff", "ohne Broker: Charaktere mit Suche nach dem Namen")
 -- mit Broker: dessen Seite Gegenstand
 local shown
 Peon.modules.broker = { ShowItem = function(_, id) shown = id end, ItemValue = function() return nil end }
@@ -1286,7 +1314,7 @@ PeonLedger_ShowHoverItem()
 check(said("Kein Gegenstand unter der Maus"), "Tastenbelegung ohne Tooltip: Hinweis")
 tt.IsShown, tt.shown = nil, nil
 Peon.modules.broker = nil
-ns.Stock.search = nil
+ns.Chars.search = nil; ns.Chars.searchBox:SetText("")
 ns.Window.Select("overview")
 end)()
 
@@ -1779,15 +1807,9 @@ do
   local p = ns.Cost.Info(7103)
   check(p and p.n == 1 and p.sn == 1 and p.value == 0, "Hergestelltes nur aus Startbestand bleibt Startbestand (Kosten 0)")
   check(ns.Cost.Result(realm.moves[4]).sale and math.abs(ns.Cost.Result(realm.moves[4]).profit - 150) < 0.01, "Verkauf gekaufter Ware: Gewinn 1s 50c")
-  -- offener Gewinn im Bestand: 2 gekaufte zu 1s, 2 Startbestand, Marktwert 2s je Stueck
+  -- ab 0.18 ohne offenen Gewinn (Reiter Bestand faellt weg)
   local keepP = me.places
-  me.places = { bags = { t = 1, items = { [7102] = 4 } } }
   Peon.modules.broker = { ItemValue = function(_, id, n) return 200 * (n or 1) end }
-  ns.Window.Select("stock"); mod.db.stockChar = "*"; mod.db.stockPlace = "all"; mod.db.stockCat = "all"
-  ns.Stock.search = nil; if ns.Stock.searchBox then ns.Stock.searchBox:SetText("") end
-  ns.Window.Refresh()
-  local row for _, r in ipairs(ns.Stock.table.items) do if r.id == 7102 then row = r end end
-  check(row and row.startN == 2 and math.abs(row.open - (2 * 200 - 200)) < 0.01, "offener Gewinn: nur gekaufte Stuecke (2 x 2s Marktwert - 2s Kosten)")
   -- Verlauf fuer das Diagramm
   realm.trend = {}
   local T0 = time()
@@ -1796,7 +1818,17 @@ do
   ns.Trend.Record(false, T0 - 5 * 3600 + 30)
   check(#realm.trend == 1, "hoechstens ein Stand je Minute")
   ns.Trend.Record(true, T0 - 3600)
-  check(#realm.trend == 2 and realm.trend[2].w ~= nil, "Stand mit Gold und Vermoegen")
+  check(#realm.trend == 2 and realm.trend[2].w == nil and realm.trend[2].c and realm.trend[2].c["Mirel Dorna"] == me.money, "0.18: Stand mit Gold je Charakter, ohne Vermoegen")
+  -- 0.18: Goldaenderung 24 Std. (Stand vor 24 Std. fehlt: erster Stand danach)
+  local d24, hi24, lo24, since24 = ns.Trend.Change(nil, T0)
+  check(d24 == ns.Inventory.TotalMoney() - realm.trend[1].g and since24 == realm.trend[1].t and hi24 >= lo24, "Gold 24 Std.: Aenderung seit dem ersten Stand")
+  local c24 = ns.Trend.Change("Mirel Dorna", T0)
+  check(c24 == me.money - realm.trend[1].c["Mirel Dorna"], "Gold 24 Std. je Charakter")
+  local keep24 = realm.trend
+  realm.trend = { { t = T0 - 30 * 3600, g = 100 }, { t = T0 - 25 * 3600, g = 300 }, { t = T0 - 3600, g = 900 } }
+  local x24, xh, xl, xs = ns.Trend.Change(nil, T0)
+  check(x24 == ns.Inventory.TotalMoney() - 300 and xs == T0 - 86400 and xh >= 900 and xl <= 300, "Gold 24 Std.: Stand von vor 24 Std. zaehlt")
+  realm.trend = keep24
   local d = ns.Trend.Series("d1", T0)
   check(d.n == 24 and d.gold[1] == nil and d.gold[20] == realm.trend[1].g and d.gold[24] == realm.trend[2].g, "Reihe 1 Tag: 24 Stunden, vor dem ersten Stand leer")
   -- 0.14.6: Daten erst seit kurzem: links beginnen, rechts leer
@@ -1810,6 +1842,7 @@ do
   realm.moves = keepMv
   local d7 = ns.Trend.Series("d7", T0)
   check(d7.last and d7.last < d7.n and d7.trade[d7.last] and math.abs(d7.trade[d7.last] - 150) < 0.01, "Handelsgewinn im Zeitraum aufsummiert (Zeitraum noch nicht voll)")
+  check(d7.ah[d7.last] == 250 and d7.chars["Mirel Dorna"], "0.18: AH-Erloes aus den Rechnungen aufsummiert, Reihe je Charakter")
   -- Paare am Anfang ihres Tages bzw. ihrer Stunde, sonst trennt eine Tages- oder Stundengrenze sie je nach Uhrzeit des Laufs
   local tDay = math.floor((T0 - 10 * 86400) / 86400) * 86400 + 100
   local tHour = math.floor((T0 - 2 * 86400) / 3600) * 3600 + 100
@@ -1821,12 +1854,17 @@ do
   check(mod.db.trendRange == "d1" and ns.Overview.series.key == "d1", "Zeitraum waehlen")
   ns.Overview.ChartHover(24)
   check(ns.Overview.chartInfo.text:find("Gold", 1, true), "Werte unter der Maus")
+  check(ns.Overview.LineOn("gold") and ns.Overview.LineOn("ah") and not ns.Overview.LineOn("trade") and not ns.Overview.LineOn("char:Mirel Dorna"), "0.18: Linien Gold und AH-Erloes an, Handelsgewinn und Charaktere aus")
+  ns.Overview.SetLine("char:Mirel Dorna", true)
+  local hasChar = false for _, l in ipairs(ns.Overview.lines) do if l.name == "Mirel Dorna" then hasChar = true end end
+  check(hasChar and mod.db.trendLines["char:Mirel Dorna"] == true, "Linie je Charakter waehlbar und gespeichert")
+  ns.Overview.SetLine("char:Mirel Dorna", false)
   mod.db.trendRange = "d7"
   -- Info
   realm.moves[#realm.moves + 1] = { t = time(), c = "Mirel Dorna", k = "diff", id = 7102, n = -1, x = "Kontrollrechnung" }
   ns.Moves.Changed()
   ns.Window.Select("info")
-  check(#ns.Info.terms >= 18 and ns.Info.terms[1].term == "Gold" and ns.Info.terms[7].term:find("Reset", 1, true), "Info: Begriffe mit Reset")
+  check(#ns.Info.terms >= 17 and ns.Info.terms[1].term == "Gold" and ns.Info.terms[6].term:find("Reset", 1, true) and ns.Info.terms[2].term == "Gold 24 Std." and ns.Info.terms[3].term == "AH-Erlös heute", "Info: Begriffe mit Gold 24 Std., AH-Erloes und Reset")
   check(#ns.Info.table.items == 1 and ns.Info.table.items[1].id == 7102, "Info: verbuchte Abweichungen")
   check(ns.Info.open.text ~= "", "Info: offene Abweichungen")
   Peon.modules.broker = nil

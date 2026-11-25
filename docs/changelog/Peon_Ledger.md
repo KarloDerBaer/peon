@@ -2,6 +2,26 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.18.0
+
+Kurz: Die Übersicht zeigt jetzt Gold gesamt, die Goldänderung der letzten 24 Stunden und den AH-Erlös von heute. Im Diagramm wählst du die Linien selbst, auch Gold je Charakter.
+Kurz: Der Reiter Bestand heißt jetzt Charaktere: Links wählst du einen Charakter, rechts siehst du Taschen, Bank, Auktionen und Angelegtes. Die Suche findet einen Gegenstand bei allen Charakteren. Mit Peon_Bags öffnen zwei Knöpfe die gespeicherten Taschen und die Bank.
+Kurz: Der Verlauf ist nach Tagen gegliedert, die Filter sind Knöpfe, und zu Beginn siehst du nur Wichtiges. Ein Klick auf eine Zeile im Buch zeigt die passenden Bewegungen im Verlauf.
+Kurz: Die Einstellungen haben drei Reiter: Allgemein, Anzeige und Erweitert.
+
+- 0.18.0 (25.11.2026, Konzept `docs/konzepte/ledger/Peon_Ledger_Schlank.md`, Bauabschnitte S1, S2, S4, S5):
+  - **Geändert, Übersicht (S1):** Kacheln Gold gesamt (Anzahl Charaktere), Gold 24 Std. (Mausover höchster und tiefster Stand) und AH-Erlös heute aus den Rechnungen mit Anzahl Verkäufe (Mausover Handelsgewinn mit Hinweis „geschätzt“). Charakterliste: Name, Stufe, Gold, 24 Std., zuletzt gesehen. Klick öffnet den Charakter im Reiter Charaktere.
+  - **Neu, Diagramm:** Menü „Linien“ mit Gold, AH-Erlös (an), Handelsgewinn geschätzt (aus) und Gold je Charakter (aus), gespeichert in `trendLines`. Unter dem Diagramm stehen die sichtbaren Linien in ihrer Farbe.
+  - **Geändert, Verlauf Gold (`Trend.lua`):** Ein Stand merkt das Gold je Charakter (`c`), nicht mehr das Vermögen (`w`). Ältere Stände bleiben, wie sie sind. Neu `Trend.Change` (Goldänderung 24 Std.) und die Reihe AH-Erlös.
+  - **Neu, Reiter Charaktere (S2, `Chars.lua`, ersetzt `Stock.lua`):** links Alle Charaktere und jeder Charakter, rechts die Orte Taschen, Bank, Post, Auktionen, Unterwegs und Angelegt als Kopfzeilen zum Aufklappen mit Plätzen, Stück und Alter des Stands (ab 7 Tagen gelb). Gegenstände nach Kategorie wie in Bags, darin nach Name. Ohne Daten ein Hinweis, wo man den Stand bekommt. Suche über alle Charaktere nach Name, Nummer oder Link, je Treffer die Orte je Charakter. Klick auf einen Charakter in den Treffern wählt ihn und klappt die Orte auf.
+  - **Neu, Knöpfe „Taschen in Bags“ und „Bank in Bags“:** öffnen mit Peon_Bags ab 0.8.0 den gespeicherten Stand (`bags:ShowSaved`), grau ohne Stand (`bags:HasSaved`). Ohne Peon_Bags fehlen sie.
+  - **Geändert, Verlauf (S4):** Kopfzeile je Tag mit Gold rein und raus, Filter als zehn Knöpfe (Wichtiges, Alle, AH, Händler, Post, Handel, Herstellen, Beute, Benutzt, Weitere), Vorgabe „Wichtiges“ ohne Umbuchungen. Bisherige Einstellungen wechseln einmal auf diese Vorgabe (`historyV`). Sortieren über die Spaltenköpfe entfällt, die Liste ist immer neueste zuerst.
+  - **Neu, Sprung aus dem Buch:** Klick auf eine Zeile „Nach Art“ zeigt im Verlauf genau diese Bewegungen im Zeitraum und für den Charakter des Buchs. Ein Knopf oben rechts hebt den Filter auf.
+  - **Geändert, Einstellungen (S5):** Reiter Allgemein (Fenster öffnen, Minimap-Button, Tooltip, eigenes Postfenster), Anzeige (Bausteine im Tooltip) und Erweitert (Charaktere löschen, Reihenfolge der Kosten, Kosten neu rechnen, Inventur, Buch zurücksetzen, Kontrollrechnung).
+  - **Entfernt:** Vermögen und Marktwert in Übersicht, Charakterliste und Diagramm, Spalte Lagerwert, Reiter Bestand (im Archiv), Block Prüfung in den Einstellungen (`/ledger pruefen` bleibt), Begriffe Marktwert, Vermögen und Offener Gewinn im Reiter Info. Gespeicherte Werte bleiben erhalten.
+  - **Unverändert:** Schnittstellen `mod:Stock`, `StockOthers`, `Cost`, `OpenFee`, `SellRate`, `LastBuy`, `LastSale`, `ShowItem`, `HouseLots`. Ohne Broker zeigt `mod:ShowItem` den Gegenstand jetzt im Reiter Charaktere.
+  - Tests: Kacheln und Spalten der Übersicht, Klick auf einen Charakter, Orte und Aufklappen, Alle Charaktere, Sortierung nach Kategorie, Suche mit Name, Nummer und Link, Knopf Bags, Vorgabe Wichtiges, Tageszeilen, Sprung aus dem Buch, Goldänderung 24 Std., AH-Erlös, Linien je Charakter, Begriffe (`test_ledger.lua`).
+
 ## 0.17.3
 
 Kurz: Die Kosten von Waren aus dem Auktionshaus stimmen jetzt auch, wenn du schnell hintereinander kaufst (etwa mit dem Schnellkauf von Broker).

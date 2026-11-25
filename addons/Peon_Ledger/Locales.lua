@@ -603,13 +603,12 @@ L.INFO_DEV_EMPTY = "No booked deviations."
 L.INFO_COL_DIFF = "Deviation"
 L.INFO_TERMS = {
     { "Gold", "Gold of all characters of this realm, as the game reported it last." },
-    { "Market value", "What an item would bring today: the price from Peon_Broker (cheapest offer in the auction house, otherwise vendor price). Bound and equipped items count with the vendor price." },
-    { "Worth", "Gold plus the market value of all items in bags, bank, running auctions and equipment. What you would have if you sold everything today." },
+    { "Gold 24 h", "Change of the gold of all characters compared with 24 hours ago. Mouse over shows the highest and lowest state in that time. Each character has its own value in the overview." },
+    { "AH revenue today", "Gold from today's auction house invoices (sold auctions, after the cut). It is recorded for sure. The trading profit in the mouse over is an estimate, because it depends on the recorded purchase costs." },
     { "Cost", "What a piece cost. Bought: the price paid. Crafted: the cost of the materials. Loot and quest rewards: 0. Starting stock: 0." },
     { "Stock cost", "The cost of all pieces you still have. This much gold is in your stock." },
-    { "Open profit", "Market value minus stock cost of the pieces without starting stock. What you would win or lose if you sold at today's prices." },
     { "Reset (book starts anew)", "With version 0.14 the book started anew once. History, profits and costs from before were deleted, the stock at that moment became the starting stock. \"Reset book\" in the options does the same. Gold and items are not changed." },
-    { "Starting stock", "Everything that was there at the reset: bags, bank, running auctions and equipment, for other characters their last known state. Also everything Ledger finds without origin (deviation, correction). It costs 0 and counts like loot, because Ledger does not know what it once cost. What you craft only from starting stock stays starting stock. In the stock tab it shows as \"0 · start\"." },
+    { "Starting stock", "Everything that was there at the reset: bags, bank, running auctions and equipment, for other characters their last known state. Also everything Ledger finds without origin (deviation, correction). It costs 0 and counts like loot, because Ledger does not know what it once cost. What you craft only from starting stock stays starting stock." },
     { "Loot share", "How much of a piece is loot. Bought goods 0, loot, quest rewards and starting stock 1. Crafted: market value of the looted materials compared with the cost of the bought ones." },
     { "AH: Loot sale", "The loot share of an auction house sale after the cut. Counts towards day to day play, not towards the trading profit." },
     { "AH: Trading profit", "Trading share of the auction house sales minus cut, minus the cost of the sold pieces, plus deposits returned, minus deposits and cancel costs. Includes bought goods sold to a vendor. Grey lines below it explain the difference to the gold that flowed in the auction house." },
@@ -1262,13 +1261,12 @@ if GetLocale() == "deDE" then
     L.INFO_COL_DIFF = "Abweichung"
     L.INFO_TERMS = {
         { "Gold", "Gold aller Charaktere dieses Realms, so wie es das Spiel zuletzt gemeldet hat." },
-        { "Marktwert", "Was ein Gegenstand heute bringen würde: der Preis aus Peon_Broker (günstigstes Angebot im Auktionshaus, sonst Händlerpreis). Gebundene und angelegte Gegenstände zählen mit dem Händlerpreis." },
-        { "Vermögen", "Gold plus Marktwert aller Gegenstände in Taschen, Bank, laufenden Auktionen und Ausrüstung. So viel hättest du, wenn du heute alles verkaufst." },
+        { "Gold 24 Std.", "Änderung des Goldes aller Charaktere gegenüber dem Stand vor 24 Stunden. Mausover zeigt den höchsten und tiefsten Stand in der Zeit. In der Übersicht hat jeder Charakter seinen eigenen Wert." },
+        { "AH-Erlös heute", "Gold aus den heutigen Rechnungen des Auktionshauses (verkaufte Auktionen, nach Abzug des Anteils). Er ist sicher erfasst. Der Handelsgewinn im Mausover ist geschätzt, weil er von den erfassten Einkaufskosten abhängt." },
         { "Kosten", "Was ein Stück gekostet hat. Gekauft: der bezahlte Preis. Hergestellt: die Kosten des Materials. Beute und Questbelohnungen: 0. Startbestand: 0." },
         { "Lagerkosten", "Die Kosten aller Stücke, die du noch hast. So viel Gold steckt in deinem Lager." },
-        { "Offener Gewinn", "Marktwert minus Lagerkosten der Stücke ohne Startbestand. Das würdest du gewinnen oder verlieren, wenn du heute zu Marktpreisen verkaufst." },
         { "Reset (Neustart des Buchs)", "Mit Version 0.14 hat das Buch einmal neu begonnen. Verlauf, Gewinne und Kosten von vorher wurden gelöscht, der Bestand in diesem Moment wurde zum Startbestand. „Buch zurücksetzen“ in den Optionen macht dasselbe. Gold und Gegenstände ändern sich dabei nicht." },
-        { "Startbestand", "Alles, was beim Reset schon da war: Taschen, Bank, laufende Auktionen und Ausrüstung, bei anderen Charakteren ihr letzter bekannter Stand. Dazu alles, was Ledger ohne Herkunft findet (Abweichung, Korrektur). Er kostet 0 und zählt wie Beute, weil Ledger nicht weiß, was er einmal gekostet hat. Was du nur aus Startbestand herstellst, bleibt Startbestand. Im Bestand steht er als „0 · Start“." },
+        { "Startbestand", "Alles, was beim Reset schon da war: Taschen, Bank, laufende Auktionen und Ausrüstung, bei anderen Charakteren ihr letzter bekannter Stand. Dazu alles, was Ledger ohne Herkunft findet (Abweichung, Korrektur). Er kostet 0 und zählt wie Beute, weil Ledger nicht weiß, was er einmal gekostet hat. Was du nur aus Startbestand herstellst, bleibt Startbestand." },
         { "Beuteanteil", "Wie viel von einem Stück Beute ist. Gekaufte Ware 0, Beute, Questbelohnungen und Startbestand 1. Hergestellt: Marktwert des erbeuteten Materials gegen die Kosten des gekauften." },
         { "AH: Verkauf Beute", "Der Beuteanteil eines Verkaufs im Auktionshaus nach Abzug des Anteils. Zählt zum Spielalltag, nicht zum Handelsgewinn." },
         { "AH: Handelsgewinn", "Handelsteil der Verkäufe im Auktionshaus minus Anteil, minus Kosten der verkauften Stücke, plus zurückgezahlte Einzahlungen, minus Einstellgebühren und Abbruchkosten. Dazu gekaufte Ware, die du an Händler verkaufst. Graue Zeilen darunter erklären den Unterschied zum Gold, das im Auktionshaus geflossen ist." },
@@ -1328,4 +1326,144 @@ if GetLocale() == "deDE" then
     L.BK_TT_GOLD = "Echte Änderung deines Goldes im Zeitraum, mit Einkäufen, die noch im Lager liegen."
     L.MAIL_PROGRESS = "Brief %d von %d"
     L.MSG_FIX_TRANSIT = "Repariert: %d Abweichungen waren Post von deinen Twinks und behalten jetzt ihre Kosten."
+end
+
+-- ab 0.18 (Ledger schlank, Konzept Peon_Ledger_Schlank.md)
+L.TAB_CHARS   = "Characters"
+L.COL_D24     = "24 h"
+L.COL_LEVEL_SHORT = "Lvl"
+L.OV_T_D24    = "Gold 24 h"
+L.OV_T_AH     = "AH revenue today"
+L.OV_D24_SUB  = "since 24 hours ago"
+L.OV_D24_SINCE = "since %s (first record)"
+L.OV_D24_NONE = "no record yet"
+L.OV_D24_HI   = "Highest"
+L.OV_D24_LO   = "Lowest"
+L.OV_D24_TT   = "Gold of all characters compared with 24 hours ago."
+L.OV_AH_SALES = "%d sales"
+L.OV_AH_SALES_1 = "%d sale"
+L.OV_AH_TT    = "Gold from today's auction house invoices, recorded for sure."
+L.OV_TRADE_EST = "Estimated: depends on the recorded purchase costs."
+L.OV_ROW_CLICK = "Click: open the character in the tab Characters"
+L.TR_AH       = "AH revenue"
+L.TR_TRADE_EST = "Trading profit (estimated)"
+L.TR_LINES    = "Lines"
+L.TR_CHARS    = "Gold per character"
+L.TR_HINT     = "Mouse over the chart shows the values."
+L.CH_RUNNING  = "%d running"
+L.CH_SLOTS    = "%d/%d slots"
+L.CH_PARTS    = "%d parts"
+L.CH_AGO      = "%s ago"
+L.CH_UNSEEN   = "not seen yet"
+L.CH_HINT     = "Not seen yet. Log in with this character once."
+L.CH_HINT_BANK = "Not seen yet. Open the bank once with this character."
+L.CH_HINT_AUCTIONS = "Not seen yet. Open the auction house once with this character."
+L.CH_EMPTY_PLACE = "Empty."
+L.CH_NO_MATCH = "No character has this item."
+L.CH_SEARCH_HEAD = "Search \"%s\"  ·  %s"
+L.CH_LEVEL    = "level %d"
+L.CH_BAGS_BAGS = "Bags in Bags"
+L.CH_BAGS_BANK = "Bank in Bags"
+L.CH_BAGS_TT  = "Shows the saved state of this character in the Peon_Bags window, view only. Grey: no saved state yet, open bags or bank once with this character."
+L.CH_HEAD_OPEN = "Click: show the items"
+L.CH_HEAD_CLOSE = "Click: hide the items"
+L.CH_WHO_CLICK = "Click: show this character"
+L.CH_TOTAL    = "total"
+L.WEEKDAYS    = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
+L.HIST_DAY_IN = "in %s"
+L.HIST_DAY_OUT = "out %s"
+L.HIST_DAY_IN_TT = "Gold in"
+L.HIST_DAY_OUT_TT = "Gold out"
+L.HIST_DAY_TT = "Only the lines shown. Transfers do not count."
+L.HIST_JUMP   = "Book: %s  ×"
+L.HIST_JUMP_HEAD = "Filter from the book"
+L.HIST_JUMP_TT = "Shows the movements of this book line. Click removes the filter."
+L.HIST_F_MAIN = "Important"
+L.HIST_F_MAIN_TT = "Auction house, vendor, mail and trade."
+L.HIST_F_ALL  = "All"
+L.HIST_F_AH   = "AH"
+L.HIST_F_VENDOR = "Vendor"
+L.HIST_F_MAIL = "Mail"
+L.HIST_F_TRADE = "Trade"
+L.HIST_F_CRAFT = "Crafting"
+L.HIST_F_LOOT = "Loot"
+L.HIST_F_USE  = "Used"
+L.HIST_F_MORE = "More"
+L.HIST_F_MORE_TT = "Quests, flights, trainers, destroyed, corrections and other."
+L.BK_JUMP_HINT = "Click: show the movements in the history"
+L.OPT_TAB_GENERAL = "General"
+L.OPT_TAB_SHOW = "Display"
+L.OPT_TAB_ADVANCED = "Advanced"
+L.OPT_ADVANCED_HINT = "Normally you do not need to change anything here."
+L.OPT_MINIMAP_HINT = "Left-click opens the Ledger window, right-click these options."
+L.BTN_WINDOW_HINT = "Opens the Ledger window with overview, characters, book, history and info."
+if GetLocale() == "deDE" then
+    L.TAB_CHARS   = "Charaktere"
+    L.COL_D24     = "24 Std."
+    L.COL_LEVEL_SHORT = "St."
+    L.OV_T_D24    = "Gold 24 Std."
+    L.OV_T_AH     = "AH-Erlös heute"
+    L.OV_D24_SUB  = "seit 24 Stunden"
+    L.OV_D24_SINCE = "seit %s (erster Stand)"
+    L.OV_D24_NONE = "noch kein Stand"
+    L.OV_D24_HI   = "Höchster Stand"
+    L.OV_D24_LO   = "Tiefster Stand"
+    L.OV_D24_TT   = "Gold aller Charaktere gegenüber dem Stand vor 24 Stunden."
+    L.OV_AH_SALES = "%d Verkäufe"
+    L.OV_AH_SALES_1 = "%d Verkauf"
+    L.OV_AH_TT    = "Gold aus den heutigen Rechnungen des Auktionshauses, sicher erfasst."
+    L.OV_TRADE_EST = "Geschätzt: hängt von den erfassten Einkaufskosten ab."
+    L.OV_ROW_CLICK = "Klick: Charakter im Reiter Charaktere öffnen"
+    L.TR_AH       = "AH-Erlös"
+    L.TR_TRADE_EST = "Handelsgewinn (geschätzt)"
+    L.TR_LINES    = "Linien"
+    L.TR_CHARS    = "Gold je Charakter"
+    L.TR_HINT     = "Mausover über dem Diagramm zeigt die Werte."
+    L.CH_RUNNING  = "%d laufend"
+    L.CH_SLOTS    = "%d/%d Plätze"
+    L.CH_PARTS    = "%d Teile"
+    L.CH_AGO      = "vor %s"
+    L.CH_UNSEEN   = "noch nicht gesehen"
+    L.CH_HINT     = "Noch nicht gesehen. Logge dich einmal mit diesem Charakter ein."
+    L.CH_HINT_BANK = "Noch nicht gesehen. Öffne einmal die Bank mit diesem Charakter."
+    L.CH_HINT_AUCTIONS = "Noch nicht gesehen. Öffne einmal das Auktionshaus mit diesem Charakter."
+    L.CH_EMPTY_PLACE = "Leer."
+    L.CH_NO_MATCH = "Kein Charakter hat diesen Gegenstand."
+    L.CH_SEARCH_HEAD = "Suche „%s“  ·  %s"
+    L.CH_LEVEL    = "Stufe %d"
+    L.CH_BAGS_BAGS = "Taschen in Bags"
+    L.CH_BAGS_BANK = "Bank in Bags"
+    L.CH_BAGS_TT  = "Zeigt den gespeicherten Stand dieses Charakters im Fenster von Peon_Bags, nur zum Ansehen. Grau: noch kein Stand gespeichert, öffne einmal Taschen oder Bank mit diesem Charakter."
+    L.CH_HEAD_OPEN = "Klick: Gegenstände zeigen"
+    L.CH_HEAD_CLOSE = "Klick: Gegenstände ausblenden"
+    L.CH_WHO_CLICK = "Klick: diesen Charakter zeigen"
+    L.CH_TOTAL    = "gesamt"
+    L.WEEKDAYS    = { "Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag" }
+    L.HIST_DAY_IN = "rein %s"
+    L.HIST_DAY_OUT = "raus %s"
+    L.HIST_DAY_IN_TT = "Gold rein"
+    L.HIST_DAY_OUT_TT = "Gold raus"
+    L.HIST_DAY_TT = "Nur die gezeigten Zeilen. Umbuchungen zählen nicht."
+    L.HIST_JUMP   = "Buch: %s  ×"
+    L.HIST_JUMP_HEAD = "Filter aus dem Buch"
+    L.HIST_JUMP_TT = "Zeigt die Bewegungen zu dieser Zeile im Buch. Klick hebt den Filter auf."
+    L.HIST_F_MAIN = "Wichtiges"
+    L.HIST_F_MAIN_TT = "Auktionshaus, Händler, Post und Handel."
+    L.HIST_F_ALL  = "Alle"
+    L.HIST_F_AH   = "AH"
+    L.HIST_F_VENDOR = "Händler"
+    L.HIST_F_MAIL = "Post"
+    L.HIST_F_TRADE = "Handel"
+    L.HIST_F_CRAFT = "Herstellen"
+    L.HIST_F_LOOT = "Beute"
+    L.HIST_F_USE  = "Benutzt"
+    L.HIST_F_MORE = "Weitere"
+    L.HIST_F_MORE_TT = "Quests, Flüge, Lehrer, Zerstört, Korrekturen und Sonstiges."
+    L.BK_JUMP_HINT = "Klick: Bewegungen im Verlauf zeigen"
+    L.OPT_TAB_GENERAL = "Allgemein"
+    L.OPT_TAB_SHOW = "Anzeige"
+    L.OPT_TAB_ADVANCED = "Erweitert"
+    L.OPT_ADVANCED_HINT = "Normalerweise musst du hier nichts ändern."
+    L.OPT_MINIMAP_HINT = "Linksklick öffnet das Ledger-Fenster, Rechtsklick diese Einstellungen."
+    L.BTN_WINDOW_HINT = "Öffnet das Ledger-Fenster mit Übersicht, Charakteren, Buch, Verlauf und Info."
 end

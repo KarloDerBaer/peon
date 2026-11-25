@@ -3,6 +3,15 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 25.11.2026: Ledger schlank umgesetzt (Ledger 0.18.0)
+
+- **Knöpfe [Bags] oben rechts** (Claude, Konzept zeigte sie an den Kopfzeilen der Orte): Die Liste kann in ihren Zeilen keine Knöpfe tragen. „Taschen in Bags“ und „Bank in Bags“ stehen neben der Suche und gelten für den gewählten Charakter.
+- **Verlauf: ein Filter zur Zeit, zehn Knöpfe** (Claude): Wichtiges, Alle, AH, Händler, Post, Handel, Herstellen, Beute, Benutzt, Weitere. Die 13 Arten der alten Auswahlliste passen nicht in eine Zeile, deshalb fasst „Weitere“ die seltenen zusammen. Umbuchungen bleiben ein Haken, Vorgabe aus. Bisherige Einstellungen wechseln einmal auf „Wichtiges“.
+- **Verlauf immer neueste zuerst** (Claude): Mit Kopfzeilen je Tag würde Sortieren nach Spalten die Tage zerreißen.
+- **Sprung aus dem Buch mit Zeitraum und Charakter des Buchs** (Claude): So zeigt der Verlauf genau die Bewegungen hinter der Zahl. Ein Knopf hebt den Filter auf.
+- **Gold je Charakter im Verlauf Gold statt Vermögen** (Konzept Abschnitt 4.3): Alte Stände behalten ihr Vermögen, neue speichern es nicht mehr. Nichts gelöscht.
+- **Reiter Bestand ins Archiv** (Konzept Abschnitt 7): `Stock.lua` und die alte `Overview.lua` liegen unter `<Archiv>\Ledger_vor_0.18`. Die gespeicherten Werte des Bestands (`stockChar`, `stockPlace`, `stockCat`) bleiben ungenutzt erhalten.
+
 ## 25.11.2026: Einstellungen nach dem Leitfaden, Hinweise als Tooltip
 
 - **Aufteilung je Modul freigegeben** (KarloDerBaer): Fishing, Bags, Warhorn und Profession bekommen die Reiter nach dem Leitfaden. Prüfknöpfe und Debug-Haken fallen von den Seiten, sie bleiben als Befehle. Was schon im Fenster einstellbar ist (Eigene Bereiche in Bags, Kosten und Gewinn im Berufsfenster), steht nicht mehr in den Einstellungen.

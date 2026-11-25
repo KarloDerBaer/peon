@@ -186,6 +186,18 @@ Nur nach Zustimmung von KarloDerBaer, entfernte Teile kommen ins Archiv.
 
 S1, S3, S4 und S5 hängen nicht voneinander ab. Der Knopf [Bags] aus S3 kommt in den Reiter aus S2, wer später fertig wird, hängt ihn ein.
 
-## 9. Offene Fragen an KarloDerBaer
+**Gebaut:** S3 in Bags 0.8.0. S1, S2, S4 und S5 in Ledger 0.18.0 (25.11.2026) mit dem Knopf [Bags]. Offen bleibt S6.
 
-1. Passt der Aufbau des Reiters Charaktere mit den Beispielen in Abschnitt 3?
+## 9. Abweichungen beim Bau (Ledger 0.18.0)
+
+- **Knöpfe [Bags] oben rechts** statt an den Kopfzeilen Taschen und Bank: „Taschen in Bags“ und „Bank in Bags“ neben der Suche. Eine Liste kann in ihren Zeilen keine Knöpfe tragen. Grau, solange Bags keinen Stand hat, ohne Peon_Bags fehlen sie.
+- **Ort Post** zusätzlich zu den Orten aus 3.1 (gekauft, noch nicht abgeholt, wie im alten Bestand), wie Unterwegs nur mit Inhalt.
+- **Verlauf mit zehn Knöpfen, einer gewählt:** Wichtiges, Alle, AH, Händler, Post, Handel, Herstellen, Beute, Benutzt, Weitere (Quests, Flüge, Lehrer, Zerstört, Korrekturen, Sonstiges). Umbuchungen bleiben ein Haken. Die Liste ist immer neueste zuerst, damit die Tageszeilen stimmen.
+- **Sprung aus dem Buch** von jeder Zeile „Nach Art“ mit Arten, Zeitraum und Charakter des Buchs. Summen und davon-Zeilen des Handels zeigen alle Bewegungen im Auktionshaus. Spielalltag, Gesamtergebnis und Goldänderung haben keinen Sprung.
+- **Diagramm ohne Legende:** Die Linien wählt das Menü „Linien“, unter dem Diagramm stehen die sichtbaren Linien in ihrer Farbe.
+- **Info:** Auch der Begriff „Offener Gewinn“ fällt weg, er gehörte zur Spalte im alten Bestand.
+- **Einstellungen Erweitert** mit dem Knopf Kontrollrechnung (Abschnitt 6 „Selbstprüfung“). Hinweise als Tooltip wie die übrigen umgestellten Seiten (Kern-API 29).
+
+## 10. Offene Fragen an KarloDerBaer
+
+Keine.

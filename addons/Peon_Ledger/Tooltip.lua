@@ -160,7 +160,7 @@ function T.Data(id)
 end
 
 local function M(v) return ns.Money(math.floor((v or 0) + 0.5)) end
-local function Src(src) return ns.Stock and ns.Stock.SourceText(src) or tostring(src) end
+local function Src(src) return ns.Chars and ns.Chars.SourceText(src) or tostring(src) end
 
 -- Zeilen eines Bausteins: Liste { left, right }, leer wenn nichts zu zeigen ist
 function T.BlockLines(key, fmt, d)

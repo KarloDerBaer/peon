@@ -3,7 +3,7 @@
 ## Notes: Inventory of all characters, bookkeeping and mailbox for the Peon addon collection.
 ## Notes-deDE: Bestand aller Charaktere, Buchführung und Postfenster für Peon.
 ## Author: KarloDerBaer
-## Version: 0.17.3
+## Version: 0.18.0
 ## Dependencies: Peon
 ## Group: Peon
 ## IconTexture: Interface\Icons\INV_Scroll_03
@@ -20,7 +20,7 @@ Trend.lua
 Tooltip.lua
 Window.lua
 Overview.lua
-Stock.lua
+Chars.lua
 History.lua
 Book.lua
 Info.lua

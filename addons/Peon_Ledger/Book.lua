@@ -355,7 +355,35 @@ function B.KindTooltip(row, r)
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     GameTooltip:AddLine(r.label or "", 1, 0.82, 0)
     GameTooltip:AddLine(text, 0.9, 0.9, 0.9, true)
+    if B.JumpKinds(r) then GameTooltip:AddLine(L.BK_JUMP_HINT, 0.6, 0.6, 0.6, true) end
     GameTooltip:Show()
+end
+
+-- Sprung in den Verlauf (ab 0.18, Konzept Peon_Ledger_Schlank.md Abschnitt 5): Zeile "Nach Art" -> Arten der Bewegungen.
+-- Summen und davon-Zeilen des Handels zeigen alle Bewegungen im Auktionshaus, Spielalltag und Ergebnis haben keinen.
+local AH_ALL = { ahbuy = true, ahsold = true, ahfee = true, posted = true, ahback = true, ahreturn = true }
+B.JUMP = {
+    ahbuy = { ahbuy = true }, ahfee = { ahfee = true, posted = true }, ahcancel = { ahfee = true },
+    ahsold = { ahsold = true }, ahcut = { ahsold = true }, ahloot = { ahsold = true }, ahvendor = { vendor = true },
+    vendor = { vendor = true }, buyback = { buyback = true }, repair = { repair = true }, loot = { loot = true },
+    quest = { quest = true }, craft = { craft = true }, trade = { trade = true }, mail = { mail = true, twink = true },
+    taxi = { taxi = true }, trainer = { trainer = true }, other = { other = true, diff = true, fix = true },
+    htrade = AH_ALL, sum_trade = AH_ALL, swap = AH_ALL,
+}
+function B.JumpKinds(r)
+    if not r or not r.k then return nil end
+    if r.k:sub(1, 7) == "bridge_" then return AH_ALL end
+    return B.JUMP[r.k]
+end
+
+function B.JumpToHistory(r)
+    local kinds = B.JumpKinds(r)
+    if not kinds or not ns.History then return false end
+    local period
+    for _, p in ipairs(B.PERIODS) do if p.key == mod.db.bookPeriod then period = L[p.label] end end
+    local label = (r.label or "") .. (period and (" · " .. period) or "")
+    ns.History.Jump(kinds, B.From(mod.db.bookPeriod), label, B.Char())
+    return true
 end
 
 function B.Status()
@@ -469,6 +497,7 @@ function B.Build(c)
         sortKey = "order", empty = L.BK_EMPTY,
         rowLine = function(r) return r.line end,
         onEnter = function(row, r) B.KindTooltip(row, r) end,
+        onClick = function(r, button) if button == "LeftButton" then B.JumpToHistory(r) end end,
     })
     page.items = U.Table(page.itemsPanel, {
         icon = true,
