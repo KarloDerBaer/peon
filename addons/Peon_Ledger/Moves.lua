@@ -763,6 +763,20 @@ end
 ---------------------------------------------------------------------------
 M.MATCH_DAYS = 7
 
+-- Verkauf in der Auktionsliste gesehen (ab 0.18.1): nur merken, nicht buchen. c.seenSold = { { t, id, n, p }, ... },
+-- hoechstens 200 und M.MATCH_DAYS alt.
+M.SEEN_MAX = 200
+function M.SeeSale(id, n, p)
+    if not Num(id) or not Num(n) or n <= 0 then return end
+    local c = ns.Inventory.Char()
+    if type(c.seenSold) ~= "table" then c.seenSold = {} end
+    local list, keep, from = c.seenSold, {}, time() - M.MATCH_DAYS * 86400
+    for _, s in ipairs(list) do if type(s) == "table" and (s.t or 0) >= from then keep[#keep + 1] = s end end
+    keep[#keep + 1] = { t = time(), id = id, n = n, p = Num(p) and p or nil }
+    while #keep > M.SEEN_MAX do table.remove(keep, 1) end
+    c.seenSold = keep
+end
+
 -- Erloes ohne Gegenstand (Rechnung beim Holen noch nicht geladen): passenden Verkauf suchen - Eintrag
 -- "Auktion verkauft" (Gegenstand weg, Preis je Stueck aus der Auktionsliste) desselben Charakters, noch ohne
 -- Erloes, Betrag passt zu Preis x Stueck - 5 % (+ zurueckgezahlte Einstellgebuehr). id = nur dieser Gegenstand.
@@ -782,6 +796,30 @@ function M.MatchSale(e, id)
                 if not best or diff < bestDiff then best, bestDiff = s, diff end
             end
         end
+    end
+    -- ab 0.18.1: gemerkte Verkaeufe aus der Auktionsliste (keine Zeile mehr). Treffer gibt die Ware mit der Rechnung ab.
+    local seen, seenI, seenDiff
+    local c = ns.Inventory.Char()
+    if e.c == ns.CharName() and type(c.seenSold) == "table" then
+        for i, s in ipairs(c.seenSold) do
+            if type(s) == "table" and (s.t or 0) >= from and Num(s.p) and Num(s.n) and s.n > 0 and (not id or s.id == id) then
+                local gross = s.p * s.n
+                local ratio = gross > 0 and e.m / (gross * 0.95) or 0
+                if ratio >= 0.97 and ratio <= 1.5 then
+                    local diff = math.abs(ratio - 1)
+                    if (not best or diff < bestDiff) and (not seen or diff < seenDiff) then seen, seenI, seenDiff = s, i, diff end
+                end
+            end
+        end
+    end
+    if seen then
+        table.remove(c.seenSold, seenI)
+        e.id, e.q, e.gross, e.est = seen.id, seen.n, math.floor(seen.p * seen.n + 0.5), true
+        e.cut = e.cut or math.floor(e.gross * 0.05 + 0.5)
+        e.n = -seen.n
+        ns.Inventory.RemoveFromPlace(c, "auctions", seen.id, seen.n)
+        M.Changed()
+        return true
     end
     if not best then
         -- nur der Name war bekannt: eintragen ohne Menge
@@ -1086,9 +1124,11 @@ function M.OnAuctions(old, new, info)
             local soldNow = math.min(-d, math.max(0, s))
             if soldNow > 0 then soldNow = M.ClaimSale(id, soldNow) end   -- ab 0.14: Rechnung war schon da
             if soldNow > 0 then
-                local e = M.Add("ahsold", id, -soldNow)
+                -- ab 0.18.1 keine Zeile mehr: Aus dem Auktionshaus kommt alles per Post, gebucht wird erst der Brief
+                -- (KarloDerBaer). Gemerkt nur fuer einen Brief, dessen Rechnung noch nicht geladen ist (MatchSale).
                 local g = info and info.soldGross and info.soldGross[id]
-                if e and Num(g) and (sold[id] or 0) > 0 then e.p = g / sold[id] end   -- Preis je Stueck (ab 0.6)
+                local p = (Num(g) and (sold[id] or 0) > 0) and g / sold[id] or nil   -- Preis je Stueck (ab 0.6)
+                M.SeeSale(id, soldNow, p)
             end
             -- nicht verkauft (abgelaufen/abgebrochen): kein Eintrag, der Brief mit dem Gegenstand wird als
             -- "Auktion zurück" verbucht (ab 0.4; vorher "Auktion beendet")

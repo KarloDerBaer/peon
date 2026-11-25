@@ -521,13 +521,15 @@ fire("OWNED_AUCTIONS_UPDATED"); settle()
 check(#realm.moves == n0 and me.places.auctions.items[2840] == 2, "Auktion erscheint unter Auktionen: kein weiterer Eintrag")
 owned[1].status = 1
 fire("OWNED_AUCTIONS_UPDATED"); settle()
-check(last().k == "ahsold" and last().id == 2840 and last().n == -2 and Mv.Label(last()) == "Auktion verkauft", "Auktion verkauft (Abgang)")
+local seen1 = me.seenSold and me.seenSold[#me.seenSold]
+check(#realm.moves == n0 and seen1 and seen1.id == 2840 and seen1.n == 2,
+  "ab 0.18.1: Verkauf in der Auktionsliste nur gemerkt, keine Zeile (gebucht wird erst der Brief)")
 -- abgelaufene Auktion: Umbuchung
 owned = { { itemKey = { itemID = 2589 }, quantity = 3, status = 0 } }
 fire("OWNED_AUCTIONS_UPDATED"); settle()
 owned = {}
 fire("OWNED_AUCTIONS_UPDATED"); settle()
-check(last().k == "ahsold", "Auktion verschwunden, nicht verkauft: kein Eintrag (Brief zaehlt)")
+check(#realm.moves == n0, "Auktion verschwunden, nicht verkauft: kein Eintrag (Brief zaehlt)")
 -- Kauf im Auktionshaus: Gold
 money = money - 1000; fire("PLAYER_MONEY"); fire("COMMODITY_PURCHASE_SUCCEEDED"); settle()
 check(last().k == "ahbuy" and last().m == -1000, "Auktion gekauft: Gold")
@@ -677,14 +679,16 @@ clock = clock + 100
 -- Erloes ohne Rechnung (Daten noch nicht geladen): Gegenstand aus dem Betreff, Menge aus dem Verkauf
 fire("AUCTION_HOUSE_SHOW")
 me.places.auctions = { t = 1, items = {}, soldItems = {} }
-local owned2 = { { itemKey = { itemID = 2840 }, quantity = 2, status = 0, buyoutAmount = 1000 } }
+local owned2 = { { itemKey = { itemID = 2842 }, quantity = 2, status = 0, buyoutAmount = 1000 } }   -- ab 0.18.1 eigener Gegenstand (2840 hat schon eine Rechnung)
 C_AuctionHouse.GetNumOwnedAuctions = function() return #owned2 end
 C_AuctionHouse.GetOwnedAuctionInfo = function(i) return owned2[i] end
 fire("OWNED_AUCTIONS_UPDATED"); settle()
 owned2[1].status = 1
+local nMoves = #realm.moves
 fire("OWNED_AUCTIONS_UPDATED"); settle()
-local soldItem = last()
-check(soldItem.k == "ahsold" and soldItem.id == 2840 and soldItem.n == -2 and soldItem.p == 1000, "Auktion verkauft: Preis je Stueck gemerkt")
+local soldItem = me.seenSold and me.seenSold[#me.seenSold]
+local nSeen = #me.seenSold
+check(soldItem and soldItem.id == 2842 and soldItem.n == 2 and soldItem.p == 1000 and #realm.moves == nMoves, "Auktion verkauft: Preis je Stueck gemerkt (ab 0.18.1 ohne Zeile)")
 fire("AUCTION_HOUSE_CLOSED"); clock = clock + 100
 inbox = { { nil, nil, "Auktionshaus der Allianz", "Rufe Daten ab", 1900, 0, 29, nil } }
 GetInboxItem = function() end
@@ -692,7 +696,8 @@ GetInboxInvoiceInfo = function() end
 fire("MAIL_SHOW"); fire("MAIL_INBOX_UPDATE"); settle()
 TakeInboxMoney(1)
 money = money + 1900; fire("PLAYER_MONEY"); settle()
-check(last().k == "ahsold" and last().m == 1900 and last().id == 2840 and last().q == 2 and last().est and soldItem.paid, "Erloes ohne Rechnung: Gegenstand und Menge vom Verkauf zugeordnet")
+check(last().k == "ahsold" and last().m == 1900 and last().id == 2842 and last().q == 2 and last().n == -2 and last().est and #(me.seenSold or {}) == nSeen - 1,
+  "Erloes ohne Rechnung: Gegenstand und Menge vom gemerkten Verkauf, die Ware geht mit dem Brief")
 -- Betreff mit Namen, Rechnung fehlt: Gegenstand ueber den Namen
 I.Remember(2841, "Bronzebarren", 1)
 inbox = { { nil, nil, "Auktionshaus der Allianz", "Auktion erfolgreich: Bronzebarren", 333, 0, 29, nil } }
