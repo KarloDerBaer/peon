@@ -1497,6 +1497,21 @@ L.PK_ROW_OFFERS     = "%d offers"
 L.PK_ROW_STAKE      = "Stake"
 L.PK_ROW_GAIN       = "Profit"
 
+-- ab 0.139 (U7): Optionsseite nach dem Leitfaden
+L.TAB_GENERAL       = "General"
+L.TAB_DISPLAY       = "Display"
+L.TAB_ADVANCED      = "Advanced"
+L.ADVANCED_NOTE     = "Normally you do not need to change anything here."
+L.HDR_AH_PLAIN      = "Emergency exit"
+L.BTN_WINDOW_HINT   = "Opens the Broker window. At the auctioneer Broker shows its tabs in the auction house."
+L.MINIMAP_SHOW_HINT = "Shows the Broker button at the minimap."
+L.OPT_TT_SHOW_HINT  = "Shows prices, sales and trend in item tooltips."
+L.OPT_TT_PACKS_HINT = "For boxes with a choice of packages, compares what each package costs."
+L.OPT_RADAR_SOUND_KEY_HINT = "Sound when the radar or a chance finds something. You hear it when you pick it."
+L.OPT_RADAR_FLASH_HINT = "How long a new find stays highlighted."
+L.OPT_SALES_SURE_HINT = "From this much watched time the sales rate counts as certain."
+L.OPT_RADAR_EXPENSIVE_HINT = "Also lists finds you cannot afford right now, greyed out."
+
 if GetLocale() == "deDE" then
     -- ab 0.106: Schnellkauf mit Max. Menge, Beobachten je Modus
     L.QUICK_MAXQTY     = "Max. Menge"
@@ -2950,4 +2965,18 @@ if GetLocale() == "deDE" then
     L.PK_ROW_OFFERS     = "%d Angebote"
     L.PK_ROW_STAKE      = "Einsatz"
     L.PK_ROW_GAIN       = "Gewinn"
+    -- ab 0.139 (U7): Optionsseite nach dem Leitfaden
+    L.TAB_GENERAL       = "Allgemein"
+    L.TAB_DISPLAY       = "Anzeige"
+    L.TAB_ADVANCED      = "Erweitert"
+    L.ADVANCED_NOTE     = "Normalerweise musst du hier nichts ändern."
+    L.HDR_AH_PLAIN      = "Notausgang"
+    L.BTN_WINDOW_HINT   = "Öffnet das Broker-Fenster. Am Auktionator zeigt Broker seine Reiter im Auktionshaus."
+    L.MINIMAP_SHOW_HINT = "Zeigt den Knopf von Broker an der Minimap."
+    L.OPT_TT_SHOW_HINT  = "Zeigt Preise, Absatz und Trend im Tooltip der Gegenstände."
+    L.OPT_TT_PACKS_HINT = "Vergleicht bei Kisten mit Paketauswahl, was jedes Paket kostet."
+    L.OPT_RADAR_SOUND_KEY_HINT = "Ton, wenn das Radar oder eine Chance etwas findet. Beim Wählen hörst du ihn."
+    L.OPT_RADAR_FLASH_HINT = "So lange bleibt ein neuer Treffer hervorgehoben."
+    L.OPT_SALES_SURE_HINT = "Ab so viel beobachteter Zeit gilt der Absatz als sicher."
+    L.OPT_RADAR_EXPENSIVE_HINT = "Zeigt auch Treffer, die du dir gerade nicht leisten kannst, grau."
 end

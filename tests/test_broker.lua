@@ -240,11 +240,23 @@ SlashCmdList.PEON_BROKER("pruefen scan")
 timers[#timers]()
 check(PeonBrokerDB.probe.scan.timeout == true and said("keine Antwort"), "Timeout gemeldet")
 
--- Optionsseite
+-- Optionsseite: ab 0.139 (U7) nach dem Leitfaden, drei Reiter, ohne Pruefung und Ereignis-Liste
 if mod.panel.scripts.OnShow then mod.panel.scripts.OnShow(mod.panel) end
-local found
-for _, f in ipairs(allFrames) do if type(f.text) == "string" and f.text:find("Classic Beta PvE / Horde", 1, true) then found = f.text end end
-check(found and found:find("modern (11", 1, true) and found:find("0c / 0c / 0c", 1, true), "Optionsseite zeigt letzte Pruefung")
+do
+  local tabs = {}
+  for _, t in ipairs(mod.page.tabList or {}) do tabs[#tabs + 1] = t[2] end
+  check(table.concat(tabs, ",") == "Allgemein,Anzeige,Erweitert", "0.139: Reiter Allgemein, Anzeige, Erweitert: " .. table.concat(tabs, ","))
+  local labels = {}
+  for _, c in ipairs(mod.page.controls) do if type(c.label) == "string" then labels[c.label] = true end end
+  local Lb = ns.L
+  check(labels[Lb.MINIMAP_SHOW] and labels[Lb.OPT_TT_SHOW] and labels[Lb.OPT_RADAR_FLASH] and labels[Lb.OPT_DAYS] and labels[Lb.OPT_BAIT_QTY]
+    and labels[Lb.OPT_RADAR_EXPENSIVE], "0.139: Einstellungen auf der Seite")
+  check(not labels[Lb.OPT_RADAR_SOUND] and not labels[Lb.OPT_BUYOUT_HOURS] and not labels[Lb.OPT_FOCUS_EVERY],
+    "0.139: was in Brokers Fenstern steht, nicht doppelt")
+  local found
+  for _, f in ipairs(allFrames) do if type(f.text) == "string" and f.text:find("modern (11", 1, true) then found = f.text end end
+  check(found == nil, "0.139: keine Pruefung auf der Optionsseite (nur /broker check)")
+end
 SlashCmdList.PEON_BROKER("optionen")
 check(said("OPEN Peon/Broker"), "/broker optionen oeffnet Seite")
 
@@ -275,15 +287,8 @@ for _, c in ipairs(mod.page.controls) do if c.key == "minimapShow" and c.Set the
 if mod.db.minimapShow ~= false then mod.db.minimapShow = false; mod:Fire("CHANGED", "minimapShow") end
 check(not btn.shown, "Minimap-Button ausblendbar")
 
--- Ereignis-Liste auf der Optionsseite
-if mod.panel.scripts.OnShow then mod.panel.scripts.OnShow(mod.panel) end
-local evl
-for _, c in ipairs(mod.page.controls) do if c.list then evl = c.list end end
-check(evl and #evl:GetItems() == #ns.Probe.EVENTS, "Ereignis-Liste mit allen Ereignissen")
-check(evl:GetItems()[1].name == "AUCTION_HOUSE_SHOW" or evl:GetItems()[1].count >= evl:GetItems()[2].count, "nach Anzahl sortiert")
-local unknown
-for _, it in ipairs(evl:GetItems()) do if it.name == "NEW_AUCTION_UPDATE" then unknown = it end end
-check(unknown and unknown.known == false, "unbekanntes Ereignis in der Liste markiert")
+-- ab 0.139: die Ereignis-Liste steht nicht mehr auf der Optionsseite (Leitfaden Regel 4), gezaehlt wird weiter
+check(type(PeonBrokerDB.probeEvents) == "table" and PeonBrokerDB.probeEvents.AUCTION_HOUSE_SHOW, "0.139: Ereignisse bleiben gespeichert")
 
 local function plain(t)
   t = t:gsub("|TInterface\\MoneyFrame\\UI%-GoldIcon[^|]*|t", "g"):gsub("|TInterface\\MoneyFrame\\UI%-SilverIcon[^|]*|t", "s")

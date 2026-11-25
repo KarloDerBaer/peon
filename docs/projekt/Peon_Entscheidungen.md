@@ -11,6 +11,14 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Verkauf in der Auktionsliste bucht nichts mehr** (KarloDerBaer): Nur die Post bucht, die Liste dient der Anzeige. Die frühe Meldung und die spätere Rechnung passten nicht immer zusammen (118 Dickes Leder). Gemerkt wird der Verkauf nur noch, damit ein Brief ohne geladene Rechnung seine Menge bekommt.
 - **Alte Fälle einmal korrigieren** (Claude): Abweichungen minus nach dem Einstellen, deren Ware danach verkauft wurde, werden zu „Auktion (korrigiert)“. Die Bewegungen bleiben, nur ihre Art ändert sich, die Kosten rechnet Ledger neu.
 
+## 25.11.2026: Broker schlank, Schritt U7 Einstellungen (Broker 0.139.0)
+
+- **Aufteilung freigegeben** (KarloDerBaer, Vorschlag Claude): Allgemein mit Fenster öffnen, Minimap-Knopf, Preise im Tooltip und Angebotsdauer. Anzeige mit Tooltip, Zahl am Reiter, Warnton und Aufleuchten des Radars. Erweitert mit Preisvorschlag, Lockangebote, Trend, Absatz, Radar, Preisdaten und Blizzard pur.
+- **Doppeltes fällt weg** (Leitfaden Regel 5): Mindestgewinn, Goldreserve, Verkaufsdauer im Aufkauf, Abfragen je Minute und Ton beim Radar stehen in Brokers Fenstern Einstellungen. Die Schalter Modus Aufkauf und Weitere Chancen bleiben dort unter Erweitert.
+- **Prüfung nur als Befehl** (Leitfaden Regel 4): Anzeige der letzten Prüfung, Test-Scan und Ereignis-Liste fallen von der Seite. `/broker check` und `/broker check scan` bleiben, die Ereignisse werden weiter gezählt.
+- **Hörprobe statt Testknopf** (Claude): Beim Wählen des Warntons spielt Broker ihn einmal ab, wie Fishing.
+- **Blizzard pur unter Erweitert** (Claude): Der Notausgang wird selten gebraucht und lädt neu.
+
 ## 25.11.2026: Broker schlank, Schritt U6 Chancen (Broker 0.138.0)
 
 - **Schalter in den Einstellungen der Chancen** (Claude): „Weitere Chancen“ steht dort unter einer neuen Überschrift Erweitert, weil der Knopf Einstellungen im Reiter Chancen dieses Fenster öffnet. Der Aufkauf des Einkaufens bleibt im Fenster des Einkaufens. U7 ordnet beides nach dem Leitfaden.

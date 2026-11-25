@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.139.0
+
+Kurz: Die Einstellungen von Broker im Spielmenü haben jetzt drei Reiter: Allgemein, Anzeige und Erweitert. Hinweise stehen als Tooltip.
+Kurz: Was in Brokers eigenen Fenstern einstellbar ist, steht nicht noch einmal dort. Die Prüfung läuft nur noch über /broker check.
+
+- 0.139.0 (25.11.2026, Schritt U7 aus dem Konzept `Peon_Broker_Schlank.md`, Abschnitt 10, Leitfaden `Peon_Einstellungen_Leitfaden.md`, Aufteilung mit KarloDerBaer abgestimmt):
+  - **Geändert, Allgemein:** Fenster öffnen, Minimap-Knopf, Preise im Tooltip, Angebotsdauer.
+  - **Geändert, Anzeige:** Tooltip (Paketvergleich, Bausteine), Zahl am Reiter, Warnton des Radars (Hörprobe beim Wählen statt Testknopf) und Aufleuchten neuer Treffer.
+  - **Geändert, Erweitert:** mit dem Satz „Normalerweise musst du hier nichts ändern.“ Preisvorschlag, Lockangebote, Trend, Absatz, Radar (Höchstalter, teure zeigen), Preisdaten mit der Liste der Märkte und Löschen, Blizzard pur als Notausgang.
+  - **Neu:** Jeder Schalter hat einen Tooltip in einem Satz (`tipHints`, Kern-API 29).
+  - **Entfernt von der Seite:** Mindestgewinn Händler und Markt, Goldreserve, Verkaufsdauer im Aufkauf, Abfragen je Minute und Ton beim Radar (stehen in Brokers Fenstern Einstellungen), Hinweis zum Berufsfenster, Prüfung, Test-Scan und Ereignis-Liste (Befehl `/broker check`). Die Werte bleiben gespeichert.
+  - Damit ist das Konzept „Broker schlank“ umgesetzt (U0 bis U7).
+  - Tests: `test_broker.lua`.
+
 ## 0.138.0
 
 Kurz: Der Reiter Chancen zeigt nur noch die Schnellkauf-Vorschläge, ohne Unterreiter.
