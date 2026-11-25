@@ -11,6 +11,11 @@
 --   - eigenes Ziel: von Hand eintragen oder per Klick auf eine Preisstufe. Gekauft wird dann alles unter dem Ziel,
 --     auch ohne Chance aus dem Radar (Art "Eigenes Ziel", wird wie ein Aufkauf ein Posten)
 --   - Abfragen je Minute statt Sekunden, Fenster "Einstellungen" (Settings.lua)
+-- Ab 0.133 (U1, Konzept Peon_Broker_Schlank.md 3, 4.1, 4.3, 4.5): Der Reiter heisst Einkaufen und zeigt nur den
+-- Schnellkauf (Aufkauf ruht hinter focusBuyout). Jede Eingabe wird sofort gespeichert (F.Store), Gegenstand und Im Markt
+-- zeigen stehen im Rechtsklick-Menue auf den Namen, Zurueck und Einstellungen sind kleine Symbole. Links: Kaufen bis,
+-- Menge (Regler bis "Alle"), Goldreserve, Markt (Zufluss und Abfluss), Einbruch, Gekauft heute, Kaufknopf, darunter
+-- aufklappbar Lockangebot und Mehr Einstellungen.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -117,6 +122,7 @@ function F.SetLimit(price)
     if F.limitInput then
         if F.manualLimit then F.limitInput:SetAmount(F.manualLimit.price) else ClearMoney(F.limitInput) end
     end
+    F.Store(F.manualLimit ~= nil)   -- ab 0.133: sofort speichern, mit Kaufen bis auch neu in Beobachten
     F.Update()
 end
 
@@ -126,6 +132,7 @@ function F.SetLimitTyped(amount)
     F.manualSrc = "own"
     if Num(amount) and amount > 0 then F.manualLimit = { key = F.key, price = math.floor(amount) } else F.manualLimit = nil end
     if ns.Quick then ns.Quick.NoteLimit(F.key, F.manualLimit) end   -- ab 0.107.1: selbst geleert merken
+    F.Store(F.manualLimit ~= nil)   -- ab 0.133
     F.Update()
 end
 
@@ -147,8 +154,9 @@ function F.SetQty(n)
     F.Update()
 end
 
--- Getippte Menge (leer oder 0 = alle)
+-- Getippte Menge (leer oder 0 = alle). Ab 0.133 im Schnellkauf die Menge des Einkaufens (Quick.lua)
 function F.SetQtyTyped(n)
+    if ns.Quick and ns.Quick.On() then return ns.Quick.SetQty(n) end
     F.SetQty(n)
 end
 
@@ -179,7 +187,8 @@ function F.OnQtySlider(v)
     v = math.floor(v + 0.5)
     local max = F.qtyMax or 0
     if max < 1 then return end
-    if v >= max then F.SetQty(nil) else F.SetQty(math.max(1, v)) end
+    local set = (ns.Quick and ns.Quick.On()) and ns.Quick.SetQty or F.SetQty
+    if v >= max then set(nil) else set(math.max(1, v)) end
 end
 
 -- Plan auf die feste Menge begrenzen. Gibt immer eine Kopie zurueck (Chancen des Radars bleiben unberuehrt),
@@ -291,6 +300,7 @@ function F.LoadWatch(key)
         F.manualSrc = F.manualLimit and "watch" or nil
         ns.Quick.skip[key] = nil   -- ab 0.109: Haken aus Beobachten
         ns.Quick.avg[key] = nil    -- ab 0.112
+        ns.Quick.qty[key] = nil    -- ab 0.133: Menge aus Beobachten (qqty)
         F.loaded = { key = key, mode = "quick" }
         return true
     end
@@ -320,7 +330,7 @@ end
 
 function F.Loaded(key)
     local l = F.loaded
-    return l ~= nil and key ~= nil and l.key == key and l.mode == mod.db.focusMode
+    return l ~= nil and key ~= nil and l.key == key and l.mode == (ns.Quick and ns.Quick.Mode() or mod.db.focusMode)
 end
 
 -- Speichern: Gegenstand in die Beobachtung, mit den geltenden Werten (Kaufen bis = Grenze nach unten,
@@ -341,10 +351,11 @@ function F.Save(quiet)
     end
     -- ab 0.106: im Schnellkauf nur dessen Werte, Kaufen bis und Zielpreis des Aufkaufs bleiben
     if ns.Quick and ns.Quick.On() then
-        local ql, qg = F.ManualLimit(key), F.ManualGold(key)
-        Wt.SetQuick(key, ql, qg, ns.Quick.SkipOn(key), ns.Quick.AvgOn(key))
+        -- ab 0.133: Menge statt Limit pro Kauf. Das gespeicherte Limit (qgold) bleibt, wird aber nicht mehr genutzt.
+        local ql = F.ManualLimit(key)
+        Wt.SetQuickValues(key, ql, ns.Quick.qty[key], ns.Quick.SkipOn(key), ns.Quick.AvgOn(key))
         if ql then F.manualSrc = "watch" end
-        if not quiet then mod:Print(L.FOCUS_SAVED_QUICK:format(name, Num(ql) and Money(ql) or "-", qg and Money(qg) or L.QUICK_NO_CAP)) end
+        if not quiet then mod:Print(L.FOCUS_SAVED_QUICK:format(name, Num(ql) and Money(ql) or "-")) end
         if ns.WatchPage then ns.WatchPage.Refresh() end
         if not quiet then F.Update() end
         return true
@@ -374,12 +385,31 @@ function F.AutoSave()
     return F.Save(true)
 end
 
--- Knopf "Zurueck zu ..." unten im Fokus
-function F.UpdateBack()
-    if not F.backButton then return end
-    local label = F.origin == "chances" and L.TAB_CHANCES or L.NTAB_WATCH
-    F.backButton:SetText(L.FOCUS_BACK:format(label))
+-- ab 0.133 (U1, Konzept 2.3 und 4.5): jede Eingabe gilt sofort, der Knopf Speichern entfaellt. Gespeichert wird fuer
+-- Gegenstaende in Beobachten. add = true (Kaufen bis eingetragen): ein neuer Gegenstand kommt dabei in Beobachten.
+-- Nur mit geladenen Werten, damit nie Vorgaben ueber gespeicherte Werte geschrieben werden (wie 0.131).
+function F.Store(add)
+    local key = F.key
+    local Wt = ns.Watch
+    if key == nil or not Wt then return false end
+    local quick = ns.Quick and ns.Quick.On()
+    if not quick then
+        if Wt.Is(key) and mod.db.autoSaveBuyout ~= false then return F.Save(true) end
+        return false
+    end
+    if not Wt.Is(key) and not add then return false end
+    if Wt.Is(key) and not F.Loaded(key) then return false end
+    F.loaded = { key = key, mode = "quick" }
+    return F.Save(true)
 end
+
+-- Symbol "Zurueck zu ..." in der Kopfzeile (ab 0.133, vorher Knopf unten)
+function F.BackLabel()
+    local label = F.origin == "chances" and L.TAB_CHANCES or L.NTAB_WATCH
+    return L.FOCUS_BACK:format(label)
+end
+
+function F.UpdateBack() end   -- ab 0.133: der Tooltip des Symbols fragt F.BackLabel selbst
 
 function F.GoBack()
     ns.Window.Open(F.origin == "chances" and "chances" or "watch")
@@ -595,7 +625,7 @@ end
 -- Zeile Menge: Regler, Feld (zeigt die feste Menge oder, ohne sie, alle) und Hinweis "alle" bzw. "von N"
 function F.SyncQty(d)
     if not F.qtySlider then return end
-    if ns.Quick and ns.Quick.On() then return F.SyncQuickQty(d) end   -- ab 0.106: Max. Menge
+    if ns.Quick and ns.Quick.On() then return F.SyncQuickQty(d) end   -- ab 0.106, ab 0.133 Regler bis Alle
     local has = d ~= nil and not d.gone and F.key ~= nil
     for _, f in ipairs({ F.qtyLabel, F.qtySlider, F.qtyInput, F.qtyHint }) do f:SetShown(has) end
     local max = has and (d.maxQty or 0) or 0
@@ -610,23 +640,31 @@ function F.SyncQty(d)
     else SliderSet(F.qtySlider, 0, 1, math.min(max, 1), false) end
 end
 
--- ab 0.106: Max. Menge im Schnellkauf, ab 0.112 Max. Gold (Wunsch KarloDerBaer): Goldfeld, leer = ohne Grenze.
--- Dahinter, wie viele Stueck zu Kaufen bis mindestens hineinpassen.
-function F.SyncQuickQty()
-    local has = F.key ~= nil
-    F.qtySlider:Hide()
-    F.qtyInput:Hide()
+-- ab 0.106: Max. Menge im Schnellkauf, ab 0.112 Max. Gold. Ab 0.133 (U1, Konzept 4.1) wieder ein Regler von 1 bis
+-- "Alle" (alles unter Kaufen bis), daneben das Feld und "Alle (40)" bzw. "von 40". Vorgabe Massenware Alle, sonst 1.
+function F.SyncQuickQty(d)
+    local Q = ns.Quick
+    local key = F.key
+    local has = key ~= nil
+    if F.goldInput then F.goldInput:Hide() end
     if F.qtyAll then F.qtyAll:Hide() end
-    for _, f in ipairs({ F.qtyLabel, F.goldInput, F.qtyHint }) do f:SetShown(has) end
-    local gold = has and F.ManualGold(F.key) or nil
-    if not Typing(F.goldInput) then
-        if gold then F.goldInput:SetAmount(gold) else ClearMoney(F.goldInput) end
+    for _, f in ipairs({ F.qtyLabel, F.qtySlider, F.qtyInput, F.qtyHint }) do f:SetShown(has) end
+    if not has then F.qtyMax = 0; return end
+    local live = d ~= nil and not d.gone
+    local max = live and (d.maxQty or 0) or 0
+    F.qtyMax = max
+    local want = Q.QtyWant(key)
+    if not (F.qtyInput.HasFocus and F.qtyInput:HasFocus()) then
+        F.qtyInput:SetText(want and tostring(want) or (max > 0 and tostring(max) or ""))
     end
-    local limit = has and F.ManualLimit(F.key) or nil
-    if not has then F.qtyHint:SetText("")
-    elseif gold and limit and limit > 0 then F.qtyHint:SetText(GREY .. L.QUICK_GOLD_QTY:format(math.floor(gold / limit)) .. "|r")
-    elseif gold then F.qtyHint:SetText("")
-    else F.qtyHint:SetText(GREY .. L.QUICK_NO_CAP .. "|r") end
+    local hint
+    if want then hint = GREY .. L.FOCUS_QTY_MAX:format(max) .. "|r"
+    elseif max > 0 then hint = GREEN .. L.QUICK_QTY_ALL:format(max) .. "|r"
+    else hint = GREEN .. L.QUICK_QTY_ALL0 .. "|r" end
+    if live and d.reserveShort then hint = hint .. " " .. ORANGE .. L.QUICK_RESERVE_SHORT .. "|r" end
+    F.qtyHint:SetText(hint)
+    if max >= 2 then SliderSet(F.qtySlider, 1, max, want and math.min(want, max) or max, true)
+    else SliderSet(F.qtySlider, 0, 1, math.min(max, 1), false) end
 end
 
 -- Ueblicher Bereich als Text ("1s 20c bis 1s 60c", sonst "unbekannt")
@@ -687,8 +725,19 @@ function F.Build(c)
     F.sectionTab = UI.SectionTab(left, L.FOCUS_HEAD_CHANCE)
     F.header = UI.ItemHeader(left)
     F.header:SetPoint("TOPLEFT", 10, -10)
-    F.header:SetScript("OnEnter", function(self) if F.key ~= nil then W.ShowItemTooltip(self, F.key) end end)
+    F.header:SetScript("OnEnter", function(self)
+        if F.key == nil then return end
+        W.ShowItemTooltip(self, F.key)
+        if GameTooltip and GameTooltip.AddLine then GameTooltip:AddLine(L.FOCUS_MENU_HINT, 0.6, 0.6, 0.6); GameTooltip:Show() end
+    end)
     F.header:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    -- ab 0.133 (U1, Konzept 4.5): Gegenstand und Im Markt zeigen stehen im Rechtsklick-Menue auf den Namen
+    if F.header.RegisterForClicks then pcall(F.header.RegisterForClicks, F.header, "LeftButtonUp", "RightButtonUp") end
+    F.header:SetScript("OnClick", function(self, button)
+        if button == "RightButton" and F.key ~= nil then mod:Call("Menue", ns.Go.Menu, { key = F.key }, self) end
+    end)
+    F.menuHint = UI.Text(left, "small", GREY .. L.FOCUS_MENU_HINT .. "|r")
+    F.menuHint:SetPoint("TOPRIGHT", left, "TOPRIGHT", -12, -82)
     F.verdict = UI.Text(left, "big", "")
     F.verdict:SetPoint("TOPLEFT", 16, -88)
     -- ab 0.91 (Fehlerbericht 22): Gekauftes zum Wiedereinstellen merken, je Gegenstand gespeichert
@@ -782,20 +831,8 @@ function F.Build(c)
     F.buyInfo = UI.Text(left, "text", "", UI.LEFT_W - 20)
     F.buyInfo:SetJustifyH("CENTER")
     F.buyInfo:SetPoint("BOTTOM", F.buyButton, "TOP", 0, 6)
-    local half = math.floor((UI.LEFT_W - 26) / 2)
-    F.marketButton = ns.Go.MarketButton(left, half, function() return F.key ~= nil and { key = F.key } or nil end)   -- ab 0.73 sicher
-    F.marketButton:SetPoint("BOTTOMLEFT", 10, 40)
-    F.itemButton = UI.Button(left, L.NTAB_ITEM, half, function()
-        if F.key ~= nil then mod:Call("Sprung", ns.Go.Item, { key = F.key }) end
-    end)
-    F.itemButton:SetPoint("LEFT", F.marketButton, "RIGHT", 6, 0)
-    -- ab 0.82: Zurueck (Radar oder Beobachten) und Speichern (in die Beobachtung)
-    F.backButton = UI.Button(left, L.FOCUS_BACK:format(L.NTAB_WATCH), half, function() mod:Call("Sprung", F.GoBack) end)
-    F.backButton:SetPoint("BOTTOMLEFT", 10, 10)
-    F.saveButton = UI.Button(left, L.FOCUS_SAVE, half, function() mod:Call("Beobachtung", F.Save) end)
-    F.saveButton:SetPoint("LEFT", F.backButton, "RIGHT", 6, 0)
-    UI.SetTooltip(F.saveButton, { L.FOCUS_SAVE, L.FOCUS_SAVE_TIP })
-    F.UpdateBack()
+    -- ab 0.133 (U1, Konzept 4.5): die Knoepfe Im Markt zeigen, Gegenstand und Speichern entfallen (Menue auf dem
+    -- Namen, Speichern von selbst). Zurueck und Einstellungen sind kleine Symbole in der Kopfzeile (unten).
 
     -- rechts: der Markt in diesem Moment. Oben die Preisstufen, darunter ab 0.66 (H2) Messung und Diagramm
     local right = UI.Panel(c, "list", true)
@@ -804,13 +841,16 @@ function F.Build(c)
     right:SetHeight(F.TIER_H)
     F.stand = UI.Text(c, "text", "")
     F.stand:SetPoint("BOTTOMLEFT", right, "TOPLEFT", 8, 8)
-    F.settingsButton = UI.Button(c, L.SETTINGS_BUTTON, 110, function()
+    F.settingsButton = F.SmallIcon(c, F.ICON_SETTINGS, function()
         if ns.Settings then mod:Call("Einstellungen", ns.Settings.Toggle, "focus", c) end
-    end)
-    F.settingsButton:SetPoint("BOTTOMRIGHT", right, "TOPRIGHT", -2, 4)
-    -- ab 0.104: Umschalter Aufkauf / Schnellkauf
+    end, { L.SETTINGS_BUTTON })
+    F.settingsButton:SetPoint("BOTTOMRIGHT", right, "TOPRIGHT", -4, 5)
+    -- ab 0.133: Zurueck als Symbol links daneben (vorher Knopf unten links)
+    F.backButton = F.SmallIcon(c, F.ICON_BACK, function() mod:Call("Sprung", F.GoBack) end, function() return { F.BackLabel() } end)
+    F.backButton:SetPoint("RIGHT", F.settingsButton, "LEFT", -6, 0)
+    -- ab 0.104: Umschalter Aufkauf / Schnellkauf, ab 0.133 nur mit dem Schalter focusBuyout (Aufkauf ruht)
     F.modeQuick = UI.Button(c, L.FOCUS_MODE_QUICK, 100, function() mod:Call("Schnellkauf", ns.Quick.SetMode, "quick") end)
-    F.modeQuick:SetPoint("RIGHT", F.settingsButton, "LEFT", -12, 0)
+    F.modeQuick:SetPoint("RIGHT", F.backButton, "LEFT", -12, 0)
     UI.SetTooltip(F.modeQuick, { L.FOCUS_MODE_QUICK, L.FOCUS_MODE_QUICK_TIP })
     F.modeBuyout = UI.Button(c, L.FOCUS_MODE_BUYOUT, 100, function() mod:Call("Schnellkauf", ns.Quick.SetMode, "buyout") end)
     F.modeBuyout:SetPoint("RIGHT", F.modeQuick, "LEFT", -4, 0)
@@ -846,7 +886,27 @@ function F.Build(c)
     F.Update()
 end
 
+-- ab 0.133: kleines Symbol als Knopf (Zurueck, Einstellungen in der Kopfzeile)
+function F.SmallIcon(parent, tex, fn, tip)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(20, 20)
+    b.icon = b:CreateTexture(nil, "ARTWORK")
+    b.icon:SetAllPoints()
+    pcall(b.icon.SetTexture, b.icon, tex)
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    if hl.SetColorTexture then hl:SetColorTexture(1, 1, 1, 0.2) end
+    if fn then b:SetScript("OnClick", fn) end
+    if tip then Peon.UI.SetTooltip(b, tip) end
+    return b
+end
+
 F.TIER_H = 152     -- Hoehe der Preisstufen (Kopf und 6 Zeilen)
+F.ICON_SETTINGS = "Interface\\Icons\\INV_Misc_Gear_01"             -- ab 0.133: Symbole in der Kopfzeile
+F.ICON_BACK = "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up"
+F.ICON_IN = "|TInterface\\Buttons\\Arrow-Down-Up:14:14:0:-3|t"     -- ab 0.133: Zufluss (rein)
+F.ICON_OUT = "|TInterface\\Buttons\\Arrow-Up-Up:14:14:0:3|t"       -- Abfluss (raus)
+F.CHART_H = 140    -- ab 0.133 hoeher (die Zeilen des Schnellkaufs stehen links), vorher 104
 F.MEASURE_ROWS = { "MEASURE_OUT", "MEASURE_IN", "MEASURE_UNDER", "MEASURE_MIN" }
 F.QUICK_ROWS = { "QUICK_MV_IN", "QUICK_MV_OUT", "QUICK_MV_MOVE", "QUICK_MV_BAITS_L", "QUICK_DIP_L", "QUICK_MV_BOUGHT_L", "QS_LABEL" }   -- ab 0.108: Marktbewegung, ab 0.109 fuenf Zeilen, ab 0.122 Langfristig, ab 0.125 Einbruch statt Letztes
 F.ROW_H = 15       -- ab 0.122: sieben Zeilen (vorher 17)
@@ -894,7 +954,7 @@ function F.BuildMeasure(c, above)
     if Peon.NewChart then
         -- ab 0.131 (Wunsch KarloDerBaer 24.11.2026): die Menge richtet ihre Achse nach 90 % der Werte (Kern API 28,
         -- trim). Kurze Angebote mit grossen Mengen stauchten sonst alle anderen Balken.
-        F.chart = Peon.NewChart(mp, { width = cw - 12, height = 104, left = 46, right = 40, top = 6, bottom = 6, grid = 2, trim = { right = 0.9 },
+        F.chart = Peon.NewChart(mp, { width = cw - 12, height = F.CHART_H, left = 46, right = 40, top = 6, bottom = 6, grid = 2, trim = { right = 0.9 },
             leftFormat = AxisMoney, rightFormat = function(v) return Num(v) and Peon.ShortNumber and Peon.ShortNumber(v) or "" end })
         if F.chart and F.chart.frame then F.chart.frame:SetPoint("BOTTOMLEFT", mp, "BOTTOMLEFT", 6, 6) end
         -- ab 0.75: nichts zeichnet ueber den Rand des Diagramms hinaus
@@ -902,7 +962,7 @@ function F.BuildMeasure(c, above)
     end
     -- ab 0.91: Menge grau, Kaufen bis blau (Wunsch KarloDerBaer, 13.11.2026)
     F.chartLegend = UI.Text(mp, "small", ("|cff999999%s|r  |cffffd133%s|r  |cff4d8cff%s|r  |cff60e060%s|r"):format(L.MEASURE_UNDER, L.MEASURE_MIN, L.FOCUS_R_LIMIT, L.FOCUS_R_TARGET))
-    F.chartLegend:SetPoint("BOTTOMRIGHT", mp, "BOTTOMRIGHT", -10, 114)
+    F.chartLegend:SetPoint("BOTTOMRIGHT", mp, "BOTTOMRIGHT", -10, F.CHART_H + 10)
 end
 
 local function Dec(x)
@@ -972,69 +1032,70 @@ end
 -- Modus Schnellkauf (ab 0.104, Quick.lua): Block Lockangebot unter Kaufen bis und Menge, eigenes Diagramm
 ---------------------------------------------------------------------------
 -- ab 0.106 ohne Urteil und Satz darunter, alles rueckt nach oben
--- ab 0.109 Haken "Lockangebot ignorieren" unter Max. Menge, der Block Lockangebot rueckt 16 nach unten.
--- ab 0.110 Linien ueber und unter dem Block Lockangebot, Beschriftungen links buendig ab F.QUICK_X
-F.QUICK_LIMIT_Y, F.QUICK_QTY_Y, F.QUICK_HEAD_Y, F.QUICK_PRICE_Y, F.QUICK_BTN_Y, F.QUICK_STATE_Y, F.QUICK_BAL_Y =
-    -100, -130, -190, -212, -238, -266, -282
-F.QUICK_SKIP_Y, F.QUICK_LINE1_Y, F.QUICK_LINE2_Y, F.QUICK_X = -152, -180, -294, 16   -- ab 0.114 Linie hoeher (ohne Zeile Sitzung)
-F.QUICK_FIELD_X = 93   -- ab 0.112.1: Felder im Schnellkauf so weit rechts von der Beschriftung (wie bisher 8 + 93 - 8)
-F.QUICK_AVG_X = 186   -- ab 0.112: Haken "Durchschnitt zaehlt"
-F.QUICK_BUY_Y = 88    -- ab 0.125: Kaufknopf im Schnellkauf (sonst 70), darunter der letzte Kauf
+-- ab 0.133 (U1, Konzept Peon_Broker_Schlank.md 4.1 und 4.3): links untereinander Kaufen bis (mit Auto), Menge,
+-- Goldreserve, Markt, Einbruch, Gekauft heute, der Kaufknopf und darunter aufklappbar Lockangebot und Mehr Einstellungen
+-- (Haken Lockangebot ignorieren und Durchschnitt zaehlt). Die Bereiche merken sich ihren Zustand (foldBait, foldMore).
+F.QUICK_LIMIT_Y, F.QUICK_QTY_Y, F.QUICK_RES_Y = -100, -128, -156
+F.QUICK_MARKET_Y, F.QUICK_INFO_STEP = -182, 18   -- Markt, Einbruch, Gekauft heute
+F.QUICK_BUY_TOP = -238  -- Oberkante des Kaufknopfs
+F.QUICK_FOLD_Y = -296   -- erster aufklappbarer Bereich
+F.QUICK_X = 16
+F.QUICK_FIELD_X = 93   -- ab 0.112.1: Felder im Schnellkauf so weit rechts von der Beschriftung
+F.QUICK_AVG_X = 186    -- ab 0.112: Haken "Durchschnitt zaehlt"
+F.QUICK_POST_W = 110
+F.QUICK_INFO = { "QUICK_MARKET_L", "QUICK_DIP_L", "QUICK_TODAY_L" }
+
+-- Goldreserve: gilt fuer alle Gegenstaende (radarReserve in Gold, wie im Fenster Einstellungen)
+function F.SetReserve(amount)
+    local v = (Num(amount) and amount > 0) and math.floor(amount / 10000) or 0
+    mod.db.radarReserve = v
+    F.Update()
+end
+
 function F.BuildQuick(left, Label)
     local UI = Peon.UI
     local Q = ns.Quick
     local q = {}
     F.quick = q
-    q.head = UI.Text(left, "label", YELLOW .. L.QUICK_HEAD .. "|r")
-    q.head:SetPoint("TOPLEFT", F.QUICK_X, F.QUICK_HEAD_Y)
-    q.priceLabel = Label(L.QUICK_PRICE, F.QUICK_PRICE_Y)
-    q.priceLabel:SetJustifyH("LEFT")
-    q.priceLabel:SetWidth(0)   -- ab 0.112.1 eigene Breite, das Feld haengt an fester Stelle
-    q.priceLabel:ClearAllPoints()
-    q.priceLabel:SetPoint("TOPLEFT", F.QUICK_X, F.QUICK_PRICE_Y)
-    q.line1 = UI.Divider(left, UI.LEFT_W - 24)
-    q.line1:SetPoint("TOPLEFT", 12, F.QUICK_LINE1_Y)
-    q.line2 = UI.Divider(left, UI.LEFT_W - 24)
-    q.line2:SetPoint("TOPLEFT", 12, F.QUICK_LINE2_Y)
-    q.priceInput = UI.MoneyInput(left, function(amount) Q.SetPriceTyped(amount) end)
-    if q.priceInput.SetScale then q.priceInput:SetScale(0.8) end
-    q.priceInput:SetPoint("LEFT", q.priceLabel, "LEFT", F.QUICK_FIELD_X / 0.8, 0)
-    q.priceHint = UI.Text(left, "small", "")
-    q.priceHint:SetPoint("LEFT", q.priceInput, "RIGHT", 4, 0)
-    -- ab 0.132 (U0, Konzept Peon_Broker_Schlank.md 4.2): unter dem Lockpreis die Menge, rechts davon der Knopf Einstellen.
-    -- Der Knopf Zurueckziehen entfaellt (vorher rechts neben "Lockangebot einstellen").
-    local cw = 110
-    q.qtyLabel = Label(L.QUICK_BAIT_QTY, F.QUICK_BTN_Y - 4)
-    q.qtyLabel:SetJustifyH("LEFT")
-    q.qtyLabel:SetWidth(0)
-    q.qtyLabel:ClearAllPoints()
-    q.qtyLabel:SetPoint("TOPLEFT", F.QUICK_X, F.QUICK_BTN_Y - 4)
-    q.qtyInput = UI.Input(left, 48, { numeric = true, maxLetters = 4 })
-    if q.qtyInput.SetScale then q.qtyInput:SetScale(0.8) end
-    if q.qtyInput.SetJustifyH then q.qtyInput:SetJustifyH("RIGHT") end
-    if q.qtyInput.SetTextInsets then q.qtyInput:SetTextInsets(6, 8, 0, 0) end
-    q.qtyInput:SetPoint("LEFT", q.qtyLabel, "LEFT", F.QUICK_FIELD_X / 0.8, 0)
-    q.qtyInput:HookScript("OnTextChanged", function(self, user)
-        if user then mod:Call("Schnellkauf", Q.SetBaitQty, tonumber(self:GetText() or "")) end
-    end)
-    UI.SetTooltip(q.qtyInput, { L.QUICK_BAIT_QTY, L.QUICK_BAIT_QTY_TIP })
-    q.qtyHint = UI.Text(left, "small", "")
-    q.qtyHint:SetPoint("LEFT", q.qtyInput, "RIGHT", 4, 0)
-    q.post = UI.Button(left, L.QUICK_POST, cw, function() mod:Call("Schnellkauf", Q.Post) end)
-    q.post:SetPoint("TOPLEFT", UI.LEFT_W - 10 - cw, F.QUICK_BTN_Y)
-    UI.SetTooltip(q.post, { L.QUICK_POST, L.QUICK_POST_TIP })
-    q.state = UI.Text(left, "text", "", UI.LEFT_W - 32)
-    q.state:SetPoint("TOPLEFT", 16, F.QUICK_STATE_Y)
-    q.balance = UI.Text(left, "small", "", UI.LEFT_W - 32)
-    q.balance:SetPoint("TOPLEFT", 16, F.QUICK_BAL_Y)
-    q.skip = UI.Check(left, L.QUICK_SKIP, false, function(on) mod:Call("Schnellkauf", Q.SetSkip, on) end, { L.QUICK_SKIP, L.QUICK_SKIP_TIP })
-    if q.skip.SetScale then q.skip:SetScale(0.85) end
-    q.skip:SetPoint("TOPLEFT", 10 / 0.85, F.QUICK_SKIP_Y / 0.85)
-    -- ab 0.112: Haken "Durchschnitt zaehlt" rechts daneben
-    q.avg = UI.Check(left, L.QUICK_AVG, false, function(on) mod:Call("Schnellkauf", Q.SetAvg, on) end, { L.QUICK_AVG, L.QUICK_AVG_TIP })
-    if q.avg.SetScale then q.avg:SetScale(0.85) end
-    q.avg:SetPoint("TOPLEFT", F.QUICK_AVG_X / 0.85, F.QUICK_SKIP_Y / 0.85)
-    q.balance:Hide()   -- ab 0.114 nicht mehr gezeigt (Wunsch KarloDerBaer): die Bilanz steht in der Zeile "Gekauft"
+    local function LeftLabel(text, y)
+        local t = Label(text, y)
+        t:SetJustifyH("LEFT")
+        t:SetWidth(0)
+        t:ClearAllPoints()
+        t:SetPoint("TOPLEFT", F.QUICK_X, y)
+        return t
+    end
+    -- Goldreserve
+    q.resLabel = LeftLabel(L.QUICK_RESERVE, F.QUICK_RES_Y)
+    q.resInput = UI.MoneyInput(left, function(amount) F.SetReserve(amount) end)
+    if q.resInput.SetScale then q.resInput:SetScale(0.8) end
+    q.resInput:SetPoint("LEFT", q.resLabel, "LEFT", F.QUICK_FIELD_X / 0.8, 0)
+    UI.SetTooltip(q.resInput, { L.QUICK_RESERVE, L.QUICK_RESERVE_TIP })
+    -- Markt, Einbruch, Gekauft heute, Einzelheiten im Tooltip
+    q.info = {}
+    for i, key in ipairs(F.QUICK_INFO) do
+        local y = F.QUICK_MARKET_Y - (i - 1) * F.QUICK_INFO_STEP
+        local r = {}
+        r.label = LeftLabel(L[key], y)
+        r.value = UI.Text(left, "text", "")
+        r.value:SetPoint("TOPLEFT", r.label, "TOPLEFT", F.QUICK_FIELD_X, 0)
+        r.bg = left:CreateTexture(nil, "BORDER")   -- Markt: Bewegung faerbt die Zeile leicht ein (ueber dem Hintergrund)
+        r.bg:SetPoint("TOPLEFT", left, "TOPLEFT", 8, y + 3)
+        r.bg:SetSize(UI.LEFT_W - 16, F.QUICK_INFO_STEP)
+        r.bg:Hide()
+        r.hover = CreateFrame("Frame", nil, left)
+        r.hover:SetPoint("TOPLEFT", left, "TOPLEFT", 8, y + 3)
+        r.hover:SetSize(UI.LEFT_W - 16, F.QUICK_INFO_STEP)
+        r.hover:SetScript("OnEnter", function(self)
+            if not (r.tip and #r.tip > 0 and GameTooltip) then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(r.label:GetText() or "", 1, 0.82, 0)
+            for _, line in ipairs(r.tip) do GameTooltip:AddLine(line, 1, 1, 1, true) end
+            GameTooltip:Show()
+        end)
+        r.hover:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+        q.info[i] = r
+    end
     -- ab 0.121: Knopf Auto hinter Kaufen bis (Q.AutoLimit), grau ohne erkanntes fremdes Lockangebot
     q.auto = UI.Button(left, L.QUICK_AUTO, 50, function()
         local v = Q.AutoLimit(F.key)
@@ -1049,11 +1110,90 @@ function F.BuildQuick(left, Label)
         if high then lines[#lines + 1] = ORANGE .. L.QUICK_AUTO_HIGH .. "|r" end   -- ab 0.123
         return lines
     end)
-    -- ab 0.125 (Wunsch KarloDerBaer 20.11.2026): letzter Kauf unter dem Kaufknopf, der Knopf rueckt dafuer hoch
+    -- ab 0.125: letzter Kauf unter dem Kaufknopf (ab 0.133 waehrend eines Kaufs dessen Stand)
     q.lastBuy = UI.Text(left, "small", "", UI.LEFT_W - 20)
     q.lastBuy:SetJustifyH("CENTER")
     q.lastBuy:SetPoint("TOP", F.buyButton, "BOTTOM", 0, -4)
-    q.all = { q.head, q.priceLabel, q.priceInput, q.priceHint, q.qtyLabel, q.qtyInput, q.qtyHint, q.post, q.state, q.skip, q.line1, q.line2, q.avg, q.auto, q.lastBuy }
+    q.line1 = UI.Divider(left, UI.LEFT_W - 24)
+    q.line1:SetPoint("TOPLEFT", 12, F.QUICK_FOLD_Y + 8)
+
+    -- Lockangebot (aufklappbar, Vorgabe zu)
+    q.foldBait = UI.Collapse(left, L.QUICK_HEAD, mod.db.foldBait == true, function(open)
+        mod.db.foldBait = open and true or false
+        F.LayoutQuick()
+    end)
+    q.priceLabel = LeftLabel(L.QUICK_PRICE, F.QUICK_FOLD_Y)
+    q.priceInput = UI.MoneyInput(left, function(amount) Q.SetPriceTyped(amount) end)
+    if q.priceInput.SetScale then q.priceInput:SetScale(0.8) end
+    q.priceInput:SetPoint("LEFT", q.priceLabel, "LEFT", F.QUICK_FIELD_X / 0.8, 0)
+    q.priceHint = UI.Text(left, "small", "")
+    q.priceHint:SetPoint("LEFT", q.priceInput, "RIGHT", 4, 0)
+    -- ab 0.132 (U0, Konzept 4.2): unter dem Lockpreis die Menge, rechts davon der Knopf Einstellen
+    q.qtyLabel = LeftLabel(L.QUICK_BAIT_QTY, F.QUICK_FOLD_Y)
+    q.qtyInput = UI.Input(left, 48, { numeric = true, maxLetters = 4 })
+    if q.qtyInput.SetScale then q.qtyInput:SetScale(0.8) end
+    if q.qtyInput.SetJustifyH then q.qtyInput:SetJustifyH("RIGHT") end
+    if q.qtyInput.SetTextInsets then q.qtyInput:SetTextInsets(6, 8, 0, 0) end
+    q.qtyInput:SetPoint("LEFT", q.qtyLabel, "LEFT", F.QUICK_FIELD_X / 0.8, 0)
+    q.qtyInput:HookScript("OnTextChanged", function(self, user)
+        if user then mod:Call("Schnellkauf", Q.SetBaitQty, tonumber(self:GetText() or "")) end
+    end)
+    UI.SetTooltip(q.qtyInput, { L.QUICK_BAIT_QTY, L.QUICK_BAIT_QTY_TIP })
+    q.qtyHint = UI.Text(left, "small", "")
+    q.qtyHint:SetPoint("LEFT", q.qtyInput, "RIGHT", 4, 0)
+    q.post = UI.Button(left, L.QUICK_POST, F.QUICK_POST_W, function() mod:Call("Schnellkauf", Q.Post) end)
+    UI.SetTooltip(q.post, { L.QUICK_POST, L.QUICK_POST_TIP })
+    q.state = UI.Text(left, "text", "", UI.LEFT_W - 32)
+    q.balance = UI.Text(left, "small", "", UI.LEFT_W - 32)
+    q.balance:Hide()   -- ab 0.114 nicht mehr gezeigt (die Bilanz steht in Gekauft)
+
+    -- Mehr Einstellungen (aufklappbar, Vorgabe zu): die beiden Haken
+    q.foldMore = UI.Collapse(left, L.FOCUS_FOLD_MORE, mod.db.foldMore == true, function(open)
+        mod.db.foldMore = open and true or false
+        F.LayoutQuick()
+    end)
+    q.skip = UI.Check(left, L.QUICK_SKIP, false, function(on) mod:Call("Schnellkauf", Q.SetSkip, on) end, { L.QUICK_SKIP, L.QUICK_SKIP_TIP })
+    if q.skip.SetScale then q.skip:SetScale(0.85) end
+    q.avg = UI.Check(left, L.QUICK_AVG, false, function(on) mod:Call("Schnellkauf", Q.SetAvg, on) end, { L.QUICK_AVG, L.QUICK_AVG_TIP })
+    if q.avg.SetScale then q.avg:SetScale(0.85) end
+
+    q.baitParts = { q.priceLabel, q.priceInput, q.priceHint, q.qtyLabel, q.qtyInput, q.qtyHint, q.post, q.state }
+    q.moreParts = { q.skip, q.avg }
+    q.all = { q.resLabel, q.resInput, q.auto, q.lastBuy, q.line1, q.foldBait, q.foldMore }
+    for _, r in ipairs(q.info) do q.all[#q.all + 1] = r.label; q.all[#q.all + 1] = r.value; q.all[#q.all + 1] = r.hover end
+end
+
+-- Aufklappbare Bereiche untereinander anordnen (ab 0.133)
+function F.LayoutQuick()
+    local q = F.quick
+    if not q then return end
+    local quick = ns.Quick.On()
+    local y = F.QUICK_FOLD_Y
+    q.foldBait:ClearAllPoints()
+    q.foldBait:SetPoint("TOPLEFT", F.QUICK_X - 4, y)
+    local bait = quick and q.foldBait.open and true or false
+    for _, f in ipairs(q.baitParts) do f:SetShown(bait) end
+    y = y - 24
+    if bait then
+        q.priceLabel:ClearAllPoints()
+        q.priceLabel:SetPoint("TOPLEFT", F.QUICK_X, y)
+        q.post:ClearAllPoints()
+        q.post:SetPoint("TOPLEFT", Peon.UI.LEFT_W - 10 - F.QUICK_POST_W, y - 22)
+        q.qtyLabel:ClearAllPoints()
+        q.qtyLabel:SetPoint("TOPLEFT", F.QUICK_X, y - 26)
+        q.state:ClearAllPoints()
+        q.state:SetPoint("TOPLEFT", F.QUICK_X, y - 50)
+        y = y - 72
+    end
+    q.foldMore:ClearAllPoints()
+    q.foldMore:SetPoint("TOPLEFT", F.QUICK_X - 4, y)
+    local more = quick and q.foldMore.open and true or false
+    for _, f in ipairs(q.moreParts) do f:SetShown(more) end
+    y = y - 22
+    q.skip:ClearAllPoints()
+    q.skip:SetPoint("TOPLEFT", 10 / 0.85, y / 0.85)
+    q.avg:ClearAllPoints()
+    q.avg:SetPoint("TOPLEFT", F.QUICK_AVG_X / 0.85, y / 0.85)
 end
 
 local function MoveLabel(label, y, x)
@@ -1068,48 +1208,50 @@ function F.ApplyMode()
     for _, f in ipairs({ F.kindLabel, F.kindValue, F.autoButton, F.targetLabel, F.targetInput, F.targetHint, F.verdict, F.why }) do f:SetShown(not quick) end
     if quick and F.relistCheck then F.relistCheck:Hide() end   -- ab 0.106: kein Wiedereinstellen im Schnellkauf
     if F.limitHint then F.limitHint:SetShown(not quick) end   -- ab 0.112: kein "Linksklick" im Schnellkauf
-    F.qtyLabel:SetText(quick and L.QUICK_MAXGOLD or L.FOCUS_R_QTY)
-    -- ab 0.112: im Schnellkauf Goldfeld statt Mengenfeld, der Hinweis steht dahinter
-    if F.goldInput then
-        F.goldInput:SetShown(quick)
-        F.qtyInput:SetShown(not quick)
-        F.qtyHint:ClearAllPoints()
-        F.qtyHint:SetPoint("LEFT", quick and F.goldInput or F.qtyInput, "RIGHT", 4, 0)
-    end
-    F.qtySlider:SetShown(not quick)
-    if F.qtyAll and not quick then F.qtyAll:Hide() end
+    if F.menuHint then F.menuHint:SetShown(quick) end
+    F.qtyLabel:SetText(L.FOCUS_R_QTY)   -- ab 0.133 auch im Schnellkauf die Menge (vorher Limit pro Kauf)
+    if F.goldInput then F.goldInput:Hide() end
+    if F.qtyAll then F.qtyAll:Hide() end
     F.qtySlider.peonMin = nil   -- Regler beim naechsten Mal neu setzen
-    -- ab 0.107: im Schnellkauf steht das Feld buendig unter dem Goldfeld von Kaufen bis (Platz fuer den Text dahinter)
-    F.qtyInput:ClearAllPoints()
-    if quick then F.qtyInput:SetPoint("LEFT", F.qtyLabel, "RIGHT", 8 / 0.8, 0)
-    else F.qtyInput:SetPoint("LEFT", F.qtySlider, "RIGHT", 6 / 0.8, 0) end
     -- ab 0.110 auch die Mausbereiche: sie lagen im Schnellkauf unsichtbar ueber dem Knopf Lockangebot einstellen
     for _, r in ipairs(F.rows) do r.label:SetShown(not quick); r.value:SetShown(not quick); if r.hover then r.hover:SetShown(not quick) end end
-    -- ab 0.108: im Schnellkauf stehen hier Zufluss, Abfluss, Bewegung und die Nachwirkung des Lockangebots
-    for i, r in ipairs(F.mRows or {}) do r.label:SetText(L[(quick and F.QUICK_ROWS or F.MEASURE_ROWS)[i]] or ""); r.value:SetText(""); r.tip = nil end
+    -- ab 0.133: im Schnellkauf stehen Markt, Einbruch und Gekauft links, rechts nur noch das Diagramm
+    for i, r in ipairs(F.mRows or {}) do
+        r.label:SetText(quick and "" or (L[F.MEASURE_ROWS[i]] or "")); r.value:SetText(""); r.tip = nil
+        r.label:SetShown(not quick); r.value:SetShown(not quick); if r.hover then r.hover:SetShown(not quick) end
+    end
     for _, f in ipairs(F.quick and F.quick.all or {}) do f:SetShown(quick) end
+    for _, r in ipairs(F.quick and F.quick.info or {}) do r.bg:Hide() end   -- faerbt erst die naechste Messung
     MoveLabel(F.limitLabel, quick and F.QUICK_LIMIT_Y or F.LIMIT_Y, quick and F.QUICK_X or nil)
     MoveLabel(F.qtyLabel, quick and F.QUICK_QTY_Y or F.QTY_Y, quick and F.QUICK_X or nil)
     -- ab 0.110: im Schnellkauf alle Beschriftungen links buendig
     F.limitLabel:SetJustifyH(quick and "LEFT" or "RIGHT")
     F.qtyLabel:SetJustifyH(quick and "LEFT" or "RIGHT")
-    -- ab 0.112.1: "Limit pro Kauf" stand im Spiel trotzdem rechtsbuendig. Im Schnellkauf haben die Beschriftungen
-    -- deshalb keine feste Breite mehr, die Felder haengen an einer festen Stelle (F.QUICK_FIELD_X ab der Beschriftung).
-    local W = Peon.UI.LABEL_W
+    -- ab 0.112.1: im Schnellkauf haben die Beschriftungen keine feste Breite, die Felder haengen an einer festen Stelle
+    local LW = Peon.UI.LABEL_W
     local fx = F.QUICK_FIELD_X / 0.8
-    F.limitLabel:SetWidth(quick and 0 or W)
-    F.qtyLabel:SetWidth(quick and 0 or W)
+    F.limitLabel:SetWidth(quick and 0 or LW)
+    F.qtyLabel:SetWidth(quick and 0 or LW)
     F.limitInput:ClearAllPoints()
     if quick then F.limitInput:SetPoint("LEFT", F.limitLabel, "LEFT", fx, 0)
     else F.limitInput:SetPoint("LEFT", F.limitLabel, "RIGHT", 8 / 0.8, 0) end
-    if F.goldInput then
-        F.goldInput:ClearAllPoints()
-        F.goldInput:SetPoint("LEFT", F.qtyLabel, "LEFT", fx, 0)
-    end
-    -- ab 0.125: im Schnellkauf steht der Kaufknopf hoeher, darunter der letzte Kauf
+    F.qtySlider:ClearAllPoints()
+    if quick then F.qtySlider:SetPoint("LEFT", F.qtyLabel, "LEFT", F.QUICK_FIELD_X, 0)
+    else F.qtySlider:SetPoint("LEFT", F.qtyLabel, "RIGHT", 6, 0) end
+    F.qtyInput:ClearAllPoints()
+    F.qtyInput:SetPoint("LEFT", F.qtySlider, "RIGHT", 6 / 0.8, 0)
+    F.qtyHint:ClearAllPoints()
+    F.qtyHint:SetPoint("LEFT", F.qtyInput, "RIGHT", 4, 0)
+    -- ab 0.133: im Schnellkauf steht der Kaufknopf unter Gekauft heute, die Zeile darueber entfaellt (Text im Knopf)
     F.buyButton:ClearAllPoints()
-    F.buyButton:SetPoint("BOTTOMLEFT", 10, quick and F.QUICK_BUY_Y or 70)
-    if F.sectionTab and F.sectionTab.SetText then F.sectionTab:SetText(quick and L.FOCUS_MODE_QUICK or L.FOCUS_HEAD_CHANCE) end
+    if quick then F.buyButton:SetPoint("TOPLEFT", 10, F.QUICK_BUY_TOP)
+    else F.buyButton:SetPoint("BOTTOMLEFT", 10, 70) end
+    F.buyInfo:SetShown(not quick)
+    if F.sectionTab and F.sectionTab.SetText then F.sectionTab:SetText(quick and L.FOCUS_HEAD_BUY or L.FOCUS_HEAD_CHANCE) end
+    -- ab 0.133: Umschalter nur, wenn der Aufkauf eingeschaltet ist (Einstellungen, Erweitert)
+    local both = ns.Quick.BuyoutOn()
+    F.modeQuick:SetShown(both)
+    F.modeBuyout:SetShown(both)
     if F.modeQuick.LockHighlight then
         if quick then F.modeQuick:LockHighlight(); F.modeBuyout:UnlockHighlight()
         else F.modeBuyout:LockHighlight(); F.modeQuick:UnlockHighlight() end
@@ -1120,14 +1262,20 @@ function F.ApplyMode()
         F.chartLegend:SetText(("|cff999999%s|r  |cffffd133%s|r  |cff4d8cff%s|r  |cff60e060%s|r"):format(L.MEASURE_UNDER, L.MEASURE_MIN, L.FOCUS_R_LIMIT, L.FOCUS_R_TARGET))
         if F.buyButton.UnlockHighlight then F.buyButton:UnlockHighlight() end
     end
+    F.LayoutQuick()
 end
 
--- Block Lockangebot fuellen
+-- Lockangebot und Zeilen links fuellen
 function F.UpdateQuick(d, live)
     local q = F.quick
     if not q then return end
     local Q = ns.Quick
     local key = F.key
+    -- Goldreserve (Gold, fuer alle Gegenstaende)
+    if not Typing(q.resInput) then
+        local res = (tonumber(mod.db.radarReserve) or 0) * 10000
+        if res > 0 then q.resInput:SetAmount(res) else ClearMoney(q.resInput) end
+    end
     local suggest, base = Q.Suggest()
     local m = q.priceInput
     if not Typing(m) then
@@ -1149,7 +1297,10 @@ function F.UpdateQuick(d, live)
     On(q.post, canPost and true or false)
     local av, _, _, high = nil, nil, nil, false
     if live and key ~= nil then av, _, _, high = Q.AutoLimit(key) end
-    q.lastBuy:SetText(key ~= nil and Q.LastBuyText(key) or "")   -- ab 0.125
+    -- ab 0.133: waehrend eines Kaufs steht hier sein Stand (vorher in der Zeile ueber dem Knopf)
+    local job = ns.Radar.job
+    if job and key ~= nil and job.key == key and F.jobInfo then q.lastBuy:SetText(F.jobInfo)
+    else q.lastBuy:SetText(key ~= nil and Q.LastBuyText(key) or "") end
     On(q.auto, av ~= nil)
     -- ab 0.123: leuchtet, wenn das letzte Lockangebot bei oder ueber Kaufen bis liegt
     if q.auto.LockHighlight then
@@ -1162,14 +1313,13 @@ function F.UpdateQuick(d, live)
     if q.avg.SetChecked then q.avg:SetChecked(Q.AvgOn(key)) end
 end
 
--- Zeilen ueber dem Diagramm im Schnellkauf (ab 0.108): Zufluss, Abfluss, Bewegung, Nachwirkung des Lockangebots
-function F.UpdateQuickMove(v)
-    if not F.mRows then return end
+-- Marktbewegung (ab 0.108): Zufluss, Abfluss, Bewegung, Lockangebote, Einbruch, Gekauft, Langfristig. Rueckgabe
+-- vals, tips (je Index wie F.QUICK_ROWS), code der Bewegung
+function F.QuickMoveValues(v)
     local Q, M = ns.Quick, ns.Measure
     local db = mod.db
     local vals, tips = { "", "", "", "", "", "", "" }, {}
     local win = math.floor(M.WINDOW / 60 + 0.5)
-    -- ab 0.110 kurz, Einzelheiten im Tooltip (Wunsch KarloDerBaer: nicht ueber den Rand)
     local function R(x) x = x or 0; if x >= 10 then return tostring(math.floor(x + 0.5)) end return Dec(x) end
     local code, ev = Q.Movement(v)
     if code == "first" then
@@ -1192,7 +1342,6 @@ function F.UpdateQuickMove(v)
         tips[4] = { ruleTip }
     else
         vals[4] = L.QUICK_MV_BAITS:format(st.n, win, st.withFollow)
-        -- ab 0.125: das letzte Lockangebot nur noch im Tooltip (die Zeile Letztes ist jetzt Einbruch)
         local f = st.last
         tips[4] = { L.QUICK_MV_TIP_AVG:format(R(st.added / st.n)),
                     L.QUICK_MV_TIP_LAST:format(f.own and L.QUICK_MV_OWN_L or L.QUICK_MV_FOREIGN_L, Money(f.price),
@@ -1202,7 +1351,54 @@ function F.UpdateQuickMove(v)
     if F.key ~= nil and (v or AHOpen()) then vals[5], tips[5] = Q.DipText(F.key) end   -- ab 0.125
     if F.key ~= nil then vals[6], tips[6] = Q.BoughtText(F.key) end   -- ab 0.111
     if F.key ~= nil and ns.QuickStats then vals[7], tips[7] = ns.QuickStats.FocusText(F.key) end   -- ab 0.122
-    for i, r in ipairs(F.mRows) do r.value:SetText(vals[i]); r.tip = tips[i] end
+    return vals, tips, code, v
+end
+
+F.MOVE_BG = { high = { 0.3, 0.9, 0.3, 0.12 }, mid = { 1, 0.82, 0, 0.10 }, low = { 0.6, 0.6, 0.6, 0.08 } }
+
+-- ab 0.133 (U1, Konzept 4.1): Zeilen links. Markt zeigt Zufluss und Abfluss je Minute mit Symbolen, die Bewegung
+-- faerbt die Zeile leicht ein. Im Tooltip: Zufluss, Abfluss, Bewegung, Lockangebote (fremde und eigene),
+-- Preisspruenge und Langfristig. Einbruch wie bisher, Gekauft heute aus der Statistik des Tages.
+function F.UpdateQuickMove(v)
+    local q = F.quick
+    if not q then return end
+    local vals, tips, code = F.QuickMoveValues(v)
+    local function R(x) x = x or 0; if x >= 10 then return tostring(math.floor(x + 0.5)) end return Dec(x) end
+    local mk = q.info[1]
+    if code == "first" or not v then
+        mk.value:SetText(vals[3] ~= "" and vals[3] or "")
+    else
+        mk.value:SetText(L.QUICK_MARKET:format(F.ICON_IN, R(v.inAll), F.ICON_OUT, R(v.out)))
+    end
+    local tip = {}
+    local function Add(labelKey, i)
+        if vals[i] and vals[i] ~= "" then tip[#tip + 1] = YELLOW .. L[labelKey] .. ":|r " .. vals[i] end
+        for _, line in ipairs(tips[i] or {}) do tip[#tip + 1] = GREY .. line .. "|r" end
+    end
+    Add("QUICK_MV_IN", 1)
+    Add("QUICK_MV_OUT", 2)
+    Add("QUICK_MV_MOVE", 3)
+    Add("QUICK_MV_BAITS_L", 4)
+    Add("QS_LABEL", 7)
+    mk.tip = tip
+    local col = F.MOVE_BG[code]
+    if col and mk.bg.SetColorTexture then mk.bg:SetColorTexture(col[1], col[2], col[3], col[4]) end
+    mk.bg:SetShown(col ~= nil and ns.Quick.On())
+    q.info[2].value:SetText(vals[5] or "")
+    q.info[2].tip = tips[5]
+    local key = F.key
+    local n, cost = nil, nil
+    if key ~= nil and ns.QuickStats and ns.QuickStats.TodayBought then n, cost = ns.QuickStats.TodayBought(key) end
+    if key == nil then q.info[3].value:SetText("")
+    elseif n and n > 0 then
+        q.info[3].value:SetText(L.QUICK_TODAY:format(n, Num(cost) and cost > 0 and Money(math.floor(cost / n + 0.5)) or "-"))
+    else
+        q.info[3].value:SetText(GREY .. L.QUICK_TODAY_NONE .. "|r")
+    end
+    local t3 = {}
+    if vals[6] and vals[6] ~= "" then t3[1] = L.QUICK_TODAY_SESSION:format(vals[6]) end
+    for _, line in ipairs(tips[6] or {}) do t3[#t3 + 1] = GREY .. line .. "|r" end
+    q.info[3].tip = t3
 end
 
 -- Diagramm im Schnellkauf: guenstigster Preis, Menge unter Kaufen bis, eigene Lockangebote
@@ -1263,17 +1459,22 @@ local function BuyState(d)
             if job.warn then info = ORANGE .. L.FOCUS_PRICE_WARN:format(Money(job.total or 0), Money(job.expect or 0)) .. "|r" end
         elseif job.items then info = L.FOCUS_BOUGHT:format(job.done or 0, job.qty or 0, Money(job.cost or 0)) end
         if info == "" then info = F.Summary(d) end
+        F.jobInfo = info   -- ab 0.133: im Schnellkauf unter dem Kaufknopf
         return R.JobText(job), job.stage == "confirm" or job.stage == "next", info
     end
-    local info = (ns.Quick and ns.Quick.On()) and ns.Quick.Summary(d) or F.Summary(d)
+    F.jobInfo = nil
+    local quick = ns.Quick and ns.Quick.On()
+    local info = quick and ns.Quick.Summary(d) or F.Summary(d)
     if not d or d.gone then return L.BUY_BUY, false, info end
     local qty = d.best and d.best.qty or 0
-    if not AHOpen() then return L.FOCUS_BUY:format(qty), false, info end
+    -- ab 0.133 (U1, Konzept 4.1): im Schnellkauf steht auf dem Knopf, was ein Klick hoechstens kostet
+    local buyText = quick and ns.Quick.BuyLabel(d) or L.FOCUS_BUY:format(qty)
+    if not AHOpen() then return buyText, false, info end
     if R.IsStale(d.key or F.key) then return L.FOCUS_CHECKING, false, info end   -- ab 0.104
     if ns.Quick and ns.Quick.Locked(d.key or F.key) then return L.FOCUS_CHECKING, false, info end   -- ab 0.114
     -- ab 0.70: mit eigenem Ziel geht Kaufen auch ohne Gewinn (eigene Entscheidung), nur nicht ohne Menge oder Gold
     if qty < 1 or d.cant then return L.BUY_BUY, false, info end
-    return L.FOCUS_BUY:format(qty), job == nil, info
+    return buyText, job == nil, info
 end
 
 function F.Update()
@@ -1284,9 +1485,8 @@ function F.Update()
     if has and ns.Quick.On() then F.EnsureLoaded() end   -- ab 0.131: erst die gespeicherten Werte, dann Vorgaben
     if has and live and ns.Quick.On() then
         ns.Quick.EnsureLimit()   -- ab 0.107, ab 0.120 Haelfte des guenstigsten, mindestens Haendlerpreis
-        ns.Quick.EnsureGold()    -- ab 0.113, ab 0.120 fester Betrag (quickGoldDefault)
+        -- ab 0.133 ohne Limit pro Kauf (Q.EnsureGold): die Goldreserve begrenzt jeden Kauf
     end
-    On(F.marketButton, has); On(F.itemButton, has); On(F.saveButton, has)
     On(F.autoButton, has and live and (F.ManualTarget(key) ~= nil or F.ManualLimit(key) ~= nil))
     if not has then
         F.header:Set(nil, "", 1)
@@ -1301,7 +1501,11 @@ function F.Update()
         F.stand:SetText("")
         F.UpdateMeasure(nil)
         F.buyButton:SetText(L.BUY_BUY); F.buyButton:Disable(); F.buyInfo:SetText(F.Summary(nil))
-        if F.quick then F.quick.state:SetText(""); F.quick.balance:SetText(""); F.quick.post:Disable() end
+        if F.quick then
+            F.quick.state:SetText(""); F.quick.balance:SetText(""); F.quick.post:Disable()
+            for _, r in ipairs(F.quick.info) do r.value:SetText(""); r.tip = nil; r.bg:Hide() end
+            F.quick.lastBuy:SetText("")
+        end
         return
     end
     local D = ns.Data

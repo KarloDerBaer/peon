@@ -641,8 +641,8 @@ for _, n in ipairs(UISpecialFrames) do if n == "PeonBrokerFrame" then escape = t
 check(escape, "Escape schliesst das Fenster")
 local names = {}
 for _, b in ipairs(Win.tabButtons) do names[#names + 1] = b.text end
-check(table.concat(names, ",") == "Markt,Verkaufen,Auktionen,Einkaufen,Fokus,Beobachten,Chancen,Mehr",
-  "0.105: Reiter Markt, Verkaufen, Auktionen, Einkaufen, Fokus, Beobachten, Chancen, Mehr (Radar in Chancen): " .. table.concat(names, ","))
+check(table.concat(names, ",") == "Markt,Verkaufen,Auktionen,Einkaufen,Beobachten,Listen,Chancen,Mehr",
+  "0.133: Reiter Markt, Verkaufen, Auktionen, Einkaufen, Beobachten, Listen, Chancen, Mehr: " .. table.concat(names, ","))
 check(Win.tabButtons[2].key == "sell" and Win.tabButtons[2].disabled, "N1: Verkaufen ist unterwegs grau")
 check(Win.current == "more" and Win.more and Win.more.current == "prices", "Fenster oeffnet beim zuletzt gewaehlten Reiter (0.82: Gegenstand unter Mehr)")
 check(Win.status and Win.status.text.text:find("letzter Stand, nicht live", 1, true) == nil and Win.status.text.text:find("Scan", 1, true),
@@ -1289,10 +1289,12 @@ end
     check(not Rd.running and Rd.Renewing(), "N6/0.71: Radar-Scan gestoppt, Erneuern laeuft weiter")
     mod.db.radarScanMode = "watch"
     Ch.SetMode("mgr")
+    -- ab 0.133 (U1): der Aufkauf ruht. Die alten Pruefungen des Aufkaufs laufen mit eingeschaltetem Schalter weiter.
+    mod.db.focusBuyout = true
     -- Klick: Fokus fragt nur diesen Gegenstand ab
     Ch.list.list.rows[1].scripts.OnClick(Ch.list.list.rows[1], "LeftButton")
     check(T.current == "focus" and F.Shown() and F.key == 7801 and Rd.focus and Rd.focus.key == 7801 and Rd.loop and not Rd.running and not T.back.shown
-        and F.origin == "chances" and F.backButton.text == "Zurück zu Chancen",
+        and F.origin == "chances" and F.BackLabel() == "Zurück zu Chancen",
         "N6/0.82/0.105: Fokus am Auktionator: genau dieser Gegenstand wird abgefragt, Zurueck unten fuehrt zu Chancen")
     Rd.pending, Rd.lastSend = nil, -100
     now = now + 1; tick()
@@ -2491,13 +2493,13 @@ Win.Refresh()
   check(sbt.points[1][1] == "TOPRIGHT" and sbt.points[1][3] == "TOPRIGHT" and sbt.points[1][4] == -34 and sbt.status,
     "0.59.1: Scan-Knopf mit Text in der Titelleiste neben dem Schliessen-Knopf")
   check(T.status and T.back and not T.back.shown, "N1: Statuszeile und Knopf Zurueck im Auktionshaus, Zurueck anfangs verborgen")
-  check(T.tabs.buy.points[1][2] == ah.AuctionsTab and T.tabs.focus.points[1][2] == T.tabs.buy and T.tabs.watch.points[1][2] == T.tabs.focus
-    and T.tabs.chances.points[1][2] == T.tabs.watch and T.tabs.more.points[1][2] == T.tabs.chances
+  check(T.tabs.focus.points[1][2] == ah.AuctionsTab and T.tabs.watch.points[1][2] == T.tabs.focus and T.tabs.buy.points[1][2] == T.tabs.watch
+    and T.tabs.chances.points[1][2] == T.tabs.buy and T.tabs.more.points[1][2] == T.tabs.chances
     and #ah.AuctionsTab.points == 0,
-    "0.105: Reihenfolge Markt, Verkaufen, Auktionen, Einkaufen, Fokus, Beobachten, Chancen, Mehr, Blizzards Auktionen bleibt an seinem Platz")
+    "0.133: Reihenfolge Markt, Verkaufen, Auktionen, Einkaufen, Beobachten, Listen, Chancen, Mehr, Blizzards Auktionen bleibt an seinem Platz")
   check(ah.BuyTab.text == ns.L.AHTAB_MARKET, "0.54: Kaufen heisst Markt")
-  check(T.tabs.chances.text == "Chancen" and T.tabs.buy.text == ns.L.AHTAB_SHOP and T.tabs.focus.text == "Fokus"
-    and T.tabs.watch.text == "Beobachten" and T.tabs.more.text == "Mehr", "0.82: Reiter heissen Einkaufen, Fokus, Beobachten, Chancen, Mehr")
+  check(T.tabs.chances.text == "Chancen" and T.tabs.buy.text == "Listen" and T.tabs.focus.text == "Einkaufen"
+    and T.tabs.watch.text == "Beobachten" and T.tabs.more.text == "Mehr", "0.133: Reiter heissen Einkaufen, Beobachten, Listen, Chancen, Mehr")
   check(#ah.Tabs == 3 and ah.numTabs == nil, "U0: Blizzards Reiterliste bleibt unberuehrt")
   check(T.tabs.chances.parent == T.tabHolder and T.tabHolder.parent == ah and #T.tabHolder.Tabs == 5, "0.41.2: Reiter haengen am eigenen Rahmen, nicht an Blizzards Liste")
   check(T.tabs.chances.points[1][4] == T.TAB_GAP and T.TAB_GAP == -15, "0.56: Grundabstand wie Blizzard (-15)")
@@ -2514,14 +2516,14 @@ Win.Refresh()
     geo(ah.BuyTab, 0, 100, -3, 7)       -- sichtbar bis 107
     geo(ah.SellTab, 85, 185, -3, 7)     -- sichtbar ab 82: Abstand -25
     geo(ah.AuctionsTab, 170, 270, -3, 7)
-    geo(T.tabs.buy, 255, 355, -10, 7)   -- ragt links weiter hinaus
-    geo(T.tabs.chances, 340, 440, -3, 7)
+    geo(T.tabs.focus, 255, 355, -10, 7)   -- ragt links weiter hinaus
+    geo(T.tabs.watch, 340, 440, -3, 7)
     check(T.AlignTabs() and T.tabGap == -25, "0.56: Abstand bei Blizzard gemessen")
-    local shopOff = T.tabs.buy.points[#T.tabs.buy.points][4]
-    local radarOff = T.tabs.chances.points[#T.tabs.chances.points][4]
+    local shopOff = T.tabs.focus.points[#T.tabs.focus.points][4]
+    local radarOff = T.tabs.watch.points[#T.tabs.watch.points][4]
     check(shopOff == -8 and radarOff == -15 and #ah.AuctionsTab.points == 0,
       "N1: Brokers Reiter so gesetzt, dass die Grafiken denselben Abstand haben, Blizzards Reiter unberuehrt")
-    for _, t in ipairs({ ah.BuyTab, ah.SellTab, T.tabs.buy, T.tabs.chances, ah.AuctionsTab }) do t.GetLeft, t.GetRight = nil, nil end
+    for _, t in ipairs({ ah.BuyTab, ah.SellTab, T.tabs.focus, T.tabs.watch, ah.AuctionsTab }) do t.GetLeft, t.GetRight = nil, nil end
   end)()
   local modesAfter = 0 for _ in pairs(AuctionHouseFrameDisplayMode) do modesAfter = modesAfter + 1 end
   check(modesAfter == modesBefore, "U0: keine eigenen Eintraege in AuctionHouseFrameDisplayMode")
@@ -3369,8 +3371,8 @@ end)()
   for i = n0 + 1, #timers do timers[i]() end
   check(opened and opened.title == "Kupfererz", "U4: Strg+Rechtsklick auf einen Gegenstand oeffnet das Menue (nach dem Loslassen)")
   local goMarket, info, focus, shop = opened.items[1], opened.items[2], opened.items[3], opened.items[4]
-  check(goMarket.text == "Im Markt zeigen" and info.text == "Gegenstand (Broker)" and focus.text == "In den Fokus" and shop.text == ns.L.MENU_SHOP,
-    "N6: Eintraege Im Markt zeigen, Gegenstand, In den Fokus und Auf Einkaufsliste")
+  check(goMarket.text == "Im Markt zeigen" and info.text == "Gegenstand (Broker)" and focus.text == "Einkaufen" and shop.text == ns.L.MENU_SHOP,
+    "N6: Eintraege Im Markt zeigen, Gegenstand, Einkaufen (ab 0.133, vorher In den Fokus) und Auf Einkaufsliste")
   local lists = ns.Buy.Lists()
   check(#shop.items == #lists + 1 and shop.items[#shop.items].text == ns.L.MENU_SHOP_NEW, "U4: Untermenue mit allen Listen und Neue Liste")
   local before = #lists
@@ -3979,19 +3981,20 @@ end)()
   WP.list.o.onClick(row, "LeftButton")
   check(not row.muteDown and not row.muteUp and not Wt.Muted(7995, "Down") and not Wt.Muted(7995, "Up"), "0.92: nochmal: wieder an")
   WP.OverBell = keepOver
+  mod.db.focusBuyout = true   -- ab 0.133: Pruefungen des Aufkaufs mit eingeschaltetem Schalter
   -- ab 0.83: einfacher Klick waehlt nur aus, Doppelklick oeffnet den Fokus
   local keyBefore = F.key
   WP.list.o.onClick(row, "LeftButton")
   check(WP.selected == row and F.key == keyBefore and not WP.removeButton.disabled and not WP.marketButton.disabled,
     "0.83: Klick waehlt aus, Knoepfe Entfernen und Im Markt zeigen gehen")
   check(WP.sellButton and WP.sellButton.disabled and WP.sellWhy == "Nur am Auktionator.", "0.83: Verkaufen unterwegs gesperrt, mit Grund")
-  check(plain(WP.hint.text) == "Klick: auswählen, Doppelklick: Im Fokus öffnen", "0.83: Hinweis links oben")
+  check(plain(WP.hint.text) == "Klick: auswählen, Doppelklick: im Einkaufen öffnen", "0.83: Hinweis links oben")
   WP.list.o.onClick(row, "LeftButton")
   check(F.key == 7995 and F.ManualTarget(7995) == 200 and F.ManualLimit(7995) == 100 and F.manualSrc == "watch" and F.origin == "watch"
-    and F.backButton.text == "Zurück zu Beobachten", "0.82: Klick in Beobachten: Fokus mit Kaufen bis und Zielpreis, zurueck zu Beobachten")
+    and F.BackLabel() == "Zurück zu Beobachten", "0.82: Klick in Beobachten: Fokus mit Kaufen bis und Zielpreis, zurueck zu Beobachten")
   check(F.KindText({ own = true }) == "Beobachten", "0.82: Art Beobachten")
   F.SetLimitTyped(90)
-  check(F.KindText({ own = true }) == "Eigenes Ziel", "0.82: geaendert: Art Eigenes Ziel")
+  check(F.KindText({ own = true }) == "Beobachten" and Wt.Limit(7995) == 90, "0.133: geaendert: sofort gespeichert, Art bleibt Beobachten")
   -- Speichern uebernimmt die Werte
   check(F.Save() and Wt.Limit(7995) == 90 and Wt.Store()[7995].up == 200 and F.manualSrc == "watch", "0.82: Speichern aktualisiert Kaufen bis und Zielpreis")
   F.Set(7996)
@@ -4000,7 +4003,7 @@ end)()
   -- Herkunft Radar
   F.Set(7995)
   F.FromPage(7995, "radar")
-  check(F.origin == "chances" and F.backButton.text == "Zurück zu Chancen" and F.ManualTarget(7995) == nil, "0.82/0.105: aus dem Radar: zurueck zu Chancen, ohne Werte der Beobachtung")
+  check(F.origin == "chances" and F.BackLabel() == "Zurück zu Chancen" and F.ManualTarget(7995) == nil, "0.82/0.105: aus dem Radar: zurueck zu Chancen, ohne Werte der Beobachtung")
   F.FromPage(7995, "focus")
   check(F.origin == "chances", "0.82: naechste Chance aus dem Fokus heraus: Herkunft bleibt")
   F.origin = "watch"
@@ -4555,10 +4558,12 @@ end)()
   Rd.entries, Rd.gone, Rd.job, Rd.buyUntil = {}, {}, nil, nil
   F.Set(7971)
   ns.Buy.live[7971] = { rows = { R(100, 1), R(150, 20), R(200, 50), commodity = true }, t = clock, commodity = true }
+  mod.db.foldBait, mod.db.foldMore = true, true   -- ab 0.133: Bereiche aufgeklappt fuer die alten Pruefungen
+  F.quick.foldBait.open, F.quick.foldMore.open = true, true
   Q.SetMode("quick")
   check(mod.db.focusMode == "quick" and not F.targetInput.shown and not F.rows[1].label.shown and F.quick.post.shown and F.limitLabel.shown,
     "0.104: Schnellkauf blendet Zielpreis und Angaben aus und zeigt das Lockangebot")
-  check(plain(F.sectionTab.text) == L.FOCUS_MODE_QUICK and F.modeQuick.locked, "0.104: Umschalter zeigt den Modus")
+  check(plain(F.sectionTab.text) == L.FOCUS_HEAD_BUY and F.modeQuick.locked, "0.104: Umschalter zeigt den Modus")
   F.Update()
   check(F.ManualLimit(7971) == 75 and F.limitInput:GetAmount() == 75,
     "0.120: erstes Oeffnen: Kaufen bis = Haelfte des guenstigsten Angebots (1 Stueck ganz unten zaehlt nicht): " .. tostring(F.ManualLimit(7971)))
@@ -4712,6 +4717,7 @@ end)()
   ns.Scan.ahOpen, GetMoney, Rd.PlayAlert, C_Container = keepOpen, keepMoney, keepPlay, keepCC
   M.Stop()
   mod.acc.focusMeasure = nil
+  ns.Watch.Remove(7971)   -- ab 0.133: Kaufen bis eintragen nimmt in Beobachten auf
   market.items[7971], ns.Buy.live[7971], mod.acc.commodity[7971] = nil, nil, nil
   Rd.entries, Rd.gone, Rd.job, Rd.focus = {}, {}, nil, nil
   Q.bait, Q.sessions, Q.marks = nil, {}, {}
@@ -4823,35 +4829,48 @@ end)()
   Rd.entries, Rd.gone, Rd.job = {}, {}, nil
   F.Set(7981)
   ns.Buy.live[7981] = { rows = { { price = 100, qty = 5, own = 0 }, { price = 150, qty = 20, own = 0 }, commodity = true }, t = clock, commodity = true }
+  mod.db.focusBuyout = true   -- ab 0.133: Umschalten nur mit eingeschaltetem Aufkauf
   Q.SetMode("quick")
-  check(not F.verdict.shown and not F.why.shown and not F.relistCheck.shown and not F.qtySlider.shown and not F.qtyInput.shown
-    and F.goldInput.shown and plain(F.qtyLabel.text) == "Limit pro Kauf", "0.106/0.112: Schnellkauf ohne Hinweistexte, ohne Wiedereinstellen, Limit pro Kauf als Goldfeld")
+  check(not F.verdict.shown and not F.why.shown and not F.relistCheck.shown and F.qtySlider.shown and F.qtyInput.shown
+    and not F.goldInput.shown and plain(F.qtyLabel.text) == "Menge", "0.133: Schnellkauf ohne Hinweistexte, ohne Wiedereinstellen, Menge mit Regler statt Limit pro Kauf")
   local lim0 = F.ManualLimit(7981)
-  check(lim0 == 50 and F.ManualGold(7981) == 50000 and F.manualGold.auto and plain(F.qtyHint.text) == "≥ 1000 Stück" and Q.SkipOn(7981) and Q.AvgOn(7981),
-    "0.113/0.120: Vorgaben ohne gespeicherte Werte: Limit pro Kauf 5 Gold, beide Haken an: " .. plain(F.qtyHint.text))
-  F.SetGoldTyped(nil)
-  check(F.ManualGold(7981) == nil and plain(F.qtyHint.text) == "ohne Grenze", "0.113: selbst geleert heisst ohne Grenze und bleibt leer: " .. plain(F.qtyHint.text))
-  local qp = F.goldInput.points[1]
+  check(lim0 == 50 and Q.QtyWant(7981) == nil and Q.SkipOn(7981) and Q.AvgOn(7981) and not Wt.Is(7981),
+    "0.120/0.133: Vorgaben ohne gespeicherte Werte: Massenware Menge Alle, beide Haken an, noch nicht beobachtet")
   local lp = F.limitInput.points[1]
-  check(qp and qp[2] == F.qtyLabel and qp[1] == "LEFT" and qp[3] == "LEFT" and lp and lp[2] == F.limitLabel and lp[3] == "LEFT" and qp[4] == lp[4]
-    and F.qtyLabel.w == 0 and F.limitLabel.w == 0, "0.107/0.112.1: Feld buendig unter dem Goldfeld von Kaufen bis, Beschriftungen ohne feste Breite")
+  check(lp and lp[2] == F.limitLabel and lp[3] == "LEFT" and F.qtyLabel.w == 0 and F.limitLabel.w == 0 and F.qtySlider.points[1][2] == F.qtyLabel,
+    "0.112.1/0.133: Felder an fester Stelle, Beschriftungen ohne feste Breite")
   F.SetLimit(150)
-  F.SetGoldTyped(1500)
-  check(F.Plan().best.qty == 11 and F.Plan().goldCap == 1500 and plain(F.qtyHint.text) == "≥ 10 Stück",
-    "0.112: Limit pro Kauf begrenzt den Kauf (5 x 1s + 6 x 1s 50c), dahinter die Menge zu Kaufen bis: " .. plain(F.qtyHint.text))
+  check(Wt.Is(7981) and Wt.Store()[7981].qlim == 150, "0.133: Kaufen bis eintragen nimmt den Gegenstand in Beobachten auf (Speichern von selbst)")
+  check(F.Plan().best.qty == 25 and plain(F.buyButton.text) == "Kaufen 25 für 35s" and plain(F.qtyHint.text) == "Alle (25)",
+    "0.133: Menge Alle kauft alles unter Kaufen bis, der Knopf nennt Menge und Preis: " .. plain(F.buyButton.text) .. " / " .. plain(F.qtyHint.text))
+  F.SetQtyTyped(11)
+  check(F.Plan().best.qty == 11 and plain(F.qtyHint.text) == "von 25" and Wt.Store()[7981].qqty == 11,
+    "0.133: Menge 11 begrenzt den Kauf und wird sofort gespeichert: " .. plain(F.qtyHint.text))
+  F.OnQtySlider(25)
+  check(Q.QtyWant(7981) == nil and Wt.Store()[7981].qqty == 0, "0.133: Regler ganz rechts heisst Alle (gespeichert als 0)")
+  -- Goldreserve: bleibt nach dem Kauf uebrig, die Menge wird gekuerzt (5 x 1s + 6 x 1s 50c = 14s)
+  GetMoney = function() return 1001500 end
+  mod.db.radarReserve = 100
+  local dr = F.Plan()
+  check(dr.best.qty == 11 and dr.goldCap == 1500 and dr.reserveShort, "0.133: Goldreserve kuerzt die Menge und begrenzt den Kauf: " .. tostring(dr.best.qty))
+  F.Update()
+  check(plain(F.qtyHint.text):find("Goldreserve", 1, true) and F.quick.resInput:GetAmount() == 1000000, "0.133: Hinweis Goldreserve, Feld zeigt sie: " .. plain(F.qtyHint.text))
+  F.SetReserve(0)
+  check(mod.db.radarReserve == 0, "0.133: Feld Goldreserve schreibt die gemeinsame Einstellung")
+  GetMoney = function() return 10000000 end
   -- Speichern je Modus
   F.Save()
   local w = Wt.Store()[7981]
-  check(w and w.qlim == 150 and w.qgold == 1500 and w.qmax == nil and w.mode == "quick" and w.lim == nil and w.up == nil, "0.106: Speichern im Schnellkauf merkt Kaufen bis und Limit pro Kauf")
+  check(w and w.qlim == 150 and w.qqty == 0 and w.qgold == nil and w.mode == "quick" and w.lim == nil and w.up == nil, "0.133: Speichern im Schnellkauf merkt Kaufen bis und Menge")
   Q.SetMode("buyout")
   check(F.qtyInput.points[1][2] == F.qtySlider and F.qtyInput.shown and not F.goldInput.shown and F.ManualLimit(7981) == nil and F.ManualQty(7981) == nil and F.verdict.shown and F.relistCheck.shown and plain(F.qtyLabel.text) == "Menge",
     "0.106: Aufkauf laedt seine eigenen Werte und zeigt Urteil und Wiedereinstellen")
   F.SetLimit(120)
   F.SetTarget(200)
   F.Save()
-  check(w.lim == 120 and w.up == 200 and w.mode == nil and w.qlim == 150 and w.qgold == 1500, "0.106: Speichern im Aufkauf laesst die Werte des Schnellkaufs")
+  check(w.lim == 120 and w.up == 200 and w.mode == nil and w.qlim == 150 and w.qqty == 0, "0.106: Speichern im Aufkauf laesst die Werte des Schnellkaufs")
   Q.SetMode("quick")
-  check(F.ManualLimit(7981) == 150 and F.ManualGold(7981) == 1500 and F.ManualTarget(7981) == nil, "0.106: Umschalten laedt die Werte des Modus")
+  check(F.ManualLimit(7981) == 150 and Q.QtyStored(7981) == 0 and F.ManualTarget(7981) == nil, "0.106: Umschalten laedt die Werte des Modus")
   F.Save()
   -- Fokus aus Beobachten im gespeicherten Modus, aus Chancen im Aufkauf
   Q.SetMode("buyout", true)
@@ -4969,6 +4988,7 @@ end)()
   F.SetTarget(nil)
   Q.limitCleared = {}
   ns.Scan.ahOpen, GetMoney = keepOpen, keepMoney
+  ns.Watch.Remove(7988)   -- ab 0.133
   market.items[7988], ns.Buy.live[7988], mod.acc.commodity[7988] = nil, nil, nil
   Rd.entries, Rd.gone, Rd.focus = {}, {}, nil
 end)()
@@ -5026,15 +5046,21 @@ end)()
   GetTime = function() return 20 end
   st = Q.BaitStats(7983)
   check(st.last.running and st.last.left == 26, "0.108: Nachwirkung laeuft noch 26 Sek.")
-  -- Zeilen ueber dem Diagramm (ab 0.110 kurz, Einzelheiten im Tooltip)
+  -- Werte der Marktbewegung (ab 0.110 kurz, Einzelheiten im Tooltip, ab 0.133 links in der Zeile Markt)
+  local vals, tips = F.QuickMoveValues(v)
+  local t1, t3, t4, t5 = plain(vals[1]), plain(vals[3]), plain(vals[4]), plain(vals[5])
+  check(t1 == "42 je Min. (10×)" and t3 == "lebhaft (2 Sprünge)" and t4 == "2 in 10 Min., 1 mit Folge" and t5 == "noch keiner",
+    "0.110: kurze Werte: " .. t1 .. " / " .. t3 .. " / " .. t4 .. " / " .. t5)
+  check(tips[1] and tips[1][1]:find("in 10 Einstellungen je Minute", 1, true) and tips[3] and #tips[3] == 2
+    and tips[4] and tips[4][2]:find("Eigenes Lockangebot", 1, true), "0.110/0.125: Einzelheiten fuer den Tooltip")
   F.UpdateQuickMove(v)
-  local t1, t3, t4, t5 = plain(F.mRows[1].value.text), plain(F.mRows[3].value.text), plain(F.mRows[4].value.text), plain(F.mRows[5].value.text)
-  check(plain(F.mRows[1].label.text) == "Zufluss" and plain(F.mRows[3].label.text) == "Bewegung"
-    and plain(F.mRows[4].label.text) == "Lockangebote" and plain(F.mRows[5].label.text) == "Einbruch"
-    and t1 == "42 je Min. (10×)" and t3 == "lebhaft (2 Sprünge)" and t4 == "2 in 10 Min., 1 mit Folge" and t5 == "noch keiner",
-    "0.110: kurze Zeilen ueber dem Diagramm: " .. t1 .. " / " .. t3 .. " / " .. t4 .. " / " .. t5)
-  check(F.mRows[1].tip and F.mRows[1].tip[1]:find("in 10 Einstellungen je Minute", 1, true) and F.mRows[3].tip and #F.mRows[3].tip == 2
-    and F.mRows[4].tip and F.mRows[4].tip[2]:find("Eigenes Lockangebot", 1, true), "0.110/0.125: Einzelheiten im Tooltip der Zeilen (letztes Lockangebot ab 0.125 bei Lockangebote)")
+  local mk = F.quick.info[1]
+  local tipText = table.concat(mk.tip or {}, "|")
+  check(plain(mk.label.text) == "Markt" and plain(mk.value.text):find("42 rein", 1, true) and plain(mk.value.text):find("raus je Min.", 1, true)
+    and tipText:find("Bewegung", 1, true) and tipText:find("Lockangebote", 1, true) and tipText:find("Langfristig", 1, true) and mk.bg.shown,
+    "0.133: Zeile Markt mit Zufluss und Abfluss, Bewegung, Lockangebote und Langfristig im Tooltip, Zeile eingefaerbt: " .. plain(mk.value.text))
+  check(plain(F.quick.info[2].label.text) == "Einbruch" and plain(F.quick.info[2].value.text) == "noch keiner" and plain(F.quick.info[3].label.text) == "Gekauft heute",
+    "0.133: Zeilen Einbruch und Gekauft heute links")
   -- Folge ohne einzelne Stuecke: 80 mit 1 Stueck (Lockangebot), dann +1 (noch ein Lockangebot, zaehlt nicht), dann +20
   Q.baits[7986] = nil
   local p0 = { t = 100, min = 100, lv = { { price = 100, qty = 10 } } }
@@ -5221,20 +5247,23 @@ end)()
   Rd.OnPriceUpdated(170, 3400)
   check(confirmed == 1 and Rd.job and not Rd.job.warn and Rd.job.stage == "wait", "0.112: Durchschnitt unter Kaufen bis, ohne Warnung bestaetigt")
   Rd.FinishJob(true)
-  -- Limit pro Kauf: Gesamtpreis darueber -> zu teuer
-  F.SetGoldTyped(1900)
+  -- ab 0.133 Goldreserve statt Limit pro Kauf: Gesamtpreis darueber -> zu teuer
+  local keepGM = GetMoney
+  GetMoney = function() return 1001900 end
+  mod.db.radarReserve = 100
   ns.Buy.live[7989] = { rows = { { price = 100, qty = 10, own = 0 }, { price = 150, qty = 10, own = 0 }, commodity = true }, t = clock + 10, commodity = true }
   F.Update()
   local d = F.Plan()
-  check(d.best.qty == 16 and d.goldCap == 1900, "0.112: Limit pro Kauf 19s: 10 x 1s und 6 x 1s 50c")
+  check(d.best.qty == 16 and d.goldCap == 1900, "0.133: Goldreserve laesst 19s: 10 x 1s und 6 x 1s 50c")
   confirmed = 0
   F.Buy()
   Rd.OnPriceUpdated(190, 3040)
-  check(confirmed == 0 and Rd.job == nil, "0.112: Gesamtpreis ueber dem Limit pro Kauf, kein Kauf")
+  check(confirmed == 0 and Rd.job == nil, "0.133: Gesamtpreis wuerde die Goldreserve angreifen, kein Kauf")
+  mod.db.radarReserve, GetMoney = 0, keepGM
   -- gespeichert in Beobachten
   F.Save()
   local w = ns.Watch.Store()[7989]
-  check(w and w.qavg == true and w.qgold == 1900 and not F.limitHint.shown, "0.112: Haken und Limit pro Kauf in Beobachten")
+  check(w and w.qavg == true and not F.limitHint.shown, "0.112: Haken in Beobachten")
   -- aufraeumen
   ns.Watch.Remove(7989)
   Q.avg = {}
@@ -5247,56 +5276,66 @@ end)()
   Rd.entries, Rd.gone, Rd.job, Rd.focus = {}, {}, nil, nil
 end)()
 
--- ===== 0.113: Vorgaben im Schnellkauf, automatisch speichern =====
+-- ===== 0.133 (U1): Einkaufen speichert von selbst, Aufkauf ruht, Menue, aufklappbare Bereiche =====
 ;(function()
   local F, Q, Wt = ns.Focus, ns.Quick, ns.Watch
   local keepOpen, keepMoney = ns.Scan.ahOpen, GetMoney
   GetMoney = function() return 10000000 end
   ns.Scan.ahOpen = true
+  mod.db.focusBuyout = true
   mod.acc.commodity[7990] = true
   market.items[7990] = { m = 100, md = 150, q = 25, n = 2, t = clock, nm = "Speicherstein", ql = 1 }
   Rd.entries, Rd.gone, Rd.job = {}, {}, nil
   F.Set(7990)
   Q.SetMode("quick")
-  F.SetLimit(200)
   ns.Buy.live[7990] = { rows = { { price = 100, qty = 10, own = 0 }, { price = 150, qty = 10, own = 0 }, commodity = true }, t = clock, commodity = true }
   F.Update()
-  check(F.ManualGold(7990) == 50000, "0.120: Limit pro Kauf ohne eigenen Wert 5 Gold")
-  F.SetLimit(300)
-  mod.db.quickGoldDefault = 70000
-  F.Update()
-  check(F.ManualGold(7990) == 70000, "0.120: Vorgabe einstellbar, gilt auch nach neuem Kaufen bis")
-  mod.db.quickGoldDefault = nil
-  F.SetGoldTyped(5000)
-  F.SetLimit(250)
-  F.Update()
-  check(F.ManualGold(7990) == 5000, "0.113: eigener Betrag bleibt")
-  -- nicht beobachtet: kein automatisches Speichern
-  check(F.AutoSave() == false and not Wt.Is(7990), "0.113: nicht beobachtet, nichts gespeichert")
-  -- beobachtet: Verlassen des Reiters speichert still
-  Wt.Add(7990, { name = "Speicherstein" })
+  check(F.ManualLimit(7990) == 50 and not Wt.Is(7990), "0.133: Vorgabe Kaufen bis macht noch keinen Eintrag in Beobachten")
   Q.SetSkip(false)
-  ns.Window.pages.focus.leave()
+  check(not Wt.Is(7990) and not Q.SkipOn(7990), "0.133: Haken allein nimmt nicht in Beobachten auf")
+  F.SetLimit(250)
   local w = Wt.Store()[7990]
-  check(w.qlim == 250 and w.qgold == 5000 and w.qskip == false and w.qavg == true and w.mode == "quick", "0.113: Verlassen speichert die Werte des Schnellkaufs")
-  -- Einstellung aus: nichts gespeichert
-  mod.db.autoSaveQuick = false
-  F.SetLimit(222)
-  check(F.AutoSave() == false and w.qlim == 250, "0.113: Einstellung aus, nichts gespeichert")
-  mod.db.autoSaveQuick = true
-  -- Wechsel in den Aufkauf speichert den Schnellkauf
+  check(w and w.qlim == 250 and w.qskip == false and w.qavg == true and w.mode == "quick" and w.qgold == nil and w.qqty == nil,
+    "0.133: Kaufen bis eintragen nimmt auf und speichert sofort, Menge bleibt Vorgabe")
+  Q.SetAvg(false)
+  check(w.qavg == false, "0.133: Haken gilt sofort")
+  -- gespeichertes Limit pro Kauf bleibt erhalten, wird aber nicht mehr genutzt
+  w.qgold = 5000
   F.SetLimit(260)
+  check(w.qlim == 260 and w.qgold == 5000 and F.Plan().best.qty == 20, "0.133: altes Limit pro Kauf bleibt gespeichert und begrenzt nichts")
+  -- Moduswechsel laedt die gespeicherten Werte
   Q.SetMode("buyout")
-  check(w.qlim == 260, "0.113: Wechsel des Modus speichert den bisherigen Modus")
-  -- gespeichert ohne Grenze: bleibt ohne Grenze
-  w.qgold = 0
-  Q.goldCleared = {}
   Q.SetMode("quick")
-  check(F.ManualGold(7990) == nil and Q.goldCleared[7990] and not Q.SkipOn(7990), "0.113: gespeichert ohne Grenze und ohne Haken, so geladen")
+  check(F.ManualLimit(7990) == 260 and not Q.SkipOn(7990) and not Q.AvgOn(7990), "0.133: gespeicherte Werte geladen")
+  -- Vorgabe der Menge: Massenware Alle, sonst 1
+  mod.acc.commodity[7997] = false
+  check(Q.QtyDefault(7990) == 0 and Q.QtyDefault(7997) == 1 and Q.QtyWant(7997) == 1, "0.133: Menge Alle fuer Massenware, 1 fuer andere Gegenstaende")
+  -- Rechtsklick auf den Namen oeffnet das Menue (Gegenstand, Im Markt zeigen)
+  local keepMenu, menued = ns.Go.Menu, nil
+  ns.Go.Menu = function(item) menued = item.key; return true end
+  F.header.scripts.OnClick(F.header, "RightButton")
+  ns.Go.Menu = keepMenu
+  check(menued == 7990 and F.saveButton == nil and F.itemButton == nil and F.marketButton == nil, "0.133: Menue auf dem Namen statt Knoepfen")
+  -- aufklappbare Bereiche merken sich ihren Zustand
+  mod.db.foldBait, mod.db.foldMore = false, false
+  F.quick.foldBait.open, F.quick.foldMore.open = false, false
+  F.LayoutQuick()
+  check(not F.quick.post.shown and not F.quick.skip.shown and F.quick.foldBait.shown and F.quick.foldMore.shown, "0.133: Lockangebot und Mehr Einstellungen anfangs zu")
+  F.quick.foldBait.scripts.OnClick(F.quick.foldBait)
+  check(mod.db.foldBait == true and F.quick.post.shown and not F.quick.skip.shown, "0.133: Lockangebot aufgeklappt und gemerkt")
+  F.quick.foldMore.scripts.OnClick(F.quick.foldMore)
+  check(mod.db.foldMore == true and F.quick.skip.shown and F.quick.avg.shown, "0.133: Mehr Einstellungen aufgeklappt")
+  -- Aufkauf ruht: ohne Schalter immer Schnellkauf, kein Umschalter
+  mod.db.focusBuyout = false
+  Q.SetMode("buyout")
+  check(Q.On() and not F.modeQuick.shown and not F.modeBuyout.shown and not F.targetInput.shown, "0.133: Aufkauf ruht, kein Umschalter")
+  mod.db.focusBuyout = true
+  F.ApplyMode()
+  check(F.modeQuick.shown and F.modeBuyout.shown, "0.133: mit Schalter Erweitert wieder umschaltbar")
   -- aufraeumen
-  mod.db.autoSaveQuick, mod.db.autoSaveBuyout = true, true
   Wt.Remove(7990)
-  Q.skip, Q.avg, Q.goldCleared = {}, {}, {}
+  Q.skip, Q.avg, Q.qty = {}, {}, {}
+  mod.acc.commodity[7997] = nil
   Q.SetMode("buyout", true)
   F.SetLimit(nil)
   F.manualGold = nil
@@ -5354,6 +5393,7 @@ end)()
   F.manualGold = nil
   Q.hold = nil
   GetTime, ns.Scan.ahOpen, GetMoney = keepTime, keepOpen, keepMoney
+  ns.Watch.Remove(7991)   -- ab 0.133: Kaufen bis eintragen nimmt in Beobachten auf
   market.items[7991], ns.Buy.live[7991], mod.acc.commodity[7991] = nil, nil, nil
   Rd.entries, Rd.gone, Rd.job, Rd.focus = {}, {}, nil, nil
 end)()
@@ -5712,8 +5752,8 @@ end)()
   local s2 = { t = 980, min = 120, lv = { { price = 120, qty = 8 }, { price = 200, qty = 100 } } }
   Q.OnSample(key, p2, s2)
   F.UpdateQuickMove(ns.Measure.Values())
-  check(plain(F.mRows[5].label.text) == "Einbruch" and plain(F.mRows[5].value.text) == "tiefster 1s 20c (2)", "0.125: Zeile Einbruch: " .. plain(F.mRows[5].value.text))
-  check(F.mRows[5].tip and F.mRows[5].tip[1]:find("8 Stück", 1, true), "0.125: Tooltip mit dem letzten Einbruch")
+  check(plain(F.quick.info[2].label.text) == "Einbruch" and plain(F.quick.info[2].value.text) == "tiefster 1s 20c (2)", "0.125: Zeile Einbruch: " .. plain(F.quick.info[2].value.text))
+  check(F.quick.info[2].tip and F.quick.info[2].tip[1]:find("8 Stück", 1, true), "0.125: Tooltip mit dem letzten Einbruch")
   -- juengeres Lockangebot geht vor
   local s3 = { t = 985, min = 90, lv = { { price = 90, qty = 1 }, { price = 120, qty = 8 }, { price = 200, qty = 100 } } }
   Q.OnSample(key, s2, s3)

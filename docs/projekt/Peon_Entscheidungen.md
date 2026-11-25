@@ -3,6 +3,16 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 25.11.2026: Broker schlank, Schritt U1 Einkaufen (Broker 0.133.0)
+
+- **Reiter Listen schon in U1** (Claude, Konzept sah die Umbenennung in U4 vor): Mit „Einkaufen“ für die Hauptseite hätte es zwei Reiter dieses Namens gegeben. Der Reiter der Einkaufslisten heißt deshalb jetzt „Listen“ und steht hinter Beobachten wie in Abschnitt 3. Sonst ändert sich an den Listen nichts.
+- **Goldreserve ist die vorhandene Goldreserve** (Claude): `radarReserve` aus dem Fenster Einstellungen galt schon für Radar und Aufkauf. Das Feld im Einkaufen schreibt denselben Wert, so gibt es nur eine Reserve für alles.
+- **Menge nur im Spiel gespeichert** (Claude): `qqty` gleicht Broker nicht mit dem Manager ab (wie früher `qmax`). Der Manager kennt die Menge erst, wenn er sie braucht.
+- **Gespeicherte Limits bleiben** (Konzept 4.5): `qgold` und `quickGoldDefault` bleiben erhalten und werden nicht mehr gezeigt oder genutzt. Ein früheres Limit begrenzt keinen Kauf mehr.
+- **Menge aus der Einkaufsliste kommt mit U4** (Claude): Aus den Listen gibt es noch keinen Sprung ins Einkaufen, der die fehlende Menge kennt. Er entsteht mit dem Umbau der Listen.
+- **Speichern von selbst auch im ruhenden Aufkauf** (Claude): Mit eingeschaltetem Aufkauf gilt jede Eingabe für beobachtete Gegenstände ebenfalls sofort (Haken „Aufkauf automatisch speichern“ bleibt).
+- **Pfeile als Grafik** (Claude): Die Schrift des Spiels hat keine Zeichen ⤓ und ⤒. Zufluss und Abfluss zeigen deshalb kleine Pfeilgrafiken des Spiels (`Arrow-Down-Up`, `Arrow-Up-Up`), leicht in `F.ICON_IN` und `F.ICON_OUT` zu tauschen.
+
 ## 25.11.2026: Ledger schlank umgesetzt (Ledger 0.18.0)
 
 - **Knöpfe [Bags] oben rechts** (Claude, Konzept zeigte sie an den Kopfzeilen der Orte): Die Liste kann in ihren Zeilen keine Knöpfe tragen. „Taschen in Bags“ und „Bank in Bags“ stehen neben der Suche und gelten für den gewählten Charakter.

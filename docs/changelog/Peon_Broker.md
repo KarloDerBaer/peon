@@ -2,6 +2,26 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.133.0
+
+Kurz: Der Fokus heißt jetzt Einkaufen und ist der erste Reiter von Broker. Er zeigt nur noch den Schnellkauf, jede Eingabe wird sofort gespeichert.
+Kurz: Statt Limit pro Kauf gibt es eine Menge mit Regler bis „Alle“ und eine Goldreserve für alle Gegenstände. Der Kaufknopf zeigt, was ein Klick höchstens kostet.
+Kurz: Zufluss und Abfluss stehen in der Zeile Markt mit Pfeilen. Lockangebot und weitere Einstellungen lassen sich auf- und zuklappen.
+Kurz: Der Reiter mit den Einkaufslisten heißt jetzt Listen.
+
+- 0.133.0 (25.11.2026, Schritt U1 aus dem Konzept `Peon_Broker_Schlank.md`, Abschnitte 3, 4.1, 4.3, 4.5):
+  - **Geändert, Reiter:** Fokus heißt Einkaufen, Einkaufen (die Einkaufslisten) heißt Listen. Reihenfolge Markt, Verkaufen, Auktionen, Einkaufen, Beobachten, Listen, Chancen, Mehr. Ohne gemerkten Reiter öffnet Broker am Auktionator Einkaufen. Der Menüpunkt „In den Fokus“ heißt „Einkaufen“, Hinweise und Tastenbelegung sprechen vom Einkaufen.
+  - **Geändert, nur Schnellkauf:** Der Modus Aufkauf ruht. Im Fenster Einstellungen unter „Erweitert“ bringt der Haken „Modus Aufkauf im Einkaufen“ den Umschalter zurück (`focusBuyout`, Vorgabe aus). Der gespeicherte Modus `focusMode` bleibt.
+  - **Geändert, Speichern von selbst:** Kaufen bis, Menge und die beiden Haken werden bei jeder Eingabe gespeichert. Ein Gegenstand kommt in Beobachten, sobald man ein Kaufen bis einträgt (auch über Auto) oder im Menü „Beobachten“ wählt. Vorgaben allein nehmen nichts auf.
+  - **Neu, Menge:** Regler von 1 bis „Alle“ (alles unter Kaufen bis), daneben das Feld und „Alle (40)“ bzw. „von 40“. Vorgabe Alle für Massenware, 1 für andere Gegenstände. Gespeichert je Gegenstand in Beobachten (`qqty`, 0 = Alle, nur im Spiel).
+  - **Neu, Goldreserve statt Limit pro Kauf:** So viel Gold bleibt nach jedem Kauf übrig, die Menge wird notfalls gekürzt („(Goldreserve)“ hinter der Menge). Es ist dieselbe Goldreserve wie im Fenster Einstellungen (`radarReserve`). Der Kauf bricht ab, wenn der Preis des Spiels die Reserve angreifen würde. Gespeicherte Limits (`qgold`, `quickGoldDefault`) bleiben erhalten, werden aber nicht mehr angezeigt oder genutzt.
+  - **Geändert, Kaufknopf:** „Kaufen 40 für 60s 80c“. Die Zeile darüber entfällt, unter dem Knopf steht der letzte Kauf oder der Stand des laufenden Kaufs.
+  - **Neu, Zeile Markt:** Zufluss und Abfluss je Minute mit Pfeilen nebeneinander, die Bewegung färbt die Zeile leicht (lebhaft grün, mäßig gelb, ruhig grau). Im Tooltip Zufluss, Abfluss, Bewegung mit Preissprüngen, Lockangebote und Langfristig.
+  - **Geändert:** Einbruch und „Gekauft heute“ (mit Durchschnitt, Sitzung im Tooltip) stehen links unter der Goldreserve. Rechts bleiben Angebote und Diagramm, das Diagramm ist höher.
+  - **Neu, aufklappbar:** Lockangebot und „Mehr Einstellungen“ (Haken Lockangebot ignorieren und Durchschnitt zählt), Vorgabe zu, der Zustand bleibt gemerkt (`foldBait`, `foldMore`).
+  - **Entfernt:** Knöpfe Im Markt zeigen, Gegenstand und Speichern. Gegenstand und Im Markt zeigen stehen im Rechtsklick-Menü auf den Namen. Zurück und Einstellungen sind kleine Symbole über den Angeboten. Im Fenster Einstellungen entfallen „Schnellkauf automatisch speichern“ und „Limit pro Kauf“, dafür steht dort die Goldreserve.
+  - Tests: Reiter und Reihenfolge, Menge mit Vorgabe und Regler, Goldreserve kürzt und begrenzt den Kauf, Speichern von selbst, altes Limit bleibt gespeichert, Zeile Markt mit Tooltip, Menü auf dem Namen, aufklappbare Bereiche, Aufkauf ruht (`test_broker.lua`).
+
 ## 0.132.0
 
 Kurz: Das Lockangebot im Schnellkauf hat jetzt eine Menge. Links steht die Menge, rechts der Knopf Einstellen. Den Knopf Zurückziehen gibt es nicht mehr.

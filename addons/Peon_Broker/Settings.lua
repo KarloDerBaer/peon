@@ -62,8 +62,7 @@ S.SPECS.focus = {
     { "head", "SET_FOCUS_BUY" },
     { "slider", "focusPriceTol", "SET_FOCUS_TOL", 0, 10, 1, function(v) return L.SET_PCT_FMT:format(v) end },
     { "check", "relistDefault", "SET_FOCUS_RELIST", "SET_FOCUS_RELIST_TIP" },   -- ab 0.91
-    { "check", "autoSaveBuyout", "SET_AUTOSAVE_BUYOUT", "SET_AUTOSAVE_TIP" },   -- ab 0.113
-    { "check", "autoSaveQuick", "SET_AUTOSAVE_QUICK", "SET_AUTOSAVE_TIP" },
+    { "check", "autoSaveBuyout", "SET_AUTOSAVE_BUYOUT", "SET_AUTOSAVE_TIP" },   -- ab 0.113 (ab 0.133 Schnellkauf immer sofort)
     { "head", "SET_QUICK_HEAD" },   -- ab 0.104
     { "check", "quickAlarm", "SET_QUICK_ALARM", "SET_QUICK_ALARM_TIP" },
     { "choice", "quickSound", "SET_QUICK_SOUND", QuickSounds, test = QuickTest, off = QuickAlarmOff },
@@ -73,10 +72,12 @@ S.SPECS.focus = {
     { "slider", "quickHold", "SET_QUICK_HOLD", 0, 5, 0.5, function(v) return v == 0 and L.SET_OFF or L.SET_SECD_FMT:format(Dec(v)) end },   -- ab 0.114
     { "head", "SET_QUICK_DEFAULTS" },   -- ab 0.120: Vorgaben ohne eigene Werte
     { "slider", "quickLimitPct", "SET_QUICK_LIMIT_PCT", 10, 100, 5, function(v) return L.SET_PCT_FMT:format(v) end },
-    { "money", "quickGoldDefault", "SET_QUICK_GOLD_DEF", 1 },
+    { "money", "radarReserve", "SET_RADAR_RESERVE", 10000 },   -- ab 0.133 Goldreserve statt Limit pro Kauf (quickGoldDefault ruht)
     { "head", "SET_QS_HEAD" },   -- ab 0.122: Gelegenheiten langfristig
     { "slider", "quickDipPct", "SET_QS_DIP", 1, 30, 1, function(v) return L.SET_PCT_FMT:format(v) end },
     { "slider", "quickStatDays", "SET_QS_DAYS", 1, 60, 1, function(v) return L.SET_DAYS_FMT:format(v) end },
+    { "head", "SET_FOCUS_ADV" },   -- ab 0.133 (U1, Konzept 4.5): Aufkauf ruht und laesst sich hier wieder einschalten
+    { "check", "focusBuyout", "SET_FOCUS_BUYOUT", "SET_FOCUS_BUYOUT_TIP" },
     { "col" },
     { "head", "SET_FOCUS_VERDICT" },
     { "slider", "focusWindow", "SET_FOCUS_WINDOW", 2, 30, 1, function(v) return L.SET_MIN_FMT:format(v) end },
@@ -182,7 +183,7 @@ S.SPECS.watch = {
     { "note", "SET_WATCH_NOTE" },
 }
 
-S.changed.focus = function() if ns.Focus then ns.Focus.chartN = nil; ns.Focus.Update() end end
+S.changed.focus = function() if ns.Focus then ns.Focus.chartN = nil; if ns.Focus.ApplyMode then ns.Focus.ApplyMode() end; ns.Focus.Update() end end
 
 local function Disabled(row)
     local f = row.off

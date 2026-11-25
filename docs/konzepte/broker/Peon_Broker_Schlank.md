@@ -165,12 +165,13 @@ Jeder Schritt ist eine eigene Broker-Version und läuft in einer eigenen Session
 | **U1 Einkaufen** | Reiter umbenennen, nur Schnellkauf, Speichern von selbst, Knöpfe ins Menü, Menge und Goldreserve, Zeile Markt, aufklappbare Bereiche, Aufkauf ruht (3, 4.1, 4.3, 4.5) | `Focus.lua`, `Quick.lua`, `Window.lua`, `AHTabs.lua`, `Menu.lua` | groß |
 | **U2 Diagramm** | Linien und Zeitraum wählbar (4.4) | `Focus.lua` | klein |
 | **U3 Beobachten** | eine Liste, Spalten 7 Tage und Jetzt mit Punkt (6) | `WatchPage.lua`, `QuickStats.lua` | mittel |
-| **U4 Einkaufsliste** | sofort abziehen, grau, ×, Regler, Reiter heißt Listen (7) | `Shop.lua`, `Buy.lua` | mittel |
+| **U4 Einkaufsliste** | sofort abziehen, grau, ×, Regler, Menge im Einkaufen aus der Liste (4.1, aus U1 verschoben) (7) | `Shop.lua`, `Buy.lua` | mittel |
 | **U5 Seitenleiste** | Leiste mit Beobachten und Liste (5), braucht U1, U3 und U4 | neue Datei `Side.lua`, `Window.lua` | mittel |
 | **U6 Chancen** | nur Schnellkauf sichtbar, Schalter „Weitere Chancen“, Pakete je Zeile (8) | `Chances.lua`, `Packages.lua`, ggf. Kern `UI.Table` | mittel |
 | **U7 Einstellungen** | Broker nach dem Leitfaden `Peon_Einstellungen_Leitfaden.md` | `Settings.lua`, `Options.lua` | mittel |
 
 - Reihenfolge: U0, dann U1 bis U6 in dieser Folge, U7 zum Schluss (wie im Leitfaden vorgesehen).
+- Stand: U0 in Broker 0.132.0, U1 in Broker 0.133.0. Abweichungen in U1 (Entscheidungsprotokoll 25.11.2026): Der Reiter der Einkaufslisten heißt schon ab U1 „Listen“, sonst gäbe es zwei Reiter „Einkaufen“. Die Goldreserve ist die vorhandene `radarReserve`. Die Menge aus der Einkaufsliste kommt mit U4.
 - **Manager:** In der Seitenleiste des Managers (Konzept `Peon_Manager_Schlank.md`) heißt der Unterreiter unter Listen künftig „Einkaufslisten“ statt „Einkaufen“, damit die Namen zu Broker passen. Beobachten zeigt dort dieselben Spalten wie in 6.
 - Vorgemerkt, nicht Teil dieses Plans: Lockangebot in Teilen (4.2), Einstellen im Einkaufen aus Entwurf C.
 

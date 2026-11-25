@@ -66,6 +66,9 @@ local mod = Peon:NewModule(ADDON_NAME, {
         watchChatUp  = true,    -- ab 0.91: Chatnachricht beim Zielpreis
         focusPriceTol = 1,      -- Fokus (ab 0.70): Warnung, wenn der Gesamtpreis so viel % ueber dem erwarteten liegt
         focusMode    = "buyout", -- Fokus (ab 0.104): Modus Aufkauf (buyout) oder Schnellkauf (quick)
+        focusBuyout  = false,   -- ab 0.133 (U1): Modus Aufkauf im Einkaufen (Einstellungen, Erweitert), sonst nur Schnellkauf
+        foldBait     = false,   -- ab 0.133: Bereich Lockangebot im Einkaufen aufgeklappt
+        foldMore     = false,   -- ab 0.133: Bereich Mehr Einstellungen im Einkaufen aufgeklappt
         quickAlarm   = true,    -- Schnellkauf (ab 0.104): Ton, sobald etwas unter Kaufen bis steht
         quickSound   = "raid",  -- Schnellkauf (ab 0.104): welcher Ton
         quickHold = 1,          -- ab 0.114: so viele Sekunden keine Abfrage, solange der Kaufknopf frei ist (0 = aus)

@@ -26,9 +26,10 @@ ns.AHTabs = T
 -- Reihenfolge ab 0.59 (Neuaufbau N1, KarloDerBaer): Blizzards Markt (Kaufen), Verkaufen, Auktionen, danach Brokers
 -- Einkaufen, Radar, Fokus, Gegenstand, Mehr. Die Schluessel sind die der Seiten im Broker-Fenster (W.pages).
 T.TABS = {
-    { key = "buy",    label = "AHTAB_SHOP" },
+    -- ab 0.133 (U1, Konzept Peon_Broker_Schlank.md 3): Einkaufen (bisher Fokus), Beobachten, Listen (bisher Einkaufen)
     { key = "focus",  label = "NTAB_FOCUS" },   -- ab 0.96 links neben Beobachten
     { key = "watch",  label = "NTAB_WATCH" },   -- ab 0.82
+    { key = "buy",    label = "AHTAB_SHOP" },
     { key = "chances", label = "TAB_CHANCES" }, -- ab 0.96
     { key = "more",   label = "NTAB_MORE" },    -- ab 0.82 mit Gegenstand
 }
@@ -263,8 +264,8 @@ end
 -- Reiter am Auktionator zeigen (W.Open und W.Toggle leiten hierher). Brokers Seiten oeffnen als eigener Reiter,
 -- "Markt" ist Blizzards Kaufen, alles andere fuehrt zu Einkaufen.
 function T.Show(key)
-    -- ohne Wunsch: der zuletzt gewaehlte Broker-Reiter, sonst Einkaufen
-    if key == nil then key = T.IsHosted(mod.db.windowTab) and mod.db.windowTab or "buy" end
+    -- ohne Wunsch: der zuletzt gewaehlte Broker-Reiter, sonst Einkaufen (ab 0.133 die Seite focus, vorher buy)
+    if key == nil then key = T.IsHosted(mod.db.windowTab) and mod.db.windowTab or "focus" end
     if T.IsHosted(key) then return T.Open(key) end
     if key == "browse" then
         -- ab 0.64.1: Broker schaltet Blizzards Ansicht nicht mehr um (Fehlerberichte 10 und 11), sondern schliesst nur

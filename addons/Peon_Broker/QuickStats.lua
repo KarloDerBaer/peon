@@ -195,6 +195,15 @@ function QS.OnBought(key, n, cost)
     d.c = (d.c or 0) + (Num(cost) and cost or 0)
 end
 
+-- ab 0.133 (U1, Konzept Peon_Broker_Schlank.md 4.1): heute Gekauftes eines Gegenstands (Stueck, Kosten) oder nil
+function QS.TodayBought(key)
+    local st = QS.Store(false)
+    local days = st and key ~= nil and st[key]
+    local d = type(days) == "table" and days[QS.Today()] or nil
+    if type(d) ~= "table" or not Num(d.k) then return nil end
+    return d.k, Num(d.c) and d.c or 0
+end
+
 -- ab 0.126: Tiefstpreis der letzten 24 Stunden (nur Stufen ab 2 Stueck), nil = keiner gesehen
 function QS.Low24(key)
     local st = QS.Store(false)

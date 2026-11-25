@@ -31,7 +31,7 @@ Wt.SPEC = { { f = "buy", keys = { "lim", "pct" }, reset = "hit" }, { f = "up", k
             { f = "q", keys = { "qlim", "qgold", "qskip", "qavg" }, reset = "hit" },   -- ab 0.128: Schnellkauf
             { f = "lists", keys = { "bon", "qon", "ton" } } }                         -- ab 0.128: Listen
 Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, upHit = true, sDown = true, sUp = true, muteDown = true, muteUp = true,
-            qlim = true, qmax = true, mode = true, qskip = true, qgold = true, qavg = true,   -- ab 0.106: Werte des Schnellkaufs (ab 0.128 ueber t.q)
+            qlim = true, qmax = true, qqty = true, mode = true, qskip = true, qgold = true, qavg = true,   -- ab 0.106: Werte des Schnellkaufs (ab 0.128 ueber t.q), qqty ab 0.133 nur im Spiel
             bon = true, qon = true, ton = true }   -- ab 0.120: Haken der Listen (ab 0.128 ueber t.lists)
 -- ab 0.91 (Fehlerberichte 20 und 21): Warnton je Richtung, einstellbar fuer alle (watchSoundDown, watchSoundUp, dazu
 -- Chatnachricht watchChatDown, watchChatUp) und je Gegenstand (sDown, sUp: Ton oder "off", nil = wie eingestellt).
@@ -289,6 +289,23 @@ function Wt.SetQuick(key, limit, gold, skip, avg)
     w.qskip = skip and true or false   -- ab 0.109: Haken "Lockangebot ignorieren", ab 0.113 auch aus gespeichert
     w.mode, w.hit = "quick", nil
     w.qon = true   -- ab 0.120: Speichern im Schnellkauf stellt ihn in die Liste Schnellkauf
+    Wt.StampChanged(w, old)
+    Wt.Check({ key })
+    return true
+end
+
+-- ab 0.133 (U1, Konzept Peon_Broker_Schlank.md 4.1): Werte des Einkaufens speichern, ohne das alte Limit pro Kauf
+-- (qgold) anzufassen. qty = Menge (0 = Alle, nil = nichts gespeichert, dann gilt die Vorgabe)
+function Wt.SetQuickValues(key, limit, qty, skip, avg)
+    local w = Wt.Store()[key]
+    if not w then return false end
+    local old = Wt.Snap(w)
+    w.qlim = Num(limit) and limit > 0 and math.floor(limit) or nil
+    if Num(qty) and qty >= 0 then w.qqty = math.floor(qty) end
+    w.qavg = avg and true or false
+    w.qskip = skip and true or false
+    w.mode, w.hit = "quick", nil
+    w.qon = true
     Wt.StampChanged(w, old)
     Wt.Check({ key })
     return true

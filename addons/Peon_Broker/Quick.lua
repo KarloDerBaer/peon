@@ -45,7 +45,11 @@ local function Now() return GetTime and GetTime() or time() end
 local function AHApi() return rawget(_G, "C_AuctionHouse") end
 local function AHOpen() return ns.Scan.ahOpen and AHApi() ~= nil end
 
-function Q.On() return mod.db.focusMode == "quick" end
+-- ab 0.133 (U1, Konzept Peon_Broker_Schlank.md 4.5): Der Modus Aufkauf ruht. Ohne den Schalter focusBuyout
+-- (Einstellungen, Erweitert) ist der Schnellkauf immer an, focusMode bleibt gespeichert, wie er war.
+function Q.BuyoutOn() return mod.db.focusBuyout == true end
+function Q.On() return not Q.BuyoutOn() or mod.db.focusMode == "quick" end
+function Q.Mode() return Q.On() and "quick" or "buyout" end
 
 -- Anschluss fuer das Kaufprotokoll im privaten Peon_Debug (Radar.lua R.Trace, ab 0.118)
 function Q.Trace(fmt, ...)
@@ -55,8 +59,8 @@ end
 -- quiet = true: nur umschalten (der Aufrufer zeichnet neu). Ab 0.106 laedt der Modus die Werte, die fuer den
 -- Gegenstand in Beobachten gespeichert sind (Aufkauf und Schnellkauf getrennt).
 function Q.SetMode(mode, quiet)
-    local new = (mode == "quick") and "quick" or "buyout"
-    local changed = mod.db.focusMode ~= new
+    local new = (mode == "quick" or not Q.BuyoutOn()) and "quick" or "buyout"
+    local changed = Q.Mode() ~= new
     local F = ns.Focus
     if changed and not quiet and F.AutoSave then F.AutoSave() end   -- ab 0.113: Werte des bisherigen Modus
     mod.db.focusMode = new
@@ -101,13 +105,23 @@ function Q.Plan()
     d.ref = F.ManualTarget(F.key)   -- Ziel fuer einen Posten (Wiedereinstellen), sonst keins
     d.net, d.gain, d.showGain = nil, nil, nil
     d.best.gain = nil
-    -- ab 0.112: Max. Gold statt Max. Menge (die feste Menge des Aufkaufs gilt hier nicht)
-    local gold = F.ManualGold(F.key)
-    local cap = false
-    if gold then cap = Q.GoldQty(d.rows, limit, gold) end
-    local c = F.CapPlan(d, cap)
+    -- ab 0.133 (U1, Konzept 4.1): Menge (Regler bis "Alle") und Goldreserve statt Limit pro Kauf. Die Goldreserve
+    -- (radarReserve) bleibt nach jedem Kauf mindestens uebrig, die Menge wird notfalls gekuerzt.
+    local want = Q.QtyWant(F.key)
+    local budget = ns.Radar.Budget()
+    local cap = want
+    local short = false
+    if Num(budget) then
+        local gq = Q.GoldQty(d.rows, limit, budget)
+        if cap == nil or gq < cap then
+            short = gq < (cap or d.qty or 0)
+            cap = gq
+        end
+    end
+    local c = F.CapPlan(d, cap == nil and false or cap)
     if c and not c.gone then
-        c.goldCap = gold
+        c.goldCap = Num(budget) and budget or nil   -- Kauf bricht ab, wenn er die Goldreserve angreifen wuerde
+        c.want, c.reserveShort = want, short or nil
         if Q.AvgOn(F.key) then c.avgLimit = limit end   -- ab 0.112: Kauf gilt, solange der Durchschnitt passt
     end
     -- ab 0.109: Haken "Lockangebot ignorieren": Knopf und Alarm erst ab mehr als 1 Stueck unter Kaufen bis. Das
@@ -209,6 +223,7 @@ function Q.SetAvg(on)
     local key = ns.Focus.key
     if key == nil then return end
     Q.avg[key] = on and true or false
+    ns.Focus.Store()   -- ab 0.133: jede Eingabe gilt sofort
     ns.Focus.Update()
 end
 
@@ -216,7 +231,56 @@ function Q.SetSkip(on)
     local key = ns.Focus.key
     if key == nil then return end
     Q.skip[key] = on and true or false
+    ns.Focus.Store()
     ns.Focus.Update()
+end
+
+---------------------------------------------------------------------------
+-- Menge (ab 0.133, U1, Konzept Peon_Broker_Schlank.md 4.1): Regler von 1 bis "Alle" (alles unter Kaufen bis).
+-- Vorgabe fuer Massenware "Alle", fuer andere Gegenstaende 1. Je Gegenstand in Beobachten gespeichert (qqty, 0 = Alle).
+---------------------------------------------------------------------------
+Q.qty = {}   -- [Schluessel] = Menge dieser Sitzung (0 = Alle), sonst aus Beobachten oder Vorgabe
+
+function Q.QtyDefault(key)
+    if key == nil then return nil end
+    return ns.Data.IsCommodity(key) and 0 or 1
+end
+
+-- Gewaehlte Menge als Zahl (0 = Alle)
+function Q.QtyStored(key)
+    if key == nil then return nil end
+    local v = Q.qty[key]
+    if v ~= nil then return v end
+    local Wt = ns.Watch
+    local w = Wt and Wt.Is(key) and Wt.Store()[key]
+    if w and Num(w.qqty) and w.qqty >= 0 then return math.floor(w.qqty) end
+    return Q.QtyDefault(key)
+end
+
+-- Hoechstmenge oder nil (Alle)
+function Q.QtyWant(key)
+    local v = Q.QtyStored(key)
+    if Num(v) and v >= 1 then return v end
+    return nil
+end
+
+-- n = Menge, nil oder < 1 = Alle
+function Q.SetQty(n)
+    local F = ns.Focus
+    local key = F.key
+    if key == nil then return end
+    n = tonumber(n)
+    Q.qty[key] = (n and n >= 1) and math.floor(n) or 0
+    F.Store()
+    F.Update()
+end
+
+-- Beschriftung des Kaufknopfs: "Kaufen 40 fuer 60s 80c" (ohne Menge nur "Kaufen")
+function Q.BuyLabel(d)
+    local best = d and not d.gone and d.best or nil
+    local qty = best and Num(best.qty) and best.qty or 0
+    if qty < 1 then return L.BUY_BUY end
+    return L.QUICK_BUY_FOR:format(qty, Money(Num(best.cost) and best.cost or 0))
 end
 
 -- Urteil: Text, Farbe, Satz
@@ -332,10 +396,10 @@ function Q.BuyoutLimit(key)
         local l = Wt.Limit(key)
         if Num(l) and l > 0 then return l end
     end
-    local keep = mod.db.focusMode
-    mod.db.focusMode = "buyout"
+    local keep, keepOn = mod.db.focusMode, mod.db.focusBuyout
+    mod.db.focusMode, mod.db.focusBuyout = "buyout", true
     local ok, d = pcall(F.Plan)
-    mod.db.focusMode = keep
+    mod.db.focusMode, mod.db.focusBuyout = keep, keepOn
     if ok and type(d) == "table" and not d.gone and Num(d.limit) and d.limit > 0 then return d.limit end
     return nil
 end

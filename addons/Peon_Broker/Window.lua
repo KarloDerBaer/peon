@@ -7,6 +7,8 @@
 -- Oeffnen: /broker, Minimap-Button, Peon_Panel. Escape schliesst.
 --
 -- Reiter: Markt, Verkaufen, Auktionen, Einkaufen, Radar, Fokus, Gegenstand, Mehr (KarloDerBaer, 11.11.2026).
+-- Ab 0.133 (U1, Konzept Peon_Broker_Schlank.md 3): Markt, Verkaufen, Auktionen, Einkaufen (Seite focus), Beobachten,
+-- Listen (Seite buy), Chancen, Mehr.
 -- Seiten: Markt (Market.lua), Auktionen (Pages.lua), Einkaufen (Buy.lua), Radar (Radar.lua), Fokus (Focus.lua),
 -- Gegenstand (Item.lua), Mehr (unten).
 -- Verkaufen ist unterwegs grau. Seiten in W.WIP zeigen noch den Hinweis "in Arbeit".
@@ -27,9 +29,9 @@ W.TABS = {
     { key = "browse",   label = "TAB_BROWSE" },      -- Markt (am Auktionator Blizzards Kaufen)
     { key = "sell",     label = "TAB_SELL" },        -- Verkaufen (nur am Auktionator, Blizzards Seite)
     { key = "auctions", label = "NTAB_AUCTIONS" },   -- Auktionen
-    { key = "buy",      label = "AHTAB_SHOP" },      -- Einkaufen
-    { key = "focus",    label = "NTAB_FOCUS" },      -- ab 0.96 links neben Beobachten (KarloDerBaer 15.11.2026)
+    { key = "focus",    label = "NTAB_FOCUS" },      -- Einkaufen (bis 0.132 Fokus), ab 0.133 erster Broker-Reiter
     { key = "watch",    label = "NTAB_WATCH" },      -- Beobachten (ab 0.82 eigener Reiter)
+    { key = "buy",      label = "AHTAB_SHOP" },      -- Listen (bis 0.132 Einkaufen), ab 0.133 nach Beobachten
     { key = "chances",  label = "TAB_CHANCES" },     -- ab 0.96: Chancen vom Peon Manager (Chances.lua)
     { key = "more",     label = "NTAB_MORE" },       -- Mehr: Gegenstand (ab 0.82), Haendler, Neutral, Datenlage
 }
