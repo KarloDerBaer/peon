@@ -10,10 +10,8 @@ L.DESC         = "Groups, dungeons and raids. Group finder with filters for role
 L.HDR_MAIN     = "Group finder"
 L.OPT_SHOW     = "Show Warhorn over the group finder"
 L.OPT_SHOW_HINT = "Off shows Blizzard's search page. The buttons Blizzard and Warhorn in the window switch as well."
-L.HDR_PROBE    = "Group finder test"
-L.PROBE_HINT   = "Searches twice (once after your click, once on its own) and watches the results for 60 seconds. Afterwards type /reload so the result is saved."
-L.BTN_PROBE    = "Start test"
-L.BTN_PROBE_HINT = "If WoW shows a message that the addon was blocked, choose Ignore. That is part of the test."
+L.BTN_OPEN     = "Open group finder"
+L.BTN_OPEN_HINT = "Opens the group finder with Warhorn (also /warhorn). More settings are on the page Settings in the window."
 L.SLASH_HINT   = "Chat: /warhorn opens the group finder, /warhorn optionen this panel, /peon warhorn pruefen starts the test."
 
 -- Fenster
@@ -247,10 +245,8 @@ if GetLocale() == "deDE" then
     L.HDR_MAIN     = "Gruppensuche"
     L.OPT_SHOW     = "Warhorn über der Gruppensuche zeigen"
     L.OPT_SHOW_HINT = "Aus zeigt Blizzards Suchseite. Die Knöpfe Blizzard und Warhorn im Fenster schalten ebenso um."
-    L.HDR_PROBE    = "Prüfung der Gruppensuche"
-    L.PROBE_HINT   = "Sucht zweimal (einmal nach deinem Klick, einmal von selbst) und beobachtet die Ergebnisse 60 Sekunden lang. Danach /reload eingeben, damit das Ergebnis gespeichert wird."
-    L.BTN_PROBE    = "Prüfung starten"
-    L.BTN_PROBE_HINT = "Meldet WoW, dass das Addon blockiert wurde, wähle Ignorieren. Das gehört zur Prüfung."
+    L.BTN_OPEN     = "Gruppensuche öffnen"
+    L.BTN_OPEN_HINT = "Öffnet die Gruppensuche mit Warhorn (auch /warhorn). Weitere Einstellungen stehen im Fenster auf der Seite Einstellungen."
     L.SLASH_HINT   = "Chat: /warhorn öffnet die Gruppensuche, /warhorn optionen dieses Menü, /peon warhorn pruefen startet die Prüfung."
 
     L.TITLE        = "Warhorn"

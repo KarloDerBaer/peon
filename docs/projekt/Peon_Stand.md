@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 21.11.2026. Peon 0.29.0 (API 29) / Broker 0.132.0 / Ledger 0.17.3 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.7.5 / ClassBuddy 0.4.1 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.4.1 / Profession 0.7.4 / Warhorn 0.5.3.
+Stand: 21.11.2026. Peon 0.29.0 (API 29) / Broker 0.132.0 / Ledger 0.17.3 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.7.5 / ClassBuddy 0.4.1 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.4.1 / Profession 0.7.4 / Warhorn 0.6.0.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -153,13 +153,14 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Befehle: `/prof`, `/prof optionen`, `/prof messungen`, `/prof pruefen`, `/prof vergessen`, `/prof stellen`, `/prof freunde`, `/peon profession`, `/peon debug profession`.
 - Offen: Gibt es in Forever `GetProfessionInfoByRecipeID` oder `GetTradeSkillLineForRecipe` (Ergebnis von `/prof pruefen`)? Als nächster Dienst über `Peon.Comm` die Sammelstellen (`nodes`, fremde Stellen getrennt von den eigenen). Anzeige auf Welt- und Minikarte zurückgestellt (KarloDerBaer, 17.11.2026).
 
-## Peon_Warhorn – 0.5.3 (Gruppen, Dungeons und Raids)
+## Peon_Warhorn – 0.6.0 (Gruppen, Dungeons und Raids)
 
 - Konzept: `docs\konzepte\warhorn\Peon_Warhorn_Konzept.md`.
 - Dateien: Locales.lua, Warhorn.lua, Search.lua, Filter.lua, Window.lua, Whisper.lua, Placeholders.lua, Contacts.lua, Listing.lua, Who.lua, Settings.lua, Overlay.lua, Journal.lua, Probe.lua, Options.lua, Bindings.xml
 - Eigene Fläche über Blizzards Gruppensuche (Seiten Suchen, Eintragen, Wer-Liste, Einstellungen), Umschalten auf Blizzard je Seite. Neue Suche nur über Knopf oder Taste, eine Suche von selbst blockiert das Spiel. Blockiert das Spiel eine Suche trotzdem, zeigt die Statuszeile einen Hinweis auf den Knopf Suchen.
 - SavedVariables: `PeonWarhornDB` (Konto): `show`, `replace`, `whisper` (Vorlagen, Rollenwörter, Platzhalter), `contactKeep`, `hideCols`, `colors`, `probe`. `PeonWarhornCharDB` (je Charakter): Auswahl, Filter (`gFilter`, `pFilter`, `wFilter`), Eintragen (`l…`), `wText`, `contacts`.
 - Braucht Peon API 18. Optional ForeverDungeonJournal (übernimmt den gesuchten Dungeon).
+- Optionsseite (ab 0.6.0, Leitfaden für Einstellungen): nur Allgemein mit Knopf „Gruppensuche öffnen“ und dem Schalter `show`. Die Prüfung läuft über `/peon warhorn pruefen`, alle weiteren Einstellungen stehen im Fenster.
 - Befehle: `/warhorn`, `/warhorn suchen`, `/warhorn optionen`, `/peon warhorn`, `/peon warhorn pruefen`, `/peon debug warhorn`.
 - Weitere Ideen zu Dungeons und Raids gibt KarloDerBaer einzeln vor.
 

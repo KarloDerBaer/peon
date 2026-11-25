@@ -233,6 +233,12 @@ local ns = load("Peon_Warhorn", "Peon_Warhorn")
 fire("ADDON_LOADED", "Peon_Warhorn")
 local mod = ns.mod
 check(mod.initialized and mod.page, "Modul + Optionsseite")
+-- ab 0.6.0 nach dem Leitfaden: Knopf Gruppensuche oeffnen, Schalter, kein Pruefknopf (bleibt /peon warhorn pruefen)
+do
+  local texts = {}
+  for _, c in ipairs(mod.page.controls) do if c.button then texts[#texts + 1] = c.label end end
+  check(#texts == 1 and texts[1] == "Gruppensuche öffnen" and mod.page.controls[3].hint, "Optionsseite ohne Pruefknopf, Hinweis als Tooltip")
+end
 check(type(PeonWarhornDB.probe) == "table" and PeonWarhornDB.show == true, "Standardwerte")
 check(PeonWarhornCharDB.gFilter.roles.healer == true and not PeonWarhornCharDB.gFilter.roles.tank, "Gruppenfilter startet mit meinen Rollen")
 fire("PLAYER_LOGIN")

@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.6.0
+
+Kurz: Die Einstellungen sind kürzer. Ein Knopf öffnet die Gruppensuche, die Prüfung startest du bei Bedarf mit /peon warhorn pruefen.
+
+- 0.6.0 (25.11.2026, Leitfaden für Einstellungen, Aufteilung von KarloDerBaer freigegeben):
+  - **Neu:** Knopf „Gruppensuche öffnen“ oben auf der Optionsseite.
+  - **Geändert:** Der Hinweis zum Schalter steht im Tooltip (Kern-API 29).
+  - **Entfernt:** Knopf „Prüfung starten“ und das Ergebnis der letzten Prüfung auf der Optionsseite. Die Prüfung bleibt als `/peon warhorn pruefen`, ihr gespeichertes Ergebnis (`probe`) bleibt.
+  - Tests: `test_warhorn.lua` (Optionsseite ohne Prüfknopf).
+
 ## 0.5.3
 
 Kurz: Beim Wechsel der Kategorie, zum Beispiel auf Quest & Zonen, kommt keine Fehlermeldung „blockiert“ mehr.
