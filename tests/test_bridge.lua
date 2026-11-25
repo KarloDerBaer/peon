@@ -566,6 +566,16 @@ do
   check(PeonBridgeDB.tipIds[GORILLA] == true, "0.6.0: bestaetigte Werte gelten als uebergeben")
   local e2 = scan({ { 3192, "Kurzes Bastardschwert des Gorillas", 2, LINK } })
   check(e2.tips == nil, "0.6.0: kein zweites Mal")
+  -- ab 0.14.1: tipIds hoechstens ns.TIP_KEEP, darueber von vorn
+  local keep = ns.TIP_KEEP
+  ns.TIP_KEEP = 2
+  PeonBridgeDB.tipIds = { a = true, b = true }
+  ns.Prepare()
+  check(PeonBridgeDB.tipIds.a == true, "0.14.1: tipIds bis zur Grenze bleiben")
+  PeonBridgeDB.tipIds.c = true
+  ns.Prepare()
+  check(next(PeonBridgeDB.tipIds) == nil, "0.14.1: tipIds ueber der Grenze von vorn")
+  ns.TIP_KEEP = keep
   PeonBridgeDB.tipIds = {}
   E.TIP_MAX = 1
   local e3 = scan({ { 3192, "Kurzes Bastardschwert des Gorillas", 2, LINK }, { 4000, "Anderes Teil", 3, "|Hitem:4000|h" } })

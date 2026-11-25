@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.14.1
+
+Kurz: Die Bridge merkt sich höchstens 40.000 schon übergebene Tooltip-Werte. So wächst ihre Datei nicht mehr ohne Ende.
+
+- 0.14.1 (25.11.2026, Pflege der Datenmengen, Zustimmung KarloDerBaer):
+  - **Geändert, `tipIds` begrenzt:** Die Liste der Schlüssel, deren genaue Werte der Manager schon hat, wuchs ohne Grenze (25.11.2026: 31.724 Einträge, drei Viertel aller Werte der Datei). Über `ns.TIP_KEEP` (40.000) beginnt sie beim Laden von vorn. Der Manager bekommt die Werte dann mit den nächsten Scans noch einmal (je Scan höchstens 400).
+  - Tests: `test_bridge.lua`.
+
 ## 0.14.0
 
 Kurz: Die Bridge gibt die Pakete des Markttauschs an Broker weiter und ordnet Stände richtig zu, auch wenn das Spiel kurz keinen Realm-Namen liefert.

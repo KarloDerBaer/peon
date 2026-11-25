@@ -132,11 +132,6 @@ local mod = Peon:NewModule(ADDON_NAME, {
 })
 ns.mod = mod
 
--- Einmaliger Hinweis nach dem Update auf 0.7 (Kern-API 20): Einstellen ueberarbeitet, wo die Einstellungen sind
-if mod.AddNotice then
-    mod:AddNotice({ id = "layout-2026-11", date = "16.11.2026", title = L.NOTICE_LAYOUT_TITLE, text = L.NOTICE_LAYOUT_TEXT })
-end
-
 ---------------------------------------------------------------------------
 -- Kleine Hilfen
 ---------------------------------------------------------------------------

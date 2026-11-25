@@ -5783,13 +5783,8 @@ end)()
 -- Keine unerwarteten Fehlermeldungen
 local n = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("hat einen Fehler gemeldet", 1, true) then n = n + 1 end end  -- erwartete Meldung aus dem Verkaufen-Test
 check(n == 0, "keine Fehlermeldungen")
--- 0.81: einmaliger Hinweis zum Neuaufbau (Kern-API 20)
--- Eine zweite Meldung mit derselben id lehnt der Kern ab: dann hat Broker sie schon gemeldet
-check(Peon.API >= 20 and Peon.AddNotice({ id = "broker:umbau-2026-11", title = "x" }) == false, "0.81: Broker hat den Hinweis broker:umbau-2026-11 gemeldet")
-check(type(ns.L.NOTICE_REBUILD_TEXT) == "table" and #ns.L.NOTICE_REBUILD_TEXT == 4 and ns.L.NOTICE_REBUILD_TITLE ~= "NOTICE_REBUILD_TITLE", "0.81: Titel und vier Absaetze")
-check(Peon.AddNotice({ id = "broker:schnellkauf-2026-11", title = "x" }) == false, "0.117: Broker hat den Hinweis broker:schnellkauf-2026-11 gemeldet")
-check(ns.L.NOTICE_QUICK_TITLE == "Der Button ist heiß" and type(ns.L.NOTICE_QUICK_TEXT) == "table" and #ns.L.NOTICE_QUICK_TEXT == 4
-  and ns.L.NOTICE_QUICK_TEXT[3]:find("eigene Gefahr", 1, true), "0.117: Titel und vier Absaetze, Hinweis auf eigene Gefahr")
+-- ab 0.134.1: die einmaligen Hinweise umbau-2026-11 und schnellkauf-2026-11 sind entfernt
+check(rawget(ns.L, "NOTICE_REBUILD_TITLE") == nil and rawget(ns.L, "NOTICE_QUICK_TITLE") == nil, "0.134.1: einmalige Hinweise entfernt")
 -- ===== 0.120: Marktbewegung nur in der Kaufzone, Preissprung ab 2 % =====
 ;(function()
   local M = ns.Measure

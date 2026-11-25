@@ -58,13 +58,6 @@ L.DRAG_TIP        = "Drag onto another heading: change the order."
 L.PACK            = "Sections side by side"
 L.PACK_TIP        = "Small sections share a row if they fit, so fewer slots stay empty."
 -- ab 0.7: Reiter Layout
-L.NOTICE_LAYOUT_TITLE = "Bags: less empty space"
-L.NOTICE_LAYOUT_TEXT = {
-    "The bag, bank and guild bank windows now leave fewer slots empty.",
-    "Settings: open the bags and click \"Setup\" at the top right of the window. A bar opens next to it with two tabs.",
-    "\"Categories\" holds the settings you already know: layout, categories and own sections.",
-    "\"Layout\" is new. At the top you choose a preset: Stacked, Loose, Balanced or Compact. Balanced is set from now on, Loose looks like before. Below that you can change single settings, for example free slots as one slot, empty own sections, columns and the width of each section.",
-}
 L.TAB_CATS        = "Categories"
 L.TAB_LAYOUT      = "Layout"
 L.PRESET          = "Preset"
@@ -262,13 +255,6 @@ if GetLocale() == "deDE" then
     L.DRAG_TIP        = "Auf eine andere Überschrift ziehen: Reihenfolge ändern."
     L.PACK            = "Abschnitte nebeneinander"
     L.PACK_TIP        = "Kleine Abschnitte teilen sich eine Zeile, wenn sie hineinpassen. So bleiben weniger Plätze leer."
-    L.NOTICE_LAYOUT_TITLE = "Bags: weniger leerer Platz"
-    L.NOTICE_LAYOUT_TEXT = {
-        "Taschen, Bank und Gildenbank lassen jetzt weniger Plätze leer.",
-        "Einstellungen: Taschen öffnen und oben rechts im Fenster auf „Einstellen“ klicken. Daneben öffnet sich eine Leiste mit zwei Reitern.",
-        "„Kategorien“ enthält die bekannten Einstellungen: Anordnung, Kategorien und eigene Bereiche.",
-        "„Layout“ ist neu. Oben wählst du eine Vorauswahl: Untereinander, Locker, Ausgewogen oder Kompakt. Eingestellt ist ab jetzt Ausgewogen, Locker sieht aus wie bisher. Darunter änderst du einzelne Einstellungen, zum Beispiel freie Plätze als ein Platz, leere eigene Bereiche, Spalten und die Breite je Abschnitt.",
-    }
     L.TAB_CATS        = "Kategorien"
     L.TAB_LAYOUT      = "Layout"
     L.PRESET          = "Vorauswahl"

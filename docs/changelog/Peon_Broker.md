@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.134.1
+
+Kurz: Die alten Hinweise zum Neuaufbau und zum Schnellkauf erscheinen nicht mehr.
+
+- 0.134.1 (25.11.2026, Pflege, Zustimmung KarloDerBaer):
+  - **Entfernt:** einmalige Hinweise `broker:umbau-2026-11` (ab 0.81) und `broker:schnellkauf-2026-11` (ab 0.117) samt Texten in `Locales.lua`.
+  - Tests: `test_broker.lua`.
+
 ## 0.134.0
 
 Kurz: Im Diagramm der Seite Einkaufen lassen sich die Linien mit kleinen Knöpfen ein- und ausschalten: Günstigster, Kaufen bis, Menge, Einbrüche und Lockangebote.

@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.18.2
+
+Kurz: Der alte Hinweis zum Neuaufbau von Ledger erscheint nicht mehr.
+
+- 0.18.2 (25.11.2026, Pflege, Zustimmung KarloDerBaer):
+  - **Entfernt:** einmaliger Hinweis `ledger:neuaufbau-2026-11` (ab 0.14) samt Texten in `Locales.lua`.
+  - Tests: `test_ledger.lua`.
+
 ## 0.18.1
 
 Kurz: Gekaufte Ware, die du im Auktionshaus weiterverkaufst, zählt jetzt sicher als Handel. Bisher konnte sie als Beute erscheinen, wenn das Spiel die gerade eingestellte Auktion zu spät meldete.

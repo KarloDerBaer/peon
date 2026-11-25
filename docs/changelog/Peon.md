@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.29.1
+
+Kurz: Die Datei Peon.lua in den Spieldaten wird um 1,4 MB kleiner. Sie enthielt noch das Ergebnis einer alten Prüfung der Oberfläche.
+
+- 0.29.1 (25.11.2026, Pflege der Datenmengen, Zustimmung KarloDerBaer):
+  - **Entfernt, Altlast `PeonDB.uiProbe`:** Ergebnis der früheren UI-Prüfung (`/peon ui` bis 0.24.1), rund 8.400 Werte. Peon_Debug speichert sie seit 0.25.0 in `PeonDebugDB.uiProbe`. Der Kern löscht den Eintrag beim Laden. Die Kern-API bleibt unverändert.
+  - Tests: `test.lua`.
+
 ## 0.29.0
 
 Kurz: Einstellungsseiten können ihre Erklärungen als Tooltip zeigen statt als Text unter jedem Schalter. So werden die Seiten kürzer.

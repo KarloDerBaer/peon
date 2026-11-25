@@ -622,11 +622,6 @@ L.INFO_TERMS = {
     { "Transfer", "A movement without profit or loss: bags and bank, mail to your own characters, auction posted or returned." },
     { "Deviation", "Difference between what Ledger recorded and what the game shows. Ledger checks at login and books a line for it. It counts as starting stock." },
 }
-L.NOTICE_TITLE = "Ledger rebuilt"
-L.NOTICE_1    = "Ledger has a new window with five tabs: overview, stock, book, history and info. Everything about a single item is now shown by Broker."
-L.NOTICE_2    = "Important: with this update the book starts anew once (reset). History, profits and costs from before are deleted. Your gold and your items stay, of course: Ledger reads them anew at login."
-L.NOTICE_3    = "Everything that is there at the reset becomes starting stock: bags, bank, running auctions and equipment, for your other characters their last known state. Starting stock costs 0 and does not count towards the trading profit. If you sell some of it, the revenue is booked as special income. Trading profit comes only from goods you buy or craft from now on."
-L.NOTICE_4    = "Recording at the auction house and the mailbox is more precise, and Ledger checks itself at every login. At the mailbox Peon Post opens with collecting and an own page for sending. The button \"Blizzard\" brings back the old mailbox. All terms are explained in the tab Info."
 
 L.BK_AHCANCEL = "AH: Cancel costs"
 L.BK_AHCUT    = "AH: Cut"
@@ -1281,11 +1276,6 @@ if GetLocale() == "deDE" then
         { "Umbuchung", "Bewegung ohne Gewinn oder Verlust: Taschen und Bank, Post an eigene Charaktere, Auktion eingestellt oder zurück." },
         { "Abweichung", "Unterschied zwischen dem, was Ledger erfasst hat, und dem, was das Spiel zeigt. Ledger rechnet beim Einloggen nach und gleicht ihn mit einer eigenen Zeile aus. Sie zählt als Startbestand." },
     }
-    L.NOTICE_TITLE = "Ledger neu aufgebaut"
-    L.NOTICE_1    = "Ledger hat ein neues Fenster mit fünf Reitern: Übersicht, Bestand, Buch, Verlauf und Info. Alles zu einem einzelnen Gegenstand zeigt jetzt Broker."
-    L.NOTICE_2    = "Wichtig: Mit diesem Update beginnt das Buch einmal neu (Reset). Verlauf, Gewinne und Kosten von vorher werden gelöscht. Dein Gold und deine Gegenstände bleiben natürlich erhalten, Ledger liest sie beim Einloggen neu ein."
-    L.NOTICE_3    = "Alles, was beim Reset schon da ist, wird zum Startbestand: Taschen, Bank, laufende Auktionen und Ausrüstung, bei deinen anderen Charakteren ihr letzter bekannter Stand. Der Startbestand kostet 0 und zählt nicht zum Handelsgewinn. Verkaufst du davon etwas, steht der Erlös im Buch als Sondereinnahme. Handelsgewinn entsteht nur mit Ware, die du ab jetzt kaufst oder herstellst."
-    L.NOTICE_4    = "Die Erfassung am Auktionshaus und in der Post ist genauer, und Ledger rechnet bei jedem Einloggen selbst nach. Am Briefkasten öffnet sich Peon Post mit Einsammeln und einer eigenen Seite zum Senden. Der Knopf „Blizzard“ holt das alte Postfach zurück. Alle Begriffe stehen im Reiter Info."
     L.BK_AHCANCEL = "AH: Abbruchkosten"
     L.BK_AHCUT    = "AH: Anteil"
     L.BK_AHVENDOR = "AH: Ware an Händler"

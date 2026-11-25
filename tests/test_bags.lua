@@ -822,10 +822,9 @@ do
   fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", 10)
 end
 
--- ===== Hinweis nach dem Update (ab 0.7) =====
+-- ===== Hinweis nach dem Update (ab 0.7, ab 0.9.1 entfernt) =====
 do
-  local n = peonNs.Notice and peonNs.Notice.byId["bags:layout-2026-11"]
-  check(n and n.title == "Bags: weniger leerer Platz" and #n.text == 4 and n.text[2]:find("Einstellen") ~= nil, "Hinweis zum neuen Layout angemeldet")
+  check(not (peonNs.Notice and peonNs.Notice.byId["bags:layout-2026-11"]), "0.9.1: einmaliger Hinweis zum Layout entfernt")
 end
 
 -- ===== Platz sparen: Planung (ab 0.7) =====

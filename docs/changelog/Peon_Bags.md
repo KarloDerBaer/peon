@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.9.1
+
+Kurz: Der alte Hinweis zum neuen Layout der Taschen erscheint nicht mehr.
+
+- 0.9.1 (25.11.2026, Pflege, Zustimmung KarloDerBaer):
+  - **Entfernt:** einmaliger Hinweis `bags:layout-2026-11` (ab 0.7) samt Texten in `Locales.lua`.
+  - Tests: `test_bags.lua`.
+
 ## 0.9.0
 
 Kurz: Die Einstellungen sind aufgeräumt und haben drei Reiter: Allgemein, Anzeige und Erweitert. Erklärungen stehen im Tooltip, wenn du mit der Maus auf eine Einstellung zeigst.

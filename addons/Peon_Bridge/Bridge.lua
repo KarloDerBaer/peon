@@ -33,6 +33,7 @@ ns.mod = mod
 
 ns.FMT = 1        -- Format der Momentaufnahmen (Peon_Client_Design.md, Abschnitt 6.3)
 ns.DATA_FMT = 2   -- Format von Data.lua mit channels (Peon_GitHub_Design.md, Abschnitt 4.3)
+ns.TIP_KEEP = 40000   -- hoechstens so viele Schluessel in tipIds, darueber von vorn (ab 0.14.1)
 
 ---------------------------------------------------------------------------
 -- Kanaele
@@ -89,6 +90,11 @@ function ns.Prepare()
     end
     if type(acc.nameIds) ~= "table" then acc.nameIds = {} end   -- itemIDs, deren Namen der Manager schon hat
     if type(acc.tipIds) ~= "table" then acc.tipIds = {} end     -- Schluessel, deren Werte der Manager schon hat (ab 0.6.0)
+    -- ab 0.14.1: tipIds wuchs ohne Grenze (25.11.2026: 31.724 Eintraege). Ab ns.TIP_KEEP von vorn, der Manager bekommt
+    -- die genauen Werte dann mit den naechsten Scans noch einmal (je Scan hoechstens E.TIP_MAX).
+    local nTips = 0
+    for _ in pairs(acc.tipIds) do nTips = nTips + 1 end
+    if nTips > ns.TIP_KEEP then acc.tipIds = {} end
     if type(acc.seq) ~= "number" then acc.seq = 0 end
     -- ab Peon_Client 0.3.0 haengen an jedem Namen Haendlerpreis und Warenart: alle Namen einmal neu schicken.
     -- ab 0.12.0 noch einmal: Der Manager hatte Haendlerpreise aus dem Spiel mit Werten der Blizzard-API ueberschrieben.

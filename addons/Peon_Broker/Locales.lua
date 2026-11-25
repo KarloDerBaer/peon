@@ -1130,24 +1130,6 @@ L.WATCH_BELL_TIP_UP = "Click switches the warning (chat and sound) for the targe
 L.OPT_BUYOUT_HOURS = "Buyout: sold again within at most"
 L.OPT_BUYOUT_HOURS_HINT = "A buyout only counts if the quantity sells again within this time at the current sales rate."
 
--- Einmaliger Hinweis nach dem Update (ab 0.81, Kern-API 20)
-L.NOTICE_REBUILD_TITLE = "Broker rebuilt"
-L.NOTICE_REBUILD_TEXT = {
-    "Broker has a new window in the style of the auction house.",
-    "New is the buyout: the radar looks for bulk goods that sell a lot and fast. You buy the cheap offers up to a price level and post the goods again at the price of the next level. Before buying, the focus shows quantity, costs and profit. Buying only goes up to the usual price.",
-    "Not all functions have been tested thoroughly yet. If something looks odd to you, please report it via Peon_Feedback or the Peon Manager.",
-    "Next up is the rebuild of Ledger. Bought goods and their costs will then be recorded better and can be traced.",
-}
-
--- ab 0.117: einmaliger Hinweis auf den Schnellkauf
-L.NOTICE_QUICK_TITLE = "The button is hot"
-L.NOTICE_QUICK_TEXT = {
-    "The focus now has a quick buy. Switch to it at the top right, enter buy up to, and Broker lies in wait for anything that shows up below. A sound goes off, the buy button lights up, and one click snaps it up.",
-    "For sly foxes: Broker spots bait offers, shows how lively the market is right now and posts a bait offer of your own if you like. Limit per purchase, ignore bait offer and average counts make sure you do not spend more than you meant to.",
-    "But careful: the button has become hot and very fast. One click buys without asking twice. Use at your own risk. Before your first hunt, check buy up to, limit per purchase and the boxes, so you do not buy up half the market by accident.",
-    "Happy snapping!",
-}
-
 
 -- ab 0.104: Lockangebote beim Verkaufen, Fokus mit Aufkauf und Schnellkauf
 L.ADV_ROW_BAIT     = "Bait offer:"
@@ -2739,21 +2721,6 @@ if GetLocale() == "deDE" then
     L.WATCH_BELL_TIP_UP = "Klick schaltet die Warnung (Chat und Ton) beim Zielpreis für diesen Gegenstand an oder aus."
     L.OPT_BUYOUT_HOURS = "Aufkauf: wieder verkauft in höchstens"
     L.OPT_BUYOUT_HOURS_HINT = "Ein Aufkauf zählt nur, wenn sich die Menge beim jetzigen Absatz in dieser Zeit wieder verkauft."
-    -- Einmaliger Hinweis nach dem Update (ab 0.81, Kern-API 20)
-    L.NOTICE_REBUILD_TITLE = "Broker neu aufgebaut"
-    L.NOTICE_REBUILD_TEXT = {
-        "Broker hat ein neues Fenster im Stil des Auktionshauses.",
-        "Neu ist der Aufkauf: Das Radar sucht Massenware, die viel und schnell verkauft wird. Du kaufst die günstigen Angebote bis zu einer Preisstufe auf und stellst die Ware zum Preis der nächsten Stufe wieder ein. Im Fokus siehst du vor dem Kauf Menge, Kosten und Gewinn. Gekauft wird nur bis zum üblichen Preis.",
-        "Noch sind nicht alle Funktionen ausgiebig getestet. Wenn dir etwas seltsam vorkommt, schreib es bitte über Peon_Feedback oder den Peon Manager.",
-        "Als Nächstes wird Ledger umgebaut. Gekaufte Waren und ihre Kosten werden dann besser erfasst und lassen sich nachverfolgen.",
-    }
-    L.NOTICE_QUICK_TITLE = "Der Button ist heiß"
-    L.NOTICE_QUICK_TEXT = {
-        "Im Fokus gibt es jetzt den Schnellkauf. Oben rechts umschalten, Kaufen bis eintragen, und Broker lauert für dich auf alles, was darunter auftaucht. Ein Ton meldet sich, der Kaufknopf leuchtet, und ein Klick schnappt zu.",
-        "Für Füchse: Broker erkennt Lockangebote, zeigt, wie lebhaft der Markt gerade ist, und stellt auf Wunsch selbst ein Lockangebot ein. Limit pro Kauf, „Lockangebot ignorieren“ und „Durchschnitt zählt“ passen auf, dass du nicht mehr ausgibst als gewollt.",
-        "Aber Vorsicht: Der Knopf ist heiß und verdammt schnell geworden. Ein Klick kauft ohne zweite Nachfrage. Benutzung auf eigene Gefahr. Prüf vor der ersten Jagd Kaufen bis, Limit pro Kauf und die Haken, damit du nicht aus Versehen den halben Markt leer kaufst.",
-        "Viel Spaß beim Zuschnappen!",
-    }
     -- ab 0.119: Unterreiter in Chancen und Beobachten, Chancen der Art Schnellkauf (QuickChances.lua)
     L.CH_TAB_SPEC      = "Spekulation"
     L.CH_TAB_BUYOUT    = "Aufkauf"

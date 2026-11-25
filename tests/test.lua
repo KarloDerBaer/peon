@@ -48,7 +48,9 @@ local function check(c, m) if not c then error("FEHLER: " .. m, 2) end print("ok
 
 -- Kern laden
 load("Peon", "Peon", { "Locales.lua", "Core.lua", "Module.lua", "Options.lua", "Slash.lua" })
+PeonDB = { uiProbe = { frames = { 1, 2, 3 } }, panelHid = true }
 fire("ADDON_LOADED", "Peon")
+check(PeonDB.uiProbe == nil and PeonDB.panelHid == true, "0.29.1: Altlast uiProbe entfernt, Rest bleibt")
 check(type(Peon) == "table" and Peon.version == "0.1.0", "Peon global + Version")
 check(PeonDB ~= nil, "PeonDB angelegt")
 

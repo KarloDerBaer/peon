@@ -200,6 +200,9 @@ frame:SetScript("OnEvent", function(self, event, ...)
         if name == ADDON_NAME then
             if type(PeonDB) ~= "table" then PeonDB = {} end
             Peon.db = PeonDB
+            -- ab 0.29.1: Ergebnis der frueheren UI-Pruefung (/peon ui bis 0.24.1) entfernen, rund 8.400 Werte und 1,4 MB.
+            -- Peon_Debug speichert sie seit 0.25.0 in PeonDebugDB.uiProbe.
+            PeonDB.uiProbe = nil
             if ns.Profiles and ns.Profiles.Init then   -- API 26: Profile, vor den Modulen
                 local ok, err = pcall(ns.Profiles.Init)
                 if not ok then Peon.ReportCoreError("Profile", err) end

@@ -1948,7 +1948,7 @@ realm.moves = { { t = time(), c = "Mirel Dorna", k = "loot", id = 2589, n = 1 } 
 check(ns.MigrateBook() == false and #realm.moves == 1, "nur einmal")
 realm.moves = keep
 ns.Moves.Changed()
-check(mod.AddNotice and mod:AddNotice({ id = "neuaufbau-2026-11", title = "x" }) == false, "Hinweis zum Neuaufbau angemeldet (gleiche id ein zweites Mal abgelehnt)")
+check(rawget(ns.L, "NOTICE_TITLE") == nil, "0.18.2: einmaliger Hinweis zum Neuaufbau entfernt")
 end)()
 
 
