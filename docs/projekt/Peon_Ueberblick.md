@@ -97,8 +97,11 @@ page:Register()
 page:Tabs({ { "general", L.TAB_GENERAL }, { "items", L.TAB_ITEMS } }, -62)   -- Reiterleiste oben
 local col = page:Column(16, -100, "general")       -- Spalte gehört zum Reiter (ohne = immer sichtbar)
 page.onTab = function(page, key) end; page:SelectTab("items"); page:GetTab()
+-- Hinweise als Tooltip statt Text darunter (API 29, für Seiten nach dem Leitfaden):
+local page = mod:NewOptionsPage({ desc = L.DESC, tipHints = true })
 ```
   Änderungen schreiben in `mod.db` und feuern `CHANGED`. **Die Seite muss spätestens bei INIT angemeldet werden**, denn der Kern hängt Unterseiten bei PLAYER_LOGIN ein; später angemeldete Seiten bekommen einen eigenen Eintrag.
+  **Leitfaden (24.11.2026):** Reiter Allgemein, Anzeige, Erweitert, höchstens sechs Schalter auf Allgemein, keine Prüfknöpfe, jeder Schalter mit einem Satz als Tooltip (`docs/konzepte/Peon_Einstellungen_Leitfaden.md`).
   **Regel (KarloDerBaer):** Auswahl aus mehreren Möglichkeiten immer als Auswahlliste (`Dropdown`). Knopfreihen (`Choice`/`PositionGrid`) nur für Positionen, weil man dort die Lage sofort sieht.
   Ab API 5 ordnet `page:Refresh()` die Spalten neu an: Ändert ein Baustein seine Höhe (Text, eigener Container), rutscht alles darunter samt Reset-Knopf mit. Die Seite hat immer einen Bildlauf.
 - **Liste (API 7, List.lua):** Spalten, Sortierung per Klick auf den Kopf (nochmal klicken = umgekehrt, leere Werte immer unten), Bildlauf mit Regler und Mausrad, Zeilen anklickbar.

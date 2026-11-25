@@ -3,6 +3,11 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 25.11.2026: Einstellungen nach dem Leitfaden, Hinweise als Tooltip
+
+- **Aufteilung je Modul freigegeben** (KarloDerBaer): Fishing, Bags, Warhorn und Profession bekommen die Reiter nach dem Leitfaden. Prüfknöpfe und Debug-Haken fallen von den Seiten, sie bleiben als Befehle. Was schon im Fenster einstellbar ist (Eigene Bereiche in Bags, Kosten und Gewinn im Berufsfenster), steht nicht mehr in den Einstellungen.
+- **Hinweise als Tooltip** (Vorschlag Claude, KarloDerBaer zugestimmt): Auf umgestellten Seiten steht der Satz zu einem Schalter im Tooltip statt als Text darunter. Grund: Die Seiten werden deutlich kürzer und Regel 6 des Leitfadens verlangt einen Tooltip. Umgesetzt als Erweiterung im Kern (API 29, `tipHints`), nicht umgestellte Seiten bleiben, wie sie sind.
+
 ## 25.11.2026: Erfolgskontrolle streng, Richtung in der Stabilität, Horde-Haus (Manager 0.55.0)
 
 - **Nur glaubwürdige Verkäufe zählen** (KarloDerBaer, Messung Claude): verschwunden als günstigstes Angebot, nicht abgelaufen, kein gleich billiges Angebot gleicher Menge und kein billigeres neu eingestellt. Grund: Die Erfolgskontrolle zeigte 97 % Treffer, ein guter Teil der „Verkäufe“ waren neu eingestellte Angebote.

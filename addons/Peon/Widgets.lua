@@ -16,6 +16,7 @@
 --   page:Add(left, page:List({ columns = { ... }, rows = 8 }))           -- ab API 7, siehe List.lua
 --   page:AddResetButton(L.SLASH_HINT, left, right)
 --   page:Register()
+--   mod:NewOptionsPage({ desc = L.DESC, tipHints = true })   -- ab API 29: Hinweise als Tooltip (Leitfaden Einstellungen)
 --
 -- Untertabs (ab API 11):
 --   page:Tabs({ { "general", "Allgemein" }, { "items", "Gegenstände" } }, -58)   -- Reiterleiste bei y
@@ -50,6 +51,7 @@ for _, pos in ipairs(Peon.POSITIONS) do Peon.POSITION_SET[pos] = true end
 function Module:NewOptionsPage(o)
     o = o or {}
     local page = setmetatable({ mod = self, controls = {}, columns = {}, colW = o.colW or 290 }, Page)
+    page.tipHints = o.tipHints   -- ab API 29: Hinweise als Tooltip statt Text darunter
 
     local panel = CreateFrame("Frame")
     panel.name = self.title
@@ -201,8 +203,40 @@ function Page:NewContainer(height)
     return c
 end
 
--- Hinweistext unter einem Baustein; Container waechst mit der Textlaenge
+-- Hinweis als Tooltip (ab API 29, NewOptionsPage({ tipHints = true })): erste Zeile fett, dann der Hinweis
+local function ShowTip(owner, title, text)
+    if not GameTooltip then return end
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    if title and title ~= "" then GameTooltip:SetText(title, 1, 0.82, 0) end
+    GameTooltip:AddLine(text, 1, 1, 1, true)
+    GameTooltip:Show()
+end
+local function HideTip() if GameTooltip then GameTooltip:Hide() end end
+
+local function HookTip(f, title, text)
+    if not (f and f.SetScript) then return end
+    if f.EnableMouse and f.GetObjectType and f:GetObjectType() == "Frame" then f:EnableMouse(true) end
+    local enter = function(self) ShowTip(self, title, text) end
+    if f.HookScript and f.GetScript and f:GetScript("OnEnter") then
+        f:HookScript("OnEnter", enter)
+        f:HookScript("OnLeave", HideTip)
+    else
+        f:SetScript("OnEnter", enter)
+        f:SetScript("OnLeave", HideTip)
+    end
+end
+
+-- Hinweistext unter einem Baustein; Container waechst mit der Textlaenge.
+-- Mit page.tipHints (ab API 29) erscheint der Hinweis stattdessen als Tooltip ueber dem ganzen Baustein.
 function Page:AddHint(c, text, y)
+    if self.tipHints then
+        c.hint = text
+        HookTip(c, c.label, text)
+        if c.GetChildren then
+            for _, child in ipairs({ c:GetChildren() }) do HookTip(child, c.label, text) end
+        end
+        return
+    end
     local h = c:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     h:SetPoint("TOPLEFT", 0, y)
     h:SetWidth(self.colW)
@@ -232,6 +266,7 @@ function Page:Slider(key, label, hint, suffix, divisor)
     local range = mod.opts.ranges and mod.opts.ranges[key]
     assert(range, "Peon: kein Wertebereich fuer " .. tostring(key))
     local c = self:NewContainer(54)
+    c.label = label   -- Titel des Tooltips (ab API 29)
     suffix, divisor = suffix or "", divisor or 1
 
     local function Show(v)
@@ -322,6 +357,7 @@ function Page:Check(key, label, hint, values)
     local on, off = true, false
     if values then on, off = values[1], values[2] end
     local c = self:NewContainer(26)
+    c.label = label   -- Titel des Tooltips (ab API 29)
     local cb = CreateFrame("CheckButton", nil, c, "UICheckButtonTemplate")
     cb:SetSize(26, 26)
     cb:SetPoint("TOPLEFT", -4, 0)
@@ -349,6 +385,7 @@ end
 -- Knopf (ab API 5); onClick(page), hint: Text darunter
 function Page:Button(text, onClick, hint)
     local c = self:NewContainer(26)
+    c.label = text
     local b = CreateFrame("Button", nil, c, "UIPanelButtonTemplate")
     b:SetSize(200, 24)
     b:SetPoint("TOPLEFT", 0, 0)
@@ -383,6 +420,7 @@ function Page:Choice(key, label, options, perRow, btnW, hint)
     perRow, btnW = perRow or 3, btnW or 92
     local rows = math.ceil(#options / perRow)
     local c = self:NewContainer(18 + rows * 26)
+    c.label = label   -- Titel des Tooltips (ab API 29)
     local title = c:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
     title:SetPoint("TOPLEFT", 0, 0)
     title:SetText(label)
@@ -429,6 +467,7 @@ function Page:Dropdown(key, label, options, hint, h)
     local mod = self.mod
     h = h or {}
     local c = self:NewContainer(48)
+    c.label = label   -- Titel des Tooltips (ab API 29)
     c.key = key
     local title = c:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
     title:SetPoint("TOPLEFT", 0, 0)

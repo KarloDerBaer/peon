@@ -34,73 +34,78 @@ local function KeyText()
 end
 
 ---------------------------------------------------------------------------
--- Seite
+-- Seite (ab 1.9.0 mit den Reitern Allgemein, Anzeige, Erweitert nach dem Leitfaden fuer Einstellungen)
 ---------------------------------------------------------------------------
 function ns.CreateOptions()
     local mod = ns.mod
     if page then return end
-    page = mod:NewOptionsPage({ desc = L.OPT_DESC })
+    page = mod:NewOptionsPage({ desc = L.OPT_DESC, tipHints = true })   -- Hinweise als Tooltip (Kern-API 29)
+    page:Tabs({ { "general", L.TAB_GENERAL }, { "display", L.TAB_DISPLAY }, { "advanced", L.TAB_ADVANCED } }, -58)
 
-    -- linke Spalte: Ausruestung, Steuerung, Schwimmer-Erkennung, Faenge
-    local left = page:Column(16, -60)
+    -- Allgemein links: Fang-Uebersicht, Ausruestung, Kampf
+    local left = page:Column(16, -96, "general")
+    page:Add(left, page:Button(L.OPT_OPEN_OVERVIEW, function() ns.ToggleOverview() end, L.OPT_OPEN_OVERVIEW_HINT), 16)
     page:Add(left, page:Header(L.HDR_EQUIPMENT), 6)
-    page:Add(left, page:Dropdown("fishingSet", L.OPT_FISHING_SET, SetOptions, nil, {
+    page:Add(left, page:Dropdown("fishingSet", L.OPT_FISHING_SET, SetOptions, L.OPT_FISHING_SET_HINT, {
         get = CurrentSetName, set = function(name) ns.ChooseFishingSet(name) end,
         empty = function() return #SetOptions() == 0 and L.OPT_NO_SETS or L.NONE end,
     }), 6)
     page:Add(left, page:Button(L.OPT_SAVE_SET, function() ns.SaveFishingSet() end, L.OPT_SAVE_SET_HINT), 6)
     page:Add(left, page:Text(function() return L.OPT_RETURN_SET:format(ns.GetDB().returnSetName) end), 20)
+    page:Add(left, page:Header(L.HDR_COMBAT), 6)
+    page:Add(left, page:Check("combatWeaponTry", L.OPT_WEAPON_TRY, L.OPT_WEAPON_TRY_HINT), 8)
+    page:Add(left, page:Dropdown("afterCombat", L.OPT_AFTER_COMBAT, {
+        { "stay", L.OPT_AFTER_OFF }, { "leave", L.OPT_AFTER_ON }, { "ask", L.OPT_AFTER_ASK },
+    }, L.OPT_AFTER_HINT))
 
-    page:Add(left, page:Header(L.HDR_CONTROL), 6)
-    page:Add(left, page:Text(KeyText), 8)
-    page:Add(left, page:Check("clickMode", L.OPT_DOUBLE_CLICK, L.OPT_DOUBLE_CLICK_HINT, { "double", "off" }), 20)
+    -- Allgemein rechts: Steuerung, Ton, Fangliste, Minimap
+    local right = page:Column(330, -96, "general")
+    page:Add(right, page:Header(L.HDR_CONTROL), 6)
+    page:Add(right, page:Text(KeyText), 8)
+    page:Add(right, page:Check("clickMode", L.OPT_DOUBLE_CLICK, L.OPT_DOUBLE_CLICK_HINT, { "double", "off" }), 4)
+    page:Add(right, page:Check("soundEnabled", L.OPT_SOUND, L.OPT_SOUND_HINT), 4)
+    page:Add(right, page:Check("showCatchList", L.OPT_CATCH_LIST, L.OPT_CATCH_LIST_HINT), 4)
+    page:Add(right, page:Check("showMinimap", L.OPT_MINIMAP, L.OPT_MINIMAP_HINT))
 
-    page:Add(left, page:Header(L.HDR_BOBBER), 6)
-    page:Add(left, page:Slider("interactRange", L.OPT_RANGE, nil, " m"))
-    page:Add(left, page:Dropdown("bobberMarker", L.OPT_MARKER, {
+    -- Anzeige: Schwimmer und Ton
+    local look = page:Column(16, -96, "display")
+    page:Add(look, page:Header(L.HDR_BOBBER), 6)
+    page:Add(look, page:Dropdown("bobberMarker", L.OPT_MARKER, {
         { "off", L.OPT_MARKER_OFF }, { "icon", L.OPT_MARKER_ICON }, { "text", L.OPT_MARKER_TEXT },
-    }))
-    page:Add(left, page:Check("recastOnLost", L.OPT_RECAST), 6)
+    }, L.OPT_MARKER_HINT))
     do
         local opts = { { "off", L.OPT_SOUND_OFF } }
         for _, s in ipairs(ns.LOST_SOUNDS) do opts[#opts + 1] = { s.key, L["SOUND_" .. s.key] } end
-        page:Add(left, page:Dropdown("lostSound", L.OPT_LOST_SOUND, opts))
+        page:Add(look, page:Dropdown("lostSound", L.OPT_LOST_SOUND, opts, L.OPT_LOST_SOUND_HINT))
     end
-    page:Add(left, page:Check("interactSound", L.OPT_INTERACT_SOUND, L.OPT_INTERACT_SOUND_HINT), 20)
+    page:Add(look, page:Check("interactSound", L.OPT_INTERACT_SOUND, L.OPT_INTERACT_SOUND_HINT), 4)
+    page:Add(look, page:Check("soundParticles", L.OPT_PARTICLES, L.OPT_PARTICLES_HINT))
 
-    page:Add(left, page:Header(L.HDR_CATCHES), 6)
-    page:Add(left, page:Check("showCatchList", L.OPT_CATCH_LIST), 6)
-    page:Add(left, page:Button(L.MENU_OVERVIEW, function() ns.ToggleOverview() end), 4)
-    page:Add(left, page:Button(L.OPT_RESET_CATCHES, function() StaticPopup_Show("PEON_FISHING_RESET_CATCHES") end,
-        L.OPT_RESET_CATCHES_HINT))
-
-    -- rechte Spalte: Ton, Kampf, Anzeige
-    local right = page:Column(330, -60)
-    page:Add(right, page:Header(L.HDR_SOUND), 6)
-    page:Add(right, page:Check("soundEnabled", L.OPT_SOUND, L.OPT_SOUND_HINT), 6)
+    local lookRight = page:Column(330, -96, "display")
+    page:Add(lookRight, page:Header(L.HDR_SOUND), 6)
     -- diese Einstellungen wirken nur mit eingeschaltetem Tonmix (werden sonst ausgegraut)
     local soundCtl = {
-        page:Add(right, page:Slider("soundMusic", L.OPT_SOUND_MUSIC, nil, "%")),
-        page:Add(right, page:Slider("soundAmbience", L.OPT_SOUND_AMBIENCE, nil, "%")),
-        page:Add(right, page:Slider("soundSFX", L.OPT_SOUND_SFX, nil, "%")),
-        page:Add(right, page:Check("soundQuiet", L.OPT_SOUND_QUIET), 4),
-        page:Add(right, page:Check("soundBackground", L.OPT_SOUND_BG), 6),
-        page:Add(right, page:Slider("soundDelay", L.OPT_SOUND_DELAY, nil, " s")),
+        page:Add(lookRight, page:Slider("soundMusic", L.OPT_SOUND_MUSIC, L.OPT_SOUND_LEVEL_HINT, "%")),
+        page:Add(lookRight, page:Slider("soundAmbience", L.OPT_SOUND_AMBIENCE, L.OPT_SOUND_LEVEL_HINT, "%")),
+        page:Add(lookRight, page:Slider("soundSFX", L.OPT_SOUND_SFX, L.OPT_SOUND_LEVEL_HINT, "%")),
+        page:Add(lookRight, page:Check("soundQuiet", L.OPT_SOUND_QUIET, L.OPT_SOUND_QUIET_HINT), 4),
+        page:Add(lookRight, page:Check("soundBackground", L.OPT_SOUND_BG, L.OPT_SOUND_BG_HINT)),
     }
-    page:Add(right, page:Check("soundParticles", L.OPT_PARTICLES), 4)
-    page:Add(right, page:Check("soundChannels", L.OPT_CHANNELS, L.OPT_MODE_WIDE_HINT), 20)
 
-    page:Add(right, page:Header(L.HDR_COMBAT), 6)
-    page:Add(right, page:Check("combatWeaponTry", L.OPT_WEAPON_TRY, L.OPT_WEAPON_TRY_HINT), 8)
-    page:Add(right, page:Dropdown("afterCombat", L.OPT_AFTER_COMBAT, {
-        { "stay", L.OPT_AFTER_OFF }, { "leave", L.OPT_AFTER_ON }, { "ask", L.OPT_AFTER_ASK },
-    }, L.OPT_AFTER_HINT), 20)
+    -- Erweitert: Erkennung, Zeiten, Daten
+    local adv = page:Column(16, -96, "advanced")
+    page:Add(adv, page:Text(function() return L.ADVANCED_NOTE end), 12)
+    page:Add(adv, page:Header(L.HDR_BOBBER), 6)
+    page:Add(adv, page:Slider("interactRange", L.OPT_RANGE, L.OPT_RANGE_HINT, " m"))
+    page:Add(adv, page:Check("recastOnLost", L.OPT_RECAST, L.OPT_RECAST_HINT), 20)
+    page:Add(adv, page:Header(L.HDR_SOUND), 6)
+    soundCtl[#soundCtl + 1] = page:Add(adv, page:Slider("soundDelay", L.OPT_SOUND_DELAY, L.OPT_SOUND_DELAY_HINT, " s"))
+    page:Add(adv, page:Check("soundChannels", L.OPT_CHANNELS, L.OPT_CHANNELS_HINT), 20)
+    page:Add(adv, page:Header(L.HDR_CATCHES), 6)
+    page:Add(adv, page:Button(L.OPT_RESET_CATCHES, function() StaticPopup_Show("PEON_FISHING_RESET_CATCHES") end,
+        L.OPT_RESET_CATCHES_HINT))
 
-    page:Add(right, page:Header(L.HDR_DISPLAY), 6)
-    page:Add(right, page:Check("showMinimap", L.OPT_MINIMAP), 4)
-    page:Add(right, page:Check("debug", L.OPT_DEBUG))
-
-    page:AddResetButton(L.SLASH_HINT, left, right)
+    page:AddResetButton(L.SLASH_HINT, left, right, look, lookRight, adv)
 
     -- abhaengige Einstellungen ausgrauen
     page.onRefresh = function()

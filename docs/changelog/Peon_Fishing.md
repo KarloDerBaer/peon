@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 1.9.0
+
+Kurz: Die Einstellungen sind aufgeräumt und haben drei Reiter: Allgemein, Anzeige und Erweitert. Erklärungen stehen jetzt im Tooltip, wenn du mit der Maus auf eine Einstellung zeigst.
+
+- 1.9.0 (25.11.2026, Leitfaden für Einstellungen, Aufteilung von KarloDerBaer freigegeben):
+  - **Geändert:** Optionsseite mit den Reitern Allgemein (Fang-Übersicht öffnen, Angel-Set, Steuerung, Tonmix an oder aus, Kampf, Fangliste, Minimap), Anzeige (Markierung über dem Schwimmer, Warnton, Interaktionston, Partikel, Lautstärken des Tonmix, Stummschalten, Ton im Hintergrund) und Erweitert (Reichweite der Erkennung, Neu auswerfen, Nachlaufzeit, mehr Tonkanäle, Fangdatenbank zurücksetzen). Gespeicherte Werte und ihre Namen bleiben gleich.
+  - **Geändert:** Jeder Schalter hat einen Satz als Tooltip statt Text darunter (Kern-API 29, `tipHints`).
+  - **Entfernt:** Haken „Debug-Ausgaben im Chat“ auf der Seite. Er bleibt als `/fp debug`, der gespeicherte Wert bleibt.
+  - Tests: `test_fish.lua` (drei Reiter, fünf Spalten, elf Haken, kein Debug-Haken).
+
 ## 1.8.0
 
 Kurz: Neue Option „Interaktionston beim Angeln“: Im Angelmodus klingt der Interaktionston des Spiels, sobald du den Schwimmer einholen kannst. Danach gilt wieder deine eigene Einstellung.

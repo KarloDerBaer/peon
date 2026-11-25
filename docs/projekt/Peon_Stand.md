@@ -10,12 +10,12 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Der frühere, lange Stand mit Verlauf und Prüfhinweisen: `docs\archiv\Peon_Stand_bis_2026-11-18.md`.
 - Alle Einstellungen mit Standardwerten stehen im Code unter `defaults` bei `Peon:NewModule` (meist in der Hauptdatei des Moduls). Hier stehen nur die Daten, die man sonst schwer findet.
 
-## Peon (Kern) – 0.28.0, API 28
+## Peon (Kern) – 0.29.0, API 29
 
 - Dateien: Locales.lua, Core.lua, Feedback.lua, ItemMenu.lua, Bindings.xml, Module.lua, Options.lua, Widgets.lua, List.lua, Launcher.lua, Minimap.lua, Chart.lua, UIKit.lua, Notice.lua, Comm.lua, Profiles.lua, Slash.lua. Beispielfenster und UI-Prüfung (bis 0.24.1 `/peon ui`) liegen seit 0.25.0 im privaten Peon_Debug (`/pdebug ui`).
 - SavedVariables `PeonDB`: `errors` (Fehlerspeicher, höchstens 100, „script ran too long“ ab 0.27.1 ohne Datei und Zeile als ein Fehler, ab 0.27.2 auch Adressen wie „table: 0000…“ ohne Wert), `feedbackAreas`, `panelHid`, `itemMenuClick`, `noticesSeen[id]`, `profileList[Name] = { t }` (höchstens 20, immer mit „Standard“), `profileUsers["Name-Realm"] = Profil`, `profileSeed` (Stände aus 0.25.0, bis jedes Modul sie übernommen hat). `PeonCharDB` (je Charakter, ab 0.26.0): `profile`. Ab 0.27.0 `PeonDB.lastRealm` (letzter echter Realm-Name). Je Modul in der Kontotabelle: `_profile` (aktives Profil, seine Werte liegen direkt in der Tabelle), `_profiles[Name]` (die anderen), `commOff` (Teilen aus, fehlt = an), `comm` (Zähler, `peers[Prüfwert]` ohne Namen, höchstens 200, `probe`).
 - Aufgaben: Modulverwaltung (`Peon:NewModule`), Einstellungen mit Standardwerten, Bereichen und Übernahme alter Namen, Ereignisse (INIT, LOGIN, COMBAT_START, COMBAT_END, RESET, CHANGED), Debug-Log, Einstellungsseite „Peon“, Bausteine für Optionsseiten.
-- Schnittstellen (Kern-API, nur erweitern): Fehlerspeicher (API 12), Starter für Panel (API 14/15), Gegenstandsmenü Strg+Rechtsklick (API 16), Fenster-Bausteine `Peon.UI` (API 18, Regeln `docs\konzepte\Peon_UI_Design.md`), einmalige Hinweise `mod:AddNotice` (API 20), Rückmeldungen aus Modulen (API 22), Datenaustausch `Peon.Comm` (API 23/24, Konzept `docs\konzepte\kern\Peon_Comm_Konzept.md`), Realm-Name mit Rückfall `Peon.RealmName()` (API 27, das Spiel lieferte am 20.11.2026 zeitweise einen leeren Namen), Diagramm mit `trim` und `fit = false` (API 28), laufende Profile `Peon.Profiles` (API 25/26, „Standard“ für alle, je Charakter wählbar, `opts.noProfile` lässt ein Modul aus, Merker gehören in `keepOnReset`). Liste im Überblick unter „Kern-API“.
+- Schnittstellen (Kern-API, nur erweitern): Fehlerspeicher (API 12), Starter für Panel (API 14/15), Gegenstandsmenü Strg+Rechtsklick (API 16), Fenster-Bausteine `Peon.UI` (API 18, Regeln `docs\konzepte\Peon_UI_Design.md`), einmalige Hinweise `mod:AddNotice` (API 20), Rückmeldungen aus Modulen (API 22), Datenaustausch `Peon.Comm` (API 23/24, Konzept `docs\konzepte\kern\Peon_Comm_Konzept.md`), Realm-Name mit Rückfall `Peon.RealmName()` (API 27, das Spiel lieferte am 20.11.2026 zeitweise einen leeren Namen), Diagramm mit `trim` und `fit = false` (API 28), Hinweise als Tooltip auf Optionsseiten `NewOptionsPage({ tipHints = true })` (API 29), laufende Profile `Peon.Profiles` (API 25/26, „Standard“ für alle, je Charakter wählbar, `opts.noProfile` lässt ein Modul aus, Merker gehören in `keepOnReset`). Liste im Überblick unter „Kern-API“.
 - Datenaustausch: versteckter Kanal `PeonNet`, an alle über den Kanal, an einen per Addon-Flüstern, keine Weitergabe (ab 0.24.1 auch nicht für Nachrichten von 0.23.0). Einmaliger Hinweis zum Teilen beim ersten Login (ab 0.24.1). Dienste: `hello` (Kern), `recipes` (Profession).
 - Befehle: `/peon`, `/peon list`, `/peon fehler [leeren]`, `/peon neu`, `/peon teilen [an | aus | pruefen]`, `/peon profil [benutzen | neu | leer | kopieren | loeschen <Name> | standard]`, `/peon debug <modul>`.
 - Noch nicht im Kern: `RegisterUnitEvent`.
@@ -37,7 +37,7 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Befehle: `/peon classbuddy`, `/peon classbuddy gifte`, `/peon classbuddy splitter`, `/peon debug classbuddy`.
 - Offen: Ob das Spiel das Bestätigen beim Ersetzen eines Gifts erlaubt, zeigt der Alltag (sonst Hinweis und Blizzards Frage). Erkannt werden nur die Gifte aus der Liste in `Rogue_Poisons.lua`.
 
-## Peon_Fishing – 1.8.0
+## Peon_Fishing – 1.9.0
 
 - Dateien: Locales.lua, Fishing.lua, Sets.lua, Click.lua, Lure.lua, Keys.lua, Combat.lua, Sound.lua, Minimap.lua, Catches.lua, Options.lua, Bindings.xml
 - SavedVariables: `PeonFishingDB` (Konto), `PeonFishingCharDB` (je Charakter), `dbVersion` 3.
@@ -45,6 +45,7 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Tastenbelegungen: `PEON_FISHING_TOGGLE`, `PEON_FISHING_ACTION`, `CLICK PeonFishingWeaponButton:LeftButton`.
 - Schnittstelle: `mod:CatchZones()` für Profession (ab 1.7.0).
 - Takte: Tasten nur im Angelmodus (`ns.UpdateLureTick`), Schwarm-Zeile nur bei sichtbarer Fangliste (`ns.CatchListTick`), ab 1.7.1.
+- Optionsseite (ab 1.9.0, Leitfaden für Einstellungen): Reiter Allgemein, Anzeige, Erweitert, Hinweise als Tooltip. Debug nur noch über `/fp debug`.
 - Befehle: `/fp` (Optionen), `/fp toggle|an|aus`, `/fp set <Name>`, `/fp saveset`, `/fp kampf fragen|verlassen|bleiben`, `/fp waffenversuch`, `/fp klick doppel|aus`, `/fp status`, `/fp minimap`, `/fp koeder`, `/fp fische`, `/fp statistik`, `/fp debug`.
 
 ## Peon_Broker – 0.132.0 (Auktionshaus-Helfer)

@@ -126,7 +126,14 @@ check(type(PeonFishing_Toggle) == "function" and type(PeonFishing_Action) == "fu
 check(Peon.API >= 6, "Kern-API 6")
 check(PeonFishingDB.soundDelay == 15, "Nachlaufzeit auf Bereich geklemmt")
 local page = ns.page
-check(page and page.resetButton and #page.columns == 2, "Seite mit zwei Spalten und Standardwerte-Knopf")
+check(page and page.resetButton and #page.columns == 5, "Seite mit fuenf Spalten und Standardwerte-Knopf")
+-- ab 1.9.0: Reiter Allgemein, Anzeige, Erweitert, ohne Debug-Haken (bleibt /fp debug)
+check(page.tabList and #page.tabList == 3 and page.tabList[1][1] == "general" and page.tabList[3][1] == "advanced", "drei Reiter")
+do
+  local hasDebug = false
+  for _, c in ipairs(page.controls) do if c.key == "debug" then hasDebug = true end end
+  check(not hasDebug and page.columns[1].tab == "general" and page.columns[5].tab == "advanced", "kein Debug-Haken, Spalten in Reitern")
+end
 page.panel.scripts.OnShow(page.panel)
 check(true, "Seite anzeigen (Refresh + Neuanordnung) ohne Fehler")
 local modeCalls = 0
@@ -135,13 +142,14 @@ local checks = {}
 -- ohne den Schalter "Daten teilen" der Kern-Seite (Peon 0.23.0)
 local commCheck = Peon.Comm and Peon.Comm.option and Peon.Comm.option.check
 for _, f in ipairs(frames) do if f.kind == "CheckButton" and f ~= commCheck then checks[#checks + 1] = f end end
-check(#checks == 12, "12 Haekchen (" .. #checks .. ")")
+check(#checks == 11, "11 Haekchen (" .. #checks .. ")")
+-- ab 1.9.0 steht links zuerst "Waffen bei Angriff", der Doppelklick ist der zweite Haken
 PeonFishingDB.clickMode = "double"
-checks[1].GetChecked = function() return false end
-checks[1].scripts.OnClick(checks[1])
+checks[2].GetChecked = function() return false end
+checks[2].scripts.OnClick(checks[2])
 check(PeonFishingDB.clickMode == "off" and modeCalls == 1, "Doppelklick-Haekchen schreibt \"off\" und meldet Aenderung")
-checks[1].GetChecked = function() return true end
-checks[1].scripts.OnClick(checks[1])
+checks[2].GetChecked = function() return true end
+checks[2].scripts.OnClick(checks[2])
 check(PeonFishingDB.clickMode == "double", "Doppelklick-Haekchen schreibt \"double\"")
 local played
 local oldPlay = ns.PlayLostSound

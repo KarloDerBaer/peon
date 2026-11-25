@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.29.0
+
+Kurz: Einstellungsseiten können ihre Erklärungen als Tooltip zeigen statt als Text unter jedem Schalter. So werden die Seiten kürzer.
+
+- 0.29.0 (25.11.2026, Leitfaden für Einstellungen, Regel 6, Zustimmung KarloDerBaer): **Neu, Kern-API 29:** `mod:NewOptionsPage({ tipHints = true })` zeigt den Hinweis von `Check`, `Slider`, `Dropdown`, `Choice` und `Button` als Tooltip über dem ganzen Baustein (Titel und ein Satz) statt als Text darunter. Der Hinweis steht zusätzlich in `c.hint`. Seiten ohne `tipHints` bleiben unverändert. Ein Modul mit älterem Kern zeigt den Hinweis weiter als Text.
+  - Tests: `test_bausteine.lua`.
+
 ## 0.28.0
 
 Kurz: Diagramme können Ausreißer abschneiden, damit einzelne große Werte die übrigen nicht stauchen. Davon profitiert zuerst der Schnellkauf in Peon Broker.

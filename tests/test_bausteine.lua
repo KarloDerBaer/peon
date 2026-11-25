@@ -54,7 +54,7 @@ function Minimap.GetEffectiveScale() return 1 end
 local cursor = { 500, 480 }
 function GetCursorPosition() return cursor[1], cursor[2] end
 local tt = { lines = {} }
-GameTooltip = { SetOwner = function() tt.lines = {} end, AddLine = function(_, t) tt.lines[#tt.lines+1] = t end, Show = function() tt.shown = true end, Hide = function() tt.shown = false end }
+GameTooltip = { SetOwner = function() tt.lines = {} end, SetText = function(_, t) tt.lines[#tt.lines+1] = t end, AddLine = function(_, t) tt.lines[#tt.lines+1] = t end, Show = function() tt.shown = true end, Hide = function() tt.shown = false end }
 local function fire(e, ...) for _, f in ipairs(allFrames) do if f.events[e] and f.scripts.OnEvent then f.scripts.OnEvent(f, e, ...) end end end
 local function load(dir, addon) local ns = {} for l in io.lines(dir .. "/" .. dir .. ".toc") do if l:match("%.lua$") then assert(loadfile(dir .. "/" .. l))(addon, ns) end end return ns end
 local function check(c, m) if not c then error("FEHLER: " .. m, 2) end print("ok  " .. m) end
@@ -193,6 +193,25 @@ tp:SelectTab("gibtsnicht")
 check(tp:GetTab() == "two", "unbekannter Reiter: nichts passiert")
 a1:Hide(); tp:SelectTab("one")
 check(not a1.shown and a2:IsVisible(), "eigenes Ausblenden eines Bausteins bleibt erhalten")
+
+
+-- ===== Hinweise als Tooltip (API 29) =====
+check(Peon.API >= 29, "API 29: Hinweise als Tooltip")
+local hm = Peon:NewModule("TestTips", { key = "testtips", title = "Tips", db = "TestTipsDB", defaults = { a = true } })
+fire("ADDON_LOADED", "TestTips")
+local hp = hm:NewOptionsPage({ desc = "x", tipHints = true })
+local hc = hp:Column(16, -60)
+local hk = hp:Add(hc, hp:Check("a", "Schalter A", "Ein Satz zum Schalter."))
+local hb = hp:Add(hc, hp:Button("Knopf", function() end, "Ein Satz zum Knopf."))
+check(hk:GetHeight() == 26 and hb:GetHeight() == 26, "kein Text unter Schalter und Knopf")
+check(hk.hint == "Ein Satz zum Schalter." and hk.scripts.OnEnter, "Hinweis als Tooltip am Schalter")
+hk.scripts.OnEnter(hk)
+check(tt.shown and tt.lines[#tt.lines] == "Ein Satz zum Schalter.", "Tooltip zeigt den Satz")
+hk.scripts.OnLeave(hk)
+check(not tt.shown, "Tooltip verschwindet")
+local np = hm:NewOptionsPage({ desc = "x" })
+local nk = np:Add(np:Column(16, -60), np:Check("a", "A", "Satz"))
+check(nk:GetHeight() > 26 and not nk.hint, "ohne tipHints bleibt der Text darunter")
 
 local e = 0 for _, l in ipairs(out) do if l:find("Fehler") and not l:find("List onClick", 1, true) and not l:find("^ok ") then e = e + 1 end end
 check(e == 0, "keine weiteren Fehlermeldungen")
