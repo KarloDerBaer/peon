@@ -2204,6 +2204,22 @@ do
   local z1 = ns.Cost.Result(realm.moves[6])
   check(z1 and z1.sale and z1.lootShare == 0 and math.abs(z1.profit - (24000 - 8000)) < 0.01,
     "0.18.1: nach dem Nachtrag zaehlt der Verkauf als Handel mit den Kosten der gekauften Ware")
+  -- Rechnung ueber mehr Stueck als die Zeile der Auktionsliste (Fall 223 und 105)
+  realm.moves = {
+    { t = tb, c = "Mirel Dorna", k = "ahbuy", id = 7600, n = 223, m = -22300 },
+    { t = tb + 100, c = "Mirel Dorna", k = "posted", id = 7600, n = -223 },
+    { t = tb + 200, c = "Mirel Dorna", k = "ahsold", id = 7600, n = -105, p = 200 },
+  }
+  local inv = { t = tb + 300, c = "Mirel Dorna", k = "ahsold", id = 7600, m = 44600, q = 223 }
+  realm.moves[#realm.moves + 1] = inv
+  ns.Moves.SaleItems(inv, 7600, 223)
+  local _, it = K.Expected("Mirel Dorna")
+  check(inv.n == -118 and realm.moves[3].paid and (it[7600] or 0) == 0,
+    "0.18.1: Rechnung 223 nach Liste 105 gibt die uebrigen 118 ab, die Kontrollrechnung erwartet nichts mehr")
+  ns.Cost.Invalidate()
+  local z = ns.Cost.Result(inv)
+  check(z and z.sale and z.lootShare == 0 and math.abs(z.profit - 22300) < 0.01,
+    "0.18.1: Gewinn mit den Kosten aller 223 Stueck (Liste und Rechnung zusammen)")
   me.start, me.places.bags = keepS, keepBags
   me.places.auctions = { t = 1, items = {} }
 end

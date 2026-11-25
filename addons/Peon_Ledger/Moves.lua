@@ -780,20 +780,30 @@ end
 -- Verkauf aus der Rechnung (ab 0.14): Die Rechnung nennt Gegenstand und Menge, die Ware ist damit weg.
 -- Hat die Auktionsliste den Verkauf schon als Abgang gemeldet (Zeile "Auktion verkauft" ohne Erloes), bleibt es
 -- dabei. Sonst traegt die Zeile mit dem Erloes auch den Abgang (n), und der Ort "Auktionen" wird kleiner.
+-- Ab 0.18.1 deckt eine Zeile der Auktionsliste nur so viele Stueck, wie sie selbst hat (paidN). Vorher galt die
+-- ganze Rechnung als gedeckt: Rechnung 223, Liste 105, die uebrigen 118 blieben im Bestand der Kontrollrechnung.
 function M.SaleItems(e, id, q)
     if type(e) ~= "table" or not Num(q) or q <= 0 then return end
     local list = M.List()
     local from = (e.t or time()) - M.MATCH_DAYS * 86400
+    local left = q
     for i = #list, math.max(1, #list - M.MERGE_LOOKBACK), -1 do
+        if left <= 0 then break end
         local s = list[i]
         if (s.t or 0) < from then break end
         if s ~= e and s.k == "ahsold" and s.c == e.c and s.id == id and (s.n or 0) < 0 and not s.m and not s.paid then
-            s.paid = true
-            return
+            local free = -s.n - (Num(s.paidN) and s.paidN or 0)
+            local k = math.min(free, left)
+            if k > 0 then
+                left = left - k
+                s.paidN = (Num(s.paidN) and s.paidN or 0) + k
+                if s.paidN >= -s.n then s.paid, s.paidN = true, nil end
+            end
         end
     end
-    e.n = -q
-    if e.c == ns.CharName() then ns.Inventory.RemoveFromPlace(ns.Inventory.Char(), "auctions", id, q) end
+    if left <= 0 then M.Changed(); return end
+    e.n = -left
+    if e.c == ns.CharName() then ns.Inventory.RemoveFromPlace(ns.Inventory.Char(), "auctions", id, left) end
     M.Changed()
 end
 

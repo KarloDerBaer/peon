@@ -643,6 +643,24 @@ function C.Apply(st, e, groups)
     end
 end
 
+-- Vorgemerkte Kosten von Stueck, die die Auktionsliste schon als verkauft gemeldet hat (soldQ), fuer bis zu q
+-- Stueck nehmen. Rueckgabe: cost, loot, acost, sw, genommene Stueck (ab 0.18.1 eigene Funktion)
+function C.TakeSoldQ(st, id, q)
+    local cost, loot, acost, sw, left = 0, 0, 0, 0, q
+    local sq = st.soldQ[id]
+    while sq and left > 0 and sq[1] do
+        local s = sq[1]
+        local kk = math.min(left, s.n)
+        local f = s.n > 0 and kk / s.n or 0
+        local part, lpart, apart, spart = s.cost * f, (s.loot or 0) * f, (s.acost or 0) * f, (s.sw or 0) * f
+        cost, loot, acost, sw = cost + part, loot + lpart, acost + apart, sw + spart
+        s.cost, s.loot, s.acost, s.sw = s.cost - part, (s.loot or 0) - lpart, (s.acost or 0) - apart, (s.sw or 0) - spart
+        s.n, left = s.n - kk, left - kk
+        if s.n <= 0 then table.remove(sq, 1) end
+    end
+    return cost, loot, acost, sw, q - left
+end
+
 -- Verkauf im Auktionshaus (bis 0.16 Teil von C.Apply)
 function C.ApplySale(st, e, id, n, m)
     do
@@ -685,7 +703,14 @@ function C.ApplySale(st, e, id, n, m)
                 cost, miss, l2, acost, _s, sw = Take(st, id, cnt - use)
                 loot = loot + l2
             end
-            st.res[e] = C.MarkSwap(SaleResult(m, cnt, cost, miss, loot, acost, TakeFee(st, id, cnt), C.Deposit(e)), sw, cnt)
+            -- ab 0.18.1: Rechnung ueber mehr Stueck, als sie selbst abgibt. Den Rest hat die Auktionsliste schon als
+            -- Abgang gemeldet (Moves.SaleItems), seine Kosten liegen vorgemerkt in soldQ.
+            local q = Num(e.q) and e.q > cnt and e.q or cnt
+            if q > cnt then
+                local c2, l3, a3, s3 = C.TakeSoldQ(st, id, q - cnt)
+                cost, loot, acost, sw = cost + c2, loot + l3, acost + a3, sw + s3
+            end
+            st.res[e] = C.MarkSwap(SaleResult(m, q, cost, miss, loot, acost, TakeFee(st, id, q), C.Deposit(e)), sw, q)
         elseif id and n < 0 then
             -- Gegenstand weg (Auktionsliste): Kosten fuer den Erloes vormerken
             local cnt = -n
@@ -707,18 +732,8 @@ function C.ApplySale(st, e, id, n, m)
                 return
             end
             local q = e.q or 1
-            local cost, left, loot, acost, sw = 0, q, 0, 0, 0
-            local sq = st.soldQ[id]
-            while sq and left > 0 and sq[1] do
-                local s = sq[1]
-                local kk = math.min(left, s.n)
-                local f = s.n > 0 and kk / s.n or 0
-                local part, lpart, apart, spart = s.cost * f, (s.loot or 0) * f, (s.acost or 0) * f, (s.sw or 0) * f
-                cost, loot, acost, sw = cost + part, loot + lpart, acost + apart, sw + spart
-                s.cost, s.loot, s.acost, s.sw = s.cost - part, (s.loot or 0) - lpart, (s.acost or 0) - apart, (s.sw or 0) - spart
-                s.n, left = s.n - kk, left - kk
-                if s.n <= 0 then table.remove(sq, 1) end
-            end
+            local cost, loot, acost, sw, got = C.TakeSoldQ(st, id, q)
+            local left = q - got
             local miss = 0
             if left > 0 then
                 -- Auktionsliste kam (noch) nicht: jetzt aus dem Bestand nehmen und fuer spaeter vormerken
