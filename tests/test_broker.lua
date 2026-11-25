@@ -255,6 +255,10 @@ SlashCmdList.PEON_BROKER("pruefen")
 check(PeonBrokerDB.probe.live.fee.error ~= nil and said("nicht möglich"), "Gebuehren-Test scheitert sauber, Pruefung gespeichert")
 ItemLocation = savedLoc
 
+-- ab 0.138 (U6): Vorgabe nur Schnellkauf. Die aelteren Tests der Chancen brauchen die weiteren Unterreiter.
+check(mod.db.chancesMore == false and ns.Chances.Tab() == "quick" and not ns.Chances.TabOn("spec"), "0.138: Vorgabe nur Schnellkauf in Chancen")
+mod.db.chancesMore = true
+
 -- Minimap-Button
 local btn = _G.PeonBrokerMinimapButton
 check(btn and btn.shown and mod.db.minimapAngle == 225, "Minimap-Button da, Standardwinkel 225")
@@ -2588,6 +2592,7 @@ Win.Refresh()
   T.built = built
   mod:ResetDefaults()
   check(mod.acc.ahPlain == true, "U0: Standardwerte lassen Blizzard pur stehen")
+  mod.db.chancesMore = true   -- ab 0.138: die weiteren Tests der Chancen brauchen die Unterreiter
   OldDefaults()
   SlashCmdList.PEON_BROKER("pur")
   check(popupShown and popupShown.name == "PEON_BROKER_AH_PLAIN_OFF", "U0: /broker pur fragt beim Zurueckschalten nach")
@@ -3735,7 +3740,9 @@ end)()
     if c.row[2] == "radarReserve" then reserve = c end
     if c.row[2] == "chancesNotify" then notify = c end
   end
-  check(reserve and notify and f.h == 860, "0.105: ein Fenster fuer Chancen und Radar, etwas hoeher (ab 0.127 mit Markttausch 860)")
+  local more
+  for _, c in ipairs(f.controls) do if c.row[2] == "chancesMore" then more = c end end
+  check(reserve and notify and more and f.h == 920, "0.105/0.138: ein Fenster fuer Chancen und Radar, mit Weitere Chancen 920 hoch")
   local vendor, spec
   for _, c in ipairs(f.controls) do
     if c.row[2] == "radarVendorOn" then vendor = c end
@@ -6255,6 +6262,28 @@ end)()
   K.Act(r1)
   check(posted and posted.price == 120, "0.129: zweiter Klick verkauft zum Mindestpreis")
   check(plain(K.StatusText()):find("1/1 gekauft", 1, true), "0.129: Status je Richtung")
+  -- ab 0.138 (U6): eine Zeile je Paket, aufklappbar
+  do
+    local all, sm = K.Rows()
+    K.open = {}
+    local v = K.ViewRows(all, sm)
+    check(#v == 2 and v[1].pkg and v[1].dir == "n" and v[1].qty == 1 and v[1].buy == 1000 and v[1].minSell == 100
+      and plain(v[1].state) == "1 von 1 gekauft" and v[2].dir == "h", "0.138: je Paket eine Zeile mit Angeboten, Einsatz, Gewinn und Stand: " .. plain(v[1].state))
+    K.open.n = true
+    v = K.ViewRows(all, sm)
+    check(#v == 3 and v[1].pkg and v[1].open and v[2].sub and v[2].key == 2770 and v[3].pkg and v[3].dir == "h"
+      and v[1].order < v[2].order and v[2].order < v[3].order, "0.138: aufgeklappt stehen die Angebote unter ihrem Paket")
+    if K.list then
+      K.Refresh(true)
+      local head
+      for _, r in ipairs(K.list.items or {}) do if r.pkg and r.dir == "h" then head = r end end
+      K.list.o.onClick(head, "LeftButton")
+      check(K.open.h == true, "0.138: Klick auf ein Paket klappt es auf")
+      K.list.o.onClick(head, "LeftButton")
+      check(K.open.h == nil, "0.138: zweiter Klick klappt es zu")
+    end
+    K.open = {}
+  end
   -- aufraeumen
   K.post, K.warned = nil, nil
   ItemLocation = nil
@@ -6694,6 +6723,55 @@ end)()
   AuctionHouseFrame = keepAH
   ns.Focus.key, ns.Scan.ahOpen, ns.Stock.Counts = keepFocusKey, keepAHOpen, keepCounts
   mod.db.sideOpen, mod.db.sideTab, mod.char.listSel, mod.acc.lists = keepOpen, keepTab, keepSel, keepLists
+end)()
+
+-- ===== 0.138 (U6): Chancen nur Schnellkauf, Weitere Chancen =====
+;(function()
+  local C, R, S = ns.Chances, ns.Radar, ns.Settings
+  local keepMore, keepTab, keepTrade = mod.db.chancesMore, mod.db.chancesTab, mod.db.tradeOn
+  mod.db.tradeOn = true
+  mod.db.chancesMore = false
+  mod.db.chancesTab = "spec"
+  check(C.Tab() == "quick" and not C.TabOn("spec") and not C.TabOn("buyout") and not C.TabOn("trade") and not C.TabOn("pkg") and C.TabOn("quick"),
+    "0.138: ohne Weitere Chancen nur Schnellkauf")
+  if C.tabs then
+    C.LayoutTabs()
+    local shown = 0
+    for _, t in ipairs(C.tabs) do if t:IsShown() then shown = shown + 1 end end
+    check(shown == 0, "0.138: keine Unterreiterleiste")
+  end
+  local keepRows, keepLively = C.Rows, ns.QuickChances.LivelyCount
+  C.Rows = function() return { { state = "ok", mk = "s", x = {} } } end
+  ns.QuickChances.LivelyCount = function() return 2 end
+  check(C.BadgeCount("all") == 2, "0.138: Zahl am Reiter nur Schnellkauf")
+  mod.db.chancesMore = true
+  check(C.BadgeCount("all") >= 3 and C.TabOn("spec") and C.Tab() == "spec", "0.138: mit Weitere Chancen alle Unterreiter, gemerkter Reiter gilt wieder")
+  if C.tabs then
+    C.LayoutTabs()
+    local shown = 0
+    for _, t in ipairs(C.tabs) do if t:IsShown() then shown = shown + 1 end end
+    check(shown > 1, "0.138: Unterreiterleiste wieder da")
+  end
+  C.Rows, ns.QuickChances.LivelyCount = keepRows, keepLively
+  -- Hinweis beim Oeffnen des Auktionshauses nur mit Weitere Chancen
+  local keepKeys = C.Keys
+  C.Keys = function() return { 1, 2 } end
+  local before = #out
+  mod.db.chancesMore = false
+  C.OnAHShow()
+  local noted = false
+  for i = before + 1, #out do if plain(out[i]):find("Chance", 1, true) then noted = true end end
+  check(not noted, "0.138: kein Hinweis auf Chancen ohne Weitere Chancen")
+  C.Keys = keepKeys
+  -- Schalter aus beendet einen laufenden Radar-Scan
+  local stopped = false
+  local keepStop, keepRun = R.Stop, R.running
+  R.Stop = function() stopped = true; R.running = false end
+  R.running = true
+  S.changed.chances()
+  check(stopped, "0.138: Weitere Chancen aus: Radar-Scan endet")
+  R.Stop, R.running = keepStop, keepRun
+  mod.db.chancesMore, mod.db.chancesTab, mod.db.tradeOn = keepMore, keepTab, keepTrade
 end)()
 
 print("ALLE TESTS OK")

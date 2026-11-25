@@ -1486,6 +1486,17 @@ L.SIDE_GRIP_OPEN    = "Click: open the side bar with watch and shopping list."
 L.SIDE_GRIP_CLOSE   = "Click: close the side bar."
 L.SIDE_WATCH_EMPTY  = "Nothing watched yet."
 
+-- ab 0.138 (U6): Chancen nur Schnellkauf, Weitere Chancen, Pakete je Zeile
+L.SET_CH_MORE       = "More chances"
+L.SET_CH_MORE_TIP   = "Brings back the sub-tabs speculation, buyout, market swap and packages. Off by default, then only quick buy is shown and nothing else runs."
+L.PK_ROW            = "Package %s"
+L.PK_ROW_STATE      = "%d of %d bought"
+L.PK_ROW_POSTED     = ", %d posted"
+L.PK_ROW_TIP        = "Click: show or hide the offers of this package."
+L.PK_ROW_OFFERS     = "%d offers"
+L.PK_ROW_STAKE      = "Stake"
+L.PK_ROW_GAIN       = "Profit"
+
 if GetLocale() == "deDE" then
     -- ab 0.106: Schnellkauf mit Max. Menge, Beobachten je Modus
     L.QUICK_MAXQTY     = "Max. Menge"
@@ -2929,4 +2940,14 @@ if GetLocale() == "deDE" then
     L.SIDE_GRIP_OPEN    = "Klick: Seitenleiste mit Beobachten und Einkaufsliste aufklappen."
     L.SIDE_GRIP_CLOSE   = "Klick: Seitenleiste zuklappen."
     L.SIDE_WATCH_EMPTY  = "Noch nichts beobachtet."
+    -- ab 0.138 (U6): Chancen nur Schnellkauf, Weitere Chancen, Pakete je Zeile
+    L.SET_CH_MORE       = "Weitere Chancen"
+    L.SET_CH_MORE_TIP   = "Bringt die Unterreiter Spekulation, Aufkauf, Markttausch und Pakete zurück. Vorgabe aus, dann ist nur Schnellkauf zu sehen und sonst läuft nichts."
+    L.PK_ROW            = "Paket %s"
+    L.PK_ROW_STATE      = "%d von %d gekauft"
+    L.PK_ROW_POSTED     = ", %d eingestellt"
+    L.PK_ROW_TIP        = "Klick: Angebote dieses Pakets auf- oder zuklappen."
+    L.PK_ROW_OFFERS     = "%d Angebote"
+    L.PK_ROW_STAKE      = "Einsatz"
+    L.PK_ROW_GAIN       = "Gewinn"
 end

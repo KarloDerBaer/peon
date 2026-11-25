@@ -30,6 +30,10 @@
 --   verschwinden. Die Zahl am Reiter zaehlt alle Listen (Schnellkauf: lebhafte), die Unterreiter zeigen die Aufteilung.
 -- Ab 0.127 (Konzept Peon_Broker_Marktvergleich.md, KarloDerBaer 20.11.2026): vierter Unterreiter Markttausch (Trade.lua),
 --   Fraktion und Neutral, Liste vom Manager oder ohne ihn nach Preisunterschied, "Alle pruefen" fuer das Haus hier.
+-- Ab 0.138 (U6, Konzept Peon_Broker_Schlank.md 8, KarloDerBaer 24.11.2026): Sichtbar ist nur Schnellkauf, ohne
+--   Unterreiterleiste. Der Schalter "Weitere Chancen" (chancesMore, Vorgabe aus, Einstellungen Chancen unter Erweitert)
+--   bringt Spekulation, Aufkauf, Markttausch und Pakete zurueck. Solange er aus ist, laeuft dafuer nichts: keine
+--   Abfragen, kein Radar-Scan, keine Hinweise und keine Zahl am Reiter fuer diese Arten.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -58,8 +62,12 @@ function C.KindOn(mk)
     return k ~= nil and mod.db[k] ~= false
 end
 
--- ab 0.119: Unterreiter an? (mindestens eine Art eingeschaltet)
+-- ab 0.138 (U6): Weitere Chancen eingeschaltet?
+function C.More() return mod.db.chancesMore == true end
+
+-- ab 0.119: Unterreiter an? (mindestens eine Art eingeschaltet). ab 0.138 ausser Schnellkauf nur mit Weitere Chancen
 function C.TabOn(tab)
+    if tab ~= "quick" and not C.More() then return false end
     if tab == "spec" then return C.KindOn("s") or C.KindOn("l") or C.KindOn("m") end
     if tab == "buyout" then
         local R = ns.Radar
@@ -73,6 +81,7 @@ end
 
 -- Offener Unterreiter: der gemerkte, wenn er an ist, sonst der erste eingeschaltete
 function C.Tab()
+    if not C.More() then return "quick" end   -- ab 0.138
     local t = mod.db.chancesTab
     if t ~= "spec" and t ~= "buyout" and t ~= "quick" and t ~= "trade" and t ~= "pkg" then t = "spec" end
     if C.TabOn(t) then return t end
@@ -255,6 +264,10 @@ end
 -- ab 0.119: tab = nur dieser Unterreiter. Schnellkauf zaehlt die lebhaften Vorschlaege.
 function C.BadgeCount(mode, tab)
     local n = 0
+    if not C.More() then   -- ab 0.138: nur Schnellkauf zaehlt
+        if (tab == nil or tab == "quick") and ns.QuickChances then n = ns.QuickChances.LivelyCount() end
+        return n
+    end
     for _, r in ipairs(C.Rows()) do
         local now = not (r.mk == "m" and r.x.buyWin and not r.inWindow)
         if (tab == nil or r.tab == tab) and now and (mode == "all" and r.state ~= "gone" or r.state == "ok") then n = n + 1 end
@@ -604,12 +617,14 @@ function C.Build(c)
 end
 
 -- ab 0.119: nur die eingeschalteten Unterreiter zeigen, nebeneinander ueber der Liste
+-- ab 0.138: ist nur einer an (ohne Weitere Chancen nur Schnellkauf), entfaellt die Leiste ganz
 function C.LayoutTabs()
     if not C.tabs then return end
-    local prev
+    local prev, on = nil, 0
+    for _, t in ipairs(C.tabs) do if C.TabOn(t.key) then on = on + 1 end end
     for _, t in ipairs(C.tabs) do
         t:ClearAllPoints()
-        if C.TabOn(t.key) then
+        if on > 1 and C.TabOn(t.key) then
             if prev then t:SetPoint("LEFT", prev, "RIGHT", Peon.UI.TAB_GAP or 3, 0)
             else t:SetPoint("BOTTOMLEFT", C.panel, "TOPLEFT", 10, -2) end
             t:Show()
@@ -756,14 +771,14 @@ end
 function C.OnAHShow()
     C.Leave()
     C.UpdateBadge()
-    if mod.db.chancesAhNote == false then return end
+    if mod.db.chancesAhNote == false or not C.More() then return end   -- ab 0.138 nur mit Weitere Chancen
     local n = #C.Keys("all")
     if n > 0 then mod:Print(L.CH_AH_NOTE:format(n)) end
 end
 
 function C.Tick()
     C.UpdateBadge()   -- Muster: Zeitfenster beginnt oder endet
-    if mod.db.chancesNotify == false or not C.KindOn("m") or not ns.Spec then return end
+    if mod.db.chancesNotify == false or not C.More() or not C.KindOn("m") or not ns.Spec then return end
     local D = ns.Data
     local d = date("*t")
     local stamp = ("%d-%d-%d-%d"):format(d.year, d.month, d.day, math.floor(d.hour / 3))

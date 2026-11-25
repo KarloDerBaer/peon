@@ -135,7 +135,7 @@ S.QUICK_CHANCES = {
     { "note", "SET_QC_NOTE" },
 }
 S.SPECS.chances = {
-    title = "SET_CH_TITLE", height = 860,   -- ab 0.119 hoeher (Schnellkauf), ab 0.120 noch ein Regler
+    title = "SET_CH_TITLE", height = 920,   -- ab 0.119 hoeher (Schnellkauf), ab 0.120 noch ein Regler, ab 0.138 Erweitert
     { "head", "SET_CH_KINDS" },
     { "check", "chancesShowS", "SET_CH_S", "SET_CH_S_TIP" },
     { "check", "chancesShowL", "SET_CH_L", "SET_CH_L_TIP" },
@@ -151,6 +151,9 @@ S.SPECS.chances = {
 }
 for _, row in ipairs(S.RADAR_GENERAL) do table.insert(S.SPECS.chances, row) end
 for _, row in ipairs(S.QUICK_CHANCES) do table.insert(S.SPECS.chances, row) end
+-- ab 0.138 (U6, Konzept 8): Weitere Chancen unter Erweitert
+table.insert(S.SPECS.chances, { "head", "SET_FOCUS_ADV" })
+table.insert(S.SPECS.chances, { "check", "chancesMore", "SET_CH_MORE", "SET_CH_MORE_TIP" })
 table.insert(S.SPECS.chances, { "col" })
 for _, row in ipairs(S.RADAR_KINDS) do table.insert(S.SPECS.chances, row) end
 for _, row in ipairs(S.RADAR_UPDATE) do table.insert(S.SPECS.chances, row) end
@@ -159,6 +162,9 @@ S.changed.chances = function()
     if R then R.loaded = nil end   -- Grenzen geaendert: Treffer aus der Datenbank neu rechnen
     if ns.QuickChances then ns.QuickChances.cands = nil end   -- ab 0.119: Vorschlaege neu
     if ns.Chances and ns.Chances.LayoutTabs then ns.Chances.LayoutTabs() end
+    -- ab 0.138: Weitere Chancen aus: laufender Radar-Scan endet, die Liste wechselt auf Schnellkauf
+    if ns.Chances and not ns.Chances.More() and R and R.running then R.Stop() end
+    if ns.Chances and ns.Chances.tabs and ns.Chances.tabs.selected ~= ns.Chances.Tab() then ns.Chances.tabs:Select(ns.Chances.Tab()) end
     if ns.Chances and ns.Chances.Shown() then
         if R then R.Open(); R.Wake() else ns.Chances.Refresh() end
     end

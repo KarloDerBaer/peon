@@ -11,6 +11,14 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Verkauf in der Auktionsliste bucht nichts mehr** (KarloDerBaer): Nur die Post bucht, die Liste dient der Anzeige. Die frühe Meldung und die spätere Rechnung passten nicht immer zusammen (118 Dickes Leder). Gemerkt wird der Verkauf nur noch, damit ein Brief ohne geladene Rechnung seine Menge bekommt.
 - **Alte Fälle einmal korrigieren** (Claude): Abweichungen minus nach dem Einstellen, deren Ware danach verkauft wurde, werden zu „Auktion (korrigiert)“. Die Bewegungen bleiben, nur ihre Art ändert sich, die Kosten rechnet Ledger neu.
 
+## 25.11.2026: Broker schlank, Schritt U6 Chancen (Broker 0.138.0)
+
+- **Schalter in den Einstellungen der Chancen** (Claude): „Weitere Chancen“ steht dort unter einer neuen Überschrift Erweitert, weil der Knopf Einstellungen im Reiter Chancen dieses Fenster öffnet. Der Aufkauf des Einkaufens bleibt im Fenster des Einkaufens. U7 ordnet beides nach dem Leitfaden.
+- **Aus heißt wirklich aus** (Claude): Ohne den Schalter ist der offene Unterreiter immer Schnellkauf. Damit fragt Broker nur Schnellkauf-Vorschläge ab, Erneuern, Markttausch, Pakete und Radar-Scan laufen nicht. Ein laufender Scan endet beim Ausschalten. Hinweis beim Öffnen des Auktionshauses, Meldung zu Mustern und die Zahl am Reiter zählen nur mit dem Schalter.
+- **Markttausch braucht beide Schalter** (Claude): Unterreiter Markttausch und Pakete erscheinen mit „Weitere Chancen“ und `tradeOn`. Hinweis Neutral und Haken im Menü von Beobachten hängen weiter nur an `tradeOn`.
+- **Pakete ohne Kernänderung** (Claude): Kopfzeile je Paket und aufgeklappte Angebote stehen in derselben Tabelle mit fester Reihenfolge. Die Konzeptidee aufklappbarer Zeilen in `UI.Table` war nicht nötig, die Kern-API bleibt bei 29.
+- **Aufgeklappt nur in der Sitzung** (Claude): Vorgabe zu, so bleibt es bei einer Zeile je Paket.
+
 ## 25.11.2026: Broker schlank, Schritt U5 Seitenleiste (Broker 0.137.0)
 
 - **Immer am Auktionshaus** (KarloDerBaer, auf Rückfrage von Claude): Die Leiste hängt auch in Blizzards Kaufen, Verkaufen und Auktionen. Ein Klick wechselt ins Einkaufen.

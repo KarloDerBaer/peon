@@ -107,6 +107,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
         chancesTab   = "spec",  -- ab 0.119: zuletzt offener Unterreiter in Chancen (spec, buyout, quick)
         watchTab     = "buyout", -- ab 0.119: zuletzt offener Unterreiter in Beobachten (buyout, quick)
         chancesShowQ = true,    -- ab 0.119: Chancen der Art Schnellkauf (QuickChances.lua)
+        chancesMore  = false,   -- ab 0.138 (U6): Weitere Chancen (Spekulation, Aufkauf, Markttausch, Pakete)
         tradeOn = false,        -- ab 0.128.2: Markttausch in Chancen und Beobachten (Trade.lua), erst nach Einschalten (KarloDerBaer)
         chancesTradeNote = true,   -- ab 0.127: Hinweis am Zielhaus auf Ware aus dem Markttausch
         qcCount      = 10,      -- ab 0.119: so viele Vorschlaege fuer den Schnellkauf

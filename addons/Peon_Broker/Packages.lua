@@ -11,6 +11,10 @@
 -- Gekauft und im Gepaeck liest Broker aus Peon_Ledger (Posten mit Haus des Kaufs, mod:HouseLots), eingestellt aus den
 -- eigenen Auktionen. Das klappt auch auf einem Twink, der die Ware per Post bekommen hat (Ledger nimmt das Haus mit).
 -- Solange die Liste offen ist, fragt Broker die Zeilen fuer das Haus hier reihum ab (Trade.lua T.ActiveKeys).
+-- Ab 0.138 (U6, Konzept Peon_Broker_Schlank.md 8): eine Zeile je Paket mit Richtung, Zahl der Angebote, Einsatz,
+-- Gewinn und Stand ("2 von 6 gekauft"). Ein Klick klappt das Paket auf, darunter stehen seine Angebote mit Kaufen und
+-- Verkaufen wie bisher (K.open, nur in der Sitzung, Vorgabe zu). Die Tabelle des Kerns bleibt unveraendert: die
+-- Reihenfolge haelt eine feste Sortierung (order).
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -372,33 +376,89 @@ function K.RowTooltip(row, x)
     end)
 end
 
+-- ab 0.138: Zeilen fuer die Tabelle: je Paket eine Kopfzeile, aufgeklappt darunter seine Angebote
+K.open = {}   -- [Richtung] = true: aufgeklappt
+function K.ViewRows(rows, sum)
+    local out = {}
+    for i, dir in ipairs({ "n", "h" }) do
+        local s = sum and sum[dir]
+        if s then
+            local state = L.PK_ROW_STATE:format(s.bought, s.n) .. (s.posted > 0 and L.PK_ROW_POSTED:format(s.posted) or "")
+            out[#out + 1] = { pkg = true, key = "pkg:" .. dir, dir = dir, order = i * 10000,
+                name = L.PK_ROW:format(ns.Trade.DirText(dir)), qty = s.n, buy = s.stake, minSell = s.gainSafe or s.gain,
+                gain = s.gain, gainSafe = s.gainSafe, stake = s.stake, bought = s.bought, posted = s.posted,
+                state = (s.bought >= s.n and GREEN or GREY) .. state .. "|r", open = K.open[dir] == true,
+                icon = "Interface\\Icons\\INV_Crate_01" }
+            if K.open[dir] then
+                local j = 0
+                for _, x in ipairs(rows) do
+                    if x.dir == dir then
+                        j = j + 1
+                        x.order, x.sub = i * 10000 + j, true
+                        out[#out + 1] = x
+                    end
+                end
+            end
+        end
+    end
+    return out
+end
+
+function K.Toggle(dir)
+    K.open[dir] = not K.open[dir] or nil
+    K.Refresh(true)
+end
+
 function K.BuildList(c, top)
     local UI = Peon.UI
     local p = UI.Panel(c, "list", true)
     p:SetPoint("TOPLEFT", 0, top)
     p:SetPoint("BOTTOMRIGHT", 0, 30)
     K.panel = p
+    -- ab 0.138: feste Reihenfolge (Paket, darunter seine Angebote), Kopfzeilen mit Einsatz und Gewinn
+    local function Order(r) return r.order or 0 end
     K.list = UI.Table(p, {
         columns = {
-            { key = "name", title = L.COL_ITEM, sort = function(r) return W.Lower(r.name) end,
-              color = function(r) return UI.QualityColor(r.quality or 1) end },
-            { key = "dir", title = L.TR_COL_DIR, width = 92, align = "RIGHT", format = function(v) return BLUE .. ns.Trade.DirText(v) .. "|r" end },
-            { key = "qty", title = L.TR_COL_QTY, width = 50, align = "RIGHT" },
-            { key = "buy", title = L.TR_COL_BUY, width = 84, align = "RIGHT", format = function(v) return Money(v) end },
-            { key = "minSell", title = L.PK_COL_MIN, width = 84, align = "RIGHT", format = function(v) return Money(v) end },
-            { key = "state", title = L.CH_COL_STATE, width = 120, align = "RIGHT", format = function(v) return v or "" end },
-            { key = "actText", title = L.PK_COL_ACT, width = 110, align = "CENTER",
-              format = function(v, r) if not v then return "" end return (r.actColor or GREY) .. "[" .. v .. "]|r" end,
-              sort = function(r) return r.act == "buy" and 1 or r.act == "sell" and 2 or r.act == "sellwarn" and 3 or 9 end },
+            { key = "name", title = L.COL_ITEM, sort = Order, nosort = true,
+              format = function(v, r)
+                  if r.pkg then return (r.open and "|cffffd100- |r" or "|cffffd100+ |r") .. tostring(v) end
+                  return "   " .. tostring(v)
+              end,
+              color = function(r)
+                  if r.pkg then return 1, 0.82, 0 end
+                  return UI.QualityColor(r.quality or 1)
+              end },
+            { key = "dir", title = L.TR_COL_DIR, width = 92, align = "RIGHT", nosort = true,
+              format = function(v, r) if r.sub then return "" end return BLUE .. ns.Trade.DirText(v) .. "|r" end },
+            { key = "qty", title = L.TR_COL_QTY, width = 50, align = "RIGHT", nosort = true },
+            { key = "buy", title = L.TR_COL_BUY, width = 84, align = "RIGHT", nosort = true,
+              format = function(v) return Num(v) and Money(v) or "" end },
+            { key = "minSell", title = L.PK_COL_MIN, width = 84, align = "RIGHT", nosort = true,
+              format = function(v, r)
+                  if not Num(v) then return "" end
+                  return r.pkg and (GREEN .. Money(math.max(0, v)) .. "|r") or Money(v)
+              end },
+            { key = "state", title = L.CH_COL_STATE, width = 120, align = "RIGHT", nosort = true, format = function(v) return v or "" end },
+            { key = "actText", title = L.PK_COL_ACT, width = 110, align = "CENTER", nosort = true,
+              format = function(v, r) if not v then return "" end return (r.actColor or GREY) .. "[" .. v .. "]|r" end },
         },
-        sortKey = "dir", icon = true, empty = L.PK_EMPTY,
+        sortKey = "name", icon = true, empty = L.PK_EMPTY,
+        rowLine = function(r) return r and r.pkg and (r.order or 0) > 10000 end,
         onClick = function(r, button)
+            if r and r.pkg then
+                if button ~= "RightButton" then mod:Call("Pakete", K.Toggle, r.dir) end
+                return
+            end
             if button == "RightButton" then ns.Go.Menu(r, K.panel); return end
             if K.OverAction() then mod:Call("Pakete", K.Act, r); return end
             K.selected = r
             K.UpdateSell()
         end,
-        onEnter = function(row, r) if r then K.RowTooltip(row, r) end end,
+        onEnter = function(row, r)
+            if not r then return end
+            if r.pkg then K.PkgTooltip(row, r); return end
+            K.RowTooltip(row, r)
+        end,
     })
     -- sicherer Knopf fuer Einzelstuecke (wie Beobachten, WatchPage.lua)
     local sb = CreateFrame("Button", "PeonBrokerPackageSellButton", c, "SecureActionButtonTemplate,UIPanelButtonTemplate")
@@ -418,9 +478,22 @@ function K.BuildList(c, top)
     return p
 end
 
+-- ab 0.138: Tooltip einer Kopfzeile
+function K.PkgTooltip(row, r)
+    if not GameTooltip then return end
+    GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+    GameTooltip:AddLine(r.name, 1, 0.82, 0)
+    GameTooltip:AddDoubleLine(L.PK_ROW_OFFERS:format(r.qty or 0), L.PK_ROW_STATE:format(r.bought or 0, r.qty or 0), 0.8, 0.8, 0.8, 1, 1, 1)
+    if Num(r.stake) then GameTooltip:AddDoubleLine(L.PK_ROW_STAKE, Money(r.stake), 0.8, 0.8, 0.8, 1, 1, 1) end
+    if Num(r.gainSafe) or Num(r.gain) then GameTooltip:AddDoubleLine(L.PK_ROW_GAIN, Money(math.max(0, r.gainSafe or r.gain)), 0.8, 0.8, 0.8, 0.38, 0.88, 0.38) end
+    GameTooltip:AddLine(L.PK_ROW_TIP, 0.6, 0.6, 0.6, true)
+    GameTooltip:Show()
+end
+
 function K.Refresh(resort)
     if not K.list then return end
-    local rows = K.Rows()
+    local all, sum = K.Rows()
+    local rows = K.ViewRows(all, sum)   -- ab 0.138 je Paket eine Zeile
     W.FillTable(K.list, rows, resort or K.lastStamp ~= K.stamp)
     K.lastStamp = K.stamp
     if K.selected then

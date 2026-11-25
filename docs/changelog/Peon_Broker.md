@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.138.0
+
+Kurz: Der Reiter Chancen zeigt nur noch die Schnellkauf-Vorschläge, ohne Unterreiter.
+Kurz: Spekulation, Aufkauf, Markttausch und Pakete kommen mit dem Schalter „Weitere Chancen“ in den Einstellungen der Chancen unter Erweitert zurück. Solange er aus ist, läuft dafür nichts.
+Kurz: Pakete stehen als eine Zeile je Paket mit Einsatz, Gewinn und Stand. Ein Klick klappt die Angebote auf.
+
+- 0.138.0 (25.11.2026, Schritt U6 aus dem Konzept `Peon_Broker_Schlank.md`, Abschnitt 8):
+  - **Geändert, nur Schnellkauf:** Ohne „Weitere Chancen“ (`chancesMore`, Vorgabe aus) zeigt Chancen nur die Liste Schnellkauf, die Unterreiterleiste entfällt. Ist nur ein Unterreiter an, entfällt sie ebenfalls.
+  - **Neu, Weitere Chancen:** Haken im Fenster Einstellungen der Chancen unter Erweitert. An bringt Spekulation, Aufkauf, Markttausch (mit `tradeOn`) und Pakete zurück, der gemerkte Unterreiter gilt wieder. Aus: keine Abfragen und kein Radar-Scan dafür, ein laufender Scan endet, kein Hinweis beim Öffnen des Auktionshauses, keine Meldung zu Mustern, die Zahl am Reiter zählt nur Schnellkauf.
+  - **Geändert, Pakete:** eine Zeile je Paket mit Richtung, Zahl der Angebote, Einsatz, Gewinn und Stand („2 von 6 gekauft“, dazu eingestellt). Ein Klick klappt das Paket auf, darunter stehen seine Angebote mit Kaufen und Verkaufen wie bisher (`Packages.open`, nur in der Sitzung, Vorgabe zu). Die Tabelle des Kerns bleibt unverändert, die Reihenfolge ist fest.
+  - Gespeicherte Daten bleiben erhalten (`chancesTab`, Arten der Chancen, `chancesGone`, `tradeGoods`).
+  - Tests: `test_broker.lua`.
+
 ## 0.137.0
 
 Kurz: Rechts am Broker-Fenster und am Auktionshaus hängt eine Seitenleiste mit deinen beobachteten Gegenständen und deiner Einkaufsliste. Ein Klick setzt den Gegenstand ins Einkaufen.
