@@ -2120,7 +2120,9 @@ local post = realm.moves[#realm.moves]
 for i = #realm.moves, 1, -1 do if realm.moves[i].k == "posted" then post = realm.moves[i]; break end end
 check(post.k == "posted" and post.id == 2592 and post.n == -5 and me.places.auctions.items[2592] == 5 and queried > q0,
   "0.15: eingestellte Ware gleich unter Auktionen, eigene Auktionen neu abgefragt")
-check(ns.Check.Run("Mirel Dorna").items[2592] == d0, "0.15: Einstellen aendert die Kontrollrechnung nicht (vorher fehlte die Ware)")
+-- ab 0.18.1: Ware, die Ledger nie gesehen hat, zaehlt nach dem Einstellen nirgends mehr (Auktionshaus aus den
+-- Bewegungen, hoechstens der Bestand). Wichtig ist: Einstellen erzeugt kein Minus.
+check(d0 == 5 and (ns.Check.Run("Mirel Dorna").items[2592] or 0) >= 0, "0.15: Einstellen erzeugt kein Minus in der Kontrollrechnung (vorher fehlte die Ware)")
 fire("AUCTION_HOUSE_CLOSED"); settle()
 -- alte Abweichungen durch Einstellen paaren
 local t1 = time() - 5000
@@ -2158,6 +2160,53 @@ C_AuctionHouse.GetNumOwnedAuctions = function() return 1 end
 C_AuctionHouse.GetOwnedAuctionInfo = function() return { itemKey = { itemID = 7300 }, quantity = 20, status = 0 } end
 fire("OWNED_AUCTIONS_UPDATED"); settle()
 check(realm.moves[2].k == "aucfix" and me.places.auctions.items[7300] == 20, "0.15.1: Auktion taucht in der Liste auf, offenes Minus wird Auktion (korrigiert)")
+-- ab 0.18.1: Kontrollrechnung ohne die Liste der eigenen Auktionen (Ware im Auktionshaus aus den Bewegungen)
+do
+  local keepS = me.start
+  me.start = { t = 0, places = {} }
+  local tb = time() - 4000
+  realm.moves = {
+    { t = tb, c = "Mirel Dorna", k = "ahbuy", id = 7400, n = 50, m = -5000 },
+    { t = tb + 100, c = "Mirel Dorna", k = "posted", id = 7400, n = -50 },
+    { t = tb + 200, c = "Mirel Dorna", k = "ahreturn", id = 7400, n = 50 },
+    { t = tb + 300, c = "Mirel Dorna", k = "posted", id = 7400, n = -50 },
+    { t = tb + 400, c = "Mirel Dorna", k = "ahbuy", id = 7401, n = 10, m = -100 },
+    { t = tb + 500, c = "Mirel Dorna", k = "posted", id = 7401, n = -10 },
+    { t = tb + 600, c = "Mirel Dorna", k = "ahsold", id = 7401, n = -4, m = 80, q = 4 },
+  }
+  me.places.auctions = { t = 1, items = {}, soldItems = {} }   -- die Liste des Spiels kennt die Auktionen nicht
+  local keepBags = me.places.bags
+  me.places.bags = { t = 1, items = {} }
+  local run = K.Run("Mirel Dorna")
+  local _, _, listed = K.Expected("Mirel Dorna")
+  check(not run.items[7400] and not run.items[7401] and listed[7400] == 50 and listed[7401] == 6,
+    "0.18.1: eingestellte Ware fehlt in der Liste des Spiels, die Kontrollrechnung meldet trotzdem nichts")
+  me.places.bags = { t = 1, items = { [7400] = 2 } }
+  check(K.Run("Mirel Dorna").items[7400] == 2, "0.18.1: Ware in den Taschen zaehlt weiter (mehr als erwartet)")
+  -- einmaliger Nachtrag: Abweichung nach dem Einstellen, danach verkauft (Fall Dickes Leder)
+  realm.moves = {
+    { t = tb, c = "Mirel Dorna", k = "ahbuy", id = 7500, n = 100, m = -10000 },
+    { t = tb + 100, c = "Mirel Dorna", k = "posted", id = 7500, n = -80 },
+    { t = tb + 200, c = "Mirel Dorna", k = "diff", id = 7500, n = -70, x = ns.L.MV_X_DIFF },
+    { t = tb + 300, c = "Mirel Dorna", k = "diff", id = 7500, n = -30, x = ns.L.MV_X_DIFF },
+    { t = tb + 400, c = "Mirel Dorna", k = "ahsold", id = 7500, n = -80, m = 24000, q = 80 },
+    { t = tb + 500, c = "Mirel Dorna", k = "diff", id = 7501, n = -5, x = ns.L.MV_X_DIFF },   -- ohne Einstellen: bleibt
+  }
+  ns.Cost.Invalidate()
+  local z0 = ns.Cost.Result(realm.moves[5])
+  check(z0 and z0.lootShare == 1, "0.18.1: vorher zaehlte der Verkauf ganz als Beute")
+  mod.acc.fixSoldDiff = nil
+  check(K.RepairSoldDiffs() == 80 and realm.moves[3].k == "diff" and realm.moves[3].n == -20 and realm.moves[4].k == "aucfix"
+    and realm.moves[4].n == -50 and realm.moves[5].k == "aucfix" and realm.moves[5].n == -30 and realm.moves[7].k == "diff",
+    "0.18.1: Verkauf hebt die Abweichungen nach dem Einstellen auf (juengste zuerst), Rest bleibt Abweichung")
+  check(K.RepairSoldDiffs() == 0 and mod.acc.fixSoldDiff, "0.18.1: Nachtrag nur einmal")
+  ns.Cost.Invalidate()
+  local z1 = ns.Cost.Result(realm.moves[6])
+  check(z1 and z1.sale and z1.lootShare == 0 and math.abs(z1.profit - (24000 - 8000)) < 0.01,
+    "0.18.1: nach dem Nachtrag zaehlt der Verkauf als Handel mit den Kosten der gekauften Ware")
+  me.start, me.places.bags = keepS, keepBags
+  me.places.auctions = { t = 1, items = {} }
+end
 C_AuctionHouse.GetNumOwnedAuctions = function() return 0 end
 -- davon in Auktionen
 local keepS, keepB = me.start, realm.lotBase

@@ -669,6 +669,7 @@ L.BK_TT_RESULT = "AH: Trading profit plus day to day play."
 L.BK_TT_GOLD = "Real change of your gold in this period, including purchases still in stock."
 L.MAIL_PROGRESS = "Letter %d of %d"
 L.MSG_FIX_TRANSIT = "Repaired: %d deviations were mail from your own characters and now keep their costs."
+L.MSG_FIX_SOLDDIFF = "Repaired: %d items counted as missing were later sold at the auction house. The sales now count as trade with their costs."
 if GetLocale() == "deDE" then
     L.HDR_SHOW    = "Anzeige"
     L.OPT_MINIMAP = "Minimap-Button anzeigen"
@@ -1326,6 +1327,7 @@ if GetLocale() == "deDE" then
     L.BK_TT_GOLD = "Echte Änderung deines Goldes im Zeitraum, mit Einkäufen, die noch im Lager liegen."
     L.MAIL_PROGRESS = "Brief %d von %d"
     L.MSG_FIX_TRANSIT = "Repariert: %d Abweichungen waren Post von deinen Twinks und behalten jetzt ihre Kosten."
+    L.MSG_FIX_SOLDDIFF = "Repariert: %d Stück galten als fehlend, wurden aber danach im Auktionshaus verkauft. Die Verkäufe zählen jetzt als Handel mit ihren Kosten."
 end
 
 -- ab 0.18 (Ledger schlank, Konzept Peon_Ledger_Schlank.md)

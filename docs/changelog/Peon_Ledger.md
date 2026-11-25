@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.18.1
+
+Kurz: Gekaufte Ware, die du im Auktionshaus weiterverkaufst, zählt jetzt sicher als Handel. Bisher konnte sie als Beute erscheinen, wenn das Spiel die gerade eingestellte Auktion zu spät meldete.
+Kurz: Ältere Verkäufe mit diesem Fehler korrigiert Ledger einmal beim Einloggen und nennt die Zahl im Chat.
+
+- 0.18.1 (25.11.2026):
+  - **Behoben, Kontrollrechnung (`Check.lua`):** Sie liest die Liste der eigenen Auktionen nicht mehr. Was im Auktionshaus liegt, folgt aus den Bewegungen (eingestellt minus zurück minus verkauft, höchstens der Bestand), verglichen wird nur noch mit Taschen, Bank und Angelegtem. Anlass: Das Spiel lieferte nach dem Einstellen eine Liste ohne die neue Auktion. Die Kontrollrechnung buchte gekaufte Ware samt Kosten als fehlend aus, der spätere Verkauf zählte als Beute (Fall: 914 Dickes Leder, 25.11.2026).
+  - **Neu, einmaliger Nachtrag (`Check.RepairSoldDiffs`, Merker `fixSoldDiff`):** Abweichungen minus bis 3 Tage nach dem Einstellen werden zu „Auktion (korrigiert)“, soweit die Ware danach verkauft wurde (jüngste zuerst). Die Kosten rechnet Ledger danach neu, die Verkäufe zählen als Handel. Läuft beim Einloggen vor der Kontrollrechnung.
+  - **Unverändert:** Die Liste der Auktionen bleibt für die Anzeige (Reiter Charaktere, „davon in Auktionen“) und meldet Verkäufe vor der Rechnung.
+  - Tests: Auktion fehlt in der Liste des Spiels, Ware in den Taschen zählt weiter, Nachtrag mit Rest, nur einmal, Verkauf danach als Handel mit Kosten (`test_ledger.lua`).
+
 ## 0.18.0
 
 Kurz: Die Übersicht zeigt jetzt Gold gesamt, die Goldänderung der letzten 24 Stunden und den AH-Erlös von heute. Im Diagramm wählst du die Linien selbst, auch Gold je Charakter.

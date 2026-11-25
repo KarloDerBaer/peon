@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 25.11.2026. Peon 0.29.0 (API 29) / Broker 0.133.0 / Ledger 0.18.0 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.8.0 / ClassBuddy 0.5.0 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.5.0 / Profession 0.8.0 / Warhorn 0.6.0.
+Stand: 25.11.2026. Peon 0.29.0 (API 29) / Broker 0.133.0 / Ledger 0.18.1 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.8.0 / ClassBuddy 0.5.0 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.5.0 / Profession 0.8.0 / Warhorn 0.6.0.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -95,7 +95,7 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Schnittstelle: `mod:Chances(market)` und ab 0.13.0 `mod:Compare(market)` (Marktvergleich, `markets[Heimat].cmp`), ab 0.14.0 `mod:Packages(market)` (`markets[Heimat].pkg`) für Broker.
 - Befehle: `/peon bridge`, `/peon bridge senden`, `/peon bridge status`, `/peon debug bridge`.
 
-## Peon_Ledger – 0.18.0 (Charaktere, Buch und Postfenster)
+## Peon_Ledger – 0.18.1 (Charaktere, Buch und Postfenster)
 
 - Konzepte: `docs\konzepte\ledger\` (Konzept, Zuordnen, Gegenstand, Neuaufbau, Buch_AH, Schlank). Es gilt der Neuaufbau (0.14.0) mit dem Buch nach `Peon_Ledger_Buch_AH.md` (0.15.0) und der Oberfläche nach `Peon_Ledger_Schlank.md` (0.18.0, S1, S2, S4, S5).
 - Dateien: Locales.lua, Ledger.lua, Inventory.lua, Moves.lua, Cost.lua, Check.lua, Last.lua, Trend.lua, Tooltip.lua, Window.lua, Overview.lua, Chars.lua, History.lua, Book.lua, Info.lua, Mail.lua, Pick.lua, Probe.lua, Options.lua, Bindings.xml
@@ -106,6 +106,7 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Einstellungen (ab 0.18.0) nach dem Leitfaden: Allgemein, Anzeige, Erweitert.
 - SavedVariables `PeonLedgerDB` (Konto): Einstellungen, `realms[Realm]` mit `chars[Vorname Nachname]` (Bestand je Ort), `moves` (Bewegungen, älteste zuerst, nach 90 Tagen in `weeks`, ab 0.17.0 Haus `h` bei Bewegungen im Auktionshaus), `bookV`, `last`, `trend`, `pre`, dazu `items`, `session`, Fehlersuche `mailLog`, `bankLog`, Prüfung `probe`, `probeEvents`, `probeHooks`, `probeSnaps`.
 - Schnittstellen: `mod:Stock`, `mod:StockOthers`, `mod:Cost`, `mod:OpenFee`, `mod:SellRate`, `mod:LastBuy`, `mod:LastSale`, `mod:ShowItem`, `mod:HouseLots` (ab 0.17.0).
+- Kontrollrechnung (ab 0.18.1): vergleicht nur Taschen, Bank und Angelegtes, die Ware im Auktionshaus folgt aus den Bewegungen statt aus der Liste des Spiels. Einmaliger Nachtrag alter Abweichungen nach dem Einstellen (`fixSoldDiff`).
 - Kostenrechnung: Beute, Benutzt, Quest und Zerstört trägt Ledger ab 0.17.2 in den gespeicherten Stand nach (`Cost.Add`), alles andere rechnet 2 Sekunden später im Hintergrund neu (ab 0.17.1). Im Kampf zeigt der Tooltip den letzten Stand. Marktwerte fragt eine Rechnung je Gegenstand nur einmal.
 - Käufe im Auktionshaus (ab 0.17.3): Zahlungen gehören zum bestätigten Kauf mit gleichem Gesamtpreis (`M.buys`), Ware aus der Post trägt den Durchschnitt der offenen Käufe des Gegenstands.
 - Panel-Texte: Gold aller Charaktere, Gold dieses Charakters, Gold dieser Sitzung, ab 0.17.3 Gold dieses Charakters mit allen in Klammern.
