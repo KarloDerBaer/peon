@@ -51,7 +51,6 @@ async function run(what, fn) {
   try { return await fn(); } catch (e) { error.value = String(e.message || e).replace(/^Error invoking remote method '[^']*': (Error: )?/, ''); return null; } finally { busy.value = ''; await load(); emit('changed'); }
 }
 
-const setChannel = (c) => run('check', () => api.setAddonChannel(c));
 
 // Ergebnis einer Installation in einem Satz
 function report(r) {
@@ -98,7 +97,7 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
 
 <template>
   <div class="mods" v-if="st">
-    <h1>Updates</h1>
+    <h1>Addons</h1>
     <Checklist v-if="!showSetup" :data="data" :settings="settings" :stamp="stamp" @go="emit('go', $event)" @save="emit('save', $event)" />
 
     <p class="banner warn" v-if="st.tooOld" role="alert">{{ st.tooOld }}</p>
@@ -136,12 +135,8 @@ const useWow = (dir) => run('setup', () => api.saveSettings({ wowDir: dir }));
     </section>
 
     <section class="top">
-      <label class="channel">
-        <span>Kanal</span>
-        <select :value="st.channel" :disabled="!!busy" @change="setChannel($event.target.value)">
-          <option value="stable">Stabil</option><option value="test">Test (Vorabversionen)</option>
-        </select>
-      </label>
+      <!-- ab 0.56.0: Kanal waehlen unter Einstellungen, Allgemein (Peon_Manager_Schlank.md Abschnitt 5) -->
+      <span class="channel small muted">Kanal {{ st.channel === 'test' ? 'Test' : 'Stabil' }} (<button class="link" @click="emit('go', 'settings')">ändern</button>)</span>
       <button :disabled="!!busy" @click="check">{{ busy === 'check' ? 'Sucht' : 'Nach Updates suchen' }}</button>
       <button class="primary" v-if="st.updates" :disabled="!!busy || !!st.tooOld" @click="emit('updates')">Alle aktualisieren ({{ st.updates }})</button>
       <p class="small status" :class="st.check && !st.check.ok ? 'warn' : 'muted'">{{ checkText }} Installiert wird nur, wenn du es auslöst.</p>

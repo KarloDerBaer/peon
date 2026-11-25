@@ -1,6 +1,6 @@
 # Peon Manager: Konzept schlank und übersichtlich
 
-Stand: 24.11.2026, **freigegeben**, Richtung von KarloDerBaer gewählt (Variante A „Heute und fünf Bereiche“), Karten auf Heute wie in Abschnitt 4 bestätigt. Ausgangsversion Peon Manager 0.54.0. Skizzen der Varianten: Artifact-Seite „Peon schlank“.
+Stand: 25.11.2026, **umgesetzt in Peon Manager 0.56.0** (M1 bis M4, Abweichungen in Abschnitt 8), freigegeben 24.11.2026, Richtung von KarloDerBaer gewählt (Variante A „Heute und fünf Bereiche“), Karten auf Heute wie in Abschnitt 4 bestätigt. Ausgangsversion Peon Manager 0.54.0. Skizzen der Varianten: Artifact-Seite „Peon schlank“.
 
 ## 1. Ausgangslage
 
@@ -80,6 +80,14 @@ Nach `docs/konzepte/Peon_Einstellungen_Leitfaden.md`:
 
 ## 7. Offene Fragen an KarloDerBaer
 
-1. Fehlt auf Heute etwas, das du beim Start sehen willst?
+Keine. Heute „passt erstmal so“ (KarloDerBaer, 24.11.2026).
 
 Geklärt (KarloDerBaer, 24.11.2026): Erfolgskontrolle als Unterreiter „Erfolg“ unter Chancen. Händler unter Markt, weil die Seite zeigt, was bei Händlern zu kaufen ist.
+
+## 8. Umsetzung und Abweichungen (Peon Manager 0.56.0, 25.11.2026)
+
+- **Markt, Übersicht** hat Reiter: zuerst Übersicht mit Kacheln, Diagramm, Stabilität, Meistverkauft und größten Preisänderungen der alten Startseite, danach wie bisher Prognosen, Fallend, Steigend, Lohnend, Größte Änderungen, Stufenbereiche, Feste und Stabilität. Die Liste aller Gegenstände ist der Unterreiter Gegenstände.
+- **Pakete** ist ein eigener Unterreiter. Die Regeln dafür stehen weiter unter Marktvergleich, Reiter Einstellen.
+- **Heute:** Die Einrichtungsliste für neue Nutzer steht über den Karten. Beim allerersten Start öffnet der Manager Addons, weil dort der Vorschlag zum Einrichten steht. Der Knopf der Karte Updates öffnet das bekannte Update-Fenster („Ansehen und installieren“). Rückmeldungen werden auf der Seite Rückmeldungen gesendet, weil dort die Vorschau steht („Ansehen und senden“).
+- **Einstellungen:** Der Kanal steht nur noch unter Allgemein, unter Addons ein Hinweis mit Sprung. Der Abstand der Suche nach Updates steht unter Erweitert. Der Knopf „Zugang prüfen“ fällt weg (Leitfaden Regel 4): Der Manager prüft nach dem Speichern und beim Öffnen der Seite, solange die letzte Prüfung nicht geklappt hat. Die Testzeile des Beobachters steht nicht mehr in den Einstellungen.
+- Die Zahl der nicht gesendeten Rückmeldungen steht auf Heute und am Unterreiter Rückmeldungen, nicht am Eintrag Mehr.

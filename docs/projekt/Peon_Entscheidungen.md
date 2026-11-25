@@ -8,6 +8,14 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Aufteilung je Modul freigegeben** (KarloDerBaer): Fishing, Bags, Warhorn und Profession bekommen die Reiter nach dem Leitfaden. Prüfknöpfe und Debug-Haken fallen von den Seiten, sie bleiben als Befehle. Was schon im Fenster einstellbar ist (Eigene Bereiche in Bags, Kosten und Gewinn im Berufsfenster), steht nicht mehr in den Einstellungen.
 - **Hinweise als Tooltip** (Vorschlag Claude, KarloDerBaer zugestimmt): Auf umgestellten Seiten steht der Satz zu einem Schalter im Tooltip statt als Text darunter. Grund: Die Seiten werden deutlich kürzer und Regel 6 des Leitfadens verlangt einen Tooltip. Umgesetzt als Erweiterung im Kern (API 29, `tipHints`), nicht umgestellte Seiten bleiben, wie sie sind.
 
+## 25.11.2026: Manager schlank umgesetzt (Manager 0.56.0)
+
+- **Namen wie beschlossen** (KarloDerBaer, 24.11.2026): Unterreiter Einkaufslisten wie in Broker, unter Chancen Spekulation, Marktvergleich, Pakete und Erfolg. Heute ohne weitere Karte („passt erstmal so“).
+- **Kanal nur unter Einstellungen** (Claude, nach Leitfaden Regel 5 und Konzept Abschnitt 5): unter Addons nur der jetzige Kanal mit Sprung.
+- **Kein Knopf „Zugang prüfen“** (Claude, Leitfaden Regel 4): Der Manager prüft den Zugang zur Blizzard-API nach dem Speichern und beim Öffnen der Einstellungen, solange es nicht geklappt hat. Die Testzeile des Beobachters fällt aus den Einstellungen weg.
+- **Knöpfe auf Heute öffnen das Bekannte** (Claude): Updates über das Update-Fenster, Rückmeldungen über ihre Seite mit Vorschau, damit nichts ungesehen installiert oder gesendet wird.
+- **Markt, Übersicht mit Reitern** (Claude): Die Kennzahlen der alten Startseite sind der erste Reiter, die übrigen Auswertungen bleiben als Reiter dahinter.
+
 ## 25.11.2026: Erfolgskontrolle streng, Richtung in der Stabilität, Horde-Haus (Manager 0.55.0)
 
 - **Nur glaubwürdige Verkäufe zählen** (KarloDerBaer, Messung Claude): verschwunden als günstigstes Angebot, nicht abgelaufen, kein gleich billiges Angebot gleicher Menge und kein billigeres neu eingestellt. Grund: Die Erfolgskontrolle zeigte 97 % Treffer, ein guter Teil der „Verkäufe“ waren neu eingestellte Angebote.

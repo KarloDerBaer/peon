@@ -5,13 +5,15 @@ import { ref, computed, watch, onMounted } from 'vue';
 import Gold from '../components/Gold.vue';
 import { fold, qualityColor, ago, num, perDay } from '../util.js';
 
-const props = defineProps({ market: Object, stamp: Number, now: Number, settings: Object });
+// packages (ab 0.56.0): als Unterreiter Pakete unter Chancen, nur der Reiter Pakete ohne Reiterleiste
+const props = defineProps({ market: Object, stamp: Number, now: Number, settings: Object, packages: Boolean });
 const emit = defineEmits(['open', 'save']);
 const api = window.peon;
 
-const TABS = [{ key: 'chances', label: 'Chancen' }, { key: 'pkg', label: 'Pakete' }, { key: 'all', label: 'Alle Gegenstände' }, { key: 'sum', label: 'Übersicht' }, { key: 'rules', label: 'Einstellen' }];   // ab 0.53.0 Pakete
+// ab 0.56.0: Pakete sind ein eigener Unterreiter unter Chancen
+const TABS = [{ key: 'chances', label: 'Chancen' }, { key: 'all', label: 'Alle Gegenstände' }, { key: 'sum', label: 'Übersicht' }, { key: 'rules', label: 'Einstellen' }];
 const saved = (props.settings && props.settings.compareView) || {};
-const tab = ref(saved.tab || 'chances');
+const tab = ref(props.packages ? 'pkg' : TABS.some((t) => t.key === saved.tab) ? saved.tab : 'chances');
 const d = ref(null);
 const busy = ref(false);
 const search = ref('');
@@ -36,6 +38,7 @@ async function load() {
 onMounted(load);
 watch(() => [props.market && props.market.key, props.stamp], load);
 watch([tab, dir, light, scope, onlyCommodity, quality], () => {
+  if (props.packages) return;
   emit('save', { compareView: { tab: tab.value, dir: dir.value, light: light.value, scope: scope.value, commodity: onlyCommodity.value, quality: quality.value } });
 });
 watch([search, dir, light, scope, onlyCommodity, quality, tab], () => { limit.value = 300; });
@@ -125,7 +128,7 @@ async function resetRules() {
 <template>
   <div class="compare">
     <div class="head">
-      <h1>Marktvergleich</h1>
+      <h1>{{ packages ? 'Pakete' : 'Marktvergleich' }}</h1>
       <span class="muted small" v-if="d && d.pair">{{ home }} ↔ {{ neutral }}<template v-if="d.t">, gerechnet {{ ago(d.t, now) }}</template></span>
     </div>
     <p v-if="!d" class="muted">Lädt …</p>
@@ -139,7 +142,7 @@ async function resetRules() {
       <p class="small warn" v-if="d.stale">Die Einstellungen wurden geändert. Die Liste zeigt noch die letzte Rechnung.</p>
       <p class="small muted" v-if="!d.t">Noch nicht gerechnet. Das passiert nach dem nächsten Stand der Blizzard-API oder dem nächsten Einlesen.</p>
 
-      <div class="tabs" role="tablist">
+      <div class="tabs" role="tablist" v-if="!packages">
         <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key">
           {{ t.label }}<span class="cnt" v-if="t.key === 'chances' && d.chances">{{ num(scope === 'pick' && d.sum ? (d.sum.picked || 0) : d.chances.length) }}</span>
         </button>
@@ -257,7 +260,7 @@ async function resetRules() {
       <template v-if="tab === 'pkg' && d.t">
         <p class="small muted">Ein Paket streut den Einsatz auf mehrere kleine Angebote: Einzelstücke oder wenige Stück Massenware, die sich im Ziel schnell verkaufen.
           Es bleibt im Gewinn, wenn nur {{ Math.round(d.rules.pkgSafe * 100) }} % der Angebote verkauft werden (gerechnet mit den schlechtesten, der Rest zählt mit 0, alle Einstellgebühren abgezogen).
-          Einsatz höchstens {{ Math.round(d.rules.pkgGold * 100) }} % deines Golds<template v-if="d.pkg && d.pkg.gold != null"> (<Gold :copper="d.pkg.budget" compact />)</template><template v-else-if="d.pkg"> (ohne Ledger höchstens <Gold :copper="d.pkg.budget" compact />)</template>, {{ d.rules.pkgSize }} Angebote. Beides unter Einstellen.</p>
+          Einsatz höchstens {{ Math.round(d.rules.pkgGold * 100) }} % deines Golds<template v-if="d.pkg && d.pkg.gold != null"> (<Gold :copper="d.pkg.budget" compact />)</template><template v-else-if="d.pkg"> (ohne Ledger höchstens <Gold :copper="d.pkg.budget" compact />)</template>, {{ d.rules.pkgSize }} Angebote. Beides unter Marktvergleich, Reiter Einstellen.</p>
         <p v-if="!pkgDirs.length" class="muted">Noch kein Paket. Es entsteht mit der nächsten Rechnung, wenn genug passende Kandidaten da sind.</p>
         <section v-for="x in pkgDirs" :key="x.dir" class="pkg">
           <h3>{{ dirText(x.dir) }}</h3>

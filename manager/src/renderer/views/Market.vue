@@ -1,19 +1,20 @@
 <script setup>
 // Marktuebersicht (ab Manager 0.35.0, Peon_Manager_Chancen.md Abschnitt 8): alles Beschreibende. Fallend, Steigend und
 // Lohnend kommen aus der frueheren Seite Radar, neu sind Prognosen, groesste Preisaenderungen, Stufenbereiche und Feste.
-// ab 0.46.0: die fruehere Seite Markt (Liste aller Gegenstaende) ist der erste Unterreiter. Den Reiter fuehrt App.vue.
-import { ref, computed, watch, onMounted, KeepAlive } from 'vue';
+// ab 0.46.0: Den Reiter fuehrt App.vue. Ab 0.56.0 (Peon_Manager_Schlank.md) ist die Liste aller Gegenstaende ein eigener
+// Unterreiter unter Markt, dafuer steht hier zuerst die Uebersicht mit Kacheln und Diagrammen der frueheren Startseite.
+import { ref, computed, watch, onMounted } from 'vue';
 import Gold from '../components/Gold.vue';
 import Sales from '../components/Sales.vue';
 import Spark from '../components/Spark.vue';
 import Stability from '../components/Stability.vue';
-import Items from './Items.vue';
+import MarketSummary from './MarketSummary.vue';
 import { num, pct, fold, qualityColor, itemName, when } from '../util.js';
 
-const props = defineProps({ market: Object, now: Number, stamp: Number, settings: Object, theme: String, tab: { type: String, default: 'items' } });
-const emit = defineEmits(['open', 'brief', 'save', 'tab']);
+const props = defineProps({ market: Object, now: Number, stamp: Number, settings: Object, theme: String, tab: { type: String, default: 'sum' } });
+const emit = defineEmits(['open', 'brief', 'save', 'tab', 'go']);
 const TABS = [
-  { key: 'items', label: 'Markt' },
+  { key: 'sum', label: 'Übersicht' },
   { key: 'forecasts', label: 'Prognosen' },
   { key: 'down', label: 'Fallend' },
   { key: 'up', label: 'Steigend' },
@@ -23,7 +24,7 @@ const TABS = [
   { key: 'fests', label: 'Feste' },
   { key: 'stab', label: 'Stabilität' },
 ];
-const tab = computed({ get: () => (TABS.some((t) => t.key === props.tab) ? props.tab : 'items'), set: (v) => emit('tab', v) });
+const tab = computed({ get: () => (TABS.some((t) => t.key === props.tab) ? props.tab : 'sum'), set: (v) => emit('tab', v) });
 const d = ref(null);
 const search = ref('');
 const limit = ref(60);
@@ -49,15 +50,15 @@ const intro = computed(() => ({
 </script>
 
 <template>
-  <div class="mk" :class="{ full: tab === 'items' }" v-if="market">
+  <div class="mk" v-if="market">
     <div class="head"><h1>Marktübersicht</h1><span class="small muted" v-if="d && d.t">Stand {{ when(d.t) }}</span></div>
     <div class="tabs" role="tablist">
       <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key">{{ t.label }}</button>
     </div>
-    <div class="filters" v-if="!['items', 'index', 'fests', 'stab'].includes(tab)"><input type="text" v-model="search" placeholder="Name suchen" aria-label="Suchen" spellcheck="false" /></div>
+    <div class="filters" v-if="!['sum', 'index', 'fests', 'stab'].includes(tab)"><input type="text" v-model="search" placeholder="Name suchen" aria-label="Suchen" spellcheck="false" /></div>
     <p class="small muted intro" v-if="intro">{{ intro }}</p>
 
-    <KeepAlive><Items v-if="tab === 'items'" embedded :market="market" :now="now" :stamp="stamp" :settings="settings" @open="(k) => emit('open', k)" @save="(p) => emit('save', p)" /></KeepAlive>
+    <MarketSummary v-if="tab === 'sum'" :market="market" :now="now" :stamp="stamp" :theme="theme" @open="(k) => emit('open', k)" @go="(v) => emit('go', v)" @tab="(t) => (tab = t)" />
     <Stability v-if="tab === 'stab'" :market="market" :stamp="stamp" :theme="theme" @brief="(k) => emit('brief', k)" />
 
     <template v-if="d && tab === 'forecasts'">
@@ -152,8 +153,6 @@ const intro = computed(() => ({
 
 <style scoped>
 .mk { display: grid; gap: 14px; max-width: 1180px; align-content: start; }
-.mk.full { display: flex; flex-direction: column; max-width: none; height: 100%; }
-.mk.full > .items { flex: 1; min-height: 0; }
 .head { display: flex; align-items: baseline; gap: 16px; }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .tabs button { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 14px; color: var(--muted); font-weight: 500; margin-bottom: -1px; }

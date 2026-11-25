@@ -165,7 +165,7 @@ const logText = computed(() => {
     <details class="fold" v-if="view" :open="!anySelected">
       <summary><h2>Auktionshäuser</h2><span class="small muted">{{ housesText }}</span></summary>
       <div class="inner">
-        <p v-if="!view.saved" class="muted lead">Dafür brauchst du einen eigenen Zugang zur Blizzard-API. Du richtest ihn unter <button class="link" @click="emit('go', 'settings')">Einstellungen</button> ein, dort steht auch eine Anleitung.</p>
+        <p v-if="!view.saved" class="muted lead">Dafür brauchst du einen eigenen Zugang zur Blizzard-API. Du richtest ihn unter <button class="link" @click="emit('go', 'settings:adv')">Einstellungen, Erweitert</button> ein, dort steht auch eine Anleitung.</p>
         <p v-else-if="!view.reachable" class="warn">Blizzard ist gerade nicht erreichbar, die Liste der Auktionshäuser fehlt. Bitte später erneut versuchen.</p>
 
         <template v-else>

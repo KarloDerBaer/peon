@@ -4,9 +4,20 @@ import { bytes, when } from '../util.js';
 import BlizzardCheck from '../components/BlizzardCheck.vue';
 import ChanceRules from '../components/ChanceRules.vue';
 
-const props = defineProps({ data: Object, settings: Object, stamp: Number, broker: Boolean, now: Number });
-const emit = defineEmits(['save', 'go']);
+// ab 0.56.0 (Peon_Einstellungen_Leitfaden.md, Peon_Manager_Schlank.md Abschnitt 5): Reiter Allgemein und Erweitert
+const props = defineProps({ data: Object, settings: Object, stamp: Number, broker: Boolean, now: Number, tab: String });
+const emit = defineEmits(['save', 'go', 'tab']);
 const api = window.peon;
+const TABS = [{ key: 'gen', label: 'Allgemein' }, { key: 'adv', label: 'Erweitert' }];
+const tab = computed({ get: () => (props.tab === 'adv' ? 'adv' : 'gen'), set: (v) => emit('tab', v) });
+
+// Kanal der Addons und des Managers (ab 0.56.0 hier statt unter Addons)
+const channelBusy = ref(false);
+async function setChannel(c) {
+  channelBusy.value = true;
+  try { await api.setAddonChannel(c); } finally { channelBusy.value = false; }
+  emit('save', {});
+}
 const ZOOM_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75];   // wie in src/core/zoom.js
 const wowDir = ref(props.settings.wowDir);
 watch(() => props.settings.wowDir, (v) => { wowDir.value = v; });
@@ -119,9 +130,12 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
 <template>
   <div class="set">
     <h1>Einstellungen</h1>
+    <div class="tabs" role="tablist">
+      <button v-for="t in TABS" :key="t.key" role="tab" :aria-selected="tab === t.key" :class="{ on: tab === t.key }" @click="tab = t.key">{{ t.label }}</button>
+    </div>
 
+    <template v-if="tab === 'gen'">
     <section class="group">
-      <h2>World of Warcraft</h2>
       <label class="field">
         <span>WoW-Ordner</span>
         <div class="row">
@@ -132,12 +146,40 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
           {{ data.wowOk ? 'Peon_Bridge gefunden. Der Manager liest WTF und schreibt Data.lua in den Addon-Ordner.' : 'Peon_Bridge nicht gefunden. Gemeint ist der Ordner mit Interface und WTF, z. B. C:\\Program Files (x86)\\World of Warcraft\\_forever_.' }}
         </span>
       </label>
+      <label class="field inline" title="Test bringt Vorabversionen der Addons und des Managers, sobald sie fertig sind.">
+        <span>Kanal</span>
+        <select :value="settings.addons && settings.addons.channel === 'test' ? 'test' : 'stable'" :disabled="channelBusy" @change="setChannel($event.target.value)">
+          <option value="stable">Stabil</option><option value="test">Test (Vorabversionen)</option>
+        </select>
+      </label>
+      <label class="field inline">
+        <span>Aussehen</span>
+        <select :value="settings.theme" @change="emit('save', { theme: $event.target.value })">
+          <option value="dark">Dunkel</option><option value="light">Hell</option>
+        </select>
+      </label>
+      <label class="field inline" title="Geht auch mit Strg und Plus oder Minus und mit Strg und dem Mausrad. Strg und 0 stellt 100 % ein.">
+        <span>Größe</span>
+        <select :value="String(settings.zoom || 1)" @change="emit('save', { zoom: Number($event.target.value) })">
+          <option v-for="z in ZOOM_STEPS" :key="z" :value="String(z)">{{ Math.round(z * 100) }} %</option>
+        </select>
+      </label>
     </section>
 
     <section class="group">
+      <label class="check" title="Der Manager startet mit Windows und läuft unsichtbar im Infobereich."><input type="checkbox" :checked="settings.autostart" @change="emit('save', { autostart: $event.target.checked })" /> Mit Windows starten</label>
+      <label class="check" title="Öffnet beim Start das Fenster mit den Neuigkeiten, wenn es neue Versionen gibt."><input type="checkbox" :checked="settings.updateWindow" @change="emit('save', { updateWindow: $event.target.checked })" /> Beim Start zeigen, wenn es Neues gibt</label>
+      <label class="check" title="Windows meldet sich, sobald die Suche eine neue Version findet."><input type="checkbox" :checked="settings.updateNotify" @change="emit('save', { updateNotify: $event.target.checked })" /> Meldung von Windows, wenn es Neues gibt</label>
+      <label class="check" v-if="broker" title="Kommt nach jedem neuen Stand der Blizzard-API und nach neuen Scans, sobald Chancen und Werte für Broker neu gerechnet sind."><input type="checkbox" :checked="settings.dataNotify" @change="emit('save', { dataNotify: $event.target.checked })" /> Meldung von Windows, wenn neue Daten ausgewertet sind</label>
+      <p class="small muted">Das Fenster schließen lässt den Manager im Infobereich weiterlaufen. Beenden geht über das Symbol im Infobereich.</p>
+    </section>
+    </template>
+
+    <template v-else>
+    <p class="muted">Normalerweise musst du hier nichts ändern.</p>
+
+    <section class="group">
       <h2>Updates</h2>
-      <label class="check"><input type="checkbox" :checked="settings.updateWindow" @change="emit('save', { updateWindow: $event.target.checked })" /> Beim Start zeigen, wenn es Neues gibt</label>
-      <label class="check"><input type="checkbox" :checked="settings.updateNotify" @change="emit('save', { updateNotify: $event.target.checked })" /> Meldung von Windows, wenn es Neues gibt</label>
       <label class="field inline">
         <span>Nach Updates suchen</span>
         <select :value="settings.updateCheckMin" @change="emit('save', { updateCheckMin: Number($event.target.value) })">
@@ -145,34 +187,12 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
           <option :value="60">jede Stunde</option><option :value="360">alle 6 Stunden</option>
         </select>
       </label>
-      <p class="small muted">Der Manager sucht beim Start und dann im gewählten Abstand nach neuen Versionen. Installiert wird nur, wenn du es auslöst. Kanal und Suche stehen im Reiter Updates.</p>
+      <p class="small muted">Der Manager sucht beim Start und dann im gewählten Abstand nach neuen Versionen. Installiert wird nur, wenn du es auslöst.</p>
     </section>
 
     <div class="group">
       <BlizzardCheck :now="now" :stamp="stamp" :broker="broker" :houses="data && data.api ? data.api.selected : null" @go="emit('go', $event)" />
     </div>
-
-    <section class="group">
-      <h2>Programm</h2>
-      <label class="check"><input type="checkbox" :checked="settings.autostart" @change="emit('save', { autostart: $event.target.checked })" /> Mit Windows starten (unsichtbar im Infobereich)</label>
-      <label class="field inline">
-        <span>Aussehen</span>
-        <select :value="settings.theme" @change="emit('save', { theme: $event.target.value })">
-          <option value="dark">Dunkel</option><option value="light">Hell</option>
-        </select>
-      </label>
-      <label class="field inline">
-        <span>Größe</span>
-        <select :value="String(settings.zoom || 1)" @change="emit('save', { zoom: Number($event.target.value) })">
-          <option v-for="z in ZOOM_STEPS" :key="z" :value="String(z)">{{ Math.round(z * 100) }} %</option>
-        </select>
-      </label>
-      <p class="small muted">Die Größe geht auch mit Strg und Plus oder Minus und mit Strg und dem Mausrad. Strg und 0 stellt 100 % ein.</p>
-      <label class="check" v-if="broker"><input type="checkbox" :checked="settings.dataNotify" @change="emit('save', { dataNotify: $event.target.checked })" /> Meldung von Windows, wenn neue Daten ausgewertet sind</label>
-      <p class="small muted" v-if="broker">Kommt nach jedem neuen Stand der Blizzard-API (etwa stündlich) und nach neuen Scans aus dem Spiel, sobald Chancen und Werte für Broker neu gerechnet sind.</p>
-      <p class="small muted">Das Fenster schließen lässt den Manager im Infobereich weiterlaufen. Beenden geht über das Symbol im Infobereich.</p>
-    </section>
-
     <section class="group">
       <h2>Daten</h2>
       <div class="row between">
@@ -297,17 +317,22 @@ const share = (v) => (est.value && est.value.total ? `${(v / est.value.total) * 
     <!-- ab 0.35.0 (Peon_Manager_Chancen.md 7.2): alle Uebersteuerungen je Gegenstand, Regler stehen unter Chancen, Einstellen -->
     <section class="group" v-if="broker">
       <h2>Chancen <span class="small muted">(Peon Broker Client)</span></h2>
-      <p class="small muted">Regler, Probe, Prognosen und eigene Ereignisse stehen unter <button class="link" @click="emit('go', 'chances')">Chancen</button>, Reiter Einstellen.</p>
+      <p class="small muted">Regler, Probe, Prognosen und eigene Ereignisse stehen unter <button class="link" @click="emit('go', 'chances')">Chancen, Spekulation</button>, Reiter Einstellen.</p>
       <ChanceRules only-overrides :stamp="stamp" />
     </section>
+    </template>
   </div>
 </template>
 
 <style scoped>
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-top: -14px; }
+.tabs button { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 14px; color: var(--muted); font-weight: 500; margin-bottom: -1px; }
+.tabs button:hover { color: var(--text); }
+.tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
 .set { display: grid; gap: 30px; max-width: 760px; }
 .group { display: grid; gap: 10px; padding-bottom: 24px; border-bottom: 1px solid var(--line-soft); }
 .field { display: grid; gap: 6px; }
-.field.inline { grid-template-columns: 110px auto; align-items: center; justify-content: start; gap: 12px; }
+.field.inline { grid-template-columns: 150px auto; align-items: center; justify-content: start; gap: 12px; }
 .row { display: flex; gap: 10px; align-items: center; }
 .row.end { justify-content: flex-end; }
 .games { width: 100%; border-collapse: collapse; }

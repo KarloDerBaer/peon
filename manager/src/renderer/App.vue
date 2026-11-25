@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick, KeepAlive } from 'vue';
-import Overview from './views/Overview.vue';
+import Today from './views/Today.vue';   // ab 0.56.0: Startseite Heute (Peon_Manager_Schlank.md Abschnitt 4)
+import Items from './views/Items.vue';
 import Sources from './views/Sources.vue';
 import Settings from './views/Settings.vue';
 import Help from './views/Help.vue';
@@ -21,7 +22,7 @@ import { ago, qualityColor } from './util.js';
 import { loadFavorites } from './store.js';
 
 const api = window.peon;
-const view = ref('overview');
+const view = ref('today');
 const data = ref(null);
 const settings = ref(null);
 const market = ref(null);
@@ -32,42 +33,69 @@ const stamp = ref(0);   // erhoeht sich bei neuen Daten, damit Listen neu laden
 const updates = ref(null);        // Inhalt des Update-Fensters
 const showUpdates = ref(false);
 const pageEl = ref(null);
-const marketTab = ref('items');   // ab 0.46.0: Unterreiter der Marktuebersicht
+const marketTab = ref('sum');
+const settingsTab = ref('gen');   // ab 0.56.0: Reiter der Einstellungen, 'settings:adv' oeffnet Erweitert   // ab 0.46.0: Reiter der Marktuebersicht, ab 0.56.0 zuerst Uebersicht
 let startChecked = false;
+let firstShown = false;
 async function closeUpdates() {
   showUpdates.value = false;
   await api.updatesShown();
 }
 
-// Ansichten der Manager-Module, je aktives Modul eine Gruppe mit Ueberschrift. Dazu immer Updates, Rueckmeldungen und Einstellungen
+// ab 0.56.0 (Peon_Manager_Schlank.md Abschnitt 3): sechs Eintraege, jede Seite ist ein Unterreiter. Seiten des Broker Client
+// erscheinen nur, wenn das Modul sie liefert (data.views). Ohne Broker Client bleiben Heute, Addons und Mehr.
 const ALL = [
-  // ab 0.26.0 (Neuaufbau H5): Seiten und Reihenfolge wie im Spiel (Markt, Einkaufen mit Beobachtung, Radar, Mehr)
-  { key: 'overview', label: 'Übersicht' },
-  // ab 0.46.0: Markt ist ein Unterreiter der Marktuebersicht, die dafuer an seine Stelle rueckt
-  { key: 'market', label: 'Marktübersicht' },
-  // ab 0.28.0 (KarloDerBaer): Einkaufen, Beobachtung, Radar und Händler muessen ueberarbeitet werden, nur ein Hinweis
-  { key: 'shopping', label: 'Einkaufen' },   // ab 0.33.0 neu (A5)
-  { key: 'favorites', label: 'Beobachten' },   // ab 0.32.0 neu (A4), Name wie im Spiel
-  // ab 0.35.0 (Peon_Manager_Chancen.md): Chancen ersetzen Radar (WIP), dazu Marktuebersicht und Erfolgskontrolle
-  { key: 'chances', label: 'Chancen' },
+  { key: 'today', label: 'Heute', always: true },
+  { key: 'chances', label: 'Spekulation' },
   { key: 'compare', label: 'Marktvergleich' },   // ab 0.50.0: Heimat gegen Neutral (Peon_Broker_Marktvergleich.md)
-  { key: 'success', label: 'Erfolgskontrolle' },
-  { key: 'vendors', label: 'Händler' },   // ab 0.51.0 wieder an (KarloDerBaer 20.11.2026), Aufbau wie Mehr, Händler in Broker
+  { key: 'packages', label: 'Pakete', needs: 'compare' },   // ab 0.56.0 eigener Unterreiter, vorher Reiter im Marktvergleich
+  { key: 'success', label: 'Erfolg' },
+  { key: 'shopping', label: 'Einkaufslisten' },   // Name wie in Broker (Peon_Broker_Schlank.md)
+  { key: 'favorites', label: 'Beobachten' },
+  { key: 'market', label: 'Übersicht' },
+  { key: 'items', label: 'Gegenstände' },
+  { key: 'vendors', label: 'Händler' },
+  { key: 'modules', label: 'Addons', always: true },
   { key: 'sources', label: 'Datenlage' },
-  { key: 'modules', label: 'Updates', always: true },
   { key: 'reports', label: 'Rückmeldungen', always: true },
-  { key: 'help', label: 'Hilfe', always: true },   // ab 0.48.0: Hilfe aus docs/Hilfe.md
+  { key: 'help', label: 'Hilfe', always: true },
   { key: 'settings', label: 'Einstellungen', always: true },
 ];
-const GROUPS = computed(() => (data.value ? data.value.modules.filter((m) => m.enabled).map((m) => ({
-  key: m.key, title: m.navTitle || m.title, views: ALL.filter((n) => m.views.includes(n.key)),
-})) : []));
-const NAV_BOTTOM = ALL.filter((n) => n.always);
+const SECTIONS = [
+  { key: 'today', label: 'Heute', views: ['today'] },
+  { key: 'chancen', label: 'Chancen', views: ['chances', 'compare', 'packages', 'success'] },
+  { key: 'listen', label: 'Listen', views: ['shopping', 'favorites'] },
+  { key: 'markt', label: 'Markt', views: ['market', 'items', 'vendors'] },
+  { key: 'addons', label: 'Addons', views: ['modules'] },
+  { key: 'mehr', label: 'Mehr', views: ['sources', 'reports', 'help', 'settings'] },
+];
+function hasView(v, o = data.value) {
+  const n = ALL.find((x) => x.key === v);
+  return !!n && (n.always || !!(o && o.views.includes(n.needs || n.key)));
+}
+const sections = computed(() => SECTIONS.map((s) => ({ ...s, subs: ALL.filter((n) => s.views.includes(n.key) && hasView(n.key)) })).filter((s) => s.subs.length));
+const sectionOf = (v) => SECTIONS.find((s) => s.views.includes(v)) || null;
+// Abschnitt der offenen Seite. Ein offener Gegenstand gehoert zum Abschnitt, aus dem er geoeffnet wurde.
+const curSection = computed(() => {
+  const v = view.value === 'item' ? origin.value : view.value;
+  return sections.value.find((s) => s.views.includes(v)) || null;
+});
+const curSub = computed(() => (view.value === 'item' ? origin.value : view.value));
+// Zuletzt gewaehlter Unterreiter je Eintrag, bleibt in den Einstellungen gemerkt
+function openSection(s) {
+  const last = settings.value && settings.value.navSubs ? settings.value.navSubs[s.key] : null;
+  go(s.subs.some((n) => n.key === last) ? last : s.subs[0].key);
+}
+watch(view, (v) => {
+  const s = sectionOf(v);
+  if (!s || s.views.length < 2 || !settings.value) return;
+  const cur = settings.value.navSubs || {};
+  if (cur[s.key] !== v) saveQuiet({ navSubs: { ...cur, [s.key]: v } });
+});
 const watchFocus = ref(null);   // ab 0.32.0: Zeile, die Beobachten nach einer Meldung zeigt
-const wipPage = computed(() => ALL.find((n) => n.wip && n.key === view.value) || null);
 const broker = computed(() => !!(data.value && data.value.views.includes('overview')));
 // ab 0.36.0: Seiten, die ohne Marktdaten gehen, solange der Broker Client noch laedt
-const NO_MARKET = new Set(['modules', 'reports', 'help', 'settings']);
+const NO_MARKET = new Set(['today', 'modules', 'reports', 'help', 'settings']);
 const marketWait = computed(() => !!(data.value && data.value.brokerLoading) && !NO_MARKET.has(view.value));
 
 const current = computed(() => {
@@ -86,8 +114,8 @@ function pickMarket(key) {
 }
 
 // ---------- Navigation: Verlauf wie im Browser ----------
-const ORIGINS = new Set(['overview', 'items', 'favorites', 'shopping', 'chances', 'compare', 'market', 'success']);
-const entries = ref([{ view: 'overview' }]);
+const ORIGINS = new Set(['today', 'items', 'favorites', 'shopping', 'chances', 'compare', 'packages', 'market', 'success', 'vendors']);
+const entries = ref([{ view: 'today' }]);
 const pos = ref(0);
 const canBack = computed(() => pos.value > 0);
 const canForward = computed(() => pos.value < entries.value.length - 1);
@@ -99,7 +127,8 @@ const seenStamp = {};
 function stampOf(v) { if (view.value === v) seenStamp[v] = stamp.value; return seenStamp[v] ?? stamp.value; }
 
 function show(e) {
-  if (e.tab) marketTab.value = e.tab;
+  if (e.tab && e.view === 'settings') settingsTab.value = e.tab;
+  else if (e.tab) marketTab.value = e.tab;
   if (pageEl.value) scrolls[view.value] = pageEl.value.scrollTop;
   view.value = e.view;
   itemKey.value = e.view === 'item' || e.view === 'brief' ? e.itemKey : null;
@@ -120,14 +149,15 @@ function push(e) {
 }
 function back() { if (canBack.value) { pos.value--; show(entries.value[pos.value]); } }
 function forward() { if (canForward.value) { pos.value++; show(entries.value[pos.value]); } }
-// 'market:stab' oeffnet die Marktuebersicht mit einem Unterreiter. Die fruehere Seite 'items' ist dort der Reiter Markt.
+// 'market:stab' oeffnet die Marktuebersicht mit einem Reiter. Alte Namen zeigen auf den neuen Platz (ab 0.56.0).
+const MOVED = { overview: 'today', 'market:items': 'items', 'compare:pkg': 'packages' };
 function go(v) {
-  if (v === 'items') v = 'market:items';
+  v = MOVED[v] || v;
   const [view, tab] = String(v).split(':');
   push(tab ? { view, tab } : { view });
 }
 function openItem(key) {
-  const from = view.value === 'item' ? origin.value : ORIGINS.has(view.value) ? view.value : 'market';
+  const from = view.value === 'item' ? origin.value : ORIGINS.has(view.value) ? view.value : 'items';
   push({ view: 'item', itemKey: key, origin: from });
 }
 // Steckbrief (ab 0.35.0): eigene Seite mit Gegenstand, Zurueck fuehrt dorthin, woher man kam
@@ -192,8 +222,10 @@ function apply(o, s, u) {
   }
   if (!market.value && o.markets.length) market.value = (o.markets.find((m) => m.key === s.market) || o.markets[0]).key;
   // Ansicht eines entfernten Moduls: zu den Modulen wechseln. Beim Start ohne Modul gleich dorthin.
-  const ok = ALL.some((n) => n.key === view.value && (n.always || o.views.includes(n.key))) || (view.value === 'item' && o.views.includes('items'));
-  if (!ok) go(o.views.includes('overview') ? 'overview' : 'modules');
+  const ok = hasView(view.value, o) || ((view.value === 'item' || view.value === 'brief') && o.views.includes('items'));
+  if (!ok) go('today');
+  // Erster Start: Der Vorschlag zum Einrichten steht unter Addons
+  if (!firstShown) { firstShown = true; if (s.setup && !s.setup.done && view.value === 'today') go('modules'); }
   document.documentElement.dataset.theme = s.theme === 'light' ? 'light' : 'dark';
 }
 
@@ -236,27 +268,25 @@ function openCoffee() { window.peon.openLink(COFFEE_URL); }
         </svg>
         <span>Peon Manager</span>
       </div>
-      <div v-for="g in GROUPS" :key="g.key" class="group" role="group" :aria-label="g.title">
-        <div class="group-title">{{ g.title }}</div>
-        <select v-if="g.key === 'broker-client' && marketOptions.length > 1" class="market small" :value="current && current.key" aria-label="Markt" @change="pickMarket($event.target.value)">
-          <option v-for="m in marketOptions" :key="m.key" :value="m.key">{{ m.label }}</option>
-        </select>
-        <template v-for="n in g.views" :key="n.key">
-          <button class="nav" :class="{ on: view === n.key, parent: view === 'item' && origin === n.key }" @click="go(n.key)">{{ n.label }}</button>
+      <!-- ab 0.56.0: sechs Eintraege (Peon_Manager_Schlank.md), Unterreiter oben auf der Seite -->
+      <select v-if="broker && marketOptions.length > 1" class="market small" :value="current && current.key" aria-label="Markt" @change="pickMarket($event.target.value)">
+        <option v-for="m in marketOptions" :key="m.key" :value="m.key">{{ m.label }}</option>
+      </select>
+      <template v-for="sec in sections" :key="sec.key">
+        <button class="nav" :class="{ on: curSection && curSection.key === sec.key }" @click="openSection(sec)">
+          {{ sec.label }}<span v-if="sec.key === 'addons' && updates && updates.count" class="count" :title="`${updates.count} verfügbar`">{{ updates.count }}</span>
+        </button>
+        <template v-for="n in sec.subs" :key="n.key">
           <div v-if="subs[n.key]" class="sub" :class="{ on: view === 'item' && origin === n.key }">
             <Star :item-key="subs[n.key].key" :size="14" />
             <button class="sub-name" :style="{ color: qualityColor(subs[n.key].quality) }" :title="subs[n.key].name || ''" @click="openSub(n.key)">{{ subs[n.key].name || 'Lade' }}</button>
             <button class="sub-x" aria-label="Untertab schließen" title="Schließen" @click="closeSub(n.key)">×</button>
           </div>
         </template>
-      </div>
+      </template>
       <div class="rail-bottom">
         <button class="primary rail-update" v-if="updates && updates.count" @click="showUpdates = true">
           {{ updates.manager || updates.addons.some((a) => a.kind === 'update') ? 'Jetzt aktualisieren' : 'Neues ansehen' }}<span class="rail-count">{{ updates.count }}</span>
-        </button>
-        <button v-for="n in NAV_BOTTOM" :key="n.key" class="nav" :class="{ on: view === n.key }" @click="go(n.key)">
-          {{ n.label }}<span v-if="n.key === 'modules' && updates && updates.count" class="count" :title="`${updates.count} verfügbar`">{{ updates.count }}</span>
-          <span v-if="n.key === 'reports' && data && data.reportCount" class="count" :title="`${data.reportCount} noch nicht gesendet`">{{ data.reportCount }}</span>
         </button>
         <!-- ab 0.49.0: Peon unterstuetzen, klein unter den Eintraegen -->
         <button class="nav coffee" title="Öffnet die Seite von KarloDerBaer bei Buy Me a Coffee im Browser" @click="openCoffee">☕ Peon unterstützen</button>
@@ -280,31 +310,34 @@ function openCoffee() { window.peon.openLink(COFFEE_URL); }
         </div>
       </header>
 
+      <nav class="subtabs" v-if="data && settings && curSection && curSection.subs.length > 1" role="tablist" :aria-label="curSection.label">
+        <button v-for="n in curSection.subs" :key="n.key" role="tab" :aria-selected="curSub === n.key" :class="{ on: curSub === n.key }" @click="go(n.key)">
+          {{ n.label }}<span v-if="n.key === 'reports' && data.reportCount" class="count" :title="`${data.reportCount} noch nicht gesendet`">{{ data.reportCount }}</span>
+        </button>
+      </nav>
       <div class="page" ref="pageEl" v-if="data && settings">
         <section v-if="marketWait" class="wait" role="status">
           <h1>Marktdaten werden geladen</h1>
           <p class="muted">Bei einer großen Datenbank dauert das nach dem Start etwas. Einstellungen, Updates und Rückmeldungen kannst du schon öffnen.</p>
         </section>
-        <KeepAlive v-else :include="['Overview', 'Chances', 'Shopping', 'Watch', 'Market']">
-          <Overview v-if="view === 'overview'" :data="data" :market="current" :now="now" :theme="settings.theme" :stamp="stampOf('overview')" :settings="settings" @go="go($event)" @open="openItem" @save="saveSettings" />
-          <section v-else-if="wipPage" class="wip">
-            <h1>{{ wipPage.label }}</h1>
-            <p class="wip-note">Überarbeitung notwendig! Derzeit nur im Spiel verfügbar.</p>
-          </section>
+        <KeepAlive v-else :include="['Today', 'Chances', 'Shopping', 'Watch', 'Market', 'Items']">
+          <Today v-if="view === 'today'" :data="data" :market="current" :now="now" :stamp="stampOf('today')" :settings="settings" :updates="updates" :broker="broker" @go="go($event)" @open="openItem" @save="saveSettings" @updates="showUpdates = true" @changed="load" />
           <Watch v-else-if="view === 'favorites'" :market="current" :now="now" :stamp="stampOf('favorites')" :settings="settings" :focus="watchFocus" @open="openItem" @save="saveQuiet" @go="go($event)" />
           <Shopping v-else-if="view === 'shopping'" :market="current" :now="now" :stamp="stampOf('shopping')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />
           <Vendors v-else-if="view === 'vendors'" :market="current" :now="now" :stamp="stampOf('vendors')" @open="openItem" />
           <Item v-else-if="view === 'item'" :market="current" :item-key="itemKey" :now="now" :theme="settings.theme" :stamp="stamp" @loaded="itemLoaded" @go="go($event)" @open="openItem" @brief="openBrief" />
           <Chances v-else-if="view === 'chances'" :market="current" :now="now" :stamp="stampOf('chances')" :settings="settings" @open="openItem" @brief="openBrief" @save="saveQuiet" />
-          <Compare v-else-if="view === 'compare'" :market="current" :now="now" :stamp="stampOf('compare')" :settings="settings" @open="openItem" @save="saveQuiet" />
-          <Market v-else-if="view === 'market'" :market="current" :now="now" :stamp="stampOf('market')" :settings="settings" :theme="settings.theme" :tab="marketTab" @tab="marketTab = $event" @open="openItem" @brief="openBrief" @save="saveQuiet" />
+          <Compare v-else-if="view === 'compare'" key="compare" :market="current" :now="now" :stamp="stampOf('compare')" :settings="settings" @open="openItem" @save="saveQuiet" />
+          <Compare v-else-if="view === 'packages'" key="packages" packages :market="current" :now="now" :stamp="stampOf('packages')" :settings="settings" @open="openItem" @save="saveQuiet" />
+          <Items v-else-if="view === 'items'" :market="current" :now="now" :stamp="stampOf('items')" :settings="settings" @open="openItem" @save="saveQuiet" @go="go($event)" />
+          <Market v-else-if="view === 'market'" :market="current" :now="now" :stamp="stampOf('market')" :settings="settings" :theme="settings.theme" :tab="marketTab" @tab="marketTab = $event" @open="openItem" @brief="openBrief" @save="saveQuiet" @go="go($event)" />
           <Success v-else-if="view === 'success'" :market="current" :now="now" :stamp="stampOf('success')" @open="openItem" @brief="openBrief" />
           <Brief v-else-if="view === 'brief'" :market="current" :item-key="itemKey" :now="now" :stamp="stamp" :theme="settings.theme" @open="openItem" />
           <Sources v-else-if="view === 'sources'" :data="data" :market="current" :now="now" :stamp="stamp" @go="go($event)" />
           <Modules v-else-if="view === 'modules'" :data="data" :settings="settings" :now="now" :stamp="stamp" @changed="load" @save="saveSettings" @pick-folder="pickWow" @go="go($event)" @updates="load().then(() => { showUpdates = true; })" />
           <Reports v-else-if="view === 'reports'" :now="now" :stamp="stamp" @go="go($event)" @changed="load" />
           <Help v-else-if="view === 'help'" />
-          <Settings v-else-if="view === 'settings'" :data="data" :settings="settings" :stamp="stamp" :broker="broker" :now="now" @save="saveSettings" @go="go($event)" />
+          <Settings v-else-if="view === 'settings'" :data="data" :settings="settings" :stamp="stamp" :broker="broker" :now="now" :tab="settingsTab" @tab="settingsTab = $event" @save="saveSettings" @go="go($event)" />
         </KeepAlive>
       </div>
       <div class="page muted" v-else>Lade Daten</div>
@@ -314,12 +347,9 @@ function openCoffee() { window.peon.openLink(COFFEE_URL); }
 </template>
 
 <style scoped>
-.wip { display: grid; gap: 12px; }
 .wait { display: grid; gap: 8px; max-width: 70ch; }
 .wait h1 { margin: 0; }
 .wait p { margin: 0; }
-.wip h1 { margin: 0; }
-.wip-note { margin: 0; padding: 12px 14px; border: 1px solid var(--warn); border-radius: var(--radius-s); color: var(--warn); font-weight: 500; }
 .shell { display: grid; grid-template-columns: 196px 1fr; grid-template-rows: minmax(0, 1fr); height: 100%; }
 .rail { background: var(--panel); border-right: 1px solid var(--line-soft); display: flex; flex-direction: column; padding: 18px 12px; gap: 2px; }
 .mark { display: flex; align-items: center; gap: 10px; padding: 0 8px 22px; font-family: var(--font-cond); font-weight: 600; font-size: 18px; }
@@ -328,10 +358,11 @@ function openCoffee() { window.peon.openLink(COFFEE_URL); }
 .nav:hover { color: var(--text); background: var(--line-soft); }
 .nav.on { color: var(--text); border-left-color: var(--accent); background: var(--accent-soft); }
 .nav.coffee { font-size: 13px; color: var(--muted); margin-top: 6px; }
-.group { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; padding: 8px 6px; background: var(--raised); border: 1px solid var(--line-soft); border-radius: var(--radius-m); }
-.group-title { padding: 0 8px 6px; font-family: var(--font-cond); font-weight: 600; font-size: 14px; color: var(--text); }
-.nav.parent { color: var(--text); border-left-color: var(--line); }
-.market { margin: 0 2px 6px; width: calc(100% - 4px); }
+.market { margin: 0 2px 10px; width: calc(100% - 4px); }
+.subtabs { display: flex; gap: 4px; padding: 0 28px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.subtabs button { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 10px 14px 8px; color: var(--muted); font-weight: 500; margin-bottom: -1px; display: flex; gap: 6px; align-items: center; }
+.subtabs button:hover { color: var(--text); }
+.subtabs button.on { color: var(--text); border-bottom-color: var(--accent); }
 .sub { display: flex; align-items: center; gap: 4px; margin: 0 0 2px 10px; padding: 3px 4px 3px 6px; border-left: 3px solid var(--line); min-width: 0; }
 .sub.on { border-left-color: var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius-s) var(--radius-s) 0; }
 .sub-name { flex: 1; min-width: 0; background: none; border: none; padding: 0; text-align: left; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

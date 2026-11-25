@@ -104,7 +104,7 @@ const ratingLabel = (r) => [r.up === 1 ? '👍' : r.up === 0 ? '👎' : null, r.
 <template>
   <div class="ch" v-if="market">
     <div class="head">
-      <h1>Chancen</h1>
+      <h1>Spekulation</h1>
       <span class="small muted" v-if="d">
         <template v-if="d.t">Stand {{ when(d.t) }} ({{ ago(d.t, now) }})</template><template v-else>Noch kein vollständiger Stand</template>,
         belegte Verkaufspreise für {{ num(d.proven) }}, Haltbarkeit für {{ num(d.holdKnown) }}, Prognosen für {{ num(d.forecasts) }} Gegenstände

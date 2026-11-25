@@ -25,7 +25,13 @@ function apply(s) {
   st.value = s;
   if (s.saved) region.value = s.region;
 }
-onMounted(async () => apply(await api.blizzardState()));
+// ab 0.56.0 (Leitfaden Einstellungen, keine Pruefknoepfe): Der Manager prueft den Zugang nach dem Speichern von selbst
+// und beim Oeffnen der Seite erneut, solange die letzte Pruefung nicht geklappt hat (hoechstens einmal je Minute).
+onMounted(async () => {
+  apply(await api.blizzardState());
+  const r = st.value && st.value.report;
+  if (st.value && st.value.saved && !(r && r.result === 'auctions') && !(r && Date.now() / 1000 - r.t < 60)) check();
+});
 watch(() => props.stamp, async () => apply(await api.blizzardState()));
 
 // Fehler aus dem Hauptteil kommen mit Vorspann von Electron an
@@ -40,7 +46,7 @@ function save() {
     const s = await api.blizzardSave({ clientId: clientId.value, clientSecret: clientSecret.value, region: region.value });
     clientId.value = ''; clientSecret.value = '';
     justSaved.value = true;
-    return s;
+    return s.saved ? api.blizzardCheck() : s;
   });
 }
 function check() { return run('check', () => api.blizzardCheck()); }
@@ -62,7 +68,7 @@ const regionLabel = computed(() => (REGIONS.find((r) => r.id === (st.value && st
   <section class="block" v-if="st">
     <div class="head">
       <h2>Blizzard-API</h2>
-      <button class="primary" v-if="st.saved" :disabled="!!busy" @click="check">{{ busy === 'check' ? 'Prüft' : 'Zugang prüfen' }}</button>
+      <span class="small muted" v-if="busy === 'check' || busy === 'save'">Prüft den Zugang</span>
     </div>
     <p class="muted lead">Mit einem eigenen Zugang kann der Manager Daten direkt bei Blizzard abfragen, zum Beispiel die Auktionshäuser von Forever. Welche Häuser er abruft, wählst du mit dem Peon Broker Client unter Datenlage.</p>
     <p class="small"><button class="link" @click="api.openLink(PORTAL)">{{ st.saved ? 'Zugang bei Blizzard verwalten' : 'Zugang bei Blizzard beantragen' }}</button> <span class="muted">(Entwicklerportal von Blizzard, auf Englisch)</span></p>
@@ -72,11 +78,11 @@ const regionLabel = computed(() => (REGIONS.find((r) => r.id === (st.value && st
       <button class="danger" :disabled="!!busy" @click="clear">{{ confirmClear ? 'Wirklich entfernen?' : 'Zugang entfernen' }}</button>
       <button v-if="confirmClear" @click="confirmClear = false">Abbrechen</button>
     </div>
-    <p v-if="waitHint" class="note">Ein neuer Zugang funktioniert bei Blizzard oft erst nach ein paar Minuten. Schlägt „Zugang prüfen“ gleich nach dem Speichern fehl, versuche es etwas später noch einmal.</p>
+    <p v-if="waitHint" class="note">Ein neuer Zugang funktioniert bei Blizzard oft erst nach ein paar Minuten. Der Manager prüft ihn wieder, wenn du diese Seite das nächste Mal öffnest.</p>
     <p v-if="noHouse" class="note">
       Wähle unter Datenlage mindestens ein Auktionshaus aus, sonst ruft der Manager bei Blizzard nichts ab.
       <button v-if="props.broker" class="link" @click="emit('go', 'sources')">Zur Datenlage</button>
-      <template v-else>Dafür brauchst du den Peon Broker Client. <button class="link" @click="emit('go', 'modules')">Unter Updates installieren</button></template>
+      <template v-else>Dafür brauchst du den Peon Broker Client. <button class="link" @click="emit('go', 'modules')">Unter Addons installieren</button></template>
     </p>
     <template v-else>
       <p class="small warn" v-if="st.unreadable">Der gespeicherte Zugang lässt sich auf diesem Rechner nicht lesen. Bitte neu eintragen.</p>
@@ -132,10 +138,6 @@ const regionLabel = computed(() => (REGIONS.find((r) => r.id === (st.value && st
       <p class="small muted" v-if="report.sample">Haus {{ report.sample.house }}: {{ report.sample.count }} Angebote, Felder: {{ report.sample.fields.join(', ') }}</p>
     </div>
 
-    <p class="small muted" v-if="st.watch">
-      Beobachter (Testfassung): {{ st.watch.checks }} Prüfungen, {{ st.watch.stands }} Stände<template v-if="st.watch.lastModified">, letzter Stand {{ st.watch.lastModified }}</template><template v-if="st.watch.gaps.length">, Abstände in Minuten: {{ st.watch.gaps.join(', ') }}</template>
-      <span class="warn" v-if="st.watch.lastError"> Zuletzt fehlgeschlagen: {{ st.watch.lastError.where || 'Abfrage' }}, Code {{ st.watch.lastError.status == null ? 'keine Antwort' : st.watch.lastError.status }}</span>
-    </p>
   </section>
 </template>
 

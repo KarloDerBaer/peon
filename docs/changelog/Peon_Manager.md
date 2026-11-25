@@ -2,6 +2,20 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.56.0
+
+Kurz: Der Manager ist aufgeräumt. Die Seitenleiste hat nur noch sechs Einträge: Heute, Chancen, Listen, Markt, Addons und Mehr. Die einzelnen Seiten stehen als Reiter oben. Die neue Startseite Heute zeigt nur, was gerade zu tun ist. Die Einstellungen haben die Reiter Allgemein und Erweitert.
+
+- 0.56.0 (25.11.2026, Konzept `Peon_Manager_Schlank.md` M1 bis M4):
+  - **Neu, Seitenleiste** (`App.vue`, `SECTIONS`): Heute, Chancen (Spekulation, Marktvergleich, Pakete, Erfolg), Listen (Einkaufslisten, Beobachten), Markt (Übersicht, Gegenstände, Händler), Addons, Mehr (Datenlage, Rückmeldungen, Hilfe, Einstellungen). Unterreiter als Reiterleiste oben, der zuletzt gewählte bleibt je Eintrag gemerkt (Einstellung `navSubs`). Ohne Broker Client nur Heute, Addons und Mehr. Alte Sprünge zeigen auf den neuen Platz (`MOVED`). Die Auswahl des Markts steht oben in der Leiste, offene Gegenstände unter ihrem Eintrag.
+  - **Neu, Startseite Heute** (`views\Today.vue`): Karten Updates, Daten (Ampel und nicht gesendete Rückmeldungen), Lohnt sich jetzt (die fünf besten aus Spekulation, Marktvergleich und Pakete, je mit Sprung) und Meine Listen. Jede Karte nur, wenn sie etwas zu sagen hat. Die Einrichtungsliste steht darüber.
+  - **Geändert, Markt:** Kacheln, Diagramm, Stabilität, Meistverkauft und größte Preisänderungen der alten Übersicht sind der erste Reiter der Marktübersicht (`views\MarketSummary.vue`, vorher `Overview.vue`). Die Liste aller Gegenstände ist ein eigener Unterreiter Gegenstände.
+  - **Geändert, Pakete** eigener Unterreiter unter Chancen (`Compare.vue` mit `packages`), nicht mehr Reiter im Marktvergleich.
+  - **Geändert, Einstellungen** nach dem Leitfaden: Allgemein mit WoW-Ordner, Kanal, Aussehen, Größe und vier Schaltern mit Tooltip. Erweitert mit Suche nach Updates, Blizzard-API, Daten, Spieldaten sichern, Aufbewahrung und Chancen. Der Kanal steht nicht mehr unter Addons.
+  - **Geändert, Blizzard-API:** kein Knopf „Zugang prüfen“ mehr. Der Manager prüft den Zugang nach dem Speichern und beim Öffnen der Seite, solange die letzte Prüfung nicht geklappt hat. Die Testzeile des Beobachters ist aus den Einstellungen entfernt.
+  - **Geändert, Namen:** Seiten heißen Spekulation, Einkaufslisten, Addons und Gegenstände wie in der Seitenleiste.
+  - Hilfe (`docs\Hilfe.md`) mit den neuen Namen. Tests: `schlank.test.js` (Einträge, Unterreiter, Sprünge, Karten auf Heute, Schalter und Reiter der Einstellungen, Hilfe).
+
 ## 0.55.0
 
 Kurz: Die Erfolgskontrolle zählt nur noch echte Verkäufe. Ein Angebot, das zurückgezogen und neu eingestellt wurde oder einfach ablief, gilt nicht mehr als verkauft. Neu ist eine Meldung von Windows, wenn neue Daten ausgewertet sind (unter Einstellungen einschalten). Die Stabilität berücksichtigt jetzt auch, wie stark ein Preis über die Tage gestiegen oder gefallen ist.

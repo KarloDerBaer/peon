@@ -127,18 +127,20 @@ Die Verbindung zwischen Spiel und Peon Manager. Sie wird mit dem Manager install
 
 ## Peon Manager
 
-Das Programm für Windows installiert und aktualisiert die Addons.
+Das Programm für Windows installiert und aktualisiert die Addons. Die Seitenleiste hat sechs Einträge, ihre Unterreiter stehen oben auf der Seite. Der zuletzt gewählte Unterreiter bleibt gemerkt.
 
-- **Updates:** zeigt neue Versionen. Installiert wird nur, wenn du auf Aktualisieren klickst. Läuft WoW dabei, reicht danach `/reload`.
-- **Rückmeldungen:** Fehler der Addons und deine Rückmeldungen ansehen, ergänzen und senden.
-- **Einstellungen:** WoW-Ordner, Kanal Stabil oder Test, Aussehen, Größe der Oberfläche, Datensicherung.
-- **Spieldaten sichern:** Der Manager sichert die Daten der Peon-Addons vor jedem Update und einmal am Tag. Unter Einstellungen holst du einen älteren Stand zurück, wenn WoW geschlossen ist.
+- **Heute:** die Startseite. Sie zeigt nur, was gerade zu tun ist: bereite Updates, wie frisch die Daten sind, nicht gesendete Rückmeldungen, was sich jetzt lohnt und den Stand deiner Listen.
+- **Chancen:** Spekulation, Marktvergleich, Pakete und Erfolg (wie oft Chancen aufgegangen sind).
+- **Listen:** Einkaufslisten und Beobachten, mit denselben Namen wie in Broker. Änderungen gleicht der Manager mit Broker ab.
+- **Markt:** Übersicht (Kennzahlen, Verlauf, Stabilität, Prognosen und mehr), Gegenstände (alle Gegenstände mit Suche) und Händler (was Broker bei Händlern gesehen hat, mit dem Preis im Auktionshaus).
+- **Addons:** zeigt neue Versionen. Installiert wird nur, wenn du auf Aktualisieren klickst. Läuft WoW dabei, reicht danach `/reload`.
+- **Mehr:** Datenlage, Rückmeldungen (Fehler der Addons und deine Rückmeldungen ansehen, ergänzen und senden), Hilfe und Einstellungen.
+- **Einstellungen:** Unter Allgemein stehen WoW-Ordner, Kanal Stabil oder Test, Aussehen, Größe und die Meldungen. Unter Erweitert stehen Suche nach Updates, Zugang zur Blizzard-API, Datenordner und Sicherung, Spieldaten sichern, Aufbewahrung und Grenzen der Chancen.
+- **Spieldaten sichern:** Der Manager sichert die Daten der Peon-Addons vor jedem Update und einmal am Tag. Unter Einstellungen, Erweitert holst du einen älteren Stand zurück, wenn WoW geschlossen ist.
 - **Größe:** Strg und Plus oder Minus, Strg und Mausrad, Strg und 0 für 100 %.
-- **Modul Peon Broker Client** (unter Updates einschaltbar): sammelt die Auktionsdaten von Broker, wertet sie aus und zeigt Übersicht, Marktübersicht, Chancen, Marktvergleich, Einkaufen und Beobachten.
-- **Marktvergleich:** vergleicht dein Auktionshaus mit dem neutralen über die letzten Tage. Chancen sind Gegenstände, die sich im einen Haus günstig kaufen und im anderen mit Gewinn verkaufen lassen, bewertet nach Preisunterschied, Absatz im Zielhaus und wie beständig der Unterschied ist. Die besten 10 gehen nach jedem neuen Stand an Broker (Chancen, Markttausch), die Anzahl stellst du auf der Seite ein.
-- **Pakete:** Auf der Seite Marktvergleich stellt der Manager je Richtung ein Paket aus kleinen, gestreuten Angeboten zusammen, das auch bei halbem Verkauf Gewinn bringt. Broker zeigt es mit Knöpfen zum Kaufen und Verkaufen.
-- **Beobachten:** Unterreiter Aufkauf, Schnellkauf und Markttausch wie im Spiel. Änderungen gleicht der Manager mit Broker ab.
-- **Händler:** alles, was Broker bei Händlern gesehen hat, mit dem Preis im Auktionshaus.
+- **Modul Peon Broker Client** (unter Addons einschaltbar): sammelt die Auktionsdaten von Broker und wertet sie aus. Ohne ihn zeigt die Seitenleiste nur Heute, Addons und Mehr.
+- **Marktvergleich:** vergleicht dein Auktionshaus mit dem neutralen über die letzten Tage. Chancen sind Gegenstände, die sich im einen Haus günstig kaufen und im anderen mit Gewinn verkaufen lassen, bewertet nach Preisunterschied, Absatz im Zielhaus und wie beständig der Unterschied ist. Die besten 10 gehen nach jedem neuen Stand an Broker (Chancen, Markttausch), die Anzahl stellst du im Reiter Einstellen ein.
+- **Pakete:** Der Manager stellt je Richtung ein Paket aus kleinen, gestreuten Angeboten zusammen, das auch bei halbem Verkauf Gewinn bringt. Broker zeigt es mit Knöpfen zum Kaufen und Verkaufen.
 
 ## Peon unterstützen
 

@@ -82,7 +82,7 @@ const limitTip = (r) => (r.max != null ? `Eigener Höchstpreis. Die Liste ergäb
 <template>
   <div class="shop" v-if="view">
     <div class="head">
-      <h1>Einkaufen</h1>
+      <h1>Einkaufslisten</h1>
       <div class="tools">
         <label v-if="accts.list.length > 1" class="small acct">Konto
           <select :value="accts.selected" @change="selectAcct($event.target.value)">

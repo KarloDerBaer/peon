@@ -52,7 +52,7 @@ const COLS = [
   { key: 'sales', label: 'Absatz', num: true, w: '76px', tip: 'Absatz je Tag (14 Tage), Zeichen = Sicherheit' },
   { key: 'band', label: 'Üblicher Bereich', num: true, w: 'minmax(130px, 1.5fr)', tip: 'Untergrenze bis Obergrenze, wie Broker ihn vom Manager bekommt' },
   { key: 'trend', label: 'Trend', num: true, w: '66px' },
-  { key: 'stab', label: 'Stabilität', num: true, w: '96px', tip: 'Stunden und Tage zusammen, der schlechtere Teil zählt (Marktübersicht, Stabilität)' },
+  { key: 'stab', label: 'Stabilität', num: true, w: '96px', tip: 'Stunden und Tage zusammen, der schlechtere Teil zählt (Markt, Übersicht, Reiter Stabilität)' },
   { key: 'seen', label: 'Gesehen', num: true, w: '92px' },
   { key: 'src', label: 'Quellen', w: '74px', tip: 'S = Komplettscans und Blizzard-API, L = Live-Abfragen, B = Broker-Verlauf' },
 ];
@@ -164,7 +164,7 @@ function sourceText(s) {
 <template>
   <div class="items" v-if="market">
     <div class="head">
-      <h1 v-if="!embedded">{{ favorites ? 'Beobachtung' : 'Markt' }}</h1>
+      <h1 v-if="!embedded">{{ favorites ? 'Beobachtung' : 'Gegenstände' }}</h1>
       <span class="muted" v-if="list">{{ num(rows.length) }} von {{ num(base.length) }}</span>
     </div>
     <div class="filters">
@@ -222,7 +222,7 @@ function sourceText(s) {
             </template>
           </div>
         </div>
-        <p v-if="list && !base.length && favorites" class="muted empty">Noch nichts in der Beobachtung. Klicke unter <button class="link" @click="emit('go', 'market:items')">Marktübersicht, Markt</button> oder im Gegenstandsfenster auf den Stern.</p>
+        <p v-if="list && !base.length && favorites" class="muted empty">Noch nichts in der Beobachtung. Klicke unter <button class="link" @click="emit('go', 'items')">Markt, Gegenstände</button> oder im Gegenstandsfenster auf den Stern.</p>
         <p v-else-if="list && !rows.length" class="muted empty">Nichts gefunden. Suche nach einem Teil des Namens oder der Nummer.</p>
       </div>
     </div>
