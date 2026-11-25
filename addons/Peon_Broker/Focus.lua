@@ -956,13 +956,107 @@ function F.BuildMeasure(c, above)
         -- trim). Kurze Angebote mit grossen Mengen stauchten sonst alle anderen Balken.
         F.chart = Peon.NewChart(mp, { width = cw - 12, height = F.CHART_H, left = 46, right = 40, top = 6, bottom = 6, grid = 2, trim = { right = 0.9 },
             leftFormat = AxisMoney, rightFormat = function(v) return Num(v) and Peon.ShortNumber and Peon.ShortNumber(v) or "" end })
-        if F.chart and F.chart.frame then F.chart.frame:SetPoint("BOTTOMLEFT", mp, "BOTTOMLEFT", 6, 6) end
+        -- ab 0.134: Platz fuer die Knoepfe der Linien darunter (vorher 6)
+        if F.chart and F.chart.frame then F.chart.frame:SetPoint("BOTTOMLEFT", mp, "BOTTOMLEFT", 6, F.CHART_Y) end
         -- ab 0.75: nichts zeichnet ueber den Rand des Diagramms hinaus
         if F.chart and F.chart.plot and F.chart.plot.SetClipsChildren then F.chart.plot:SetClipsChildren(true) end
     end
-    -- ab 0.91: Menge grau, Kaufen bis blau (Wunsch KarloDerBaer, 13.11.2026)
+    -- ab 0.91: Menge grau, Kaufen bis blau (Wunsch KarloDerBaer, 13.11.2026). Ab 0.134 nur noch im ruhenden Aufkauf.
     F.chartLegend = UI.Text(mp, "small", ("|cff999999%s|r  |cffffd133%s|r  |cff4d8cff%s|r  |cff60e060%s|r"):format(L.MEASURE_UNDER, L.MEASURE_MIN, L.FOCUS_R_LIMIT, L.FOCUS_R_TARGET))
-    F.chartLegend:SetPoint("BOTTOMRIGHT", mp, "BOTTOMRIGHT", -10, F.CHART_H + 10)
+    F.chartLegend:SetPoint("BOTTOMRIGHT", mp, "BOTTOMRIGHT", -10, F.CHART_H + F.CHART_Y + 4)
+    F.BuildChartControls(mp)
+end
+
+---------------------------------------------------------------------------
+-- Linien und Zeitraum des Diagramms (ab 0.134, Schritt U2, Konzept Peon_Broker_Schlank.md 4.4). Kleine Knoepfe unter
+-- dem Diagramm schalten die Linien, oben rechts steht der Zeitraum. Die Wahl gilt fuer alle Gegenstaende und bleibt
+-- gespeichert (chartMin ... chartBaits, chartRange). Der Preis bestimmt weiter die Aufloesung (0.131): Kaufen bis
+-- passt die Achse nicht an, die Menge hat ihre eigene Achse rechts und richtet sich nach 90 % der Werte.
+---------------------------------------------------------------------------
+F.CHART_Y = 22     -- ab 0.134: Abstand des Diagramms vom unteren Rand (darunter die Knoepfe der Linien)
+F.CHART_RANGES = { 5, 15, 60 }
+F.CHART_COLORS = {
+    min = { 1, 0.82, 0.2, 1 }, limit = { 0.3, 0.55, 1, 0.95 }, under = { 0.6, 0.6, 0.6, 0.4 },
+    dips = { 1, 0.35, 0.25, 0.8 }, baits = { 0.7, 0.4, 1, 0.8 }, baitsOther = { 0.7, 0.4, 1, 0.35 },
+}
+-- Schluessel im Diagramm, gespeicherter Wert und Beschriftung, in der Reihenfolge der Knoepfe
+F.CHART_LINES = {
+    { key = "min", db = "chartMin", label = "CHART_L_MIN", kind = "line" },
+    { key = "limit", db = "chartLimit", label = "CHART_L_LIMIT", kind = "hline" },
+    { key = "under", db = "chartUnder", label = "CHART_L_UNDER", kind = "bar" },
+    { key = "dips", db = "chartDips", label = "CHART_L_DIPS", kind = "marks" },
+    { key = "baits", db = "chartBaits", label = "CHART_L_BAITS", kind = "marks" },
+}
+
+function F.ChartRange()
+    local m = tonumber(mod.db.chartRange)
+    for _, r in ipairs(F.CHART_RANGES) do if r == m then return r end end
+    return F.CHART_RANGES[1]
+end
+
+function F.SetChartRange(m)
+    mod.db.chartRange = m
+    F.chartN = nil
+    F.UpdateRangeButtons()
+    F.RefreshChart()
+end
+
+function F.UpdateRangeButtons()
+    local cur = F.ChartRange()
+    for _, b in ipairs(F.rangeButtons or {}) do
+        local on = b.minutes == cur
+        if b.fs then b.fs:SetTextColor(on and 1 or 0.6, on and 0.82 or 0.6, on and 0 or 0.6) end
+    end
+end
+
+-- gespeicherte Wahl ins Diagramm (quick = Schnellkauf). Im ruhenden Aufkauf zeigt es alles wie bisher.
+function F.ApplyChartLines(quick)
+    local ch = F.chart
+    if not ch then return end
+    for _, l in ipairs(F.CHART_LINES) do ch.shown[l.key] = (not quick) or mod.db[l.db] ~= false end
+    if ch.legend then ch.legend:Update() end
+    F.chartN = nil
+end
+
+function F.RefreshChart()
+    if F.tiers and F.Update then F.Update() end
+end
+
+function F.BuildChartControls(mp)
+    local ch = F.chart
+    if not ch then return end
+    local C = F.CHART_COLORS
+    ch.legendInfo = {}
+    local keys = {}
+    for _, l in ipairs(F.CHART_LINES) do
+        ch.legendInfo[l.key] = { key = l.key, kind = l.kind, color = C[l.key], label = L[l.label] }
+        keys[#keys + 1] = l.key
+    end
+    F.chartLines = ch:CreateLegend(mp, keys, function(key, on)
+        for _, l in ipairs(F.CHART_LINES) do if l.key == key then mod.db[l.db] = on and true or false end end
+    end)
+    F.chartLines.frame:SetPoint("BOTTOMLEFT", mp, "BOTTOMLEFT", 8, 5)
+    -- Zeitraum oben rechts, in der Zeile der Ueberschrift
+    F.rangeButtons = {}
+    local x = -10
+    for i = #F.CHART_RANGES, 1, -1 do
+        local m = F.CHART_RANGES[i]
+        local b = CreateFrame("Button", nil, mp)
+        local fs = b:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        fs:SetPoint("CENTER", 0, 0)
+        fs:SetText(i == #F.CHART_RANGES and L.CHART_RANGE_LAST:format(m) or tostring(m))
+        local w = ((fs.GetStringWidth and fs:GetStringWidth()) or 20) + 8
+        if not Num(w) or w < 14 then w = 20 end
+        b:SetSize(w, 16)
+        b:SetPoint("TOPRIGHT", mp, "TOPRIGHT", x, -6)
+        x = x - w - 2
+        b.minutes, b.fs = m, fs
+        b:SetScript("OnClick", function() mod:Call("Diagramm", F.SetChartRange, m) end)
+        Peon.UI.SetTooltip(b, { L.CHART_RANGE_TIP, L.CHART_RANGE_TIP2:format(m) })
+        F.rangeButtons[i] = b
+    end
+    F.UpdateRangeButtons()
+    F.ApplyChartLines(ns.Quick and ns.Quick.On())
 end
 
 local function Dec(x)
@@ -1005,6 +1099,7 @@ function F.UpdateMeasure(v, limit)
     local show = F.chart ~= nil and n ~= nil
     if F.chart and F.chart.frame then F.chart.frame:SetShown(show) end
     F.chartLegend:SetShown(show)
+    if F.chartLines then F.chartLines.frame:SetShown(false) end   -- ab 0.134: Linien waehlen nur im Schnellkauf
     if not show then F.chartN = nil; return end
     local cur = ns.Measure.cur
     local stamp = tostring(n) .. ":" .. tostring(v.target) .. ":" .. tostring(limit) .. ":" .. tostring(cur and cur.samples[n] and cur.samples[n].t)
@@ -1256,6 +1351,10 @@ function F.ApplyMode()
         if quick then F.modeQuick:LockHighlight(); F.modeBuyout:UnlockHighlight()
         else F.modeBuyout:LockHighlight(); F.modeQuick:UnlockHighlight() end
     end
+    -- ab 0.134: Knoepfe fuer Linien und Zeitraum nur im Schnellkauf, der Aufkauf zeigt alles wie bisher
+    F.ApplyChartLines(quick)
+    for _, b in ipairs(F.rangeButtons or {}) do b:SetShown(quick) end
+    if F.chartLines then F.chartLines.frame:SetShown(quick and F.chart ~= nil) end
     if quick then
         F.chartLegend:SetText(("|cff999999%s|r  |cffffd133%s|r  |cff4d8cff%s|r  |cffb366ff%s|r"):format(L.QUICK_LEG_UNDER, L.MEASURE_MIN, L.FOCUS_R_LIMIT, L.QUICK_LEG_BAIT))
     else
@@ -1410,26 +1509,30 @@ function F.UpdateQuickChart(limit)
     else
         F.mHead:SetText(GREY .. L.MEASURE_NONE .. "|r")
     end
-    local n, under, mins, marks = nil, nil, nil, nil
-    if AHOpen() then n, under, mins, marks = Q.Series(limit) end
-    local show = F.chart ~= nil and n ~= nil
+    -- ab 0.134 (U2): Zeitraum 5, 15 oder 60 Minuten aus dem eigenen Verlauf (Quick.ChartSeries), vorher die letzten
+    -- Abfragen der Messung (Quick.Series, knapp 3 Min.)
+    local key, minutes, h = F.key, F.ChartRange(), Q.hist[F.key]
+    local show = F.chart ~= nil and AHOpen() and h ~= nil and h.n >= 2
     if F.chart and F.chart.frame then F.chart.frame:SetShown(show) end
-    F.chartLegend:SetShown(show)
+    F.chartLegend:SetShown(false)
+    if F.chartLines then F.chartLines.frame:SetShown(F.chart ~= nil) end
     if not show then F.chartN = nil; return end
-    local nm = 0
-    for _ in pairs(marks) do nm = nm + 1 end
-    local cur = ns.Measure.cur
-    local stamp = "q:" .. tostring(n) .. ":" .. tostring(limit) .. ":" .. nm .. ":" .. tostring(cur and cur.samples[n] and cur.samples[n].t)
+    local stamp = "q:" .. tostring(key) .. ":" .. h.n .. ":" .. tostring(limit) .. ":" .. minutes .. ":" .. #(Q.baits[key] or {}) .. ":" .. #(Q.dipTimes[key] or {})
     if F.chartN == stamp then return end
+    local n, under, mins, own, other, dips = Q.ChartSeries(key, limit, minutes)
+    if not n then F.chartN = nil; return end
+    local C = F.CHART_COLORS
     local series = {
-        { key = "marks", kind = "marks", values = marks, color = { 0.7, 0.4, 1, 0.8 } },
-        { key = "under", kind = "bar", axis = "right", values = under, color = { 0.6, 0.6, 0.6, 0.4 } },
-        { key = "min", kind = "line", values = mins, color = { 1, 0.82, 0.2, 1 }, width = 2, connect = true },
+        { key = "dips", kind = "marks", values = dips, color = C.dips },
+        { key = "baits", kind = "marks", values = other, color = C.baitsOther },
+        { key = "baits", kind = "marks", values = own, color = C.baits, label = L.CHART_L_BAITS },
+        { key = "under", kind = "bar", axis = "right", values = under, color = C.under },
+        { key = "min", kind = "line", values = mins, color = C.min, width = 2, connect = true },
     }
     -- ab 0.131: der Preis bestimmt die Aufloesung. Kaufen bis weit unter dem Preis stauchte die Linie, jetzt steht es
     -- dann gestrichelt am unteren Rand (Kern API 28, fit = false).
-    if Num(limit) and limit > 0 then series[#series + 1] = { key = "limit", kind = "hline", value = limit, color = { 0.3, 0.55, 1, 0.95 }, fit = false } end
-    ns.Radar.Perf("diagramm", function() F.chart:SetData(math.max(n, F.CHART_SLOTS or 60), series); F.chart:Draw() end)
+    if Num(limit) and limit > 0 then series[#series + 1] = { key = "limit", kind = "hline", value = limit, color = C.limit, fit = false } end
+    ns.Radar.Perf("diagramm", function() F.chart:SetData(n, series); F.chart:Draw() end)
     F.chartN = stamp
 end
 

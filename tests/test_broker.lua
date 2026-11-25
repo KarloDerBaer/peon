@@ -6411,4 +6411,94 @@ end)()
   check(ns.Tooltip.extra == nil and not table.concat(tt.lines, " | "):find("ZUSATZ", 1, true), "0.131: ohne Zusatz kein alter Zusatz")
 end)()
 
+-- ===== 0.134 (U2): Diagramm im Einkaufen, Linien und Zeitraum waehlbar, eigener Verlauf bis 60 Min. =====
+;(function()
+  local F, Q, M = ns.Focus, ns.Quick, ns.Measure
+  local function S(t, lv)
+    local list = {}
+    for _, l in ipairs(lv) do list[#list + 1] = { price = l[1], qty = l[2] } end
+    return { t = t, min = list[1] and list[1].price or nil, lv = list }
+  end
+  Q.hist, Q.dipTimes = {}, {}
+  -- mehrere Abfragen in 3 Sek. werden ein Eintrag: tiefster Preis, Stufen der letzten Abfrage
+  Q.Record(7995, S(3000, { { 120, 5 }, { 200, 50 } }))
+  Q.Record(7995, S(3001, { { 90, 1 }, { 200, 50 } }))
+  Q.Record(7995, S(3002, { { 130, 4 }, { 200, 50 } }))
+  local h = Q.hist[7995]
+  check(h.n == 3 and #h.list == 1 and h.list[1].min == 90 and h.list[1].p[1] == 130 and h.list[1].q[1] == 4,
+    "0.134: Verlauf je 3 Sek. ein Eintrag mit tiefstem Preis und den Stufen der letzten Abfrage")
+  -- eine Stunde Verlauf, aeltere Eintraege fallen weg
+  for t = 3003, 3000 + 3700, 3 do Q.Record(7995, S(t, { { 150, 10 }, { 160, 20 }, { 300, 99 } })) end
+  check(h.list[1].t >= h.last - Q.HIST_SPAN and #h.list <= Q.HIST_SPAN / Q.HIST_STEP + 1, "0.134: Verlauf haelt hoechstens 60 Min.")
+  -- Zeitraum: 100 Plaetze, rechts die letzte Abfrage, Menge unter Kaufen bis je Platz
+  local n, under, mins = Q.ChartSeries(7995, 155, 5)
+  check(n == Q.CHART_SLOTS and under[n] == 10 and mins[n] == 150 and under[1] == 10, "0.134: 5 Min. sind voll, Menge unter Kaufen bis")
+  n, under = Q.ChartSeries(7995, 170, 60)
+  check(n == Q.CHART_SLOTS and under[n] == 30 and under[1] == 30, "0.134: 60 Min. aus dem Verlauf, Kaufen bis neu gerechnet fuer den ganzen Zeitraum")
+  -- Striche fuer Einbrueche und Lockangebote (eigene und fremde getrennt)
+  Q.baits[7995] = { { t = h.last - 10, price = 100, own = true }, { t = h.last - 200, price = 95 }, { t = h.last - 4000, price = 90 } }
+  Q.AddDip(7995, h.last - 60, 120, 5, 150)
+  local _, _, _, own, other, dips = Q.ChartSeries(7995, 155, 5)
+  local no, nf, nd = 0, 0, 0
+  for _ in pairs(own) do no = no + 1 end
+  for _ in pairs(other) do nf = nf + 1 end
+  for _ in pairs(dips) do nd = nd + 1 end
+  check(no == 1 and nf == 1 and nd == 1 and own[Q.CHART_SLOTS - 3] == true, "0.134: Striche fuer eigenes und fremdes Lockangebot und Einbruch im Zeitraum")
+  _, _, _, own, other = Q.ChartSeries(7995, 155, 60)
+  nf = 0
+  for _ in pairs(other) do nf = nf + 1 end
+  check(nf == 1, "0.134: Lockangebot vor mehr als 60 Min. faellt heraus")
+  check(Q.ChartSeries(7996, 155, 5) == nil, "0.134: ohne Verlauf kein Diagramm")
+  -- nur die letzten Gegenstaende behalten ihren Verlauf
+  for k = 1, Q.HIST_KEYS + 1 do Q.Record(8000 + k, S(9000 + k, { { 100, 1 } })) end
+  local nk = 0
+  for _ in pairs(Q.hist) do nk = nk + 1 end
+  check(nk == Q.HIST_KEYS and Q.hist[7995] == nil, "0.134: Verlauf fuer hoechstens drei Gegenstaende")
+  Q.baits, Q.dipTimes = {}, {}
+  -- Seite: Knoepfe fuer Linien und Zeitraum, Wahl gespeichert und fuer alle Gegenstaende
+  local keepOpen = ns.Scan.ahOpen
+  ns.Scan.ahOpen = true
+  mod.db.focusBuyout = false
+  Q.SetMode("quick")
+  F.Set(7995)
+  Q.hist = {}
+  M.Start(7995)
+  M.Add(7995, (function()
+    local r = { { price = 150, qty = 10, own = 0, offers = { { id = 1, qty = 10, price = 150 } } }, commodity = true }
+    return r
+  end)(), 100)
+  for t = 101, 400, 3 do Q.Record(7995, S(t, { { 150, 10 }, { 160, 20 } })) end
+  mod.db.chartRange, mod.db.chartUnder = 5, true
+  F.chartN = nil
+  F.UpdateQuickChart(155)
+  check(F.chart and F.chart.n == Q.CHART_SLOTS and F.chart.frame.shown ~= false and F.chartLines and #F.chartLines.buttons == 5,
+    "0.134: Diagramm mit fuenf Knoepfen fuer die Linien")
+  local keys = {}
+  for _, b in ipairs(F.chartLines.buttons) do keys[#keys + 1] = b.key end
+  check(table.concat(keys, ",") == "min,limit,under,dips,baits", "0.134: Reihenfolge Guenstigster, Kaufen bis, Menge, Einbrueche, Lockangebote")
+  local hasLimit = false
+  for _, s in ipairs(F.chart.series) do if s.key == "limit" and s.fit == false then hasLimit = true end end
+  check(hasLimit and F.chart.o.trim and F.chart.o.trim.right == 0.9, "0.134: Preis bestimmt weiter die Aufloesung, Menge mit eigener Achse (0.131)")
+  F.chartLines.buttons[3].scripts.OnClick(F.chartLines.buttons[3])
+  check(mod.db.chartUnder == false and not F.chart:IsShownKey("under"), "0.134: Menge ausgeschaltet und gespeichert")
+  F.ApplyChartLines(true)
+  check(not F.chart:IsShownKey("under") and F.chart:IsShownKey("min"), "0.134: Wahl gilt nach dem Neuladen weiter")
+  F.ApplyChartLines(false)
+  check(F.chart:IsShownKey("under"), "0.134: ruhender Aufkauf zeigt alle Linien")
+  F.ApplyChartLines(true)
+  F.rangeButtons[3].scripts.OnClick(F.rangeButtons[3])
+  check(mod.db.chartRange == 60 and F.ChartRange() == 60, "0.134: Zeitraum 60 Min. gewaehlt und gespeichert")
+  mod.db.chartRange = 7
+  check(F.ChartRange() == 5, "0.134: unbekannter Zeitraum heisst 5 Min.")
+  -- aufraeumen
+  mod.db.chartRange, mod.db.chartUnder = 5, true
+  F.ApplyChartLines(true)
+  M.Stop()
+  mod.acc.focusMeasure = nil
+  Q.hist, Q.dipTimes, Q.baits, Q.sessions = {}, {}, {}, {}
+  Q.SetMode("buyout", true)
+  ns.Scan.ahOpen = keepOpen
+  Rd.entries, Rd.gone, Rd.job, Rd.focus = {}, {}, nil, nil
+end)()
+
 print("ALLE TESTS OK")

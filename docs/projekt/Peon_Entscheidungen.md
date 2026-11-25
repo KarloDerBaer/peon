@@ -11,6 +11,15 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Verkauf in der Auktionsliste bucht nichts mehr** (KarloDerBaer): Nur die Post bucht, die Liste dient der Anzeige. Die frühe Meldung und die spätere Rechnung passten nicht immer zusammen (118 Dickes Leder). Gemerkt wird der Verkauf nur noch, damit ein Brief ohne geladene Rechnung seine Menge bekommt.
 - **Alte Fälle einmal korrigieren** (Claude): Abweichungen minus nach dem Einstellen, deren Ware danach verkauft wurde, werden zu „Auktion (korrigiert)“. Die Bewegungen bleiben, nur ihre Art ändert sich, die Kosten rechnet Ledger neu.
 
+## 25.11.2026: Broker schlank, Schritt U2 Diagramm (Broker 0.134.0)
+
+- **Eigener Verlauf für das Diagramm** (Claude): Die Messung behält nur 240 Abfragen, bei 90 je Minute knapp 3 Minuten. Für 15 und 60 Minuten merkt sich Broker je 3 Sekunden einen kleinen Eintrag mit dem tiefsten Preis und den untersten 16 Preisstufen, für die letzten drei Gegenstände und nur im Spiel. Mit den Stufen rechnet das Diagramm die Menge unter Kaufen bis nach einer Änderung für den ganzen Zeitraum neu, wie bisher. Liegt Kaufen bis über der 16. Stufe, zählt die Menge bis dorthin.
+- **100 Plätze je Zeitraum** (Claude): 5 Minuten je 3 Sekunden, 60 Minuten je 36 Sekunden. Je Platz der tiefste Preis und die Menge der letzten Abfrage. Rechts steht immer die letzte Abfrage, ein neuer Gegenstand füllt das Diagramm von rechts.
+- **Knopf „Menge“ statt „Menge darunter“** (Claude): Die fünf Knöpfe passen sonst nicht in eine Zeile unter dem Diagramm. Der Zeitraum steht deshalb oben rechts in der Zeile der Überschrift.
+- **Fremde Lockangebote im Diagramm** (Claude): Der Knopf Lockangebote schaltet eigene (kräftig) und fremde (blass) zusammen. Bisher zeigte das Diagramm nur eigene.
+- **Ruhender Aufkauf zeigt alle Linien** (Claude): Die Knöpfe gibt es nur im Schnellkauf, der Aufkauf behält seine Textlegende.
+- **Kern unverändert** (Claude): `Chart:CreateLegend` und `legendInfo` gab es schon, U2 braucht keine Erweiterung der Kern-API.
+
 ## 25.11.2026: Broker schlank, Schritt U1 Einkaufen (Broker 0.133.0)
 
 - **Reiter Listen schon in U1** (Claude, Konzept sah die Umbenennung in U4 vor): Mit „Einkaufen“ für die Hauptseite hätte es zwei Reiter dieses Namens gegeben. Der Reiter der Einkaufslisten heißt deshalb jetzt „Listen“ und steht hinter Beobachten wie in Abschnitt 3. Sonst ändert sich an den Listen nichts.

@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.134.0
+
+Kurz: Im Diagramm der Seite Einkaufen lassen sich die Linien mit kleinen Knöpfen ein- und ausschalten: Günstigster, Kaufen bis, Menge, Einbrüche und Lockangebote.
+Kurz: Das Diagramm zeigt wahlweise die letzten 5, 15 oder 60 Minuten. Die Wahl gilt für alle Gegenstände und bleibt gespeichert.
+
+- 0.134.0 (25.11.2026, Schritt U2 aus dem Konzept `Peon_Broker_Schlank.md`, Abschnitt 4.4):
+  - **Neu, Linien wählbar:** Unter dem Diagramm stehen fünf Knöpfe mit Farbe und Namen: Günstigster (gelb), Kaufen bis (blau), Menge unter Kaufen bis (grau), Einbrüche (rot) und Lockangebote (lila, eigene kräftig, fremde blass). Ein Klick schaltet die Linie aus, ausgeschaltete Knöpfe sind blass. Gespeichert in `chartMin`, `chartLimit`, `chartUnder`, `chartDips`, `chartBaits` (Vorgabe alle an).
+  - **Neu, Zeitraum:** Oben rechts im Diagramm 5, 15 oder 60 Minuten (`chartRange`, Vorgabe 5). Bisher zeigte das Diagramm die letzten 240 Abfragen, bei 90 je Minute knapp 3 Minuten.
+  - **Neu, Verlauf:** Für das Diagramm merkt sich Broker im Spiel je 3 Sekunden den tiefsten Preis und die untersten 16 Preisstufen, eine Stunde lang und für die letzten drei Gegenstände im Einkaufen (`Quick.Record`). Nichts davon wird gespeichert. Das Diagramm teilt den Zeitraum in 100 Plätze, ändert man Kaufen bis, rechnet es die Menge darunter für den ganzen Zeitraum neu.
+  - **Neu:** Einbrüche stehen als Striche im Diagramm, fremde Lockangebote ebenfalls (bisher nur eigene).
+  - **Geändert:** Das Diagramm steht etwas höher, darunter die Knöpfe. Die Textlegende bleibt nur im ruhenden Aufkauf, der alle Linien zeigt.
+  - **Unverändert (0.131.0):** Der Preis bestimmt die Auflösung, Kaufen bis außerhalb steht gestrichelt am Rand. Die Menge hat ihre eigene Achse rechts und richtet sich nach 90 % der Werte.
+
 ## 0.133.0
 
 Kurz: Der Fokus heißt jetzt Einkaufen und ist der erste Reiter von Broker. Er zeigt nur noch den Schnellkauf, jede Eingabe wird sofort gespeichert.

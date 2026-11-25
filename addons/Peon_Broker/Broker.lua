@@ -68,6 +68,12 @@ local mod = Peon:NewModule(ADDON_NAME, {
         focusMode    = "buyout", -- Fokus (ab 0.104): Modus Aufkauf (buyout) oder Schnellkauf (quick)
         focusBuyout  = false,   -- ab 0.133 (U1): Modus Aufkauf im Einkaufen (Einstellungen, Erweitert), sonst nur Schnellkauf
         foldBait     = false,   -- ab 0.133: Bereich Lockangebot im Einkaufen aufgeklappt
+        chartRange   = 5,       -- ab 0.134 (U2): Zeitraum des Diagramms im Einkaufen in Minuten (5, 15, 60)
+        chartMin     = true,    -- ab 0.134: Linien im Diagramm des Einkaufens (fuer alle Gegenstaende): Guenstigster,
+        chartLimit   = true,    --   Kaufen bis,
+        chartUnder   = true,    --   Menge darunter,
+        chartDips    = true,    --   Einbrueche,
+        chartBaits   = true,    --   Lockangebote
         foldMore     = false,   -- ab 0.133: Bereich Mehr Einstellungen im Einkaufen aufgeklappt
         quickAlarm   = true,    -- Schnellkauf (ab 0.104): Ton, sobald etwas unter Kaufen bis steht
         quickSound   = "raid",  -- Schnellkauf (ab 0.104): welcher Ton
@@ -144,6 +150,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  qcWaitMax = { 1, 60, 1 }, quickZonePct = { 1, 50, 1 }, quickJumpPct = { 0, 20, 1 }, quickDipPct = { 1, 30, 1 }, quickStatDays = { 1, 60, 1 }, quickLimitPct = { 10, 100, 5 }, quickGoldDefault = { 0, 100000000, 1 } },   -- ab 0.120
     choices  = { undercutMode = { copper = true, percent = true }, undercutMassMode = { copper = true, percent = true },
                  duration = { [2] = true, [8] = true, [24] = true },
+                 chartRange = { [5] = true, [15] = true, [60] = true },   -- ab 0.134
                  radarKind = { both = true, vendor = true, market = true },
                  radarScanMode = { watch = true, mass = true, all = true },
                  radarSoundKey = { raid = true, ready = true, alarm = true, tell = true, coin = true, levelup = true, queue = true, ping = true, boss = true, auction = true },

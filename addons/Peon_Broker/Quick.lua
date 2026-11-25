@@ -744,6 +744,96 @@ function Q.Series(limit)
 end
 
 ---------------------------------------------------------------------------
+-- Verlauf fuer das Diagramm im Einkaufen (ab 0.134, Schritt U2, Konzept Peon_Broker_Schlank.md 4.4). Die Messung
+-- behaelt nur die letzten Measure.KEEP Abfragen (bei 90 je Minute knapp 3 Min.). Fuer die Zeitraeume 5, 15 und 60
+-- Minuten merkt sich Broker je Q.HIST_STEP Sekunden einen kleinen Eintrag: tiefster Preis darin und die untersten
+-- Q.HIST_LEVELS Preisstufen der letzten Abfrage. So rechnet das Diagramm die Menge unter Kaufen bis auch nach einer
+-- Aenderung von Kaufen bis fuer den ganzen Zeitraum neu (wie bisher). Nur im Spiel, nichts wird gespeichert.
+---------------------------------------------------------------------------
+Q.HIST_STEP = 3        -- Sekunden je Eintrag
+Q.HIST_SPAN = 3600     -- so weit zurueck (laengster Zeitraum)
+Q.HIST_LEVELS = 16     -- so viele Preisstufen je Eintrag
+Q.HIST_KEYS = 3        -- Verlauf fuer so viele Gegenstaende (zuletzt im Einkaufen)
+Q.CHART_SLOTS = 100    -- Plaetze im Diagramm (5 Min.: je 3 Sek., 60 Min.: je 36 Sek.)
+Q.MARK_KEEP = 200
+Q.hist = {}            -- [Schluessel] = { n = Abfragen, last = Zeit, list = { { slot, t, min, p = { Preise }, q = { Mengen } } } }
+Q.dipTimes = {}        -- [Schluessel] = { Zeiten der Einbrueche } fuer das Diagramm
+
+function Q.Record(key, s)
+    if key == nil or type(s) ~= "table" or not Num(s.t) then return end
+    local h = Q.hist[key]
+    if not h then h = { n = 0, list = {} }; Q.hist[key] = h end
+    h.n, h.last = h.n + 1, s.t
+    local list = h.list
+    local slot = math.floor(s.t / Q.HIST_STEP)
+    local e = list[#list]
+    if not e or e.slot ~= slot then
+        e = { slot = slot }
+        list[#list + 1] = e
+    end
+    e.t = s.t
+    if Num(s.min) and (not Num(e.min) or s.min < e.min) then e.min = s.min end
+    local p, q = {}, {}
+    for i, l in ipairs(s.lv or {}) do
+        if i > Q.HIST_LEVELS then break end
+        p[i], q[i] = l.price, l.qty
+    end
+    e.p, e.q = p, q
+    local from = s.t - Q.HIST_SPAN
+    while list[1] and list[1].t < from do table.remove(list, 1) end
+    -- nur die letzten Gegenstaende behalten
+    local n, oldest, oldKey = 0, nil, nil
+    for k, o in pairs(Q.hist) do
+        n = n + 1
+        if k ~= key and (oldest == nil or (o.last or 0) < oldest) then oldest, oldKey = o.last or 0, k end
+    end
+    if n > Q.HIST_KEYS and oldKey ~= nil then Q.hist[oldKey] = nil end
+end
+
+local function UnderAt(e, limit)
+    if not Num(limit) then return 0 end
+    local sum = 0
+    for i, p in ipairs(e.p or {}) do
+        if p > limit then break end
+        sum = sum + (e.q[i] or 0)
+    end
+    return sum
+end
+
+-- Reihen fuer das Diagramm: minutes Minuten bis zur letzten Abfrage, Q.CHART_SLOTS Plaetze. Rueckgabe nil (weniger
+-- als zwei Abfragen) oder n, Menge unter Kaufen bis (letzter Eintrag je Platz), tiefster Preis je Platz, eigene und
+-- fremde Lockangebote, Einbrueche ({ [Platz] = true }).
+function Q.ChartSeries(key, limit, minutes, now)
+    local h = key ~= nil and Q.hist[key]
+    if not h or h.n < 2 then return nil end
+    local slots = Q.CHART_SLOTS
+    local span = (tonumber(minutes) or 5) * 60
+    now = now or h.last
+    local w, from = span / slots, now - span
+    local function Slot(t)
+        if not Num(t) or t <= from or t > now then return nil end
+        return math.max(1, math.min(slots, math.ceil((t - from) / w)))
+    end
+    local under, mins, own, other, dips, at = {}, {}, {}, {}, {}, {}
+    for _, e in ipairs(h.list) do
+        local i = Slot(e.t)
+        if i then
+            if Num(e.min) and (mins[i] == nil or e.min < mins[i]) then mins[i] = e.min end
+            if at[i] == nil or e.t >= at[i] then at[i], under[i] = e.t, UnderAt(e, limit) end
+        end
+    end
+    for _, b in ipairs(Q.baits[key] or {}) do
+        local i = Slot(b.t)
+        if i then if b.own then own[i] = true else other[i] = true end end
+    end
+    for _, t in ipairs(Q.dipTimes[key] or {}) do
+        local i = Slot(t)
+        if i then dips[i] = true end
+    end
+    return slots, under, mins, own, other, dips
+end
+
+---------------------------------------------------------------------------
 -- Marktbewegung (ab 0.108, Wunsch KarloDerBaer 19.11.2026): Lockangebote wirken nur, wenn viel eingestellt wird.
 -- Ueber dem Diagramm stehen Zufluss, Abfluss und die Bewegung, dazu die Nachwirkung des letzten Lockangebots.
 -- Grundlage ist die laufende Messung (Measure.lua, Fenster focusWindow). Bewegung zaehlt Ereignisse je Minute:
@@ -801,6 +891,7 @@ end
 
 function Q.OnSample(key, prev, s)
     if key == nil or type(s) ~= "table" or not Num(s.t) then return end
+    Q.Record(key, s)   -- ab 0.134: Verlauf fuer das Diagramm
     local sec = tonumber(mod.db.quickFollowSec) or 30
     local list = Q.baits[key] or {}
     for _, b in ipairs(list) do
@@ -845,6 +936,12 @@ function Q.AddDip(key, t, price, qty, ref)
     s.dips = (s.dips or 0) + 1
     if not Num(s.dipLow) or price < s.dipLow then s.dipLow = price end
     s.lastDip = { t = t, price = price, qty = qty, reg = ref }
+    if Num(t) then   -- ab 0.134: Strich im Diagramm
+        local list = Q.dipTimes[key] or {}
+        list[#list + 1] = t
+        while #list > Q.MARK_KEEP do table.remove(list, 1) end
+        Q.dipTimes[key] = list
+    end
     Q.Trace("dip price=%s qty=%s low=%s", price, qty, ref)
 end
 

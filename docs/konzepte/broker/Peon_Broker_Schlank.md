@@ -171,7 +171,8 @@ Jeder Schritt ist eine eigene Broker-Version und läuft in einer eigenen Session
 | **U7 Einstellungen** | Broker nach dem Leitfaden `Peon_Einstellungen_Leitfaden.md` | `Settings.lua`, `Options.lua` | mittel |
 
 - Reihenfolge: U0, dann U1 bis U6 in dieser Folge, U7 zum Schluss (wie im Leitfaden vorgesehen).
-- Stand: U0 in Broker 0.132.0, U1 in Broker 0.133.0. Abweichungen in U1 (Entscheidungsprotokoll 25.11.2026): Der Reiter der Einkaufslisten heißt schon ab U1 „Listen“, sonst gäbe es zwei Reiter „Einkaufen“. Die Goldreserve ist die vorhandene `radarReserve`. Die Menge aus der Einkaufsliste kommt mit U4.
+- Stand: U0 in Broker 0.132.0, U1 in Broker 0.133.0, U2 in Broker 0.134.0. Abweichungen in U1 (Entscheidungsprotokoll 25.11.2026): Der Reiter der Einkaufslisten heißt schon ab U1 „Listen“, sonst gäbe es zwei Reiter „Einkaufen“. Die Goldreserve ist die vorhandene `radarReserve`. Die Menge aus der Einkaufsliste kommt mit U4.
+- Abweichungen in U2 (Entscheidungsprotokoll 25.11.2026): Der Knopf für die Menge heißt kurz „Menge“, damit alle fünf Knöpfe in eine Zeile passen. Der Zeitraum steht oben rechts im Diagramm statt neben den Knöpfen. Fremde Lockangebote stehen blass neben den eigenen.
 - **Manager:** In der Seitenleiste des Managers (Konzept `Peon_Manager_Schlank.md`) heißt der Unterreiter unter Listen künftig „Einkaufslisten“ statt „Einkaufen“, damit die Namen zu Broker passen. Beobachten zeigt dort dieselben Spalten wie in 6.
 - Vorgemerkt, nicht Teil dieses Plans: Lockangebot in Teilen (4.2), Einstellen im Einkaufen aus Entwurf C.
 
