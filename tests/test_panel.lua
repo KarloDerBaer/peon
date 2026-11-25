@@ -172,6 +172,9 @@ local ns = loadToc("Peon_Panel", "Peon_Panel")
 fire("ADDON_LOADED", "Peon_Panel")
 local mod = ns.mod
 check(mod.initialized and mod.page, "Modul + Optionsseite")
+-- ab 0.5.0 nach dem Leitfaden: Allgemein mit der Liste der Eintraege, Anzeige, Erweitert
+check(mod.page.tabList and #mod.page.tabList == 3 and mod.page.tabList[2][1] == "display" and mod.page.tabList[3][1] == "advanced"
+  and mod.page.columns[1].tab == "general" and ns.SymbolControls and ns.SymbolControls.list, "drei Reiter, Liste der Eintraege auf Allgemein")
 -- Allgemeine Eintraege heraus, hier geht es um Leiste und Panel
 local INFO_COUNT = 0
 local function WithoutInfos(list)

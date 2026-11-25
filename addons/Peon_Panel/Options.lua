@@ -1,5 +1,5 @@
 -- Peon_Panel - Options.lua
--- Optionsseite: Reiter Allgemein (Leiste, Panel) und Symbole (je Modul: wo es erscheint, welcher Text).
+-- Optionsseite: Reiter Allgemein (Leiste, Panel, Liste der Eintraege), Anzeige und Erweitert (ab 0.5.0, Leitfaden).
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -165,58 +165,51 @@ local function AddSymbols(page, col)
                           setScope = function(v) scope = v; UpdateControls() end }
 end
 
+-- Seite (ab 0.5.0 mit den Reitern Allgemein, Anzeige, Erweitert nach dem Leitfaden fuer Einstellungen)
 function ns.CreateOptions()
     local mod = ns.mod
     if not mod or mod.page then return end
-    local page = mod:NewOptionsPage({ desc = L.DESC })
-    page:Tabs({ { "general", L.TAB_GENERAL }, { "symbols", L.TAB_SYMBOLS }, { "look", L.TAB_LOOK } }, -62)
+    local page = mod:NewOptionsPage({ desc = L.DESC, tipHints = true })   -- Hinweise als Tooltip (Kern-API 29)
+    page:Tabs({ { "general", L.TAB_GENERAL }, { "display", L.TAB_DISPLAY }, { "advanced", L.TAB_ADVANCED } }, -62)
 
+    -- Allgemein: Leiste und Panel an, Sichtbarkeit, darunter die Liste der Eintraege (eine Spalte, die Liste ist breit)
     local left = page:Column(16, -100, "general")
     page:Add(left, page:Header(L.HDR_BAR), 6)
-    page:Add(left, page:Check("barShow", L.BAR_SHOW), 6)
-    page:Add(left, page:Slider("barWidth", L.BAR_WIDTH, nil, " %"))
-    page:Add(left, page:Slider("barSize", L.SIZE))
-    page:Add(left, page:Check("barBg", L.BACKGROUND), 6)
-    page:Add(left, page:Check("barLabels", L.BAR_LABELS), 6)
-    page:Add(left, page:Slider("barRows", L.BAR_ROWS))
-    page:Add(left, page:Dropdown("barVis", L.VISIBILITY, Visibility(), L.VIS_FOLD_BAR_HINT))
+    page:Add(left, page:Check("barShow", L.BAR_SHOW, L.BAR_SHOW_HINT), 4)
+    page:Add(left, page:Dropdown("barVis", L.VISIBILITY, Visibility(), L.VIS_FOLD_BAR_HINT), 16)
+    page:Add(left, page:Header(L.HDR_BOX), 6)
+    page:Add(left, page:Check("boxShow", L.BOX_SHOW, L.BOX_SHOW_HINT), 4)
+    page:Add(left, page:Check("boxLocked", L.BOX_LOCKED, L.BOX_LOCKED_HINT), 4)
+    page:Add(left, page:Dropdown("boxVis", L.VISIBILITY, Visibility(), L.VIS_FOLD_HINT), 16)
+    page:Add(left, page:Header(L.HDR_ENTRIES), 6)
+    page:Add(left, page:Text(function() return L.SYM_HINT end), 8)
+    AddSymbols(page, left)
 
-    local right = page:Column(330, -100, "general")
-    page:Add(right, page:Header(L.HDR_BOX), 6)
-    page:Add(right, page:Check("boxShow", L.BOX_SHOW), 6)
-    page:Add(right, page:Slider("boxCols", L.BOX_COLS))
-    page:Add(right, page:Slider("boxSize", L.SIZE))
-    page:Add(right, page:Check("boxBg", L.BACKGROUND), 6)
-    page:Add(right, page:Check("boxLocked", L.BOX_LOCKED), 6)
-    page:Add(right, page:Check("boxLabels", L.BOX_LABELS), 6)
-    page:Add(right, page:Dropdown("boxLayout", L.BOX_LAYOUT, { { "below", L.LAYOUT_BELOW }, { "right", L.LAYOUT_RIGHT } }))
-    page:Add(right, page:Dropdown("boxVis", L.VISIBILITY, Visibility(), L.VIS_FOLD_HINT))
-    page:Add(right, page:Dropdown("boxFoldDir", L.BOX_FOLD_DIR, {
-        { "down", L.DIR_DOWN }, { "up", L.DIR_UP }, { "right", L.DIR_RIGHT }, { "left", L.DIR_LEFT } }))
-    page:Add(right, page:Button(L.BOX_RESET, function()
-        wipe(mod.db.boxPos)
-        ns.ApplyAll()
-        mod:Print(L.MSG_BOX_RESET)
-    end))
+    -- Anzeige: Groesse, Hintergrund und Beschriftung, Stil, Farben, Schrift, Symbole
+    local look = page:Column(16, -100, "display")
+    page:Add(look, page:Header(L.HDR_BAR), 6)
+    page:Add(look, page:Slider("barWidth", L.BAR_WIDTH, nil, " %"))
+    page:Add(look, page:Slider("barSize", L.SIZE))
+    page:Add(look, page:Slider("barRows", L.BAR_ROWS))
+    page:Add(look, page:Check("barBg", L.BACKGROUND, L.BAR_BG_HINT), 4)
+    page:Add(look, page:Check("barLabels", L.BAR_LABELS, L.BAR_LABELS_HINT), 16)
+    page:Add(look, page:Header(L.HDR_BOX), 6)
+    page:Add(look, page:Slider("boxCols", L.BOX_COLS))
+    page:Add(look, page:Slider("boxSize", L.SIZE))
+    page:Add(look, page:Check("boxBg", L.BACKGROUND, L.BOX_BG_HINT), 4)
+    page:Add(look, page:Check("boxLabels", L.BOX_LABELS, L.BOX_LABELS_HINT), 6)
+    page:Add(look, page:Dropdown("boxLayout", L.BOX_LAYOUT, { { "below", L.LAYOUT_BELOW }, { "right", L.LAYOUT_RIGHT } }, L.BOX_LAYOUT_HINT))
+    page:Add(look, page:Dropdown("boxFoldDir", L.BOX_FOLD_DIR, {
+        { "down", L.DIR_DOWN }, { "up", L.DIR_UP }, { "right", L.DIR_RIGHT }, { "left", L.DIR_LEFT } }, L.BOX_FOLD_DIR_HINT))
 
-    local symbols = page:Column(16, -100, "symbols")
-    page:Add(symbols, page:Text(function() return L.SYM_HINT end), 8)
-    AddSymbols(page, symbols)
-
-    local look = page:Column(16, -100, "look")
-    page:Add(look, page:Header(L.HDR_LOOK), 6)
-    page:Add(look, page:Dropdown("style", L.STYLE, {
+    local lookRight = page:Column(330, -100, "display")
+    page:Add(lookRight, page:Header(L.HDR_LOOK), 6)
+    page:Add(lookRight, page:Dropdown("style", L.STYLE, {
         { "tooltipDark", L.STYLE_TOOLTIPDARK }, { "tooltip", L.STYLE_TOOLTIP }, { "metal", L.STYLE_METAL },
         { "dialog", L.STYLE_DIALOG }, { "wood", L.STYLE_WOOD }, { "plain", L.STYLE_PLAIN },
     }, L.STYLE_HINT))
-    page:Add(look, page:Color("bgColor", L.BG_COLOR, true), 6)
-    page:Add(look, page:Color("lineColor", L.LINE_COLOR, true), 6)
-    page:Add(look, page:Header(L.HDR_BAR_LOOK), 6)
-    page:Add(look, page:Slider("barHeight", L.BAR_HEIGHT))
-    page:Add(look, page:Slider("barGap", L.BAR_GAP))
-    page:Add(look, page:Check("barSeps", L.BAR_SEPS), 6)
-
-    local lookRight = page:Column(330, -100, "look")
+    page:Add(lookRight, page:Color("bgColor", L.BG_COLOR, true), 6)
+    page:Add(lookRight, page:Color("lineColor", L.LINE_COLOR, true), 16)
     page:Add(lookRight, page:Header(L.HDR_FONT), 6)
     page:Add(lookRight, page:Dropdown("fontFace", L.FONT_FACE, {
         { "default", L.FONT_DEFAULT }, { "friz", L.FONT_FRIZ }, { "arial", L.FONT_ARIAL },
@@ -227,13 +220,27 @@ function ns.CreateOptions()
         { "none", L.FONT_NONE }, { "shadow", L.FONT_SHADOW }, { "outline", L.FONT_OUTLINE },
     }))
     page:Add(lookRight, page:Color("labelColor", L.LABEL_COLOR, false), 6)
-    page:Add(lookRight, page:Color("valueColor", L.VALUE_COLOR, false), 6)
+    page:Add(lookRight, page:Color("valueColor", L.VALUE_COLOR, false), 16)
     page:Add(lookRight, page:Header(L.HDR_SYMBOLS), 6)
-    page:Add(lookRight, page:Check("iconBorder", L.ICON_BORDER), 6)
+    page:Add(lookRight, page:Check("iconBorder", L.ICON_BORDER, L.ICON_BORDER_HINT), 6)
     page:Add(lookRight, page:Dropdown("highlight", L.HIGHLIGHT, {
         { "soft", L.HL_SOFT }, { "glow", L.HL_GLOW }, { "none", L.HL_NONE },
-    }))
+    }, L.HIGHLIGHT_HINT))
 
-    page:AddResetButton(L.SLASH_HINT, left, right, symbols, look, lookRight)
+    -- Erweitert: Feinwerte der Leiste, Position des Panels
+    local adv = page:Column(16, -100, "advanced")
+    page:Add(adv, page:Text(function() return L.ADVANCED_NOTE end), 12)
+    page:Add(adv, page:Header(L.HDR_BAR_LOOK), 6)
+    page:Add(adv, page:Slider("barHeight", L.BAR_HEIGHT))
+    page:Add(adv, page:Slider("barGap", L.BAR_GAP))
+    page:Add(adv, page:Check("barSeps", L.BAR_SEPS, L.BAR_SEPS_HINT), 16)
+    page:Add(adv, page:Header(L.HDR_BOX), 6)
+    page:Add(adv, page:Button(L.BOX_RESET, function()
+        wipe(mod.db.boxPos)
+        ns.ApplyAll()
+        mod:Print(L.MSG_BOX_RESET)
+    end, L.BOX_RESET_HINT))
+
+    page:AddResetButton(L.SLASH_HINT, left, look, lookRight, adv)
     page:Register()
 end

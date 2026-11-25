@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.5.0
+
+Kurz: Die Einstellungen haben jetzt die Reiter Allgemein, Anzeige und Erweitert. Die Liste der Einträge steht auf Allgemein, Erklärungen im Tooltip.
+
+- 0.5.0 (25.11.2026, Leitfaden für Einstellungen, Aufteilung von KarloDerBaer freigegeben):
+  - **Geändert:** Reiter Allgemein (Leiste und Panel an oder aus, Panel sperren, Sichtbarkeit, darunter die Liste der Einträge, bisher Reiter Symbole), Anzeige (Breite, Größe, Zeilen und Spalten, Hintergrund, Beschriftung, Anordnung, Aufklapprichtung, Stil, Farben, Schrift, Symbole) und Erweitert (Höhe und Abstand der Leiste, Trennstriche, Position des Panels zurücksetzen). Gespeicherte Werte und ihre Namen bleiben gleich.
+  - **Geändert:** Jeder Schalter hat einen Satz als Tooltip statt Text darunter (Kern-API 29).
+  - Tests: `test_panel.lua` (drei Reiter, Liste auf Allgemein).
+
 ## 0.4.1
 
 Kurz: Warhorn erscheint nicht mehr von selbst auf Leiste und Panel. Du kannst es dort anhaken.

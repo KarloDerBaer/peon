@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 25.11.2026. Peon 0.29.0 (API 29) / Broker 0.133.0 / Ledger 0.18.0 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.7.5 / ClassBuddy 0.4.1 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.4.1 / Profession 0.8.0 / Warhorn 0.6.0.
+Stand: 25.11.2026. Peon 0.29.0 (API 29) / Broker 0.133.0 / Ledger 0.18.0 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.7.5 / ClassBuddy 0.4.1 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.5.0 / Profession 0.8.0 / Warhorn 0.6.0.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -126,12 +126,13 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - SavedVariables `PeonMoverDB` (Konto): `enabled`, `frames[Fenstername] = { x, y, s, off }` (bleibt bei „Standardwerte“).
 - Befehle: `/peon mover`, `/peon mover zuruecksetzen`, `/peon debug mover`.
 
-## Peon_Panel – 0.4.1 (Leiste und Panel)
+## Peon_Panel – 0.5.0 (Leiste und Panel)
 
 - Dateien: Locales.lua, Panel.lua, Skin.lua, Display.lua, Menu.lua, Info.lua, InfoXP.lua, InfoPlace.lua, InfoSystem.lua, InfoSocial.lua, Options.lua, `Media\corner_fill.tga` und `corner_line.tga` (aus `scripts\panel_media.js`). Konzept `docs\konzepte\panel\Peon_Panel_Konzept.md`.
 - SavedVariables `PeonPanelDB` (Konto): Aussehen der Leiste (`bar…`) und des Panels (`box…`), `style`, Schrift und Farben, `entries[Starter] = { bar, box, text, side, show }`, `barOrder`, `boxOrder`, `known`, `hintShown`, `xpLog`, `session`.
 - Allgemeine Einträge: XP, XP pro Stunde, Zeit bis Level-Up, Zone, Koordinaten, Haltbarkeit, Uhr, Leistung, Spielzeit, Lautstärke, Freunde, Gilde, Ruf, Reset-Zeiten.
 - Braucht Peon API 15. Module melden sich als Starter (`mod:NewLauncher`).
+- Optionsseite (ab 0.5.0, Leitfaden für Einstellungen): Reiter Allgemein mit der Liste der Einträge, Anzeige, Erweitert.
 - Befehle: `/peon panel`, `/peon debug panel`.
 
 ## Peon_Bags – 0.9.0 (Taschen, Bank, Gildenbank)
