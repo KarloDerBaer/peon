@@ -557,6 +557,7 @@ end
 -- Das Auktionshaus schliesst: Reiter zu, Stelle merken (dort oeffnet unterwegs das Broker-Fenster)
 function T.OnAHHide()
     T.Close()
+    if ns.Side then mod:Call("Seitenleiste", ns.Side.OnHostHide, AHFrame()) end   -- ab 0.137 (U5)
     local f = AHFrame()
     if f and f.GetLeft and f.GetTop then
         local x, y = f:GetLeft(), f:GetTop()

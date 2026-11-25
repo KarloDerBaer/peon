@@ -69,6 +69,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
         focusBuyout  = false,   -- ab 0.133 (U1): Modus Aufkauf im Einkaufen (Einstellungen, Erweitert), sonst nur Schnellkauf
         foldBait     = false,   -- ab 0.133: Bereich Lockangebot im Einkaufen aufgeklappt
         chartRange   = 5,       -- ab 0.134 (U2): Zeitraum des Diagramms im Einkaufen in Minuten (5, 15, 60)
+        sideOpen     = true,    -- ab 0.137 (U5): Seitenleiste aufgeklappt
+        sideTab      = "watch", -- ab 0.137 (U5): Reiter der Seitenleiste (watch, list)
         chartMin     = true,    -- ab 0.134: Linien im Diagramm des Einkaufens (fuer alle Gegenstaende): Guenstigster,
         chartLimit   = true,    --   Kaufen bis,
         chartUnder   = true,    --   Menge darunter,
@@ -151,6 +153,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
     choices  = { undercutMode = { copper = true, percent = true }, undercutMassMode = { copper = true, percent = true },
                  duration = { [2] = true, [8] = true, [24] = true },
                  chartRange = { [5] = true, [15] = true, [60] = true },   -- ab 0.134
+                 sideTab = { watch = true, list = true },   -- ab 0.137
                  radarKind = { both = true, vendor = true, market = true },
                  radarScanMode = { watch = true, mass = true, all = true },
                  radarSoundKey = { raid = true, ready = true, alarm = true, tell = true, coin = true, levelup = true, queue = true, ping = true, boss = true, auction = true },
@@ -693,6 +696,7 @@ mod:On("INIT", function()
     if ns.Lots then mod:Call("Posten", ns.Lots.Init) end   -- ab 0.67 (H3)
     if ns.Quick then mod:Call("Schnellkauf", ns.Quick.Init) end   -- ab 0.104
     if ns.QuickStats then mod:Call("Beobachten", ns.QuickStats.Init) end   -- ab 0.135 (U3): Sitzung am Auktionshaus
+    if ns.Side then mod:Call("Seitenleiste", ns.Side.Init) end   -- ab 0.137 (U5)
     if ns.SellVariant then mod:Call("Varianten", ns.SellVariant.Init) end   -- ab 0.98
     mod:Call("Sprung", ns.Go.InitMarket)   -- ab 0.73: sicherer Knopf Im Markt zeigen
     -- ab 0.95: Berufsfenster in Peon_Profession (Craft.lua dort)

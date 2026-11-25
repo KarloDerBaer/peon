@@ -11,6 +11,14 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Verkauf in der Auktionsliste bucht nichts mehr** (KarloDerBaer): Nur die Post bucht, die Liste dient der Anzeige. Die frühe Meldung und die spätere Rechnung passten nicht immer zusammen (118 Dickes Leder). Gemerkt wird der Verkauf nur noch, damit ein Brief ohne geladene Rechnung seine Menge bekommt.
 - **Alte Fälle einmal korrigieren** (Claude): Abweichungen minus nach dem Einstellen, deren Ware danach verkauft wurde, werden zu „Auktion (korrigiert)“. Die Bewegungen bleiben, nur ihre Art ändert sich, die Kosten rechnet Ledger neu.
 
+## 25.11.2026: Broker schlank, Schritt U5 Seitenleiste (Broker 0.137.0)
+
+- **Immer am Auktionshaus** (KarloDerBaer, auf Rückfrage von Claude): Die Leiste hängt auch in Blizzards Kaufen, Verkaufen und Auktionen. Ein Klick wechselt ins Einkaufen.
+- **Vorgabe offen** (KarloDerBaer): Danach merkt Broker den Zustand des Griffs.
+- **Dieselbe Liste wie im Reiter Listen** (Claude): Die Auswahl unter Liste setzt `char.listSel`, so zeigen Leiste und Listen immer dieselbe Einkaufsliste.
+- **Griff außen an der Leiste** (Claude): Aufgeklappt sitzt er am rechten Rand der Leiste, zugeklappt am Rand des Fensters. Der Pfeil zeigt, wohin der Klick klappt.
+- **Klick wie im Reiter** (Claude): Aus Beobachten wie der Doppelklick in Beobachten, aus der Liste wie der Doppelklick in Listen mit der Menge, die noch fehlt.
+
 ## 25.11.2026: Broker schlank, Schritt U4 Einkaufsliste (Broker 0.136.0)
 
 - **Fehlt mit Vorrat und unterwegs** (KarloDerBaer, auf Rückfrage von Claude): Fehlt = Brauche minus Vorrat minus Gekauftes, das noch nicht in Taschen oder Bank ist. Das Konzept sah Brauche minus Gekauftes vor. Dann hätten die Listen aus Peon_Profession zu viel gekauft, weil Profession die ganze Menge schickt und Broker den Vorrat abzieht.

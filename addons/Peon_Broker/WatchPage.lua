@@ -454,6 +454,7 @@ end
 
 function P.Refresh()
     P.UpdateBadge()
+    if ns.Side and ns.Side.Tab() == "watch" then ns.Side.Refresh() end   -- ab 0.137 (U5)
     if not P.list then return end
     if P.Shown() and ns.Radar and ns.Radar.Wake then ns.Radar.Wake() end   -- ab 0.83: laufend abfragen
     if P.live then P.live:SetText(P.LiveText()) end

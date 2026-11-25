@@ -332,7 +332,7 @@ function B.OnPurchase(id, qty)
         end
     end
     if booked > 0 then
-        if B.view then B.Refresh() else B.UpdateBadge() end
+        if B.view then B.Refresh() else B.UpdateBadge(); if ns.Side then ns.Side.Refresh() end end
     end
     return booked
 end
@@ -959,6 +959,7 @@ end
 -- Anzeige
 ---------------------------------------------------------------------------
 function B.Refresh()
+    if ns.Side and ns.Side.Tab() == "list" then ns.Side.Refresh() end   -- ab 0.137 (U5)
     if not B.view then return end
     local names = {}
     for i, l in ipairs(B.Lists()) do

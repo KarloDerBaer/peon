@@ -1479,6 +1479,13 @@ L.BUY_TIP_VENDOR    = "Vendor: %s"
 L.BUY_TIP_DONE      = "Done. The row stays until you delete it."
 L.BUY_TIP_DOUBLE    = "Double click: open in shopping with the quantity still missing."
 
+-- ab 0.137 (U5): Seitenleiste
+L.SIDE_TITLE        = "Side bar"
+L.SIDE_TAB_LIST     = "List"
+L.SIDE_GRIP_OPEN    = "Click: open the side bar with watch and shopping list."
+L.SIDE_GRIP_CLOSE   = "Click: close the side bar."
+L.SIDE_WATCH_EMPTY  = "Nothing watched yet."
+
 if GetLocale() == "deDE" then
     -- ab 0.106: Schnellkauf mit Max. Menge, Beobachten je Modus
     L.QUICK_MAXQTY     = "Max. Menge"
@@ -2916,4 +2923,10 @@ if GetLocale() == "deDE" then
     L.BUY_TIP_VENDOR    = "Händler: %s"
     L.BUY_TIP_DONE      = "Erledigt. Die Zeile bleibt, bis du sie löschst."
     L.BUY_TIP_DOUBLE    = "Doppelklick: im Einkaufen öffnen, mit der Menge, die noch fehlt."
+    -- ab 0.137 (U5): Seitenleiste
+    L.SIDE_TITLE        = "Seitenleiste"
+    L.SIDE_TAB_LIST     = "Liste"
+    L.SIDE_GRIP_OPEN    = "Klick: Seitenleiste mit Beobachten und Einkaufsliste aufklappen."
+    L.SIDE_GRIP_CLOSE   = "Klick: Seitenleiste zuklappen."
+    L.SIDE_WATCH_EMPTY  = "Noch nichts beobachtet."
 end

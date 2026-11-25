@@ -158,8 +158,15 @@ function W.Create()
     W.status = W.NewStatus(f)
     W.back = W.NewBack(f, f)
 
-    f:SetScript("OnShow", function() mod:Call("Fenster", W.Refresh) end)
-    f:SetScript("OnHide", function() W.Leave(nil) end)
+    -- ab 0.137 (U5): Seitenleiste rechts am Fenster (Side.lua)
+    f:SetScript("OnShow", function(self)
+        mod:Call("Fenster", W.Refresh)
+        if ns.Side then mod:Call("Seitenleiste", ns.Side.OnWindowShow, self) end
+    end)
+    f:SetScript("OnHide", function(self)
+        W.Leave(nil)
+        if ns.Side then mod:Call("Seitenleiste", ns.Side.OnHostHide, self) end
+    end)
     W.frame = f
     if W.ApplyBadges then W.ApplyBadges() end
     return f

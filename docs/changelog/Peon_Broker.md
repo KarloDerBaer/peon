@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.137.0
+
+Kurz: Rechts am Broker-Fenster und am Auktionshaus hängt eine Seitenleiste mit deinen beobachteten Gegenständen und deiner Einkaufsliste. Ein Klick setzt den Gegenstand ins Einkaufen.
+Kurz: Über den Griff klappst du die Leiste auf und zu, Broker merkt sich den Zustand.
+
+- 0.137.0 (25.11.2026, Schritt U5 aus dem Konzept `Peon_Broker_Schlank.md`, Abschnitt 5):
+  - **Neu, Seitenleiste** (`Side.lua`): 180 Punkte breit, rechts außen am Broker-Fenster und immer am Auktionshaus, auch in Blizzards Kaufen, Verkaufen und Auktionen (KarloDerBaer 25.11.2026). Blizzards Fenster wird nicht verändert.
+  - **Neu, Griff:** klappt die Leiste auf und zu (`sideOpen`, Vorgabe offen).
+  - **Neu, Reiter Beobachten und Liste** (`sideTab`): je Zeile Symbol und Name, nach Namen sortiert. Unter Liste die Auswahl der Einkaufsliste, dieselbe wie im Reiter Listen. Der Gegenstand im Einkaufen ist hervorgehoben, Erledigtes aus der Liste grau.
+  - **Neu, Klick:** setzt den Gegenstand ins Einkaufen. Aus der Liste steht die Menge auf dem, was noch fehlt (wie der Doppelklick in Listen). Rechtsklick öffnet das übliche Menü, die Maus über einer Zeile zeigt den Tooltip des Gegenstands.
+  - Tests: `test_broker.lua`.
+
 ## 0.136.0
 
 Kurz: Einkaufslisten ziehen jeden Kauf sofort ab, auch Käufe über Blizzards Kaufen. Was gekauft ist, aber noch in der Post liegt, zählt schon mit.

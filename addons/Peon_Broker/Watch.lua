@@ -97,6 +97,7 @@ function Wt.Add(key, info)
     st[key] = w
     mod:Print(L.WATCH_ADDED:format(w.name or tostring(key)))
     Wt.Check({ key })
+    if ns.Side then ns.Side.Refresh() end   -- ab 0.137 (U5)
     return true
 end
 
@@ -105,6 +106,7 @@ function Wt.Remove(key)
     if not st[key] then return false end
     Wt.Gone()[key] = NextU(st[key].u)
     st[key] = nil
+    if ns.Side then ns.Side.Refresh() end   -- ab 0.137 (U5)
     return true
 end
 

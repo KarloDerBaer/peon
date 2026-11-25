@@ -6631,4 +6631,69 @@ end)()
   ns.Stock.Counts, mod.char.listSel, mod.acc.lists = keepCounts, keepSel, keepLists
 end)()
 
+-- ===== 0.137 (U5): Seitenleiste mit Beobachten und Liste =====
+;(function()
+  local S, B, Wt = ns.Side, ns.Buy, ns.Watch
+  local keepOpen, keepTab, keepSel, keepLists = mod.db.sideOpen, mod.db.sideTab, mod.char.listSel, mod.acc.lists
+  local keepAH, keepFocusKey, keepAHOpen = rawget(_G, "AuctionHouseFrame"), ns.Focus.key, ns.Scan.ahOpen
+  local keepCounts = ns.Stock.Counts
+  ns.Stock.Counts = function() return 0, 0, 0, 0 end
+  check(mod.db.sideOpen == true and mod.db.sideTab == "watch", "0.137: Vorgabe Leiste offen, Reiter Beobachten")
+  ns.Scan.ahOpen = false
+  Wt.Add(7811, { name = "Zeta-Erz" })
+  Wt.Add(7812, { name = "Alpha-Erz" })
+  Win.Open("watch")
+  check(S.host == Win.frame and S.Shown() and S.grip:IsShown(), "0.137: Leiste haengt unterwegs am Broker-Fenster")
+  local names = {}
+  for _, r in ipairs(S.rows or {}) do if r.key == 7811 or r.key == 7812 then names[#names + 1] = r.name end end
+  check(table.concat(names, ",") == "Alpha-Erz,Zeta-Erz", "0.137: Beobachten nach Namen: " .. table.concat(names, ","))
+  -- zuklappen und wieder auf, der Griff bleibt
+  S.grip.scripts.OnClick(S.grip)
+  check(mod.db.sideOpen == false and not S.Shown() and S.grip:IsShown(), "0.137: Griff klappt zu, Zustand gemerkt")
+  S.grip.scripts.OnClick(S.grip)
+  check(mod.db.sideOpen == true and S.Shown(), "0.137: Griff klappt wieder auf")
+  -- hervorgehoben: Gegenstand im Einkaufen
+  ns.Focus.key = 7812
+  check(S.IsCurrent({ key = 7812 }) and not S.IsCurrent({ key = 7811 }), "0.137: Gegenstand im Einkaufen hervorgehoben")
+  -- Klick: ins Einkaufen, Rechtsklick: Menue
+  local went, menu
+  local keepFocus, keepMenu = ns.Go.Focus, ns.Go.Menu
+  ns.Go.Focus = function(item) went = item; return true end
+  ns.Go.Menu = function(item) menu = item; return true end
+  S.OnClick({ key = 7811, name = "Zeta-Erz" }, "LeftButton")
+  check(went and went.key == 7811 and went.from == "watch", "0.137: Klick setzt den Gegenstand ins Einkaufen")
+  S.OnClick({ key = 7811, name = "Zeta-Erz" }, "RightButton")
+  check(menu and menu.key == 7811, "0.137: Rechtsklick oeffnet das Menue")
+  -- Reiter Liste: gewaehlte Einkaufsliste, Erledigtes grau, Klick mit der fehlenden Menge
+  mod.acc.lists = { { id = "sL", name = "Seitenliste", pct = 10, u = 1, items = {
+      [7813] = { wish = 5, name = "Offenes Erz", u = 1 }, [7814] = { wish = 5, name = "Fertiges Erz", u = 1, way = { q = 5, base = 0, t = time() } } } } }
+  mod.char.listSel = 1
+  S.tabs:Select("list")
+  check(mod.db.sideTab == "list" and S.listDrop:IsShown() and #S.rows == 2, "0.137: Reiter Liste mit Auswahl der Einkaufsliste")
+  local done = {}
+  for _, r in ipairs(S.rows) do done[r.key] = r.done end
+  check(done[7814] == true and done[7813] == false, "0.137: Erledigtes grau")
+  went = nil
+  S.OnClick(S.rows[1], "LeftButton")
+  check(went and went.from == "list" and went.list == "sL", "0.137: Klick aus der Liste mit der fehlenden Menge (wie Doppelklick in Listen)")
+  ns.Go.Focus, ns.Go.Menu = keepFocus, keepMenu
+  -- Auktionshaus: Leiste wandert dorthin, beim Schliessen zurueck ans Fenster
+  local ah = CreateFrame("Frame", "PeonTestAH")
+  ah:Show()
+  AuctionHouseFrame = ah
+  S.OnAHShow()
+  check(S.host == ah and S.Shown(), "0.137: am Auktionshaus haengt die Leiste dort")
+  ah:Hide()
+  S.OnHostHide(ah)
+  check(S.host == Win.frame, "0.137: Auktionshaus zu, Leiste wieder am offenen Fenster")
+  Win.frame:Hide()
+  if Win.frame.scripts.OnHide then Win.frame.scripts.OnHide(Win.frame) end
+  check(not S.Shown() and not S.grip:IsShown(), "0.137: Fenster zu, Leiste und Griff weg")
+  -- aufraeumen
+  Wt.Remove(7811); Wt.Remove(7812)
+  AuctionHouseFrame = keepAH
+  ns.Focus.key, ns.Scan.ahOpen, ns.Stock.Counts = keepFocusKey, keepAHOpen, keepCounts
+  mod.db.sideOpen, mod.db.sideTab, mod.char.listSel, mod.acc.lists = keepOpen, keepTab, keepSel, keepLists
+end)()
+
 print("ALLE TESTS OK")

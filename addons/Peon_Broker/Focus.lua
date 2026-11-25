@@ -1671,10 +1671,12 @@ function F.Set(key)
         F.ClearInput()
         if ns.Quick then ns.Quick.OnNewKey() end   -- ab 0.104
     end
+    local changed = F.key ~= key
     F.key = key
     mod.acc.focusKey = key
     if AHOpen() and F.Shown() then ns.Radar.SetFocus(key) end
     F.Update()
+    if changed and ns.Side then ns.Side.Refresh() end   -- ab 0.137 (U5): Hervorhebung in der Seitenleiste
 end
 
 -- Seite geoeffnet: am Auktionator den Gegenstand abfragen
