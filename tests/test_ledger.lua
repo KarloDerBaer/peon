@@ -2220,6 +2220,22 @@ do
   local z = ns.Cost.Result(inv)
   check(z and z.sale and z.lootShare == 0 and math.abs(z.profit - 22300) < 0.01,
     "0.18.1: Gewinn mit den Kosten aller 223 Stueck (Liste und Rechnung zusammen)")
+  -- abgebrochene Auktion kommt per Post, Betreff noch nicht geladen, offener Schnellkauf desselben Gegenstands
+  local Mv = ns.Moves
+  realm.moves = { { t = time() - 10, c = ns.CharName(), k = "ahbuy", id = 7700, m = -500, q = 20 } }
+  local letter = { ah = true, subject = "Rufe Daten ab", items = { [7700] = 20 } }
+  check(Mv.LetterKind(letter, 7700, 20) == "won", "0.18.1: ohne gemerkten Abbruch gilt der Brief weiter als Kauf")
+  ns.Inventory.auctionItems = ns.Inventory.auctionItems or {}
+  ns.Inventory.auctionQty = ns.Inventory.auctionQty or {}
+  ns.Inventory.auctionItems[555], ns.Inventory.auctionQty[555] = 7700, 40
+  fire("AUCTION_CANCELED", 555)
+  check(Mv.PendingCancel(7700) == 40 and Mv.LetterKind(letter, 7700, 20) == "return",
+    "0.18.1: Abbruch mit Menge gemerkt, der Brief ist eine zurueckgekommene Auktion")
+  check(Mv.UseCancel(7700, 20) == 20 and Mv.PendingCancel(7700) == 20 and Mv.UseCancel(7700, 50) == 20 and Mv.PendingCancel(7700) == 0
+    and not ns.Inventory.Char().cancels, "0.18.1: zurueckgekommene Ware verbraucht den Abbruch")
+  check(Mv.LetterKind({ ah = true, subject = "Auktion gewonnen: X", items = { [7700] = 5 } }, 7700, 5) == "won"
+    and Mv.LetterKind({ ah = true, subject = "Auktion abgebrochen: X", items = { [7700] = 5 } }, 7700, 5) == "return",
+    "0.18.1: geladener Betreff entscheidet wie bisher")
   me.start, me.places.bags = keepS, keepBags
   me.places.auctions = { t = 1, items = {} }
 end

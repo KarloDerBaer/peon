@@ -374,12 +374,48 @@ function M.LetterKind(l, id, net)
         if k == "won" or k == "sold" or k == "outbid" then return k end
         if k == "expired" or k == "cancelled" then return "return" end
         if next(l.items or {}) then
+            -- ab 0.18.1: erst ein gemerkter Abbruch dieses Gegenstands, dann ein offener Kauf. Vorher gewann der
+            -- Kauf: Beim Schnellkauf gibt es fast immer offene Kaeufe, zurueckgekommene Ware zaehlte als gekauft.
+            if id and M.PendingCancel(id) > 0 then return "return" end
             if id and M.FindPurchase(id, math.max(1, net or 1), l) then return "won" end
             return "return"
         end
         return "ah"
     end
     return "mail"
+end
+
+-- Abgebrochene Auktionen (ab 0.18.1): Gegenstand und Menge je Charakter merken, bis die Ware per Post zurueck ist.
+-- c.cancels[itemID] = { n = Stueck, t = Zeit des letzten Abbruchs }. Unbekannte Menge zaehlt als ein Stapel (20).
+M.CANCEL_DAYS = 31   -- so lange liegt ein Brief im Postfach
+function M.AddCancel(id, n)
+    if not Num(id) then return end
+    local c = ns.Inventory.Char()
+    if type(c.cancels) ~= "table" then c.cancels = {} end
+    local p = c.cancels[id]
+    if type(p) ~= "table" then p = { n = 0 }; c.cancels[id] = p end
+    p.n = (Num(p.n) and p.n or 0) + ((Num(n) and n > 0) and n or 20)
+    p.t = time()
+end
+
+function M.PendingCancel(id)
+    local c = ns.Inventory.Char()
+    local p = type(c.cancels) == "table" and c.cancels[id]
+    if type(p) ~= "table" or not Num(p.n) or p.n <= 0 then return 0 end
+    if Num(p.t) and time() - p.t > M.CANCEL_DAYS * 86400 then c.cancels[id] = nil; return 0 end
+    return p.n
+end
+
+-- n Stueck zurueckgekommen: gemerkten Abbruch verringern. Rueckgabe: davon aus einem Abbruch
+function M.UseCancel(id, n)
+    local have = M.PendingCancel(id)
+    if have <= 0 or not Num(n) or n <= 0 then return 0 end
+    local k = math.min(have, n)
+    local c = ns.Inventory.Char()
+    c.cancels[id].n = have - k
+    if c.cancels[id].n <= 0 then c.cancels[id] = nil end
+    if not next(c.cancels) then c.cancels = nil end
+    return k
 end
 
 -- Aus der Post genommen (mitgelesen): Warteschlange, damit bei "Alle öffnen" jeder Betrag/Gegenstand
@@ -601,6 +637,9 @@ function M.ItemReason(id, net, d)
     end
     if M.IsOpen("auction") then
         if net < 0 and R("posted", 15) then return "posted" end
+        -- ab 0.18.1: In Forever kommt alles ausser dem Einstellen per Post (Kauf, Abbruch, Erloes, KarloDerBaer).
+        -- Ein Zugang am Auktionshaus ist also Post, deren Brief nicht gefunden wurde: gemerkter Abbruch geht vor.
+        if net > 0 and M.PendingCancel(id) > 0 then return nil, "ahreturn", nil end
         if net > 0 then return "ahbuy" end
     end
     if R("craft", 15) or (M.IsOpen("skill") and R("cast", 3)) then
@@ -925,6 +964,8 @@ function M.Flush()
                 ns.Inventory.RemoveFromPlace(ns.Inventory.Char(), "auctions", id, net)
                 M.PreReturn(id, net)
                 local why = letter and M.AHLetterKind(letter.subject)
+                -- ab 0.18.1: Abbruch verbrauchen, auch ohne geladenen Betreff (dann als abgebrochen beschriftet)
+                if why ~= "expired" and M.UseCancel(id, net) > 0 and not why then why = "cancelled" end
                 M.Add("ahreturn", id, net, nil, why == "cancelled" and L.MV_X_CANCEL or (why == "expired" and L.MV_X_EXPIRED or nil))
             elseif k == "posted" then
                 local pe = M.Add("posted", id, net)
@@ -1155,7 +1196,11 @@ function M.InitEvents()
     end)
     Ev("AUCTION_CANCELED", function(_, auctionID)
         local map = ns.Inventory.auctionItems
-        M.Note("cancel", { id = map and Num(auctionID) and map[auctionID] or nil })
+        local id = map and Num(auctionID) and map[auctionID] or nil
+        M.Note("cancel", { id = id })
+        -- ab 0.18.1: fuer den Brief mit der Ware merken (Menge aus der zuletzt gelesenen Auktionsliste)
+        local qty = ns.Inventory.auctionQty and Num(auctionID) and ns.Inventory.auctionQty[auctionID] or nil
+        if id then M.AddCancel(id, qty) end
     end)
     Ev("COMMODITY_PURCHASE_SUCCEEDED", function() M.Note("ahpurchase") end)
     -- ab 0.17.3: Gesamtpreis des gestarteten Kaufs merken, ein gescheiterter Kauf verlaesst die Warteschlange

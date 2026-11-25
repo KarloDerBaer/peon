@@ -498,10 +498,14 @@ function I.ScanAuctions()
     if not ok or not Num(n) then return end
     local items, active, sold, soldItems, soldGross = {}, 0, 0, {}, {}
     I.auctionItems = I.auctionItems or {}   -- auctionID -> itemID (ab 0.7: Abbruchkosten dem Gegenstand zurechnen)
+    I.auctionQty = I.auctionQty or {}       -- auctionID -> Stueck (ab 0.18.1: Abbruch fuer den Brief merken)
     for i = 1, n do
         local oki, a = pcall(ah.GetOwnedAuctionInfo, i)
         if oki and type(a) == "table" and type(a.itemKey) == "table" and Num(a.itemKey.itemID) then
-            if Num(a.auctionID) then I.auctionItems[a.auctionID] = a.itemKey.itemID end
+            if Num(a.auctionID) then
+                I.auctionItems[a.auctionID] = a.itemKey.itemID
+                I.auctionQty[a.auctionID] = Num(a.quantity) and a.quantity or 1
+            end
             if a.status == 1 then
                 sold = sold + 1
                 local id = a.itemKey.itemID

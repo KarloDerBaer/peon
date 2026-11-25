@@ -7,6 +7,7 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 
 - **Für Kosten und Handelsgewinn zählen nur Einstellen und Post** (KarloDerBaer fragte, wozu die Liste nötig ist): Was im Auktionshaus liegt, folgt aus eingestellt, zurück und verkauft. Die Liste des Spiels kam nach dem Einstellen teils ohne die neue Auktion. Dann buchte die Kontrollrechnung gekaufte Ware als fehlend aus und der Verkauf wurde Beute (914 Dickes Leder). Die Liste bleibt nur für die Anzeige und die frühe Meldung eines Verkaufs.
 - **Höchstens der ganze Bestand gilt als eingestellt** (Claude): Ältere Daten enthalten mehr Eingestelltes als Bestand. Ohne Grenze hätte die Rechnung dafür ein Plus ohne Kosten gebucht, und spätere Verkäufe wären wieder Beute geworden.
+- **In Forever kommt alles außer dem Einstellen per Post** (KarloDerBaer): Kauf, Abbruch und Erlös. Ein Zugang am Auktionshaus ist also immer Post. Ledger merkt sich deshalb jeden Abbruch und ordnet einen Brief ohne geladenen Betreff zuerst diesem Abbruch zu, erst dann einem offenen Kauf.
 - **Alte Fälle einmal korrigieren** (Claude): Abweichungen minus nach dem Einstellen, deren Ware danach verkauft wurde, werden zu „Auktion (korrigiert)“. Die Bewegungen bleiben, nur ihre Art ändert sich, die Kosten rechnet Ledger neu.
 
 ## 25.11.2026: Broker schlank, Schritt U1 Einkaufen (Broker 0.133.0)
