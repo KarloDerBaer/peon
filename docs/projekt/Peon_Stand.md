@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 25.11.2026. Peon 0.29.0 (API 29) / Broker 0.133.0 / Ledger 0.18.0 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.7.5 / ClassBuddy 0.4.1 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.5.0 / Profession 0.8.0 / Warhorn 0.6.0.
+Stand: 25.11.2026. Peon 0.29.0 (API 29) / Broker 0.133.0 / Ledger 0.18.0 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.7.5 / ClassBuddy 0.5.0 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.5.0 / Profession 0.8.0 / Warhorn 0.6.0.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -28,12 +28,13 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Funktionen: Tooltip folgt der Maus, Größe, Deckkraft, Rahmenfarbe, Spielerinfos, Kampfmodus, PvP- und Quest-Symbol, Teile im Gegenstands-Tooltip sortieren und ausblenden (Konzept `docs\konzepte\tooltip\Peon_Tooltip_Konzept.md`).
 - Befehle: `/ttp` (Optionen), `/ttp reset`, `/ttp debug`, `/ttp teile`, `/ttp log`.
 
-## Peon_ClassBuddy – 0.4.1 („Klassenbuddy“)
+## Peon_ClassBuddy – 0.5.0 („Klassenbuddy“)
 
 - Dateien: Locales.lua, ClassBuddy.lua, Rogue_ComboPoints.lua, Rogue_Poisons.lua, Warlock_Shards.lua, Options.lua, Bindings.xml. Konzept `docs\konzepte\classbuddy\Peon_ClassBuddy_Konzept.md`.
 - Peon_ComboPoints ist seit 18.11.2026 aus dem Repo (Verlauf in `docs\archiv\Peon_ComboPoints_Changelog.md`). `retired` in `scripts\release.json`: Der Manager ab 0.48.0 entfernt es, sobald `cpImported` gesetzt ist.
 - SavedVariables `PeonClassBuddyDB` (flach): Combo-Punkte mit den Namen aus Peon_ComboPoints, `cpImported`, Gifte `poisonOn`, `poisonMain`, `poisonOff` (`instant`, `deadly`, `crippling`, `mind`, `wound`, `none`), `poisonRenew`, `poisonCharges`, `poisonReplace`, `poisonWarn`, `poisonSound`, `poisonLow`, Seelensplitter `shardOn`, `shardRule` (`free`, `bag`, `max`), `shardRule3`, `shardMax`, `shardAction`, `shardMsg`.
 - Schurke: Combo-Punkte über dem Nameplate (Code aus ComboPoints 3.5.1), nur bei echten Gegnern (`UnitIsGameObject` schließt Objekte mit Soft-Interact-Nameplate aus, ab 0.4.1). Gifte mit einer Taste (sicherer Knopf `PeonClassBuddyPoison`, Makro `PeonGift`, Tastenbelegung) und Erinnerung, Panel-Eintrag mit Klick (sicherer Knopf `PeonClassBuddyPoisonPanel` über dem Symbol) und Menü je Waffe, Konzept Abschnitt 10. Optionen und Panel-Einträge nur für die eigene Klasse (`ns.ForClass`). Hexenmeister: überzählige Seelensplitter vernichten, je Zauber einer, Makro `/click PeonClassBuddyShard`, Tastenbelegung, Eintrag für Panel.
+- Optionsseite (ab 0.5.0, Leitfaden für Einstellungen): Reiter Allgemein, Anzeige (nur Schurke), Erweitert, nur mit den Teilen der eigenen Klasse.
 - Befehle: `/peon classbuddy`, `/peon classbuddy gifte`, `/peon classbuddy splitter`, `/peon debug classbuddy`.
 - Offen: Ob das Spiel das Bestätigen beim Ersetzen eines Gifts erlaubt, zeigt der Alltag (sonst Hinweis und Blizzards Frage). Erkannt werden nur die Gifte aus der Liste in `Rogue_Poisons.lua`.
 

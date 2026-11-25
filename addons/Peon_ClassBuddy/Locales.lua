@@ -6,10 +6,16 @@ local L = Peon.NewLocale()
 ns.L = L
 
 -- enUS (Standard)
+L.TAB_GENERAL  = "General"
+L.TAB_DISPLAY  = "Display"
+L.TAB_ADVANCED = "Advanced"
+L.ADVANCED_NOTE = "Normally you do not need to change anything here."
+L.PO_ON_HINT   = "One key applies the missing poison to main hand and off hand."
+L.PO_SOUND_HINT = "The reminder also plays a sound."
+L.SH_ON_HINT   = "Destroys soul shards beyond the chosen limit."
+L.SH_MSG_HINT  = "Writes a chat line for every destroyed soul shard."
 L.TITLE       = "Class Buddy"
 L.DESC        = "Small helpers for each class. Each part only works for its own class. Changes apply immediately."
-L.TAB_ROGUE   = "Rogue"
-L.TAB_WARLOCK = "Warlock"
 L.SLASH_HINT  = "Chat: /peon classbuddy opens this panel, /peon classbuddy poisons shows the poisons, /peon classbuddy shards the soul shards."
 
 -- Schurke: Combo-Punkte
@@ -28,7 +34,6 @@ L.CP_SOCKET       = "Empty point (with opacity)"
 L.CP_RING         = "Border (with opacity)"
 
 -- Schurke: Gifte
-L.TAB_POISONS     = "Poisons"
 L.PO_TITLE        = "Poisons"
 L.PO_HDR          = "Poison key"
 L.PO_ON           = "Apply poisons with one key"
@@ -126,10 +131,16 @@ _G["BINDING_NAME_CLICK PeonClassBuddyShard:LeftButton"] = "Destroy soul shard"
 _G["BINDING_NAME_CLICK PeonClassBuddyPoison:LeftButton"] = "Apply poison"
 
 if GetLocale() == "deDE" then
+    L.TAB_GENERAL  = "Allgemein"
+    L.TAB_DISPLAY  = "Anzeige"
+    L.TAB_ADVANCED = "Erweitert"
+    L.ADVANCED_NOTE = "Normalerweise musst du hier nichts ändern."
+    L.PO_ON_HINT   = "Eine Taste trägt das fehlende Gift auf Haupthand und Nebenhand auf."
+    L.PO_SOUND_HINT = "Die Erinnerung spielt zusätzlich einen Ton."
+    L.SH_ON_HINT   = "Vernichtet Seelensplitter über der gewählten Grenze."
+    L.SH_MSG_HINT  = "Schreibt für jeden vernichteten Seelensplitter eine Zeile in den Chat."
     L.TITLE       = "Klassenbuddy"
     L.DESC        = "Kleine Helfer je Klasse. Jeder Teil wirkt nur bei seiner Klasse. Änderungen wirken sofort."
-    L.TAB_ROGUE   = "Schurke"
-    L.TAB_WARLOCK = "Hexenmeister"
     L.SLASH_HINT  = "Chat: /peon classbuddy öffnet dieses Menü, /peon classbuddy gifte zeigt die Gifte, /peon classbuddy splitter die Seelensplitter."
 
     L.CP_HDR_LAYOUT   = "Combo-Punkte: Größe und Lage"
@@ -146,7 +157,6 @@ if GetLocale() == "deDE" then
     L.CP_SOCKET       = "Leerer Punkt (mit Deckkraft)"
     L.CP_RING         = "Rand (mit Deckkraft)"
 
-    L.TAB_POISONS     = "Gifte"
     L.PO_TITLE        = "Gifte"
     L.PO_HDR          = "Gift-Taste"
     L.PO_ON           = "Gifte mit einer Taste auftragen"

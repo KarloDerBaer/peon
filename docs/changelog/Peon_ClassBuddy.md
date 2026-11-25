@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Konzept: `docs/konzepte/classbuddy/Peon_ClassBuddy_Konzept.md`.
 
+## 0.5.0
+
+Kurz: Die Einstellungen haben jetzt die Reiter Allgemein, Anzeige und Erweitert, nur mit den Teilen deiner Klasse. Erklärungen stehen im Tooltip.
+
+- 0.5.0 (25.11.2026, Leitfaden für Einstellungen, Aufteilung von KarloDerBaer freigegeben):
+  - **Geändert:** Statt Reitern je Klasse gibt es Allgemein (Schurke: Gifte an, Gift je Hand, Ersetzen, Erinnerung mit Ton, Makro anlegen. Hexenmeister: Seelensplitter vernichten, Regel, mit Zaubern, Meldung, Makro anlegen), Anzeige (nur Schurke: Combo-Punkte mit Farben und Vorschau) und Erweitert (Gifte erneuern ab, Ladungen ab, Erinnerung ab, Höchstzahl der Seelensplitter). Gespeicherte Werte und ihre Namen bleiben gleich.
+  - **Geändert:** Jeder Schalter hat einen Satz als Tooltip statt Text darunter (Kern-API 29). Die Erklärung zur Taste steht im Tooltip des Knopfs „Makro anlegen“.
+  - **Entfernt:** Statuszeilen der Gifte und der Bericht zu den Seelensplittern auf der Optionsseite. Sie bleiben als `/peon classbuddy gifte` und `/peon classbuddy splitter`.
+  - Tests: `test_classbuddy.lua`, `test_classbuddy_schurke.lua` (Reiter je Klasse).
+
 ## 0.4.1
 
 Kurz: Combo-Punkte erscheinen nicht mehr über Fässern, Truhen und anderen Objekten in der Welt, sondern nur noch über echten Gegnern.

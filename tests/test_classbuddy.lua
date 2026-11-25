@@ -130,7 +130,7 @@ check(mod.initialized and mod.page, "Modul + Optionsseite")
 check(PeonClassBuddyDB.probe == nil and PeonClassBuddyDB.hideGuide == nil, "Reste der Pruefung aus 0.1.0 entfernt")
 check(PeonClassBuddyDB.shardMax == 60, "Hoechstzahl geklemmt")
 check(PeonClassBuddyDB.shardRule == "free" and PeonClassBuddyDB.shardRule3 and PeonClassBuddyDB.shardOn and PeonClassBuddyDB.shardAction, "0.3.0: alter Standard wird einmal zu Seelentasche minus 1, mit Zaubern")
-check(mod.page:GetTab() == "warlock", "Hexenmeister: Reiter Hexenmeister offen")
+check(mod.page:GetTab() == "general", "Hexenmeister: Reiter Allgemein offen")
 fire("PLAYER_LOGIN")
 check(cats.Peon and cats.Peon.subs[1] == "Klassenbuddy", "Seite unter Peon > Klassenbuddy")
 
@@ -259,7 +259,7 @@ check(ns.shardLauncher and ns.shardLauncher:IsAvailable(), "Eintrag fuer Peon_Pa
 mod.panel.scripts.OnShow()
 local tabs = {}
 for _, t in ipairs(mod.page.tabList or {}) do tabs[#tabs+1] = t[1] end
-check(#tabs == 1 and tabs[1] == "warlock", "Hexenmeister: nur der Reiter Hexenmeister")
+check(#tabs == 2 and tabs[1] == "general" and tabs[2] == "advanced", "Hexenmeister: Allgemein und Erweitert, keine Anzeige (ab 0.5.0)")
 local pips = 0
 for _, f in ipairs(allFrames) do if f.kind == "StatusBar" then pips = pips + 1 end end
 check(pips == 0, "Hexenmeister: keine Vorschau der Combo-Punkte")

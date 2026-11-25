@@ -180,10 +180,10 @@ btn = _G.PeonClassBuddyPoison
 check(P.IsActive() and btn and btn.secure, "Schurke: Gifte aktiv, sicherer Knopf")
 check(btn.attrs.useOnKeyDown == false, "Knopf wirkt beim Loslassen")
 check(hooks.StaticPopup_Show, "Frage zum Ersetzen wird mitgelesen")
-check(mod.page:GetTab() == "rogue", "Schurke: Reiter Schurke offen")
+check(mod.page:GetTab() == "general", "Schurke: Reiter Allgemein offen")
 local tabs = {}
 for _, t in ipairs(mod.page.tabList or {}) do tabs[#tabs+1] = t[1] end
-check(#tabs == 2 and tabs[1] == "rogue" and tabs[2] == "poisons", "Schurke: nur Reiter Schurke und Gifte")
+check(#tabs == 3 and tabs[1] == "general" and tabs[2] == "display" and tabs[3] == "advanced", "Schurke: Allgemein, Anzeige, Erweitert (ab 0.5.0)")
 local keys = {}
 for _, l in ipairs(Peon.GetLaunchers()) do keys[l.key] = true end
 check(keys.poisons and not keys.shards and ns.shardLauncher == nil and not ns.Shards.IsActive(), "Panel: Gifte, keine Seelensplitter")
