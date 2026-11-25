@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 25.11.2026. Peon 0.29.0 (API 29) / Broker 0.133.0 / Ledger 0.18.0 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.7.5 / ClassBuddy 0.5.0 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.5.0 / Profession 0.8.0 / Warhorn 0.6.0.
+Stand: 25.11.2026. Peon 0.29.0 (API 29) / Broker 0.133.0 / Ledger 0.18.0 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.8.0 / ClassBuddy 0.5.0 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.5.0 / Profession 0.8.0 / Warhorn 0.6.0.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -21,11 +21,12 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Noch nicht im Kern: `RegisterUnitEvent`.
 - Offen: nach ein paar Tagen `PeonDB.comm.peers` ansehen, ob sich Peon-Nutzer kennenlernen.
 
-## Peon_Tooltip – 0.7.5
+## Peon_Tooltip – 0.8.0
 
 - Dateien: Locales.lua, Tooltip.lua, Style.lua, Units.lua, Icons.lua, Items.lua, Debug.lua, Options.lua
 - SavedVariables: `PeonTooltipDB`
 - Funktionen: Tooltip folgt der Maus, Größe, Deckkraft, Rahmenfarbe, Spielerinfos, Kampfmodus, PvP- und Quest-Symbol, Teile im Gegenstands-Tooltip sortieren und ausblenden (Konzept `docs\konzepte\tooltip\Peon_Tooltip_Konzept.md`).
+- Optionsseite (ab 0.8.0, Leitfaden für Einstellungen): Reiter Allgemein, Anzeige (mit beiden Beispielen und der Liste der Teile), Erweitert.
 - Befehle: `/ttp` (Optionen), `/ttp reset`, `/ttp debug`, `/ttp teile`, `/ttp log`.
 
 ## Peon_ClassBuddy – 0.5.0 („Klassenbuddy“)

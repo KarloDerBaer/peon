@@ -1,5 +1,6 @@
 -- Peon_Tooltip - Options.lua
--- Optionsseite unter Einstellungen > AddOns > Peon > Tooltip (Bausteine aus dem Peon-Kern, API 6).
+-- Optionsseite unter Einstellungen > AddOns > Peon > Tooltip (Bausteine aus dem Peon-Kern, Reiter ab API 11,
+-- Hinweise als Tooltip ab API 29).
 -- Positionen als Knopfreihe/Raster (man sieht die Lage), sonst Auswahllisten.
 
 local ADDON_NAME, ns = ...
@@ -8,75 +9,72 @@ local L = ns.L
 function ns.CreateOptions()
     local mod = ns.mod
     if mod.page then return end
-    local page = mod:NewOptionsPage({ desc = L.DESC })
+    local page = mod:NewOptionsPage({ desc = L.DESC, tipHints = true })   -- Hinweise als Tooltip (Kern-API 29)
 
-    -- Untertabs (Kern API 11); aelterer Kern: alles auf einer Seite wie bisher
-    local tabs = page.Tabs and true or false
-    local Y = tabs and -100 or -60
-    if tabs then
-        page:Tabs({ { "general", L.TAB_GENERAL }, { "units", L.TAB_UNITS }, { "items", L.TAB_ITEMS } }, -62)
-    end
-    local function Col(x, tab) return page:Column(x, Y, tabs and tab or nil) end
+    -- ab 0.8.0 Reiter nach dem Leitfaden fuer Einstellungen: Allgemein, Anzeige (mit beiden Beispielen), Erweitert
+    page:Tabs({ { "general", L.TAB_GENERAL }, { "display", L.TAB_DISPLAY }, { "advanced", L.TAB_ADVANCED } }, -62)
+    local Y = -100
 
-    -- Reiter "Allgemein": Position, Aussehen, Kampf
-    local gl = Col(16, "general")
+    -- Allgemein: Ecke, Rand, Kampf, Spielerinfos
+    local gl = page:Column(16, Y, "general")
     page:Add(gl, page:Header(L.HDR_POSITION), 6)
     page:Add(gl, page:Choice("corner", L.CORNER, {
         { "TOPLEFT", L.CORNER_TOPLEFT }, { "TOPRIGHT", L.CORNER_TOPRIGHT },
         { "BOTTOMLEFT", L.CORNER_BOTTOMLEFT }, { "BOTTOMRIGHT", L.CORNER_BOTTOMRIGHT },
-    }, 2, 138))
-    page:Add(gl, page:Slider("offsetX", L.OFFSET_X, L.OFFSET_X_HINT))
-    page:Add(gl, page:Slider("offsetY", L.OFFSET_Y, L.OFFSET_Y_HINT))
-    page:Add(gl, page:Check("edgeFlip", L.EDGE_FLIP), 20)
-
-    local gr = Col(330, "general")
-    page:Add(gr, page:Header(L.HDR_LOOK), 6)
-    page:Add(gr, page:Slider("scale", L.SCALE, nil, "%"))
-    page:Add(gr, page:Slider("bgAlpha", L.BG_ALPHA, nil, "%"), 20)
+    }, 2, 138, L.CORNER_HINT))
+    page:Add(gl, page:Check("edgeFlip", L.EDGE_FLIP, L.EDGE_FLIP_HINT), 16)
+    local gr = page:Column(330, Y, "general")
     page:Add(gr, page:Header(L.HDR_COMBAT), 6)
     page:Add(gr, page:Dropdown("combatMode", L.COMBAT_MODE, {
         { "normal", L.COMBAT_NORMAL }, { "fade", L.COMBAT_FADE }, { "hide", L.COMBAT_HIDE },
-    }))
-    local combatAlphaCtl = page:Add(gr, page:Slider("combatAlpha", L.COMBAT_ALPHA, nil, "%"))
-    local combatShiftCtl = page:Add(gr, page:Check("combatShift", L.COMBAT_SHIFT))
+    }, L.COMBAT_MODE_HINT), 16)
+    page:Add(gr, page:Header(L.HDR_UNITS), 6)
+    page:Add(gr, page:Check("playerInfo", L.PLAYER_INFO, L.PLAYER_INFO_HINT))
 
-    -- Reiter "Gegner": Rahmen, Spielerinfos, Ausblenden, Symbole; rechts Beispiel
-    local ul = Col(16, "units")
-    page:Add(ul, page:Header(L.HDR_UNITS), 6)
-    page:Add(ul, page:Dropdown("borderMode", L.BORDER, {
+    -- Anzeige links: Groesse, Rahmen, Symbole, Gegenstands-Tooltip mit Liste der Teile
+    local dl = page:Column(16, Y, "display")
+    page:Add(dl, page:Header(L.HDR_LOOK), 6)
+    page:Add(dl, page:Slider("scale", L.SCALE, nil, "%"))
+    page:Add(dl, page:Slider("bgAlpha", L.BG_ALPHA, nil, "%"))
+    page:Add(dl, page:Dropdown("borderMode", L.BORDER, {
         { "none", L.BORDER_NONE }, { "reaction", L.BORDER_REACTION }, { "class", L.BORDER_CLASS },
     }, L.BORDER_HINT))
-    page:Add(ul, page:Check("playerInfo", L.PLAYER_INFO), 20)
-    page:Add(ul, page:Header(L.HDR_FADE), 6)
-    page:Add(ul, page:Check("fadeCustom", L.FADE_CUSTOM), 4)
-    local fadeTimeCtl = page:Add(ul, page:Slider("fadeTime", L.FADE_TIME, L.FADE_HINT, "", 10), 20)
-    page:Add(ul, page:Header(L.HDR_ICONS), 6)
-    page:Add(ul, page:PositionGrid("pvpIcon", L.PVP_ICON))
-    page:Add(ul, page:PositionGrid("questIcon", L.QUEST_ICON))
-    page:Add(ul, page:Slider("iconSize", L.ICON_SIZE, L.ICON_HINT), 20)
-
-    -- Reiter "Gegenstaende": Rahmen, Teile; rechts Beispiel
-    local il = Col(16, "items")
-    page:Add(il, page:Header(L.HDR_ITEMS), 6)
-    page:Add(il, page:Dropdown("itemBorder", L.ITEM_BORDER, {
+    page:Add(dl, page:Dropdown("itemBorder", L.ITEM_BORDER, {
         { "default", L.ITEM_BORDER_DEFAULT }, { "quality", L.ITEM_BORDER_QUALITY },
-    }))
-    page:Add(il, page:Check("itemWrap", L.ITEM_WRAP, L.ITEM_WRAP_HINT))
-    local maxWidthCtl = page:Add(il, page:Slider("itemMaxWidth", L.ITEM_MAX_WIDTH, L.ITEM_MAX_WIDTH_HINT, ""), 6)
-    page:Add(il, page:Check("itemParts", L.ITEM_PARTS, L.ITEM_PARTS_HINT), 6)
-    local partList = page:Add(il, ns.CreatePartList(page))
+    }, L.ITEM_BORDER_HINT), 16)
+    page:Add(dl, page:Header(L.HDR_ICONS), 6)
+    page:Add(dl, page:PositionGrid("pvpIcon", L.PVP_ICON))
+    page:Add(dl, page:PositionGrid("questIcon", L.QUEST_ICON))
+    page:Add(dl, page:Slider("iconSize", L.ICON_SIZE, L.ICON_HINT), 16)
+    page:Add(dl, page:Header(L.HDR_ITEMS), 6)
+    page:Add(dl, page:Check("itemWrap", L.ITEM_WRAP, L.ITEM_WRAP_HINT), 4)
+    page:Add(dl, page:Check("itemParts", L.ITEM_PARTS, L.ITEM_PARTS_HINT), 6)
+    local partList = page:Add(dl, ns.CreatePartList(page))
 
-    local ur, ir
-    if tabs then
-        ur = Col(330, "units")
-        page:Add(ur, page:Header(L.HDR_PREVIEW), 6)
-        page:Add(ur, ns.CreatePreview(page, "unit"))
-        ir = Col(330, "items")
-        page:Add(ir, page:Header(L.HDR_PREVIEW), 6)
-        page:Add(ir, ns.CreatePreview(page, "item"))
-    end
+    -- Anzeige rechts: beide Beispiele
+    local dr = page:Column(330, Y, "display")
+    page:Add(dr, page:Header(L.HDR_PREVIEW_UNIT), 6)
+    page:Add(dr, ns.CreatePreview(page, "unit", "display"), 16)
+    page:Add(dr, page:Header(L.HDR_PREVIEW_ITEM), 6)
+    page:Add(dr, ns.CreatePreview(page, "item", "display"))
 
-    page:AddResetButton(L.SLASH_HINT, gl, gr, ul, il)
+    -- Erweitert: Abstand zum Mauszeiger, Kampf, Ausblenden, Breite
+    local al = page:Column(16, Y, "advanced")
+    page:Add(al, page:Text(function() return L.ADVANCED_NOTE end), 12)
+    page:Add(al, page:Header(L.HDR_POSITION), 6)
+    page:Add(al, page:Slider("offsetX", L.OFFSET_X, L.OFFSET_X_HINT))
+    page:Add(al, page:Slider("offsetY", L.OFFSET_Y, L.OFFSET_Y_HINT), 16)
+    page:Add(al, page:Header(L.HDR_COMBAT), 6)
+    local combatAlphaCtl = page:Add(al, page:Slider("combatAlpha", L.COMBAT_ALPHA, L.COMBAT_ALPHA_HINT, "%"))
+    local combatShiftCtl = page:Add(al, page:Check("combatShift", L.COMBAT_SHIFT, L.COMBAT_SHIFT_HINT))
+    local ar = page:Column(330, Y, "advanced")
+    page:Add(ar, page:Header(L.HDR_FADE), 6)
+    page:Add(ar, page:Check("fadeCustom", L.FADE_CUSTOM, L.FADE_CUSTOM_HINT), 4)
+    local fadeTimeCtl = page:Add(ar, page:Slider("fadeTime", L.FADE_TIME, L.FADE_HINT, "", 10), 16)
+    page:Add(ar, page:Header(L.HDR_ITEMS), 6)
+    local maxWidthCtl = page:Add(ar, page:Slider("itemMaxWidth", L.ITEM_MAX_WIDTH, L.ITEM_MAX_WIDTH_HINT, ""))
+
+    page:AddResetButton(L.SLASH_HINT, gl, gr, dl, dr, al, ar)
 
     -- abhaengige Einstellungen ausgrauen
     page.onRefresh = function()
@@ -171,14 +169,15 @@ function ns.UpdatePreviews()
     end
 end
 
-function ns.CreatePreview(page, kind)
+-- tab: Reiter, auf dem das Beispiel steht (ab 0.8.0 beide auf "display", sonst wie bisher je Art)
+function ns.CreatePreview(page, kind, tab)
     local mod = ns.mod
     local c = page:NewContainer(140)
     local name = kind == "unit" and "PeonTooltipPreviewUnit" or "PeonTooltipPreviewItem"
     local tt = CreateFrame("GameTooltip", name, c, "GameTooltipTemplate")
     tt:SetFrameStrata("DIALOG")
     ns.previewTips[tt] = true
-    local p = { kind = kind, tab = kind == "unit" and "units" or "items", page = page, frame = c, tt = tt, index = 1 }
+    local p = { kind = kind, tab = tab or (kind == "unit" and "units" or "items"), page = page, frame = c, tt = tt, index = 1 }
     previews[kind] = p
     p.note = c:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     p.note:SetPoint("BOTTOMLEFT", 0, 4)

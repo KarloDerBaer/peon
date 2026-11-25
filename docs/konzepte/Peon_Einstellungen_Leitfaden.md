@@ -47,3 +47,5 @@ Bedienelemente je Optionsseite (Haken, Regler, Auswahl, Farbe, Knopf, grob gezä
 5. Kleine Module nur prüfen.
 
 Je Modul vor dem Umbau eine kurze Liste „Allgemein, Anzeige, Erweitert, fällt weg“ mit KarloDerBaer abstimmen. Gespeicherte Werte und ihre Namen bleiben gleich, nur die Seite ändert sich.
+
+Stand 25.11.2026: Punkte 2 und 3 sind umgestellt (Fishing 1.9.0, Bags 0.9.0, Warhorn 0.6.0, Profession 0.8.0, Panel 0.5.0, ClassBuddy 0.5.0, Tooltip 0.8.0). Hinweise stehen dort als Tooltip über `NewOptionsPage({ tipHints = true })` (Kern-API 29).

@@ -473,20 +473,20 @@ for _, f in ipairs(allFrames) do if f.kind == "Button" and f.key == "a:AtlasLoot
 check(not pos("a:AtlasLootClassic") and not PeonTooltipDB.itemKnown["a:AtlasLootClassic"], "Addon aus der Liste entfernt")
 
 -- 12b) 0.7: Reiter Allgemein / Gegner / Gegenstaende mit Beispiel-Tooltips
-check(page.tabButtons and #page.tabButtons == 3 and page.tabButtons[2].text == "Gegner" and page.tabButtons[3].text == "Gegenstände", "0.7: drei Reiter")
+check(page.tabButtons and #page.tabButtons == 3 and page.tabButtons[2].text == "Anzeige" and page.tabButtons[3].text == "Erweitert", "0.8: drei Reiter nach dem Leitfaden")
 check(page:GetTab() == "general", "0.7: Start mit Allgemein")
 page.panel.shown = true
 function GetInventoryItemLink(u, s) if s == 16 then return "|cnIQ3:|Hitem:123::::::::|h[Wolfslederhelm]|h|r" end end
 ns.ItemResetOrder()
 move("a:Peon_Broker", 1)
-page:SelectTab("items")
+page:SelectTab("display")
 local pv = lines(PeonTooltipPreviewItem)
 check(PeonTooltipPreviewItem.inv == 16 and pv[1] == "Wolfslederhelm" and pv[2] == "AH: 1g 20s", "0.7: Beispiel-Gegenstand (Waffe) mit eigener Reihenfolge")
 PeonTooltipDB.itemHidden["a:Peon_Broker"] = true
 mod:Fire("CHANGED", "itemHidden")
 check(not idx(lines(PeonTooltipPreviewItem), "AH: 1g 20s"), "0.7: Aenderung sofort im Beispiel")
 PeonTooltipDB.itemHidden["a:Peon_Broker"] = nil
-page:SelectTab("units")
+page:SelectTab("display")
 check(PeonTooltipPreviewUnit.unit == "player" and lines(PeonTooltipPreviewUnit)[1] == "Mirel", "0.7: Gegner-Beispiel zeigt dich ohne Ziel")
 check(ns.IsMainTip(PeonTooltipPreviewUnit) and not ns.IsMainTip(ItemRefTooltip), "0.7: Beispiel bekommt Symbole und Spielerinfos")
 page:SelectTab("general")

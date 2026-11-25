@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.8.0
+
+Kurz: Die Einstellungen haben jetzt die Reiter Allgemein, Anzeige und Erweitert. Beide Beispiele stehen zusammen unter Anzeige, Erklärungen im Tooltip.
+
+- 0.8.0 (25.11.2026, Leitfaden für Einstellungen, Aufteilung von KarloDerBaer freigegeben):
+  - **Geändert:** Statt Allgemein, Gegner und Gegenstände gibt es Allgemein (Ecke, am Rand umspringen, Tooltips im Kampf, Spielerinfos), Anzeige (Größe, Deckkraft, Rahmen für Gegner und Gegenstände, PvP- und Quest-Symbol, Symbolgröße, Zeilen umbrechen, Teile ordnen mit Liste, beide Beispiele) und Erweitert (Abstand zum Mauszeiger, Deckkraft im Kampf, Umschalttaste im Kampf, eigene Ausblendzeit, Höchstbreite). Gespeicherte Werte und ihre Namen bleiben gleich.
+  - **Geändert:** Jeder Schalter hat einen Satz als Tooltip statt Text darunter (Kern-API 29). `ns.CreatePreview(page, art, reiter)` nimmt den Reiter mit.
+  - Tests: `test_tooltip_items.lua` (drei Reiter, Beispiele unter Anzeige).
+
 ## 0.7.5
 
 Kurz: In Dungeons kommt beim Rahmen des Tooltips keine Fehlermeldung mehr.
