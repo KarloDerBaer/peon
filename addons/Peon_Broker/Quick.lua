@@ -240,6 +240,24 @@ end
 -- Vorgabe fuer Massenware "Alle", fuer andere Gegenstaende 1. Je Gegenstand in Beobachten gespeichert (qqty, 0 = Alle).
 ---------------------------------------------------------------------------
 Q.qty = {}   -- [Schluessel] = Menge dieser Sitzung (0 = Alle), sonst aus Beobachten oder Vorgabe
+-- ab 0.136 (U4, Konzept 4.1): aus einer Einkaufsliste geoeffnet: [Schluessel] = id der Liste. Die Menge folgt dann dem,
+-- was dort noch fehlt (auch nach jedem Kauf), bis man sie selbst aendert. Wird nie gespeichert.
+Q.fromList = {}
+
+function Q.FromList(key, listId)
+    if key == nil then return end
+    Q.fromList[key] = listId
+    if listId ~= nil then Q.qty[key] = nil end
+end
+
+-- Menge aus der Liste: was fehlt, mindestens 1 (nie "Alle"), nil = nicht aus einer Liste
+function Q.ListQty(key)
+    local id = key ~= nil and Q.fromList[key] or nil
+    if id == nil or not ns.Buy then return nil end
+    local need = ns.Buy.NeedFor(key, id)
+    if not Num(need) then return nil end
+    return math.max(1, math.floor(need))
+end
 
 function Q.QtyDefault(key)
     if key == nil then return nil end
@@ -251,6 +269,8 @@ function Q.QtyStored(key)
     if key == nil then return nil end
     local v = Q.qty[key]
     if v ~= nil then return v end
+    local lq = Q.ListQty(key)   -- ab 0.136
+    if lq then return lq end
     local Wt = ns.Watch
     local w = Wt and Wt.Is(key) and Wt.Store()[key]
     if w and Num(w.qqty) and w.qqty >= 0 then return math.floor(w.qqty) end
@@ -271,6 +291,7 @@ function Q.SetQty(n)
     if key == nil then return end
     n = tonumber(n)
     Q.qty[key] = (n and n >= 1) and math.floor(n) or 0
+    Q.fromList[key] = nil   -- ab 0.136: eigene Wahl geht vor
     F.Store()
     F.Update()
 end

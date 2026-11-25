@@ -92,6 +92,8 @@ function Go.Focus(item)
     end
     local from = item.from or Go.Here()
     -- ab 0.70: der Fokus arbeitet nur am Auktionshaus. Unterwegs merkt Broker den Gegenstand fuer den naechsten Besuch.
+    -- ab 0.136 (U4): aus einer Einkaufsliste steht die Menge auf dem, was dort noch fehlt (Quick.FromList)
+    if ns.Quick and ns.Quick.FromList then ns.Quick.FromList(key, from == "list" and item.list or nil) end
     if not ns.Window.AtAH() then
         ns.Focus.Set(key)
         ns.Focus.FromPage(key, from, item.mode)

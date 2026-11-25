@@ -988,8 +988,8 @@ Buy.selected.limit = 130
 plan = Buy.Plan(Buy.selected)
 check(plan.qty == 35 and plan.cost == 8 * 115 + 27 * 120, "Wunschmenge 100 minus Vorrat 65 = 35")
 Buy.UpdateView()
-check(plain(Buy.selText.text):find("35 kaufen für 41s 60c", 1, true) and not Buy.buyButton.disabled, "Anzeige: was gekauft wuerde")
-Buy.buyButton.scripts.OnClick(Buy.buyButton)
+check(Buy.buyButton == nil and Buy.selText == nil, "0.136: keine Kaufzeile unter der Liste, gekauft wird im Einkaufen")
+Buy.Buy()   -- ab 0.136 ohne Knopf, die Funktion bleibt
 check(purchaseStarted and purchaseStarted[1] == 2770 and purchaseStarted[2] == 35 and Buy.buying, "Kauf gestartet (Massenware)")
 popupShown = nil
 fire("COMMODITY_PRICE_UPDATED", 120, 4200)
@@ -1002,7 +1002,7 @@ check(bPlain and PeonBrokerDB.bought == nil and not Buy.buying, "gekauft, fuers 
 -- teurer als die Grenze: Warnung, Nein bricht ab
 fire("COMMODITY_SEARCH_RESULTS_UPDATED", 2770)
 Buy.selected.limit = 130
-Buy.buyButton.scripts.OnClick(Buy.buyButton)
+Buy.Buy()
 popupShown = nil
 fire("COMMODITY_PRICE_UPDATED", 200, 7000)
 check(popupShown and plain(popupShown.text):find("Teurer als deine Grenze", 1, true), "Warnung, wenn das Spiel mehr verlangt")
@@ -1021,7 +1021,7 @@ fire("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 15000 })
 plan = Buy.Plan(Buy.selected)
 check(plan and plan.auctionID == 77 and plan.price == 5200 and plan.qty == 1, "Einzelgegenstand: guenstigstes Angebot unter der Grenze (54s)")
 popupShown = nil
-Buy.buyButton.scripts.OnClick(Buy.buyButton)
+Buy.Buy()
 check(popupShown and plain(popupShown.text):find("Schwert des Baeren für 52s kaufen?", 1, true) and #placed == 0, "Rueckfrage vor dem Kauf")
 StaticPopupDialogs.PEON_BROKER_CONFIRM_BUY.OnAccept(nil, popupShown.data)
 check(#placed == 1 and placed[1][1] == 77 and placed[1][2] == 5200, "PlaceBid mit Sofortkaufpreis")
@@ -1029,8 +1029,8 @@ fire("AUCTION_HOUSE_PURCHASE_COMPLETED", 77)
 check(said("Gekauft: 1× Schwert des Baeren"), "Kauf gemeldet")
 swE.md, swE.d = savedMd, savedD
 LIVEITEM[1], LIVEITEM[2] = savedLI[1], savedLI[2]
-Buy.removeButton.scripts.OnClick(Buy.removeButton)
-check(PeonBrokerDB.lists[1].items["15000:1047"] == nil, "Gegenstand aus der Liste entfernt")
+Buy.DeleteRow(Buy.selected)
+check(PeonBrokerDB.lists[1].items["15000:1047"] == nil and Buy.selected == nil, "0.136: Zeile mit x aus der Liste geloescht")
 -- Zur Einkaufsliste aus dem Reiter Preise
 Win.Select("prices")
 P.Show(2589)
@@ -3443,9 +3443,9 @@ end)()
     local B = ns.Buy
     local cols = {}
     for _, col in ipairs(B.itemList.o.columns) do cols[#cols + 1] = col.title end
-    check(table.concat(cols, ",") == "Gegenstand,Ziel,Fehlt,Höchstpreis,Preis,Rat", "N4: Spalten der Einkaufsliste: " .. table.concat(cols, ","))
-    check(B.buyButton.template == "UIPanelGoldButtonTemplate" and B.goMarketButton and B.allChars and B.nameBox.template == "LargeInputBoxTemplate",
-      "N4: Gold-Knopf Kaufen, Im Markt zeigen, Bausteine aus Peon.UI")
+    check(table.concat(cols, ",") == "Gegenstand,Brauche,Fehlt,Höchstpreis,Günstigstes,", "0.136: Spalten der Einkaufsliste: " .. table.concat(cols, ","))
+    check(B.buyButton == nil and B.goMarketButton == nil and B.wishSlider and B.allChars and B.nameBox.template == "LargeInputBoxTemplate",
+      "0.136: ohne Kaufzeile, Regler fuer Brauche, Bausteine aus Peon.UI")
     local jumped, menu, picked = nil, nil, 0
     local oldM, oldMenu = ns.Go.Market, ns.Go.Menu
     ns.Go.Market = function(item) jumped = item; return true end
@@ -6538,6 +6538,97 @@ end)()
   Q.SetMode("buyout", true)
   ns.Scan.ahOpen = keepOpen
   Rd.entries, Rd.gone, Rd.job, Rd.focus = {}, {}, nil, nil
+end)()
+
+-- ===== 0.136 (U4): Einkaufsliste zieht Gekauftes sofort ab, grau, x, Regler, Menge im Einkaufen =====
+;(function()
+  local B, Q = ns.Buy, ns.Quick
+  local keepCounts, keepSel, keepLists = ns.Stock.Counts, mod.char.listSel, mod.acc.lists
+  local stock = 3
+  ns.Stock.Counts = function() return stock, 0, stock, 0 end
+  mod.acc.lists = {
+    { id = "lA", name = "Erste", pct = 10, u = 1, items = { [7801] = { wish = 10, name = "Listenerz", u = 1 } } },
+    { id = "lB", name = "Zweite", pct = 10, u = 1, items = { [7801] = { wish = 5, name = "Listenerz", u = 1 } } },
+  }
+  mod.char.listSel = 1
+  local a, b = mod.acc.lists[1].items[7801], mod.acc.lists[2].items[7801]
+  check(B.Need(a, 7801) == 7 and B.Need(b, 7801) == 2, "0.136: Fehlt = Brauche minus Vorrat")
+  -- Kauf von 8: erst die gewaehlte Liste (7), der Rest in die zweite (1)
+  check(B.OnPurchase(7801, 8) == 8 and a.way.q == 7 and a.way.base == 3 and b.way.q == 1, "0.136: Kauf verteilt, gewaehlte Liste zuerst")
+  check(B.Need(a, 7801) == 0 and B.Need(b, 7801) == 1, "0.136: sofort abgezogen (unterwegs)")
+  check(B.OnPurchase(7801, 5) == 1 and b.way.q == 2, "0.136: nie mehr verbucht, als fehlt")
+  -- Ware kommt an: 4 von 7 in den Taschen, dann alles
+  stock = 7
+  check(B.Way(a, 7801) == 3 and B.Need(a, 7801) == 0, "0.136: angekommen zaehlt als Vorrat, Rest bleibt unterwegs")
+  stock = 12
+  check(B.Way(a, 7801) == 0 and a.way == nil and B.Need(a, 7801) == 0, "0.136: alles angekommen, unterwegs faellt weg")
+  -- zu alt: unterwegs faellt nach 30 Tagen weg
+  a.way = { q = 5, base = 12, t = time() - 31 * 86400 }
+  check(B.Way(a, 7801) == 0 and a.way == nil, "0.136: nach 30 Tagen zaehlt nur der Vorrat")
+  -- erledigt: grau, bleibt stehen, neuer Wert am Regler macht sie wieder aktiv
+  local rows = B.ListRows(mod.acc.lists[1])
+  check(#rows == 1 and rows[1].done and rows[1].advice == "done", "0.136: erledigte Zeile bleibt stehen")
+  check(B.Dim("x", rows[1]) == "|cff999999x|r" and B.Dim("x", {}) == "x", "0.136: erledigt grau")
+  B.selected = { key = 7801 }
+  B.filling, B.wishSync = false, false
+  B.SetWish(20)
+  check(a.wish == 20 and B.Need(a, 7801) == 8 and type(a.t) == "table" and a.t.wish, "0.136: Regler setzt Brauche, Zeile wieder aktiv, Zeit fuer den Abgleich")
+  B.SetWish(0)
+  check(a.wish == nil, "0.136: 0 heisst ohne Brauche")
+  a.wish = 20
+  check(B.WishMax(5) == 20 and B.WishMax(40) == 80 and B.WishMax(150) == 300, "0.136: Bereich des Reglers")
+  -- Mitlesen: Bestaetigen des Spiels und Ereignis
+  local keepAH, keepHook, keepHooked = rawget(_G, "C_AuctionHouse"), rawget(_G, "hooksecurefunc"), B.hooked
+  C_AuctionHouse = { ConfirmCommoditiesPurchase = function() end, PlaceBid = function() end,
+                     GetAuctionInfoByID = function(id) return id == 55 and { itemKey = { itemID = 7801 } } or nil end }
+  hooksecurefunc = function(t, name, fn) local o = t[name]; t[name] = function(...) local x = o(...) fn(...) return x end end
+  B.hooked = nil
+  check(B.HookPurchases() and B.hooked, "0.136: Bestaetigen und Bieten werden mitgelesen")
+  C_AuctionHouse.ConfirmCommoditiesPurchase(7801, 3)
+  B.OnPurchaseEvent("failed")
+  check(B.Need(a, 7801) == 8, "0.136: fehlgeschlagener Kauf zaehlt nicht")
+  C_AuctionHouse.ConfirmCommoditiesPurchase(7801, 3)
+  B.OnPurchaseEvent("commodity")
+  check(B.Need(a, 7801) == 5 and B.pendBuy == nil, "0.136: gelungener Kauf (auch aus Blizzards Kaufen) zaehlt sofort")
+  C_AuctionHouse.PlaceBid(55, 900)
+  B.OnPurchaseEvent("item", 54)
+  check(B.Need(a, 7801) == 5, "0.136: andere Auktion zaehlt nicht")
+  B.OnPurchaseEvent("item", 55)
+  check(B.Need(a, 7801) == 4, "0.136: Auktion gekauft zaehlt 1")
+  C_AuctionHouse, hooksecurefunc, B.hooked = keepAH, keepHook, keepHooked
+  -- Menge im Einkaufen aus der Liste
+  Q.FromList(7801, "lA")
+  check(Q.QtyStored(7801) == 4 and Q.QtyWant(7801) == 4, "0.136: Menge im Einkaufen = was in der Liste fehlt")
+  B.OnPurchase(7801, 1)
+  check(Q.QtyStored(7801) == 3, "0.136: nach dem Kauf folgt die Menge")
+  a.wish = 1
+  check(Q.QtyStored(7801) == 1, "0.136: nichts mehr offen: Menge 1, nie Alle")
+  a.wish = 20
+  local keepKey = ns.Focus.key
+  ns.Focus.key = 7801
+  local keepStore, keepUpd = ns.Focus.Store, ns.Focus.Update
+  ns.Focus.Store, ns.Focus.Update = function() end, function() end
+  Q.SetQty(6)
+  check(Q.QtyStored(7801) == 6 and Q.fromList[7801] == nil, "0.136: eigene Menge geht vor")
+  ns.Focus.Store, ns.Focus.Update, ns.Focus.key = keepStore, keepUpd, keepKey
+  Q.qty[7801] = nil
+  -- Doppelklick: Sprung ins Einkaufen mit Liste
+  local went
+  local keepFocus = ns.Go.Focus
+  ns.Go.Focus = function(item) went = item; return true end
+  B.ToShop({ key = 7801, name = "Listenerz" })
+  check(went and went.from == "list" and went.list == "lA" and went.key == 7801, "0.136: Doppelklick oeffnet das Einkaufen mit der Liste")
+  ns.Go.Focus = keepFocus
+  -- Guenstigstes mit Hinweis Haendler
+  local keepMP = ns.Merchant.Price
+  ns.Merchant.Price = function() return 5, "v" end
+  rows = B.ListRows(mod.acc.lists[1])
+  check(rows[1].bestVendor and rows[1].best == 5, "0.136: Haendler guenstiger: Hinweis Haendler: " .. tostring(rows[1].vendorP) .. "/" .. tostring(rows[1].cheapest) .. "/" .. tostring(rows[1].best))
+  ns.Merchant.Price = keepMP
+  -- aufraeumen
+  Q.fromList[7801] = nil
+  B.selected = nil
+  ns.Stock.Counts, mod.char.listSel, mod.acc.lists = keepCounts, keepSel, keepLists
 end)()
 
 print("ALLE TESTS OK")

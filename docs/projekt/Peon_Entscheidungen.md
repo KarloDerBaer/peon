@@ -11,6 +11,16 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Verkauf in der Auktionsliste bucht nichts mehr** (KarloDerBaer): Nur die Post bucht, die Liste dient der Anzeige. Die frühe Meldung und die spätere Rechnung passten nicht immer zusammen (118 Dickes Leder). Gemerkt wird der Verkauf nur noch, damit ein Brief ohne geladene Rechnung seine Menge bekommt.
 - **Alte Fälle einmal korrigieren** (Claude): Abweichungen minus nach dem Einstellen, deren Ware danach verkauft wurde, werden zu „Auktion (korrigiert)“. Die Bewegungen bleiben, nur ihre Art ändert sich, die Kosten rechnet Ledger neu.
 
+## 25.11.2026: Broker schlank, Schritt U4 Einkaufsliste (Broker 0.136.0)
+
+- **Fehlt mit Vorrat und unterwegs** (KarloDerBaer, auf Rückfrage von Claude): Fehlt = Brauche minus Vorrat minus Gekauftes, das noch nicht in Taschen oder Bank ist. Das Konzept sah Brauche minus Gekauftes vor. Dann hätten die Listen aus Peon_Profession zu viel gekauft, weil Profession die ganze Menge schickt und Broker den Vorrat abzieht.
+- **Unterwegs nur im Spiel** (Claude): Je Listeneintrag merkt sich Broker Menge und Vorrat beim ersten Kauf (`way`). Angekommen ist, was der Vorrat seitdem zugelegt hat. Nach 30 Tagen fällt unterwegs weg, wie die Post. Der Manager kennt unterwegs nicht und zeigt Fehlt weiter nach dem Vorrat.
+- **Kauf an die gewählte Liste zuerst** (Claude): Steht ein Gegenstand auf mehreren Listen, bekommt jede höchstens, was ihr fehlt. So zählt ein Kauf nie doppelt.
+- **Mitlesen beim Bestätigen** (Claude, wie Peon_Ledger): `ConfirmCommoditiesPurchase` und `PlaceBid` nennen Gegenstand und Menge, gezählt wird erst nach der Meldung des Spiels, dass der Kauf gelungen ist. Das gilt für Brokers Einkaufen und Blizzards Kaufen gleich.
+- **Doppelklick öffnet das Einkaufen** (Claude): Bisher zeigte er den Markt. Gekauft wird jetzt im Einkaufen, die Menge folgt dort dem, was in der Liste fehlt, bis man sie selbst ändert. Ist nichts mehr offen, steht sie auf 1, nie auf „Alle“.
+- **Regler unter dem Feld Brauche** (Claude): Eine Zeile der Tabelle kann keinen Regler tragen. Er steht links bei den Werten des gewählten Gegenstands, an der Stelle des Knopfs Entfernen (Löschen jetzt über das ×).
+- **Spalte Rat entfällt** (Konzept 7): Der Rat zählt weiter für die Zahl am Reiter.
+
 ## 25.11.2026: Broker schlank, Schritt U3 Beobachten (Broker 0.135.0)
 
 - **Glocke bleibt als Spalte** (Claude): Konzept 6 nennt sie nicht, 6.2 lässt die Warnung bleiben. Die schmale Spalte hinter Kaufen bis schaltet die Warnung je Gegenstand wie bisher. Die Glocke für den Zielpreis ruht mit dem Aufkauf.

@@ -2,6 +2,22 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.136.0
+
+Kurz: Einkaufslisten ziehen jeden Kauf sofort ab, auch Käufe über Blizzards Kaufen. Was gekauft ist, aber noch in der Post liegt, zählt schon mit.
+Kurz: Erledigte Zeilen werden grau und bleiben stehen. Ein × löscht eine Zeile, ein Regler setzt die Menge neu.
+Kurz: Doppelklick auf einen Gegenstand öffnet das Einkaufen, die Menge steht dort auf dem, was noch fehlt.
+
+- 0.136.0 (25.11.2026, Schritt U4 aus dem Konzept `Peon_Broker_Schlank.md`, Abschnitte 7 und 4.1):
+  - **Neu, sofort abziehen:** Broker liest beim Bestätigen eines Kaufs Gegenstand und Menge mit (`C_AuctionHouse.ConfirmCommoditiesPurchase`, `PlaceBid`) und zählt sie nach der Meldung des Spiels als unterwegs (`it.way`, nur im Spiel). Fehlt = Brauche minus Vorrat minus unterwegs (Entscheidung KarloDerBaer 25.11.2026). Kommt die Ware in Taschen oder Bank an, zählt sie als Vorrat, nach 30 Tagen fällt unterwegs weg. Ein Kauf geht zuerst an die gewählte Liste, jede Liste bekommt höchstens, was ihr fehlt.
+  - **Geändert, Spalten:** Gegenstand, Brauche, Fehlt (blaues + bei Ware unterwegs), Höchstpreis, Günstigstes (mit „Händler“, wenn ein Händler günstiger ist) und × zum Löschen. Die Spalte Rat entfällt, der Rat zählt weiter für die Zahl am Reiter.
+  - **Neu, erledigt:** Fehlt nichts mehr, wird die Zeile grau und bleibt stehen.
+  - **Neu, Regler:** Unter dem Feld Brauche ein Regler. Ein neuer Wert macht eine erledigte Zeile wieder aktiv. Der Knopf Entfernen entfällt (× in der Liste).
+  - **Neu, Menge im Einkaufen:** Doppelklick öffnet das Einkaufen, die Menge folgt dem, was in dieser Liste fehlt, auch nach jedem Kauf, bis man sie selbst ändert (`Quick.FromList`, nie gespeichert, mindestens 1). Das Symbol Zurück führt dann zu Listen.
+  - **Entfernt:** Kaufzeile unter der Liste mit Kaufen und Im Markt zeigen. Gekauft wird im Einkaufen, Im Markt zeigen steht im Rechtsklick-Menü.
+  - Gespeicherte Listen bleiben unverändert, `mod:AddToList` und der Abgleich mit dem Manager auch.
+  - Tests: `test_broker.lua`.
+
 ## 0.135.0
 
 Kurz: Beobachten ist jetzt eine einzige Liste mit gleichen Spalten für alle Gegenstände. Die Unterreiter Aufkauf, Schnellkauf und Markttausch entfallen.

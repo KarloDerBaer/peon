@@ -274,14 +274,14 @@ end
 -- der Gegenstand beobachtet, gelten seine gespeicherten Werte (Kaufen bis, Zielpreis) als eigene Werte.
 function F.FromPage(key, from, want)
     if from == "focus" then return end           -- naechste Chance aus dem Fokus heraus: Herkunft bleibt
-    F.origin = (from == "radar" or from == "chances") and "chances" or "watch"
+    F.origin = (from == "radar" or from == "chances") and "chances" or from == "list" and "list" or "watch"   -- ab 0.136 Listen
     -- ab 0.106: aus Chancen immer Aufkauf, aus Beobachten der dort gespeicherte Modus
     -- ab 0.119: want = Modus der Liste, aus der man kommt (Unterreiter Schnellkauf in Chancen und Beobachten)
     local Wt = ns.Watch
     local mode = (want == "quick" or want == "buyout") and want
         or F.origin == "chances" and "buyout" or (Wt and Wt.Is(key) and Wt.Mode(key)) or nil
     if mode and ns.Quick then ns.Quick.SetMode(mode, true) end
-    if F.origin == "watch" then F.LoadWatch(key) end
+    if F.origin == "watch" or F.origin == "list" then F.LoadWatch(key) end
     F.UpdateBack()
     F.Update()
 end
@@ -405,14 +405,14 @@ end
 
 -- Symbol "Zurueck zu ..." in der Kopfzeile (ab 0.133, vorher Knopf unten)
 function F.BackLabel()
-    local label = F.origin == "chances" and L.TAB_CHANCES or L.NTAB_WATCH
+    local label = F.origin == "chances" and L.TAB_CHANCES or F.origin == "list" and L.AHTAB_SHOP or L.NTAB_WATCH
     return L.FOCUS_BACK:format(label)
 end
 
 function F.UpdateBack() end   -- ab 0.133: der Tooltip des Symbols fragt F.BackLabel selbst
 
 function F.GoBack()
-    ns.Window.Open(F.origin == "chances" and "chances" or "watch")
+    ns.Window.Open(F.origin == "chances" and "chances" or F.origin == "list" and "buy" or "watch")
 end
 
 -- Kauf "alles unter dem Ziel" aus den Live-Stufen. Rueckgabe: Plan wie eine Chance (kind "own") oder nil

@@ -4,6 +4,13 @@
 --   Wunschmenge und optionaler eigener Hoechstpreis je Gegenstand).
 --   Schnaeppchen: ab 0.14 eigener Reiter "Radar" (Radar.lua); B.Deals/B.ScanFresh/B.live werden dort genutzt.
 -- Anklicken: Live-Abfrage und Anzeige in Blizzards Kaufen-Ansicht. "Kaufen": Rueckfrage mit Preis, dann kaufen.
+-- Ab 0.136 (U4, Konzept Peon_Broker_Schlank.md 7, KarloDerBaer 24./25.11.2026): Reiter Listen schlank.
+--   Spalten Gegenstand, Brauche, Fehlt, Hoechstpreis, Guenstigstes (mit Hinweis Haendler), x (Zeile loeschen).
+--   Jeder Kauf zaehlt sofort, ob aus Brokers Einkaufen oder aus Blizzards Kaufen: Broker liest Gegenstand und Menge
+--   beim Bestaetigen des Spiels mit (B.HookPurchases) und merkt sie als "unterwegs" (it.way, nur im Spiel), bis die
+--   Ware in Taschen oder Bank ist. Fehlt = Brauche minus Vorrat minus unterwegs (KarloDerBaer 25.11.2026, so bleiben
+--   die Listen aus Peon_Profession richtig). Erledigtes wird grau und bleibt stehen, ein Regler setzt Brauche neu.
+--   Die Kaufzeile unter der Liste entfaellt, Doppelklick oeffnet das Einkaufen mit der Menge, die noch fehlt.
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -263,6 +270,129 @@ function B.Icon(id)
     return nil
 end
 
+---------------------------------------------------------------------------
+-- ab 0.136 (U4): Gekauftes zaehlt sofort ("unterwegs" bis Taschen oder Bank)
+---------------------------------------------------------------------------
+B.WAY_DAYS = 30   -- so lange gilt Gekauftes als unterwegs, danach zaehlt nur der Vorrat (Post laeuft nach 30 Tagen ab)
+
+-- Vorrat eines Gegenstands (Taschen, Bank, mit Haken auch die anderen Charaktere)
+function B.Stock(key)
+    local _, _, total = ns.Stock.Counts(ns.Data.ItemID(key), nil)
+    return total or 0
+end
+
+-- Gekauft, aber noch nicht im Vorrat. it.way = { q = Menge, base = Vorrat beim ersten Kauf, t = Zeit }. Angekommen ist,
+-- was der Vorrat seitdem zugelegt hat. Ist alles angekommen oder zu alt, faellt way weg.
+function B.Way(it, key, stock)
+    local w = type(it) == "table" and it.way or nil
+    if w == nil then return 0 end
+    if type(w) ~= "table" or not Num(w.q) then it.way = nil; return 0 end
+    stock = stock or B.Stock(key)
+    local left = w.q - math.max(0, stock - (tonumber(w.base) or 0))
+    if left <= 0 or time() - (tonumber(w.t) or 0) > B.WAY_DAYS * 86400 then it.way = nil; return 0 end
+    return left
+end
+
+-- Was noch fehlt: Brauche minus Vorrat minus unterwegs (nil ohne Brauche)
+function B.Need(it, key, stock)
+    if type(it) ~= "table" or not Num(it.wish) then return nil end
+    stock = stock or B.Stock(key)
+    return math.max(0, it.wish - stock - B.Way(it, key, stock))
+end
+
+-- Fehlt fuer einen Gegenstand einer Liste (id der Liste), nil wenn er dort nicht steht
+function B.NeedFor(key, listId)
+    for _, l in ipairs(B.Lists()) do
+        if l.id == listId and l.items[key] then return B.Need(l.items[key], key) end
+    end
+    return nil
+end
+
+-- Kauf von id (Gegenstandsnummer) in Menge qty auf die Listen verteilen, die ihn noch brauchen. Die gewaehlte Liste
+-- zuerst, jede bekommt hoechstens, was ihr fehlt. Rueckgabe: verbuchte Menge
+function B.OnPurchase(id, qty)
+    if not (Num(id) and Num(qty) and qty > 0) then return 0 end
+    local D = ns.Data
+    local cur = B.CurrentList()
+    local order = { cur }
+    for _, l in ipairs(B.Lists()) do if l ~= cur then order[#order + 1] = l end end
+    local left, booked = qty, 0
+    for _, l in ipairs(order) do
+        for key, it in pairs(type(l) == "table" and l.items or {}) do
+            if left > 0 and D.ItemID(key) == id then
+                local stock = B.Stock(key)
+                local need = B.Need(it, key, stock)
+                if need and need > 0 then
+                    local n = math.min(need, left)
+                    if type(it.way) == "table" then it.way.q, it.way.t = it.way.q + n, time()
+                    else it.way = { q = n, base = stock, t = time() } end
+                    left, booked = left - n, booked + n
+                end
+            end
+        end
+    end
+    if booked > 0 then
+        if B.view then B.Refresh() else B.UpdateBadge() end
+    end
+    return booked
+end
+
+-- Gegenstand einer Auktion, auf die geboten wird (wie Peon_Ledger M.BidItem)
+function B.BidItem(auctionID)
+    local ah = AHApi()
+    if ah and type(ah.GetAuctionInfoByID) == "function" and Num(auctionID) then
+        local ok, info = pcall(ah.GetAuctionInfoByID, auctionID)
+        if ok and type(info) == "table" and type(info.itemKey) == "table" and Num(info.itemKey.itemID) then return info.itemKey.itemID end
+    end
+    local f = rawget(_G, "AuctionHouseFrame")
+    local buy = type(f) == "table" and rawget(f, "ItemBuyFrame") or nil
+    if type(buy) == "table" then
+        local k = rawget(buy, "itemKey")
+        if type(k) ~= "table" and type(buy.GetItemKey) == "function" then
+            local ok, x = pcall(buy.GetItemKey, buy)
+            if ok then k = x end
+        end
+        if type(k) == "table" and Num(k.itemID) then return k.itemID end
+    end
+    return nil
+end
+
+-- Bestaetigen und Bieten mitlesen (Brokers eigene Kaeufe und Blizzards Kaufen gehen beide hier durch)
+B.PEND_SEC = 60
+function B.HookPurchases()
+    local ah = AHApi()
+    if B.hooked or not (hooksecurefunc and type(ah) == "table") then return false end
+    if type(ah.ConfirmCommoditiesPurchase) ~= "function" or type(ah.PlaceBid) ~= "function" then return false end
+    local ok = pcall(function()
+        hooksecurefunc(ah, "ConfirmCommoditiesPurchase", function(id, qty)
+            B.pendBuy = { id = id, qty = qty, t = time() }
+        end)
+        hooksecurefunc(ah, "PlaceBid", function(auctionID)
+            B.pendBid = { auctionID = auctionID, id = B.BidItem(auctionID), t = time() }
+        end)
+    end)
+    B.hooked = ok
+    return ok
+end
+
+-- kind "commodity" (Kauf von Massenware gelungen), "failed" (fehlgeschlagen), "item" (Auktion gekauft, arg = Nummer)
+function B.OnPurchaseEvent(kind, arg)
+    local now = time()
+    if kind == "commodity" then
+        local p = B.pendBuy
+        B.pendBuy = nil
+        if p and now - p.t <= B.PEND_SEC then B.OnPurchase(p.id, p.qty) end
+    elseif kind == "failed" then
+        B.pendBuy = nil
+    elseif kind == "item" then
+        local p = B.pendBid
+        if p and now - p.t <= B.PEND_SEC and (arg == nil or p.auctionID == nil or p.auctionID == arg) then
+            B.pendBid = nil
+            B.OnPurchase(p.id, 1)
+        end
+    end
+end
+
 -- Zeilen der aktuellen Liste (F28-F30 mit Scan-Daten bzw. letzter Live-Abfrage)
 -- Rat je Zeile (ab 0.49, U8): "buy" genug unter dem Hoechstpreis, "part" nur ein Teil, "expensive" nichts
 -- darunter, "check" ohne Stand, "done" Ziel erreicht
@@ -294,11 +424,12 @@ function B.ListRows(list)
         end
         local hitQty = limit and ns.Data.BelowLimit(levels, limit) or 0
         -- Vorrat (ab 0.24): Taschen + Bank, mit Umschalter "Vorrat aller Charaktere" auch die Twinks (Ledger)
-        local _, _, stock = ns.Stock.Counts(ns.Data.ItemID(key), nil)
-        local need = it.wish and math.max(0, it.wish - (stock or 0)) or nil   -- ab 0.49: Ziel minus Vorrat
+        local stock = B.Stock(key)
+        local way = B.Way(it, key, stock)   -- ab 0.136: gekauft, noch nicht im Vorrat
+        local need = B.Need(it, key, stock)   -- ab 0.49: Ziel minus Vorrat, ab 0.136 auch minus unterwegs
         local r = { key = key, name = it.name or ns.Data.ItemName(key, e) or tostring(key), quality = it.q,
             icon = it.icon, wish = it.wish, limit = limit, cheapest = cheapest, hits = hitQty, stock = stock, need = need,
-            live = live ~= nil, lname = W.Lower(it.name or ""), list = list.name, watch = list.watch }
+            live = live ~= nil, lname = W.Lower(it.name or ""), list = list.name, watch = list.watch, way = way }
         if not cheapest and type(e) ~= "table" then r.hits = nil end
         r.up = it.up
         r.marketMin = type(e) == "table" and not e.gone and tonumber(e.m) or nil   -- ohne Preisstufen der Stand aus Scan/Live
@@ -307,6 +438,10 @@ function B.ListRows(list)
             if vp then r.vendorP, r.vendorSrc = vp, vsrc end
         end
         r.advice = B.Advice(r)
+        r.done = r.advice == "done"   -- ab 0.136: erledigt, grau
+        -- ab 0.136: Guenstigstes mit Hinweis Haendler, wenn ein Haendler guenstiger ist
+        r.best, r.bestVendor = cheapest, false
+        if r.vendorP and (not cheapest or r.vendorP < cheapest) then r.best, r.bestVendor = r.vendorP, true end
         rows[#rows + 1] = r
     end
     return rows
@@ -720,8 +855,9 @@ function B.Plan(row)
     if not limit then return nil end
     local qty, cost = ns.Data.BelowLimit(live.rows, limit)
     if row.wish then
-        local _, _, total = ns.Stock.Counts(ns.Data.ItemID(row.key), nil)
-        qty = math.min(qty, math.max(0, row.wish - (total or 0)))
+        local cur = B.CurrentList()
+        local it = cur and cur.items[row.key] or { wish = row.wish }
+        qty = math.min(qty, B.Need(it, row.key) or 0)   -- ab 0.136 mit unterwegs
         -- Kosten fuer die begrenzte Menge neu rechnen (guenstigste zuerst)
         cost = 0
         local left = qty
@@ -868,22 +1004,8 @@ function B.UpdateView()
     if cur and not cur.watch then B.deleteButton:Enable() else B.deleteButton:Disable() end
     if B.nameBox.SetEnabled then B.nameBox:SetEnabled(not (cur and cur.watch)) end
     if B.pctBox.SetEnabled then B.pctBox:SetEnabled(not (cur and cur.watch)) end
-    -- Gewaehlter Gegenstand
+    -- Gewaehlter Gegenstand (ab 0.136 ohne Kaufzeile, gekauft wird im Einkaufen)
     local row = B.selected
-    local plan = B.Plan(row)
-    local text
-    if not row then
-        text = GREY .. L.BUY_PICK .. "|r"
-    elseif B.pending and B.pending.key == row.key then
-        text = W.Colored(row.name, row.quality) .. "  " .. GREY .. L.SELL_LIVE_WAIT .. "|r"
-    elseif plan and plan.qty > 0 then
-        text = W.Colored(row.name, row.quality) .. "  " .. GREEN .. L.BUY_PLAN:format(plan.qty, Money(plan.cost)) .. "|r"
-    elseif plan then
-        text = W.Colored(row.name, row.quality) .. "  " .. ORANGE .. L.BUY_NOTHING .. "|r"
-    else
-        text = W.Colored(row.name, row.quality)
-    end
-    B.selText:SetText(text)
     if row then
         B.itemBar:Show()
         B.filling = true
@@ -898,15 +1020,97 @@ function B.UpdateView()
             B.upBox:SetText(isWatch and it and it.up and tostring(it.up / 10000) or "")
         end
         B.maxBox:SetText(it and it.max and tostring(it.max / 10000) or "")
+        B.SyncWishSlider(it)
         B.filling = false
     else
         B.itemBar:Hide()
     end
-    local can = AHOpen() and plan and plan.qty > 0 and not B.buying
-    if can then B.buyButton:Enable() else B.buyButton:Disable() end
     if AHOpen() and not B.run and cur and next(cur.items) then B.searchButton:Enable() else B.searchButton:Disable() end
     if B.run then B.listStatus:SetText(GREY .. L.BUY_SEARCHING:format(B.run.i, #B.run.rows) .. "|r")
     else B.listStatus:SetText("") end
+end
+
+-- ab 0.136 (U4): Regler fuer Brauche. Bereich 1 bis doppelt so viel wie jetzt, mindestens B.WISH_MIN_MAX
+B.WISH_MIN_MAX = 20
+function B.WishMax(wish)
+    local v = math.max(B.WISH_MIN_MAX, (tonumber(wish) or 0) * 2)
+    local step = v > 1000 and 100 or v > 200 and 20 or 10
+    return math.ceil(v / step) * step
+end
+
+function B.SyncWishSlider(it)
+    local s = B.wishSlider
+    if not s then return end
+    local wish = it and Num(it.wish) and it.wish or 1
+    local hi = (s.peonMax and wish <= s.peonMax and s.peonMax >= B.WishMax(wish) / 2) and s.peonMax or B.WishMax(wish)
+    if s.peonMax ~= hi or s.peonVal ~= wish then
+        B.wishSync = true
+        if type(s.Slider) == "table" and type(s.Init) == "function" then
+            local mix = rawget(_G, "MinimalSliderWithSteppersMixin")
+            local right = mix and mix.Label and mix.Label.Right
+            pcall(s.Init, s, wish, 1, hi, math.max(1, hi - 1), right and { [right] = function() return "" end } or nil)
+            if type(s.RightText) == "table" and s.RightText.Hide then s.RightText:Hide() end
+        else
+            if s.SetMinMaxValues then s:SetMinMaxValues(1, hi) end
+            if s.SetValue then s:SetValue(wish) end
+        end
+        B.wishSync = false
+        s.peonMax, s.peonVal = hi, wish
+    end
+    s:SetShown(it ~= nil)
+end
+
+-- Brauche setzen (Feld oder Regler). Ein neuer Wert macht eine erledigte Zeile wieder aktiv, wenn wieder etwas fehlt.
+function B.SetWish(v)
+    local cur = B.CurrentList()
+    if B.filling or B.wishSync or not cur or not B.selected then return end
+    local it = cur.items[B.selected.key]
+    if not it then return end
+    v = tonumber(v)
+    if v then v = math.floor(v + 0.5) end
+    if v and v < 1 then v = nil end
+    if v ~= it.wish then it.wish = v; B.Touch(it, "wish") end
+    B.Refresh()
+end
+
+-- ab 0.136: Zeile loeschen (x in der Liste)
+function B.DeleteRow(r)
+    local cur = B.CurrentList()
+    if not (cur and r and cur.items[r.key]) then return end
+    B.RemoveItem(cur, r.key)
+    if B.selected and B.selected.key == r.key then B.selected = nil end
+    B.Refresh()
+end
+
+-- ab 0.136: Doppelklick: im Einkaufen oeffnen, die Menge steht auf dem, was in dieser Liste noch fehlt
+function B.ToShop(r)
+    local cur = B.CurrentList()
+    if not (r and cur) then return false end
+    return ns.Go.Focus({ key = r.key, name = r.name, from = "list", list = cur.id })
+end
+
+-- Ueber der Spalte x? Die Tabelle meldet nur die Zeile, darum ueber den Spaltenkopf (wie Beobachten)
+B.DEL_COL = 6
+function B.OverDelete()
+    if not GetCursorPosition then return false end
+    local h = B.itemList and B.itemList.heads and B.itemList.heads[B.DEL_COL]
+    local left, right = h and h.GetLeft and h:GetLeft(), h and h.GetRight and h:GetRight()
+    local scale = h and h.GetEffectiveScale and h:GetEffectiveScale() or 1
+    local x = GetCursorPosition()
+    return left ~= nil and right ~= nil and x ~= nil and scale > 0 and x / scale >= left and x / scale <= right
+end
+
+B.DEL_ICON = "|TInterface\\Buttons\\UI-GroupLoot-Pass-Up:14:14|t"
+
+-- Tooltip einer Zeile: Gegenstand, darunter Vorrat, unterwegs, Haendler
+function B.RowTooltip(row, r)
+    W.ShowItemTooltip(row, r.key, function(GT)
+        if Num(r.stock) then GT:AddLine(L.BUY_TIP_STOCK:format(r.stock), 0.85, 0.85, 0.85) end
+        if Num(r.way) and r.way > 0 then GT:AddLine(L.BUY_TIP_WAY:format(r.way), 0.6, 0.9, 1, true) end
+        if r.vendorP then GT:AddLine(L.BUY_TIP_VENDOR:format(Money(r.vendorP)), 0.4, 0.73, 1) end
+        if r.done then GT:AddLine(L.BUY_TIP_DONE, 0.7, 0.7, 0.7, true) end
+        GT:AddLine(L.BUY_TIP_DOUBLE, 0.6, 0.6, 0.6, true)
+    end)
 end
 
 ---------------------------------------------------------------------------
@@ -929,6 +1133,12 @@ local function Adapt(t)
         self.list:Refresh()
     end
     return t
+end
+
+-- ab 0.136: Text einer erledigten Zeile grau (grey = auch ohne erledigt grau, etwa ein alter Preis)
+function B.Dim(text, r, grey)
+    if (r and r.done) or grey then return GREY .. text .. "|r" end
+    return text
 end
 
 local function Gold(text)
@@ -1032,17 +1242,7 @@ function B.Build(c)
     end)
     B.wishBox = UI.Input(ib, 80, { numeric = true })
     B.wishRow = UI.FormRow(ib, L.BUY_F_WISH, B.wishBox, B.FORM_X, -70, L.BUY_F_WISH_SUB)
-    B.wishBox:SetScript("OnEditFocusLost", function(self)
-        local cur = B.CurrentList()
-        if B.filling or not cur or not B.selected then return end
-        local it = cur.items[B.selected.key]
-        if it then
-            local v = tonumber(self:GetText() or "")
-            if v and v < 1 then v = nil end
-            if v ~= it.wish then it.wish = v; B.Touch(it, "wish") end
-            B.Refresh()
-        end
-    end)
+    B.wishBox:SetScript("OnEditFocusLost", function(self) B.SetWish(self:GetText() or "") end)
     -- ab 0.68 (H4, Konzept 6.6): Beobachtung mit Grenze nach oben ("verkaufen ab"), an der Stelle des Ziels
     B.upBox = UI.Input(ib, 80)
     B.upRow = UI.FormRow(ib, L.BUY_F_UP, B.upBox, B.FORM_X, -70, L.BUY_F_UP_SUB)
@@ -1052,11 +1252,13 @@ function B.Build(c)
         ns.Watch.SetUp(B.selected.key, Gold(self:GetText()))
         B.Refresh()
     end)
-    B.removeButton = UI.Button(ib, L.BUY_REMOVE, B.LEFT_W - 24, function()
-        local cur = B.CurrentList()
-        if cur and B.selected then B.RemoveItem(cur, B.selected.key); B.selected = nil; B.Refresh() end
+    -- ab 0.136 (U4): Regler fuer Brauche statt Knopf Entfernen (Loeschen ueber das x in der Liste)
+    B.wishSlider = UI.Slider(ib, B.LEFT_W - 40, 1, B.WISH_MIN_MAX, 1, 1, function(v)
+        if B.wishSync or not Num(v) then return end
+        B.SetWish(v)
     end)
-    B.removeButton:SetPoint("TOPLEFT", 12, -108)
+    B.wishSlider:SetPoint("TOPLEFT", 20, -108)
+    UI.SetTooltip(B.wishSlider, { L.BUY_COL_WISH, L.BUY_WISH_TIP })
 
     -- Vorrat aller Charaktere (nur mit Peon_Ledger)
     B.allChars = UI.Check(left, L.BUY_F_ALLCHARS, mod.db.keepAllChars == true, function(on)
@@ -1069,38 +1271,61 @@ function B.Build(c)
     -- Rechts: Gegenstaende der Liste
     local right = UI.Panel(c, "list", true)
     right:SetPoint("TOPLEFT", lp, "TOPRIGHT", 2, 0)
-    right:SetPoint("BOTTOMRIGHT", 0, 42)
+    right:SetPoint("BOTTOMRIGHT", 0, 0)   -- ab 0.136 ohne Kaufzeile
     B.panel = right
     B.itemList = Adapt(UI.Table(right, {
         columns = {
+            -- ab 0.136: erledigte Zeilen grau (bleiben stehen, bis man sie mit x loescht)
             { key = "name", title = L.COL_ITEM, sort = function(r) return W.Lower(r.name) end,
-              color = function(r) return UI.QualityColor(r.quality or 1) end },
-            { key = "wish", title = L.BUY_COL_GOAL, width = 60, align = "RIGHT", format = function(v) return v and tostring(v) or "–" end },
+              color = function(r)
+                  if r.done then return 0.5, 0.5, 0.5 end
+                  return UI.QualityColor(r.quality or 1)
+              end },
+            { key = "wish", title = L.BUY_COL_WISH, width = 64, align = "RIGHT",
+              format = function(v, r) return B.Dim(v and tostring(v) or "–", r) end },
             { key = "need", title = L.BUY_COL_NEED, width = 60, align = "RIGHT",
-              format = function(v) if v == nil then return "–" end return v == 0 and (GREY .. "0|r") or tostring(v) end },
-            { key = "limit", title = L.BUY_COL_LIMIT, width = 100, align = "RIGHT", format = function(v) return v and Money(v) or "–" end },
-            { key = "cheapest", title = L.BUY_COL_CHEAPEST, width = 100, align = "RIGHT",
-              format = function(v, r) if not v then return "–" end return (r.live and "" or GREY) .. Money(v) .. (r.live and "" or "|r") end },
-            { key = "advice", title = L.BUY_COL_ADVICE, width = 90, align = "RIGHT",
-              format = function(v) return (B.ADVICE_COLOR[v] or GREY) .. (L["BUY_ADV_" .. tostring(v):upper()] or "") .. "|r" end,
-              sort = function(r) return B.ADVICE_ORDER[r.advice] or 9 end },
+              format = function(v, r)
+                  if v == nil then return "–" end
+                  local t = tostring(v) .. ((Num(r.way) and r.way > 0) and ("|cff66bbff+|r") or "")
+                  return v == 0 and (GREY .. "0|r") or t
+              end },
+            { key = "limit", title = L.BUY_COL_LIMIT, width = 100, align = "RIGHT",
+              format = function(v, r) return B.Dim(v and Money(v) or "–", r) end },
+            { key = "best", title = L.BUY_COL_BEST, width = 130, align = "RIGHT",
+              format = function(v, r)
+                  if not v then return "–" end
+                  if r.bestVendor then return "|cff66bbff" .. L.BUY_VENDOR_HINT .. "|r " .. Money(v) end
+                  return B.Dim(Money(v), r, not r.live)
+              end,
+              sort = function(r) return r.best or math.huge end },
+            { key = "del", title = "", width = 30, align = "CENTER", nosort = true,
+              format = function() return B.DEL_ICON end },
         },
         sortKey = "name", icon = true, empty = L.BUY_LIST_EMPTY,
+        -- ab 0.136: Klick waehlt, Klick auf x loescht, Doppelklick oeffnet das Einkaufen, Rechtsklick das Menue
         onClick = function(r, button)
-            ns.Go.Click(r, button, B.panel, function() mod:Call("Einkaufen", B.Select, r) end)
+            if button == "RightButton" then ns.Go.Menu(r, B.panel); return end
+            if B.OverDelete() then B.clickKey = nil; mod:Call("Einkaufsliste", B.DeleteRow, r); return end
+            local now = GetTime and GetTime() or 0
+            if B.clickKey == r.key and now - (B.clickT or 0) <= (ns.Go.DOUBLE or 0.4) then
+                B.clickKey = nil
+                mod:Call("Sprung", B.ToShop, r)
+                return
+            end
+            B.clickKey, B.clickT = r.key, now
+            mod:Call("Einkaufen", B.Select, r)
         end,
-        onEnter = function(row, r) if r then W.ShowItemTooltip(row, r.key) end end,
+        onEnter = function(row, r)
+            if not r then return end
+            if B.OverDelete() and GameTooltip then
+                GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+                GameTooltip:SetText(L.BUY_DEL_TIP, 1, 0.82, 0)
+                GameTooltip:Show()
+                return
+            end
+            B.RowTooltip(row, r)
+        end,
     }))
-
-    -- Kaufzeile unter der Liste
-    B.buyButton = UI.Button(c, L.BUY_BUY, 130, function() mod:Call("Einkaufen", B.Buy) end, "gold")
-    B.buyButton:SetPoint("BOTTOMRIGHT", -2, 4)
-    B.goMarketButton = ns.Go.MarketButton(c, 130, function() return B.selected end)   -- ab 0.73 sicher
-    B.goMarketButton:SetPoint("RIGHT", B.buyButton, "LEFT", -6, 0)
-    B.selText = UI.Text(c, "text", "")
-    B.selText:SetPoint("LEFT", right, "BOTTOMLEFT", 10, -21)
-    B.selText:SetPoint("RIGHT", B.goMarketButton, "LEFT", -10, 0)
-    if B.selText.SetWordWrap then B.selText:SetWordWrap(false) end
 
     B.Refresh()
 end
@@ -1114,6 +1339,12 @@ function B.Init()
     mod:RegisterEvent("COMMODITY_PURCHASE_SUCCEEDED", function() B.OnBought(true) end)
     mod:RegisterEvent("COMMODITY_PURCHASE_FAILED", function() B.OnBought(false) end)
     mod:RegisterEvent("AUCTION_HOUSE_PURCHASE_COMPLETED", function() B.OnBought(true) end)
+    -- ab 0.136 (U4): jeder Kauf zaehlt sofort in den Einkaufslisten
+    B.HookPurchases()
+    mod:RegisterEvent("COMMODITY_PURCHASE_SUCCEEDED", function() mod:Call("Einkaufsliste", B.OnPurchaseEvent, "commodity") end)
+    mod:RegisterEvent("COMMODITY_PURCHASE_FAILED", function() B.OnPurchaseEvent("failed") end)
+    mod:RegisterEvent("AUCTION_HOUSE_PURCHASE_COMPLETED", function(_, auctionID) mod:Call("Einkaufsliste", B.OnPurchaseEvent, "item", auctionID) end)
+    mod:RegisterEvent("AUCTION_HOUSE_SHOW", function() B.HookPurchases() end)
     mod:RegisterEvent("AUCTION_HOUSE_CLOSED", function() B.run, B.pending, B.buying, B.keyJob = nil, nil, nil, nil end)
     -- ab 0.28: Suchschluessel der Varianten aus jedem Suchergebnis lernen (auch beim Stoebern im Blizzard-Fenster)
     mod:RegisterEvent("ITEM_SEARCH_RESULTS_UPDATED", function(_, itemKey) mod:Call("Schluessel", B.LearnFromResults, itemKey) end)
