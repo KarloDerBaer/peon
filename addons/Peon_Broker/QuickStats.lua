@@ -20,6 +20,11 @@
 --   h   Treffer: fremdes Angebot unter Kaufen bis des Schnellkaufs taucht auf, vorher stand dort keins
 --   k   gekaufte Stueck im Schnellkauf, c deren Kosten (Kupfer)
 --   lo  { [Stunde] = Preis } Tiefstpreis je Stunde (Stunde = time() / 3600), nur Stufen mit mindestens 2 Stueck
+-- Ab 0.135 (U3, Konzept Peon_Broker_Schlank.md 6): Beobachten zeigt Treffer und Einbrueche je Stunde beobachteter Zeit
+-- ueber den Zeitraum (QS.Get: hitsPerHour, perHour) und die Spalte Jetzt. Jetzt zaehlt seit Beginn der Sitzung am
+-- Auktionshaus (QS.now, nur im Spiel, nicht gespeichert). Eine Sitzung beginnt beim Oeffnen des Auktionshauses, wenn
+-- es mindestens QS.NOW_GAP Sekunden zu war (kurz zur Post und zurueck setzt nichts zurueck). Treffer zaehlen jetzt fuer
+-- jeden beobachteten Gegenstand mit Kaufen bis des Einkaufens (vorher nur in der Liste Schnellkauf).
 
 local ADDON_NAME, ns = ...
 local L = ns.L
@@ -32,6 +37,10 @@ QS.GAP_MAX = 10      -- Sekunden: laengere Abstaende zwischen zwei Abfragen zaeh
 QS.SURE = 1800       -- Sekunden: ab so viel beobachteter Zeit gilt der Wert je Stunde (Listen)
 QS.LOW_SEC = 60      -- ab 0.124: Sekunden, ueber die der Tiefstpreis fuer Einbrueche reicht
 QS.lows = {}         -- ab 0.124: [Schluessel] = { { t, p }, ... } Tiefstpreise der letzten QS.LOW_SEC Sekunden (nur Sitzung)
+QS.NOW_GAP = 600     -- ab 0.135: Sekunden, die das Auktionshaus zu sein muss, damit beim Oeffnen eine neue Sitzung beginnt
+QS.NOW_SURE = 600    -- ab 0.135: Sekunden Beobachtung in der Sitzung, ab denen der Punkt in Jetzt farbig wird
+QS.now = {}          -- ab 0.135: [Schluessel] = { s, h, e } Zeit, Treffer, Einbrueche dieser Sitzung (nur im Spiel)
+QS.nowClosed = nil   -- ab 0.135: Zeit (time()), zu der das Auktionshaus zuletzt geschlossen wurde
 
 local GREY = "|cff999999"
 local function Num(v) return type(v) == "number" and not Peon.IsSecret(v) end
@@ -102,10 +111,11 @@ function QS.Low2(s)
     return nil
 end
 
--- ab 0.126: Kaufen bis des Schnellkaufs aus der Beobachtung (nil = nicht fuer den Schnellkauf beobachtet)
+-- ab 0.126: Kaufen bis des Schnellkaufs aus der Beobachtung (nil = nicht beobachtet oder ohne Kaufen bis)
+-- ab 0.135 (U3): fuer jeden beobachteten Gegenstand, Beobachten ist eine Liste
 function QS.Limit(key)
     local Wt = ns.Watch
-    if not (Wt and Wt.InQuick and Wt.InQuick(key)) then return nil end
+    if not Wt then return nil end
     local w = Wt.Store()[key]
     return type(w) == "table" and Num(w.qlim) and w.qlim or nil
 end
@@ -154,6 +164,8 @@ function QS.OnPair(key, prev, s)
     if gap <= 0 then return nil end
     local d = Day(key)
     if d then d.s = d.s + math.min(gap, QS.GAP_MAX) end
+    local nw = QS.NowEntry(key)   -- ab 0.135: Sitzung am Auktionshaus
+    nw.s = nw.s + math.min(gap, QS.GAP_MAX)
     -- ab 0.124: Tiefstpreis der letzten Minute (prev und gemerkte Abfragen davor)
     local ref, keep, hasPrev = QS.Low(prev), {}, false
     for _, e in ipairs(QS.lows[key] or {}) do
@@ -168,12 +180,15 @@ function QS.OnPair(key, prev, s)
     if Num(low) then keep[#keep + 1] = { t = s.t, p = low } end
     QS.lows[key] = keep
     local dip = QS.Dip(prev, s, ref)
+    local limit = QS.Limit(key)
+    local hit = limit ~= nil and Under(s, limit) and not Under(prev, limit)
+    if dip then nw.e = nw.e + 1 end
+    if hit then nw.h = nw.h + 1 end
     if d then
         if dip then d.e = (d.e or 0) + 1 end
         if ns.Quick and ns.Quick.NewBaits then d.b = d.b + #ns.Quick.NewBaits(prev, s, nil) end
         -- ab 0.126: Treffer unter Kaufen bis und Tiefstpreis der Stunde
-        local limit = QS.Limit(key)
-        if limit and Under(s, limit) and not Under(prev, limit) then d.h = (d.h or 0) + 1 end
+        if hit then d.h = (d.h or 0) + 1 end
         NoteLow(d, QS.Low2(prev))
         NoteLow(d, QS.Low2(s))
     end
@@ -243,8 +258,59 @@ function QS.Get(key)
     if v.secs <= 0 and v.bought <= 0 then return nil end
     local h = math.max(v.secs, 1) / 3600
     v.perHour, v.baitsPerHour = v.dips / h, v.baits / h
+    v.hitsPerHour = v.hits / h   -- ab 0.135 (U3)
     v.sure = v.secs >= QS.SURE
     return v
+end
+
+---------------------------------------------------------------------------
+-- ab 0.135 (U3): Jetzt, seit Beginn der Sitzung am Auktionshaus
+---------------------------------------------------------------------------
+function QS.NowEntry(key)
+    local nw = QS.now[key]
+    if not nw then nw = { s = 0, h = 0, e = 0 }; QS.now[key] = nw end
+    return nw
+end
+
+-- Auktionshaus geoeffnet: neue Sitzung, wenn es lange genug zu war (oder zum ersten Mal)
+function QS.OnAHShow(t)
+    t = t or time()
+    if not QS.nowClosed or t - QS.nowClosed >= QS.NOW_GAP then QS.now = {} end
+    QS.nowClosed = nil
+end
+
+function QS.OnAHClosed(t) QS.nowClosed = t or time() end
+
+-- Werte der Sitzung: nil (nicht beobachtet) oder { secs, hits, dips, hitsPerHour, perHour, sure }
+function QS.Now(key)
+    local nw = QS.now[key]
+    if not nw or nw.s <= 0 then return nil end
+    local h = nw.s / 3600
+    return { secs = nw.s, hits = nw.h, dips = nw.e, hitsPerHour = nw.h / h, perHour = nw.e / h, sure = nw.s >= QS.NOW_SURE }
+end
+
+-- Farbe des Punkts in Jetzt: "up" (mehr Treffer je Stunde als im Zeitraum), "down" (weniger), "none" (grau: unter
+-- QS.NOW_SURE beobachtet, ohne Kaufen bis, ohne Vergleich oder gleich)
+function QS.Trend(key)
+    local n = QS.Now(key)
+    if not (n and n.sure and QS.Limit(key)) then return "none" end
+    local v = QS.Get(key)
+    if not (v and v.secs > 0) then return "none" end
+    if n.hitsPerHour > v.hitsPerHour + 1e-9 then return "up" end
+    if n.hitsPerHour < v.hitsPerHour - 1e-9 then return "down" end
+    return "none"
+end
+
+QS.TREND = { up = { 96, 224, 96 }, down = { 230, 70, 60 }, none = { 110, 110, 110 } }
+function QS.Dot(trend)
+    local c = QS.TREND[trend] or QS.TREND.none
+    local dot = ns.Radar.DOT
+    return ("|T%s:12:12:0:0:32:32:0:32:0:32:%d:%d:%d|t"):format(dot, c[1], c[2], c[3])
+end
+
+function QS.Init()
+    mod:RegisterEvent("AUCTION_HOUSE_SHOW", function() QS.OnAHShow() end)
+    mod:RegisterEvent("AUCTION_HOUSE_CLOSED", function() QS.OnAHClosed() end)
 end
 
 -- Einbrueche je Stunde fuer Sortierung (nur wenn der Wert gilt)
@@ -294,7 +360,7 @@ function QS.TipLines(GT, key)
     if not v then GT:AddLine(L.QS_TIP_NONE, 0.7, 0.7, 0.7, true); return end
     GT:AddLine(L.QS_TIP_PERIOD:format(QS.Days(), QS.Span(v.secs)), 1, 0.82, 0, true)
     GT:AddLine(L.QS_TIP_COUNTS:format(v.dips, Rate(v.perHour), v.baits), 0.85, 0.85, 0.85, true)
-    if QS.Limit(key) then GT:AddLine(L.QS_TIP_HITS:format(v.hits), 0.85, 0.85, 0.85, true) end
+    if QS.Limit(key) then GT:AddLine(L.QS_TIP_HITS_H:format(v.hits, Rate(v.hitsPerHour)), 0.85, 0.85, 0.85, true) end   -- ab 0.135 je Std.
     local low = QS.Low24(key)
     if low then GT:AddLine(L.QS_TIP_LOW24:format(ns.Tooltip.Money(low)), 0.85, 0.85, 0.85, true) end
     if v.bought > 0 then

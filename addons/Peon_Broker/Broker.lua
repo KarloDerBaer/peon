@@ -692,6 +692,7 @@ mod:On("INIT", function()
     if ns.Packages then mod:Call("Pakete", ns.Packages.Init) end   -- ab 0.129
     if ns.Lots then mod:Call("Posten", ns.Lots.Init) end   -- ab 0.67 (H3)
     if ns.Quick then mod:Call("Schnellkauf", ns.Quick.Init) end   -- ab 0.104
+    if ns.QuickStats then mod:Call("Beobachten", ns.QuickStats.Init) end   -- ab 0.135 (U3): Sitzung am Auktionshaus
     if ns.SellVariant then mod:Call("Varianten", ns.SellVariant.Init) end   -- ab 0.98
     mod:Call("Sprung", ns.Go.InitMarket)   -- ab 0.73: sicherer Knopf Im Markt zeigen
     -- ab 0.95: Berufsfenster in Peon_Profession (Craft.lua dort)

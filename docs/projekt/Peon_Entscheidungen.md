@@ -11,6 +11,15 @@ Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, 
 - **Verkauf in der Auktionsliste bucht nichts mehr** (KarloDerBaer): Nur die Post bucht, die Liste dient der Anzeige. Die frühe Meldung und die spätere Rechnung passten nicht immer zusammen (118 Dickes Leder). Gemerkt wird der Verkauf nur noch, damit ein Brief ohne geladene Rechnung seine Menge bekommt.
 - **Alte Fälle einmal korrigieren** (Claude): Abweichungen minus nach dem Einstellen, deren Ware danach verkauft wurde, werden zu „Auktion (korrigiert)“. Die Bewegungen bleiben, nur ihre Art ändert sich, die Kosten rechnet Ledger neu.
 
+## 25.11.2026: Broker schlank, Schritt U3 Beobachten (Broker 0.135.0)
+
+- **Glocke bleibt als Spalte** (Claude): Konzept 6 nennt sie nicht, 6.2 lässt die Warnung bleiben. Die schmale Spalte hinter Kaufen bis schaltet die Warnung je Gegenstand wie bisher. Die Glocke für den Zielpreis ruht mit dem Aufkauf.
+- **Sitzung für Jetzt** (Claude): Sie beginnt beim Öffnen des Auktionshauses, wenn es mindestens 10 Minuten zu war. Wer kurz zur Post geht, verliert seine Zählung nicht. Die Werte bleiben nur im Spiel.
+- **Punkt bei Gleichstand grau** (Claude): Grün und rot nur bei echtem Unterschied, auch ohne Kaufen bis grau, weil dann keine Treffer zählen.
+- **Treffer für jeden beobachteten Gegenstand** (Claude): Bisher zählten Treffer nur in der Liste Schnellkauf (`qon`). Mit einer Liste zählen sie überall, wo ein Kaufen bis des Einkaufens steht.
+- **Ganze Liste in der Prüfung der Marktbewegung** (Claude): Bisher fragte Aufkauf reihum einzeln ab, Schnellkauf prüfte die Bewegung, Markttausch fragte seine Zeilen ab. Jetzt prüft Broker alle Einträge wie früher den Schnellkauf. Nur so entstehen Bewegung, Treffer und Einbrüche, die Warnungen prüft jede Antwort wie bisher.
+- **Menü ohne Aufkauf mit einem Haken** (Claude): „Beobachten“ statt der Haken Aufkauf und Schnellkauf, aus heißt entfernen (Konzept 6.2). Massenware bekommt dabei das Kaufen bis des Einkaufens. Mit eingeschaltetem Aufkauf bleibt das bisherige Menü mit Preisgrenze und Zielpreis.
+
 ## 25.11.2026: Broker schlank, Schritt U2 Diagramm (Broker 0.134.0)
 
 - **Eigener Verlauf für das Diagramm** (Claude): Die Messung behält nur 240 Abfragen, bei 90 je Minute knapp 3 Minuten. Für 15 und 60 Minuten merkt sich Broker je 3 Sekunden einen kleinen Eintrag mit dem tiefsten Preis und den untersten 16 Preisstufen, für die letzten drei Gegenstände und nur im Spiel. Mit den Stufen rechnet das Diagramm die Menge unter Kaufen bis nach einer Änderung für den ganzen Zeitraum neu, wie bisher. Liegt Kaufen bis über der 16. Stufe, zählt die Menge bis dorthin.

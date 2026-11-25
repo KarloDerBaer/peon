@@ -2,6 +2,22 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.135.0
+
+Kurz: Beobachten ist jetzt eine einzige Liste mit gleichen Spalten für alle Gegenstände. Die Unterreiter Aufkauf, Schnellkauf und Markttausch entfallen.
+Kurz: Neue Spalten zeigen Treffer und Einbrüche je Stunde über die letzten 7 Tage und unter „Jetzt“ die Treffer seit Beginn der Sitzung am Auktionshaus. Ein grüner Punkt heißt mehr Treffer als sonst, ein roter weniger.
+
+- 0.135.0 (25.11.2026, Schritt U3 aus dem Konzept `Peon_Broker_Schlank.md`, Abschnitt 6):
+  - **Geändert, eine Liste:** Jeder beobachtete Gegenstand steht einmal in Beobachten. Spalten Gegenstand (bei Markttausch mit Hinweis „Neutral“), Günstigster, Kaufen bis (Wert des Einkaufens), Glocke der Warnung, Treffer 7 T., Einbrüche 7 T. und Jetzt. Mit eingeschaltetem Aufkauf zeigt Kaufen bis ohne eigenen Wert die Grenze des Aufkaufs, Zielpreis und Rat VERKAUFEN gibt es nur dann.
+  - **Neu, Treffer und Einbrüche je Stunde:** je Stunde beobachteter Zeit über den Zeitraum (`quickStatDays`, Vorgabe 7 Tage). Unter 30 Minuten Beobachtung stehen die Werte grau. Treffer zählen jetzt für jeden beobachteten Gegenstand mit Kaufen bis, nicht nur in der früheren Liste Schnellkauf.
+  - **Neu, Jetzt:** Treffer seit Beginn der Sitzung am Auktionshaus mit Punkt. Grün bei mehr Treffern je Stunde als im Zeitraum, rot bei weniger, grau unter 10 Minuten Beobachtung oder ohne Kaufen bis. Eine Sitzung beginnt beim Öffnen des Auktionshauses, wenn es mindestens 10 Minuten zu war. Die Werte der Sitzung werden nicht gespeichert.
+  - **Geändert, Tooltip:** Jetzt mit Treffern und Einbrüchen, Stück unter Kaufen bis (bisher Spalte Darunter), Bewegung mit Zufluss und Abfluss, Tief 24 Std., die Werte der 7 Tage und bei Markttausch beide Häuser mit Richtung, Spanne, Absatz und Zustand.
+  - **Geändert, laufende Abfrage:** Solange Beobachten offen ist, prüft Broker die ganze Liste mit der Prüfung der Marktbewegung (bisher je Unterreiter verschieden).
+  - **Geändert, Menü:** Ohne Aufkauf ein Haken „Beobachten“ (aus = entfernen), dazu Markttausch und Ton bei Kaufen bis. Massenware kommt dabei mit dem Kaufen bis des Einkaufens in die Liste. Mit Aufkauf bleibt das bisherige Menü.
+  - **Entfernt:** Knopf „Im Markt zeigen“ unter der Liste (steht im Rechtsklick-Menü). Entfernen, Verkaufen, Warnung und Einstellungen bleiben.
+  - Gespeicherte Werte bleiben erhalten (`watch` mit `mode`, `qmax`, `bon`, `qon`, `ton`, dazu `watchTab`).
+  - Tests: `test_broker.lua`.
+
 ## 0.134.1
 
 Kurz: Die alten Hinweise zum Neuaufbau und zum Schnellkauf erscheinen nicht mehr.

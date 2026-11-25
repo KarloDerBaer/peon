@@ -323,8 +323,7 @@ function T.ActiveKeys()
     if not (ns.Scan and ns.Scan.ahOpen) then return nil end
     if T.ListShown() then return T.Keys() end
     if ns.Packages and ns.Packages.Shown() then return ns.Packages.Keys() end   -- ab 0.129: Pakete
-    local P = ns.WatchPage
-    if P and P.Shown and P.Shown() and P.Tab() == "trade" and ns.Watch and ns.Watch.TradeKeys then return ns.Watch.TradeKeys() end
+    -- ab 0.135 (U3): Beobachten hat keinen Unterreiter Markttausch mehr, die Pruefung der Liste fragt alle ab
     return nil
 end
 
@@ -348,8 +347,6 @@ end
 -- Antwort einer Abfrage (Radar.lua R.Apply): Liste neu zeigen
 function T.OnAnswer(key)
     if (T.ListShown() or (ns.Packages and ns.Packages.Shown())) and ns.Chances then ns.Chances.Refresh() end
-    local P = ns.WatchPage
-    if P and P.Shown and P.Shown() and P.Tab() == "trade" and P.Refresh then P.Refresh() end
 end
 
 -- Knopf "Alle pruefen": eine Runde fuer das Haus, an dem man steht

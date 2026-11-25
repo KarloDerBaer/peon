@@ -2874,7 +2874,11 @@ end)()
   check(not (cur and cur.watch), "0.82: Einkaufen kennt die Beobachtung nicht mehr als Liste")
   local wrow
   for _, r in ipairs(ns.WatchPage.Rows()) do if r.key == 2770 then wrow = r end end
-  check(wrow and wrow.limit == Wt.Limit(2770), "0.82: Beobachten zeigt Kaufen bis")
+  check(wrow and wrow.limit == nil, "0.135: Beobachten zeigt Kaufen bis des Einkaufens, Grenze des Aufkaufs ruht")
+  mod.db.focusBuyout = true
+  for _, r in ipairs(ns.WatchPage.Rows()) do if r.key == 2770 then wrow = r end end
+  check(wrow and wrow.limit == Wt.Limit(2770), "0.82/0.135: mit Aufkauf zeigt Beobachten dessen Kaufen bis")
+  mod.db.focusBuyout = false
   B.DeleteList("watch")
   check(Wt.Is(2770), "U8: Beobachtung laesst sich nicht als Liste loeschen")
   mod.char.listSel = 1
@@ -2921,6 +2925,12 @@ end)()
   local items = {}
   local root = { CreateButton = function(_, t, fn) local c = { text = t, fn = fn, CreateButton = function(self2, t2, f2) items[#items + 1] = t2; return {} end }; items[#items + 1] = t; return c end }
   Wt.AddMenu(root, { name = "Kupfererz" }, 2770)
+  check(items[1] == ns.L.MENU_UNWATCH and items[2] == ns.L.MENU_WATCH_SOUND_DOWN,
+    "0.135: ohne Aufkauf nur Beobachten (aus = entfernen) und Ton bei Kaufen bis: " .. tostring(items[1]) .. " / " .. tostring(items[2]))
+  mod.db.focusBuyout = true
+  items = {}
+  Wt.AddMenu(root, { name = "Kupfererz" }, 2770)
+  mod.db.focusBuyout = false
   if ns.Data.IsCommodity(2770) then
     check(items[1] == "[x] " .. ns.L.MENU_WATCH_BUYOUT and items[2] == "[ ] " .. ns.L.MENU_WATCH_QUICK and items[3] == ns.L.MENU_WATCH_LIMIT,
       "U8/0.120: Menue mit Haken Aufkauf und Schnellkauf, dann Preisgrenze: " .. tostring(items[1]) .. " / " .. tostring(items[2]))
@@ -3958,6 +3968,7 @@ end)()
   Wt.Add(7995, { name = "Wachstein" })
   Wt.SetLimit(7995, "abs", 100)
   Wt.SetUp(7995, 200)
+  mod.db.focusBuyout = true   -- ab 0.135: Grenze und Zielpreis des Aufkaufs nur mit eingeschaltetem Aufkauf
   -- Klick in Beobachten: Fokus mit den gespeicherten Werten (unterwegs nur gemerkt)
   Win.Open("watch")
   check(Win.current == "watch" and WP.list, "0.82: Reiter Beobachten unterwegs")
@@ -3966,27 +3977,22 @@ end)()
   check(row and row.price == 150 and row.limit == 100 and row.target == 200 and row.advice == nil, "0.82: Zeile mit Preis, Kaufen bis, Zielpreis")
   -- ab 0.92: Spalte mit Symbol statt Ueblich, Klick darauf schaltet die Warnung und waehlt nicht aus
   local cols = WP.list.o.columns
-  check(cols[3].key == "limit" and cols[4].key == "muteDown" and cols[5].key == "target" and cols[6].key == "muteUp"
-    and cols[4].format(false) == WP.BELL_ON and cols[6].format(true) == WP.BELL_OFF and row.muteDown == false and row.muteUp == false,
-    "0.92: Symbol hinter Kaufen bis und hinter Zielpreis, Warnung an")
+  check(cols[3].key == "limit" and cols[4].key == "muteDown" and cols[5].key == "hitsH" and cols[6].key == "dipsH" and cols[7].key == "nowHits"
+    and cols[4].format(false) == WP.BELL_ON and cols[4].format(true) == WP.BELL_OFF and row.muteDown == false,
+    "0.92/0.135: Symbol hinter Kaufen bis, dann Treffer, Einbrueche, Jetzt")
   local keepOver = WP.OverBell
   WP.OverBell = function() return "Down" end
   WP.list.o.onClick(row, "LeftButton")
   check(row.muteDown and Wt.Muted(7995, "Down") and not Wt.Muted(7995, "Up") and WP.selected ~= row, "0.92: Klick aufs Symbol bei Kaufen bis schaltet nur diese Warnung aus")
-  WP.OverBell = function() return "Up" end
   WP.list.o.onClick(row, "LeftButton")
-  check(row.muteUp and Wt.Muted(7995, "Up"), "0.92: Symbol beim Zielpreis schaltet die obere Warnung")
-  WP.list.o.onClick(row, "LeftButton")
-  WP.OverBell = function() return "Down" end
-  WP.list.o.onClick(row, "LeftButton")
-  check(not row.muteDown and not row.muteUp and not Wt.Muted(7995, "Down") and not Wt.Muted(7995, "Up"), "0.92: nochmal: wieder an")
+  check(not row.muteDown and not Wt.Muted(7995, "Down"), "0.92: nochmal: wieder an")
   WP.OverBell = keepOver
   mod.db.focusBuyout = true   -- ab 0.133: Pruefungen des Aufkaufs mit eingeschaltetem Schalter
   -- ab 0.83: einfacher Klick waehlt nur aus, Doppelklick oeffnet den Fokus
   local keyBefore = F.key
   WP.list.o.onClick(row, "LeftButton")
-  check(WP.selected == row and F.key == keyBefore and not WP.removeButton.disabled and not WP.marketButton.disabled,
-    "0.83: Klick waehlt aus, Knoepfe Entfernen und Im Markt zeigen gehen")
+  check(WP.selected == row and F.key == keyBefore and not WP.removeButton.disabled and WP.marketButton == nil,
+    "0.83/0.135: Klick waehlt aus, Entfernen geht, Im Markt zeigen nur noch im Menue")
   check(WP.sellButton and WP.sellButton.disabled and WP.sellWhy == "Nur am Auktionator.", "0.83: Verkaufen unterwegs gesperrt, mit Grund")
   check(plain(WP.hint.text) == "Klick: auswählen, Doppelklick: im Einkaufen öffnen", "0.83: Hinweis links oben")
   WP.list.o.onClick(row, "LeftButton")
@@ -4029,6 +4035,7 @@ end)()
     mod.acc.commodity[k] = true
     Wt.Add(k, { name = "Wachstein " .. k })
     Wt.SetLimit(k, "abs", 100)
+    Wt.Store()[k].qlim = 100   -- ab 0.135: Kaufen bis des Einkaufens in der Liste
   end
   LIVE[7997] = { { unitPrice = 90, quantity = 5 }, { unitPrice = 150, quantity = 10 } }
   LIVE[7998] = { { unitPrice = 140, quantity = 5 } }
@@ -4044,15 +4051,18 @@ end)()
   WP.Refresh()
   check(Rd.loop, "0.83: Anzeigen der Seite startet die Schleife")
   local seen, before = {}, #out
-  for _ = 1, 2 do
+  -- ab 0.135: die Pruefung der Marktbewegung fragt die ganze Liste ab, je Gegenstand mehrere Abfragen
+  for _ = 1, 40 do
+    if seen[7997] and seen[7998] then break end
     now = now + 1; tick()
     local p = Rd.pending
-    check(p and (p.key == 7997 or p.key == 7998) and not seen[p.key], "0.83: reihum der naechste beobachtete Gegenstand: " .. tostring(p and p.key))
+    check(p and (p.key == 7997 or p.key == 7998) and p.probe, "0.83/0.135: Pruefung eines beobachteten Gegenstands: " .. tostring(p and p.key))
     seen[p.key] = true
     fire("COMMODITY_SEARCH_RESULTS_UPDATED", p.key)
     check(Rd.watchAt[p.key] and Rd.pending == nil, "0.83: Antwort gemerkt (Spalte Stand)")
     Rd.lastSend = -100
   end
+  check(seen[7997] and seen[7998], "0.135: beide Gegenstaende geprueft")
   check(mk.items[7997].m == 90 and Wt.Store()[7997].hit and not Wt.Store()[7998].hit, "0.83: Preis aktualisiert, Alarm bei Kaufen bis")
   local alarm = false
   for i = before + 1, #out do if out[i]:find("Wachstein 7997", 1, true) then alarm = true end end
@@ -4061,9 +4071,12 @@ end)()
   for _, r in ipairs(WP.list:GetItems()) do if r.key == 7997 then row = r end end
   check(row and row.price == 90 and row.advice == "buy" and row.age and plain(WP.AgeText(row.age)) == "jetzt", "0.83: Zeile mit neuem Preis, Rat KAUFEN, Stand jetzt")
   check(plain(WP.AgeText(42)) == "vor 42 Sek." and plain(WP.AgeText(nil)) == "-", "0.83: Stand in Sekunden, ohne Abfrage Strich")
-  check(plain(WP.live.text):match("^Aktualisiert laufend%.+$"), "0.83: rechts oben nur Aktualisiert laufend mit Punkten: " .. plain(WP.live.text))
+  check(plain(WP.live.text):match("^Prüft Wachstein 799%d %(%d/5%)%.+$"), "0.135: rechts oben die laufende Pruefung mit Punkten: " .. plain(WP.live.text))
+  local keepRun = ns.QuickChances.run
+  ns.QuickChances.run = nil
   WP.dots = 3; WP.ticking = false; WP.Tick()
-  check(plain(WP.live.text) == "Aktualisiert laufend.", "0.83: Punkte wandern von ... zurueck zu .")
+  check(plain(WP.live.text) == "Aktualisiert laufend.", "0.83: ohne laufende Pruefung Aktualisiert laufend, Punkte wandern von ... zurueck zu .")
+  ns.QuickChances.run = keepRun
   -- Verkaufen am Auktionator: sicherer Knopf klickt den Taschenplatz rechts an, vorher blendet Broker seinen Reiter aus
   do
     local keepCC, keepBuilt = C_Container, T.built
@@ -4090,6 +4103,11 @@ end)()
     WP.clickKey = nil
   end
   -- Rat neu KAUFEN: die Zeile leuchtet kurz auf, sonst keine Hintergrundfarbe
+  -- ab 0.135: die Pruefung braucht mehrere Abfragen, das erste Aufleuchten ist dann vorbei. Neuer Rat nachgestellt.
+  ns.QuickChances.run = nil
+  WP.lastAdvice[7997] = false
+  WP.Refresh()
+  for _, r in ipairs(WP.list:GetItems()) do if r.key == 7997 then row = r end end
   check(row.flash == "buy" and WP.list.o.rowBg(row) == 0.38, "0.83: neuer Rat KAUFEN leuchtet kurz gruen")
   local other
   for _, r in ipairs(WP.list:GetItems()) do if r.key == 7998 then other = r end end
@@ -4878,21 +4896,25 @@ end)()
   check(mod.db.focusMode == "quick" and F.ManualLimit(7981) == 150 and F.origin == "watch", "0.106: aus Beobachten im gespeicherten Modus")
   F.FromPage(7981, "chances")
   check(mod.db.focusMode == "buyout", "0.106: aus Chancen immer Aufkauf")
-  -- Liste Beobachten: ab 0.119 je Unterreiter, ein Gegenstand mit Werten in beiden Modi steht in beiden Listen
-  local function row(tab) for _, x in ipairs(WP.Rows(tab)) do if x.key == 7981 then return x end end end
-  local rq, rb = row("quick"), row("buyout")
-  check(rq and rq.mode == "quick" and rq.limit == 150 and rq.target == nil and rb and rb.mode == "buyout" and rb.limit == 120 and rb.target == 200,
-    "0.106/0.119: Gegenstand in beiden Listen, jede mit ihren Werten (Schnellkauf ohne Zielpreis)")
+  -- Liste Beobachten: ab 0.135 eine Zeile je Gegenstand, Kaufen bis des Einkaufens, Zielpreis nur mit Aufkauf
+  local function row() for _, x in ipairs(WP.Rows()) do if x.key == 7981 then return x end end end
+  local n7981 = 0
+  for _, x in ipairs(WP.Rows()) do if x.key == 7981 then n7981 = n7981 + 1 end end
+  local keepBO = mod.db.focusBuyout
+  mod.db.focusBuyout = false
+  check(n7981 == 1 and row().limit == 150 and row().advice ~= "sell", "0.135: Gegenstand einmal in der Liste, Kaufen bis des Einkaufens")
+  mod.db.focusBuyout = keepBO
   Wt.SetMode(7981, "buyout")
-  check(Wt.ActiveLimit(7981) == 120 and row("active").limit == 120, "0.106: Art Aufkauf: Alarm und Zahl am Reiter mit seinen Werten")
+  check(Wt.ActiveLimit(7981) == 120, "0.106: Art Aufkauf: Alarm mit seinen Werten")
   Wt.SetMode(7981, "quick")
-  check(Wt.ActiveLimit(7981) == 150 and row("active").limit == 150, "0.106: Alarm nimmt Kaufen bis des gespeicherten Modus")
-  if WP.lists then
-    local function cols(tab) local t = {} for _, c in ipairs(WP.lists[tab].o.columns) do t[#t + 1] = plain(c.title) end return table.concat(t, ",") end
-    check(not cols("buyout"):find("Art", 1, true) and not cols("buyout"):find("Stand", 1, true) and cols("buyout"):find("Zielpreis", 1, true),
-      "0.119: Liste Aufkauf ohne Spalte Art: " .. cols("buyout"))
-    check(cols("quick"):find("Bewegung", 1, true) and cols("quick"):find("Darunter", 1, true) and cols("quick"):find("Einbrüche", 1, true)
-      and not cols("quick"):find("Zielpreis", 1, true), "0.119/0.126: Liste Schnellkauf mit eigenen Spalten: " .. cols("quick"))
+  check(Wt.ActiveLimit(7981) == 150 and row().limit == 150, "0.106: Alarm nimmt Kaufen bis des gespeicherten Modus")
+  if WP.list then
+    local t = {}
+    for _, c in ipairs(WP.list.o.columns) do t[#t + 1] = plain(c.title) end
+    local cols = table.concat(t, ",")
+    check(cols:find("Treffer 7 T.", 1, true) and cols:find("Einbrüche 7 T.", 1, true) and cols:find("Jetzt", 1, true)
+      and not cols:find("Zielpreis", 1, true) and not cols:find("Bewegung", 1, true) and not cols:find("Darunter", 1, true),
+      "0.135: eine Liste mit Treffer, Einbruechen, Jetzt, ohne Zielpreis, Bewegung, Darunter: " .. cols)
   end
   check(Wt.SKIP.qlim and Wt.SKIP.qgold and Wt.SKIP.qavg and Wt.SKIP.mode, "0.106: Werte des Schnellkaufs bleiben im Spiel (kein Abgleich mit dem Manager)")
   -- Stand oben rechts: juengste Einzelabfrage
@@ -5575,33 +5597,24 @@ end)()
   check(not Wt.Is(7991), "0.120: beide Haken aus: nicht mehr beobachtet")
   Wt.SetQuickOn(7991, true, { name = "Schnellerz" })
   check(Wt.InQuick(7991) and not Wt.InBuyout(7991) and Wt.Store()[7991].qlim == 250, "0.120: frisch nur fuer Schnellkauf")
-  -- Beobachten mit zwei Unterreitern
+  -- ab 0.135: Beobachten ist eine Liste, die Pruefung fragt alle beobachteten Gegenstaende ab
   C.Shown = function() return false end
   WP.Shown = function() return true end
-  mod.db.watchTab = "quick"
   Wt.Add(7993, { name = "Flinkstoff" })
   Wt.SetQuick(7993, 850, nil, true, true)
   Wt.Add(7995, { name = "Restgut" })
-  local wk = table.concat(QC.Keys("watch"), ",")
-  check(QC.Source() == "watch" and wk == "7991,7993", "0.119: Beobachten/Schnellkauf prueft nur Gegenstaende mit Werten des Schnellkaufs: " .. wk)
+  local wk = {}
+  for _, k in ipairs(QC.Keys("watch")) do wk[#wk + 1] = k end
+  table.sort(wk)
+  check(QC.Source() == "watch" and table.concat(wk, ",") == "7991,7993,7995", "0.135: Beobachten prueft die ganze Liste: " .. table.concat(wk, ","))
   ns.Buy.live[7993] = { rows = lv({ { 800, 5 }, { 900, 5 } }), t = clock, commodity = true }
   local r
-  for _, x in ipairs(WP.Rows("quick")) do if x.key == 7993 then r = x end end
-  check(r and r.limit == 850 and r.under == 5 and r.v and r.v.class == "low" and r.advice == "buy",
-    "0.119: Zeile Schnellkauf mit Kaufen bis, Stueck darunter, Bewegung und Rat")
-  local inB = {}
-  for _, x in ipairs(WP.Rows("buyout")) do inB[x.key] = true end
-  check(inB[7995] and not inB[7993] and not inB[7991], "0.119: nur Werte des Schnellkaufs: nicht in der Liste Aufkauf")
-  local got93 = false
-  R.watchSent = {}
-  for _ = 1, 12 do if R.NextWatch() == 7993 then got93 = true end end
-  check(not got93, "0.119: Aufkauf fragt nur seine Liste reihum ab")
-  if WP.SelectTab and WP.lists then
-    WP.SelectTab("buyout")
-    check(WP.list == WP.lists.buyout and mod.db.watchTab == "buyout" and WP.panels.buyout.shown and not WP.panels.quick.shown, "0.119: Unterreiter Aufkauf gewaehlt und gemerkt")
-    WP.SelectTab("quick")
-    check(WP.list == WP.lists.quick, "0.119: Unterreiter Schnellkauf")
-  end
+  for _, x in ipairs(WP.Rows()) do if x.key == 7993 then r = x end end
+  check(r and r.limit == 850 and WP.Under(7993, r.limit) == 5 and r.advice == "buy",
+    "0.135: Zeile mit Kaufen bis und Rat, Stueck darunter fuer den Tooltip")
+  local n = 0
+  for _, x in ipairs(WP.Rows()) do if x.key == 7991 or x.key == 7993 or x.key == 7995 then n = n + 1 end end
+  check(n == 3, "0.135: jeder Gegenstand einmal in der Liste")
   -- Fokus im Modus der Liste
   Q.SetMode("buyout", true)
   F.FromPage(7993, "chances", "quick")
@@ -5921,6 +5934,7 @@ end)()
   local key = 7997
   mod.acc.commodity[key] = true
   mod.acc.quickStats, mod.acc.quickMove, QS.lows[key] = nil, nil, nil
+  QS.nowClosed = nil; QS.OnAHShow(time())   -- ab 0.135: neue Sitzung am Auktionshaus
   check(mod.db.quickStatDays == 7 and QS.Days() == 7, "0.126: Zeitraum Vorgabe 7 Tage")
   Wt.Add(key, { name = "Ampelerz" })
   Wt.SetQuick(key, 100, nil, true, true)
@@ -5957,16 +5971,46 @@ end)()
   QC.res = {}
   r = QC.Result(key)
   check(r and r.old, "0.126: nach 6 Std. alt (blass)")
-  -- Zeile und Spalten
+  -- ab 0.135 (U3): Zeile mit Treffern und Einbruechen je Stunde (8 Sek. beobachtet) und Jetzt
+  local function near(a, b2) return type(a) == "number" and math.abs(a - b2) < 0.01 end
   local row
-  for _, x in ipairs(WP.Rows("quick")) do if x.key == key then row = x end end
-  check(row and row.hits == 2 and row.dips == 1 and row.low24 == 95, "0.126: Zeile mit Treffern, Einbruechen und Tiefstpreis: " .. tostring(row and row.hits) .. "/" .. tostring(row and row.dips) .. "/" .. tostring(row and row.low24) .. "/" .. tostring(row and row.limit))
-  if WP.lists and WP.lists.quick and WP.lists.quick.o then
-    local t = {}
-    for _, c in ipairs(WP.lists.quick.o.columns) do t[#t + 1] = plain(c.title) end
-    local cols = table.concat(t, ",")
-    check(not cols:find("Rat", 1, true) and cols:find("Treffer,Einbrüche,Tief 24 Std.", 1, true), "0.126: Spalten ohne Rat: " .. cols)
+  for _, x in ipairs(WP.Rows()) do if x.key == key then row = x end end
+  check(row and near(row.hitsH, 900) and near(row.dipsH, 450) and not row.sure and row.nowHits == 2,
+    "0.135: Zeile mit Treffern und Einbruechen je Std. und Treffern jetzt: " .. tostring(row and row.hitsH) .. "/" .. tostring(row and row.dipsH) .. "/" .. tostring(row and row.nowHits))
+  check(plain(WP.RateCell(row.hitsH, row)) == "900" and WP.RateCell(row.hitsH, row):find("|cff999999", 1, true) == 1 and plain(WP.RateCell(nil, row)) == "-",
+    "0.135: unter 30 Min. Beobachtung grau, ohne Wert Strich")
+  local n = QS.Now(key)
+  check(n and n.secs == 8 and n.hits == 2 and n.dips == 1 and not n.sure and QS.Trend(key) == "none",
+    "0.135: Jetzt zaehlt die Sitzung, unter 10 Min. grauer Punkt")
+  do
+    local ok, err = pcall(WP.RowTooltip, CreateFrame("Frame"), row)
+    check(ok, "0.135: Tooltip der Zeile mit Jetzt, Bewegung und 7 Tagen: " .. tostring(err))
   end
+  check(WP.NowCell(2, row):find("|T", 1, true) == 1 and plain(WP.NowCell(2, row)):find("2", 1, true), "0.135: Zelle Jetzt mit Punkt und Zahl")
+  QS.now[key].s = 1200   -- 20 Min.: 6 Treffer je Std., 7 Tage: 900 je Std.
+  check(QS.Trend(key) == "down", "0.135: weniger Treffer je Std. als in 7 Tagen: rot")
+  QS.Store(false)[key][QS.Today()].s = 36000   -- 10 Std. mit 2 Treffern: 0,2 je Std.
+  check(QS.Trend(key) == "up" and QS.Dot("up") ~= QS.Dot("down") and QS.Dot("down") ~= QS.Dot("none"), "0.135: mehr Treffer je Std. als in 7 Tagen: gruen")
+  local keepLim = Wt.Store()[key].qlim
+  Wt.Store()[key].qlim = nil
+  check(QS.Trend(key) == "none", "0.135: ohne Kaufen bis grau")
+  Wt.Store()[key].qlim = keepLim
+  -- Sitzung: kurz zu und wieder auf zaehlt weiter, nach 10 Min. zu beginnt sie neu
+  QS.OnAHClosed(1000); QS.OnAHShow(1000 + 60)
+  check(QS.Now(key) and QS.Now(key).hits == 2, "0.135: kurz zu: Sitzung laeuft weiter")
+  QS.OnAHClosed(2000); QS.OnAHShow(2000 + QS.NOW_GAP)
+  check(QS.Now(key) == nil, "0.135: nach 10 Min. zu: neue Sitzung")
+  if WP.list and WP.list.o then
+    local t = {}
+    for _, c in ipairs(WP.list.o.columns) do t[#t + 1] = plain(c.title) end
+    local cols = table.concat(t, ",")
+    check(cols:find("Gegenstand,Günstigster,Kaufen bis,", 1, true) == 1 and cols:find("Treffer 7 T.,Einbrüche 7 T.,Jetzt", 1, true), "0.135: Spalten der Liste: " .. cols)
+  end
+  -- Markttausch: Hinweis Neutral hinter dem Namen
+  Wt.Store()[key].ton = true
+  for _, x in ipairs(WP.Rows()) do if x.key == key then row = x end end
+  check(row.neutral and plain(WP.Columns()[1].format(row.name, row)) == "Ampelerz Neutral", "0.135: Markttausch mit Hinweis Neutral")
+  Wt.Store()[key].ton = nil
   -- aufraeumen
   Wt.Remove(key)
   QC.res, QC.run = {}, nil
@@ -6093,12 +6137,16 @@ end)()
   check(Wt.SetTradeOn(2589, true, { name = "Zinnerz" }) and Wt.InTrade(2589) and not Wt.InBuyout(2589) and not Wt.InQuick(2589), "0.128: nur in Markttausch")
   local w89 = Wt.Store()[2589]
   check(type(w89.t) == "table" and (w89.t.lists or 0) > 0, "0.128: Zeit der Listen gesetzt (Abgleich mit dem Manager)")
-  local trows = WP.Rows("trade")
-  check(#trows == 1 and trows[1].key == 2589 and trows[1].mode == "trade", "0.128: Zeile in Beobachten, Markttausch")
+  local trow
+  for _, x in ipairs(WP.Rows()) do if x.key == 2589 then trow = x end end
+  check(trow and trow.neutral, "0.128/0.135: Zeile in Beobachten mit Hinweis Neutral")
   check(#Wt.TradeKeys() == 1, "0.128: Schluessel fuer die laufende Abfrage")
-  mod.db.watchTab = "trade"
-  check(WP.Tab() == "trade", "0.128: Unterreiter Markttausch in Beobachten")
-  mod.db.watchTab = "buyout"
+  do   -- ab 0.135: Werte des Markttauschs im Tooltip
+    local lines = {}
+    local GT = { AddLine = function(_, t) lines[#lines + 1] = plain(tostring(t)) end, AddDoubleLine = function(_, a) lines[#lines + 1] = plain(tostring(a)) end }
+    WP.TradeLines(GT, 2589)
+    check(table.concat(lines, "|"):find(ns.L.CH_TAB_TRADE, 1, true), "0.135: Markttausch im Tooltip: " .. table.concat(lines, "|"))
+  end
   Wt.SetQuick(2589, 500, 0, false, false)
   check((Wt.Store()[2589].t.q or 0) > 0, "0.128: Zeit des Schnellkaufs gesetzt")
   Wt.SetQuickOn(2589, false)
@@ -6117,17 +6165,13 @@ end)()
   Wt.Merge(Wt.Store(), PeonBrokerDB.watchGone, { items = { [2589] = inc }, gone = {} })
   check(Wt.Store()[2589].qlim == 777, "0.128: Kaufen bis des Schnellkaufs aus dem Manager uebernommen")
   Wt.Remove(2589)
-  -- 0.128.2: ausgeschaltet kein Unterreiter in Beobachten, kein Haken im Menue, kein Hinweis
-  mod.db.watchTab = "trade"
-  check(WP.Tab() == "trade", "0.128.2: an: Unterreiter Markttausch in Beobachten")
+  -- 0.128.2: ausgeschaltet kein Haken im Menue, kein Hinweis
   mod.db.tradeOn = false
-  check(WP.Tab() == "buyout", "0.128.2: aus: Beobachten faellt auf Aufkauf zurueck")
   local made2 = {}
   Wt.AddMenu({ CreateButton = function(_, t) made2[#made2 + 1] = t; return { CreateButton = function() return {} end } end }, { name = "Zinnerz" }, 2589)
   local hasTrade = false
   for _, t in ipairs(made2) do if t:find(ns.L.MENU_WATCH_TRADE, 1, true) then hasTrade = true end end
   check(not hasTrade, "0.128.2: aus: kein Haken Beobachten Markttausch im Menue")
-  mod.db.watchTab = "buyout"
   -- aufraeumen
   C.SelectTab("spec")
   mod.acc.tradeGoods = nil
@@ -6393,10 +6437,10 @@ end)()
 ;(function()
   local W, P = ns.Window, ns.WatchPage
   tt.lines, tt.hyper = {}, nil
-  P.QuickTooltip({}, { key = 2770, name = "Kupfererz" })
+  P.RowTooltip({}, { key = 2770, name = "Kupfererz" })
   local txt = plain(table.concat(tt.lines, " | "))
-  check(tt.hyper ~= nil and tt.hyper:find("item:2770", 1, true), "0.131: Beobachten/Schnellkauf zeigt den Tooltip des Gegenstands")
-  check(txt:find(plain(ns.L.FOCUS_MODE_QUICK), 1, true) and txt:find(plain(ns.L.WATCH_TIP_DOUBLE), 1, true), "0.131: Werte des Schnellkaufs darunter")
+  check(tt.hyper ~= nil and tt.hyper:find("item:2770", 1, true), "0.131: Beobachten zeigt den Tooltip des Gegenstands")
+  check(txt:find(plain(ns.L.WATCH_TIP_NOW_HEAD), 1, true) and txt:find(plain(ns.L.WATCH_TIP_DOUBLE), 1, true), "0.131/0.135: Jetzt und Werte darunter")
   -- dieselbe Zeile danach ohne Zusatz: kein alter Zusatz
   local row = {}
   W.ShowItemTooltip(row, 2770, function(gt) gt:AddLine("ZUSATZ") end)

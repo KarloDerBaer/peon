@@ -439,6 +439,28 @@ end
 function Wt.AddMenu(root, item, key)
     local on = Wt.Is(key)
     local info = { name = item.name }
+    -- ab 0.135 (U3, Konzept Peon_Broker_Schlank.md 6.2): Beobachten ist eine Liste. Ohne Aufkauf ein Haken
+    -- "Beobachten" (aus = entfernen). Massenware kommt dabei wie im Einkaufen mit Kaufen bis in die Liste.
+    local buyoutOn = ns.Quick and ns.Quick.BuyoutOn and ns.Quick.BuyoutOn()
+    if key ~= nil and not buyoutOn then
+        local commodity = ns.Data.IsCommodity(key)
+        local get = function() return Wt.Is(key) end
+        local set = function()
+            if Wt.Is(key) then mod:Call("Beobachtung", Wt.Remove, key)
+            elseif commodity then mod:Call("Beobachtung", Wt.SetQuickOn, key, true, info)
+            else mod:Call("Beobachtung", Wt.Add, key, info) end
+        end
+        if root.CreateCheckbox then root:CreateCheckbox(L.MENU_WATCH, get, set)
+        else root:CreateButton(on and L.MENU_UNWATCH or L.MENU_WATCH, set) end
+        if ns.Trade and ns.Trade.On() then
+            local tget = function() return Wt.InTrade(key) end
+            local tset = function() mod:Call("Beobachtung", Wt.SetTradeOn, key, not tget(), info) end
+            if root.CreateCheckbox then root:CreateCheckbox(L.MENU_WATCH_TRADE, tget, tset)
+            else root:CreateButton((tget() and "[x] " or "[ ] ") .. L.MENU_WATCH_TRADE, tset) end
+        end
+        if on then Wt.SoundMenu(root, key, { "Down" }) end
+        return
+    end
     if key ~= nil and ns.Data.IsCommodity(key) then
         local function Add(text, get, set)
             if root.CreateCheckbox then
@@ -484,8 +506,12 @@ function Wt.AddMenu(root, item, key)
         end
     end
     upSub:CreateButton(L.MENU_WATCH_NONE, function() mod:Call("Beobachtung", Wt.SetUp, key, nil) end)
-    -- ab 0.91: Warnton je Gegenstand (Rechtsklick in der Liste Beobachten oeffnet dieses Menue)
-    for _, dir in ipairs({ "Down", "Up" }) do
+    Wt.SoundMenu(root, key, { "Down", "Up" })
+end
+
+-- ab 0.91: Warnton je Gegenstand (Rechtsklick in der Liste Beobachten oeffnet dieses Menue), ab 0.135 eigene Funktion
+function Wt.SoundMenu(root, key, dirs)
+    for _, dir in ipairs(dirs) do
         local sSub = root:CreateButton(L["MENU_WATCH_SOUND_" .. dir:upper()])
         local function Own() local w = Wt.Store()[key]; return w and w["s" .. dir] or nil end
         if sSub.CreateRadio then

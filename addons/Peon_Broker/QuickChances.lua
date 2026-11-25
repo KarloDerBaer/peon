@@ -261,7 +261,7 @@ end
 function QC.Source()
     local C, P = ns.Chances, ns.WatchPage
     if C and C.Shown() and C.Tab() == "quick" then return "chances" end
-    if P and P.Shown() and P.Tab and P.Tab() == "quick" then return "watch" end
+    if P and P.Shown() then return "watch" end   -- ab 0.135 (U3): Beobachten ist eine Liste
     return nil
 end
 
@@ -277,7 +277,7 @@ function QC.Keys(src)
         local Wt, D = ns.Watch, ns.Data
         local qty = {}
         for key in pairs(Wt.Store()) do
-            if Wt.InQuick(key) and ns.Buy.KnownKey(key) then
+            if ns.Buy.KnownKey(key) then   -- ab 0.135 (U3): die ganze Liste
                 keys[#keys + 1] = key
                 local e = D.Lookup(key)
                 qty[key] = type(e) == "table" and Num(e.q) and e.q or 0
@@ -426,7 +426,7 @@ function QC.Changed(all)
     local C, P = ns.Chances, ns.WatchPage
     if C and C.Shown() and C.Tab() == "quick" then C.Refresh()
     elseif all and C and C.UpdateBadge then C.UpdateBadge() end
-    if P and P.Shown() and P.Tab and P.Tab() == "quick" then P.Refresh() end
+    if P and P.Shown() then P.Refresh() end
 end
 
 -- Platz in der Runde: 1 = gerade dran, 2 = als naechster ...
