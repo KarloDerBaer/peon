@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.8.0
+
+Kurz: Die Einstellungen sind aufgeräumt und haben zwei Reiter: Allgemein und Anzeige. Erklärungen stehen im Tooltip, wenn du mit der Maus auf eine Einstellung zeigst.
+Kurz: Kosten und Gewinn im Berufsfenster stellst du nur noch über das Zahnrad am Berufsfenster ein. Beim Auswählen des Meilenstein-Tons hörst du ihn gleich.
+
+- 0.8.0 (25.11.2026, Leitfaden für Einstellungen, Aufteilung von KarloDerBaer freigegeben):
+  - **Geändert:** Optionsseite mit den Reitern Allgemein (Fenster öffnen, Minimap, alle Berufe, Alt + Klick, Ton bei Meilensteinen, Knopf in der Titelleiste, Guide-Leiste) und Anzeige (Ton für Meilensteine). Gespeicherte Werte und ihre Namen bleiben gleich.
+  - **Geändert:** Jeder Schalter hat einen Satz als Tooltip statt Text darunter (Kern-API 29). Beim Wählen des Tons klingt er einmal.
+  - **Entfernt:** Knopf „Probe“, Hinweis auf `/prof pruefen` und der Abschnitt „Berufe“ mit Kosten und Gewinn (13 Einträge, `C.AddOptions`) auf der Optionsseite. Alles davon bleibt im Zahnrad am Berufsfenster, die Werte bleiben gespeichert.
+  - Tests: `test_profession.lua` (zwei Reiter, ein Knopf, sechs Schalter).
+
 ## 0.7.4
 
 Kurz: Funktioniert auch, wenn das Spiel kurz keinen Realm-Namen liefert.

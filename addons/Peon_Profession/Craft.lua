@@ -1237,22 +1237,6 @@ function C.ShowMenu(owner)
     end
 end
 
--- Abschnitt auf der Optionsseite (aus Options.lua)
-function C.AddOptions(page, col)
-    page:Add(col, page:Header(L.HDR_CRAFT), 6)
-    local spec = C.MenuSpec()
-    for i, it in ipairs(spec) do
-        local gap = i == #spec and 16 or nil
-        if it.kind == "title" then
-            page:Add(col, page:Text(function() return "|cffffd100" .. it.text .. "|r" end), 4)
-        elseif it.kind == "check" then
-            page:Add(col, page:Check(it.key, it.text, it.hint), gap)
-        else
-            page:Add(col, page:Dropdown(it.key, it.text, it.opts, it.hint), gap)
-        end
-    end
-end
-
 -- Kennung der Einstellungen: aendert sich etwas (auch auf der Optionsseite), wird neu gerechnet
 function C.Sig()
     local db, t = DB(), {}

@@ -146,6 +146,16 @@ local ns = load("Peon_Profession", "Peon_Profession")
 fire("ADDON_LOADED", "Peon_Profession")
 local mod = ns.mod
 check(mod.initialized and mod.page, "Modul + Optionsseite")
+-- ab 0.8.0 nach dem Leitfaden: Reiter Allgemein und Anzeige, keine Kosten-Einstellungen und kein Knopf Probe
+do
+  local p = mod.page
+  local checks, buttons = 0, 0
+  for _, c in ipairs(p.controls) do
+    if c.button then buttons = buttons + 1 end
+    if c.key == nil and c.label and not c.button and c.hint then checks = checks + 1 end
+  end
+  check(p.tabList and #p.tabList == 2 and buttons == 1 and checks == 6, "zwei Reiter, ein Knopf, sechs Schalter mit Tooltip (" .. checks .. ")")
+end
 fire("PLAYER_LOGIN")
 check(cats.Peon and cats.Peon.subs[#cats.Peon.subs - 1] == "Profession" and cats.Peon.subs[#cats.Peon.subs] == "Profile", "Seite unter Peon > Profession, danach die Profile des Kerns")
 check(mod.db.craftListMode == "pct" and mod.db.craftHint == false and mod.db.craftTwinks == true and mod.db.craftMigrated == true
