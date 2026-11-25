@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 21.11.2026. Peon 0.28.0 (API 28) / Broker 0.132.0 / Ledger 0.17.3 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.8.0 / Tooltip 0.7.5 / ClassBuddy 0.4.1 / Mover 0.1.1 / Bags 0.8.0 / Feedback 0.5.1 / Panel 0.4.1 / Profession 0.7.4 / Warhorn 0.5.3.
+Stand: 21.11.2026. Peon 0.29.0 (API 29) / Broker 0.132.0 / Ledger 0.17.3 / Bridge 0.14.0 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.7.5 / ClassBuddy 0.4.1 / Mover 0.1.1 / Bags 0.9.0 / Feedback 0.5.1 / Panel 0.4.1 / Profession 0.7.4 / Warhorn 0.5.3.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 

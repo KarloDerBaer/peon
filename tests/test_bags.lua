@@ -662,12 +662,26 @@ check(ns.RenameGroup(2, "Gesammelt") and headers(w):find("^Gesammelt,") ~= nil, 
 check(not ns.RenameGroup(2, "behalten") and PeonBagsDB.groups[1].name == "Gesammelt", "umbenennen auf belegten Namen abgelehnt")
 check(ns.RenameGroup(2, "GESAMMELT") and ns.RenameGroup(2, "Gesammelt"), "eigener Name in anderer Schreibweise geht")
 
--- Optionsseite
-local listC
-for _, c in ipairs(mod.page.controls) do if c.list and c.list.columns[2].key == "name" then listC = c end end
-check(listC, "Liste der Bereiche auf der Optionsseite")
-local rows = listC.list.data
-check(#rows == 2 and rows[1].name == "Gesammelt" and rows[1].pos == 1 and rows[1].count == ns.CountGroup(2) and rows[1].count >= 3, "Liste zeigt Bereiche und Anzahl")
+-- Optionsseite (ab 0.9.0 Reiter nach dem Leitfaden, Bereiche nur noch im Fenster ueber "Einstellen")
+do
+  local page = mod.page
+  check(page.tabList and #page.tabList == 3 and #page.columns == 5, "drei Reiter, fuenf Spalten")
+  local hasList, auto = false, nil
+  for _, c in ipairs(page.controls) do
+    if c.list and c.list.columns[2].key == "name" and c.list.columns[1].key == "pos" then hasList = true end
+    if c.boxes then auto = c end
+  end
+  check(not hasList, "keine Liste der Bereiche mehr auf der Seite")
+  check(auto and #auto.boxes == 6 and auto.hint, "Block automatisch oeffnen mit sechs Haken und Tooltip")
+  PeonBagsDB.autoTrade = true
+  auto.Refresh()
+  auto.boxes[5].GetChecked = function() return false end
+  auto.boxes[5].scripts.OnClick(auto.boxes[5])
+  check(PeonBagsDB.autoTrade == false, "Haken Handel schreibt den Wert")
+  auto.boxes[5].GetChecked = function() return true end
+  auto.boxes[5].scripts.OnClick(auto.boxes[5])
+  check(PeonBagsDB.autoTrade == true, "Haken Handel wieder an")
+end
 check(StaticPopupDialogs.PEON_BAGS_GROUP_NEW and StaticPopupDialogs.PEON_BAGS_GROUP_RENAME and StaticPopupDialogs.PEON_BAGS_GROUP_DELETE, "Rueckfragen vorhanden")
 do
   local dialog = { editBox = W("EditBox"), data = 2 }
@@ -675,12 +689,12 @@ do
   check(dialog.editBox.text == "Gesammelt", "Umbenennen zeigt den alten Namen")
   dialog.editBox.text = "Ernte"
   StaticPopupDialogs.PEON_BAGS_GROUP_RENAME.OnAccept(dialog, 2)
-  check(PeonBagsDB.groups[1].name == "Ernte" and listC.list.data[1].name == "Ernte", "Umbenennen uebernommen, Liste aktuell")
+  check(PeonBagsDB.groups[1].name == "Ernte", "Umbenennen uebernommen")
   local fresh = { editBox = W("EditBox") }
   StaticPopupDialogs.PEON_BAGS_GROUP_NEW.OnShow(fresh)
   fresh.editBox.text = "Leer"
   StaticPopupDialogs.PEON_BAGS_GROUP_NEW.OnAccept(fresh)
-  check(#PeonBagsDB.groups == 3 and PeonBagsDB.groups[3].name == "Leer" and listC.list:GetSelected().name == "Leer", "neuer Bereich angelegt und markiert")
+  check(#PeonBagsDB.groups == 3 and PeonBagsDB.groups[3].name == "Leer", "neuer Bereich angelegt")
 end
 
 -- Standardwerte lassen die Bereiche stehen

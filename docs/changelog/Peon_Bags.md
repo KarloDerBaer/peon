@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.9.0
+
+Kurz: Die Einstellungen sind aufgeräumt und haben drei Reiter: Allgemein, Anzeige und Erweitert. Erklärungen stehen im Tooltip, wenn du mit der Maus auf eine Einstellung zeigst.
+Kurz: Eigene Bereiche legst du nur noch im Taschenfenster über „Einstellen“ an, nicht mehr in den Einstellungen.
+
+- 0.9.0 (25.11.2026, Leitfaden für Einstellungen, Aufteilung von KarloDerBaer freigegeben):
+  - **Geändert:** Optionsseite mit den Reitern Allgemein (Taschen, Bank und Gildenbank ersetzen, Taschen automatisch öffnen als ein Block mit sechs kleinen Haken), Anzeige (Spalten, Größe und Anordnung je Fenster, Taschenleiste, Qualitätsrahmen, Leuchten, Müll abdunkeln) und Erweitert (Fensterpositionen zurücksetzen, gespeicherte Charaktere). Gespeicherte Werte und ihre Namen bleiben gleich.
+  - **Geändert:** Jeder Schalter hat einen Satz als Tooltip statt Text darunter (Kern-API 29). Der Hinweis zu eigenen Bereichen steht im Tooltip der Anordnung.
+  - **Entfernt:** Liste „Eigene Bereiche“ mit ihren Knöpfen auf der Optionsseite. Anlegen, Umbenennen, Löschen und Reihenfolge gehen weiter im Fenster über „Einstellen“. Die Bereiche bleiben gespeichert.
+  - Tests: `test_bags.lua` (drei Reiter, keine Liste der Bereiche, Block automatisch öffnen).
+
 ## 0.8.0
 
 Kurz: Im Taschenfenster wählst du oben einen Charakter und siehst seine Taschen und seine Bank so, wie sie zuletzt waren. Damit siehst du auch die eigene Bank unterwegs.
