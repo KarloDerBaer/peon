@@ -386,6 +386,16 @@ end
 -- eine Suche. Hoechstens alle O.OPEN_GAP Sekunden.
 O.OPEN_GAP = 5
 
+-- Ab 0.6.1 (Fehlerbericht 71 in peon-fehler): Oeffnet ein anderes Addon die Gruppensuche ueber Blizzards
+-- ShowSearchForActivities (etwa das Auge im ForeverDungeonJournal), sucht Blizzard dort selbst. Eine
+-- zweite Suche von Warhorn in diesem Moment blockiert das Spiel (ADDON_ACTION_BLOCKED), darum dann nicht.
+function O.OpenedForSearch()
+    local ds = rawget(_G, "debugstack")
+    if type(ds) ~= "function" then return false end
+    local ok, stack = pcall(ds, 2, 40, 0)
+    return ok and type(stack) == "string" and stack:find("ShowSearchForActivities", 1, true) ~= nil
+end
+
 -- Blizzards Reiter Suchen waehlen, wenn Warhorn dort eingeschaltet ist (ab 0.4.0 auch fuer das Dungeon-Journal)
 function O.ShowSearchTab()
     if not (mod.db and mod.db.show ~= false) or Peon.InCombat() then return false end
@@ -400,7 +410,7 @@ end
 function O.OnParentShow()
     if not (mod.db and mod.db.show ~= false) or Peon.InCombat() then return end
     if not Shows(O.CurrentPage()) then O.ShowSearchTab() end
-    if O.CurrentPage() == "search" and Shows("search") then
+    if O.CurrentPage() == "search" and Shows("search") and not O.OpenedForSearch() then
         local S = ns.Search
         local now = GetTime and GetTime() or 0
         if not S.searching and not (S.requestedAt and now - S.requestedAt < O.OPEN_GAP) then

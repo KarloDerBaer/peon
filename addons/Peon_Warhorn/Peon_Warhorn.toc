@@ -3,7 +3,7 @@
 ## Notes: Groups, dungeons and raids. Group finder with filters, listing, who list and whisper templates.
 ## Notes-deDE: Gruppen, Dungeons und Raids. Gruppensuche mit Filtern, Eintragen, Wer-Liste und Flüstervorlagen.
 ## Author: KarloDerBaer
-## Version: 0.6.0
+## Version: 0.6.1
 ## Dependencies: Peon
 ## OptionalDeps: ForeverDungeonJournal
 ## Group: Peon

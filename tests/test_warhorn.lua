@@ -304,6 +304,21 @@ check(f.shown and Win.page == "listing" and Win.pages.listing.shown and not Win.
 local openBefore = #searches
 LFGParentFrame.scripts.OnShow()
 check(tab2Clicks == 0 and #searches == openBefore, "Oeffnen auf Eintragen bleibt dort, keine Suche")
+-- ab 0.6.1 (Fehlerbericht 71): oeffnet ein anderes Addon ueber ShowSearchForActivities, sucht Warhorn nicht selbst
+OnBlizzPage("search")
+local oldStack = debugstack
+debugstack = function() return "[Interface/AddOns/Blizzard_GroupFinder_VanillaStyle/Blizzard_LFGVanilla_Browse.lua]:248: in function 'ShowSearchForActivities'" end
+S.searching, S.requestedAt = false, nil
+local sfaBefore = #searches
+LFGParentFrame.scripts.OnShow()
+check(O.OpenedForSearch() and #searches == sfaBefore, "Oeffnen ueber ShowSearchForActivities: keine eigene Suche")
+debugstack = function() return "[Interface/AddOns/Blizzard_GroupFinder_VanillaStyle/Blizzard_LFGVanilla_ParentFrame.lua]:108" end
+LFGParentFrame.scripts.OnShow()
+check(not O.OpenedForSearch() and #searches == sfaBefore + 1, "normales Oeffnen auf Suchen sucht weiter gleich")
+debugstack = oldStack
+searches[#searches] = nil   -- die Suche dieses Tests zaehlt fuer die folgenden nicht
+S.searching, S.requestedAt = false, nil
+OnBlizzPage("listing")
 OnBlizzPage("who")
 check(f.shown and Win.page == "who", "Reiter Wer-Liste: Warhorns Wer-Liste")
 -- ab 0.3.4: Warhorn immer eine Schicht ueber Blizzards Fenster

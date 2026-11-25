@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`.
 
+## 0.6.1
+
+Kurz: Öffnest du die Gruppensuche über das Auge im Dungeon-Journal, startet Warhorn keine zweite Suche mehr. So kommt keine Meldung „blockiert“.
+
+- 0.6.1 (26.11.2026, Fehlerbericht 71 in peon-fehler):
+  - **Behoben:** Das Journal öffnet die Gruppensuche über Blizzards `ShowSearchForActivities` und sucht dabei selbst. Warhorn suchte beim Öffnen zusätzlich (ab 0.3.2), diese zweite Suche blockierte das Spiel (`ADDON_ACTION_BLOCKED`, Warhorn zeigte danach den Hinweis „bitte auf Suchen klicken“). Jetzt sucht Warhorn beim Öffnen nicht, wenn der Aufruf aus `ShowSearchForActivities` kommt (`Overlay.OpenedForSearch`). Die Ergebnisse der Suche des Journals kommen wie bisher bei Warhorn an.
+  - Tests: `test_warhorn.lua` (Öffnen über `ShowSearchForActivities` ohne eigene Suche, normales Öffnen sucht weiter).
+
 ## 0.6.0
 
 Kurz: Die Einstellungen sind kürzer. Ein Knopf öffnet die Gruppensuche, die Prüfung startest du bei Bedarf mit /peon warhorn pruefen.

@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 25.11.2026. Peon 0.29.1 (API 29) / Broker 0.139.0 / Ledger 0.18.2 / Bridge 0.14.1 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.8.0 / ClassBuddy 0.5.0 / Mover 0.1.1 / Bags 0.9.1 / Feedback 0.5.1 / Panel 0.5.0 / Profession 0.8.0 / Warhorn 0.6.0.
+Stand: 25.11.2026. Peon 0.29.1 (API 29) / Broker 0.139.0 / Ledger 0.18.2 / Bridge 0.14.1 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.8.0 / ClassBuddy 0.5.0 / Mover 0.1.1 / Bags 0.9.1 / Feedback 0.5.1 / Panel 0.5.0 / Profession 0.8.0 / Warhorn 0.6.1.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -162,7 +162,7 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Befehle: `/prof`, `/prof optionen`, `/prof messungen`, `/prof pruefen`, `/prof vergessen`, `/prof stellen`, `/prof freunde`, `/peon profession`, `/peon debug profession`.
 - Offen: Gibt es in Forever `GetProfessionInfoByRecipeID` oder `GetTradeSkillLineForRecipe` (Ergebnis von `/prof pruefen`)? Als nächster Dienst über `Peon.Comm` die Sammelstellen (`nodes`, fremde Stellen getrennt von den eigenen). Anzeige auf Welt- und Minikarte zurückgestellt (KarloDerBaer, 17.11.2026).
 
-## Peon_Warhorn – 0.6.0 (Gruppen, Dungeons und Raids)
+## Peon_Warhorn – 0.6.1 (Gruppen, Dungeons und Raids)
 
 - Konzept: `docs\konzepte\warhorn\Peon_Warhorn_Konzept.md`.
 - Dateien: Locales.lua, Warhorn.lua, Search.lua, Filter.lua, Window.lua, Whisper.lua, Placeholders.lua, Contacts.lua, Listing.lua, Who.lua, Settings.lua, Overlay.lua, Journal.lua, Probe.lua, Options.lua, Bindings.xml
@@ -190,6 +190,10 @@ Ideen gibt KarloDerBaer einzeln vor, sie kommen erst nach Zustimmung hierher. Hi
 - Punkte 1 bis 7 und 9 erledigt (Prüfungen nur auf Befehl, README, kurzer Stand, Fehler-Worker, Datenaustausch, Prüfung der API-Angabe, globale Variablen, Tastatur und Zoom im Manager). Der Fehler-Worker muss noch hochgeladen werden (`npx wrangler deploy` in `worker\peon-fehler\`).
 - Zweite Runde erledigt (18.11.2026): Sicherung der Spieldaten (Manager 0.48.0), Hilfe im Manager (`docs\Hilfe.md`), Profile im Kern (Peon 0.25.0), Beispielfenster und UI-Prüfung nach Peon_Debug, Peon_ComboPoints entfernt (Ablösung über `retired`), klare Meldung bei ausgeschaltetem Broker Client, Takte in Fishing 1.7.1.
 - Nicht gemacht: Gildenbank im Ledger (KarloDerBaer hat sie nicht gewählt, erst prüfbar mit Gildenbank). Die Sprachdatei von Profession bleibt in Blöcken je Version (Umbau ohne Nutzen für Spieler). test_broker.lua bleibt eine Datei.
+
+### Vorgemerkt aus Fehlerberichten
+
+- Chancen, Spekulation (Bericht 43, 16.11.2026): Bei Rezepten niedriger Stufe mit fallendem Preis lohnt ein Kauf zur Mitte des üblichen Bereichs nicht. Bei der nächsten Arbeit an der Spekulation (Broker hinter „Weitere Chancen“, Manager Chancen) berücksichtigen.
 
 ### Datenmengen (Messung 25.11.2026)
 
