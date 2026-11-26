@@ -3822,6 +3822,23 @@ end)()
   check(sv.n == 2 and sv.under == 1 and sv.value == 50 * 20 + 70 * 5 and sv.sold == 1 and sv.soldValue == math.floor(90 * (1 - ns.Data.Cut()) + 0.5)
     and plain(O.sideVal.n.text) == "2" and plain(O.sideVal.sold.text) == "1" and not plain(O.summary.text):find("laufen", 1, true),
     "0.144: Spalte links mit Laufend und Beendet statt der Zeile oben")
+  -- ab 0.145: kurzer Status in der schmalen Spalte Broker, Tageswerte je Charakter
+  local ur
+  for _, x in ipairs(O.list:GetItems()) do if x.id == 31 then ur = x end end
+  check(ur and O.ShortStatus(ur) == "Unterboten" and ur.statusText:find("unterboten:", 1, true) and O.list.o.columns[4].width == O.STATUS_W,
+    "0.145: Spalte Broker schmal mit kurzem Text, der lange steht im Tooltip")
+  mod.char.aucDay = nil
+  O.OnPosted(); O.OnPosted(); O.OnCanceled()
+  O.NoteSold(ns.Auctions.rows)
+  O.NoteSold(ns.Auctions.rows)
+  local dv = O.SideValues(ns.Auctions.rows)
+  check(dv.dayPosted == 2 and dv.dayCancelled == 1 and dv.daySold == 1 and dv.dayGain > 0,
+    "0.145: Heute zaehlt Auktionen, Abgebrochen und jede verkaufte Auktion einmal: " .. dv.daySold .. ", Gewinn " .. tostring(dv.dayGain))
+  mod.char.aucDay.day = mod.char.aucDay.day - 1
+  check(O.SideValues(ns.Auctions.rows).dayPosted == 0 and O.Day().seen[33], "0.145: neuer Tag beginnt bei 0, gezaehlte Verkaeufe bleiben gemerkt")
+  O.UpdateSide(ns.Auctions.rows)
+  check(plain(O.sideVal.dayCancelled.text) == "0" and O.sideParts[1].label.text ~= nil, "0.145: Bereich Heute in der Spalte")
+  mod.char.aucDay = nil
   O.Hidden().best, O.Hidden().sold = true, true
   O.Update(true)
   check(#O.list:GetItems() == 1 and O.list:GetItems()[1].id == 31 and plain(O.summary.text):find("2 per Filter ausgeblendet", 1, true),
@@ -5747,14 +5764,13 @@ end)()
     "0.143: Gleitend Mindestgewinn wie der fruehere Vorschlag (99 minus 5 % Anteil minus 5 %), Unter Markt 10 %, kein Knopf Vorschlag mehr")
   Q.SetGlideOn(true)
   check(Q.BuyKind(7992) == "glide" and Q.EffectiveLimit(7992, ns.Buy.live[7992].rows) == 89 and F.ManualLimit(7992) == nil
-    and plain(F.quick.glideValue.text):find("jetzt", 1, true), "0.143: Gleitend setzt das Limit nur fuer jetzt, der Standard bleibt leer")
+    and plain(F.quick.glideValue.text) == "", "0.143/0.145: Gleitend setzt das Limit nur fuer jetzt, der Standard bleibt leer, kein Text jetzt mehr dahinter")
   check(F.MethodName(Q.Method(7992)) == "Mindestgewinn 5 %" and (not F.quick.method.fallback or plain(F.quick.method.text) == "Mindestgewinn 5 %"),
     "0.143/0.144: Methode in der Auswahlliste")
   check(plain(F.UnitText(true)) == "89c (Gleitend)", "0.144: Stueckpreis mit Hebel Gleitend: " .. plain(F.UnitText(true)))
   Q.SetLimitOn(true); F.SetLimit(70)
   check(Q.EffectiveLimit(7992, ns.Buy.live[7992].rows) == 70, "0.143: mit Limit nie ueber dem Standard")
-  check(plain(F.quick.glideValue.text):find("(Limit)", 1, true) and plain(F.UnitText(true)) == "70c (Limit)",
-    "0.144: begrenzt der Standard das Gleitende, steht (Limit) dahinter: " .. plain(F.quick.glideValue.text))
+  check(plain(F.UnitText(true)) == "70c (Limit)", "0.144: begrenzt der Standard das Gleitende, steht beim Stueckpreis (Limit)")
   Q.SetLimitOn(false); Q.SetGlideOn(false); F.SetLimit(nil)
   check(Q.CleanLow({ { price = 50, qty = 3 }, { price = 99, qty = 20 } }) == 99 and Q.CleanLow({ { price = 90, qty = 3 }, { price = 99, qty = 20 } }) == 90,
     "0.140: Stufe mehr als 15 % unter der naechsten gilt als Ausreisser")
@@ -7083,6 +7099,100 @@ end)()
   mod.acc.sellHours = nil
   SP.post, SP.done, SP.own, SP.qty, SP.hours, SP.key = nil, nil, nil, nil, nil, nil
   if ns.Lots then ns.Lots.pendingPost = nil end
+end)()
+
+-- ===== 0.147: Seitenleiste hinter dem Fenster =====
+;(function()
+  local Sd = ns.Side
+  Sd.Build()
+  local f = Sd.frame
+  local keepSet = f.SetFrameStrata
+  local got
+  f.SetFrameStrata = function(_, v) got = v end
+  local host = CreateFrame("Frame")
+  host.GetFrameStrata = function() return "HIGH" end
+  check(Sd.BehindHost(host) and got == "MEDIUM", "0.147: Leiste eine Schicht unter dem Fenster: " .. tostring(got))
+  host.GetFrameStrata = function() return "BACKGROUND" end
+  got = nil
+  check(not Sd.BehindHost(host) and got == nil, "0.147: unter der untersten Schicht bleibt sie, wo sie ist")
+  f.SetFrameStrata = keepSet
+  -- ab 0.149: Griff in der Schicht der Leiste, eine Ebene darunter
+  local g = Sd.grip
+  local gs, gl
+  local keepGS, keepGL, keepFS, keepFL = g.SetFrameStrata, g.SetFrameLevel, f.GetFrameStrata, f.GetFrameLevel
+  g.SetFrameStrata = function(_, v) gs = v end
+  g.SetFrameLevel = function(_, v) gl = v end
+  f.GetFrameStrata = function() return "MEDIUM" end
+  f.GetFrameLevel = function() return 30 end
+  Sd.GripLayer()
+  check(gs == "MEDIUM" and gl == 29, "0.149: Griff hinter Leiste und Rahmen: " .. tostring(gs) .. " " .. tostring(gl))
+  g.SetFrameStrata, g.SetFrameLevel, f.GetFrameStrata, f.GetFrameLevel = keepGS, keepGL, keepFS, keepFL
+  -- ab 0.161: nur das Holzband aus dem Kantenbild, Staerke = Anteil der Bildhoehe
+  local keepCT = rawget(_G, "C_Texture")
+  C_Texture = { GetAtlasInfo = function(name)
+    if name == Sd.GRIP_ATLAS then return { file = 123, width = 128, height = 40, leftTexCoord = 0, rightTexCoord = 1, topTexCoord = 0.2, bottomTexCoord = 0.6 } end
+    return nil
+  end }
+  local tb, hb = Sd.WoodBand(g, "top")
+  check(tb ~= nil and hb == 33, "0.161/0.163: Holzband 83 % von 40 Punkten: " .. tostring(hb))
+  check(Sd.WoodBand(g, "right") ~= nil and Sd.WoodBand(g, "bottom") ~= nil, "0.161: Band auch gespiegelt und senkrecht")
+  check(Sd.GRIP_BAND[1] == 0.08 and Sd.GRIP_BAND[2] == 0.91 and Sd.GRIP_BAND_R[1] == 0.08 and Sd.GRIP_BAND_R[2] == 0.91
+    and Sd.GRIP_R_FLIP == true and Sd.SetBand == nil, "0.164: Baender fest 8 bis 91, Befehl zum Einstellen entfaellt")
+  check(Sd.GRIP_TUCK == 16, "0.164: Griff steckt 16 Punkte hinter der Leiste")
+  C_Texture = keepCT
+end)()
+
+-- ===== 0.152: Markt oeffnet Einkaufen, Zurueck als Knopf, Stern fuer Beobachten =====
+;(function()
+  local T, F, Wt, W = ns.AHTabs, ns.Focus, ns.Watch, ns.Window
+  local keepBuilt, keepFocus, keepAtAH, keepShift, keepCur, keepClose, keepOpen =
+    T.built, ns.Go.Focus, W.AtAH, IsShiftKeyDown, T.current, T.Close, W.Open
+  local got
+  ns.Go.Focus = function(item) got = item; return true end
+  T.built = true
+  check(T.MarketKey({ itemID = 2770, itemLevel = 0, itemSuffix = 0 }) == 2770, "0.152: Schluessel aus Blizzards itemKey")
+  check(T.OnBrowseResult({ itemKey = { itemID = 2770 } }) and got and got.key == 2770 and got.from == "market",
+    "0.152: Klick im Markt oeffnet Einkaufen mit Herkunft Markt")
+  got = nil
+  IsShiftKeyDown = function() return true end
+  check(not T.OnBrowseResult({ itemKey = { itemID = 2770 } }) and got == nil, "0.152: mit Umschalttaste bleibt Blizzards Ansicht")
+  IsShiftKeyDown = keepShift
+  T.built = false
+  check(not T.OnBrowseResult({ itemKey = { itemID = 2770 } }) and got == nil, "0.152: ohne eigene Reiter (Blizzard pur) nichts")
+  T.built = keepBuilt
+  ns.Go.Focus = keepFocus
+  -- Herkunft Markt und Zurueck
+  W.AtAH = function() return true end
+  F.FromPage(7995, "market")
+  check(F.origin == "market" and F.BackLabel() == "Zurück zu Markt", "0.152: aus dem Markt: Zurueck zu Markt")
+  if F.backButton then
+    F.UpdateBack()
+    check(F.backButton:GetText() == "Zurück zu Markt", "0.152: Knopf mit Text statt Pfeil")
+  end
+  local closed, opened = 0, nil
+  T.Close = function() closed = closed + 1 end
+  W.Open = function(k) opened = k end
+  T.current = "focus"
+  F.GoBack()
+  check(closed == 1 and opened == nil, "0.152: Zurueck zu Markt schliesst nur Brokers Flaeche")
+  F.origin = "chances"; F.GoBack()
+  check(opened == "chances", "0.152: Zurueck zu Chancen")
+  F.origin = "watch"; F.GoBack()
+  check(opened == "watch", "0.152: Zurueck zu Beobachten")
+  W.AtAH = function() return false end
+  F.origin = "market"
+  F.UpdateBack()
+  check(F.origin == "watch", "0.152: unterwegs fuehrt Zurueck zu Beobachten")
+  T.Close, W.Open, W.AtAH, T.current = keepClose, keepOpen, keepAtAH, keepCur
+  -- Stern
+  local keepKey = F.key
+  F.key = 7997
+  if Wt.Is(7997) then Wt.Remove(7997) end
+  check(F.ToggleWatch() == true and Wt.Is(7997), "0.152: Stern nimmt den Gegenstand in Beobachten auf")
+  if F.star then check(F.star.on == true, "0.152: Stern leuchtet") end
+  check(F.ToggleWatch() == false and not Wt.Is(7997), "0.152: nochmal: aus Beobachten genommen")
+  if F.star then check(F.star.on == false, "0.152: Stern aus") end
+  F.key = keepKey
 end)()
 
 print("ALLE TESTS OK")

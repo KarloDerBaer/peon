@@ -410,6 +410,38 @@ function T.OnDisplayMode()
     T.PlaceBack()
 end
 
+-- ab 0.152 (Wunsch KarloDerBaer 26.11.2026): Ein Gegenstand, den man in Blizzards Markt anklickt, oeffnet Einkaufen.
+-- Sicherer Anhang an SelectBrowseResult: Blizzard hat seine Kaufansicht schon gezeigt und die Abfrage geschickt, Broker
+-- legt nur seine Seite darueber und liest das itemKey. Mit gedrueckter Umschalttaste bleibt Blizzards Ansicht.
+-- "Zurueck zu Markt" in Einkaufen schliesst die Flaeche wieder (Focus.GoBack).
+function T.MarketKey(itemKey)
+    if type(itemKey) ~= "table" then return nil end
+    local id = tonumber(itemKey.itemID)
+    if not id or Peon.IsSecret(id) then return nil end
+    local D = ns.Data
+    if D.HasVariants and D.HasVariants(id) then
+        local ah = rawget(_G, "C_AuctionHouse")
+        local ok, info = false, nil
+        if ah and ah.GetItemKeyInfo then ok, info = pcall(ah.GetItemKeyInfo, itemKey) end
+        local name = ok and type(info) == "table" and info.itemName or nil
+        local base = ns.GetItemInfo and ns.GetItemInfo(id)
+        if type(name) == "string" and name ~= "" and not Peon.IsSecret(name) and name ~= base then
+            local key = D.VariantKey(id, name)
+            if ns.Buy and ns.Buy.LearnKey then ns.Buy.LearnKey(key, itemKey) end
+            return key
+        end
+    end
+    return id
+end
+
+function T.OnBrowseResult(result)
+    if not (T.built and ns.AHTouch() and type(result) == "table") then return false end
+    if IsShiftKeyDown and IsShiftKeyDown() then return false end
+    local key = T.MarketKey(result.itemKey)
+    if key == nil or not (ns.Go and ns.Go.Focus) then return false end
+    return ns.Go.Focus({ key = key, itemKey = result.itemKey, from = "market" })
+end
+
 function T.SellWanted()
     local W = ns.Window
     if not (T.built and ns.AHTouch() and W and W.pages.sell and ns.Advice and ns.Advice.ActiveSellFrame) then return false end
@@ -543,6 +575,10 @@ function T.Build()
     -- Blizzard wechselt die Ansicht: Flaeche weg (sicherer Anhang, veraendert Blizzards Ablauf nicht)
     if hooksecurefunc then hooksecurefunc(f, "SetDisplayMode", function() mod:Call("Auktionshaus-Reiter", T.OnDisplayMode) end) end
     if f.HookScript then f:HookScript("OnHide", function() mod:Call("Auktionshaus-Reiter", T.OnAHHide) end) end
+    -- ab 0.152: Klick auf einen Gegenstand in Blizzards Markt oeffnet Einkaufen (T.OnBrowseResult)
+    if hooksecurefunc and type(f.SelectBrowseResult) == "function" then
+        hooksecurefunc(f, "SelectBrowseResult", function(_, result) mod:Call("Markt", T.OnBrowseResult, result) end)
+    end
 
     -- ab 0.59: Knopf "Zurueck zu ..." nach einem Sprung. Auf Brokers Seiten links in der Titelleiste, in Blizzards
     -- Kaufansicht rechts neben Blizzards "Zurueck" (T.PlaceBack, KarloDerBaer 11.11.2026)

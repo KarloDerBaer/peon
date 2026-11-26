@@ -56,6 +56,7 @@ function A.Read()
     A.readAt = time()
     mod.acc.owned = { market = ns.MarketKey(), t = A.readAt, rows = rows }
     A.Evaluate()
+    if ns.AuctionsOwn and ns.AuctionsOwn.NoteSold then ns.AuctionsOwn.NoteSold(rows) end   -- ab 0.145: Tageswerte
     return rows
 end
 

@@ -33,6 +33,7 @@ F.manualQty = nil     -- ab 0.99: feste Hoechstmenge { key, qty } (nur diese Sit
 F.manualGold = nil    -- ab 0.112: Schnellkauf, hoechster Betrag je Kauf { key, gold } in Kupfer, nil = ohne Grenze
 F.loaded = nil        -- ab 0.131: { key, mode }: fuer diesen Gegenstand und Modus gelten die Werte aus Beobachten (F.EnsureLoaded)
 F.origin = "watch"    -- ab 0.82: wohin "Zurueck" fuehrt: "chances" (ab 0.105 auch statt Radar) oder "watch" (sonst)
+                      -- ab 0.152 auch "market" (Klick in Blizzards Markt, AHTabs.OnBrowseResult)
 F.since = 0      -- ab 0.70: Live-Daten zaehlen erst ab hier (time(), neuer Gegenstand oder Auktionshaus geoeffnet)
 
 local GREY, GREEN, ORANGE, YELLOW = "|cff999999", "|cff60e060", "|cffff9933", "|cffffd100"
@@ -302,15 +303,16 @@ end
 -- der Gegenstand beobachtet, gelten seine gespeicherten Werte (Kaufen bis, Zielpreis) als eigene Werte.
 function F.FromPage(key, from, want)
     if from == "focus" then return end           -- naechste Chance aus dem Fokus heraus: Herkunft bleibt
-    F.origin = (from == "radar" or from == "chances") and "chances" or from == "list" and "list" or "watch"   -- ab 0.136 Listen
+    F.origin = (from == "radar" or from == "chances") and "chances" or from == "list" and "list"
+        or from == "market" and "market" or "watch"   -- ab 0.136 Listen, ab 0.152 Markt
     -- ab 0.106: aus Chancen immer Aufkauf, aus Beobachten der dort gespeicherte Modus
     -- ab 0.119: want = Modus der Liste, aus der man kommt (Unterreiter Schnellkauf in Chancen und Beobachten)
     local Wt = ns.Watch
     local mode = (want == "quick" or want == "buyout") and want
         or F.origin == "chances" and "buyout" or (Wt and Wt.Is(key) and Wt.Mode(key)) or nil
     if mode and ns.Quick then ns.Quick.SetMode(mode, true) end
-    if F.origin == "watch" or F.origin == "list" then
-        if not F.LoadWatch(key) then F.LoadList(key) end   -- ab 0.140 auch aus der Liste
+    if F.origin == "watch" or F.origin == "list" or F.origin == "market" then
+        if not F.LoadWatch(key) then F.LoadList(key) end   -- ab 0.140 auch aus der Liste, ab 0.152 aus dem Markt
     end
     F.UpdateBack()
     F.Update()
@@ -440,16 +442,84 @@ function F.Store(add, user)
     return F.Save(true)
 end
 
--- Symbol "Zurueck zu ..." in der Kopfzeile (ab 0.133, vorher Knopf unten)
+-- Knopf "Zurueck zu ..." in der Kopfzeile (ab 0.133 als Symbol, ab 0.152 wieder ein Knopf mit Text, Wunsch
+-- KarloDerBaer 26.11.2026: der Pfeil war kaum zu sehen). Er fuehrt dorthin, woher man kam.
 function F.BackLabel()
-    local label = F.origin == "chances" and L.TAB_CHANCES or F.origin == "list" and L.AHTAB_SHOP or L.NTAB_WATCH
+    local label = F.origin == "chances" and L.TAB_CHANCES or F.origin == "list" and L.AHTAB_SHOP
+        or F.origin == "market" and L.AHTAB_MARKET or L.NTAB_WATCH
     return L.FOCUS_BACK:format(label)
 end
 
-function F.UpdateBack() end   -- ab 0.133: der Tooltip des Symbols fragt F.BackLabel selbst
+F.BACK_W = 160
+function F.UpdateBack()
+    local b = F.backButton
+    if not b then return end
+    -- zurueck zum Markt geht nur am Auktionshaus, unterwegs fuehrt der Knopf zu Beobachten
+    if F.origin == "market" and not (ns.Window.AtAH and ns.Window.AtAH()) then F.origin = "watch" end
+    b:SetText(F.BackLabel())
+end
 
 function F.GoBack()
+    -- ab 0.152: zurueck zum Markt schliesst nur Brokers Flaeche. Blizzards Ansicht schaltet Broker nie selbst um
+    -- (Buy.ShowInAH, Fehlerberichte 10 und 11), Blizzard zeigt darum den zuletzt gewaehlten Gegenstand im Markt.
+    if F.origin == "market" and ns.AHTabs and ns.AHTabs.current then
+        ns.AHTabs.Close()
+        return
+    end
     ns.Window.Open(F.origin == "chances" and "chances" or F.origin == "list" and "buy" or "watch")
+end
+
+-- ab 0.152 (Wunsch KarloDerBaer 26.11.2026): Stern wie Blizzards Favoriten-Stern im Markt. Er zeigt, ob der Gegenstand
+-- in Beobachten steht, ein Klick nimmt ihn auf (mit den Werten, die gerade gelten, F.Save) oder nimmt ihn heraus.
+-- Blizzards Favoriten bleiben unberuehrt.
+F.STAR_ON, F.STAR_OFF = "auctionhouse-icon-favorite", "auctionhouse-icon-favorite-off"
+function F.BuildStar(header)
+    local b = CreateFrame("Button", nil, header)
+    b:SetSize(20, 18)
+    b:SetPoint("TOPRIGHT", header, "TOPRIGHT", -6, -6)
+    if b.SetFrameLevel and header.GetFrameLevel then b:SetFrameLevel((header:GetFrameLevel() or 1) + 2) end
+    b.tex = b:CreateTexture(nil, "ARTWORK")
+    b.tex:SetAllPoints()
+    b.hl = b:CreateTexture(nil, "HIGHLIGHT")
+    b.hl:SetAllPoints()
+    Peon.UI.SetAtlas(b.hl, F.STAR_OFF, false)
+    if b.hl.SetBlendMode then b.hl:SetBlendMode("ADD") end
+    b:SetScript("OnClick", function() mod:Call("Beobachten", F.ToggleWatch) end)
+    b:SetScript("OnEnter", function(self)
+        if not GameTooltip then return end
+        local on = ns.Watch and ns.Watch.Is(F.key)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(on and L.FOCUS_STAR_DEL or L.FOCUS_STAR_ADD, 1, 0.82, 0)
+        GameTooltip:AddLine(on and L.FOCUS_STAR_DEL_TIP or L.FOCUS_STAR_ADD_TIP, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    F.star = b
+    return b
+end
+
+function F.UpdateStar()
+    local b = F.star
+    if not b then return end
+    b:SetShown(F.key ~= nil)
+    local on = F.key ~= nil and ns.Watch and ns.Watch.Is(F.key) or false
+    Peon.UI.SetAtlas(b.tex, on and F.STAR_ON or F.STAR_OFF, false)
+    b.on = on
+end
+
+function F.ToggleWatch()
+    local key, Wt = F.key, ns.Watch
+    if key == nil or not Wt then return false end
+    if Wt.Is(key) then
+        Wt.Remove(key)
+        mod:Print(L.FOCUS_STAR_REMOVED:format(tostring(ns.Data.ItemName(key, (ns.Data.Lookup(key))) or key)))
+    else
+        F.Save(true)
+        F.loaded = { key = key, mode = ns.Quick and ns.Quick.Mode() or mod.db.focusMode }
+    end
+    if ns.WatchPage then ns.WatchPage.Refresh() end
+    F.Update()
+    return Wt.Is(key)
 end
 
 -- Kauf "alles unter dem Ziel" aus den Live-Stufen. Rueckgabe: Plan wie eine Chance (kind "own") oder nil
@@ -777,6 +847,7 @@ function F.Build(c)
         if GameTooltip and GameTooltip.AddLine then GameTooltip:AddLine(L.FOCUS_MENU_HINT, 0.6, 0.6, 0.6); GameTooltip:Show() end
     end)
     F.header:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    F.BuildStar(F.header)   -- ab 0.152
     -- ab 0.133 (U1, Konzept 4.5): Gegenstand und Im Markt zeigen stehen im Rechtsklick-Menue auf den Namen
     if F.header.RegisterForClicks then pcall(F.header.RegisterForClicks, F.header, "LeftButtonUp", "RightButtonUp") end
     F.header:SetScript("OnClick", function(self, button)
@@ -891,9 +962,9 @@ function F.Build(c)
         if ns.Settings then mod:Call("Einstellungen", ns.Settings.Toggle, "focus", c) end
     end, { L.SETTINGS_BUTTON })
     F.settingsButton:SetPoint("BOTTOMRIGHT", right, "TOPRIGHT", -4, 5)
-    -- ab 0.133: Zurueck als Symbol links daneben (vorher Knopf unten links)
-    F.backButton = F.SmallIcon(c, F.ICON_BACK, function() mod:Call("Sprung", F.GoBack) end, function() return { F.BackLabel() } end)
-    F.backButton:SetPoint("RIGHT", F.settingsButton, "LEFT", -6, 0)
+    -- ab 0.133: Zurueck als Symbol links daneben (vorher Knopf unten links), ab 0.152 Knopf mit Text
+    F.backButton = UI.Button(c, F.BackLabel(), F.BACK_W, function() mod:Call("Sprung", F.GoBack) end)
+    F.backButton:SetPoint("RIGHT", F.settingsButton, "LEFT", -8, 0)
     -- ab 0.104: Umschalter Aufkauf / Schnellkauf, ab 0.133 nur mit dem Schalter focusBuyout (Aufkauf ruht)
     F.modeQuick = UI.Button(c, L.FOCUS_MODE_QUICK, 100, function() mod:Call("Schnellkauf", ns.Quick.SetMode, "quick") end)
     F.modeQuick:SetPoint("RIGHT", F.backButton, "LEFT", -12, 0)
@@ -1806,10 +1877,8 @@ function F.UpdateQuick(d, live)
     if q.method.SetAlpha then q.method:SetAlpha(glideOn and 1 or 0.6) end
     local gv = live and key ~= nil and Q.GlideValue(key, nil, F.LiveRows()) or nil
     if glideOn then
-        local eff = Q.EffectiveLimit(key, F.LiveRows())
-        local capped = F.GlideCapped(key, F.LiveRows())
-        q.glideValue:SetText(Num(eff) and (ORANGE .. L.QUICK_GLIDE_NOW:format(Money(eff)) .. "|r" .. (capped and (" " .. GREY .. "(" .. L.QUICK_LEVER_LIMIT .. ")|r") or ""))
-            or (GREY .. L.QUICK_GLIDE_NONE .. "|r"))
+        -- ab 0.145 (Board KarloDerBaer) ohne "jetzt ...": der Wert steht in der Zeile Stueckpreis
+        q.glideValue:SetText("")
     else
         q.glideValue:SetText(Num(gv) and (GREY .. Money(gv) .. "|r") or "")
     end
@@ -2022,6 +2091,8 @@ end
 
 function F.Update()
     if not F.tiers then return end
+    F.UpdateStar()   -- ab 0.152
+    F.UpdateBack()
     local key = F.key
     local has = key ~= nil
     local live = AHOpen()

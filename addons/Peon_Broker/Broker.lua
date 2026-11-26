@@ -709,6 +709,7 @@ mod:On("INIT", function()
     if ns.Side then mod:Call("Seitenleiste", ns.Side.Init) end   -- ab 0.137 (U5)
     if ns.SellVariant then mod:Call("Varianten", ns.SellVariant.Init) end   -- ab 0.98
     if ns.SellPage then mod:Call("Verkaufen", ns.SellPage.Init) end   -- ab 0.141: eigene Seite Verkaufen
+    if ns.AuctionsOwn and ns.AuctionsOwn.Init then mod:Call("Auktionen", ns.AuctionsOwn.Init) end   -- ab 0.145: Tageswerte
     mod:Call("Sprung", ns.Go.InitMarket)   -- ab 0.73: sicherer Knopf Im Markt zeigen
     -- ab 0.95: Berufsfenster in Peon_Profession (Craft.lua dort)
     mod.char.vendorFlip = nil   -- Haendler-Knopf entfaellt (0.24, Feedback #8)

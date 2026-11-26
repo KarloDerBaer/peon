@@ -2,6 +2,192 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.164.0
+
+Kurz: Der Griff der Seitenleiste schaut nur noch halb so weit heraus, der Pfeil ist gerade noch zu sehen. Die Holzkanten sind fest eingestellt.
+
+- 0.164.0 (26.11.2026, Werte und Wunsch von KarloDerBaer):
+  - **Geändert, Griff:** steckt 16 statt 8 Punkte hinter der Leiste oder dem Fenster (`Side.GRIP_TUCK`), der Pfeil steht zwischen Leiste und rechter Kante (`Side.GRIP_BAR`).
+  - **Geändert:** rechte Kante fest 8 bis 91 Prozent in der Richtung aus 0.163.0 (`Side.GRIP_BAND_R`, `Side.GRIP_R_FLIP`).
+  - **Entfernt:** der vorläufige Befehl `/broker griff` aus 0.162.0 und 0.163.0, die Werte stehen jetzt fest im Code.
+  - Tests: `test_broker.lua`.
+
+## 0.163.0
+
+Kurz: Oben und unten am Griff der Seitenleiste sitzt das Holz jetzt fest so, wie es mit /broker griff 8 91 am besten aussah. Die rechte Kante lässt sich jetzt ebenfalls einstellen.
+
+- 0.163.0 (26.11.2026, Werte von KarloDerBaer aus dem Spiel):
+  - **Geändert, Griff:** Band oben und unten fest 8 bis 91 Prozent (`Side.GRIP_BAND`).
+  - **Neu, vorläufig:** rechte Kante mit eigenem Band (`Side.GRIP_BAND_R`, Vorgabe 8 bis 91) und eigener Richtung (`Side.GRIP_R_FLIP`, Vorgabe umgedreht gegenüber 0.162.0, da war sie nicht zu sehen). Einstellbar mit `/broker griff rechts <von> <bis>` und `/broker griff dreh` (`Side.RefreshBands`).
+  - Tests: `test_broker.lua`.
+
+## 0.162.0
+
+Kurz: Vorläufig für die Gestaltung des Griffs: Mit /broker griff <von> <bis> lässt sich das Holzband im Spiel verschieben.
+
+- 0.162.0 (26.11.2026, mit KarloDerBaer abgestimmt):
+  - **Neu, vorläufig:** `/broker griff <von> <bis>` setzt das Holzband des Griffs in Prozent der Bildhöhe von oben (`Side.SetBand`, `Side.ApplyBand`), nur in der Sitzung. Ohne Werte nennt Broker die aktuellen. Mit 0.161.0 war kein Holz zu sehen, die Schätzung 53 bis 71 Prozent lag daneben. Die passenden Werte kommen danach fest in `Side.GRIP_BAND`, dann entfällt der Befehl.
+  - Tests: `test_broker.lua`.
+
+## 0.161.0
+
+Kurz: Der Griff der Seitenleiste zeigt aus dem Kantenbild nur noch das Holz. Die Balken sitzen genau auf seinem Rand.
+
+- 0.161.0 (26.11.2026, mit KarloDerBaer abgestimmt):
+  - **Behoben, Griff:** Das Kantenbild ist ein Streifen, in dem das Holz nur einen Teil der Höhe einnimmt, der Rest ist durchsichtig. Bis 0.160.0 lag das Holz dadurch je nach Lage mit Spalt, eingerückt oder überstehend. Jetzt wird nur das Band mit dem Holz gezeigt (`Side.GRIP_BAND`, 53 % bis 71 % der Bildhöhe, geschätzt aus den Bildern von KarloDerBaer, `Side.WoodBand`). Die Balken liegen im Griff an seinem Rand, oben und unten über die ganze Breite, rechts über die ganze Höhe.
+  - Tests: `test_broker.lua`.
+
+## 0.160.0
+
+Kurz: Die Holzbalken am Griff der Seitenleiste sitzen jetzt direkt auf seinem Rand, ohne Spalt und ohne Überstand.
+
+- 0.160.0 (26.11.2026, Bild von KarloDerBaer):
+  - **Behoben, Griff:** In voller Stärke war zu sehen, dass das Holz der Balken außen im Bild liegt und innen durchsichtig ist. Außen am Griff blieb darum ein Spalt von etwa einer halben Balkenstärke. Alle drei Balken liegen jetzt im Griff an seinem Rand, oben und unten über die ganze Breite, rechts über die ganze Höhe. Die Ecken überschneiden sich innen.
+  - Tests: `test_broker.lua`.
+
+## 0.159.0
+
+Kurz: Die obere und untere Holzkante am Griff der Seitenleiste stehen nicht mehr über die rechte Kante hinaus.
+
+- 0.159.0 (26.11.2026, Hinweis von KarloDerBaer):
+  - **Behoben, Griff:** Obere und untere Kante reichten um eine Bildbreite über den Griff hinaus, um die Ecke zu decken. Das sichtbare Holz der rechten Kante ist schmaler, so standen sie über. Sie enden jetzt genau am rechten Rand des Griffs.
+  - Tests: `test_broker.lua`.
+
+## 0.158.0
+
+Kurz: Die Holzkanten am Griff der Seitenleiste haben jetzt ihre volle Stärke statt dünner Striche.
+
+- 0.158.0 (26.11.2026, Bild von KarloDerBaer):
+  - **Behoben, Griff:** Die Kanten waren auf ein Drittel der Griffbreite (10 Punkte) begrenzt. Das drückte das Holzbild zu einem Strich zusammen, oben und unten blieb ein kleiner Spalt. Seit 0.156.0 liegen die Kanten außen am Griff, die Grenze entfällt, sie haben die volle Höhe des Bilds.
+  - Tests: `test_broker.lua`.
+
+## 0.157.0
+
+Kurz: Die obere und untere Holzkante am Griff der Seitenleiste liegen jetzt ohne Spalt am Griff.
+
+- 0.157.0 (26.11.2026, Bild von KarloDerBaer):
+  - **Behoben, Griff:** Außen am Griff lag das Holz der oberen und unteren Kante auf der abgewandten Seite, zum Grund blieb ein Spalt. Oben steht das Kantenbild jetzt ungespiegelt, unten gespiegelt. Die rechte Kante bleibt wie in 0.156.0.
+  - Tests: `test_broker.lua`.
+
+## 0.156.0
+
+Kurz: Die Holzkanten am Griff der Seitenleiste liegen jetzt außen am Griff. Nichts vom Hintergrund steht mehr über, die rechte Kante sitzt am Rand.
+
+- 0.156.0 (26.11.2026, Bild von KarloDerBaer):
+  - **Behoben, Griff:** Die Kantenbilder haben ihr Holz innen und sind außen durchsichtig. Innen im Griff stand darum außen noch Hintergrund über, die rechte Kante saß mitten im Griff. Alle drei Kanten liegen jetzt außen am Griff, oben und unten reichen sie um eine Kantenbreite weiter und decken die Ecke.
+  - Tests: `test_broker.lua`.
+
+## 0.155.0
+
+Kurz: Die rechte Holzkante am Griff der Seitenleiste zeigt jetzt richtig herum nach außen und reicht ohne Spalt von oben bis unten.
+
+- 0.155.0 (26.11.2026, Bilder von KarloDerBaer):
+  - **Behoben, Griff:** Die helle Seite der rechten Kante zeigte nach innen. Das Bild ist jetzt gespiegelt.
+  - **Behoben, Spalt:** Die rechte Kante ließ oben und unten so viel frei, wie das Kantenbild hoch ist. Das Bild hat aber nur zum Teil sichtbares Holz, so blieb ein Spalt. Sie reicht jetzt über die ganze Höhe des Griffs, nicht darüber hinaus.
+  - Tests: `test_broker.lua`.
+
+## 0.154.0
+
+Kurz: Ein Klick auf einen Gegenstand im Markt öffnet jetzt das Einkaufen. Mit gedrückter Umschalttaste bleibt Blizzards Ansicht.
+Kurz: Im Einkaufen steht oben ein deutlicher Knopf „Zurück zu …“, er führt zum Markt, zu Beobachten, zu Chancen oder zu Listen, je nachdem, woher man kam.
+Kurz: Der Stern am Gegenstand im Einkaufen nimmt ihn in Beobachten auf oder wieder heraus.
+
+- 0.154.0 (26.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Markt öffnet Einkaufen:** sicherer Anhang an Blizzards `SelectBrowseResult` (`AHTabs.OnBrowseResult`, Schlüssel aus dem itemKey über `AHTabs.MarketKey`, Varianten über den Namen). Blizzard zeigt seine Kaufansicht wie immer, Broker legt das Einkaufen darüber. Mit Umschalttaste und bei „Blizzard pur“ passiert nichts.
+  - **Geändert, Zurück:** Knopf mit Text statt Pfeil (`Focus.BACK_W`), neue Herkunft `market`. Zurück zu Markt schließt nur Brokers Fläche, Blizzard zeigt dann den gewählten Gegenstand, seine Liste liegt hinter Blizzards eigenem Zurück. Unterwegs führt der Knopf zu Beobachten.
+  - **Neu, Stern:** Blizzards Favoriten-Stern oben rechts am Gegenstand (`Focus.BuildStar`, `Focus.ToggleWatch`). Leuchtet, wenn der Gegenstand in Beobachten steht. Aufnehmen speichert die Werte, die gerade gelten. Blizzards Favoriten bleiben unberührt.
+  - Tests: `test_broker.lua`.
+
+## 0.153.0
+
+Kurz: Der Griff der Seitenleiste hat jetzt auch rechts eine Holzkante, genauso stark wie oben und unten.
+
+- 0.153.0 (26.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Griff:** rechte Kante aus derselben Holzkante wie oben und unten, senkrecht gedreht (die Außenseite zeigt nach rechts). Sie steht nur zwischen oberer und unterer Kante und ragt nicht über die Ecken. Die rechte Kante des Spiels war im Griff kaum zu sehen.
+  - Tests: `test_broker.lua`.
+
+## 0.152.0
+
+Kurz: Der Rahmen des Griffs ragt nicht mehr über die Liste. Der Griff hat oben, rechts und unten eine Holzkante.
+
+- 0.152.0 (26.11.2026, Bild von KarloDerBaer):
+  - **Behoben, Griff:** Der Rahmenbaustein des Spiels (NineSlice) hielt seine Teile im kleinen Griff nicht zusammen, obere und untere Kante liefen weit über die Liste. Der Griff hat jetzt drei eigene Kanten in Originalstärke, fest an den Griff gebunden (oben die untere Kante gespiegelt, unten die untere, rechts die rechte), höchstens ein Drittel des Griffs dick (`Side.BuildGripWood`). Die Leiste behält ihren Rahmen.
+  - Tests: `test_broker.lua`.
+
+## 0.151.0
+
+Kurz: Der Griff der Seitenleiste hat jetzt denselben Holzrahmen und denselben Hintergrund wie die Leiste.
+
+- 0.151.0 (26.11.2026, Bild von KarloDerBaer):
+  - **Behoben, Griff:** Die verkleinerten Rahmenteile wurden zu dünnen Strichen, weil die Bilder viel durchsichtigen Rand haben. Der Griff bekommt jetzt denselben Rahmen wie die Leiste in Originalgröße (`Side.ApplyWood` für Leiste und Griff). Die festen Größen aus 0.149.0 und 0.150.0 entfallen.
+  - **Geändert, Griff:** Grund ist ein Ausschnitt aus dem Hintergrund der Leiste statt einer flachen dunklen Farbe.
+  - Tests: `test_broker.lua`.
+
+## 0.150.0
+
+Kurz: Der Griff der Seitenleiste ist größer und sein Rahmen so kräftig wie der Rahmen der Leiste.
+
+- 0.150.0 (26.11.2026, Bild von KarloDerBaer):
+  - **Geändert, Griff:** 32 x 84 statt 24 x 72, Ecken 16 statt 10, Kanten 9 statt 6 (`Side.GRIP_W`, `Side.GRIP_H`, `Side.GRIP_CORNER`, `Side.GRIP_EDGE`). Der Rahmen war zu klein und zu schmal.
+  - Tests: `test_broker.lua`.
+
+## 0.149.0
+
+Kurz: Der Griff der Seitenleiste steckt jetzt hinter Leiste und Rahmen. Sein Rahmen ragt nicht mehr in die Liste.
+
+- 0.149.0 (26.11.2026, Bild von KarloDerBaer):
+  - **Behoben, Griff:** Die Ecken seines Rahmens waren breiter als der Griff, die Kanten ragten nach links über die Liste. Ecken und Kanten haben jetzt feste Größen (`Side.GRIP_CORNER`, `Side.GRIP_EDGE`).
+  - **Geändert, Ebenen:** Der Griff liegt in der Schicht der Leiste eine Ebene unter ihr (`Side.GripLayer`), Liste und Holzrahmen liegen über ihm. Er steckt 8 Punkte hinter der Leiste oder bei zugeklappter Leiste hinter dem Fenster (`Side.GRIP_TUCK`), der Pfeil steht in der Mitte des sichtbaren Teils.
+  - Tests: `test_broker.lua`.
+
+## 0.148.0
+
+Kurz: Der Griff der Seitenleiste sitzt direkt am Rahmen und hat einen Holzrahmen wie die Leiste.
+Kurz: Unter den Reitern Beobachten und Liste trennt eine Linie sie von der Liste.
+
+- 0.148.0 (26.11.2026, Bild von KarloDerBaer):
+  - **Geändert, Griff:** direkt am Rahmen der Leiste statt 6 Punkte daneben. Oben, rechts und unten derselbe Rahmen wie an der Leiste in halber Größe, links offen (`Side.BuildGripWood`, `Side.GRIP_SCALE`). Etwas größer (18 x 72).
+  - **Neu, Trennlinie** unter den Reitern (`Side.TABS_LINE_Y`). Auswahl der Einkaufsliste und Liste rücken dafür 6 bis 8 Punkte tiefer.
+  - Tests: `test_broker.lua`.
+
+## 0.147.0
+
+Kurz: Die Seitenleiste liegt jetzt hinter dem Auktionsfenster und kommt darunter hervor wie eine Schublade.
+Kurz: Ihr Rahmen ist oben so schmal wie unten und liegt eng an der Liste.
+
+- 0.147.0 (26.11.2026, Bild von KarloDerBaer):
+  - **Geändert, Seitenleiste hinter dem Fenster** (`Side.BehindHost`): eine Schicht unter dem Auktionshaus oder dem Broker-Fenster. Sie beginnt etwas hinter dem Fensterrand (`Side.UNDER`), der Rahmen links weiter dahinter (`Side.WOOD_IN`). Der Griff bleibt davor.
+  - **Behoben, Rahmen oben:** Oben stand die dicke Titelleiste des Fensterrahmens. Jetzt steht dort die untere Kante gespiegelt, rechts oben die gespiegelte Ecke unten rechts (Layout `ButtonFrameTemplateNoPortrait`).
+  - **Behoben, Lücke rechts:** Der Rahmen ragt nur noch 3 Punkte über die Leiste (`Side.WOOD`), vorher 10.
+  - Tests: `test_broker.lua`.
+
+## 0.146.0
+
+Kurz: In Auktionen heißt die Zeile jetzt Unterwegs, der Betrag steht daneben.
+Kurz: Die Seitenleiste ist oben und unten kürzer als das Fenster und sieht mehr nach einer Schublade aus. Die Warnung beim Laden ist weg.
+
+- 0.146.0 (26.11.2026, Board Broker von KarloDerBaer in Obsidian):
+  - **Geändert, Auktionen:** Zeile „Wert unterwegs“ heißt „Unterwegs“, Spalte 200 breit (`AuctionsOwn.SIDE_W`), damit Beträge neben der Beschriftung stehen.
+  - **Behoben, Seitenleiste:** Beim Laden kam zweimal die Warnung, dass das Bild `UI-ClassicScrollBar-Center` fehlt. Forever kennt die klassische Bildlaufleiste nicht. Die Leiste nutzt wieder `MinimalScrollBar` wie Blizzards Leiste im Markt.
+  - **Geändert, Seitenleiste:** oben 70 und unten 44 kürzer als das Fenster (`Side.TOP`, `Side.BOTTOM`). Der Holzrahmen beginnt links knapp unter dem Fensterrand (`Side.WOOD_IN`), statt 10 Punkte über ihn zu ragen.
+  - Tests: `test_broker.lua`.
+
+## 0.145.0
+
+Kurz: Auktionen hat links eine eigene Spalte mit dem Hintergrund der Leiste im Markt. Lange Goldwerte rutschen in die nächste Zeile, statt über den Rand zu ragen.
+Kurz: Neu ist dort der Bereich Heute mit Auktionen, Verkauft, Abgebrochen und Gewinn.
+Kurz: Die Spalte Broker ist schmaler und zeigt einen kurzen Status, den ganzen Text siehst du im Tooltip. So hat der Gegenstand mehr Platz.
+Kurz: Die Seitenleiste hat den Hintergrund und die hellere Bildlaufleiste der Leiste im Markt und einen Holzrahmen wie eine Schublade.
+Kurz: Hinter Gleitend steht kein „jetzt …“ mehr, der Wert steht beim Stückpreis.
+
+- 0.145.0 (26.11.2026, Board Broker von KarloDerBaer in Obsidian):
+  - **Geändert, Auktionen, Spalte links:** Hintergrund wie die Leiste im Markt (`categories`), Überschriften innerhalb der Spalte. Passt ein Wert nicht neben seine Beschriftung, steht er in der Zeile darunter (`AuctionsOwn.LayoutSide`).
+  - **Neu, Heute** (`AuctionsOwn.Day`, `char.aucDay`): Auktionen (eingestellt), Verkauft, Abgebrochen und Gewinn des Tages je Charakter. Jede verkaufte Auktion zählt einmal (`seen`, drei Tage gemerkt), der Gewinn wie im Verkaufen nach Anteil und Einkauf.
+  - **Geändert, Spalte Broker:** schmal mit kurzem Status wie im Filter (`AuctionsOwn.ShortStatus`), der ganze Text mit Preis im Tooltip der Zeile. Die Spalte Gegenstand bekommt den Rest.
+  - **Geändert, Seitenleiste:** Hintergrund wie die Leiste im Markt, hellere Bildlaufleiste (`WowClassicScrollBar`, `Side.UseLightBar`), Holzrahmen oben, rechts und unten nach dem Rahmen des Auktionshauses (`Side.BuildWood`).
+  - **Entfernt, Einkaufen:** „jetzt …“ hinter Gleitend, der Wert steht in der Zeile Stückpreis.
+  - Tests: `test_broker.lua`.
+
 ## 0.144.0
 
 Kurz: Im Verkaufen gibt es die Preisknöpfe Günstige, Vorschlag, Letzter und Individuell. Der gewählte Knopf bleibt hell. Günstige und Vorschlag folgen dem Markt, Lockangebote zählen nicht.

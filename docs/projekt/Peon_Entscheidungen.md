@@ -3,12 +3,27 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 26.11.2026: Markt öffnet Einkaufen (Broker 0.154.0)
+
+- **Klick im Markt öffnet Einkaufen** (KarloDerBaer). Broker hängt sich nur sicher an Blizzards `SelectBrowseResult` an und schaltet Blizzards Ansicht nie selbst um, wie seit 0.64.1 (Claude). Darum führt „Zurück zu Markt“ zu Blizzards Ansicht des gewählten Gegenstands, die Trefferliste liegt hinter Blizzards Zurück. Mit Umschalttaste bleibt Blizzards Ansicht (Claude).
+- **Stern im Einkaufen = Beobachten** (KarloDerBaer). Er sieht aus wie Blizzards Favoriten-Stern, setzt aber keine Blizzard-Favoriten (KarloDerBaer, 26.11.2026).
+
 ## 26.11.2026: Board Bags (Bags 0.10.0)
 
 - **Taschen, Bank, Gildenbank immer sichtbar** (KarloDerBaer: mittig zwischen Sortieren und Einstellen), dazu der Knopf Taschen, damit man aus der Bank zurückkommt (Claude).
 - **Auswahl des Charakters zwischen Taschenleiste und Suche** (KarloDerBaer). Damit alles passt, ist das Fenster mindestens so breit wie Leiste, Auswahl und Suche und das Suchfeld etwas schmaler (Claude).
 - **Schlüsselbund standardmäßig im eigenen Fenster**, im Taschenfenster nur per Einstellung (KarloDerBaer). Die gespeicherte Ansicht anderer Charaktere folgt derselben Einstellung (Claude).
 - **Abschnitte springen beim Umräumen nicht** (KarloDerBaer, einstellbar, Standard an). Wächst ein Abschnitt, bekommt er Reihen statt Breite, neue Abschnitte kommen unten dazu, neu geordnet wird beim Öffnen (Claude).
+
+## 26.11.2026: Griff der Seitenleiste (Broker 0.161.0)
+
+- **Nur das Holzband aus dem Kantenbild** (Vorschlag Claude, KarloDerBaer stimmt zu): Nach zehn Versuchen mit dem ganzen Bild war klar, dass dessen durchsichtiger Teil die Lage unberechenbar macht. Die Grenzen des Bands sind aus Screenshots geschätzt. Passt es nicht, kommt vorübergehend ein Befehl zum Einstellen im Spiel.
+
+## 26.11.2026: Board Broker, dritte Runde (Broker 0.145.0)
+
+- **Heute zählt Broker selbst** (Claude): eingestellt und abgebrochen über die Ereignisse des Spiels, verkauft, sobald eine Auktion in der eigenen Liste als verkauft erscheint. Was ohne offenes Auktionshaus verkauft wird, zählt am Tag, an dem Broker es sieht.
+- **Spalte Broker mit den kurzen Texten des Filters** (KarloDerBaer wollte sie schmal, Claude wählte die vorhandenen kurzen Texte). Preis des Konkurrenten und üblicher Bereich stehen im Tooltip.
+- **Holzrahmen als Schublade** (KarloDerBaer): Rahmen des Auktionshauses ohne linke Seite (Claude). Im Spiel noch nicht gesehen, Abstände eventuell nachstellen.
 
 ## 26.11.2026: Board Broker, zweite Runde (Broker 0.144.0)
 

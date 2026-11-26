@@ -43,6 +43,13 @@ function O.LeftText(r)
     return ""
 end
 
+-- ab 0.145: kurzer Status fuer die schmale Spalte Broker (wie im Filter), der lange mit Preis steht im Tooltip
+O.STATUS_W = 104
+function O.ShortStatus(r)
+    local t = r and r.kind and L["AUCO_ST_" .. r.kind:upper()]
+    return t or (r and r.statusText) or ""
+end
+
 -- Zeilen fuer die Liste: Status aus AuctionsAH (X.Status), Filter angewendet
 function O.Rows()
     local X, hidden, out = ns.AuctionsAH, O.Hidden(), {}
@@ -130,7 +137,9 @@ function O.Build(af)
               color = function(r) return UI.QualityColor(r.quality or 1) end },
             { key = "qty", title = L.FOCUS_R_QTY, width = 70, align = "RIGHT" },
             { key = "price", title = L.AUCO_COL_PRICE, width = 120, align = "RIGHT", format = function(v) return Num(v) and Money(v) or "" end },
-            { key = "kind", title = L.AUCX_COL, width = 190, format = function(_, r) return (COLORS[r.kind] or "") .. (r.statusText or "") .. "|r" end,
+            -- ab 0.145 (Board KarloDerBaer): schmal mit kurzem Text, der ganze Text steht im Tooltip der Zeile. So bleibt
+            -- der Spalte Gegenstand der meiste Platz.
+            { key = "kind", title = L.AUCX_COL, width = O.STATUS_W, format = function(_, r) return (COLORS[r.kind] or "") .. O.ShortStatus(r) .. "|r" end,
               sort = function(r) for i, k in ipairs(O.STATUS) do if k == r.kind then return i end end return 99 end },
             { key = "left", title = L.AUCO_COL_LEFT, width = 90, align = "RIGHT", format = function(_, r) return O.LeftText(r) end,
               sort = function(r) return Num(r.left) and r.left or ((tonumber(r.band) or 9) * 100000) end },
@@ -141,7 +150,14 @@ function O.Build(af)
             if button == "RightButton" then ns.Go.Menu(r, O.listPanel) end
             O.UpdateButtons()
         end,
-        onEnter = function(row, r) if r then ns.Window.ShowItemTooltip(row, r.key) end end,
+        onEnter = function(row, r)
+            if not r then return end
+            ns.Window.ShowItemTooltip(row, r.key)
+            if GameTooltip and r.statusText and r.statusText ~= O.ShortStatus(r) then
+                GameTooltip:AddLine(L.AUCX_COL .. ": " .. (COLORS[r.kind] or "") .. r.statusText .. "|r", 1, 0.82, 0)
+                GameTooltip:Show()
+            end
+        end,
     })
     function O.list:GetItems() return self.items end
     -- unten
@@ -166,48 +182,144 @@ end
 ---------------------------------------------------------------------------
 -- ab 0.144 (Board KarloDerBaer 26.11.2026): Spalte links. Oben Laufende Auktionen (Anzahl, Unterboten, Wert), darunter
 -- Beendete (Verkauft, Wert unterwegs: Erloes nach dem Anteil des Auktionshauses, kommt per Post).
+-- ab 0.145 (Board KarloDerBaer): Hintergrund wie die Leiste im Markt, Ueberschriften in der Spalte, ein Wert, der neben
+-- seiner Beschriftung keinen Platz hat, steht in der Zeile darunter. Dazu der Bereich Heute (Auktionen, Verkauft,
+-- Abgebrochen, Gewinn) je Charakter.
 ---------------------------------------------------------------------------
-O.SIDE_W = 190
+O.SIDE_W = 200   -- ab 0.146 breiter, damit Betraege neben der Beschriftung stehen
 O.SIDE_STEP = 18
+O.SIDE_PAD = 10
 O.SIDE_ROWS = {
     { "head", "AUCO_SIDE_RUNNING" },
     { "n", "AUCO_SIDE_COUNT" }, { "under", "AUCO_SIDE_UNDER" }, { "value", "AUCO_SIDE_VALUE" },
     { "line" },
     { "head", "AUCO_SIDE_DONE" },
     { "sold", "AUCO_SIDE_SOLD" }, { "soldValue", "AUCO_SIDE_ON_WAY" },
+    { "line" },
+    { "head", "AUCO_SIDE_TODAY" },
+    { "dayPosted", "AUCO_SIDE_DAY_POSTED" }, { "daySold", "AUCO_SIDE_SOLD" }, { "dayCancelled", "AUCO_SIDE_DAY_CANCELLED" },
+    { "dayGain", "AUCO_SIDE_DAY_GAIN" },
 }
 
 function O.BuildSide(c)
     local UI = Peon.UI
-    local sp = UI.Panel(c, "list", true)
+    local sp = UI.Panel(c, "categories")
     sp:SetPoint("TOPLEFT", 0, -34)
     sp:SetPoint("BOTTOMLEFT", 0, 32)
     sp:SetWidth(O.SIDE_W)
     O.side = sp
-    O.sideVal = {}
-    local y = -10
+    O.sideVal, O.sideParts = {}, {}
     for _, def in ipairs(O.SIDE_ROWS) do
+        local part = { kind = def[1] }
         if def[1] == "line" then
-            local ln = UI.Divider(sp, O.SIDE_W - 20)
-            ln:SetPoint("TOPLEFT", 10, y - 4)
-            y = y - 14
+            part.line = UI.Divider(sp, O.SIDE_W - 2 * O.SIDE_PAD)
         elseif def[1] == "head" then
-            local h = UI.Text(sp, "label", L[def[2]])
-            h:SetPoint("TOPLEFT", 10, y)
+            part.label = UI.Text(sp, "label", L[def[2]])
+            part.label:SetJustifyH("LEFT")
+        else
+            part.label = UI.Text(sp, "text", L[def[2]])
+            part.label:SetJustifyH("LEFT")
+            part.value = UI.Text(sp, "text", "")
+            part.value:SetJustifyH("RIGHT")
+            O.sideVal[def[1]] = part.value
+        end
+        O.sideParts[#O.sideParts + 1] = part
+    end
+    O.LayoutSide()
+end
+
+-- Breite eines Textes (im Spiel gemessen, sonst geschaetzt)
+local function TextW(fs)
+    local w = fs.GetStringWidth and fs:GetStringWidth() or nil
+    if Num(w) and w > 0 then return w end
+    local t = (fs.GetText and fs:GetText() or "")
+    t = t:gsub("|T.-|t", "00"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    return #t * 7
+end
+
+-- Zeilen untereinander. Passt ein Wert nicht neben seine Beschriftung, kommt er in die naechste Zeile.
+function O.LayoutSide()
+    local sp = O.side
+    if not sp then return end
+    local pad, w = O.SIDE_PAD, O.SIDE_W
+    local y = -10
+    for _, part in ipairs(O.sideParts) do
+        if part.kind == "line" then
+            part.line:ClearAllPoints()
+            part.line:SetPoint("TOPLEFT", pad, y - 2)
+            y = y - 12
+        elseif part.kind == "head" then
+            part.label:ClearAllPoints()
+            part.label:SetPoint("TOPLEFT", pad, y)
             y = y - 22
         else
-            local l = UI.Text(sp, "text", L[def[2]])
-            l:SetPoint("TOPLEFT", 14, y)
-            local v = UI.Text(sp, "text", "")
-            v:SetJustifyH("RIGHT")
-            v:SetPoint("TOPRIGHT", sp, "TOPRIGHT", -10, y)
-            O.sideVal[def[1]] = v
+            part.label:ClearAllPoints()
+            part.label:SetPoint("TOPLEFT", pad + 4, y)
+            local wrap = TextW(part.label) + TextW(part.value) + 8 > w - 2 * pad - 4
+            if wrap then y = y - O.SIDE_STEP end
+            part.value:ClearAllPoints()
+            part.value:SetPoint("TOPRIGHT", sp, "TOPRIGHT", -pad, y)
+            part.wrapped = wrap
             y = y - O.SIDE_STEP
         end
     end
 end
 
--- Werte der Spalte: laufend und beendet (verkauft, Erloes unterwegs)
+-- Tageswerte je Charakter (char.aucDay): eingestellt, verkauft, abgebrochen, Gewinn. Ein neuer Tag beginnt bei 0.
+-- seen merkt sich verkaufte Auktionen (Kennung -> Zeit), damit jede nur einmal zaehlt.
+O.SEEN_DAYS = 3
+function O.Day()
+    local c = mod.char
+    if type(c) ~= "table" then return nil end
+    local today = ns.Data.Day()
+    local d = c.aucDay
+    if type(d) ~= "table" or d.day ~= today then
+        local seen = type(d) == "table" and type(d.seen) == "table" and d.seen or {}
+        d = { day = today, posted = 0, sold = 0, cancelled = 0, gain = 0, seen = seen }
+        c.aucDay = d
+    end
+    return d
+end
+
+local function Changed() if O.panel and O.panel:IsShown() then O.Update() end end
+
+function O.OnPosted()
+    local d = O.Day()
+    if d then d.posted = d.posted + 1; Changed() end
+end
+
+function O.OnCanceled()
+    local d = O.Day()
+    if d then d.cancelled = d.cancelled + 1; Changed() end
+end
+
+-- Neu verkaufte Auktionen zaehlen, Gewinn wie im Verkaufen (Erloes nach Anteil minus Einkauf, Advice.Profit)
+function O.NoteSold(rows)
+    local d = O.Day()
+    if not d then return end
+    local now = time()
+    for id, t in pairs(d.seen) do if not Num(t) or now - t > O.SEEN_DAYS * 86400 then d.seen[id] = nil end end
+    for _, r in ipairs(rows or {}) do
+        if r.sold and r.id ~= nil and not d.seen[r.id] then
+            d.seen[r.id] = now
+            d.sold = d.sold + 1
+            if Num(r.price) then
+                local qty = r.qty or 1
+                local net = r.price * qty * (1 - ns.Data.Cut())
+                local lot = ns.Lots and ns.Lots.ForKey(r.key) or nil
+                local g = ns.Advice and ns.Advice.Profit({ net = net, qty = qty, key = r.key }, lot) or nil
+                d.gain = d.gain + ((g and Num(g.gain)) and g.gain or math.floor(net + 0.5))
+            end
+        end
+    end
+end
+
+function O.Init()
+    pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_AUCTION_CREATED", function() mod:Call("Auktionen", O.OnPosted) end)
+    pcall(mod.RegisterEvent, mod, "AUCTION_CANCELED", function() mod:Call("Auktionen", O.OnCanceled) end)
+end
+
+-- Werte der Spalte: laufend, beendet (verkauft, Erloes unterwegs) und heute
 function O.SideValues(rows)
     local n, under, value = ns.AuctionsAH.Summary(rows)
     local sold, soldValue = 0, 0
@@ -218,7 +330,9 @@ function O.SideValues(rows)
             if Num(r.price) then soldValue = soldValue + r.price * (r.qty or 1) * (1 - cut) end
         end
     end
-    return { n = n, under = under, value = value, sold = sold, soldValue = math.floor(soldValue + 0.5) }
+    local d = O.Day() or {}
+    return { n = n, under = under, value = value, sold = sold, soldValue = math.floor(soldValue + 0.5),
+             dayPosted = d.posted or 0, daySold = d.sold or 0, dayCancelled = d.cancelled or 0, dayGain = d.gain or 0 }
 end
 
 function O.UpdateSide(rows)
@@ -229,6 +343,12 @@ function O.UpdateSide(rows)
     O.sideVal.value:SetText(Money(v.value))
     O.sideVal.sold:SetText(tostring(v.sold))
     O.sideVal.soldValue:SetText(Money(v.soldValue))
+    O.sideVal.dayPosted:SetText(tostring(v.dayPosted))
+    O.sideVal.daySold:SetText(tostring(v.daySold))
+    O.sideVal.dayCancelled:SetText(tostring(v.dayCancelled))
+    local g = v.dayGain
+    O.sideVal.dayGain:SetText((g < 0 and "|cffff6666" or "") .. ns.Radar.SignedMoney(g) .. (g < 0 and "|r" or ""))
+    O.LayoutSide()
 end
 
 function O.Place()
