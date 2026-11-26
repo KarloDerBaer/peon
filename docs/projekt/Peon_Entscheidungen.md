@@ -3,6 +3,28 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 26.11.2026: Board Broker, zweite Runde (Broker 0.144.0)
+
+- **Preisknöpfe im Verkaufen: Günstige, Vorschlag, Letzter, Individuell** (KarloDerBaer). Der Knopf Ziel entfällt auf der Seite, der Zielpreis eines Postens steht weiter in den Hinweisen (Claude, Rückfrage offen).
+- **Günstige ist das günstigste echte Angebot ohne Unterbieten**, wie bisher (Claude). Ein Klick auf diese Stufe wählt Günstige, jede andere Stufe wird Individuell (KarloDerBaer).
+- **Zum Einstellen ohne eigenen Knopf** (KarloDerBaer): Das Einlegen braucht einen sicheren Klick. Darum liegt ein unsichtbarer sicherer Knopf über der Zeile unter der Maus (Claude).
+- **Gesamtpreis mit der Menge der Goldreserve** (KarloDerBaer): Greift die Reserve, zeigt die erste Zeile schon den gekürzten Kauf, bei mehreren Stufen mit dem Durchschnitt je Stück (Claude).
+- **Statistik ohne Quote** (KarloDerBaer): Sie hing zu stark davon ab, wie viele gerade mitbieten.
+
+## 26.11.2026: Kaufart im Einkaufen (Broker 0.143.0)
+
+- **Ohne Haken ist Einkaufen der normale Einkauf** (KarloDerBaer): die gewählte Menge ab dem günstigsten Angebot. Alle heißt dabei nur die günstigste Stufe, damit ein Klick nie den ganzen Markt kauft (Claude, von KarloDerBaer bestätigt). Weitere Stufen wählt man per Klick in die Angebote (KarloDerBaer).
+- **Limit ist der Standard** (KarloDerBaer): Das Feld bleibt der gespeicherte Wert für Beobachten und Listen, der Haken entscheidet, ob er beim Kauf gilt.
+- **Gleitend nur für jetzt, mit Methoden** (KarloDerBaer): Mindestgewinn, Unter Markt, Üblicher Bereich (Vorschlag Claude, bestätigt). Mit Limit nie über dem Standard (Claude). Gerechnet wird mit dem ruhigen Tiefstpreis der letzten Minute, damit ein kurzer Einbruch den Wert nicht mitreißt (Claude).
+- **Haken und Methode je Gegenstand gemerkt** (KarloDerBaer), nur im Spiel. Der Manager kennt die Felder nicht, sie gehen nicht in den Abgleich.
+- **Alarm, Gelegenheiten und Lockangebot ignorieren nur mit Limit oder Gleitend** (Claude): Im normalen Einkauf gibt es immer ein günstigstes Angebot, der Alarm würde sonst ständig klingen.
+
+## 26.11.2026: Nacharbeiten Verkaufen und Einkaufen (Broker 0.142.0)
+
+- **Dauer je Gegenstand gemerkt, sonst Massenware 2 Std. und andere 8 Std.** (KarloDerBaer).
+- **Bildlauf nur für den unteren linken Bereich** (KarloDerBaer fragte, ob das geht): Kaufen bis, Menge und Kaufknopf bleiben fest stehen, nur die aufklappbaren Bereiche rollen (Claude).
+- **Gewinn mit dem Durchschnitt dieses Charakters** (Claude, nach Nachrechnen mit den Daten von KarloDerBaer): Ledger kennt den Durchschnitt je Charakter und über alle. Über alle zählten bei Dickem Leder 47 Stück eines anderen Charakters zum Preis 0 mit, obwohl dort nichts im Bestand ist. Verkauft wird aber aus dem Bestand dieses Charakters. Der Tooltip im Verkaufen sagt deshalb, welcher Durchschnitt gilt.
+
 ## 26.11.2026: Seite Verkaufen (Broker 0.141.0)
 
 - **Broker stellt alles selbst ein**, auch Einzelstücke (KarloDerBaer). Einzelstücke nur mit Sofortkauf, ohne Gebot (Claude).

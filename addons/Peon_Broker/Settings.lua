@@ -55,7 +55,7 @@ local function BaitAlarmOff() return S.Get("focus", "quickBaitAlarm") == false e
 
 -- Fokus: Abfragen je Minute und die Grenzen fuer das Urteil (Measure.lua)
 S.SPECS.focus = {
-    title = "SET_FOCUS_TITLE", height = 900,   -- ab 0.140 Vorschlag, ab 0.108 hoeher (Marktbewegung), ab 0.109 noch ein Regler, ab 0.111 Ton fuer Lockangebote, ab 0.120 Vorgaben
+    title = "SET_FOCUS_TITLE", height = 960,   -- ab 0.140 Vorschlag, ab 0.108 hoeher (Marktbewegung), ab 0.109 noch ein Regler, ab 0.111 Ton fuer Lockangebote, ab 0.120 Vorgaben
     { "head", "SET_FOCUS_QUERY" },
     { "slider", "focusRate", "SET_FOCUS_RATE", 2, 90, 1, function(v) return L.SET_RATE_FMT:format(v, Dec(60 / v)) end },
     { "note", "SET_FOCUS_RATE_NOTE" },
@@ -73,12 +73,14 @@ S.SPECS.focus = {
     { "head", "SET_QUICK_DEFAULTS" },   -- ab 0.120: Vorgaben ohne eigene Werte
     { "slider", "quickLimitPct", "SET_QUICK_LIMIT_PCT", 10, 100, 5, function(v) return L.SET_PCT_FMT:format(v) end },
     { "money", "radarReserve", "SET_RADAR_RESERVE", 10000 },   -- ab 0.133 Goldreserve statt Limit pro Kauf (quickGoldDefault ruht)
-    { "slider", "quickSuggestPct", "SET_QUICK_SUGGEST_PCT", 0, 30, 1, function(v) return L.SET_PCT_FMT:format(v) end },   -- ab 0.140 Vorschlag
+    { "slider", "quickSuggestPct", "SET_QUICK_SUGGEST_PCT", 0, 30, 1, function(v) return L.SET_PCT_FMT:format(v) end },   -- ab 0.140 Vorschlag, ab 0.143 Gleitend
+    { "slider", "quickUnderPct", "SET_QUICK_UNDER_PCT", 1, 50, 1, function(v) return L.SET_PCT_FMT:format(v) end },   -- ab 0.143 Gleitend Unter Markt
     { "head", "SET_QS_HEAD" },   -- ab 0.122: Gelegenheiten langfristig
     { "slider", "quickDipPct", "SET_QS_DIP", 1, 30, 1, function(v) return L.SET_PCT_FMT:format(v) end },
     { "slider", "quickStatDays", "SET_QS_DAYS", 1, 60, 1, function(v) return L.SET_DAYS_FMT:format(v) end },
     { "head", "SET_FOCUS_ADV" },   -- ab 0.133 (U1, Konzept 4.5): Aufkauf ruht und laesst sich hier wieder einschalten
     { "check", "focusBuyout", "SET_FOCUS_BUYOUT", "SET_FOCUS_BUYOUT_TIP" },
+    { "check", "quickAvg", "QUICK_AVG", "QUICK_AVG_TIP" },   -- ab 0.143 fuer alle Gegenstaende
     { "col" },
     { "head", "SET_FOCUS_VERDICT" },
     { "slider", "focusWindow", "SET_FOCUS_WINDOW", 2, 30, 1, function(v) return L.SET_MIN_FMT:format(v) end },

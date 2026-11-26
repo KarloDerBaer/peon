@@ -331,6 +331,7 @@ function F.LoadWatch(key)
         ns.Quick.skip[key] = nil   -- ab 0.109: Haken aus Beobachten
         ns.Quick.avg[key] = nil    -- ab 0.112
         ns.Quick.qty[key] = nil    -- ab 0.133: Menge aus Beobachten (qqty)
+        ns.Quick.limitOn[key], ns.Quick.glide[key], ns.Quick.method[key] = nil, nil, nil   -- ab 0.143: Kaufart aus Beobachten
         F.loaded = { key = key, mode = "quick" }
         return true
     end
@@ -384,6 +385,7 @@ function F.Save(quiet)
         -- ab 0.133: Menge statt Limit pro Kauf. Das gespeicherte Limit (qgold) bleibt, wird aber nicht mehr genutzt.
         local ql = F.ManualLimit(key)
         Wt.SetQuickValues(key, ql, ns.Quick.qty[key], ns.Quick.SkipOn(key), ns.Quick.AvgOn(key))
+        Wt.SetQuickKind(key, ns.Quick.LimitOn(key), ns.Quick.GlideOn(key), ns.Quick.Method(key))   -- ab 0.143
         if ql then F.manualSrc = "watch" end
         if not quiet then mod:Print(L.FOCUS_SAVED_QUICK:format(name, Num(ql) and Money(ql) or "-")) end
         if ns.WatchPage then ns.WatchPage.Refresh() end
@@ -780,8 +782,7 @@ function F.Build(c)
     F.header:SetScript("OnClick", function(self, button)
         if button == "RightButton" and F.key ~= nil then mod:Call("Menue", ns.Go.Menu, { key = F.key }, self) end
     end)
-    F.menuHint = UI.Text(left, "small", GREY .. L.FOCUS_MENU_HINT .. "|r")
-    F.menuHint:SetPoint("TOPRIGHT", left, "TOPRIGHT", -12, -82)
+    -- ab 0.144 (Board KarloDerBaer) ohne sichtbaren Hinweis, der Tooltip des Namens nennt das Menue weiter
     F.verdict = UI.Text(left, "big", "")
     F.verdict:SetPoint("TOPLEFT", 16, -88)
     -- ab 0.91 (Fehlerbericht 22): Gekauftes zum Wiedereinstellen merken, je Gegenstand gespeichert
@@ -859,8 +860,9 @@ function F.Build(c)
     F.qtyHint = UI.Text(left, "small", "")
     F.qtyHint:SetPoint("LEFT", F.qtyInput, "RIGHT", 4, 0)
     -- ab 0.106: grau "alle" im leeren Feld (Schnellkauf)
-    F.qtyAll = UI.Text(left, "small", GREY .. L.FOCUS_QTY_ALL .. "|r")
-    F.qtyAll:SetPoint("LEFT", F.qtyInput, "LEFT", 10 * 0.8, 0)
+    -- ab 0.142 am Feld selbst (vorher am linken Bereich, das Feld lag darueber und verdeckte "Alle")
+    F.qtyAll = UI.Text(F.qtyInput, "small", GREY .. L.FOCUS_QTY_ALL .. "|r")
+    F.qtyAll:SetPoint("LEFT", F.qtyInput, "LEFT", 10, 0)
     F.qtyAll:Hide()
     -- ab 0.112: Max. Gold im Schnellkauf (an der Stelle des Mengenfelds)
     F.goldInput = UI.MoneyInput(left, function(amount) F.SetGoldTyped(amount) end)
@@ -918,7 +920,14 @@ function F.Build(c)
         -- ab 0.83 getauscht (KarloDerBaer, 12.11.2026): Linksklick "Kaufen bis", Rechtsklick Zielpreis. Farben bleiben.
         onClick = function(item, button)
             if not (item and Num(item.price)) or item.isOwn then return end
-            if ns.Quick and ns.Quick.On() then return end   -- ab 0.116: im Schnellkauf aendert ein Klick nichts
+            -- ab 0.116: im Schnellkauf aendert ein Klick nichts. Ab 0.143 im normalen Einkauf: Klick waehlt die Stufe, bis zu
+            -- der gekauft wird (alle darunter kommen mit), noch ein Klick darauf oder Rechtsklick: wieder die guenstigste
+            if ns.Quick and ns.Quick.On() then
+                local Q = ns.Quick
+                if Q.BuyKind(F.key) ~= "normal" then return end
+                if button == "RightButton" or Q.pick[F.key] == item.price then Q.SetPick(nil) else Q.SetPick(item.price) end
+                return
+            end
             if button == "RightButton" then F.SetTarget(item.price) else F.SetLimit(item.price) end
         end,
     })
@@ -1181,15 +1190,20 @@ end
 --   links   Kaufen bis mit Vorschlag, Menge (Regler), Max. Preis, Kaufknopf, Statistik (aufklappbar, Vorgabe offen),
 --           Lockangebot und Mehr Einstellungen (mit Goldreserve) aufklappbar
 --   rechts  Angebote, darunter drei einstellbare Zeilen (Rechtsklick), darunter das Diagramm
-F.QUICK_LIMIT_Y, F.QUICK_QTY_Y, F.QUICK_MAX_Y = -100, -128, -154
-F.QUICK_BUY_TOP = -174  -- Oberkante des Kaufknopfs
-F.QUICK_FOLD_Y = -222   -- erster aufklappbarer Bereich (Statistik)
+-- ab 0.143: Zeile Gleitend unter Limit, alles darunter 26 tiefer
+-- ab 0.144 (Board KarloDerBaer): Zeile Stueckpreis zwischen Menge und Gesamtpreis (vorher Max. Preis), Gesamtpreis mit
+-- zweiter Zeile fuer die Goldreserve, der Kaufknopf darunter. Der letzte Kauf steht in der Statistik (Zuletzt).
+F.QUICK_LIMIT_Y, F.QUICK_GLIDE_Y, F.QUICK_QTY_Y, F.QUICK_UNIT_Y, F.QUICK_MAX_Y = -100, -126, -154, -180, -200
+F.QUICK_LIMIT_DY = -6   -- Feld des Standards auf Hoehe des Hakens Limit
+F.QUICK_BUY_TOP = -240  -- Oberkante des Kaufknopfs
+F.QUICK_FOLD_Y = -288   -- erster aufklappbarer Bereich (Statistik)
+F.QUICK_METHOD_W = 132
 F.QUICK_X = 16
 F.QUICK_FIELD_X = 93   -- ab 0.112.1: Felder im Schnellkauf so weit rechts von der Beschriftung
 F.QUICK_AVG_X = 186    -- ab 0.112: Haken "Durchschnitt zaehlt"
 F.QUICK_POST_W = 110
 F.QUICK_STAT_STEP = 16
-F.QUICK_STATS = { { "QUICK_STAT_SESSION", "session" }, { "QUICK_STAT_TODAY", 1 }, { "QUICK_STAT_WEEK", 7 } }
+F.QUICK_STATS = { { "QUICK_STAT_LAST", "last" }, { "QUICK_STAT_SESSION", "session" }, { "QUICK_STAT_TODAY", 1 }, { "QUICK_STAT_WEEK", 7 } }
 
 -- Goldreserve: gilt fuer alle Gegenstaende (radarReserve in Gold, wie im Fenster Einstellungen)
 function F.SetReserve(amount)
@@ -1218,6 +1232,35 @@ local function MoneyEnabled(m, on)
 end
 F.MoneyEnabled = MoneyEnabled
 
+---------------------------------------------------------------------------
+-- ab 0.142 (Board KarloDerBaer 26.11.2026): Bildlauf fuer den unteren linken Bereich. Sind alle Bereiche
+-- aufgeklappt, ragte der Inhalt unten aus dem Fenster. Auch fuer Verkaufen (SellPage.lua).
+---------------------------------------------------------------------------
+function F.MakeScroll(parent, top)
+    local ok, sc = pcall(CreateFrame, "ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
+    if not ok or not sc then sc = CreateFrame("ScrollFrame", nil, parent) end
+    sc:SetPoint("TOPLEFT", parent, "TOPLEFT", 4, top)
+    sc:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -24, 6)
+    local child = CreateFrame("Frame", nil, sc)
+    child:SetSize(Peon.UI.LEFT_W - 28, 10)
+    if sc.SetScrollChild then sc:SetScrollChild(child) end
+    sc.child = child
+    return sc, child
+end
+
+-- Hoehe des Inhalts setzen, die Leiste nur zeigen, wenn er nicht ganz hineinpasst
+function F.FitScroll(sc, h)
+    if not sc then return end
+    h = math.max(1, math.floor(h + 0.5))
+    sc.child:SetHeight(h)
+    sc.contentH = h
+    local fh = sc.GetHeight and sc:GetHeight() or nil
+    local need = Num(fh) and fh > 0 and h > fh + 1 or false
+    local bar = rawget(sc, "ScrollBar")
+    if type(bar) == "table" and bar.SetShown then bar:SetShown(need) end
+    if not need and sc.SetVerticalScroll then pcall(sc.SetVerticalScroll, sc, 0) end
+end
+
 function F.BuildQuick(left, Label)
     local UI = Peon.UI
     local Q = ns.Quick
@@ -1231,27 +1274,51 @@ function F.BuildQuick(left, Label)
         t:SetPoint("TOPLEFT", F.QUICK_X, y)
         return t
     end
-    -- ab 0.140: Vorschlag hinter Kaufen bis (vorher Auto)
-    q.auto = UI.Button(left, L.QUICK_SUGGEST, 74, function()
-        local v = Q.Suggestion(F.key)
-        if v then F.SetLimit(v) end
-    end)
-    q.auto:SetPoint("LEFT", F.limitInput, "RIGHT", 6, 0)
-    UI.SetTooltip(q.auto, function()
-        local v, low, cut, pct = Q.Suggestion(F.key)
-        if not v then return { L.QUICK_SUGGEST, L.QUICK_SUGGEST_TIP, GREY .. L.QUICK_SUGGEST_NONE .. "|r" } end
-        return { L.QUICK_SUGGEST, L.QUICK_SUGGEST_TIP,
-                 L.QUICK_SUGGEST_VALUES:format(Money(low), F.Dec(cut * 100), F.Dec(pct), Money(v)) }
-    end)
-    -- ab 0.140: Max. Preis unter der Menge
+    -- ab 0.143 (KarloDerBaer 26.11.2026): Haken Limit vor dem Standard (Feld Kaufen bis), darunter Gleitend mit Methode.
+    -- Ohne Haken kauft Broker normal ab dem guenstigsten Angebot. Der Knopf Vorschlag (0.140) steckt in der Methode
+    -- Mindestgewinn.
+    q.limitCheck = UI.Check(left, L.QUICK_LIMIT, false, function(on) mod:Call("Schnellkauf", Q.SetLimitOn, on) end,
+        { L.QUICK_LIMIT, L.QUICK_LIMIT_TIP })
+    if q.limitCheck.SetScale then q.limitCheck:SetScale(0.85) end
+    q.limitCheck:SetPoint("TOPLEFT", 8 / 0.85, (F.QUICK_LIMIT_Y + 8) / 0.85)
+    q.limitStd = UI.Text(left, "small", "")
+    q.limitStd:SetPoint("LEFT", F.limitInput, "RIGHT", 4, 0)
+    q.glideCheck = UI.Check(left, L.QUICK_GLIDE, false, function(on) mod:Call("Schnellkauf", Q.SetGlideOn, on) end,
+        { L.QUICK_GLIDE, L.QUICK_GLIDE_TIP })
+    if q.glideCheck.SetScale then q.glideCheck:SetScale(0.85) end
+    q.glideCheck:SetPoint("TOPLEFT", 8 / 0.85, (F.QUICK_GLIDE_Y + 8) / 0.85)
+    -- ab 0.144 (Board KarloDerBaer) eine Auswahlliste statt eines Knopfs mit Menue
+    local Q2 = Q
+    q.method = UI.Dropdown(left, F.QUICK_METHOD_W, function()
+        local out = {}
+        for _, m in ipairs(Q2.METHODS) do out[#out + 1] = { m, F.MethodName(m) } end
+        return out
+    end, function() return Q2.Method(F.key) end, function(m) mod:Call("Schnellkauf", Q2.SetMethod, m) end)
+    if q.method.fallback then
+        q.method:SetScript("OnClick", function(self) mod:Call("Schnellkauf", F.MethodMenu, self) end)
+    end
+    q.method:SetPoint("TOPLEFT", F.QUICK_X + F.QUICK_FIELD_X - 2, F.QUICK_GLIDE_Y + 2)
+    UI.SetTooltip(q.method, function() return F.MethodTip() end)
+    q.glideValue = UI.Text(left, "small", "")
+    q.glideValue:SetPoint("LEFT", q.method, "RIGHT", 6, 0)
+    -- ab 0.144: Stueckpreis, der ermittelte Zielpreis je Stueck mit dem Hebel dahinter
+    q.unitLabel = LeftLabel(L.QUICK_UNIT_L, F.QUICK_UNIT_Y)
+    q.unitValue = UI.Text(left, "text", "", UI.LEFT_W - F.QUICK_FIELD_X - 20)
+    q.unitValue:SetPoint("TOPLEFT", q.unitLabel, "TOPLEFT", F.QUICK_FIELD_X, 0)
+    q.unitHover = CreateFrame("Frame", nil, left)
+    q.unitHover:SetPoint("TOPLEFT", q.unitLabel, "TOPLEFT", 0, 2)
+    q.unitHover:SetSize(UI.LEFT_W - 24, 16)
+    UI.SetTooltip(q.unitHover, function() return { L.QUICK_UNIT_L, L.QUICK_UNIT_TIP } end)
+    -- ab 0.140: Max. Preis unter der Menge, ab 0.144 Gesamtpreis mit zweiter Zeile
     q.maxLabel = LeftLabel(L.QUICK_MAX_L, F.QUICK_MAX_Y)
     q.maxValue = UI.Text(left, "text", "", UI.LEFT_W - F.QUICK_FIELD_X - 20)
     q.maxValue:SetPoint("TOPLEFT", q.maxLabel, "TOPLEFT", F.QUICK_FIELD_X, 0)
+    if q.maxValue.SetSpacing then q.maxValue:SetSpacing(3) end
     q.maxHover = CreateFrame("Frame", nil, left)
     q.maxHover:SetPoint("TOPLEFT", q.maxLabel, "TOPLEFT", 0, 2)
-    q.maxHover:SetSize(UI.LEFT_W - 24, 16)
+    q.maxHover:SetSize(UI.LEFT_W - 24, 34)
     UI.SetTooltip(q.maxHover, function() return { L.QUICK_MAX_L, L.QUICK_MAX_TIP } end)
-    -- letzter Kauf unter dem Kaufknopf (waehrend eines Kaufs dessen Stand)
+    -- unter dem Kaufknopf nur noch der Stand eines laufenden Kaufs (ab 0.144, der letzte Kauf steht in der Statistik)
     q.lastBuy = UI.Text(left, "small", "", UI.LEFT_W - 20)
     q.lastBuy:SetJustifyH("CENTER")
     q.lastBuy:SetPoint("TOP", F.buyButton, "BOTTOM", 0, -4)
@@ -1323,63 +1390,79 @@ function F.BuildQuick(left, Label)
 
     q.statParts = {}
     for _, r in ipairs(q.stats) do q.statParts[#q.statParts + 1] = r.label; q.statParts[#q.statParts + 1] = r.value end
+    -- ab 0.142: aufklappbare Bereiche in einem Bildlauf
+    q.scroll, q.body = F.MakeScroll(left, F.QUICK_FOLD_Y + 4)
+    q.scroll:SetScript("OnSizeChanged", function() if q.contentH then F.FitScroll(q.scroll, q.contentH) end end)
     q.baitParts = { q.priceLabel, q.priceInput, q.priceHint, q.qtyLabel, q.qtyInput, q.qtyHint, q.post, q.state }
-    q.moreParts = { q.resCheck, q.resLabel, q.resInput, q.skip, q.avg }
-    q.all = { q.auto, q.maxLabel, q.maxValue, q.maxHover, q.lastBuy, q.line1, q.foldStats, q.foldBait, q.foldMore }
+    q.avg:Hide()   -- ab 0.143: Durchschnitt zaehlt gilt fuer alle (Einstellungen, Erweitert)
+    q.moreParts = { q.resCheck, q.resLabel, q.resInput, q.skip }
+    for _, f in ipairs({ q.foldStats, q.foldBait, q.foldMore, q.priceLabel, q.priceInput, q.priceHint, q.qtyLabel, q.qtyInput,
+                         q.qtyHint, q.post, q.state, q.balance, q.resCheck, q.resLabel, q.resInput, q.skip, q.avg }) do f:SetParent(q.body) end
+    for _, f in ipairs(q.statParts) do f:SetParent(q.body) end
+    q.all = { q.limitCheck, q.limitStd, q.glideCheck, q.method, q.glideValue, q.unitLabel, q.unitValue, q.unitHover,
+              q.maxLabel, q.maxValue, q.maxHover, q.lastBuy, q.line1,
+              q.foldStats, q.foldBait, q.foldMore, q.scroll }
     q.info = {}   -- bis 0.139 Markt, Einbruch, Gekauft heute links (ab 0.140 rechts, F.marketRows)
 end
 
--- Aufklappbare Bereiche untereinander anordnen (ab 0.133, ab 0.140 mit Statistik)
+-- Aufklappbare Bereiche untereinander anordnen (ab 0.133, ab 0.140 mit Statistik, ab 0.142 im Bildlauf q.body:
+-- Stellen relativ zum Inhalt, der 4 Punkte rechts vom linken Bereich beginnt)
 function F.LayoutQuick()
     local q = F.quick
     if not q then return end
     local quick = ns.Quick.On()
-    local y = F.QUICK_FOLD_Y
+    local X = F.QUICK_X - 4
+    local bodyW = Peon.UI.LEFT_W - 28
+    local y = -4
     q.foldStats:ClearAllPoints()
-    q.foldStats:SetPoint("TOPLEFT", F.QUICK_X - 4, y)
+    q.foldStats:SetPoint("TOPLEFT", X - 4, y)
     local stats = quick and q.foldStats.open and true or false
     for _, f in ipairs(q.statParts) do f:SetShown(stats) end
     y = y - 24
     if stats then
         for i, r in ipairs(q.stats) do
             r.label:ClearAllPoints()
-            r.label:SetPoint("TOPLEFT", F.QUICK_X, y - (i - 1) * F.QUICK_STAT_STEP)
+            r.label:SetPoint("TOPLEFT", X, y - (i - 1) * F.QUICK_STAT_STEP)
         end
         y = y - #q.stats * F.QUICK_STAT_STEP - 6
     end
     q.foldBait:ClearAllPoints()
-    q.foldBait:SetPoint("TOPLEFT", F.QUICK_X - 4, y)
+    q.foldBait:SetPoint("TOPLEFT", X - 4, y)
     local bait = quick and q.foldBait.open and true or false
     for _, f in ipairs(q.baitParts) do f:SetShown(bait) end
     y = y - 24
     if bait then
         q.priceLabel:ClearAllPoints()
-        q.priceLabel:SetPoint("TOPLEFT", F.QUICK_X, y)
+        q.priceLabel:SetPoint("TOPLEFT", X, y)
         q.post:ClearAllPoints()
-        q.post:SetPoint("TOPLEFT", Peon.UI.LEFT_W - 10 - F.QUICK_POST_W, y - 22)
+        q.post:SetPoint("TOPLEFT", bodyW - 2 - F.QUICK_POST_W, y - 22)
         q.qtyLabel:ClearAllPoints()
-        q.qtyLabel:SetPoint("TOPLEFT", F.QUICK_X, y - 26)
+        q.qtyLabel:SetPoint("TOPLEFT", X, y - 26)
         q.state:ClearAllPoints()
-        q.state:SetPoint("TOPLEFT", F.QUICK_X, y - 50)
+        q.state:SetPoint("TOPLEFT", X, y - 50)
         y = y - 72
     end
     q.foldMore:ClearAllPoints()
-    q.foldMore:SetPoint("TOPLEFT", F.QUICK_X - 4, y)
+    q.foldMore:SetPoint("TOPLEFT", X - 4, y)
     local more = quick and q.foldMore.open and true or false
     for _, f in ipairs(q.moreParts) do f:SetShown(more) end
-    y = y - 26
-    -- Goldreserve: Haken, Beschriftung, Feld
-    q.resCheck:ClearAllPoints()
-    q.resCheck:SetPoint("TOPLEFT", 8 / 0.85, (y + 8) / 0.85)
-    q.resLabel:ClearAllPoints()
-    q.resLabel:SetPoint("TOPLEFT", F.QUICK_X + 22, y)
-    q.resInput:ClearAllPoints()
-    q.resInput:SetPoint("LEFT", q.resLabel, "LEFT", (F.QUICK_FIELD_X + 20) / 0.8, 0)
-    y = y - 24
-    q.skip:ClearAllPoints()
-    q.skip:SetPoint("TOPLEFT", 10 / 0.85, y / 0.85)
-    q.avg:ClearAllPoints()
-    q.avg:SetPoint("TOPLEFT", F.QUICK_AVG_X / 0.85, y / 0.85)
+    y = y - 22
+    if more then
+        y = y - 4
+        -- Goldreserve: Haken, Beschriftung, Feld
+        q.resCheck:ClearAllPoints()
+        q.resCheck:SetPoint("TOPLEFT", 4 / 0.85, (y + 8) / 0.85)
+        q.resLabel:ClearAllPoints()
+        q.resLabel:SetPoint("TOPLEFT", X + 22, y)
+        q.resInput:ClearAllPoints()
+        q.resInput:SetPoint("LEFT", q.resLabel, "LEFT", (F.QUICK_FIELD_X + 20) / 0.8, 0)
+        y = y - 24
+        q.skip:ClearAllPoints()
+        q.skip:SetPoint("TOPLEFT", 6 / 0.85, y / 0.85)
+        y = y - 30
+    end
+    q.contentH = -y + 4
+    F.FitScroll(q.scroll, q.contentH)
 end
 
 ---------------------------------------------------------------------------
@@ -1473,7 +1556,6 @@ function F.ApplyMode()
     for _, f in ipairs({ F.kindLabel, F.kindValue, F.autoButton, F.targetLabel, F.targetInput, F.targetHint, F.verdict, F.why }) do f:SetShown(not quick) end
     if quick and F.relistCheck then F.relistCheck:Hide() end   -- ab 0.106: kein Wiedereinstellen im Schnellkauf
     if F.limitHint then F.limitHint:SetShown(not quick) end   -- ab 0.112: kein "Linksklick" im Schnellkauf
-    if F.menuHint then F.menuHint:SetShown(quick) end
     F.qtyLabel:SetText(L.FOCUS_R_QTY)   -- ab 0.133 auch im Schnellkauf die Menge (vorher Limit pro Kauf)
     if F.goldInput then F.goldInput:Hide() end
     if F.qtyAll then F.qtyAll:Hide() end
@@ -1492,6 +1574,7 @@ function F.ApplyMode()
     end
     MoveLabel(F.limitLabel, quick and F.QUICK_LIMIT_Y or F.LIMIT_Y, quick and F.QUICK_X or nil)
     MoveLabel(F.qtyLabel, quick and F.QUICK_QTY_Y or F.QTY_Y, quick and F.QUICK_X or nil)
+    F.limitLabel:SetText(quick and "" or L.FOCUS_R_LIMIT)   -- ab 0.143: im Schnellkauf traegt der Haken Limit die Beschriftung
     -- ab 0.110: im Schnellkauf alle Beschriftungen links buendig
     F.limitLabel:SetJustifyH(quick and "LEFT" or "RIGHT")
     F.qtyLabel:SetJustifyH(quick and "LEFT" or "RIGHT")
@@ -1501,7 +1584,7 @@ function F.ApplyMode()
     F.limitLabel:SetWidth(quick and 0 or LW)
     F.qtyLabel:SetWidth(quick and 0 or LW)
     F.limitInput:ClearAllPoints()
-    if quick then F.limitInput:SetPoint("LEFT", F.limitLabel, "LEFT", fx, 0)
+    if quick then F.limitInput:SetPoint("LEFT", F.limitLabel, "LEFT", fx, F.QUICK_LIMIT_DY / 0.8)
     else F.limitInput:SetPoint("LEFT", F.limitLabel, "RIGHT", 8 / 0.8, 0) end
     F.qtySlider:ClearAllPoints()
     if quick then F.qtySlider:SetPoint("LEFT", F.qtyLabel, "LEFT", F.QUICK_FIELD_X, 0)
@@ -1538,37 +1621,127 @@ function F.ApplyMode()
     F.LayoutQuick()
 end
 
--- ab 0.140: Zeile Max. Preis unter der Menge. Feste Menge: Menge mal Kaufen bis. Alle: was unter Kaufen bis liegt
--- (Menge und Kosten), ohne Angebote "keine Angebote". Begrenzt die Goldreserve den Kauf, steht das hier.
+-- ab 0.144 (Board KarloDerBaer): Stueckpreis, der ermittelte Zielpreis je Stueck. Dahinter der Hebel, der ihn setzt:
+-- (Limit), (Gleitend), (Guenstigstes) oder (Auswahl) fuer eine angeklickte Stufe. Begrenzt der Standard das
+-- Gleitende, steht (Limit) dahinter.
+function F.UnitText(live)
+    local key = F.key
+    if key == nil then return "" end
+    local Q = ns.Quick
+    local rows = live and F.LiveRows() or nil
+    local limit, kind = Q.EffectiveLimit(key, rows)
+    if not Num(limit) then
+        if kind == "limit" then return GREY .. L.QUICK_MAX_NOLIMIT .. "|r" end
+        if kind == "glide" then return GREY .. L.QUICK_GLIDE_NONE .. "|r" end
+        return GREY .. L.QUICK_MAX_NONE .. "|r"
+    end
+    local lever
+    if kind == "glide" then lever = F.GlideCapped(key, rows) and L.QUICK_LEVER_LIMIT or L.QUICK_LEVER_GLIDE
+    elseif kind == "limit" then lever = L.QUICK_LEVER_LIMIT
+    elseif Num(Q.pick[key]) then lever = L.QUICK_LEVER_PICK
+    else lever = L.QUICK_LEVER_CHEAP end
+    return Money(limit) .. " " .. GREY .. "(" .. lever .. ")|r"
+end
+
+-- Begrenzt der Standard (Haken Limit) gerade das Gleitende?
+function F.GlideCapped(key, rows)
+    local Q = ns.Quick
+    if not (Q.GlideOn(key) and Q.LimitOn(key)) then return false end
+    local std = F.ManualLimit(key)
+    if not Num(std) then return false end
+    local g = Q.GlideValue(key, nil, rows)
+    return not Num(g) or std < g
+end
+
+-- ab 0.140: Zeile Max. Preis unter der Menge, ab 0.144 Gesamtpreis in zwei Zeilen (Board KarloDerBaer).
+--   erste Zeile   Gesamt (Menge x Stueckpreis). Limit oder Gleitend mit fester Menge: Menge mal Grenze. Sonst das,
+--                 was ein Klick jetzt kauft, mit dem Durchschnitt je Stueck. Greift die Goldreserve, gilt schon ihre
+--                 Menge und ihr Preis.
+--   zweite Zeile  "Begrenzt durch Goldreserve (Wert)", wenn sie die Menge kuerzt, und der Hinweis, wenn der hoechste
+--                 Stueckpreis ueber dem ueblichen Bereich liegt
 function F.MaxText(d, live)
     local key = F.key
-    local limit = F.ManualLimit(key)
     if key == nil then return "" end
-    if not limit then return GREY .. L.QUICK_MAX_NOLIMIT .. "|r" end
-    local want = ns.Quick.QtyWant(key)
+    local Q = ns.Quick
+    local rows = live and F.LiveRows() or nil
+    local limit, kind = Q.EffectiveLimit(key, rows)
     local plan = live and d and not d.gone and d or nil
     local text
-    if want then
-        text = L.QUICK_MAX_FIXED:format(Money(want * limit), want, Money(limit))
-    else
-        -- Alle: was jetzt unter Kaufen bis liegt
-        local n, cost = 0, 0
-        local rows = live and F.LiveRows() or nil
-        for _, l in ipairs(rows and ns.Data.Available(rows) or {}) do
-            if l.price <= limit then n, cost = n + l.qty, cost + l.qty * l.price end
+    if kind == "limit" and not Num(limit) then return GREY .. L.QUICK_MAX_NOLIMIT .. "|r" end
+    if kind == "glide" and not Num(limit) then return GREY .. L.QUICK_GLIDE_NONE .. "|r" end
+    local want = Q.QtyWant(key)
+    local n, cost, top = 0, 0, nil
+    for _, l in ipairs(rows and ns.Data.Available(rows) or {}) do
+        if Num(limit) and l.price <= limit then
+            local take = l.qty
+            if want and n + take > want then take = want - n end
+            if take > 0 then n, cost, top = n + take, cost + take * l.price, l.price end
         end
-        if n <= 0 then return GREY .. L.QUICK_MAX_NONE .. "|r" end
-        text = L.QUICK_MAX_ALL:format(Money(cost), n)
     end
-    if plan and plan.reserveShort then
+    local function Avg(c, k) return k > 0 and math.floor(c / k + 0.5) or 0 end
+    local short = plan and plan.reserveShort
+    if short then
         local best = plan.best or {}
         local got = Num(best.qty) and best.qty or 0
-        text = text .. " " .. ORANGE .. L.QUICK_MAX_RESERVE:format(got, Money(Num(best.cost) and best.cost or 0)) .. "|r"
+        local c = Num(best.cost) and best.cost or 0
+        text = L.QUICK_MAX_FIXED:format(Money(c), got, Money(Avg(c, got)))
+    elseif kind ~= "normal" and want then
+        text = L.QUICK_MAX_FIXED:format(Money(want * limit), want, Money(limit))
+    elseif n <= 0 then
+        return GREY .. L.QUICK_MAX_NONE .. "|r"
+    else
+        text = L.QUICK_MAX_FIXED:format(Money(cost), n, Money(Avg(cost, n)))
     end
+    local second = {}
+    if short then
+        second[#second + 1] = ORANGE .. L.QUICK_MAX_RESERVE:format(Money((tonumber(mod.db.radarReserve) or 0) * 10000)) .. "|r"
+    end
+    if Num(top) then
+        local ok, ctx = pcall(ns.Buyout.Context, nil, key)
+        local band = ok and type(ctx) == "table" and ctx.band or nil
+        if type(band) == "table" and Num(band.high) and top > band.high then second[#second + 1] = ORANGE .. L.QUICK_MAX_HIGH .. "|r" end
+    end
+    if #second > 0 then text = text .. "\n" .. table.concat(second, ", ") end
     return text
 end
 
--- ab 0.140: Statistik links (Sitzung, heute, 7 Tage)
+-- ab 0.143: Methoden von Gleitend (Menue am Knopf, Name mit dem eingestellten Wert)
+function F.MethodName(m)
+    if m == "under" then return L.QUICK_M_UNDER:format(tonumber(mod.db.quickUnderPct) or 10) end
+    if m == "band" then return L.QUICK_M_BAND end
+    return L.QUICK_M_GAIN:format(tonumber(mod.db.quickSuggestPct) or 5)
+end
+
+function F.MethodMenu(owner)
+    local mu = rawget(_G, "MenuUtil")
+    if not (mu and mu.CreateContextMenu) then return false end
+    local Q = ns.Quick
+    mu.CreateContextMenu(owner, function(_, root)
+        root:CreateTitle(L.QUICK_GLIDE)
+        for _, m in ipairs(Q.METHODS) do
+            local method = m
+            local function IsSel() return Q.Method(F.key) == method end
+            local function Set() mod:Call("Schnellkauf", Q.SetMethod, method) end
+            if root.CreateRadio then root:CreateRadio(F.MethodName(method), IsSel, Set)
+            else root:CreateButton((IsSel() and "> " or "") .. F.MethodName(method), Set) end
+        end
+    end)
+    return true
+end
+
+function F.MethodTip()
+    local Q = ns.Quick
+    local m = Q.Method(F.key)
+    local lines = { F.MethodName(m), L["QUICK_M_" .. m:upper() .. "_TIP"] }
+    local rows = F.LiveRows()
+    local low = Q.CalmLow(F.key, rows)
+    if Num(low) and m ~= "band" then lines[#lines + 1] = L.QUICK_M_LOW:format(Money(low)) end
+    local v = Q.GlideValue(F.key, m, rows)
+    lines[#lines + 1] = Num(v) and L.QUICK_M_VALUE:format(Money(v)) or (GREY .. L.QUICK_GLIDE_NONE .. "|r")
+    return lines
+end
+
+-- ab 0.140: Statistik links (Sitzung, heute, 7 Tage), ab 0.144 oben der letzte Kauf (Zuletzt)
 function F.UpdateStats()
     local q = F.quick
     if not q then return end
@@ -1576,6 +1749,7 @@ function F.UpdateStats()
     local key = F.key
     for _, r in ipairs(q.stats) do
         if key == nil then r.value:SetText("")
+        elseif r.src == "last" then r.value:SetText(Q.StatText(Q.LastStats(key)))
         elseif r.src == "session" then r.value:SetText(Q.StatText(Q.SessionStats(key)))
         else r.value:SetText(Q.StatText(QS and QS.Bought and QS.Bought(key, r.src) or nil)) end
     end
@@ -1614,19 +1788,41 @@ function F.UpdateQuick(d, live)
     local canPost = live and key ~= nil and ns.Data.IsCommodity(key) and Num(Q.Price(key)) and not busy
     q.post:SetText((b and b.state == "confirm") and L.QUICK_CONFIRM or L.QUICK_POST)
     On(q.post, canPost and true or false)
-    -- ab 0.140: Vorschlag statt Auto, leuchtet nicht mehr
-    local sv = live and key ~= nil and Q.Suggestion(key) or nil
-    On(q.auto, sv ~= nil)
+    -- ab 0.143: Haken Limit und Gleitend, Methode, Wert jetzt
+    local limitOn, glideOn = Q.LimitOn(key), Q.GlideOn(key)
+    if q.limitCheck.SetChecked then q.limitCheck:SetChecked(limitOn) end
+    if q.glideCheck.SetChecked then q.glideCheck:SetChecked(glideOn) end
+    MoneyEnabled(F.limitInput, true)
+    if F.limitInput.SetAlpha then F.limitInput:SetAlpha((limitOn or glideOn) and 1 or 0.6) end
+    if limitOn and not F.ManualLimit(key) then q.limitStd:SetText(ORANGE .. L.QUICK_LIMIT_EMPTY .. "|r")
+    else q.limitStd:SetText("") end
+    -- ab 0.144 Auswahlliste: Text neu, wenn Gegenstand oder Methode wechseln
+    local msig = tostring(key) .. ":" .. Q.Method(key) .. ":" .. tostring(mod.db.quickSuggestPct) .. ":" .. tostring(mod.db.quickUnderPct)
+    if q.methodSig ~= msig then
+        q.methodSig = msig
+        if q.method.fallback or not q.method.GenerateMenu then q.method:SetText(F.MethodName(Q.Method(key)))
+        else pcall(q.method.GenerateMenu, q.method) end
+    end
+    if q.method.SetAlpha then q.method:SetAlpha(glideOn and 1 or 0.6) end
+    local gv = live and key ~= nil and Q.GlideValue(key, nil, F.LiveRows()) or nil
+    if glideOn then
+        local eff = Q.EffectiveLimit(key, F.LiveRows())
+        local capped = F.GlideCapped(key, F.LiveRows())
+        q.glideValue:SetText(Num(eff) and (ORANGE .. L.QUICK_GLIDE_NOW:format(Money(eff)) .. "|r" .. (capped and (" " .. GREY .. "(" .. L.QUICK_LEVER_LIMIT .. ")|r") or ""))
+            or (GREY .. L.QUICK_GLIDE_NONE .. "|r"))
+    else
+        q.glideValue:SetText(Num(gv) and (GREY .. Money(gv) .. "|r") or "")
+    end
+    q.unitValue:SetText(F.UnitText(live))
     q.maxValue:SetText(F.MaxText(d, live))
-    -- ab 0.133: waehrend eines Kaufs steht hier sein Stand (vorher in der Zeile ueber dem Knopf)
+    -- ab 0.133: waehrend eines Kaufs steht hier sein Stand, ab 0.144 sonst nichts (Zuletzt in der Statistik)
     local job = ns.Radar.job
     if job and key ~= nil and job.key == key and F.jobInfo then q.lastBuy:SetText(F.jobInfo)
-    else q.lastBuy:SetText(key ~= nil and Q.LastBuyText(key) or "") end
+    else q.lastBuy:SetText("") end
     if key ~= nil and not ns.Data.IsCommodity(key) then q.state:SetText(GREY .. L.QUICK_ONLY_MASS .. "|r")
     else q.state:SetText(Q.StateText(key)) end
     q.balance:SetText(Q.BalanceText(key))
     if q.skip.SetChecked then q.skip:SetChecked(Q.SkipOn(key)) end
-    if q.avg.SetChecked then q.avg:SetChecked(Q.AvgOn(key)) end
     F.UpdateStats()
 end
 
@@ -1738,9 +1934,15 @@ function F.UpdateQuickMove(v)
 end
 
 -- Diagramm im Schnellkauf: guenstigster Preis, Menge unter Kaufen bis, eigene Lockangebote
+-- ab 0.143: Menge unter dem geltenden Limit (Kaufart), Linie Limit nur mit Haken (Standard), gestrichelt der Wert von
+-- Gleitend (ohne Haken grau zur Orientierung)
 function F.UpdateQuickChart(limit)
     local Q = ns.Quick
-    limit = F.ManualLimit(F.key) or limit
+    local rows = F.LiveRows()
+    local eff, kind = Q.EffectiveLimit(F.key, rows)
+    local std = Q.LimitOn(F.key) and F.ManualLimit(F.key) or nil
+    local glide = Q.GlideValue(F.key, nil, rows)
+    limit = Num(eff) and eff or nil
     if AHOpen() and F.key ~= nil then
         F.mHead:SetText(L.QUICK_CHART_HEAD:format(Dec(ns.Radar.FocusEvery())))
     else
@@ -1754,7 +1956,7 @@ function F.UpdateQuickChart(limit)
     F.chartLegend:SetShown(false)
     if F.chartLines then F.chartLines.frame:SetShown(F.chart ~= nil) end
     if not show then F.chartN = nil; return end
-    local stamp = "q:" .. tostring(key) .. ":" .. h.n .. ":" .. tostring(limit) .. ":" .. minutes .. ":" .. #(Q.baits[key] or {}) .. ":" .. tostring(Q.Suggestion(key))
+    local stamp = "q:" .. tostring(key) .. ":" .. h.n .. ":" .. tostring(limit) .. ":" .. minutes .. ":" .. #(Q.baits[key] or {}) .. ":" .. tostring(glide) .. ":" .. tostring(std)
     if F.chartN == stamp then return end
     local n, under, mins, own, other, dips = Q.ChartSeries(key, limit, minutes)
     if not n then F.chartN = nil; return end
@@ -1767,10 +1969,9 @@ function F.UpdateQuickChart(limit)
     }
     -- ab 0.131: der Preis bestimmt die Aufloesung. Kaufen bis weit unter dem Preis stauchte die Linie, jetzt steht es
     -- dann gestrichelt am unteren Rand (Kern API 28, fit = false).
-    if Num(limit) and limit > 0 then series[#series + 1] = { key = "limit", kind = "hline", value = limit, color = C.limit, fit = false } end
-    -- ab 0.140: Vorschlag als graue gestrichelte Linie (bestimmt die Achse nicht mit)
-    local sv = Q.Suggestion(key)
-    if Num(sv) then series[#series + 1] = { key = "suggest", kind = "hline", value = sv, color = C.suggest, dash = 4, fit = false } end
+    if Num(std) and std > 0 then series[#series + 1] = { key = "limit", kind = "hline", value = std, color = C.limit, fit = false } end
+    -- ab 0.140 Vorschlag, ab 0.143 Gleitend als graue gestrichelte Linie (bestimmt die Achse nicht mit)
+    if Num(glide) then series[#series + 1] = { key = "suggest", kind = "hline", value = glide, color = C.suggest, dash = 4, fit = false } end
     ns.Radar.Perf("diagramm", function() F.chart:SetData(n, series); F.chart:Draw() end)
     F.chartN = stamp
 end
@@ -1826,7 +2027,7 @@ function F.Update()
     local live = AHOpen()
     if has and ns.Quick.On() then F.EnsureLoaded() end   -- ab 0.131: erst die gespeicherten Werte, dann Vorgaben
     if has and live and ns.Quick.On() then
-        ns.Quick.EnsureLimit()   -- ab 0.107, ab 0.120 Haelfte des guenstigsten, mindestens Haendlerpreis
+        -- ab 0.143 ohne Vorgabe fuer Kaufen bis (Q.EnsureLimit ruht): ohne Haken kauft Broker normal
         -- ab 0.133 ohne Limit pro Kauf (Q.EnsureGold): die Goldreserve begrenzt jeden Kauf
     end
     On(F.autoButton, has and live and (F.ManualTarget(key) ~= nil or F.ManualLimit(key) ~= nil))
@@ -1846,7 +2047,7 @@ function F.Update()
         if F.quick then
             F.quick.state:SetText(""); F.quick.balance:SetText(""); F.quick.post:Disable()
             for _, r in ipairs(F.marketRows or {}) do r.value:SetText(""); r.tip = nil; r.bg:Hide() end   -- ab 0.140
-            F.quick.maxValue:SetText("")
+            F.quick.maxValue:SetText(""); F.quick.unitValue:SetText("")
             F.UpdateStats()
             F.quick.lastBuy:SetText("")
         end
@@ -1895,7 +2096,9 @@ function F.Update()
     F.buyInfo:SetText(info)
     if quick then
         F.UpdateQuick(d, live)
-        Q.CheckAlarm(key, liveRows, (live and d and not d.gone and (d.maxQty or d.qty)) or 0, F.buyButton)
+        -- ab 0.143: Alarm, Gelegenheiten und Pause nur mit Limit oder Gleitend (im normalen Einkauf gibt es immer etwas)
+        local alarmQty = (live and d and not d.gone and Q.BuyKind(key) ~= "normal" and (d.maxQty or d.qty)) or 0
+        Q.CheckAlarm(key, liveRows, alarmQty, F.buyButton)
     end
 end
 

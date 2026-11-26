@@ -51,7 +51,9 @@ local mod = Peon:NewModule(ADDON_NAME, {
         radarFlash   = 5,       -- neue Treffer: Zeile pulsiert so viele Sekunden (ab 0.19)
         radarReserve = 5,       -- Goldreserve in Gold: so viel gibt der Radar nie aus (ab 0.19, ab 0.140 Vorgabe 5)
         radarReserveOn = true,  -- ab 0.140: Haken vor der Goldreserve im Einkaufen (aus = keine Reserve)
-        quickSuggestPct = 5,    -- ab 0.140: Mindestgewinn je Stueck in Prozent fuer den Vorschlag im Einkaufen
+        quickSuggestPct = 5,    -- ab 0.140: Mindestgewinn je Stueck in Prozent fuer den Vorschlag, ab 0.143 Gleitend Mindestgewinn
+        quickUnderPct = 10,     -- ab 0.143: Gleitend Unter Markt, so viel Prozent unter dem ruhigen Tiefstpreis
+        quickAvg = true,        -- ab 0.143: Durchschnitt zaehlt fuer alle Gegenstaende (vorher je Gegenstand)
         chartSuggest = true,    -- ab 0.140: Linie Vorschlag im Diagramm
         foldStats = true,       -- ab 0.140: Statistik im Einkaufen aufgeklappt
         buyoutHours  = 2,       -- Aufkauf (ab 0.65): Menge muss sich in so vielen Stunden wieder verkaufen

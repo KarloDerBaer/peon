@@ -3652,7 +3652,7 @@ end)()
   local S, M = ns.Settings, ns.Measure
   S.Toggle("focus")
   local f = S.frames.focus
-  check(f and f:IsShown() and #f.controls == 28, "0.140: Vorschlag dazu. 0.70: Fenster Einstellungen des Fokus mit 7 Reglern (ab 0.122 Gelegenheiten, ab 0.120 zwei Vorgaben fuer den Schnellkauf, Kaufzone und Preissprung, ab 0.91 Haken Wiedereinstellen, ab 0.104 drei fuer den Schnellkauf, ab 0.108 vier fuer die Marktbewegung, ab 0.109 Grenze fuer Lockangebote, ab 0.115 ohne Kaufprotokoll, ab 0.111 Ton fuer Lockangebote, ab 0.113 automatisch speichern, ab 0.114 Pause der Abfragen)")
+  check(f and f:IsShown() and #f.controls == 30, "0.143: Gleitend unter Markt und Durchschnitt dazu. 0.70: Fenster Einstellungen des Fokus mit 7 Reglern (ab 0.122 Gelegenheiten, ab 0.120 zwei Vorgaben fuer den Schnellkauf, Kaufzone und Preissprung, ab 0.91 Haken Wiedereinstellen, ab 0.104 drei fuer den Schnellkauf, ab 0.108 vier fuer die Marktbewegung, ab 0.109 Grenze fuer Lockangebote, ab 0.115 ohne Kaufprotokoll, ab 0.111 Ton fuer Lockangebote, ab 0.113 automatisch speichern, ab 0.114 Pause der Abfragen)")
   local rate
   for _, c in ipairs(f.controls) do if c.row[2] == "focusRate" then rate = c end end
   check(rate and plain(rate.value.text) == "12 (alle 5 Sek.)", "0.70: Abfragen pro Minute mit Abstand: " .. tostring(rate and plain(rate.value.text)))
@@ -3818,6 +3818,10 @@ end)()
   for _, c in ipairs(O.list.o.columns) do cols[#cols + 1] = c.title end
   check(table.concat(cols, ",") == "Gegenstand,Menge,Preis je Stück,Broker,Restzeit", "0.72: Spalte Broker als echte Spalte: " .. table.concat(cols, ","))
   check(plain(O.cancelUnder.text) == "Unterbotene abbrechen (1)" and O.cancelOne.disabled and O.market.disabled, "0.72: Knoepfe unten, ohne Auswahl gesperrt")
+  local sv = O.SideValues(ns.Auctions.rows)
+  check(sv.n == 2 and sv.under == 1 and sv.value == 50 * 20 + 70 * 5 and sv.sold == 1 and sv.soldValue == math.floor(90 * (1 - ns.Data.Cut()) + 0.5)
+    and plain(O.sideVal.n.text) == "2" and plain(O.sideVal.sold.text) == "1" and not plain(O.summary.text):find("laufen", 1, true),
+    "0.144: Spalte links mit Laufend und Beendet statt der Zeile oben")
   O.Hidden().best, O.Hidden().sold = true, true
   O.Update(true)
   check(#O.list:GetItems() == 1 and O.list:GetItems()[1].id == 31 and plain(O.summary.text):find("2 per Filter ausgeblendet", 1, true),
@@ -4633,8 +4637,21 @@ end)()
     "0.104: Schnellkauf blendet Zielpreis und Angaben aus und zeigt das Lockangebot")
   check(plain(F.sectionTab.text) == L.FOCUS_HEAD_BUY and F.modeQuick.locked, "0.104: Umschalter zeigt den Modus")
   F.Update()
-  check(F.ManualLimit(7971) == 75 and F.limitInput:GetAmount() == 75,
-    "0.120: erstes Oeffnen: Kaufen bis = Haelfte des guenstigsten Angebots (1 Stueck ganz unten zaehlt nicht): " .. tostring(F.ManualLimit(7971)))
+  -- ab 0.143: ohne Haken normaler Einkauf, keine Vorgabe fuer Kaufen bis mehr
+  check(F.ManualLimit(7971) == nil and Q.BuyKind(7971) == "normal" and F.Plan().best.qty == 1 and F.Plan().limit == 100,
+    "0.143: erstes Oeffnen ohne Limit: normaler Einkauf, Alle = die guenstigste Stufe")
+  check(plain(F.MaxText(F.Plan(), true)):find("(1 x 1s)", 1, true), "0.144: Gesamtpreis im normalen Einkauf: " .. plain(F.MaxText(F.Plan(), true)))
+  check(plain(F.UnitText(true)) == "1s (Günstigstes)", "0.144: Stueckpreis mit Hebel Guenstigstes: " .. plain(F.UnitText(true)))
+  F.tiers.o.onClick({ price = 150 }, "LeftButton")
+  check(Q.pick[7971] == 150 and F.Plan().best.qty == 21, "0.143: Klick auf eine Stufe nimmt die darunter mit")
+  F.tiers.o.onClick({ price = 150 }, "LeftButton")
+  check(Q.pick[7971] == nil, "0.143: noch ein Klick: wieder nur die guenstigste Stufe")
+  Q.qty[7971] = 5
+  check(F.Plan().best.qty == 5 and F.Plan().limit == 150, "0.143: feste Menge ab dem guenstigsten, ueber mehrere Stufen")
+  Q.qty[7971] = nil
+  Q.SetLimitOn(true)   -- die aelteren Pruefungen gelten fuer das Limit
+  F.SetLimit(75)
+  check(F.ManualLimit(7971) == 75 and F.limitInput:GetAmount() == 75 and Q.BuyKind(7971) == "limit", "0.143: Limit mit Standard 75")
   check(Q.Price(7971) == 37, "0.107: Lockpreis 50 % unter Kaufen bis")
   VENDOR[7971] = 90
   check(Q.DefaultLimit(7971) == 90, "0.120: Haendlerpreis, wenn er hoeher ist")
@@ -4902,15 +4919,17 @@ end)()
   check(not F.verdict.shown and not F.why.shown and not F.relistCheck.shown and F.qtySlider.shown and F.qtyInput.shown
     and not F.goldInput.shown and plain(F.qtyLabel.text) == "Menge", "0.133: Schnellkauf ohne Hinweistexte, ohne Wiedereinstellen, Menge mit Regler statt Limit pro Kauf")
   local lim0 = F.ManualLimit(7981)
-  check(lim0 == 50 and Q.QtyWant(7981) == nil and Q.SkipOn(7981) and Q.AvgOn(7981) and not Wt.Is(7981),
-    "0.120/0.133: Vorgaben ohne gespeicherte Werte: Massenware Menge Alle, beide Haken an, noch nicht beobachtet")
+  check(lim0 == nil and Q.BuyKind(7981) == "normal" and Q.QtyWant(7981) == nil and Q.SkipOn(7981) and Q.AvgOn(7981) and not Wt.Is(7981),
+    "0.143: Vorgaben ohne gespeicherte Werte: normaler Einkauf, Massenware Menge Alle, noch nicht beobachtet")
   local lp = F.limitInput.points[1]
   check(lp and lp[2] == F.limitLabel and lp[3] == "LEFT" and F.qtyLabel.w == 0 and F.limitLabel.w == 0 and F.qtySlider.points[1][2] == F.qtyLabel,
     "0.112.1/0.133: Felder an fester Stelle, Beschriftungen ohne feste Breite")
+  Q.SetLimitOn(true)
   F.SetLimit(150)
-  check(Wt.Is(7981) and Wt.Store()[7981].qlim == 150, "0.133: Kaufen bis eintragen nimmt den Gegenstand in Beobachten auf (Speichern von selbst)")
+  check(Wt.Is(7981) and Wt.Store()[7981].qlim == 150 and Wt.Store()[7981].qlimOn == true,
+    "0.133/0.143: Standard eintragen nimmt den Gegenstand in Beobachten auf, Haken Limit gemerkt")
   check(F.Plan().best.qty == 25 and plain(F.buyButton.text) == "Kaufen 25 für 35s" and plain(F.qtyHint.text) == ""
-    and plain(F.quick.maxValue.text) == "35s für 25",
+    and plain(F.quick.maxValue.text) == "35s (25 x 1s 40c)",
     "0.140: Menge Alle kauft alles unter Kaufen bis, Max. Preis darunter, kein Zusatz hinter der Menge: " .. plain(F.buyButton.text) .. " / " .. plain(F.quick.maxValue.text))
   check(F.qtySlider.peonMin == 0 and F.qtySlider.peonMax == 25 and F.qtySlider.peonVal == 0, "0.140: Regler Massenware von Alle (links) bis zum Marktangebot")
   F.SetQtyTyped(11)
@@ -4927,8 +4946,8 @@ end)()
   local dr = F.Plan()
   check(dr.best.qty == 11 and dr.goldCap == 1500 and dr.reserveShort, "0.133: Goldreserve kuerzt die Menge und begrenzt den Kauf: " .. tostring(dr.best.qty))
   F.Update()
-  check(plain(F.quick.maxValue.text):find("Goldreserve", 1, true) and F.quick.resInput:GetAmount() == 1000000,
-    "0.140: Goldreserve steht unter Max. Preis, Feld zeigt sie: " .. plain(F.quick.maxValue.text))
+  check(plain(F.quick.maxValue.text) == "14s (11 x 1s 27c)\nBegrenzt durch Goldreserve (100g)" and F.quick.resInput:GetAmount() == 1000000,
+    "0.144: Gesamtpreis mit Menge und Preis der Goldreserve, zweite Zeile nennt sie: " .. plain(F.quick.maxValue.text))
   F.SetReserveOn(false)
   check(Rd.Budget() == 1001500 and not F.Plan().reserveShort, "0.140: Haken aus: keine Goldreserve")
   F.SetReserveOn(true)
@@ -5023,8 +5042,8 @@ end)()
   F.FromPage(7982, "watch")
   check(mod.db.focusMode == "buyout" and F.ManualLimit(7982) == 300, "0.107.1: aus Beobachten im Aufkauf mit Kaufen bis 3s")
   Q.SetMode("quick")
-  check(F.ManualLimit(7982) == 200 and F.limitInput:GetAmount() == 200 and Q.Price(7982) == 100,
-    "0.107.1/0.120: Umschalten in den Schnellkauf fuellt Kaufen bis (Haelfte des guenstigsten), Lockpreis 50 % darunter: " .. tostring(F.ManualLimit(7982)))
+  check(F.ManualLimit(7982) == nil and Q.BuyKind(7982) == "normal",
+    "0.143: Umschalten in den Schnellkauf fuellt kein Kaufen bis mehr, normaler Einkauf: " .. tostring(F.ManualLimit(7982)))
   F.SetLimitTyped(0)
   Q.SetMode("buyout")
   Q.SetMode("quick")
@@ -5053,7 +5072,7 @@ end)()
   ns.Buy.live[7988] = { rows = { { price = 306, qty = 9, own = 0 }, { price = 307, qty = 5, own = 0 }, { price = 1600, qty = 3, own = 0 }, commodity = true }, t = clock, commodity = true }
   Q.SetMode("quick", true)
   F.Set(7988)
-  check(F.ManualLimit(7988) == 153, "0.125.1: Schnellkauf fuellt Kaufen bis (Haelfte des guenstigsten): " .. tostring(F.ManualLimit(7988)))
+  check(F.ManualLimit(7988) == nil, "0.143: Schnellkauf ohne Vorgabe fuer Kaufen bis: " .. tostring(F.ManualLimit(7988)))
   F.FromPage(7988, "chances")
   F.SetTarget(1501)
   local d = F.Plan()
@@ -5316,18 +5335,19 @@ end)()
   Rd.entries, Rd.gone, Rd.job = {}, {}, nil
   F.Set(7989)
   Q.SetMode("quick")
+  Q.SetLimitOn(true)   -- ab 0.143
   F.SetLimit(200)
   ns.Buy.live[7989] = { rows = { { price = 100, qty = 10, own = 0 }, { price = 150, qty = 10, own = 0 }, commodity = true }, t = clock, commodity = true }
   F.Update()
-  check(F.quick.avg.shown and Q.AvgOn(7989) and F.quick.avg.checked and ns.L.QUICK_AVG == "Durchschnitt zählt", "0.112/0.113: Haken Durchschnitt zaehlt, Vorgabe an")
-  Q.SetAvg(false)
+  check(not F.quick.avg.shown and Q.AvgOn(7989) and ns.L.QUICK_AVG == "Durchschnitt zählt", "0.143: Durchschnitt zaehlt fuer alle (Einstellungen), Vorgabe an")
+  mod.db.quickAvg = false
   -- ohne Haken: Preis des Spiels ueber dem teuersten Stueck -> zu teuer
   F.Buy()
   check(Rd.job and Rd.job.limit == 150 and not Rd.job.avg, "0.112: ohne Haken gilt der Preis des teuersten Stuecks")
   Rd.OnPriceUpdated(170, 3400)
   check(Rd.job == nil and confirmed == 0, "0.112: ohne Haken zu teuer, kein Kauf")
   -- mit Haken: Durchschnitt 170 <= Kaufen bis 200 -> sofort bestaetigt, ohne Warnung
-  Q.SetAvg(true)
+  mod.db.quickAvg = true
   ns.Buy.live[7989] = { rows = { { price = 100, qty = 10, own = 0 }, { price = 150, qty = 10, own = 0 }, commodity = true }, t = clock + 5, commodity = true }
   F.Update()
   F.Buy()
@@ -5355,6 +5375,7 @@ end)()
   -- aufraeumen
   ns.Watch.Remove(7989)
   Q.avg = {}
+  mod.db.quickAvg = nil
   Q.SetMode("buyout", true)
   F.SetLimit(nil)
   F.manualGold = nil
@@ -5378,15 +5399,19 @@ end)()
   Q.SetMode("quick")
   ns.Buy.live[7990] = { rows = { { price = 100, qty = 10, own = 0 }, { price = 150, qty = 10, own = 0 }, commodity = true }, t = clock, commodity = true }
   F.Update()
-  check(F.ManualLimit(7990) == 50 and not Wt.Is(7990), "0.133: Vorgabe Kaufen bis macht noch keinen Eintrag in Beobachten")
+  check(F.ManualLimit(7990) == nil and not Wt.Is(7990), "0.143: ohne Standard kein Eintrag in Beobachten")
+  Q.SetLimitOn(true)
+  check(not Wt.Is(7990), "0.143: Haken Limit allein nimmt nicht in Beobachten auf")
   Q.SetSkip(false)
   check(not Wt.Is(7990) and not Q.SkipOn(7990), "0.133: Haken allein nimmt nicht in Beobachten auf")
   F.SetLimit(250)
   local w = Wt.Store()[7990]
   check(w and w.qlim == 250 and w.qskip == false and w.qavg == true and w.mode == "quick" and w.qgold == nil and w.qqty == nil,
     "0.133: Kaufen bis eintragen nimmt auf und speichert sofort, Menge bleibt Vorgabe")
-  Q.SetAvg(false)
-  check(w.qavg == false, "0.133: Haken gilt sofort")
+  Q.SetGlideOn(true)
+  Q.SetMethod("under")
+  check(w.qglide == true and w.qmethod == "under" and w.qlimOn == true, "0.143: Gleitend und Methode je Gegenstand sofort gespeichert")
+  Q.SetGlideOn(false)
   -- gespeichertes Limit pro Kauf bleibt erhalten, wird aber nicht mehr genutzt
   w.qgold = 5000
   F.SetLimit(260)
@@ -5394,7 +5419,8 @@ end)()
   -- Moduswechsel laedt die gespeicherten Werte
   Q.SetMode("buyout")
   Q.SetMode("quick")
-  check(F.ManualLimit(7990) == 260 and not Q.SkipOn(7990) and not Q.AvgOn(7990), "0.133: gespeicherte Werte geladen")
+  check(F.ManualLimit(7990) == 260 and not Q.SkipOn(7990) and Q.LimitOn(7990) and not Q.GlideOn(7990) and Q.Method(7990) == "under",
+    "0.133/0.143: gespeicherte Werte geladen")
   -- Vorgabe der Menge: Massenware Alle, sonst 1
   mod.acc.commodity[7997] = false
   check(Q.QtyDefault(7990) == 0 and Q.QtyDefault(7997) == 1 and Q.QtyWant(7997) == 1, "0.133: Menge Alle fuer Massenware, 1 fuer andere Gegenstaende")
@@ -5412,7 +5438,7 @@ end)()
   F.quick.foldBait.scripts.OnClick(F.quick.foldBait)
   check(mod.db.foldBait == true and F.quick.post.shown and not F.quick.skip.shown, "0.133: Lockangebot aufgeklappt und gemerkt")
   F.quick.foldMore.scripts.OnClick(F.quick.foldMore)
-  check(mod.db.foldMore == true and F.quick.skip.shown and F.quick.avg.shown, "0.133: Mehr Einstellungen aufgeklappt")
+  check(mod.db.foldMore == true and F.quick.skip.shown and not F.quick.avg.shown, "0.133: Mehr Einstellungen aufgeklappt (ab 0.143 ohne Durchschnitt)")
   -- Aufkauf ruht: ohne Schalter immer Schnellkauf, kein Umschalter
   mod.db.focusBuyout = false
   Q.SetMode("buyout")
@@ -5422,7 +5448,7 @@ end)()
   check(F.modeQuick.shown and F.modeBuyout.shown, "0.133: mit Schalter Erweitert wieder umschaltbar")
   -- aufraeumen
   Wt.Remove(7990)
-  Q.skip, Q.avg, Q.qty = {}, {}, {}
+  Q.skip, Q.avg, Q.qty, Q.limitOn, Q.glide, Q.method = {}, {}, {}, {}, {}, {}
   mod.acc.commodity[7997] = nil
   Q.SetMode("buyout", true)
   F.SetLimit(nil)
@@ -5716,8 +5742,20 @@ end)()
   Q.SetMode("quick")
   ns.Buy.live[7992] = { rows = { { price = 53, qty = 1, own = 0 }, { price = 99, qty = 20, own = 0 }, commodity = true }, t = clock, commodity = true }
   F.Update()
-  check(Q.AutoLimit(7992) == nil and not F.quick.auto.disabled and Q.Suggestion(7992) == 89 and plain(F.quick.auto.text) == "Vorschlag",
-    "0.140: Knopf Vorschlag statt Auto: guenstigstes ohne Ausreisser (99) minus 5 % Anteil minus 5 % Mindestgewinn = 89: " .. tostring(Q.Suggestion(7992)))
+  check(Q.AutoLimit(7992) == nil and Q.Suggestion(7992) == 89 and Q.GlideValue(7992, "gain", ns.Buy.live[7992].rows) == 89
+    and Q.GlideValue(7992, "under", ns.Buy.live[7992].rows) == 89 and F.quick.auto == nil,
+    "0.143: Gleitend Mindestgewinn wie der fruehere Vorschlag (99 minus 5 % Anteil minus 5 %), Unter Markt 10 %, kein Knopf Vorschlag mehr")
+  Q.SetGlideOn(true)
+  check(Q.BuyKind(7992) == "glide" and Q.EffectiveLimit(7992, ns.Buy.live[7992].rows) == 89 and F.ManualLimit(7992) == nil
+    and plain(F.quick.glideValue.text):find("jetzt", 1, true), "0.143: Gleitend setzt das Limit nur fuer jetzt, der Standard bleibt leer")
+  check(F.MethodName(Q.Method(7992)) == "Mindestgewinn 5 %" and (not F.quick.method.fallback or plain(F.quick.method.text) == "Mindestgewinn 5 %"),
+    "0.143/0.144: Methode in der Auswahlliste")
+  check(plain(F.UnitText(true)) == "89c (Gleitend)", "0.144: Stueckpreis mit Hebel Gleitend: " .. plain(F.UnitText(true)))
+  Q.SetLimitOn(true); F.SetLimit(70)
+  check(Q.EffectiveLimit(7992, ns.Buy.live[7992].rows) == 70, "0.143: mit Limit nie ueber dem Standard")
+  check(plain(F.quick.glideValue.text):find("(Limit)", 1, true) and plain(F.UnitText(true)) == "70c (Limit)",
+    "0.144: begrenzt der Standard das Gleitende, steht (Limit) dahinter: " .. plain(F.quick.glideValue.text))
+  Q.SetLimitOn(false); Q.SetGlideOn(false); F.SetLimit(nil)
   check(Q.CleanLow({ { price = 50, qty = 3 }, { price = 99, qty = 20 } }) == 99 and Q.CleanLow({ { price = 90, qty = 3 }, { price = 99, qty = 20 } }) == 90,
     "0.140: Stufe mehr als 15 % unter der naechsten gilt als Ausreisser")
   -- eigenes Lockangebot zaehlt nicht
@@ -5727,11 +5765,7 @@ end)()
   Q.AddBait(7992, 2, 53, false, 1, 101)
   local v, bait, reg = Q.AutoLimit(7992)
   check(v == 76 and bait == 53 and reg == 99, "0.121: Auto = Mitte zwischen Lockangebot und regulaerem Preis (live)")
-  F.Update()
-  check(not F.quick.auto.disabled, "0.140: Vorschlag frei")
-  local click = F.quick.auto.scripts and F.quick.auto.scripts.OnClick
-  if click then click(F.quick.auto) else F.SetLimit(Q.Suggestion(7992)) end
-  check(F.ManualLimit(7992) == 89, "0.140: Klick auf Vorschlag setzt Kaufen bis")
+
   -- einzelnes Stueck darueber ist nicht regulaer
   ns.Buy.live[7992] = { rows = { { price = 53, qty = 1, own = 0 }, { price = 70, qty = 1, own = 0 }, { price = 95, qty = 8, own = 0 }, commodity = true }, t = clock + 1, commodity = true }
   check(Q.AutoLimit(7992) == 74, "0.121: regulaer erst ab 2 Stueck")
@@ -5778,7 +5812,6 @@ end)()
   local v, bait, reg, high = Q.AutoLimit(7993)
   check(v == 79 and bait == 60 and reg == 99 and high, "0.123: Auto hebt Kaufen bis an (Mitte 60 und 99)")
   F.Update()
-  check(not F.quick.auto.disabled, "0.140: Vorschlag frei (leuchtet nicht mehr)")
   -- aufraeumen
   Q.SetMode("buyout", true)
   F.SetLimit(nil)
@@ -5819,7 +5852,6 @@ end)()
   local v, low, reg, high, kind = Q.AutoLimit(key)
   check(v == 175 and low == 150 and reg == 200 and high and kind == "dip", "0.125: Auto ueber Einbruch, regulaer nicht die Stufe knapp darueber: " .. tostring(v) .. "/" .. tostring(reg))
   F.Update()
-  check(not F.quick.auto.disabled, "0.140: Vorschlag frei")
   -- noch ein Einbruch nach einer Minute, tiefer
   now = 980
   local p2 = { t = 979, min = 200, lv = { { price = 200, qty = 100 } } }
@@ -5841,7 +5873,8 @@ end)()
   check(plain(Q.LastBuyText(key)):find("Letzter Kauf: 4 Stück, Ø 1s 30c, vor ", 1, true) == 1, "0.125: letzter Kauf: " .. plain(Q.LastBuyText(key)))
   check(plain((Q.BoughtText(key))):find("14 Stück", 1, true) and plain((Q.BoughtText(key))):find("Ø 1s 44c", 1, true), "0.125: Gekauft mit Durchschnitt: " .. plain((Q.BoughtText(key))))
   F.Update()
-  check(F.quick.lastBuy.shown ~= false and plain(F.quick.lastBuy.text):find("4 Stück", 1, true), "0.125: letzter Kauf unter dem Kaufknopf")
+  check(plain(F.quick.lastBuy.text) == "" and plain(F.quick.stats[1].value.text) == "4 (1s 30c)",
+    "0.144: letzter Kauf nicht mehr unter dem Kaufknopf, sondern in der Statistik Zuletzt: " .. plain(F.quick.stats[1].value.text))
   -- aufraeumen
   Q.SetMode("buyout", true)
   check(F.quick.lastBuy.shown == false, "0.125: im Aufkauf kein letzter Kauf")
@@ -6606,6 +6639,8 @@ end)()
   for t = 101, 400, 3 do Q.Record(7995, S(t, { { 150, 10 }, { 160, 20 } })) end
   mod.db.chartRange, mod.db.chartUnder = 5, true
   F.chartN = nil
+  Q.limitOn[7995] = true   -- ab 0.143: Linie Limit nur mit Haken und Standard
+  F.manualLimit = { key = 7995, price = 155 }
   F.UpdateQuickChart(155)
   check(F.chart and F.chart.n == Q.CHART_SLOTS and F.chart.frame.shown ~= false and F.chartLines and #F.chartLines.buttons == 5,
     "0.134: Diagramm mit fuenf Knoepfen fuer die Linien")
@@ -6873,13 +6908,23 @@ end)()
   check(plain(Q.StatText(nil)) == "nichts gekauft", "0.140: Statistik ohne Kauf")
   local sess = Q.Session(key)
   sess.opps, sess.won, sess.bought, sess.cost = 4, 1, 10, 1000
-  check(plain(Q.StatText(Q.SessionStats(key))) == "10, Ø 1s (25 %)", "0.140: Sitzung mit Stueck, Durchschnitt und Quote: " .. plain(Q.StatText(Q.SessionStats(key))))
+  check(plain(Q.StatText(Q.SessionStats(key))) == "10 (1s)", "0.144: Sitzung als Menge (Durchschnitt), ohne Quote: " .. plain(Q.StatText(Q.SessionStats(key))))
   QS.OnOpp(key); QS.OnOpp(key); QS.OnWon(key); QS.OnBought(key, 4, 400)
   local wk = QS.Bought(key, 7)
   check(wk and wk.n == 4 and wk.cost == 400 and wk.opps == 2 and wk.won == 1, "0.140: Gelegenheiten und genutzte je Tag gespeichert")
   F.Update()
-  check(F.quick.foldStats.open and plain(F.quick.stats[1].value.text):find("10", 1, true) and plain(F.quick.stats[3].value.text) == "4, Ø 1s (50 %)",
-    "0.140: Statistik links aufgeklappt: " .. plain(F.quick.stats[3].value.text))
+  F.quick.foldMore.open, F.quick.foldBait.open = false, false
+  F.LayoutQuick()
+  local h1 = F.quick.contentH
+  F.quick.foldMore.open, F.quick.foldBait.open = true, true
+  F.LayoutQuick()
+  check(F.quick.scroll and F.quick.body and F.quick.contentH > h1 + 100,
+    "0.142: aufklappbare Bereiche im Bildlauf, Inhalt waechst beim Aufklappen: " .. tostring(h1) .. " -> " .. tostring(F.quick.contentH))
+  F.quick.foldMore.open, F.quick.foldBait.open = false, false
+  F.LayoutQuick()
+  check(F.quick.foldStats.open and plain(F.quick.stats[1].value.text) == "nichts gekauft" and plain(F.quick.stats[2].value.text):find("10", 1, true)
+    and plain(F.quick.stats[4].value.text) == "4 (1s)" and plain(F.quick.stats[1].label.text) == "Zuletzt",
+    "0.140/0.144: Statistik links aufgeklappt, oben Zuletzt: " .. plain(F.quick.stats[4].value.text))
   -- Kaufen bis: eigene Eingabe wird auch ohne geladene Werte gespeichert
   Wt.Add(key, { name = "Statistein" })
   F.loaded = nil
@@ -6946,6 +6991,15 @@ end)()
   check(T.OpenSell() and T.current == "sell" and SP.Shown() and Win.contents.sell and Win.contents.sell.shown,
     "0.141: Brokers Seite Verkaufen liegt ueber Blizzards Fenster")
   check(SP.key == key and R.focus and R.focus.key == key, "0.141: Gegenstand aus Blizzards Fenster gelesen, laufende Abfrage auf ihn")
+  check(R.Active(), "0.142: Verkaufen haelt die laufende Abfrage am Leben")
+  check(SP.Hours() == 2, "0.142: Massenware ohne gemerkte Dauer 2 Std.")
+  check(SP.foldLots and not SP.foldLots.open and not SP.lotsPanel.shown and SP.scroll.contentH == 26, "0.144: Zum Einstellen ab Werk zugeklappt")
+  SP.foldLots.scripts.OnClick(SP.foldLots)
+  check(SP.foldLots.open and SP.lotsPanel.shown and SP.scroll.contentH > 100 and mod.db.foldSellLots == true, "0.142/0.144: Zum Einstellen aufgeklappt im Bildlauf und gemerkt")
+  check(not SP.lotButton.shown, "0.144: kein Knopf Posten waehlen, der sichere Knopf liegt nur unter der Maus")
+  SP.foldLots.scripts.OnClick(SP.foldLots)
+  check(not SP.lotsPanel.shown and SP.scroll.contentH == 26 and mod.db.foldSellLots == false, "0.142: Zum Einstellen zugeklappt und gemerkt")
+  check(SP.qtyAll.shown and SP.qtyInput.text == "", "0.142: Mengenfeld zeigt Alle")
   -- Menge: Massenware Alle = alles in den Taschen, Regler von Alle bis 40
   local q, all = SP.Qty()
   check(q == 40 and all and SP.qtySlider.peonMin == 0 and SP.qtySlider.peonMax == 40 and SP.qtySlider.peonVal == 0 and SP.qtyAll.shown,
@@ -6955,6 +7009,7 @@ end)()
   -- Preis, Dauer, Gebuehr, Gewinn
   SP.SetPrice(1500)
   SP.SetHours(24)
+  check(mod.acc.sellHours[key] == 24, "0.142: Dauer je Gegenstand gemerkt")
   check(SP.Price() == 1500 and SP.Hours() == 24 and plain(SP.depRow.value.text) == plain(ns.Tooltip.Money(5 * 10 * 3))
     and plain(SP.totalRow.value.text) == plain(ns.Tooltip.Money(7500)), "0.141: Preis, Dauer 24 Std., Einstellgebuehr und Gesamtpreis")
   check(SP.gain and SP.gain.total == 7500 and plain(table.concat(SP.GainTip(), "|")):find("Anteil des Auktionshauses", 1, true),
@@ -6969,8 +7024,26 @@ end)()
   check(confirmed and confirmed[3] == 5 and SP.post.state == "posting" and SP.postButton.disabled, "0.141: zweiter Klick bestaetigt")
   SP.OnCreated()
   ns.Lots.OnCreated()
-  check(SP.post == nil and plain(SP.status.text):find("5 eingestellt", 1, true) and ns.Advice.LastPost(key) == 1500,
-    "0.141: eingestellt, Stand unter dem Knopf, Preis fuer Letzter gemerkt: " .. plain(SP.status.text))
+  check(SP.post == nil and plain(SP.status.text) == "" and ns.Advice.LastPost(key) == 1500,
+    "0.141/0.144: eingestellt, ohne Satz unter dem Knopf, Preis fuer Letzter gemerkt: " .. plain(SP.status.text))
+  -- ab 0.144: Preisknoepfe Guenstige, Vorschlag, Letzter, Individuell, Guenstige folgt den Angeboten ohne Lockangebot
+  check(SP.Mode() == "custom" and SP.btn.custom.locked and not SP.btn.cheap.locked and SP.btn.target == nil,
+    "0.144: getippter Preis ist Individuell, der Knopf ist aktiv")
+  ns.Buy.live[key] = { rows = { { price = 500, qty = 1, own = 0 }, { price = 1400, qty = 30, own = 0 }, { price = 1450, qty = 50, own = 0 } }, t = time() + 1, commodity = true }
+  SP.SetMode("cheap")
+  check(SP.Price() == 1400 and SP.btn.cheap.locked and not SP.btn.custom.locked, "0.144: Guenstige ueberspringt das Lockangebot: " .. tostring(SP.Price()))
+  ns.Buy.live[key].rows[2].price = 1380
+  SP.Update()
+  check(SP.Price() == 1380, "0.144: Guenstige folgt dem Markt")
+  SP.SetMode("custom")
+  check(SP.Price() == 1500, "0.144: Individuell stellt den eigenen Preis wieder her")
+  SP.ClickOffer({ price = 1380 }, "LeftButton")
+  check(SP.Mode() == "cheap", "0.144: Klick auf das guenstigste echte Angebot waehlt Guenstige")
+  SP.ClickOffer({ price = 1450 }, "RightButton")
+  check(SP.Mode() == "custom" and SP.Price() == 1450, "0.144: Rechtsklick auf eine teurere Stufe wird Individuell")
+  local orows = SP.OfferRows(ns.Buy.live[key].rows, 1450)
+  check(orows[2].cost == 500 + 1380 * 30, "0.144: Spalte Wert summiert bis hier")
+  ns.Buy.live[key] = nil
   -- Einzelstueck: PostItem ohne Gebot
   csf.shown = false
   local isf = CreateFrame("Frame"); isf.shown = true
@@ -6981,7 +7054,7 @@ end)()
   ah.ItemSellFrame = isf
   SP.Update()
   local qi, alli = SP.Qty()
-  check(qi == 1 and not alli, "0.141: Einzelware beginnt bei 1")
+  check(qi == 1 and not alli and SP.Hours() == 8, "0.141: Einzelware beginnt bei 1, ab 0.142 Dauer 8 Std.")
   SP.SetPrice(9000)
   SP.Post()
   local pi = posted[#posted]
@@ -7007,6 +7080,7 @@ end)()
   C_Item.GetItemLink, GetMoney, ns.Scan.ahOpen = keepLink, keepMoney, keepOpen
   AuctionHouseFrame = keepAH
   market.items[key], mod.acc.commodity[key] = nil, nil
+  mod.acc.sellHours = nil
   SP.post, SP.done, SP.own, SP.qty, SP.hours, SP.key = nil, nil, nil, nil, nil, nil
   if ns.Lots then ns.Lots.pendingPost = nil end
 end)()

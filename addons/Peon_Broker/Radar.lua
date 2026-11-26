@@ -1605,7 +1605,8 @@ function R.Shown()
 end
 
 function R.Active()
-    return R.Shown() or (ns.Focus ~= nil and ns.Focus.Shown()) or R.WatchShown()
+    -- ab 0.142: auch die Seite Verkaufen (vorher hielt die Abfrage dort sofort wieder an)
+    return R.Shown() or (ns.Focus ~= nil and ns.Focus.Shown()) or R.WatchShown() or (ns.SellPage ~= nil and ns.SellPage.Shown())
 end
 
 -- Treffer, die das Radar gerade zeigen wuerde (fuer die Zahl am Reiter)

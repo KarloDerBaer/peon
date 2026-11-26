@@ -117,9 +117,11 @@ function O.Build(af)
     end)
     O.filter:SetPoint("RIGHT", O.check, "LEFT", -8, 0)
     if O.filter.SetWidth then O.filter:SetWidth(110) end
+    -- ab 0.144 (Board KarloDerBaer): Spalte links statt der Zeile "n laufen" oben
+    O.BuildSide(c)
     -- Liste
     local lp = UI.Panel(c, "list", true)
-    lp:SetPoint("TOPLEFT", 0, -34)
+    lp:SetPoint("TOPLEFT", O.side, "TOPRIGHT", UI.GAP or 6, 0)
     lp:SetPoint("BOTTOMRIGHT", 0, 32)
     O.listPanel = lp
     O.list = UI.Table(lp, {
@@ -159,6 +161,74 @@ function O.Build(af)
         af:HookScript("OnHide", function() mod:Call("Auktionen", O.Place) end)
     end
     O.Place()
+end
+
+---------------------------------------------------------------------------
+-- ab 0.144 (Board KarloDerBaer 26.11.2026): Spalte links. Oben Laufende Auktionen (Anzahl, Unterboten, Wert), darunter
+-- Beendete (Verkauft, Wert unterwegs: Erloes nach dem Anteil des Auktionshauses, kommt per Post).
+---------------------------------------------------------------------------
+O.SIDE_W = 190
+O.SIDE_STEP = 18
+O.SIDE_ROWS = {
+    { "head", "AUCO_SIDE_RUNNING" },
+    { "n", "AUCO_SIDE_COUNT" }, { "under", "AUCO_SIDE_UNDER" }, { "value", "AUCO_SIDE_VALUE" },
+    { "line" },
+    { "head", "AUCO_SIDE_DONE" },
+    { "sold", "AUCO_SIDE_SOLD" }, { "soldValue", "AUCO_SIDE_ON_WAY" },
+}
+
+function O.BuildSide(c)
+    local UI = Peon.UI
+    local sp = UI.Panel(c, "list", true)
+    sp:SetPoint("TOPLEFT", 0, -34)
+    sp:SetPoint("BOTTOMLEFT", 0, 32)
+    sp:SetWidth(O.SIDE_W)
+    O.side = sp
+    O.sideVal = {}
+    local y = -10
+    for _, def in ipairs(O.SIDE_ROWS) do
+        if def[1] == "line" then
+            local ln = UI.Divider(sp, O.SIDE_W - 20)
+            ln:SetPoint("TOPLEFT", 10, y - 4)
+            y = y - 14
+        elseif def[1] == "head" then
+            local h = UI.Text(sp, "label", L[def[2]])
+            h:SetPoint("TOPLEFT", 10, y)
+            y = y - 22
+        else
+            local l = UI.Text(sp, "text", L[def[2]])
+            l:SetPoint("TOPLEFT", 14, y)
+            local v = UI.Text(sp, "text", "")
+            v:SetJustifyH("RIGHT")
+            v:SetPoint("TOPRIGHT", sp, "TOPRIGHT", -10, y)
+            O.sideVal[def[1]] = v
+            y = y - O.SIDE_STEP
+        end
+    end
+end
+
+-- Werte der Spalte: laufend und beendet (verkauft, Erloes unterwegs)
+function O.SideValues(rows)
+    local n, under, value = ns.AuctionsAH.Summary(rows)
+    local sold, soldValue = 0, 0
+    local cut = ns.Data.Cut()
+    for _, r in ipairs(rows or {}) do
+        if r.sold then
+            sold = sold + 1
+            if Num(r.price) then soldValue = soldValue + r.price * (r.qty or 1) * (1 - cut) end
+        end
+    end
+    return { n = n, under = under, value = value, sold = sold, soldValue = math.floor(soldValue + 0.5) }
+end
+
+function O.UpdateSide(rows)
+    if not O.sideVal then return end
+    local v = O.SideValues(rows)
+    O.sideVal.n:SetText(tostring(v.n))
+    O.sideVal.under:SetText(v.under > 0 and (COLORS.under .. v.under .. "|r") or "0")
+    O.sideVal.value:SetText(Money(v.value))
+    O.sideVal.sold:SetText(tostring(v.sold))
+    O.sideVal.soldValue:SetText(Money(v.soldValue))
 end
 
 function O.Place()
@@ -202,12 +272,14 @@ function O.Update(force)
         O.sel = keep
     end
     local A = ns.Auctions
-    local n, under, value = ns.AuctionsAH.Summary(A and A.rows)
-    local text = L.AUCX_HEAD:format(n, under > 0 and (COLORS.under .. under .. "|r") or "0", Money(value))
-    if A and A.liveRun then text = text .. "  |cff999999" .. L.AUCX_CHECKING .. "|r" end
+    local n = ns.AuctionsAH.Summary(A and A.rows)
+    O.UpdateSide(A and A.rows)
+    -- ab 0.144 stehen Anzahl, Unterboten und Wert in der Spalte links, oben nur Pruefung und Filter
+    local text = ""
+    if A and A.liveRun then text = text .. "|cff999999" .. L.AUCX_CHECKING .. "|r  " end
     local hidden = 0
     for _ in pairs(O.Hidden()) do hidden = hidden + 1 end
-    if hidden > 0 then text = text .. "  |cff999999" .. L.AUCO_FILTERED:format(hidden) .. "|r" end
+    if hidden > 0 then text = text .. "|cff999999" .. L.AUCO_FILTERED:format(hidden) .. "|r" end
     O.summary:SetText(text)
     On(O.check, A and not A.liveRun and n > 0)
     O.UpdateButtons()

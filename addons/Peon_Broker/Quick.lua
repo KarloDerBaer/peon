@@ -93,11 +93,172 @@ function Q.OnNewKey()
 end
 
 ---------------------------------------------------------------------------
--- Was der Schnellkauf kauft: alles bis Kaufen bis (ohne Kaufen bis nichts)
+-- ab 0.143 (KarloDerBaer 26.11.2026): Kaufart im Einkaufen. Kaufen bis heisst jetzt Limit und ist der Standard je
+-- Gegenstand (gespeichert in Beobachten, Hoechstpreis der Listen, Treffer und Alarm rechnen damit).
+--   normal    kein Haken: die gewaehlte Menge ab dem guenstigsten Angebot. Alle = alles auf der guenstigsten Stufe.
+--             Ein Klick auf eine Stufe nimmt alle Stufen bis dorthin mit (Q.pick, nur in der Sitzung).
+--   Limit     Haken Limit: nur Angebote bis zum Standard
+--   Gleitend  Haken Gleitend: nur Angebote bis zum Wert der gewaehlten Methode, mit Limit nie ueber dem Standard
+-- Gleitend rechnet mit dem ruhigen Tiefstpreis der letzten Minute (Median der Tiefstpreise, Stufen ab 2 Stueck).
+--   gain   Mindestgewinn: Weiterverkauf zum Tiefstpreis bringt nach dem Anteil noch quickSuggestPct Prozent
+--   under  Unter Markt: mindestens quickUnderPct Prozent unter dem Tiefstpreis (Einbrueche, Lockangebote)
+--   band   Ueblicher Bereich: unterer Rand des ueblichen Bereichs aus den Preisdaten
+-- Haken und Methode merkt sich Broker je Gegenstand in Beobachten (qlimOn, qglide, qmethod, nur im Spiel).
+---------------------------------------------------------------------------
+Q.limitOn = {}   -- [Schluessel] = true/false dieser Sitzung
+Q.glide = {}     -- [Schluessel] = true/false dieser Sitzung
+Q.method = {}    -- [Schluessel] = Methode dieser Sitzung
+Q.pick = {}      -- [Schluessel] = Preis der Stufe, bis zu der im normalen Einkauf gekauft wird
+Q.METHODS = { "gain", "under", "band" }
+
+local function SavedField(key, field)
+    local Wt = ns.Watch
+    local w = Wt and key ~= nil and Wt.Is(key) and Wt.Store()[key]
+    return w and w[field] or nil
+end
+
+function Q.LimitOn(key)
+    if key == nil then return false end
+    local v = Q.limitOn[key]
+    if v ~= nil then return v end
+    v = SavedField(key, "qlimOn")
+    if v ~= nil then return v and true or false end
+    -- vor 0.143 gespeichert: mit Kaufen bis galt das Limit immer
+    local l = SavedField(key, "qlim")
+    return Num(l) and l > 0 or false
+end
+
+function Q.GlideOn(key)
+    if key == nil then return false end
+    local v = Q.glide[key]
+    if v ~= nil then return v end
+    return SavedField(key, "qglide") == true
+end
+
+function Q.Method(key)
+    local m = key ~= nil and (Q.method[key] or SavedField(key, "qmethod")) or nil
+    for _, x in ipairs(Q.METHODS) do if x == m then return m end end
+    return "gain"
+end
+
+-- "normal", "limit" oder "glide"
+function Q.BuyKind(key)
+    if Q.GlideOn(key) then return "glide" end
+    if Q.LimitOn(key) then return "limit" end
+    return "normal"
+end
+
+local function Changed()
+    local F = ns.Focus
+    F.Store()
+    F.chartN = nil
+    F.Update()
+end
+
+function Q.SetLimitOn(on)
+    local key = ns.Focus.key
+    if key == nil then return end
+    Q.limitOn[key] = on and true or false
+    Changed()
+end
+
+function Q.SetGlideOn(on)
+    local key = ns.Focus.key
+    if key == nil then return end
+    Q.glide[key] = on and true or false
+    Changed()
+end
+
+function Q.SetMethod(m)
+    local key = ns.Focus.key
+    if key == nil then return end
+    Q.method[key] = m
+    Changed()
+end
+
+-- Stufe im normalen Einkauf waehlen (Klick in die Angebote), price = nil: wieder nur die guenstigste
+function Q.SetPick(price)
+    local key = ns.Focus.key
+    if key == nil then return end
+    Q.pick[key] = (Num(price) and price > 0) and price or nil
+    ns.Focus.chartN = nil
+    ns.Focus.Update()
+end
+
+-- Ruhiger Tiefstpreis: Median der Tiefstpreise der letzten Minute (QuickStats.lows), sonst das guenstigste ohne
+-- Ausreisser der letzten Abfrage
+Q.CALM_MIN = 3
+function Q.CalmLow(key, rows)
+    local QS = ns.QuickStats
+    local list = QS and QS.lows and key ~= nil and QS.lows[key] or nil
+    local ps = {}
+    for _, e in ipairs(list or {}) do if Num(e.p) and e.p > 0 then ps[#ps + 1] = e.p end end
+    if #ps >= Q.CALM_MIN then
+        table.sort(ps)
+        local n = #ps
+        if n % 2 == 1 then return ps[(n + 1) / 2] end
+        return math.floor((ps[n / 2] + ps[n / 2 + 1]) / 2 + 0.5)
+    end
+    return rows and Q.CleanLow(rows) or nil
+end
+
+-- Wert einer Methode fuer key (Kupfer je Stueck) oder nil
+function Q.GlideValue(key, method, rows)
+    method = method or Q.Method(key)
+    if method == "band" then
+        local ok, ctx = pcall(ns.Buyout.Context, nil, key)
+        local band = ok and type(ctx) == "table" and ctx.band or nil
+        if type(band) == "table" and Num(band.low) and band.low > 0 then return math.floor(band.low) end
+        return nil
+    end
+    local low = Q.CalmLow(key, rows)
+    if not Num(low) or low <= 0 then return nil end
+    local v
+    if method == "under" then
+        v = low * (1 - math.max(0, tonumber(mod.db.quickUnderPct) or 10) / 100)
+    else
+        local cut = ns.Data.Cut and ns.Data.Cut() or 0.05
+        v = low * (1 - cut) - low * math.max(0, tonumber(mod.db.quickSuggestPct) or 5) / 100
+    end
+    v = math.floor(v)
+    return v >= 1 and v or nil
+end
+
+-- Preis der Stufe, bis zu der gekauft wird. Rueckgabe Preis (nil = nichts zu kaufen), Kaufart
+function Q.EffectiveLimit(key, rows)
+    local F = ns.Focus
+    if key == nil then return nil, "normal" end
+    local kind = Q.BuyKind(key)
+    local std = F.ManualLimit(key)
+    if kind == "glide" then
+        local g = Q.GlideValue(key, nil, rows)
+        if Q.LimitOn(key) and Num(std) then g = Num(g) and math.min(g, std) or std end
+        return g, kind
+    end
+    if kind == "limit" then return std, kind end
+    -- normal: gewaehlte Stufe, sonst so weit, wie die feste Menge reicht, sonst die guenstigste Stufe
+    local lv = ns.Data.Available(rows or {})
+    if not lv[1] then return nil, kind end
+    local pick = Q.pick[key]
+    if Num(pick) then return pick, kind end
+    local want = Q.QtyWant(key)
+    if want then
+        local cum = 0
+        for _, l in ipairs(lv) do
+            cum = cum + l.qty
+            if cum >= want then return l.price, kind end
+        end
+        return lv[#lv].price, kind
+    end
+    return lv[1].price, kind
+end
+
+---------------------------------------------------------------------------
+-- Was der Schnellkauf kauft: alles bis zum geltenden Limit (Q.EffectiveLimit)
 ---------------------------------------------------------------------------
 function Q.Plan()
     local F = ns.Focus
-    local limit = F.ManualLimit(F.key)
+    local limit, kind = Q.EffectiveLimit(F.key, F.LiveRows())
     if not limit then return nil end
     local d = F.OwnPlan(limit + 1, limit)
     if not d then return nil end
@@ -122,11 +283,14 @@ function Q.Plan()
     if c and not c.gone then
         c.goldCap = Num(budget) and budget or nil   -- Kauf bricht ab, wenn er die Goldreserve angreifen wuerde
         c.want, c.reserveShort = want, short or nil
-        if Q.AvgOn(F.key) then c.avgLimit = limit end   -- ab 0.112: Kauf gilt, solange der Durchschnitt passt
+        c.buyKind = kind   -- ab 0.143
+        -- ab 0.112: Kauf gilt, solange der Durchschnitt passt (ab 0.143 nur mit Limit oder Gleitend)
+        if kind ~= "normal" and Q.AvgOn(F.key) then c.avgLimit = limit end
     end
     -- ab 0.109: Haken "Lockangebot ignorieren": Knopf und Alarm erst ab mehr als 1 Stueck unter Kaufen bis. Das
     -- Spiel verkauft von unten, der Kauf eines groesseren Stapels nimmt das eine Stueck also mit.
-    if c and not c.gone and Q.SkipOn(F.key) and (c.maxQty or 0) <= Q.SKIP_MAX and (c.maxQty or 0) > 0 then
+    -- ab 0.143 nur mit Limit oder Gleitend: im normalen Einkauf ist das guenstigste Stueck einfach das guenstigste
+    if c and not c.gone and kind ~= "normal" and Q.SkipOn(F.key) and (c.maxQty or 0) <= Q.SKIP_MAX and (c.maxQty or 0) > 0 then
         c.baitOnly = true
         c.maxQty, c.qty, c.cost = 0, 0, 0
         c.best = { qty = 0, cost = 0 }
@@ -191,13 +355,10 @@ function Q.GoldQty(rows, limit, gold)
 end
 
 -- ab 0.112: Haken "Durchschnitt zaehlt" je Gegenstand (Sitzung, sonst aus Beobachten). Ab 0.113 Vorgabe an.
+-- ab 0.143: fuer alle Gegenstaende (Einstellungen, Erweitert: quickAvg, Vorgabe an). Q.avg und qavg bleiben, ungenutzt.
 function Q.AvgOn(key)
     if key == nil then return false end
-    local v = Q.avg[key]
-    if v ~= nil then return v end
-    v = SavedFlag(key, "qavg")
-    if v ~= nil then return v end
-    return true
+    return mod.db.quickAvg ~= false
 end
 
 -- ab 0.113 (Wunsch KarloDerBaer): Limit pro Kauf ohne gespeicherten Wert. Leert man das Feld, bleibt es leer
@@ -1144,18 +1305,20 @@ function Q.SessionStats(key)
     return { n = s.bought or 0, cost = s.cost or 0, opps = s.opps or 0, won = s.won or 0 }
 end
 
--- Zeile der Statistik: "12 Stueck, Ø 5s 3c (40 %)" oder grau "nichts"
+-- ab 0.144: letzter Kauf dieser Sitzung fuer die Zeile Zuletzt { n, cost } oder nil
+function Q.LastStats(key)
+    local s = key ~= nil and Q.sessions[key]
+    local b = s and s.lastBuy
+    if not b then return nil end
+    return { n = b.n or 0, cost = b.cost or 0 }
+end
+
+-- Zeile der Statistik: "12 (5s 3c)" = Menge (Durchschnitt) oder grau "nichts gekauft". Ab 0.144 (Board KarloDerBaer)
+-- ohne die Quote der genutzten Gelegenheiten, sie hing zu sehr davon ab, wie viele gerade mitbieten.
 function Q.StatText(st)
-    if not st or (st.n or 0) <= 0 then
-        if st and (st.opps or 0) > 0 then return GREY .. L.QUICK_STAT_NONE_Q:format(0) .. "|r" end
-        return GREY .. L.QUICK_STAT_NONE .. "|r"
-    end
+    if not st or (st.n or 0) <= 0 then return GREY .. L.QUICK_STAT_NONE .. "|r" end
     local avg = (Num(st.cost) and st.cost > 0) and Money(math.floor(st.cost / st.n + 0.5)) or "-"
-    local text = L.QUICK_STAT:format(st.n, avg)
-    if (st.opps or 0) > 0 then
-        text = text .. " " .. GREY .. L.QUICK_STAT_RATE:format(math.floor(math.min(st.won or 0, st.opps) * 100 / st.opps + 0.5)) .. "|r"
-    end
-    return text
+    return L.QUICK_STAT:format(st.n, avg)
 end
 
 ---------------------------------------------------------------------------

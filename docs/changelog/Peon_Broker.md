@@ -2,6 +2,58 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.144.0
+
+Kurz: Im Verkaufen gibt es die Preisknöpfe Günstige, Vorschlag, Letzter und Individuell. Der gewählte Knopf bleibt hell. Günstige und Vorschlag folgen dem Markt, Lockangebote zählen nicht.
+Kurz: Individuell ist dein eigener Preis aus dem Preisfeld oder per Klick auf ein teureres Angebot. Ein Klick darauf holt ihn zurück.
+Kurz: Die Angebote im Verkaufen haben eine Spalte Wert wie im Einkaufen. Zum Einstellen ist anfangs zugeklappt, ein Klick auf einen Posten legt ihn auf die Seite.
+Kurz: Im Einkaufen zeigt die neue Zeile Stückpreis den Zielpreis mit dem Hebel dahinter. Max. Preis heißt jetzt Gesamtpreis und nennt, wenn die Goldreserve begrenzt.
+Kurz: Die Statistik zeigt oben Zuletzt und überall Menge (Durchschnitt). Auktionen hat links eine Spalte mit laufenden und beendeten Auktionen.
+
+- 0.144.0 (26.11.2026, Board Broker von KarloDerBaer in Obsidian):
+  - **Neu, Verkaufen, Preisknöpfe** (`SellPage.BUTTONS`): Günstige, Vorschlag, Letzter, Individuell. Der gewählte Knopf bleibt hervorgehoben (`SellPage.Mode`, `SellPage.modes`, nur in der Sitzung). Günstige und Vorschlag rechnen mit den Angeboten jetzt, Lockangebote übersprungen (`SellPage.LiveCheap`).
+  - **Neu, Individuell:** getippter Preis, Klick auf eine Stufe, die nicht die günstigste ist, und der Preis eines Pakets (`SellPage.customs`). Ohne eigenen Preis grau. Klick auf die günstigste echte Stufe wählt Günstige.
+  - **Neu, Verkaufen:** Spalte Wert in den Angeboten (Summe bis hier). Trennlinie zwischen Hinweisen und Marktlage.
+  - **Geändert, Zum Einstellen:** Vorgabe zugeklappt (`foldSellLots`). Der Knopf Posten wählen entfällt: Über der Zeile unter der Maus liegt ein sicherer Knopf, ein Klick legt den Posten auf die Seite, Rechtsklick öffnet sein Menü.
+  - **Entfernt, Verkaufen:** der Satz „… eingestellt für je …“ unter dem Knopf und der Knopf Ziel (der Zielpreis eines Postens steht weiter in den Hinweisen).
+  - **Neu, Einkaufen, Stückpreis** (`Focus.UnitText`): Zielpreis je Stück mit (Limit), (Gleitend), (Günstigstes) oder (Auswahl). Begrenzt der Standard das Gleitende, steht (Limit) dahinter, auch neben „jetzt …“ (`Focus.GlideCapped`).
+  - **Geändert, Gesamtpreis** (vorher Max. Preis): immer Gesamt (Menge x Stückpreis). Greift die Goldreserve, gelten schon ihre Menge und ihr Preis, die zweite Zeile sagt „Begrenzt durch Goldreserve (Wert)“. Kaufknopf tiefer.
+  - **Geändert, Statistik:** neue Zeile Zuletzt oben, alle Zeilen als Menge (Durchschnitt), ohne Quote (`Quick.LastStats`, `Quick.StatText`). Der letzte Kauf unter dem Kaufknopf entfällt, dort steht nur noch der Stand eines laufenden Kaufs.
+  - **Geändert, Einkaufen:** Methode von Gleitend als Auswahlliste. Feld des Standards auf Höhe des Hakens Limit. Der Hinweis „Rechtsklick auf den Namen: Menü“ steht nur noch im Tooltip des Namens.
+  - **Neu, Auktionen:** Spalte links mit Laufende Auktionen (Anzahl, Unterboten, Wert) und Beendete (Verkauft, Wert unterwegs nach dem Anteil des Auktionshauses), statt der Zeile oben (`AuctionsOwn.SideValues`).
+  - Tests: `test_broker.lua`.
+
+## 0.143.0
+
+Kurz: Im Einkaufen kaufst du ohne Haken ganz normal: die gewählte Menge ab dem günstigsten Angebot. Bei Alle ist das alles auf der günstigsten Stufe, ein Klick auf eine Stufe nimmt alle Stufen bis dorthin mit.
+Kurz: Mit dem Haken Limit kaufst du nur bis zu deinem Standard. Er steht im Feld daneben, in Beobachten und in den Listen.
+Kurz: Mit dem Haken Gleitend folgt das Limit nur für jetzt dem Markt, nach Mindestgewinn, Unter Markt oder Üblicher Bereich. Dein Standard bleibt dabei unverändert. Der Knopf Vorschlag entfällt.
+
+- 0.143.0 (26.11.2026, mit KarloDerBaer abgestimmt):
+  - **Neu, Kaufart** (`Quick.BuyKind`, `Quick.EffectiveLimit`): ohne Haken normaler Einkauf, Haken Limit (`qlimOn`), Haken Gleitend (`qglide`) mit Methode (`qmethod`). Limit und Gleitend zusammen: der gleitende Wert, nie über dem Standard. Haken und Methode merkt sich Broker je Gegenstand in Beobachten (nur im Spiel, kein Abgleich mit dem Manager).
+  - **Normaler Einkauf:** Alle = die günstigste Stufe, feste Menge = so viele Stück von unten, auch über mehrere Stufen. Klick auf eine Stufe in den Angeboten nimmt alle bis dorthin mit, noch ein Klick oder Rechtsklick hebt das auf (`Quick.pick`, nur in der Sitzung). Max. Preis zeigt Kosten, Menge und den höchsten Stückpreis, über dem üblichen Bereich mit Hinweis.
+  - **Gleitend, Methoden** mit dem ruhigen Tiefstpreis (Median der Tiefstpreise der letzten Minute, `Quick.CalmLow`): Mindestgewinn (`quickSuggestPct`, Vorgabe 5 %), Unter Markt (`quickUnderPct`, Vorgabe 10 %), Üblicher Bereich (unterer Rand). Der Wert jetzt steht neben der Methode, im Diagramm als graue gestrichelte Linie „Gleitend“.
+  - **Geändert:** keine Vorgabe mehr für Kaufen bis (`Quick.EnsureLimit` ruht). Alarm, Gelegenheiten, Pause der Abfragen, „Lockangebot ignorieren“ und „Durchschnitt zählt“ gelten nur mit Limit oder Gleitend. Die Linie Limit im Diagramm erscheint nur mit Haken.
+  - **Geändert, Durchschnitt zählt:** gilt für alle Gegenstände, Einstellungen des Einkaufens unter Erweitert (`quickAvg`). Der Haken je Gegenstand entfällt, `qavg` bleibt gespeichert.
+  - **Entfernt:** Knopf Vorschlag (steckt in Gleitend, Mindestgewinn).
+  - Tests: `test_broker.lua`.
+
+## 0.142.0
+
+Kurz: Im Verkaufen laufen die Angebote jetzt wirklich live mit.
+Kurz: Broker merkt sich die Dauer je Gegenstand. Beim ersten Mal gilt Massenware 2 Std., alles andere 8 Std.
+Kurz: Zum Einstellen lässt sich auf- und zuklappen. Ist der untere linke Bereich im Einkaufen oder Verkaufen zu lang, erscheint eine Scrollleiste.
+Kurz: Steht der Regler der Menge ganz links, zeigt das Feld „Alle“.
+
+- 0.142.0 (26.11.2026, Board Broker von KarloDerBaer):
+  - **Behoben, Verkaufen live:** Die laufende Abfrage hielt auf der Seite Verkaufen sofort wieder an, weil Broker sie dort nicht als aktiv zählte (`Radar.Active` kennt jetzt `SellPage.Shown`).
+  - **Neu, Dauer je Gegenstand:** gemerkt in `sellHours` (Konto). Ohne gemerkte Dauer Massenware 2 Std., sonst 8 Std.
+  - **Geändert, Zum Einstellen:** aufklappbar (`foldSellLots`, Vorgabe offen), leere Liste grau „Nichts einzustellen“. Der veraltete Satz über Aufkäufe aus dem Radar entfällt auch in der Liste über Blizzards Fenster.
+  - **Neu, Bildlauf:** Die aufklappbaren Bereiche unten links im Einkaufen und Zum Einstellen im Verkaufen liegen in einem Bildlauf (`Focus.MakeScroll`, `Focus.FitScroll`). Die Leiste erscheint nur, wenn der Inhalt nicht hineinpasst.
+  - **Behoben, Menge:** „Alle“ stand hinter dem Feld und war verdeckt. Jetzt steht es im Feld (Einkaufen und Verkaufen).
+  - **Geändert, Gewinn beim Verkaufen:** Der Tooltip nennt den Einkauf je Stück und dass es der Durchschnitt dieses Charakters ist. Der Tooltip von Ledger zeigt den Durchschnitt über alle Charaktere, darum können beide abweichen.
+  - Tests: `test_broker.lua`.
+
 ## 0.141.0
 
 Kurz: Verkaufen ist jetzt eine eigene Broker-Seite wie Einkaufen. Links stehen Preis mit den Preisknöpfen, Menge, Dauer, Einstellgebühr, Gesamtpreis, Gewinn und Einstellen, darunter Zum Einstellen. Rechts siehst du die Angebote, Hinweise und die Marktlage.

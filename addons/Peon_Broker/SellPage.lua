@@ -26,9 +26,15 @@ ns.SellPage = S
 
 S.key = nil          -- Gegenstand auf der Seite (Schluessel der Preisdatenbank)
 S.it = nil           -- zuletzt gelesener Gegenstand { loc, link, key, id, commodity }
-S.own = nil          -- eigener Preis { key, price }
+-- ab 0.144 (Board KarloDerBaer 26.11.2026): Preisknoepfe Guenstige, Vorschlag, Letzter, Individuell. Der gewaehlte
+-- Knopf bleibt aktiv, Guenstige und Vorschlag folgen dem Markt (ohne Lockangebote). Individuell ist der zuletzt
+-- selbst eingetragene Preis (Feld oder Klick auf eine Stufe, die nicht die guenstigste ist). Beides nur in der
+-- Sitzung, je Gegenstand.
+S.BUTTONS = { "cheap", "suggest", "last", "custom" }
+S.modes = {}         -- Schluessel -> gewaehlter Knopf
+S.customs = {}       -- Schluessel -> Preis Individuell
 S.qty = nil          -- eigene Menge { key, qty }, qty 0 = Alle
-S.hours = nil        -- gewaehlte Dauer in Stunden (Sitzung), sonst die Einstellung duration
+-- ab 0.142: Dauer je Gegenstand gemerkt in PeonBrokerDB.sellHours[Schluessel] (Stunden)
 S.post = nil         -- laufendes Einstellen { key, loc, dur, qty, price, commodity, state, t }
 S.since = 0          -- Live-Daten zaehlen ab hier (neuer Gegenstand)
 S.POST_WAIT = 10     -- Sekunden, so lange gilt ein Einstellen als unterwegs
@@ -74,7 +80,7 @@ function S.Sync()
     local key = it and it.key or nil
     if key ~= S.key then
         S.key = key
-        S.own, S.qty = nil, nil
+        S.qty = nil
         S.since = time()
         if S.Shown() and AHOpen() then ns.Radar.SetFocus(key) end
     end
@@ -116,45 +122,110 @@ function S.SetQty(n)
     S.Update()
 end
 
-function S.Hours()
-    local h = tonumber(S.hours)
+-- ab 0.142 (Board KarloDerBaer 26.11.2026): Dauer je Gegenstand gemerkt. Ohne gemerkte Dauer: Massenware 2 Std.,
+-- alles andere 8 Std.
+local function HoursStore(create)
+    local acc = mod.acc
+    if type(acc) ~= "table" then return nil end
+    if type(acc.sellHours) ~= "table" then
+        if not create then return nil end
+        acc.sellHours = {}
+    end
+    return acc.sellHours
+end
+
+function S.Hours(it)
+    it = it or S.it
+    local st = it and HoursStore(false)
+    local h = st and tonumber(st[it.key])
     for _, x in ipairs(S.HOURS) do if x == h then return h end end
-    return ns.Data.Duration(mod.db)
+    if it and it.commodity then return 2 end
+    return 8
 end
 
 function S.SetHours(h)
-    S.hours = h
+    local it = S.it
+    local st = it and HoursStore(true)
+    if st then st[it.key] = h end
     S.Update()
 end
 
 -- Preise der Knoepfe (wie bisher im Kasten, Advice.Prices) und der Rat dazu
+-- ab 0.144: guenstigstes fremdes Angebot der laufenden Abfrage, Lockangebote uebersprungen. Rueckgabe Preis, Lockangebot
+function S.LiveCheap(key)
+    if key == nil or key ~= S.key then return nil end
+    local rows = S.LiveRows()
+    if not rows then return nil end
+    local D = ns.Data
+    local b = D.IsCommodity(key) and D.SkipBait(rows, mod.db) or nil
+    if b then return b.price, b end
+    local lv = D.Available(rows)
+    return lv[1] and lv[1].price or nil, nil
+end
+
 function S.Prices(it, r)
     local A = ns.Advice
     if not (A and it) then return {} end
     local lot = ns.Lots and ns.Lots.ForKey(it.key) or nil
-    return A.Prices(it.key, ns.Data.Lookup(it.key), lot, r)
+    local e = ns.Data.Lookup(it.key)
+    local p = A.Prices(it.key, e, lot, r)
+    -- ab 0.144: Guenstige und Vorschlag folgen den Angeboten jetzt, Lockangebote zaehlen nicht
+    local cheap, bait = S.LiveCheap(it.key)
+    if Num(cheap) and cheap > 0 then
+        p.cheap, p.bait = cheap, bait
+        local te = type(e) == "table" and e or nil
+        local ok, vp = pcall(ns.Data.Suggest, cheap, te and te.md, it.key, mod.db, te, te and te.pmd)
+        if ok and Num(vp) and vp > 0 then p.suggest = vp end
+    end
+    p.custom = S.customs[it.key]
+    return p
 end
 
--- Preis je Stueck: eigener, sonst Vorschlag, sonst Guenstige, sonst Blizzards Vorgabe
+-- Gewaehlter Knopf: Vorgabe Vorschlag, Individuell nur mit eigenem Preis
+function S.Mode(it)
+    it = it or S.it
+    if not it then return nil end
+    local m = S.modes[it.key]
+    if m == "custom" and not Num(S.customs[it.key]) then m = nil end
+    return m or "suggest"
+end
+
+function S.SetMode(m)
+    if not S.it then return end
+    if m == "custom" and not Num(S.customs[S.it.key]) then return end
+    S.modes[S.it.key] = m
+    S.Update()
+end
+
+-- Preis je Stueck: der des gewaehlten Knopfs, sonst Vorschlag, sonst Guenstige, sonst Blizzards Vorgabe
 function S.Price(it, prices)
     it = it or S.it
     if not it then return nil end
-    local o = S.own
-    if o and o.key == it.key and Num(o.price) and o.price > 0 then return o.price end
+    local m = S.Mode(it)
+    if m == "custom" then return S.customs[it.key] end
     prices = prices or S.Prices(it)
+    local p = prices[m]
+    if Num(p) and p > 0 then return p end
     return prices.suggest or prices.cheap or (Num(it.price) and it.price > 0 and it.price or nil)
+end
+
+-- Selbst eingetragener Preis (Feld, Klick auf eine Stufe, Pakete): wird Individuell
+function S.SetCustom(key, price)
+    if key == nil or not Num(price) or price <= 0 then return end
+    S.customs[key] = math.floor(price)
+    S.modes[key] = "custom"
 end
 
 function S.SetPrice(price)
     if not S.it then return end
-    S.own = (Num(price) and price > 0) and { key = S.it.key, price = math.floor(price) } or nil
+    if not (Num(price) and price > 0) then return end   -- leeres Feld: der Knopf bleibt
+    S.SetCustom(S.it.key, price)
     S.Update()
 end
 
 -- Preis von aussen (Pakete): gilt, sobald der Gegenstand auf der Seite liegt
 function S.SetOwnPrice(key, price)
-    if key == nil or not Num(price) or price <= 0 then return end
-    S.own = { key = key, price = math.floor(price) }
+    S.SetCustom(key, price)
     if S.Shown() then S.Update() end
 end
 
@@ -200,7 +271,7 @@ function S.Gain(it, price, qty, r)
     local lot = ns.Lots and ns.Lots.ForKey(it.key) or nil
     local g = ns.Advice.Profit({ net = net, qty = qty, key = it.key }, lot)
     if not g then return nil end
-    g.net, g.cut, g.total = math.floor(net + 0.5), cut, price * qty
+    g.net, g.cut, g.total, g.qty = math.floor(net + 0.5), cut, price * qty, qty
     return g
 end
 
@@ -227,7 +298,7 @@ function S.Post()
     local price = S.Price(it)
     local qty = S.Qty(it)
     if not Num(price) or price <= 0 or qty < 1 then return end
-    local hours = S.Hours()
+    local hours = S.Hours(it)
     local dur = ns.Data.DUR_INDEX[hours] or 2
     local ok, needs
     if it.commodity then
@@ -259,9 +330,7 @@ end
 function S.OnCreated()
     local p = S.post
     if not p or p.state ~= "posting" then return end
-    S.post = nil
-    S.done = { key = p.key, qty = p.qty, price = p.price, t = Now() }
-    S.own = nil   -- naechster Stapel beginnt wieder beim Vorschlag
+    S.post = nil   -- ab 0.144 ohne Satz "eingestellt fuer je" (Board KarloDerBaer), der Knopf bleibt gewaehlt
     if S.Shown() then S.Update() end
 end
 
@@ -271,8 +340,6 @@ function S.StatusText()
         if p.state == "confirm" then return ORANGE .. L.SELL_CONFIRM_ASK .. "|r" end
         return GREY .. L.SELL_POSTING .. "|r"
     end
-    local d = S.done
-    if d and Now() - d.t < 60 then return GREEN .. L.SELL_POSTED:format(d.qty, Money(d.price)) .. "|r" end
     return ""
 end
 
@@ -374,17 +441,14 @@ function S.Build(c)
     if S.priceInput.SetScale then S.priceInput:SetScale(0.8) end
     S.priceInput:SetPoint("LEFT", S.priceLabel, "LEFT", S.FIELD_X / 0.8, 0)
     S.btn = {}
-    local A = ns.Advice
-    local bw = math.floor((UI.LEFT_W - 28) / #A.BUTTONS)
-    for i, k in ipairs(A.BUTTONS) do
-        local b = UI.Button(left, L["ADV_BTN_" .. k:upper()], bw - 2, function()
-            local p = S.prices and S.prices[k]
-            if Num(p) then S.SetPrice(p) end
-        end)
+    local bw = math.floor((UI.LEFT_W - 28) / #S.BUTTONS)
+    for i, k in ipairs(S.BUTTONS) do
+        local b = UI.Button(left, L["ADV_BTN_" .. k:upper()], bw - 2, function() mod:Call("Verkaufen", S.SetMode, k) end)
         b:SetPoint("TOPLEFT", 12 + (i - 1) * bw, S.BTN_Y)
         UI.SetTooltip(b, function()
             local p = S.prices and S.prices[k]
-            local tip = (k == "target" and S.prices and S.prices.targetSrc == "watch") and L.ADV_BTN_TARGET_WATCH_TIP or L["ADV_BTN_" .. k:upper() .. "_TIP"]
+            local tip = L["ADV_BTN_" .. k:upper() .. "_TIP"]
+            if k == "cheap" or k == "suggest" then tip = tip .. " " .. L.SELL_PAGE_BTN_LIVE end
             return { L["ADV_BTN_" .. k:upper()], tip, Num(p) and Money(p) or (GREY .. L.ADV_BTN_NONE .. "|r") }
         end)
         S.btn[k] = b
@@ -404,8 +468,9 @@ function S.Build(c)
     S.qtyInput:HookScript("OnTextChanged", function(self, user)
         if user then S.SetQty(tonumber(self:GetText() or "") or 0) end
     end)
-    S.qtyAll = UI.Text(left, "small", GREY .. L.QUICK_QTY_ALL0 .. "|r")
-    S.qtyAll:SetPoint("LEFT", S.qtyInput, "LEFT", 10 * 0.8, 0)
+    -- ab 0.142 am Feld selbst, sonst verdeckt es das Feld
+    S.qtyAll = UI.Text(S.qtyInput, "small", GREY .. L.QUICK_QTY_ALL0 .. "|r")
+    S.qtyAll:SetPoint("LEFT", S.qtyInput, "LEFT", 10, 0)
 
     -- Dauer: drei Knoepfe
     S.durLabel = UI.Text(left, "label", L.SELL_PAGE_DUR)
@@ -435,18 +500,29 @@ function S.Build(c)
 end
 
 ---------------------------------------------------------------------------
--- Zum Einstellen links unten: Posten waehlen, der sichere Knopf legt ihn per Klick in Blizzards Verkaufsfenster
--- (derselbe Klick wie der Rechtsklick in der Tasche, Lots.lua). Danach liegt er auf dieser Seite.
+-- Zum Einstellen links unten. Ab 0.144 (Board KarloDerBaer) ohne Knopf Posten waehlen: Ueber der Zeile unter der Maus
+-- liegt ein unsichtbarer sicherer Knopf, sein Klick ist derselbe wie der Rechtsklick in der Tasche (Lots.lua). Danach
+-- liegt der Posten auf dieser Seite.
 ---------------------------------------------------------------------------
+S.LOTS_LIST_H = 96
 function S.BuildLots(left)
     local UI = Peon.UI
+    local F = ns.Focus
     S.lotsLine = UI.Divider(left, UI.LEFT_W - 24)
     S.lotsLine:SetPoint("TOPLEFT", 12, S.LOTS_Y + 8)
-    S.lotsHead = UI.Text(left, "label", L.LOTS_TITLE)
-    S.lotsHead:SetPoint("TOPLEFT", S.X, S.LOTS_Y)
-    local lp = UI.Panel(left, "list", true)
-    lp:SetPoint("TOPLEFT", 6, S.LOTS_Y - 18)
-    lp:SetPoint("BOTTOMRIGHT", -6, 34)
+    -- ab 0.142: im Bildlauf und aufklappbar (foldSellLots, Vorgabe offen)
+    S.scroll, S.body = F.MakeScroll(left, S.LOTS_Y + 4)
+    S.scroll:SetScript("OnSizeChanged", function() if S.scroll.contentH then F.FitScroll(S.scroll, S.scroll.contentH) end end)
+    local body = S.body
+    local bodyW = UI.LEFT_W - 28
+    S.foldLots = UI.Collapse(body, L.LOTS_TITLE, mod.db.foldSellLots == true, function(open)   -- ab 0.144 Vorgabe zu
+        mod.db.foldSellLots = open and true or false
+        S.LayoutLots()
+    end)
+    S.foldLots:SetPoint("TOPLEFT", 4, -4)
+    local lp = UI.Panel(body, "list", true)
+    lp:SetPoint("TOPLEFT", 2, -26)
+    lp:SetSize(bodyW - 4, S.LOTS_LIST_H)
     S.lotsPanel = lp
     S.lots = UI.Table(lp, {
         columns = {
@@ -456,58 +532,86 @@ function S.BuildLots(left)
             { key = "bags", title = L.LOTS_COL_BAGS, width = 54, align = "RIGHT",
               format = function(v) if v and v > 0 then return tostring(v) end return GREY .. L.LOTS_MAIL .. "|r" end },
         },
-        sortKey = "name", icon = true, empty = L.LOTS_EMPTY,
+        sortKey = "name", icon = true, empty = L.SELL_PAGE_LOTS_EMPTY,
         onClick = function(r, button)
-            if button == "RightButton" then if ns.Lots then ns.Lots.Menu(r, lp) end; return end
-            mod:Call("Verkaufen", S.SelectLot, r)
+            if button == "RightButton" then if ns.Lots then ns.Lots.Menu(r, lp) end end
         end,
-        onEnter = function(row, r) if r then W.ShowItemTooltip(row, r.key) end end,
+        onEnter = function(row, r) mod:Call("Verkaufen", S.HoverLot, row, r) end,
     })
-    local b = CreateFrame("Button", "PeonBrokerSellPageLotButton", left, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-    b:SetSize(UI.LEFT_W - 20, 22)
-    b:SetPoint("BOTTOMLEFT", 10, 8)
+    -- leere Liste: grau und schmal (der Hinweis der Tabelle ist sonst gold und breiter als die Liste)
+    local e = rawget(S.lots, "empty")
+    if type(e) == "table" then
+        if e.SetTextColor then e:SetTextColor(0.6, 0.6, 0.6) end
+        if e.SetWidth then e:SetWidth(bodyW - 20) end
+        if e.ClearAllPoints and e.SetPoint then e:ClearAllPoints(); e:SetPoint("TOP", lp, "TOP", 0, -40) end
+    end
+    local b = CreateFrame("Button", "PeonBrokerSellPageLotButton", body, "SecureActionButtonTemplate")
     if b.RegisterForClicks then b:RegisterForClicks("AnyUp", "AnyDown") end
-    b:SetText(L.LOTS_PICK)
-    b:Disable()
-    UI.SetTooltip(b, { L.LOTS_TITLE, L.SELL_PAGE_LOT_TIP })
+    if b.SetFrameLevel and lp.GetFrameLevel then b:SetFrameLevel((lp:GetFrameLevel() or 1) + 20) end
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints(b)
+    hl:SetColorTexture(1, 1, 1, 0.1)
+    b:SetScript("OnEnter", function(self)
+        if not (self.row and GameTooltip) then return end
+        W.ShowItemTooltip(self, self.row.key)
+        GameTooltip:AddLine(L.SELL_PAGE_LOT_TIP, 0.6, 0.6, 0.6, true)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end; S.HideLotButton() end)
+    -- Rechtsklick: Menue des Postens (der sichere Teil gilt nur fuer die linke Taste)
+    b:HookScript("OnClick", function(self, button)
+        if button == "RightButton" and self.row and ns.Lots then ns.Lots.Menu(self.row, lp) end
+    end)
+    b:Hide()
     S.lotButton = b
+    S.LayoutLots()
+end
+
+function S.LayoutLots()
+    if not S.foldLots then return end
+    local open = S.foldLots.open and true or false
+    S.lotsPanel:SetShown(open)
+    if not open then S.HideLotButton() end
+    S.scroll.contentH = open and (26 + S.LOTS_LIST_H + 6) or 26
+    ns.Focus.FitScroll(S.scroll, S.scroll.contentH)
+    if open and S.lots and S.lots.Layout then S.lots.Layout() end
 end
 
 local function InCombat() return InCombatLockdown and InCombatLockdown() or false end
 
--- Posten waehlen: den sicheren Knopf auf seinen Taschenplatz richten (wie Lots.Select)
-function S.SelectLot(row)
-    S.lotSel = row
+-- Maus ueber einer Zeile: liegt der Posten in der Tasche, kommt der sichere Knopf ueber die Zeile und zeigt auf seinen
+-- Taschenplatz (wie Lots.Select). In der Post, ohne Taschenplatz oder im Kampf bleibt es beim Tooltip.
+function S.HoverLot(rowFrame, r)
+    if r and rowFrame then W.ShowItemTooltip(rowFrame, r.key) end
     local b, LT = S.lotButton, ns.Lots
-    if not (b and LT) then return end
-    local text, ready = L.LOTS_POST, false
-    if not row then text = L.LOTS_PICK
-    elseif not ((row.bags or 0) > 0) then text = L.LOTS_IN_MAIL
-    elseif InCombat() then text = L.LOTS_COMBAT
-    else
-        local bag, slot = LT.FindBagSlot(row.key)
-        local name = bag and LT.FindButton(bag, slot)
-        if name then
-            b:SetAttribute("type", "macro")
-            b:SetAttribute("macrotext", "/click " .. name .. " RightButton")
-            ready = true
-        else
-            text = L.LOTS_NO_SLOT
-        end
-    end
-    if not ready and not InCombat() then b:SetAttribute("type", nil); b:SetAttribute("macrotext", nil) end
-    b:SetText(ready and L.SELL_PAGE_LOT_PUT or text)
-    if ready then b:Enable() else b:Disable() end
+    if not (b and LT and r and rowFrame) or InCombat() then return end
+    if not ((r.bags or 0) > 0) then return end
+    local bag, slot = LT.FindBagSlot(r.key)
+    local name = bag and LT.FindButton(bag, slot)
+    if not name then return end
+    b:SetAttribute("type1", "macro")
+    b:SetAttribute("macrotext", "/click " .. name .. " RightButton")
+    b.row = r
+    b:ClearAllPoints()
+    b:SetAllPoints(rowFrame)
+    b:Show()
+end
+
+function S.HideLotButton()
+    local b = S.lotButton
+    if not b or InCombat() then return end
+    b:Hide()
+    b:ClearAllPoints()
+    b.row = nil
+    b:SetAttribute("type1", nil)
+    b:SetAttribute("macrotext", nil)
 end
 
 function S.RefreshLots()
     if not (S.lots and ns.Lots) then return end
     local rows = ns.Lots.Rows()
     S.lots:SetData(rows)
-    S.lotsHead:SetText(L.LOTS_TITLE .. ((#rows > 0) and (" (" .. #rows .. ")") or ""))
-    local sel
-    for _, r in ipairs(rows) do if S.lotSel and r.lot == S.lotSel.lot then sel = r end end
-    S.SelectLot(sel)
+    if S.foldLots and S.foldLots.text then S.foldLots.text:SetText(L.LOTS_TITLE .. ((#rows > 0) and (" (" .. #rows .. ")") or "")) end
 end
 
 ---------------------------------------------------------------------------
@@ -526,19 +630,15 @@ function S.BuildRight(c, left)
             { key = "price", title = L.ITEM_TIER_PRICE, align = "RIGHT", format = function(v) return Money(v) end },
             { key = "qty", title = L.ITEM_COL_QTY, width = 80, align = "RIGHT" },
             { key = "cum", title = L.ITEM_TIER_CUM, width = 80, align = "RIGHT" },
+            -- ab 0.144 wie Kosten im Einkaufen: Wert aller Stufen bis hier
+            { key = "cost", title = L.SELL_PAGE_COL_VALUE, width = 110, align = "RIGHT", format = function(v) return Num(v) and Money(v) or "" end },
         },
         sortKey = "price", empty = L.FOCUS_TIER_WAIT,
         rowBg = function(r)
             if r and r.isOwn then return 0.7, 0.4, 1, 0.25 end     -- eigenes Angebot lila
             if r and r.under then return 1, 0.4, 0.4, 0.18 end     -- unter meinem Preis
         end,
-        -- Klick auf eine Stufe: knapp darunter einstellen (wie Blizzards Liste), Rechtsklick: genau diesen Preis
-        onClick = function(r, button)
-            if not (r and Num(r.price)) or r.isOwn or not S.key then return end
-            local p = r.price
-            if button ~= "RightButton" then p = ns.Data.Undercut(r.price, S.key, mod.db) or r.price end
-            S.SetPrice(p)
-        end,
+        onClick = function(r, button) mod:Call("Verkaufen", S.ClickOffer, r, button) end,
     })
     local mp = UI.Panel(c, "right")
     mp:SetPoint("TOPLEFT", right, "BOTTOMLEFT", 0, -2)
@@ -558,7 +658,10 @@ function S.BuildRight(c, left)
         r.value:SetPoint("TOPLEFT", r.label, "TOPRIGHT", 8, 0)
         S.info[i] = r
     end
-    -- Marktlage: dieselben drei Zeilen wie im Einkaufen (Rechtsklick waehlt, gilt fuer beide Seiten)
+    -- Marktlage: dieselben drei Zeilen wie im Einkaufen (Rechtsklick waehlt, gilt fuer beide Seiten). Ab 0.144 mit
+    -- Trennlinie zu den Hinweisen (Board KarloDerBaer).
+    S.marketLine = UI.Divider(mp, W.WIDTH - 2 * W.SIDE - UI.LEFT_W - UI.GAP - 24)
+    S.marketLine:SetPoint("BOTTOMLEFT", mp, "BOTTOMLEFT", 12, 8 + 3 * 16 + 4 + 22)
     S.marketHead = UI.Text(mp, "label", L.SELL_PAGE_MARKET)
     S.marketHead:SetPoint("BOTTOMLEFT", mp, "BOTTOMLEFT", 12, 8 + 3 * 16 + 4)
     S.market = {}
@@ -592,6 +695,17 @@ function S.BuildRight(c, left)
     end
 end
 
+-- Klick auf eine Stufe: knapp darunter einstellen (wie Blizzards Liste), Rechtsklick: genau diesen Preis.
+-- ab 0.144: Klick auf das guenstigste echte Angebot waehlt Guenstige, jede andere Stufe Individuell.
+function S.ClickOffer(r, button)
+    if not (r and Num(r.price)) or r.isOwn or not S.key then return end
+    local cheap = S.LiveCheap(S.key)
+    if button ~= "RightButton" and Num(cheap) and r.price == cheap then S.SetMode("cheap"); return end
+    local p = r.price
+    if button ~= "RightButton" then p = ns.Data.Undercut(r.price, S.key, mod.db) or r.price end
+    S.SetPrice(p)
+end
+
 -- Angebote der letzten Abfrage (seit der Gegenstand auf der Seite liegt) mit Summe, eigene lila
 function S.LiveRows()
     if S.key == nil or not AHOpen() then return nil end
@@ -601,10 +715,10 @@ function S.LiveRows()
 end
 
 function S.OfferRows(rows, price)
-    local out, cum = {}, 0
+    local out, cum, cost = {}, 0, 0
     for _, l in ipairs(ns.Data.Available(rows or {})) do
-        cum = cum + l.qty
-        out[#out + 1] = { price = l.price, qty = l.qty, cum = cum, under = Num(price) and l.price < price or false }
+        cum, cost = cum + l.qty, cost + l.qty * l.price
+        out[#out + 1] = { price = l.price, qty = l.qty, cum = cum, cost = cost, under = Num(price) and l.price < price or false }
     end
     for _, r in ipairs(rows or {}) do
         if Num(r.own) and r.own > 0 and Num(r.price) then
@@ -645,7 +759,9 @@ function S.GainTip()
     local lines = { L.SELL_PAGE_GAIN }
     lines[#lines + 1] = L.SELL_PAGE_TIP_TOTAL:format(Money(g.total))
     lines[#lines + 1] = L.SELL_PAGE_TIP_CUT:format(ns.Focus.Dec(g.cut * 100), Money(math.max(0, g.total - g.net)))
-    if g.cost then lines[#lines + 1] = L.SELL_PAGE_TIP_COST:format(Money(g.cost))
+    if g.cost then
+        local per = (g.qty and g.qty > 0) and Money(math.floor(g.cost / g.qty + 0.5)) or "-"
+        lines[#lines + 1] = L.SELL_PAGE_TIP_COST:format(per, Money(g.cost))
     else lines[#lines + 1] = GREY .. L.ADV_PROFIT_NOCOST .. "|r" end
     if g.fee then lines[#lines + 1] = L.SELL_PAGE_TIP_FEE:format(Money(g.fee)) end
     lines[#lines + 1] = L.SELL_PAGE_TIP_GAIN:format(ns.Radar.SignedMoney(g.gain))
@@ -698,9 +814,10 @@ function S.Update()
     if not Typing(S.priceInput) then
         if Num(price) and price > 0 then S.priceInput:SetAmount(price) else ClearMoney(S.priceInput) end
     end
+    local mode = S.Mode(it)
     for k, b in pairs(S.btn) do
         On(b, Num(S.prices[k]))
-        if k == "target" then b:SetShown(Num(S.prices[k])) end
+        if b.LockHighlight then if k == mode then b:LockHighlight() else b:UnlockHighlight() end end
     end
     -- Menge
     local max = S.MaxQty(it)
@@ -713,7 +830,7 @@ function S.Update()
         if max >= 2 then SliderSet(S.qtySlider, 1, max, qty, true) else SliderSet(S.qtySlider, 0, 1, 1, false) end
     end
     -- Dauer
-    local hours = S.Hours()
+    local hours = S.Hours(it)
     for _, b in ipairs(S.durBtn) do
         if b.LockHighlight then if b.hours == hours then b:LockHighlight() else b:UnlockHighlight() end end
     end
