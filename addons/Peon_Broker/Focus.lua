@@ -711,9 +711,10 @@ function F.SyncQuickQty(d)
 end
 
 -- Ueblicher Bereich als Text ("1s 20c bis 1s 60c", sonst "unbekannt")
-function F.BandText(d)
+function F.BandText(d, key)
     local band = d and d.band
-    if not band and F.key ~= nil then band = ns.Buyout.Context(nil, F.key).band end
+    key = key or F.key   -- ab 0.140 auch fuer Verkaufen
+    if not band and key ~= nil then band = ns.Buyout.Context(nil, key).band end
     if type(band) == "table" and Num(band.low) and Num(band.high) then
         return L.FOCUS_BAND:format(Money(math.floor(band.low + 0.5)), Money(math.floor(band.high + 0.5)))
     end
@@ -1631,15 +1632,16 @@ end
 
 -- Marktbewegung (ab 0.108): Zufluss, Abfluss, Bewegung, Lockangebote, Einbruch, Gekauft, Langfristig. Rueckgabe
 -- vals, tips (je Index wie F.QUICK_ROWS), code der Bewegung
-function F.QuickMoveValues(v)
+function F.QuickMoveValues(v, key)   -- ab 0.140 key (Vorgabe F.key, Verkaufen nutzt sie mit)
     local Q, M = ns.Quick, ns.Measure
     local db = mod.db
+    if key == nil then key = F.key end
     local vals, tips = { "", "", "", "", "", "", "" }, {}
     local win = math.floor(M.WINDOW / 60 + 0.5)
     local function R(x) x = x or 0; if x >= 10 then return tostring(math.floor(x + 0.5)) end return Dec(x) end
     local code, ev = Q.Movement(v)
     if code == "first" then
-        if v or (AHOpen() and F.key ~= nil) then vals[3] = GREY .. L.QUICK_MV_FIRST:format(M.FIRST) .. "|r" end
+        if v or (AHOpen() and key ~= nil) then vals[3] = GREY .. L.QUICK_MV_FIRST:format(M.FIRST) .. "|r" end
     else
         vals[1] = L.QUICK_MV_RATE:format(R(v.inAll), R(v.newPerMin))
         tips[1] = { L.QUICK_MV_TIP_IN:format(R(v.inAll), R(v.newPerMin), win) }
@@ -1650,11 +1652,11 @@ function F.QuickMoveValues(v)
         tips[3] = { L.QUICK_MV_TIP_MOVE:format(v.jumps or 0, tonumber(db.quickJumpPct) or 2, R(v.jumpsPerMin), R(ev), tonumber(db.quickZonePct) or 5),
                     L.QUICK_MV_TIP_RULE:format(tonumber(db.quickMoveIn) or 2, tonumber(db.quickMoveAll) or 5, tonumber(db.quickMoveLow) or 1) }
     end
-    local st = F.key ~= nil and (v or AHOpen()) and Q.BaitStats(F.key) or nil
+    local st = key ~= nil and (v or AHOpen()) and Q.BaitStats(key) or nil
     local sec = tonumber(db.quickFollowSec) or 30
     local ruleTip = L.QUICK_MV_TIP_BAITS:format(tonumber(db.quickBaitMinPct) or 5, sec)
     if not st then
-        if v or (AHOpen() and F.key ~= nil) then vals[4] = GREY .. L.QUICK_MV_BAITS_NONE:format(win) .. "|r" end
+        if v or (AHOpen() and key ~= nil) then vals[4] = GREY .. L.QUICK_MV_BAITS_NONE:format(win) .. "|r" end
         tips[4] = { ruleTip }
     else
         vals[4] = L.QUICK_MV_BAITS:format(st.n, win, st.withFollow)
@@ -1664,9 +1666,9 @@ function F.QuickMoveValues(v)
                         ns.Radar.ShortAge(math.max(0, math.floor(Now() - f.t)))) .. " " .. L.QUICK_MV_TIP_LAST2:format(f.added, f.times, f.sec),
                     ruleTip }
     end
-    if F.key ~= nil and (v or AHOpen()) then vals[5], tips[5] = Q.DipText(F.key) end   -- ab 0.125
-    if F.key ~= nil then vals[6], tips[6] = Q.BoughtText(F.key) end   -- ab 0.111
-    if F.key ~= nil and ns.QuickStats then vals[7], tips[7] = ns.QuickStats.FocusText(F.key) end   -- ab 0.122
+    if key ~= nil and (v or AHOpen()) then vals[5], tips[5] = Q.DipText(key) end   -- ab 0.125
+    if key ~= nil then vals[6], tips[6] = Q.BoughtText(key) end   -- ab 0.111
+    if key ~= nil and ns.QuickStats then vals[7], tips[7] = ns.QuickStats.FocusText(key) end   -- ab 0.122
     return vals, tips, code, v
 end
 
@@ -1687,9 +1689,9 @@ end
 
 F.STAB_COLOR = { stable = GREEN, rising = YELLOW, falling = ORANGE, jumpy = ORANGE, wavy = YELLOW }
 
-function F.MarketRowValue(kind, v, vals, tips, code)
+function F.MarketRowValue(kind, v, vals, tips, code, key)
     local function R(x) x = x or 0; if x >= 10 then return tostring(math.floor(x + 0.5)) end return Dec(x) end
-    local key = F.key
+    if key == nil then key = F.key end
     if key == nil then return "", nil end
     if kind == "move" then
         if code == "first" or not v then return vals[3] ~= "" and vals[3] or "", { tips[3] and tips[3][1] or nil } end
@@ -1711,7 +1713,7 @@ function F.MarketRowValue(kind, v, vals, tips, code)
     elseif kind == "dip" then
         return vals[5] or "", tips[5]
     elseif kind == "band" then
-        return F.BandText(nil), nil
+        return F.BandText(nil, key), nil
     elseif kind == "baits" then
         return vals[4] or "", tips[4]
     elseif kind == "long" then

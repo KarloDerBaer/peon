@@ -349,7 +349,11 @@ end
 function A.Update(sf, commodity)
     if not ns.AHTouch() or type(sf) ~= "table" then return end
     local it = A.Read(sf, commodity)
-    if not it then A.Hide(sf); A.current = nil; return end
+    if not it then
+        A.Hide(sf); A.current = nil
+        if ns.SellPage and ns.SellPage.Shown() then ns.SellPage.Update() end   -- ab 0.141
+        return
+    end
     A.current = it
     local e = ns.Data.Lookup(it.key)
     local hp = ns.VendorPrice(it.id or it.key)
@@ -362,6 +366,7 @@ function A.Update(sf, commodity)
     A.lot = ns.Lots and ns.Lots.ForKey(it.key) or nil
     A.Show(sf, r, ns.AtNeutralAH and ns.AtNeutralAH())
     if ns.SellVariant then ns.SellVariant.Refresh() end
+    if ns.SellPage and ns.SellPage.Shown() then ns.SellPage.Update() end   -- ab 0.141: neuer Gegenstand auf Brokers Seite
 end
 
 -- Ab 0.103.1 (Wunsch KarloDerBaer 17.11.2026): Steht im Feld der Preis einer anderen Variante und kennt Broker das

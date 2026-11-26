@@ -1,6 +1,6 @@
 # Peon_Broker: Konzept eigene Seite Verkaufen
 
-Stand: 26.11.2026, **Entwurf, noch nicht freigegeben**. Ausgangsversion Broker 0.140.0. Grundlage ist die Karte „Verkaufen“ im Board Broker von KarloDerBaer (26.11.2026) und seine Antwort, dass Verkaufen eine eigene Broker-Seite wird (nicht Blizzards Fenster umgeordnet).
+Stand: 26.11.2026, **von KarloDerBaer freigegeben** (Antworten auf Abschnitt 3 am selben Tag), umgesetzt ab Broker 0.141.0. Ausgangsversion Broker 0.140.0. Grundlage ist die Karte „Verkaufen“ im Board Broker von KarloDerBaer (26.11.2026) und seine Antwort, dass Verkaufen eine eigene Broker-Seite wird (nicht Blizzards Fenster umgeordnet).
 
 ## 1. Ziel
 
@@ -19,14 +19,18 @@ Der Reiter Verkaufen wird aufgebaut wie Einkaufen: links die Eingaben, rechts de
 5. **Angebote alle 0,7 Sek.** über dieselbe laufende Abfrage wie im Einkaufen.
 6. **Blizzard pur** zeigt weiter nur Blizzards Fenster.
 
-## 3. Offene Fragen an KarloDerBaer
+## 3. Antworten von KarloDerBaer (26.11.2026)
 
-1. **Einzelstücke:** Soll Broker sie selbst einstellen (`PostItem`, im Spiel noch nicht erprobt), oder beim ersten Schritt nur Massenware, und Einzelstücke laufen vorerst über Blizzards Knopf?
-2. **Zum Einstellen:** Die Liste der Posten (Knopf „Zum Einstellen (n)“) und die Knöpfe Günstige, Vorschlag, Letzter, Ziel. Sollen sie links unter die Knöpfe, oder rechts als eigene Ansicht statt der Angebote?
-3. **Marktlage:** Teilt sich die laufende Abfrage mit dem Einkaufen. Ist es in Ordnung, wenn das Einkaufen danach den zuletzt verkauften Gegenstand zeigt, oder soll jede Seite ihren eigenen Gegenstand behalten (dann zwei Abfragen im Wechsel, also jede nur halb so oft)?
+1. **Einzelstücke:** Broker stellt alles selbst ein, Massenware mit `PostCommodity`, Einzelstücke mit `PostItem` (ohne Gebot, nur Sofortkauf).
+2. **Zum Einstellen und Preisknöpfe:** auf die linke Seite. Günstige, Vorschlag, Letzter und Ziel stehen unter dem Preis, Zum Einstellen unten links mit dem sicheren Knopf, der einen Posten auf die Seite legt.
+3. **Gegenstand je Seite:** Jede Seite behält ihren eigenen Gegenstand. Abgefragt wird nur der Gegenstand der offenen Seite. Wechselt man zurück ins Einkaufen, steht dort wieder der vorige Gegenstand und wird wieder abgefragt.
+
+## 3a. Nachgelesen in Blizzards Quelltext (Zweig forever)
+
+- Blizzards eigener Knopf ruft `C_AuctionHouse.PostCommodity(Gegenstand, Dauer, Menge, Stückpreis)` bzw. `PostItem(Gegenstand, Dauer, Menge, Gebot, Sofortkauf)`. Gibt das `true` zurück, wartet eine Rückfrage, sonst ist eingestellt.
+- Die Rückfrage des Spiels (`AUCTION_HOUSE_POST_WARNING`) zeigt Blizzards Dialog. Er bestätigt nur Blizzards eigenen Vorgang, bei Brokers Einstellen tut er nichts. Broker bestätigt deshalb mit dem zweiten Klick auf seinen Knopf (wie beim Lockangebot).
+- Blizzards Fenster prüft den Gegenstand an den wichtigen Stellen mit `IsValid`. Ist nach Brokers Einstellen nichts mehr übrig, bleibt Blizzards Fenster mit dem leeren Platz stehen, bis man den nächsten Gegenstand hineinlegt. Broker schreibt nicht hinein, damit Blizzards Ablauf beim Rechtsklick in der Tasche sauber bleibt.
 
 ## 4. Schritte
 
-- V1: Fläche, Gegenstand lesen, Angebote rechts, Eingaben links, Einstellen für Massenware.
-- V2: Hinweise als Tabelle, Marktlage, Gewinn mit Tooltip.
-- V3: Einzelstücke und Zum Einstellen nach den Antworten auf Abschnitt 3.
+Alles in einem Schritt ab Broker 0.141.0 (`SellPage.lua`, `AHTabs.OpenSell`).

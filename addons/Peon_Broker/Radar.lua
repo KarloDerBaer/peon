@@ -1409,6 +1409,7 @@ end
 
 function R.UpdateView()
     if ns.Focus and ns.Focus.Update and ns.Focus.Shown() then R.Perf("fokus", ns.Focus.Update) end
+    if ns.SellPage and ns.SellPage.Shown() then R.Perf("verkaufen", ns.SellPage.Update) end   -- ab 0.141
     if ns.Chances and ns.Chances.UpdateView then ns.Chances.UpdateView() end   -- ab 0.105: Scan-Knopf und Stand dort
 end
 

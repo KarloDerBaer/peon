@@ -3,6 +3,14 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 26.11.2026: Seite Verkaufen (Broker 0.141.0)
+
+- **Broker stellt alles selbst ein**, auch Einzelstücke (KarloDerBaer). Einzelstücke nur mit Sofortkauf, ohne Gebot (Claude).
+- **Zum Einstellen und Preisknöpfe links** (KarloDerBaer).
+- **Jede Seite behält ihren Gegenstand, abgefragt wird nur die offene** (KarloDerBaer).
+- **Blizzards Fenster wird nur gelesen** (Claude, nach Blizzards Quelltext im Zweig forever): Broker schreibt weder Preis noch Menge hinein und leert es nach dem Einstellen nicht. Sonst liefe Blizzards Ablauf beim nächsten Rechtsklick in der Tasche mit Brokers Werten weiter und könnte wieder blockieren wie in den Fehlerberichten 10 und 11. Folge: Ist alles eingestellt, hält Blizzards Fenster einen leeren Platz, bis man den nächsten Gegenstand hineinlegt.
+- **Rückfrage des Spiels mit dem zweiten Klick** (Claude): Blizzards Dialog bestätigt nur Blizzards eigenen Vorgang. Wie beim Lockangebot wird Brokers Knopf zu Bestätigen.
+
 ## 26.11.2026: Board Broker (Broker 0.140.0)
 
 - **Verkaufen wird eine eigene Broker-Seite** (KarloDerBaer), nicht Blizzards Fenster umgeordnet. Weil der Umbau an Blizzards Verkaufsfenster, Zum Einstellen, Varianten und Paketen hängt, kommt zuerst das Konzept `Peon_Broker_Verkaufen_Seite.md` mit offenen Fragen (Claude).

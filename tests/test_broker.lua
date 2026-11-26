@@ -917,7 +917,7 @@ local function ttLines(link)
   ns.Tooltip.AddLines(GameTooltip, link, 1)
   return tt.lines
 end
-check(ns.Sell == nil and ns.Keep == nil and Win.pages.sell == nil and Win.pages.keep == nil, "U12: Verkaufen und Behalten entfallen")
+check(ns.Sell == nil and ns.Keep == nil and Win.pages.keep == nil and Win.pages.sell and ns.SellPage, "U12: Behalten entfaellt, ab 0.141 neue Seite Verkaufen (SellPage)")
 check(PeonBrokerCharDB.keep == nil and PeonBrokerDB.sellMem == nil, "U12: gespeicherte Behalten-Liste und Verkaufen-Gedaechtnis geloescht")
 check(type(ns.Live.ReadCommodity) == "function" and type(ns.Stock.Counts) == "function" and type(Auc.StartLive) == "function", "U12: Bausteine bleiben (Live, Stock, Auktionen)")
 
@@ -6906,6 +6906,109 @@ end)()
   if mod.acc.quickStats then for _, m in pairs(mod.acc.quickStats) do if type(m) == "table" then m[key] = nil end end end
   ns.Scan.ahOpen, GetMoney = keepOpen, keepMoney
   market.items[key], mod.acc.commodity[key] = nil, nil
+end)()
+
+-- ===== 0.141: eigene Seite Verkaufen (Konzept Peon_Broker_Verkaufen_Seite.md) =====
+;(function()
+  local T, SP, F, R = ns.AHTabs, ns.SellPage, ns.Focus, ns.Radar
+  local keepAH, keepOpen, keepLink, keepMoney = rawget(_G, "AuctionHouseFrame"), ns.Scan.ahOpen, C_Item.GetItemLink, GetMoney
+  local keep = {}
+  for _, k in ipairs({ "GetAvailablePostCount", "PostCommodity", "ConfirmPostCommodity", "PostItem", "ConfirmPostItem", "CalculateCommodityDeposit", "CalculateItemDeposit" }) do keep[k] = AHs[k] end
+  ns.Scan.ahOpen = true
+  GetMoney = function() return 10000000 end
+  local key = 7998
+  mod.acc.commodity[key] = true
+  market.items[key] = { m = 1500, md = 1600, q = 300, n = 2, t = clock, nm = "Verkaufsstein", ql = 1 }
+  -- Nachbau: Blizzards Verkaufsfenster fuer Massenware mit Gegenstand
+  local ah = CreateFrame("Frame", "AuctionHouseFrame")
+  ah.BuyTab, ah.SellTab, ah.AuctionsTab = CreateFrame("Button"), CreateFrame("Button"), CreateFrame("Button")
+  local csf = CreateFrame("Frame"); csf.shown = true
+  csf.loc = { bag = 0, slot = 3 }
+  csf.GetItem = function(sf) return sf.loc end
+  csf.GetUnitPrice = function() return 1400 end
+  csf.GetQuantity = function() return 20 end
+  ah.CommoditiesSellFrame = csf
+  C_Item.GetItemLink = function(loc)
+    if not loc then return nil end
+    local id = loc.slot == 4 and 7999 or 7998
+    return "|cffffffff|Hitem:" .. id .. "::::::::20:1488:::::::::|h[Verkaufsstein]|h|r"
+  end
+  AHs.GetAvailablePostCount = function() return 40 end
+  AHs.CalculateCommodityDeposit = function(id, dur, qty) return qty * 10 * dur end
+  local posted, confirmed = {}, nil
+  AHs.PostCommodity = function(loc, dur, qty, price) posted[#posted + 1] = { "C", loc, dur, qty, price }; return true end
+  AHs.ConfirmPostCommodity = function(loc, dur, qty, price) confirmed = { loc, dur, qty, price } end
+  AHs.PostItem = function(loc, dur, qty, bid, price) posted[#posted + 1] = { "I", loc, dur, qty, price, bid }; return false end
+  F.key = 2770
+  local keepBuilt = T.built
+  T.built = true   -- Reiter stehen seit dem Test N1 (T.page), spaetere Tests setzen nur den Merker zurueck
+  check(T.page and T.SellWanted(), "0.141: Blizzard steht auf Verkaufen, Brokers Seite ist gewuenscht")
+  check(T.OpenSell() and T.current == "sell" and SP.Shown() and Win.contents.sell and Win.contents.sell.shown,
+    "0.141: Brokers Seite Verkaufen liegt ueber Blizzards Fenster")
+  check(SP.key == key and R.focus and R.focus.key == key, "0.141: Gegenstand aus Blizzards Fenster gelesen, laufende Abfrage auf ihn")
+  -- Menge: Massenware Alle = alles in den Taschen, Regler von Alle bis 40
+  local q, all = SP.Qty()
+  check(q == 40 and all and SP.qtySlider.peonMin == 0 and SP.qtySlider.peonMax == 40 and SP.qtySlider.peonVal == 0 and SP.qtyAll.shown,
+    "0.141: Menge Alle (40), Regler ganz links")
+  SP.OnSlider(5)
+  check(SP.Qty() == 5 and SP.qtyInput.text == "5", "0.141: Regler waehlt 5")
+  -- Preis, Dauer, Gebuehr, Gewinn
+  SP.SetPrice(1500)
+  SP.SetHours(24)
+  check(SP.Price() == 1500 and SP.Hours() == 24 and plain(SP.depRow.value.text) == plain(ns.Tooltip.Money(5 * 10 * 3))
+    and plain(SP.totalRow.value.text) == plain(ns.Tooltip.Money(7500)), "0.141: Preis, Dauer 24 Std., Einstellgebuehr und Gesamtpreis")
+  check(SP.gain and SP.gain.total == 7500 and plain(table.concat(SP.GainTip(), "|")):find("Anteil des Auktionshauses", 1, true),
+    "0.141: Gewinn mit Aufschluesselung im Tooltip")
+  check(plain(SP.postButton.text):find("5 einstellen", 1, true) and not SP.postButton.disabled, "0.141: Knopf nennt Menge und Preis")
+  -- Einstellen: das Spiel fragt nach, der zweite Klick bestaetigt
+  SP.Post()
+  local pc = posted[1]
+  check(pc and pc[1] == "C" and pc[2] == csf.loc and pc[3] == 3 and pc[4] == 5 and pc[5] == 1500 and SP.post.state == "confirm"
+    and plain(SP.postButton.text) == "Bestätigen", "0.141: PostCommodity mit dem Gegenstand aus Blizzards Fenster, Rueckfrage")
+  SP.Post()
+  check(confirmed and confirmed[3] == 5 and SP.post.state == "posting" and SP.postButton.disabled, "0.141: zweiter Klick bestaetigt")
+  SP.OnCreated()
+  ns.Lots.OnCreated()
+  check(SP.post == nil and plain(SP.status.text):find("5 eingestellt", 1, true) and ns.Advice.LastPost(key) == 1500,
+    "0.141: eingestellt, Stand unter dem Knopf, Preis fuer Letzter gemerkt: " .. plain(SP.status.text))
+  -- Einzelstueck: PostItem ohne Gebot
+  csf.shown = false
+  local isf = CreateFrame("Frame"); isf.shown = true
+  isf.loc = { bag = 0, slot = 4 }
+  isf.GetItem = function(sf) return sf.loc end
+  isf.GetPrice = function() return nil, 9000 end
+  isf.GetQuantity = function() return 1 end
+  ah.ItemSellFrame = isf
+  SP.Update()
+  local qi, alli = SP.Qty()
+  check(qi == 1 and not alli, "0.141: Einzelware beginnt bei 1")
+  SP.SetPrice(9000)
+  SP.Post()
+  local pi = posted[#posted]
+  check(pi[1] == "I" and pi[2] == isf.loc and pi[4] == 1 and pi[5] == 9000 and pi[6] == nil and SP.post.state == "posting",
+    "0.141: Einzelstueck mit PostItem, ohne Gebot")
+  SP.OnCreated()
+  -- Wechsel ins Einkaufen: dort wieder dessen Gegenstand, Verkaufen fragt nicht mehr ab
+  T.Open("focus")
+  check(T.current == "focus" and R.focus and R.focus.key == 2770 and F.key == 2770, "0.141: Einkaufen behaelt seinen Gegenstand und fragt ihn ab")
+  T.Close()
+  check(R.focus == nil, "0.141: ohne offene Seite keine laufende Abfrage")
+  -- ohne Gegenstand: Hinweis Rechtsklick
+  isf.shown = false
+  check(not T.SellWanted(), "0.141: ohne Blizzards Verkaufsfenster keine Seite")
+  isf.shown = true
+  isf.loc = nil
+  T.OpenSell()
+  check(SP.key == nil and SP.empty.shown and SP.postButton.disabled, "0.141: ohne Gegenstand der Hinweis und kein Einstellen")
+  T.Close()
+  -- aufraeumen
+  T.built = keepBuilt
+  for k, v in pairs(keep) do AHs[k] = v end
+  C_Item.GetItemLink, GetMoney, ns.Scan.ahOpen = keepLink, keepMoney, keepOpen
+  AuctionHouseFrame = keepAH
+  market.items[key], mod.acc.commodity[key] = nil, nil
+  SP.post, SP.done, SP.own, SP.qty, SP.hours, SP.key = nil, nil, nil, nil, nil, nil
+  if ns.Lots then ns.Lots.pendingPost = nil end
 end)()
 
 print("ALLE TESTS OK")

@@ -402,9 +402,35 @@ function T.HideHighStrata(hide)
 end
 
 -- Blizzard hat die Ansicht gewechselt (sicherer Anhang an SetDisplayMode)
+-- ab 0.141 (Konzept Peon_Broker_Verkaufen_Seite.md): Steht Blizzard danach auf Verkaufen, liegt Brokers Seite
+-- Verkaufen darueber (T.OpenSell). Broker liest Blizzards Fenster nur aus, die Ansicht schaltet weiter nur Blizzard.
 function T.OnDisplayMode()
     if T.current then T.Close() end
+    if T.SellWanted() then T.OpenSell() end
     T.PlaceBack()
+end
+
+function T.SellWanted()
+    local W = ns.Window
+    if not (T.built and ns.AHTouch() and W and W.pages.sell and ns.Advice and ns.Advice.ActiveSellFrame) then return false end
+    return ns.Advice.ActiveSellFrame() ~= nil
+end
+
+-- Brokers Seite Verkaufen ueber Blizzards Verkaufsfenster. Blizzards Reiter Verkaufen bleibt gewaehlt.
+function T.OpenSell()
+    local f = AHFrame()
+    if not (T.built and f) then return false end
+    T.current = "sell"
+    for _, tab in pairs(T.tabs) do Deselect(tab) end
+    RestoreBlizzardTabs(f)
+    T.page:Show()
+    T.Attach("sell")
+    local W = ns.Window
+    if W and W.FillStatus then W.FillStatus(T.status) end
+    T.PlaceOverlays()
+    if ns.SellVariant and ns.SellVariant.Refresh then mod:Call("Varianten", ns.SellVariant.Refresh) end
+    mod:Dbg("Brokers Seite Verkaufen im Auktionshaus")
+    return true
 end
 
 -- Blizzards Knopf "Zurueck" in der Kaufansicht (Massenware oder Einzelgegenstand), wenn er gerade zu sehen ist

@@ -2,6 +2,22 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.141.0
+
+Kurz: Verkaufen ist jetzt eine eigene Broker-Seite wie Einkaufen. Links stehen Preis mit den Preisknöpfen, Menge, Dauer, Einstellgebühr, Gesamtpreis, Gewinn und Einstellen, darunter Zum Einstellen. Rechts siehst du die Angebote, Hinweise und die Marktlage.
+Kurz: Den Gegenstand legst du wie bisher per Rechtsklick in der Tasche hinein. Broker stellt Massenware und Einzelstücke selbst ein. Fragt das Spiel nach, klickst du auf Bestätigen.
+Kurz: Einkaufen und Verkaufen behalten jeweils ihren eigenen Gegenstand. Abgefragt wird nur die Seite, die offen ist.
+
+- 0.141.0 (26.11.2026, Konzept `Peon_Broker_Verkaufen_Seite.md`, Antworten von KarloDerBaer am selben Tag):
+  - **Neu, Seite Verkaufen** (`SellPage.lua`): Wählt Blizzard die Ansicht Verkaufen (Reiter oder Rechtsklick in der Tasche), liegt Brokers Seite über Blizzards Verkaufsfenster (`AHTabs.OpenSell`, `AHTabs.SellWanted`). Blizzards Reiter Verkaufen bleibt gewählt. Broker liest den Gegenstand nur aus Blizzards Fenster und schreibt nichts hinein.
+  - **Links:** Preis je Stück mit Günstige, Vorschlag, Letzter und Ziel (Rechnung wie im bisherigen Kasten, `Advice.Prices`). Menge mit Regler: Massenware ganz links Alle, dann 1 bis alles in den Taschen, Einzelware ab 1. Dauer 2, 8 oder 24 Std. (Vorgabe aus den Einstellungen). Einstellgebühr vom Spiel, Gesamtpreis, Gewinn mit Aufschlüsselung im Tooltip (Anteil, Einkauf als Durchschnitt, offene Gebühren). Knopf „n einstellen für …“, darunter der Stand. Unten Zum Einstellen mit sicherem Knopf, der einen Posten per Taschenklick auf die Seite legt.
+  - **Rechts:** Angebote jetzt (laufende Abfrage wie im Einkaufen), eigene lila, Stufen unter dem eigenen Preis rot. Klick auf eine Stufe: knapp darunter, Rechtsklick: genau dieser Preis. Darunter Rat und Hinweise als Tabelle (Üblich, Absatz, Verkaufsquote, Händler, Lockangebot, Posten, Haus) und die Marktlage mit den drei Zeilen des Einkaufens.
+  - **Neu, Einstellen:** Massenware mit `C_AuctionHouse.PostCommodity`, Einzelstücke mit `PostItem` (nur Sofortkauf). Fragt das Spiel nach, wird der Knopf zu Bestätigen. Danach merkt Broker den Preis für Letzter und kürzt die Posten wie bisher (`Lots.pendingPost`).
+  - **Geändert, Abfrage:** nur für die offene Seite. Einkaufen behält seinen Gegenstand (`Focus.key`), Verkaufen seinen (`SellPage.key`). Marktzeilen und Üblicher Bereich nehmen dafür einen Gegenstand an (`Focus.QuickMoveValues(v, key)`, `Focus.MarketRowValue(..., key)`, `Focus.BandText(d, key)`).
+  - **Geändert, Pakete:** Der Verkaufspreis eines Pakets gilt auch auf Brokers Seite (`SellPage.SetOwnPrice`).
+  - Blizzard pur zeigt weiter nur Blizzards Fenster.
+  - Tests: `test_broker.lua`.
+
 ## 0.140.0
 
 Kurz: Einkaufen ist neu aufgeteilt: links Kaufen bis, Menge, der höchste Preis eines Klicks, Kaufen und eine Statistik. Rechts die Angebote, drei Zeilen zum Markt und das Diagramm.

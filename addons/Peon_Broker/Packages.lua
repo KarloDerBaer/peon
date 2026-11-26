@@ -344,6 +344,8 @@ end
 function K.FillPrice()
     local x = K.selected
     if not x or not Num(x.sellAt) then return end
+    -- ab 0.141: auf Brokers Seite Verkaufen gilt der Preis dort (Blizzards Feld liegt darunter)
+    if ns.SellPage and ns.SellPage.SetOwnPrice then ns.SellPage.SetOwnPrice(x.key, x.sellAt) end
     local AHF = rawget(_G, "AuctionHouseFrame")
     local sf = AHF and rawget(AHF, "ItemSellFrame")
     if ns.Lots and ns.Lots.FillTarget then ns.Lots.FillTarget(sf, { target = x.sellAt }) end
