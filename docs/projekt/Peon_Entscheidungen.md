@@ -3,6 +3,13 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 26.11.2026: Board Bags (Bags 0.10.0)
+
+- **Taschen, Bank, Gildenbank immer sichtbar** (KarloDerBaer: mittig zwischen Sortieren und Einstellen), dazu der Knopf Taschen, damit man aus der Bank zurückkommt (Claude).
+- **Auswahl des Charakters zwischen Taschenleiste und Suche** (KarloDerBaer). Damit alles passt, ist das Fenster mindestens so breit wie Leiste, Auswahl und Suche und das Suchfeld etwas schmaler (Claude).
+- **Schlüsselbund standardmäßig im eigenen Fenster**, im Taschenfenster nur per Einstellung (KarloDerBaer). Die gespeicherte Ansicht anderer Charaktere folgt derselben Einstellung (Claude).
+- **Abschnitte springen beim Umräumen nicht** (KarloDerBaer, einstellbar, Standard an). Wächst ein Abschnitt, bekommt er Reihen statt Breite, neue Abschnitte kommen unten dazu, neu geordnet wird beim Öffnen (Claude).
+
 ## 26.11.2026: Board Broker, zweite Runde (Broker 0.144.0)
 
 - **Preisknöpfe im Verkaufen: Günstige, Vorschlag, Letzter, Individuell** (KarloDerBaer). Der Knopf Ziel entfällt auf der Seite, der Zielpreis eines Postens steht weiter in den Hinweisen (Claude, Rückfrage offen).

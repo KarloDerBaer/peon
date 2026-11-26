@@ -157,9 +157,9 @@ function ns.DropOnHeader(target)
     else
         return
     end
-    -- Der Gegenstand geht zurueck in seinen Platz
+    -- Der Gegenstand geht zurueck in seinen Platz. Eigener Schluessel (ab 0.10): Umraeumen haelt die Anordnung.
     if ClearCursor then ClearCursor() end
-    Changed()
+    mod:Fire("CHANGED", "groupItems")
 end
 
 ---------------------------------------------------------------------------

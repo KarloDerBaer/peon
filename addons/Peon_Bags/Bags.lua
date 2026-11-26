@@ -109,6 +109,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
         bagAutoCols  = false, bankAutoCols = false, guildAutoCols = false, -- Spaltenzahl automatisch
         bagWidths    = {}, bankWidths = {}, guildWidths = {},             -- [Abschnitt] = Spalten
         setupTab     = "cats",                                           -- zuletzt gewaehlter Reiter
+        keyWithBags  = false,     -- ab 0.10: Schluesselbund als Abschnitt im Taschenfenster statt eigenem Fenster
+        holdLayout   = true,      -- ab 0.10: Abschnitte springen beim Umraeumen nicht, neu geordnet beim Oeffnen
         layoutVer    = 2,
     },
     ranges = {
@@ -451,6 +453,7 @@ end)
 mod:On("LOGIN", function()
     if ns.BagnonLoaded() and mod.db.replace then mod:Print(L.MSG_BAGNON) end
     if ns.InitInventory then mod:Call("Taschen", ns.InitInventory) end
+    if ns.InitKeyring then mod:Call("Schluesselbund", ns.InitKeyring) end
     if ns.InitBank then mod:Call("Bank", ns.InitBank) end
     if ns.InitGuild then mod:Call("Gildenbank", ns.InitGuild) end
     -- Symbol fuer Peon_Panel (Bags hat keinen Minimap-Button)
@@ -527,8 +530,11 @@ mod:On("LOGIN", function()
 end)
 ns.OnCursor = OnCursor
 
-local function ApplyAll()
+-- Eine geaenderte Einstellung ordnet neu (ab 0.10). Nur das Zuordnen eines Gegenstands zu einem eigenen
+-- Bereich (groupItems) ist Umraeumen: Dabei bleibt die Anordnung fest, solange das Fenster offen ist.
+local function ApplyAll(key)
     for _, w in pairs(ns.windows or {}) do
+        if key ~= "groupItems" then w.frozen = nil end
         if w.Apply then mod:Call("Anwenden", w.Apply, w) end
     end
     if ns.UpdateReplace then mod:Call("Ersetzen", ns.UpdateReplace) end

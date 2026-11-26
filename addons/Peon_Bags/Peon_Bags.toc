@@ -3,7 +3,7 @@
 ## Notes: Bags, bank and guild bank in one window each.
 ## Notes-deDE: Taschen, Bank und Gildenbank in je einem Fenster.
 ## Author: KarloDerBaer
-## Version: 0.9.1
+## Version: 0.10.0
 ## Dependencies: Peon
 ## Group: Peon
 ## IconTexture: Interface\Icons\INV_Misc_Bag_08
@@ -16,6 +16,7 @@ Slots.lua
 Window.lua
 Setup.lua
 Inventory.lua
+Keyring.lua
 Bank.lua
 Guild.lua
 Saved.lua

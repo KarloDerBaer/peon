@@ -109,7 +109,9 @@ function ns.CreateOptions()
     page:Add(look, page:Slider("bagCols", L.COLS))
     page:Add(look, page:Slider("bagScale", L.SCALE, nil, "%"))
     page:Add(look, page:Dropdown("bagLayout", L.LAYOUT, layouts, L.LAYOUT_HINT))
-    page:Add(look, page:Check("bagBar", L.BAGBAR, L.BAGBAR_HINT), 20)
+    page:Add(look, page:Check("bagBar", L.BAGBAR, L.BAGBAR_HINT), 4)
+    page:Add(look, page:Check("keyWithBags", L.KEY_WITH_BAGS, L.KEY_WITH_BAGS_HINT), 4)   -- ab 0.10
+    page:Add(look, page:Check("holdLayout", L.HOLD_LAYOUT, L.HOLD_LAYOUT_HINT), 20)       -- ab 0.10
     page:Add(look, page:Header(L.HDR_SLOTS), 6)
     page:Add(look, page:Check("quality", L.QUALITY, L.QUALITY_HINT), 4)
     page:Add(look, page:Check("newGlow", L.NEWGLOW, L.NEWGLOW_HINT), 4)

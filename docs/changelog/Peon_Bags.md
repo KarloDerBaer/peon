@@ -2,6 +2,21 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.10.0
+
+Kurz: Der Schlüsselbund öffnet sich in einem eigenen kleinen Fenster. Wer ihn lieber im Taschenfenster hat, stellt das unter Anzeige ein.
+Kurz: Verschiebst du Gegenstände, bleiben die Abschnitte an ihrem Platz. Platzsparend neu geordnet wird beim nächsten Öffnen.
+Kurz: Die Knöpfe Taschen, Bank und Gildenbank sind jetzt immer da, auch für den eingeloggten Charakter. Die Auswahl des Charakters steht oben neben den Taschen.
+
+- 0.10.0 (26.11.2026, Board Bags von KarloDerBaer):
+  - **Behoben:** Für den eingeloggten Charakter fehlten die Knöpfe Bank und Gildenbank, bei einem anderen Charakter waren sie da. Sie erschienen nur in der gespeicherten Ansicht.
+  - **Geändert:** Taschen, Bank und Gildenbank stehen immer mittig zwischen Sortieren und Einstellen. Mit dem eingeloggten Charakter zeigt Bank die zuletzt gesehene Bank, Taschen führt zurück zu den echten Taschen.
+  - **Geändert:** Die Auswahl des Charakters steht rechts neben der Taschenleiste zwischen Taschen und Suche. Sie füllt den Platz bis zur Suche (100 bis 160 breit), das Suchfeld im Taschenfenster ist etwas schmaler. Das Fenster ist mindestens so breit, dass Leiste, Auswahl und Suche nebeneinander passen.
+  - **Neu:** Schlüsselbund als eigenes kleines Fenster (`Keyring.lua`, 8 Spalten, Größe wie die Taschen, Position wird gemerkt). Der Knopf Schlüsselbund des Spiels und der Knopf in der Taschenleiste öffnen und schließen es. Einstellung „Schlüsselbund im Taschenfenster“ (`keyWithBags`, Standard aus) zeigt ihn wie bisher als Abschnitt der Taschen. Die gespeicherte Ansicht folgt der Einstellung.
+  - **Neu:** „Abschnitte beim Umräumen nicht verschieben“ (`holdLayout`, Standard an, gilt für Taschen, Bank und Gildenbank). Solange ein Fenster offen ist, bleibt jeder Abschnitt in seiner Zeile an seiner Stelle und behält seine Breite. Wächst er, bekommt er weitere Reihen. Ein leerer Abschnitt lässt seinen Platz frei, neue Abschnitte kommen unten dazu. Neu geordnet wird beim nächsten Öffnen, beim Ändern einer Einstellung und beim Ein- oder Ausklappen. Das Zuordnen zu einem eigenen Bereich zählt als Umräumen.
+  - **Behoben:** Der Knopf Schlüsselbund in der Taschenleiste hatte kein Bild (Pfad mit einfachem Rückstrich).
+  - Tests: `test_bags.lua` (Schlüsselbund-Fenster, Einstellung, Ortknöpfe beim eigenen Charakter, Lage der Auswahl, Anordnung festhalten).
+
 ## 0.9.1
 
 Kurz: Der alte Hinweis zum neuen Layout der Taschen erscheint nicht mehr.

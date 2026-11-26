@@ -174,6 +174,7 @@ local toggled = 0
 function ToggleAllBags() toggled = toggled + 1 end
 function ToggleBackpack() end
 function ToggleBag() end
+function ToggleKeyRing() end
 local bankClosed = 0
 C_Bank = { CloseBankFrame = function() bankClosed = bankClosed + 1 end }
 
@@ -852,6 +853,40 @@ do
   check(p6[1].c == 2 and p6[1].alone, "eigene Breite gilt auch untereinander")
   check(P({ B(3, { headerW = 200 }) }, { cols = 10, pack = true })[1].width == 200, "Ueberschrift breiter als die Plaetze")
   check(P({ B(3, { titled = false }) }, { cols = 10, pack = true, fill = true })[1].alone, "ohne Ueberschrift allein")
+
+  -- Anordnung festhalten (ab 0.10): Abschnitte bleiben beim Umraeumen an ihrer Stelle
+  local o = { cols = 10, pack = true, fill = true, narrow = true }
+  local start = { B(2, { key = "a" }), B(12, { key = "b" }), B(1, { key = "c" }) }
+  local plan = P(start, o)
+  local fr = ns.FreezePlan(start, plan, 10)
+  check(fr.n >= 1 and fr.blocks.a.line == plan[1].line and fr.blocks.c.x == plan[3].x, "Plan festgehalten")
+  -- "a" waechst stark, "c" ist leer und faellt weg, "d" ist neu
+  local later = { B(9, { key = "a" }), B(12, { key = "b" }), B(4, { key = "d" }) }
+  local h, hh = ns.HoldLayout(later, fr, o)
+  check(h[1].x == plan[1].x and h[1].y == plan[1].y and h[1].width == plan[1].width, "gewachsener Abschnitt bleibt an seiner Stelle")
+  check(h[1].c == plan[1].c and h[1].height > plan[1].height, "er waechst nach unten statt in die Breite")
+  check(h[2].x == plan[2].x and h[2].line == plan[2].line, "die anderen springen nicht")
+  check(h[3].y >= hh - h[3].height and h[3].y > h[2].y, "neuer Abschnitt kommt unten dazu")
+end
+
+-- ===== Anordnung festhalten im Fenster (ab 0.10) =====
+do
+  ns.ShowBags()
+  check(w.frozen and w.frozen.skey == "bag", "offen: Anordnung festgehalten")
+  local fr = w.frozen
+  mod:Fire("CHANGED", "groupItems")
+  check(w.frozen == fr, "Zuordnen zu einem Bereich ordnet nicht neu")
+  ns.RefreshBags()
+  check(w.frozen == fr, "Umraeumen ordnet nicht neu")
+  mod:Fire("CHANGED", "bagCols")
+  check(w.frozen and w.frozen ~= fr, "geaenderte Einstellung ordnet neu")
+  ns.HideBags()
+  check(w.frozen == nil, "Schliessen vergisst die Anordnung")
+  mod.db.holdLayout = false
+  ns.ShowBags()
+  check(w.frozen == nil, "ohne Einstellung nichts festgehalten")
+  ns.HideBags()
+  mod.db.holdLayout = true
 end
 
 -- ===== Vorauswahl (ab 0.7) =====
@@ -1011,11 +1046,39 @@ do
   local ids = {} for _, b in ipairs(ns.BankBags()) do ids[#ids + 1] = b.id end
   check(not ("," .. table.concat(ids, ",") .. ","):find(",%-1,"), "Schluesselbund nie in der Bank: " .. table.concat(ids, ","))
   Enum.BagIndex.Bank = nil; ns.bankBags = nil
+  -- ab 0.10: eigenes Fenster als Standard, der Knopf des Spiels oeffnet es
+  ns.InitKeyring()
+  local kw = ns.windows.key
+  check(kw and not kw:IsShown() and ns.KeyringSeparate(), "Schluesselbund-Fenster angelegt, zu")
   ns.ShowBags()
+  check(not headers(w):find("Schlüsselbund") and not w.footLeft.text:find("Schlüssel"), "Taschen ohne Schluesselbund: " .. headers(w))
+  ToggleKeyRing()
+  check(kw:IsShown() and w:IsShown(), "Knopf Schluesselbund oeffnet sein Fenster, Taschen bleiben offen")
+  check(ns.slots[-1][2] and ns.slots[-1][2].shown and ns.slots[-1][2]:GetParent():GetParent() == kw.content, "Plaetze im Schluesselbund-Fenster")
+  check(kw.footLeft.text == "Schlüssel 1/4", "Fusszeile Schluesselbund: " .. kw.footLeft.text)
+  ns.RefreshBags()
+  check(ns.slots[-1][2].shown, "Taschenfenster versteckt die Schluessel nicht")
+  ToggleKeyRing()
+  check(not kw:IsShown(), "zweiter Klick schliesst")
+  ToggleBag(-1)
+  check(kw:IsShown(), "auch ToggleBag(-1) oeffnet den Schluesselbund")
+  kw:Hide()
+  ns.HideBags()
+  -- Einstellung: wie bis 0.9 als Abschnitt im Taschenfenster
+  ns.ShowBags()
+  kw:Show()
+  mod.db.keyWithBags = true
+  mod:Fire("CHANGED", "keyWithBags")
+  check(not kw:IsShown(), "mit Taschen: eigenes Fenster zu")
   check(headers(w):find("Schlüsselbund") ~= nil, "eigener Abschnitt Schluesselbund: " .. headers(w))
-  check(ns.slots[-1][2] and ns.slots[-1][2]:GetParent():GetID() == -1, "Platz im Schluesselbund mit Taschennummer -1")
+  check(ns.slots[-1][2] and ns.slots[-1][2]:GetParent():GetID() == -1 and ns.slots[-1][2]:GetParent():GetParent() == w.content, "Platz im Schluesselbund mit Taschennummer -1")
   check(w.footLeft.text:find("Schlüssel 1/4") ~= nil, "Fusszeile zeigt Schluessel: " .. w.footLeft.text)
   ns.HideBags()
+  ToggleKeyRing()
+  check(w:IsShown() and not kw:IsShown(), "mit Taschen: Knopf oeffnet das Taschenfenster")
+  ns.HideBags()
+  mod.db.keyWithBags = false
+  mod:Fire("CHANGED", "keyWithBags")
   -- Blizzards Schluesselbund-Fenster (ein ContainerFrame mit ID -1) wird versteckt wie die Taschen
   ContainerFrame3:SetID(-1)
   check(ContainerFrame3:GetParent() ~= UIParent, "Blizzards Schluesselbund-Fenster versteckt")
@@ -1056,8 +1119,8 @@ do
   check(w:IsShown() and ns.SavedActive() and w.title.text:find("Taschen von Anna Beispiel") and w.title.text:find("vor 3 Tg."), "Titel mit Stand: " .. tostring(w.title.text))
   check(not ns.bagFrames[0].shown and not w.bar.shown and not w.sortBtn.shown and w.ortBar.shown, "echte Plaetze, Leiste und Sortieren aus, Ortknoepfe an")
   local shown = 0 for _, vb in ipairs(w.viewButtons) do if vb.shown then shown = shown + 1 end end
-  check(shown == 6, "sechs gespeicherte Plaetze (" .. shown .. ")")
-  check(headers(w) == "Schlüsselbund", "Abschnitte wie im echten Fenster: " .. headers(w))
+  check(shown == 4, "vier gespeicherte Plaetze, Schluessel nur im eigenen Fenster (" .. shown .. ")")
+  check(headers(w) == "", "Abschnitte wie im echten Fenster, Schluesselbund eigenes Fenster: " .. headers(w))
   check(w.footLeft.text == "2/4 Plätze belegt · 2 frei" and w.footRight.text == "5000c", "Fusszeile: " .. w.footLeft.text)
   check(w.viewButtons[3].peonInfo.hyperlink:find("Affen") and w.viewButtons[3]._quality == 2, "Variante mit Qualitaet gezeigt")
   check(w.ortBtns[1].enabled ~= false and w.ortBtns[2].enabled == false and w.ortBtns[3].enabled == false, "Bank und Gildenbank grau ohne Stand")
@@ -1070,6 +1133,20 @@ do
   check(headers(w):find("Ausrüstung") and headers(w):find("Handwerkswaren"), "nach Art: " .. headers(w))
   for _, h in ipairs(w.headers) do if h.shown then check(h.target == nil, "Ueberschrift nimmt nichts an: " .. tostring(h.text)) end end
   w:Set("Layout", "classic")
+
+  -- ab 0.10: Knoepfe Taschen, Bank, Gildenbank auch beim eingeloggten Charakter
+  w.charDD.Choose(me)
+  check(not ns.SavedActive() and w.ortBar.shown and w.ortBtns[1].peonOn and w.ortBtns[2].enabled ~= false and w.ortBtns[3].enabled == false, "eigene Taschen: Ortknoepfe da, Bank waehlbar")
+  w.ortBtns[2].scripts.OnClick(w.ortBtns[2])
+  check(ns.savedView.char == me and ns.savedView.ort == "bank", "Knopf Bank zeigt die eigene Bank")
+  w.ortBtns[1].scripts.OnClick(w.ortBtns[1])
+  check(not ns.SavedActive(), "Knopf Taschen: wieder die echten Taschen")
+  -- Auswahl rechts neben der Taschenleiste, Fenster breit genug fuer Leiste, Auswahl und Suche
+  local dp = w.charDD.points[1]
+  check(dp[1] == "TOPLEFT" and dp[2] == w.frame and dp[4] == w.barX + w.bar:GetWidth() + 8, "Auswahl neben der Taschenleiste")
+  check(w.minW >= w.barX + w.bar:GetWidth() + 8 + 100 + 8 + w.search:GetWidth() + 12 and w.frame.w >= w.minW, "Mindestbreite fuer Leiste, Auswahl und Suche")
+  check(w.ortBar.points[1][2] == w.ortMid and w.ortMid.points[1][2] == w.sortBtn and w.ortMid.points[2][2] == w.setupBtn, "Ortknoepfe mittig zwischen Sortieren und Einstellen")
+  mod:ShowSaved("Anna Beispiel")
 
   -- Bank unterwegs: eigener Charakter, mit den Einstellungen der Bank
   check(mod:ShowSaved(me, "bank") and w.title.text:find("Bank von Mirel Dorna") and w.cfgKey == "bank", "Bank unterwegs: " .. tostring(w.title.text))

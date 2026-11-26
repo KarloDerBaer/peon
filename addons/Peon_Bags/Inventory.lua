@@ -209,7 +209,7 @@ local function UpdateFooter()
     local rn = rb and ns.NumSlots(rb) or 0
     if rn > 0 then left = left .. "   " .. L.FREE_REAGENT:format(ns.FreeSlots(rb), rn) end
     local kb = ns.KeyringID()
-    local kn = kb and ns.NumSlots(kb) or 0
+    local kn = (kb and mod.db.keyWithBags) and ns.NumSlots(kb) or 0
     if kn > 0 then left = left .. "   " .. L.FREE_KEYRING:format(kn - ns.FreeSlots(kb), kn) end
     w:SetFooter(left, ns.Money(GetMoney and GetMoney() or 0))
 end
@@ -236,9 +236,15 @@ local function Refresh()
     elseif rb then
         BagSlots(rb, w.content, {}, all)
     end
-    -- Schluesselbund als eigener Abschnitt am Ende (ab 0.8)
+    -- Schluesselbund als eigener Abschnitt am Ende (ab 0.8), ab 0.10 nur mit keyWithBags (sonst eigenes Fenster)
     local kb = ns.KeyringID()
-    if kb and ns.NumSlots(kb) > 0 then
+    if kb and not mod.db.keyWithBags then
+        -- Plaetze ausblenden, solange sie noch hier haengen (das Schluesselbund-Fenster holt sie zu sich)
+        local kf = ns.bagFrames[kb]
+        if kf and kf:GetParent() == w.content then
+            for _, b in pairs(ns.slots[kb] or {}) do all[#all + 1] = b end
+        end
+    elseif kb and ns.NumSlots(kb) > 0 then
         local k = {}
         if not BagSlots(kb, w.content, k, all) then complete = false end
         extra[#extra + 1] = { title = L.SEC_KEYRING, items = k, key = "keyring" }
@@ -252,6 +258,7 @@ local function Refresh()
     w:Arrange(ns.BuildSections(w:SectionConfig(), main, extra), all)
     UpdateFooter()
     UpdateBar()
+    if ns.UpdateOrtButtons then ns.UpdateOrtButtons() end
 end
 ns.RefreshBags = Refresh
 
@@ -271,7 +278,8 @@ end
 local EMPTY_BAG = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Bag"
 local BACKPACK_TEX = "Interface\\Buttons\\Button-Backpack-Up"
 
-local KEYRING_TEX = "Interface\ContainerFrame\KeyRing-Bag-Icon"
+-- bis 0.9 mit einfachem Rueckstrich im Pfad, das Bild fehlte deshalb
+local KEYRING_TEX = "Interface\\ContainerFrame\\KeyRing-Bag-Icon"
 
 local function InvID(bag)
     if bag == 0 or bag == ns.KeyringID() then return nil end
@@ -317,6 +325,8 @@ local function NewBarButton(parent, bag, x, forSlots)
     end
     b:SetScript("OnClick", function(self)
         if CursorHasItem and CursorHasItem() then Drop(self)
+        elseif keyring then
+            if ns.ToggleKeyring and ns.KeyringSeparate() then ns.ToggleKeyring() end
         elseif self.bag ~= 0 then
             local inv = InvID(self.bag)
             if inv and PickupBagFromSlot then PickupBagFromSlot(inv) end
@@ -333,6 +343,7 @@ local function NewBarButton(parent, bag, x, forSlots)
         local has = inv and GameTooltip.SetInventoryItem and GameTooltip:SetInventoryItem("player", inv)
         if not has then
             GameTooltip:SetText(keyring and L.SEC_KEYRING or self.bag == 0 and L.BACKPACK or L.EMPTY_BAG, 1, 1, 1)
+            if keyring and ns.KeyringSeparate and ns.KeyringSeparate() then GameTooltip:AddLine(L.KEYRING_OPEN_TIP, nil, nil, nil, true) end
         end
         GameTooltip:Show()
         ns.focusBag = self.bag
@@ -392,16 +403,24 @@ local function HookToggles()
             if not s:find("ToggleAllBags") and not s:find("Manager") then ns.ToggleBags() end
         end)
     end
-    -- Schluesselbund-Knopf des Spiels (ab 0.8): oeffnet das Taschenfenster mit dem Abschnitt Schluesselbund
+    -- Schluesselbund-Knopf des Spiels (ab 0.8): ab 0.10 eigenes Fenster, mit keyWithBags das Taschenfenster
+    local function KeyringPressed()
+        if ns.KeyringSeparate() and ns.ToggleKeyring then ns.ToggleKeyring() else ns.ToggleBags() end
+    end
     if type(rawget(_G, "ToggleKeyRing")) == "function" then
         hooksecurefunc("ToggleKeyRing", function()
-            if ns.Replacing() and ns.KeyringID() and not Stack():find("Manager") then ns.ToggleBags() end
+            if ns.Replacing() and ns.KeyringID() and not Stack():find("Manager") then KeyringPressed() end
         end)
     end
     if type(rawget(_G, "ToggleBag")) == "function" then
         hooksecurefunc("ToggleBag", function(bag)
             if not ns.Replacing() or not ns.IsInventoryBag(bag) then return end
             local s = Stack()
+            -- falls das Spiel den Schluesselbund direkt als Tasche oeffnet
+            if bag == ns.KeyringID() then
+                if not s:find("ToggleKeyRing") and not s:find("Manager") then KeyringPressed() end
+                return
+            end
             if not s:find("OpenBackpack") and not s:find("ToggleBackpack") and not s:find("ToggleAllBags") and not s:find("Manager")
                 and not s:find("ToggleKeyRing") then
                 ns.ToggleBags()
@@ -496,7 +515,7 @@ ns.OnInteractShow, ns.OnInteractHide = OnInteractShow, OnInteractHide
 ---------------------------------------------------------------------------
 function ns.InitInventory()
     w = ns.NewWindow("bag", {
-        title = L.TITLE_BAGS,
+        title = L.TITLE_BAGS, searchWidth = 110,
         template = "PortraitFrameFlatTemplate", portrait = "Interface\\Icons\\INV_Misc_Bag_08", portraitSize = 36,
         border = "HeldBagLayout",
         point = { "BOTTOMRIGHT", -60, 100 },
@@ -517,9 +536,10 @@ function ns.InitInventory()
             if not InCombatLockdown() then pcall(C.SortBags) end
         end)
     end
-    if ns.InitSavedView then ns.InitSavedView(w) end   -- Auswahl des Charakters (ab 0.8)
     w:AddSetupButton()
     BuildBar()
+    -- Auswahl des Charakters (ab 0.8) und Knoepfe Taschen, Bank, Gildenbank (ab 0.10 immer sichtbar)
+    if ns.InitSavedView then ns.InitSavedView(w) end
     w.OnSearch = function()
         if w.search and w.search:GetText() ~= ns.searchRaw then w.search:SetText(ns.searchRaw or "") end
         ForSlots(ns.UpdateMatch)
@@ -528,6 +548,7 @@ function ns.InitInventory()
     w.Apply = function()
         w:ApplyPosition()
         w.bar:SetShown(mod.db.bagBar and not (ns.SavedActive and ns.SavedActive()) and true or false)
+        if ns.PlaceCharDD then ns.PlaceCharDD(w) end
         if w:IsShown() then Refresh() else stale = true end
     end
     w.Apply()

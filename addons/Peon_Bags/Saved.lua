@@ -3,6 +3,7 @@
 --   * speichert Taschen (mit Reagenzientasche und Schluesselbund) und Bank je Charakter platzgenau
 --     (PeonBagsSaved[Realm][Charakter], eigene SavedVariable, gehoert nicht zu Profilen oder Standardwerten)
 --   * zeigt den Stand eines Charakters im Taschenfenster nur zum Ansehen, mit Knoepfen Taschen, Bank, Gildenbank
+--     (ab 0.10 immer sichtbar, mittig zwischen Sortieren und Einstellen, Auswahl rechts neben der Taschenleiste)
 --   * Auswahl des Charakters im Taschenfenster: der eingeloggte Charakter zeigt die echten Taschen
 --   * Schnittstelle fuer andere Module: bags:ShowSaved(name, ort), bags:HasSaved(name, ort), bags:SavedChars()
 -- Die Gildenbank wird erst gespeichert, wenn sie im Spiel geprueft ist (Abschnitt S6), bis dahin ist ihr Knopf grau.
@@ -305,9 +306,12 @@ local EXTRA_TITLE = { reagent = "SEC_REAGENT", keyring = "SEC_KEYRING", reagent_
 local function BuildButtons(w, data, ort)
     local main, all, extras, byKind = {}, {}, {}, {}
     local used, total, i = 0, 0, 0
+    local noKeys = ns.KeyringSeparate and ns.KeyringSeparate()   -- ab 0.10: wie im echten Taschenfenster
     for _, bag in ipairs(data.list or {}) do
         local list = main
-        if bag.kind then
+        if bag.kind == "keyring" and noKeys then
+            list = nil
+        elseif bag.kind then
             local key = (ort == "bank" and bag.kind == "reagent") and "reagent_bank" or bag.kind
             if not byKind[key] then
                 byKind[key] = { title = L[EXTRA_TITLE[key] or "SEC_OTHER"], items = {},
@@ -316,7 +320,7 @@ local function BuildButtons(w, data, ort)
             end
             list = byKind[key].items
         end
-        for s = 1, bag.n or 0 do
+        for s = 1, list and bag.n or 0 do
             i = i + 1
             local b = ViewButton(w, i)
             local info = ns.DecodeSlot(bag[s])
@@ -333,16 +337,27 @@ local function BuildButtons(w, data, ort)
     return main, extras, all, used, total
 end
 
+local function Current()
+    return view.char or ns.CharName()
+end
+
+-- Knoepfe Taschen, Bank, Gildenbank: gewaehlt, waehlbar oder grau (ab 0.10 auch fuer die echten Taschen)
 local function OrtButtons(w)
-    local d = CharData(view.char, false) or {}
+    local cur = Current()
+    local d = CharData(cur, false) or {}
     for _, b in ipairs(w.ortBtns or {}) do
-        local has = mod:HasSaved(view.char, b.ort)
-        if b.ort == "bags" and view.char == ns.CharName() then has = true end
+        local has = mod:HasSaved(cur, b.ort)
+        if b.ort == "bags" and cur == ns.CharName() then has = true end
         if has then b:Enable() else b:Disable() end
         ns.SetButtonOn(b, b.ort == view.ort)
         b.peonHas = has
     end
     return d
+end
+
+function ns.UpdateOrtButtons()
+    local w = Bag()
+    if w and w.ortBtns then OrtButtons(w) end
 end
 
 -- gespeicherten Stand zeigen (wird aus Inventory.Refresh aufgerufen, solange die Ansicht aktiv ist)
@@ -367,10 +382,10 @@ end
 local function ApplyMode(w)
     local saved = view.char ~= nil
     if w.sortBtn then w.sortBtn:SetShown(not saved) end
-    if w.ortBar then w.ortBar:SetShown(saved) end
     w.bar:SetShown(not saved and mod.db.bagBar and true or false)
-    w.minW = saved and 400 or w.liveMinW
-    if w.sortBtn and w.charDD then w:ArrangeButtons({ w.sortBtn, w.charDD }) end
+    w.frozen = nil   -- andere Ansicht: neu anordnen
+    ns.PlaceCharDD(w)
+    OrtButtons(w)
     if not saved then
         w.cfgKey = nil
         LiveFrames(true)
@@ -414,10 +429,6 @@ local function CharLabel(c)
     return c.level and L.SAVED_CHAR_LEVEL:format(c.name, c.level) or c.name
 end
 
-local function Current()
-    return view.char or ns.CharName()
-end
-
 -- Auswahl des Charakters: neue Menue-API, sonst ein Knopf, der die Charaktere der Reihe nach durchgeht
 local function BuildCharDropdown(w, width)
     local function Choose(name)
@@ -427,7 +438,7 @@ local function BuildCharDropdown(w, width)
         if name == ns.CharName() and ort == "bags" then ns.SetView(nil) return end
         ns.SetView(name, ort)
     end
-    local ok, dd = pcall(CreateFrame, "DropdownButton", nil, w.buttons, "WowStyle1DropdownTemplate")
+    local ok, dd = pcall(CreateFrame, "DropdownButton", nil, w.frame, "WowStyle1DropdownTemplate")
     if ok and dd and dd.SetupMenu then
         dd:SetWidth(width)
         dd:SetupMenu(function(_, root)
@@ -440,7 +451,7 @@ local function BuildCharDropdown(w, width)
             if self.GenerateMenu then pcall(self.GenerateMenu, self) end
         end
     else
-        dd = ns.SmallButton(w.buttons, "", width, nil, function()
+        dd = ns.SmallButton(w.frame, "", width, nil, function()
             local list, cur = mod:SavedChars(), Current()
             local nextName = list[1] and list[1].name
             for i, c in ipairs(list) do
@@ -465,16 +476,24 @@ local function BuildCharDropdown(w, width)
     return dd
 end
 
--- Knoepfe Taschen, Bank, Gildenbank in der Zeile der Taschenleiste (nur in der gespeicherten Ansicht)
+-- Knoepfe Taschen, Bank, Gildenbank. Bis 0.9 nur in der gespeicherten Ansicht an Stelle der Taschenleiste,
+-- ab 0.10 immer sichtbar und mittig zwischen Sortieren und Einstellen (Wunsch KarloDerBaer): So zeigt auch der
+-- eingeloggte Charakter seine Bank unterwegs.
 local ORT_LIST = { { "bags", "SAVED_BTN_BAGS" }, { "bank", "SAVED_BTN_BANK" }, { "guild", "SAVED_BTN_GUILD" } }
 local function BuildOrtBar(w)
+    -- Platz zwischen Sortieren und Einstellen, die Knoepfe stehen in seiner Mitte (auch wenn Sortieren
+    -- in der gespeicherten Ansicht ausgeblendet ist, bleibt die Stelle gleich)
+    local mid = CreateFrame("Frame", nil, w.frame)
+    mid:SetHeight(22)
+    if w.sortBtn then mid:SetPoint("LEFT", w.sortBtn, "RIGHT", 0, 0) else mid:SetPoint("LEFT", w.buttons, "LEFT", 0, 0) end
+    if w.setupBtn then mid:SetPoint("RIGHT", w.setupBtn, "LEFT", 0, 0) else mid:SetPoint("RIGHT", w.frame, "TOPRIGHT", -12, -65) end
     local bar = CreateFrame("Frame", nil, w.frame)
-    bar:SetPoint("TOPLEFT", w.bar, "TOPLEFT", 0, 0)
-    bar:SetSize(3 * 70, 22)
-    w.ortBar, w.ortBtns = bar, {}
+    bar:SetPoint("CENTER", mid, "CENTER", 0, 0)
+    bar:SetSize(3 * 70 - 4, 22)
+    w.ortMid, w.ortBar, w.ortBtns = mid, bar, {}
     for i, o in ipairs(ORT_LIST) do
         local b = ns.SmallButton(bar, L[o[2]], 66, nil, function()
-            if view.char then ns.SetView(view.char, o[1]) end
+            ns.SetView(Current(), o[1])
         end)
         b:SetPoint("LEFT", bar, "LEFT", (i - 1) * 70, 0)
         b.ort = o[1]
@@ -485,26 +504,46 @@ local function BuildOrtBar(w)
             local tip
             if self.ort == "guild" then tip = L.SAVED_GUILD_LATER
             elseif not self.peonHas then tip = self.ort == "bank" and L.SAVED_NO_BANK or L.SAVED_NO_BAGS
+            elseif self.ort == "bags" and not view.char then
+                tip = nil   -- echte Taschen
             else
-                local d = CharData(view.char, false) or {}
+                local d = CharData(Current(), false) or {}
                 tip = L.SAVED_FROM:format(ns.AgeText(d[self.ort] and d[self.ort].t))
             end
-            GameTooltip:AddLine(tip, nil, nil, nil, true)
+            if tip then GameTooltip:AddLine(tip, nil, nil, nil, true) end
             GameTooltip:Show()
         end)
         b:SetScript("OnLeave", function() GameTooltip:Hide() end)
         w.ortBtns[i] = b
     end
-    bar:Hide()
+end
+
+-- Auswahl des Charakters rechts neben der Taschenleiste, zwischen Taschen und Suche (ab 0.10, vorher neben
+-- Sortieren). Sie fuellt den Platz bis zur Suche, mindestens DD_MIN, hoechstens DD_MAX breit. Das Fenster ist
+-- mindestens so breit, dass Taschenleiste, Auswahl und Suche nebeneinander passen.
+local DD_MIN, DD_MAX, DD_GAP, RIGHT_PAD = 100, 160, 8, 12
+function ns.PlaceCharDD(w, width)
+    local dd = w.charDD
+    if not dd then return end
+    local left = w.barX or 10
+    if mod.db.bagBar then left = left + (w.bar:GetWidth() or 0) + DD_GAP end
+    local searchW = w.search and w.search:GetWidth() or 0
+    w.minW = math.max(w.baseMinW or 330, left + DD_MIN + DD_GAP + searchW + RIGHT_PAD)
+    width = width or w.frame:GetWidth() or w.minW
+    local avail = width - RIGHT_PAD - searchW - DD_GAP - left
+    dd:SetWidth(math.max(DD_MIN, math.min(DD_MAX, avail)))
+    dd:ClearAllPoints()
+    dd:SetPoint("TOPLEFT", w.frame, "TOPLEFT", left, -27)
 end
 
 -- aus Inventory.InitInventory: Auswahl und Knoepfe anlegen
 function ns.InitSavedView(w)
-    w.liveMinW = w.minW
-    w.charDD = BuildCharDropdown(w, 130)
-    w.charDD:SetPoint("LEFT", w.buttons, "LEFT", w.btnX, 0)
-    w.btnX = w.btnX + 134
+    w.baseMinW = w.minW
+    w.charDD = BuildCharDropdown(w, DD_MIN)
     BuildOrtBar(w)
+    w.OnLayout = function(self, width) ns.PlaceCharDD(self, width) end
+    ns.PlaceCharDD(w)
+    OrtButtons(w)
     return w.charDD
 end
 

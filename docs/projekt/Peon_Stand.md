@@ -1,6 +1,6 @@
 # Peon: Stand je Modul
 
-Stand: 26.11.2026. Peon 0.29.1 (API 29) / Broker 0.144.0 / Ledger 0.18.2 / Bridge 0.14.1 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.8.0 / ClassBuddy 0.5.0 / Mover 0.1.1 / Bags 0.9.1 / Feedback 0.5.1 / Panel 0.5.0 / Profession 0.8.0 / Warhorn 0.6.1.
+Stand: 26.11.2026. Peon 0.29.1 (API 29) / Broker 0.144.0 / Ledger 0.18.2 / Bridge 0.14.1 / Peon Manager 0.56.0 / Fishing 1.9.0 / Tooltip 0.8.0 / ClassBuddy 0.5.0 / Mover 0.1.1 / Bags 0.10.0 / Feedback 0.5.1 / Panel 0.5.0 / Profession 0.8.0 / Warhorn 0.6.1.
 
 Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und was wirklich noch offen ist. Kurz halten, höchstens etwa 15 Zeilen je Modul.
 
@@ -142,13 +142,14 @@ Je Modul stehen hier nur Version, Dateien, Daten, Befehle, Schnittstellen und wa
 - Optionsseite (ab 0.5.0, Leitfaden für Einstellungen): Reiter Allgemein mit der Liste der Einträge, Anzeige, Erweitert.
 - Befehle: `/peon panel`, `/peon debug panel`.
 
-## Peon_Bags – 0.9.1 (Taschen, Bank, Gildenbank)
+## Peon_Bags – 0.10.0 (Taschen, Bank, Gildenbank)
 
-- Dateien: Locales.lua, Bags.lua, Groups.lua, Slots.lua, Window.lua, Setup.lua, Inventory.lua, Bank.lua, Guild.lua, Saved.lua, Options.lua. Konzepte `docs\konzepte\bags\` (Konzept, Bereiche, Anordnung, Layout), gespeicherte Ansicht in `docs\konzepte\ledger\Peon_Ledger_Schlank.md` Abschnitt 3.3.
-- SavedVariables `PeonBagsDB` (Konto): je Fenster (`bag`, `bank`, `guild`) Spalten, Größe, Anordnung, abgewählte Kategorien und Bereiche, eingeklappte Abschnitte, Layout (`Fill`, `Narrow`, `FreeStack`, `Empty`, `AutoCols`, `Widths`), dazu `groups` und `groupItems` (eigene Bereiche), `catOrder`, `layoutVer`, `pos`, automatisch öffnen (`auto…`).
+- Dateien: Locales.lua, Bags.lua, Groups.lua, Slots.lua, Window.lua, Setup.lua, Inventory.lua, Keyring.lua, Bank.lua, Guild.lua, Saved.lua, Options.lua. Konzepte `docs\konzepte\bags\` (Konzept, Bereiche, Anordnung, Layout), gespeicherte Ansicht in `docs\konzepte\ledger\Peon_Ledger_Schlank.md` Abschnitt 3.3.
+- SavedVariables `PeonBagsDB` (Konto): je Fenster (`bag`, `bank`, `guild`) Spalten, Größe, Anordnung, abgewählte Kategorien und Bereiche, eingeklappte Abschnitte, Layout (`Fill`, `Narrow`, `FreeStack`, `Empty`, `AutoCols`, `Widths`), dazu `groups` und `groupItems` (eigene Bereiche), `catOrder`, `layoutVer`, `pos`, automatisch öffnen (`auto…`), ab 0.10 `keyWithBags` und `holdLayout`.
 - SavedVariables `PeonBagsSaved` (Konto, ab 0.8): `realms[Realm][Charakter]` mit `level`, `class`, `guild`, `money`, `bags` und `bank` (je `t` = Zeit und `list` = Taschen mit `id`, `n` Plätze, `f` Taschenart, `kind`, je Platz Text „Gegenstand,Stück,Qualität[,Name]“).
 - Schnittstelle (ab 0.8): `bags:ShowSaved(name, ort)` (`ort` = `bags`, `bank`, `guild`), `bags:HasSaved(name, ort)`, `bags:SavedChars()`. Name mit Nachname wie in Ledger.
-- Schlüsselbund aus `KEYRING_CONTAINER` (Forever −1) als eigener Abschnitt der Taschen, nie Teil der Bank.
+- Schlüsselbund aus `KEYRING_CONTAINER` (Forever −1), nie Teil der Bank. Ab 0.10 eigenes Fenster (`key`), mit `keyWithBags` Abschnitt der Taschen.
+- Anordnung festhalten (ab 0.10): `ns.FreezePlan` und `ns.HoldLayout` in `Window.lua`, der Plan liegt bis zum Schließen in `w.frozen`.
 - Braucht Peon API 11 (Reiter), Hinweise als Tooltip ab API 29.
 - Optionsseite (ab 0.9.0, Leitfaden für Einstellungen): Reiter Allgemein, Anzeige, Erweitert. Eigene Bereiche nur im Fenster über „Einstellen“.
 - Befehle: `/peon bags`, `/peon bags optionen`, `/peon bags debug`.

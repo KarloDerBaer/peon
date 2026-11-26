@@ -172,6 +172,11 @@ L.RESET_POS_HINT  = "Moves the bag, bank and guild bank windows back to their st
 -- ab 0.8: Schluesselbund und gespeicherte Ansicht
 L.SEC_KEYRING     = "Key ring"
 L.FREE_KEYRING    = "Keys %d/%d"
+L.KEYRING_OPEN_TIP = "Click: open the key ring."
+L.KEY_WITH_BAGS   = "Key ring in the bag window"
+L.KEY_WITH_BAGS_HINT = "Shows the key ring as a section of the bag window. Otherwise the key ring button opens its own small window."
+L.HOLD_LAYOUT     = "Keep sections in place while open"
+L.HOLD_LAYOUT_HINT = "While a window is open, sections stay where they are when you move items. The next time you open it, they are arranged compactly again."
 L.AGE_NOW         = "just now"
 L.AGE_MIN         = "%d min. ago"
 L.AGE_HOUR        = "%d h ago"
@@ -368,6 +373,11 @@ if GetLocale() == "deDE" then
     -- ab 0.8: Schlüsselbund und gespeicherte Ansicht
     L.SEC_KEYRING     = "Schlüsselbund"
     L.FREE_KEYRING    = "Schlüssel %d/%d"
+    L.KEYRING_OPEN_TIP = "Klick: Schlüsselbund öffnen."
+    L.KEY_WITH_BAGS   = "Schlüsselbund im Taschenfenster"
+    L.KEY_WITH_BAGS_HINT = "Zeigt den Schlüsselbund als Abschnitt im Taschenfenster. Sonst öffnet der Knopf Schlüsselbund ein eigenes kleines Fenster."
+    L.HOLD_LAYOUT     = "Abschnitte beim Umräumen nicht verschieben"
+    L.HOLD_LAYOUT_HINT = "Solange ein Fenster offen ist, bleiben die Abschnitte an ihrem Platz, wenn du Gegenstände verschiebst. Beim nächsten Öffnen werden sie wieder platzsparend angeordnet."
     L.AGE_NOW         = "gerade eben"
     L.AGE_MIN         = "vor %d Min."
     L.AGE_HOUR        = "vor %d Std."

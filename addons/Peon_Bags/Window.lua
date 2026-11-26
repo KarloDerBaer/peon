@@ -45,10 +45,11 @@ end
 ns.SmallButton = SmallButton
 
 -- key: "bag" | "bank" | "guild" (Praefix der Einstellungen bagCols, bagScale, bagLayout ...)
--- opts: title, point = { Punkt, x, y } (Standardposition), onHide = fn(w), searchable = true
+-- opts: title, point = { Punkt, x, y } (Standardposition), onHide = fn(w), searchable = true,
+--       searchWidth (Breite des Suchfelds), topH (Abstand des Inhalts von oben, ab 0.10 fuer den Schluesselbund)
 function ns.NewWindow(key, opts)
     local w = setmetatable({ key = key, opts = opts, headers = {}, used = {}, keepNew = {},
-                             minW = opts.minWidth or MIN_W }, Window)
+                             minW = opts.minWidth or MIN_W, topH = opts.topH or TOP_H }, Window)
     local name = "PeonBags" .. key:gsub("^%l", string.upper) .. "Frame"
     -- Rahmen wie Blizzards Fenster (ab 0.2): Taschen = PortraitFrameFlatTemplate (wie Blizzards Taschen),
     -- Bank = PortraitFrameTemplate (wie Blizzards Bank), Gildenbank = BasicFrameTemplate (wie Blizzards
@@ -107,6 +108,7 @@ function ns.NewWindow(key, opts)
     end)
     f:SetScript("OnHide", function()
         wipe(w.keepNew)   -- "Neu" gilt bis zum Schliessen
+        w.frozen = nil    -- beim naechsten Oeffnen wieder platzsparend anordnen (ab 0.10)
         if opts.onHide then mod:Call("Schliessen", opts.onHide, w) end
         if ns.focusBag then ns.focusBag = nil end
     end)
@@ -130,7 +132,8 @@ function ns.NewWindow(key, opts)
 
     -- Leiste (Taschen/Faecher), links unter dem Titel
     w.bar = CreateFrame("Frame", nil, f)
-    w.bar:SetPoint("TOPLEFT", w.portrait and (opts.portraitSize and 42 or 58) or PAD, -28)
+    w.barX = w.portrait and (opts.portraitSize and 42 or 58) or PAD
+    w.bar:SetPoint("TOPLEFT", w.barX, -28)
     w.bar:SetSize(1, 24)
 
     -- Suchfeld rechts
@@ -138,7 +141,7 @@ function ns.NewWindow(key, opts)
         local sb
         local ok2 = pcall(function() sb = CreateFrame("EditBox", nil, f, "SearchBoxTemplate") end)
         if not ok2 or not sb then sb = CreateFrame("EditBox", nil, f, "InputBoxTemplate") end
-        sb:SetSize(130, 20)
+        sb:SetSize(opts.searchWidth or 130, 20)
         sb:SetPoint("TOPRIGHT", -PAD - 2, -30)
         sb:SetAutoFocus(false)
         sb:HookScript("OnTextChanged", function(self) ns.SetSearch(self:GetText()) end)
@@ -154,7 +157,7 @@ function ns.NewWindow(key, opts)
 
     -- Inhalt
     w.content = CreateFrame("Frame", nil, f)
-    w.content:SetPoint("TOPLEFT", PAD, -TOP_H)
+    w.content:SetPoint("TOPLEFT", PAD, -w.topH)
     w.content:SetSize(1, 1)
 
     -- Fusszeile
@@ -225,6 +228,7 @@ end
 function Window:ToggleCollapse(key)
     local t = self:Table("Collapsed")
     t[key] = (not t[key]) or nil
+    self.frozen = nil
     mod:Fire("CHANGED", self:SKey() .. "Collapsed")
 end
 
@@ -494,10 +498,93 @@ function ns.PlanLayout(blocks, o)
     local y = 0
     for k, l in ipairs(lines) do
         if k > 1 then y = y + SEC_GAP end
-        for _, p in ipairs(l) do p.y = y end
+        for _, p in ipairs(l) do p.y, p.line = y, k end
         y = y + l.h
     end
     return res, y
+end
+
+-- Anordnung festhalten (ab 0.10, Einstellung holdLayout): Solange das Fenster offen ist, bleibt jeder Abschnitt
+-- in seiner Zeile an seiner Stelle und behaelt seine Breite. Waechst er, bekommt er weitere Reihen, statt dass
+-- die anderen Abschnitte springen. Leere Abschnitte lassen ihren Platz frei, ganz leere Zeilen fallen weg.
+-- Neue Abschnitte (zum Beispiel "Neu") kommen unten dazu. Beim naechsten Oeffnen wird wieder neu geplant.
+-- frozen = { cols, n = Zahl der Zeilen, blocks = { [Schluessel] = { line, x, c, width, alone } } }
+function ns.FreezePlan(blocks, plan, cols)
+    local fr = { cols = cols, n = 0, blocks = {} }
+    for i, bl in ipairs(blocks) do
+        local p = plan[i]
+        if bl.key and p then
+            fr.blocks[bl.key] = { line = p.line, x = p.x, c = p.c, width = p.width, alone = p.alone }
+        end
+        if p and p.line and p.line > fr.n then fr.n = p.line end
+    end
+    return fr
+end
+
+function ns.HoldLayout(blocks, frozen, o)
+    local step = SLOT + GAP
+    local res, lines, rest = {}, {}, {}
+    for i, bl in ipairs(blocks) do
+        local f = bl.key and frozen.blocks[bl.key]
+        if f then
+            local n = bl.folded and 0 or bl.n
+            -- in die festgehaltene Breite hinein wachsen (sie kann wegen der Ueberschrift breiter sein)
+            local c = f.alone and f.c or math.max(f.c, math.floor((f.width + GAP) / step))
+            c = math.max(1, math.min(c, o.cols))
+            local rows = n > 0 and math.ceil(n / c) or 0
+            local p = { c = c, x = f.x, width = f.width, alone = f.alone, line = f.line,
+                        height = (bl.titled and HDR_H or 0) + rows * step }
+            res[i] = p
+            local l = lines[f.line]
+            if not l then l = { h = 0 } lines[f.line] = l end
+            l.h = math.max(l.h, p.height)
+            l[#l + 1] = p
+        else
+            rest[#rest + 1] = i
+        end
+    end
+    local y, first = 0, true
+    for k = 1, frozen.n do
+        local l = lines[k]
+        if l then
+            if not first then y = y + SEC_GAP end
+            first = false
+            for _, p in ipairs(l) do p.y = y end
+            y = y + l.h
+        end
+    end
+    if #rest > 0 then
+        local sub = {}
+        for k, i in ipairs(rest) do sub[k] = blocks[i] end
+        local p2, h2 = ns.PlanLayout(sub, o)
+        if not first then y = y + SEC_GAP end
+        for k, i in ipairs(rest) do
+            p2[k].y = p2[k].y + y
+            res[i] = p2[k]
+        end
+        y = y + h2
+    end
+    return res, y
+end
+
+-- Zeilen neu planen, bei "Spaltenzahl automatisch" mit der Spaltenzahl der kleinsten Flaeche.
+-- Rueckgabe: Spalten, Plan, Hoehe
+function Window:PlanFresh(blocks, opts)
+    local cols = self:Cols()
+    opts.cols = cols
+    local plan, height = ns.PlanLayout(blocks, opts)
+    if self:Setting("AutoCols") then
+        local minW = self.minW or MIN_W
+        local function Area(c, h) return math.max(minW, PAD * 2 + c * (SLOT + GAP) - GAP) * math.max(h, SLOT) end
+        local best = Area(cols, height)
+        for c = cols - 1, 6, -1 do
+            local o2 = { cols = c, pack = opts.pack, fill = opts.fill, narrow = opts.narrow }
+            local p2, h2 = ns.PlanLayout(blocks, o2)
+            local a = Area(c, h2)
+            if a < best then best, cols, plan, height = a, c, p2, h2 end
+        end
+    end
+    return cols, plan, height
 end
 
 -- Abschnitte anordnen. Mit "nebeneinander" (ab 0.6, Einstellung <Fenster>Pack) teilen sich kleine Abschnitte
@@ -538,7 +625,7 @@ function Window:Arrange(sections, allButtons)
         if n > 0 or sec.keepEmpty then
             local folded = sec.collapsed and sec.title ~= nil
             local wc = sec.key and widths[sec.key]
-            local bl = { sec = sec, items = items, n = n, folded = folded, titled = sec.title ~= nil,
+            local bl = { sec = sec, items = items, n = n, folded = folded, titled = sec.title ~= nil, key = sec.key,
                          width = ns.Num(wc) and wc or nil, headerW = 0 }
             if sec.title then
                 hi = hi + 1
@@ -563,18 +650,22 @@ function Window:Arrange(sections, allButtons)
     self.lastSections = list
 
     -- 2. Zeilen planen, bei "Spaltenzahl automatisch" die Spaltenzahl mit der kleinsten Flaeche waehlen
-    local cols = self:Cols()
-    opts.cols = cols
-    local plan, height = ns.PlanLayout(blocks, opts)
-    if self:Setting("AutoCols") then
-        local minW = self.minW or MIN_W
-        local function Area(c, h) return math.max(minW, PAD * 2 + c * (SLOT + GAP) - GAP) * math.max(h, SLOT) end
-        local best = Area(cols, height)
-        for c = cols - 1, 6, -1 do
-            local o2 = { cols = c, pack = opts.pack, fill = opts.fill, narrow = opts.narrow }
-            local p2, h2 = ns.PlanLayout(blocks, o2)
-            local a = Area(c, h2)
-            if a < best then best, cols, plan, height = a, c, p2, h2 end
+    -- Ab 0.10: Solange das Fenster offen ist, bleibt die Anordnung beim Umraeumen fest (holdLayout).
+    local hold = mod.db.holdLayout ~= false
+    local frozen = hold and self.frozen
+    if frozen and frozen.skey ~= self:SKey() then frozen = nil end
+    local cols, plan, height
+    if frozen then
+        cols = frozen.cols
+        opts.cols = cols
+        plan, height = ns.HoldLayout(blocks, frozen, opts)
+    else
+        cols, plan, height = self:PlanFresh(blocks, opts)
+        if hold and f:IsShown() then
+            self.frozen = ns.FreezePlan(blocks, plan, cols)
+            self.frozen.skey = self:SKey()
+        else
+            self.frozen = nil
         end
     end
     self.usedCols = cols
@@ -613,9 +704,10 @@ function Window:Arrange(sections, allButtons)
         if not shown[b] then b:Hide() end
     end
     local width = math.max(self.minW or MIN_W, PAD * 2 + full)
-    local frameH = TOP_H + math.max(height, SLOT) + FOOT_H + 6
+    local frameH = self.topH + math.max(height, SLOT) + FOOT_H + 6
     self.content:SetSize(full, math.max(1, height))
     if not ns.Locked(f) then f:SetSize(width, frameH) end
+    if self.OnLayout then self:OnLayout(width) end
     return true
 end
 
