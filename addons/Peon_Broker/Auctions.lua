@@ -43,11 +43,17 @@ function A.Read()
             local id = ns.Data.ItemID(key)
             if ns.Buy and ns.Buy.LearnKey then ns.Buy.LearnKey(key, r.itemKey) end   -- ab 0.28: Schluessel je Variante
             local name = type(link) == "string" and link:match("%[(.-)%]") or ns.Data.ItemName(key, ns.Data.Lookup(key)) or tostring(key)
+            local qty = Num(r.quantity) and r.quantity > 0 and r.quantity or 1
+            local price = Num(r.buyoutAmount) and r.buyoutAmount or nil
+            local sold = r.status == 1
+            -- ab 0.166.0 (Bild KarloDerBaer 26.11.2026): bei verkauften Auktionen ist buyoutAmount der Erloes des
+            -- ganzen Stapels (149 Stueck zeigten 10g78s76 = 149 x 7s24), bei laufenden der Preis je Stueck.
+            -- total = Erloes der verkauften Auktion, price bleibt ueberall Preis je Stueck.
+            local total
+            if sold and price then total, price = price, math.floor(price / qty + 0.5) end
             rows[#rows + 1] = {
                 id = r.auctionID, key = key, itemID = id, itemKey = r.itemKey, link = link, name = name,
-                qty = Num(r.quantity) and r.quantity or 1,
-                price = Num(r.buyoutAmount) and r.buyoutAmount or nil,
-                sold = r.status == 1,
+                qty = qty, price = price, total = total, sold = sold,
                 left = r.timeLeftSeconds, band = r.timeLeft,
             }
         end

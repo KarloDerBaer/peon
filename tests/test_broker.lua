@@ -2030,6 +2030,14 @@ end)()
     AHs.GetNumOwnedAuctions, AHs.GetOwnedAuctionInfo = function() return 1 end, function(i) return OWN[i] end
     Auc.Read()
     check(Auc.rows[1].quality == 3, "Meine Auktionen: Qualitaet aus |cnIQ3:-Link")
+    -- ab 0.166.0: verkaufte Auktion meldet den Erloes des ganzen Stapels
+    OWN[2] = { auctionID = 32, itemKey = { itemID = 4304 }, status = 1, quantity = 149, buyoutAmount = 107876 }
+    AHs.GetNumOwnedAuctions = function() return 2 end
+    Auc.Read()
+    local sr = Auc.rows[2]
+    check(sr.sold and sr.price == 724 and sr.total == 107876 and Auc.rows[1].price == 500 and Auc.rows[1].total == nil,
+      "0.166.0: verkauft: Preis je Stueck aus dem Erloes des Stapels")
+    mod.char.aucDay = nil
     AHs.GetNumOwnedAuctions, AHs.GetOwnedAuctionInfo = sn, si
 end)()
 
@@ -3110,6 +3118,15 @@ end)()
     check(#G.auctions.items == 3 and st[2770] == "under" and st[2589] == "best" and st[9999] == "sold" and G.auctions.items[1].key == 2770,
       "N5: Auktionen bewertet mit den heutigen Preisen, unterbotene oben")
     check(plain(G.aucHead.text):find("3 Auktionen, 1 unterboten", 1, true) and plain(G.aucHead.text):find("nicht live", 1, true), "N5: Kopfzeile: " .. plain(G.aucHead.text))
+    -- ab 0.166.0: Spalte links auch unterwegs, alter Stand (price = Erloes des Stapels) wird je Stueck gezeigt
+    mod.acc.owned.rows[3].qty = 4
+    Win.Refresh()
+    local soldRow
+    for _, r in ipairs(G.auctions.items) do if r.key == 9999 then soldRow = r end end
+    check(G.aucSide and G.aucSide.panel and plain(G.aucSide.val.n.text) == "2" and plain(G.aucSide.val.sold.text) == "1"
+      and soldRow.price == 125 and soldRow.total == 500
+      and ns.AuctionsOwn.SideValues(G.auctions.items).soldValue == math.floor(500 * (1 - D.Cut()) + 0.5),
+      "0.166.0: Spalte links unterwegs, verkauft je Stueck, Erloes einmal gezaehlt")
     mod.acc.owned = keep
   end
   -- Quellen
@@ -3828,7 +3845,10 @@ end)()
   check(ur and O.ShortStatus(ur) == "Unterboten" and ur.statusText:find("unterboten:", 1, true) and O.list.o.columns[4].width == O.STATUS_W,
     "0.145: Spalte Broker schmal mit kurzem Text, der lange steht im Tooltip")
   mod.char.aucDay = nil
-  O.OnPosted(); O.OnPosted(); O.OnCanceled()
+  O.OnPosted(); O.OnPosted()
+  -- ab 0.166.0: nur erbetene Abbrueche zaehlen, jede Auktion einmal (das Spiel meldet auch Verkaeufe als Abbruch)
+  O.OnCanceled(33); O.OnCanceled(nil)
+  O.OnCancelAsked(32); O.OnCanceled(32); O.OnCanceled(32)
   O.NoteSold(ns.Auctions.rows)
   O.NoteSold(ns.Auctions.rows)
   local dv = O.SideValues(ns.Auctions.rows)

@@ -311,9 +311,15 @@ function G.AuctionRows()
             local status = "best"
             if r.sold then status = "sold"
             elseif Num(r.price) and Num(other) and other < r.price then status = "under" end
+            -- ab 0.166.0: verkaufte Zeilen tragen total (Erloes des Stapels), price ist der Preis je Stueck. Ein Stand
+            -- von vorher hat nur price, das war bei verkauften der Betrag des ganzen Stapels.
+            local price, total = r.price, r.total
+            if r.sold and not Num(total) and Num(price) then
+                total, price = price, math.floor(price / math.max(1, r.qty or 1) + 0.5)
+            end
             rows[#rows + 1] = { key = r.key, name = r.name or tostring(r.key), quality = r.quality,
                 icon = r.icon or (ns.Buy and ns.Buy.Icon(ns.Data.ItemID(r.key))) or nil,
-                qty = r.qty or 1, price = r.price, other = other, status = status }
+                qty = r.qty or 1, price = price, total = total, sold = r.sold, other = other, status = status }
         end
     end
     return rows, o.t, o.market
@@ -324,8 +330,15 @@ function G.BuildAuctions(c)
     G.aucHead = UI.Text(c, "text", "")
     G.aucHead:SetPoint("TOPLEFT", 8, -6)
     G.aucHead:SetPoint("RIGHT", c, "RIGHT", -8, 0)
+    -- ab 0.166.0 (Wunsch KarloDerBaer 26.11.2026): dieselbe Spalte links wie am Auktionshaus (AuctionsOwn.BuildSide)
+    local O = ns.AuctionsOwn
+    G.aucSide = O and O.BuildSide and O.BuildSide(c, -30, 0) or nil
     local p = UI.Panel(c, "list", true)
-    p:SetPoint("TOPLEFT", 0, -30)
+    if G.aucSide then
+        p:SetPoint("TOPLEFT", G.aucSide.panel, "TOPRIGHT", UI.GAP or 6, 0)
+    else
+        p:SetPoint("TOPLEFT", 0, -30)
+    end
     p:SetPoint("BOTTOMRIGHT", 0, 0)
     G.aucPanel = p
     G.auctions = UI.Table(p, {
@@ -352,6 +365,7 @@ function G.RefreshAuctions()
     if not G.auctions then return end
     local rows, t, market = G.AuctionRows()
     G.auctions:SetData(rows)
+    if G.aucSide and ns.AuctionsOwn then ns.AuctionsOwn.UpdateSide(rows, G.aucSide) end
     if t then
         local under = 0
         for _, r in ipairs(rows) do if r.status == "under" then under = under + 1 end end

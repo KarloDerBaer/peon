@@ -125,7 +125,8 @@ function O.Build(af)
     O.filter:SetPoint("RIGHT", O.check, "LEFT", -8, 0)
     if O.filter.SetWidth then O.filter:SetWidth(110) end
     -- ab 0.144 (Board KarloDerBaer): Spalte links statt der Zeile "n laufen" oben
-    O.BuildSide(c)
+    local s = O.BuildSide(c)
+    O.sideObj, O.side, O.sideVal, O.sideParts = s, s.panel, s.val, s.parts
     -- Liste
     local lp = UI.Panel(c, "list", true)
     lp:SetPoint("TOPLEFT", O.side, "TOPRIGHT", UI.GAP or 6, 0)
@@ -201,14 +202,16 @@ O.SIDE_ROWS = {
     { "dayGain", "AUCO_SIDE_DAY_GAIN" },
 }
 
-function O.BuildSide(c)
+-- ab 0.166.0 auch unterwegs (Seite Auktionen im Broker-Fenster, Pages.lua): BuildSide gibt die Spalte zurueck
+-- ({ panel, val, parts }), top und bottom sind die Abstaende im Inhalt. Die Spalte am Auktionshaus steht weiter in
+-- O.side, O.sideVal und O.sideParts.
+function O.BuildSide(c, top, bottom)
     local UI = Peon.UI
     local sp = UI.Panel(c, "categories")
-    sp:SetPoint("TOPLEFT", 0, -34)
-    sp:SetPoint("BOTTOMLEFT", 0, 32)
+    sp:SetPoint("TOPLEFT", 0, top or -34)
+    sp:SetPoint("BOTTOMLEFT", 0, bottom or 32)
     sp:SetWidth(O.SIDE_W)
-    O.side = sp
-    O.sideVal, O.sideParts = {}, {}
+    local s = { panel = sp, val = {}, parts = {} }
     for _, def in ipairs(O.SIDE_ROWS) do
         local part = { kind = def[1] }
         if def[1] == "line" then
@@ -221,11 +224,12 @@ function O.BuildSide(c)
             part.label:SetJustifyH("LEFT")
             part.value = UI.Text(sp, "text", "")
             part.value:SetJustifyH("RIGHT")
-            O.sideVal[def[1]] = part.value
+            s.val[def[1]] = part.value
         end
-        O.sideParts[#O.sideParts + 1] = part
+        s.parts[#s.parts + 1] = part
     end
-    O.LayoutSide()
+    O.LayoutSide(s)
+    return s
 end
 
 -- Breite eines Textes (im Spiel gemessen, sonst geschaetzt)
@@ -238,12 +242,13 @@ local function TextW(fs)
 end
 
 -- Zeilen untereinander. Passt ein Wert nicht neben seine Beschriftung, kommt er in die naechste Zeile.
-function O.LayoutSide()
-    local sp = O.side
+function O.LayoutSide(s)
+    s = s or O.sideObj
+    local sp = s and s.panel
     if not sp then return end
     local pad, w = O.SIDE_PAD, O.SIDE_W
     local y = -10
-    for _, part in ipairs(O.sideParts) do
+    for _, part in ipairs(s.parts) do
         if part.kind == "line" then
             part.line:ClearAllPoints()
             part.line:SetPoint("TOPLEFT", pad, y - 2)
@@ -275,22 +280,45 @@ function O.Day()
     local d = c.aucDay
     if type(d) ~= "table" or d.day ~= today then
         local seen = type(d) == "table" and type(d.seen) == "table" and d.seen or {}
-        d = { day = today, posted = 0, sold = 0, cancelled = 0, gain = 0, seen = seen }
+        d = { day = today, posted = 0, sold = 0, cancelled = 0, gain = 0, seen = seen, v = 2 }
         c.aucDay = d
     end
+    -- ab 0.166.0: Abgebrochen zaehlte jede Meldung AUCTION_CANCELED (auch verkaufte), der Gewinn den Erloes je Stapel mal
+    -- Menge. Die Werte von heute aus 0.145 bis 0.165.1 beginnen deshalb einmal neu bei 0.
+    if d.v ~= 2 then d.cancelled, d.gain, d.v = 0, 0, 2 end
     return d
 end
 
-local function Changed() if O.panel and O.panel:IsShown() then O.Update() end end
+local function Changed()
+    if O.panel and O.panel:IsShown() then O.Update() end
+    if ns.Pages and ns.Pages.RefreshAuctions then ns.Pages.RefreshAuctions() end
+end
 
 function O.OnPosted()
     local d = O.Day()
     if d then d.posted = d.posted + 1; Changed() end
 end
 
-function O.OnCanceled()
+-- ab 0.166.0: Das Spiel meldet AUCTION_CANCELED auch fuer verkaufte Auktionen (siehe Quick.OnCanceled). Gezaehlt wird
+-- deshalb nur ein Abbruch, um den vorher gebeten wurde (C_AuctionHouse.CancelAuction, Brokers oder Blizzards Knopf),
+-- und jede Auktion nur einmal.
+O.asked = {}
+function O.OnCancelAsked(id)
+    if id ~= nil then O.asked[id] = true end
+end
+
+function O.OnCanceled(id)
+    if id == nil or not O.asked[id] then return end
+    O.asked[id] = nil
     local d = O.Day()
     if d then d.cancelled = d.cancelled + 1; Changed() end
+end
+
+-- Erloes einer verkauften Auktion vor dem Anteil des Auktionshauses (ab 0.166.0 der Betrag des ganzen Stapels)
+function O.SoldGross(r)
+    if Num(r.total) then return r.total end
+    if Num(r.price) then return r.price * (r.qty or 1) end
+    return nil
 end
 
 -- Neu verkaufte Auktionen zaehlen, Gewinn wie im Verkaufen (Erloes nach Anteil minus Einkauf, Advice.Profit)
@@ -303,9 +331,10 @@ function O.NoteSold(rows)
         if r.sold and r.id ~= nil and not d.seen[r.id] then
             d.seen[r.id] = now
             d.sold = d.sold + 1
-            if Num(r.price) then
+            local gross = O.SoldGross(r)
+            if gross then
                 local qty = r.qty or 1
-                local net = r.price * qty * (1 - ns.Data.Cut())
+                local net = gross * (1 - ns.Data.Cut())
                 local lot = ns.Lots and ns.Lots.ForKey(r.key) or nil
                 local g = ns.Advice and ns.Advice.Profit({ net = net, qty = qty, key = r.key }, lot) or nil
                 d.gain = d.gain + ((g and Num(g.gain)) and g.gain or math.floor(net + 0.5))
@@ -316,7 +345,11 @@ end
 
 function O.Init()
     pcall(mod.RegisterEvent, mod, "AUCTION_HOUSE_AUCTION_CREATED", function() mod:Call("Auktionen", O.OnPosted) end)
-    pcall(mod.RegisterEvent, mod, "AUCTION_CANCELED", function() mod:Call("Auktionen", O.OnCanceled) end)
+    pcall(mod.RegisterEvent, mod, "AUCTION_CANCELED", function(_, id) mod:Call("Auktionen", O.OnCanceled, id) end)
+    local ah = rawget(_G, "C_AuctionHouse")
+    if type(ah) == "table" and ah.CancelAuction and hooksecurefunc then
+        pcall(hooksecurefunc, ah, "CancelAuction", function(id) O.OnCancelAsked(id) end)
+    end
 end
 
 -- Werte der Spalte: laufend, beendet (verkauft, Erloes unterwegs) und heute
@@ -327,7 +360,8 @@ function O.SideValues(rows)
     for _, r in ipairs(rows or {}) do
         if r.sold then
             sold = sold + 1
-            if Num(r.price) then soldValue = soldValue + r.price * (r.qty or 1) * (1 - cut) end
+            local gross = O.SoldGross(r)
+            if gross then soldValue = soldValue + gross * (1 - cut) end
         end
     end
     local d = O.Day() or {}
@@ -335,20 +369,22 @@ function O.SideValues(rows)
              dayPosted = d.posted or 0, daySold = d.sold or 0, dayCancelled = d.cancelled or 0, dayGain = d.gain or 0 }
 end
 
-function O.UpdateSide(rows)
-    if not O.sideVal then return end
+function O.UpdateSide(rows, s)
+    s = s or O.sideObj
+    local sv = s and s.val
+    if not sv then return end
     local v = O.SideValues(rows)
-    O.sideVal.n:SetText(tostring(v.n))
-    O.sideVal.under:SetText(v.under > 0 and (COLORS.under .. v.under .. "|r") or "0")
-    O.sideVal.value:SetText(Money(v.value))
-    O.sideVal.sold:SetText(tostring(v.sold))
-    O.sideVal.soldValue:SetText(Money(v.soldValue))
-    O.sideVal.dayPosted:SetText(tostring(v.dayPosted))
-    O.sideVal.daySold:SetText(tostring(v.daySold))
-    O.sideVal.dayCancelled:SetText(tostring(v.dayCancelled))
+    sv.n:SetText(tostring(v.n))
+    sv.under:SetText(v.under > 0 and (COLORS.under .. v.under .. "|r") or "0")
+    sv.value:SetText(Money(v.value))
+    sv.sold:SetText(tostring(v.sold))
+    sv.soldValue:SetText(Money(v.soldValue))
+    sv.dayPosted:SetText(tostring(v.dayPosted))
+    sv.daySold:SetText(tostring(v.daySold))
+    sv.dayCancelled:SetText(tostring(v.dayCancelled))
     local g = v.dayGain
-    O.sideVal.dayGain:SetText((g < 0 and "|cffff6666" or "") .. ns.Radar.SignedMoney(g) .. (g < 0 and "|r" or ""))
-    O.LayoutSide()
+    sv.dayGain:SetText((g < 0 and "|cffff6666" or "") .. ns.Radar.SignedMoney(g) .. (g < 0 and "|r" or ""))
+    O.LayoutSide(s)
 end
 
 function O.Place()

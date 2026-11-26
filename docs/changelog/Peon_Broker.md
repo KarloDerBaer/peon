@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.166.0
+
+Kurz: In Auktionen stimmen Unterwegs, Preis je Stück verkaufter Auktionen und der Gewinn von heute wieder. Abgebrochen zählt nur noch echte Abbrüche. Die Spalte links steht jetzt auch in Auktionen, wenn Broker nicht am Auktionshaus geöffnet ist.
+
+- 0.166.0 (26.11.2026, Bild KarloDerBaer):
+  - **Behoben, Auktionen:** Bei verkauften Auktionen meldet das Spiel den Erlös des ganzen Stapels, Broker nahm ihn als Preis je Stück. Dadurch zeigte die Liste zu hohe Stückpreise, Unterwegs rechnete den Stapel noch einmal mal die Menge (3242 Gold statt etwa 34 Gold) und der Gewinn von heute war zu hoch. Verkaufte Zeilen tragen jetzt `total` (Erlös), `price` ist überall der Preis je Stück (`Auctions.Read`, `AuctionsOwn.SoldGross`). Ein gespeicherter alter Stand wird beim Anzeigen umgerechnet (`Pages.AuctionRows`).
+  - **Behoben, Abgebrochen:** Das Spiel meldet `AUCTION_CANCELED` auch für verkaufte Auktionen, gezählt wurde jede Meldung. Jetzt zählt nur ein Abbruch, um den vorher gebeten wurde (`C_AuctionHouse.CancelAuction` mitgelesen, Brokers und Blizzards Knopf), jede Auktion einmal (`AuctionsOwn.OnCancelAsked`). Abgebrochen und Gewinn von heute beginnen einmal neu bei 0 (`aucDay.v`).
+  - **Neu, Auktionen unterwegs:** dieselbe Spalte links (Laufende Auktionen, Beendete, Heute) wie am Auktionshaus, aus dem zuletzt gelesenen Stand (`AuctionsOwn.BuildSide` gibt die Spalte zurück, `AuctionsOwn.UpdateSide(rows, side)`).
+  - Tests: `test_broker.lua`.
+
 ## 0.165.1
 
 Kurz: Zwischen Gleitend und Menge ist etwas mehr Abstand, die Auswahlliste ragt nicht mehr in die Menge.
