@@ -726,6 +726,8 @@ ns.HideBags()
 -- ===== Abschnitte nebeneinander und Ziehen an der Ueberschrift (ab 0.6) =====
 do
   check(PeonBagsDB.guildPack == true, "nebeneinander ist Standard")
+  check(PeonBagsDB.bagBalance == true and PeonBagsDB.bagStack == true, "ab 0.11: ausgleichen und stapeln sind Standard")
+  PeonBagsDB.bagBalance = false   -- die folgenden Tests pruefen die Anordnung ohne Ausgleichen
   PeonBagsDB.bagPack = true
   PeonBagsDB.bagCatsOff = {}
   w:Set("Layout", "type")
@@ -867,6 +869,57 @@ do
   check(h[1].c == plan[1].c and h[1].height > plan[1].height, "er waechst nach unten statt in die Breite")
   check(h[2].x == plan[2].x and h[2].line == plan[2].line, "die anderen springen nicht")
   check(h[3].y >= hh - h[3].height and h[3].y > h[2].y, "neuer Abschnitt kommt unten dazu")
+end
+
+-- ===== Zeilen ausgleichen und Stapeln (ab 0.11) =====
+do
+  local P = ns.PlanLayout
+  local function B(n, extra) local b = { n = n, titled = true, headerW = 40 } for k, v in pairs(extra or {}) do b[k] = v end return b end
+  local full = 12 * 41 - 4
+  -- Abschnitte wie in einer typischen Tasche: 8 und 9 Plaetze passen bei 12 Spalten nie zu zweit in eine Zeile
+  local function Set() return { B(10, { key = "a" }), B(3, { key = "b" }), B(16, { headerW = 150, key = "c" }), B(2, { key = "d" }),
+    B(8, { key = "e" }), B(8, { key = "f" }), B(8, { key = "g" }), B(9, { key = "h" }), B(14, { key = "i" }), B(12, { key = "j" }) } end
+  local old, hOld = P(Set(), { cols = 12, pack = true, fill = true, narrow = true })
+  local new, hNew = P(Set(), { cols = 12, pack = true, fill = true, narrow = true, balance = true })
+  check(hNew < hOld, "ausgleichen spart Hoehe: " .. hOld .. " -> " .. hNew)
+  local ok, lastLine = true, 0
+  for i, p in ipairs(new) do
+    local n = Set()[i].n
+    if p.x < 0 or p.x + p.width > full then ok = false end
+    if p.c < math.min(n, 3) or p.line < lastLine then ok = false end
+    if p.height ~= 16 + math.ceil(n / p.c) * 41 then ok = false end
+    lastLine = p.line
+  end
+  check(ok, "ausgleichen: innerhalb der Breite, Reihenfolge bleibt, nie schmaler als 3 Spalten")
+  local function Overlap(plan)
+    for i, a in ipairs(plan) do for j, b in ipairs(plan) do
+      if i < j and a.x < b.x + b.width and b.x < a.x + a.width and a.y < b.y + b.height and b.y < a.y + a.height then return true end
+    end end
+    return false
+  end
+  check(not Overlap(new), "ausgleichen: nichts ueberlappt")
+  -- ohne nebeneinander gilt ausgleichen nicht
+  check(P(Set(), { cols = 12, pack = false, balance = true })[2].alone, "ausgleichen nur mit nebeneinander")
+
+  -- Stapeln: neben einem hohen Abschnitt (eigene Breite 3, also 3 Reihen) stehen zwei kleine uebereinander
+  local st = { B(9, { width = 3, key = "t" }), B(1, { key = "u" }), B(1, { key = "v" }) }
+  local s1 = P(st, { cols = 10, pack = true, balance = true, stack = true })
+  check(s1[3].x == s1[2].x and s1[3].y == s1[2].y + s1[2].height + 6 and s1[2].line == s1[3].line, "stapeln: zweiter kleiner unter dem ersten")
+  check(s1[2].x > s1[1].x and not Overlap(s1), "stapeln: neben dem hohen, ohne Ueberlappen")
+  local s2 = P(st, { cols = 10, pack = true, balance = true })
+  check(s2[3].y == s2[2].y and s2[3].x > s2[2].x, "ohne stapeln: nebeneinander")
+  local _, hs = P(Set(), { cols = 13, pack = true, balance = true, stack = true })
+  local sp = P(Set(), { cols = 13, pack = true, balance = true, stack = true })
+  check(not Overlap(sp) and hs > 0, "stapeln mit vielen Abschnitten: nichts ueberlappt")
+  -- eingeklappte und ohne Ueberschrift
+  local m = P({ B(5, { folded = true }), B(4, { titled = false }), B(3) }, { cols = 10, pack = true, balance = true, stack = true })
+  check(m[1].height == 16 and m[2].alone and m[2].width == 10 * 41 - 4 and m[3].y > m[2].y, "eingeklappt und ohne Ueberschrift")
+
+  -- festhalten: gestapelter Abschnitt waechst, der darunter rutscht nach unten statt zu ueberlappen
+  local fr = ns.FreezePlan(st, s1, 10)
+  local grown = { B(9, { width = 3, key = "t" }), B(4, { key = "u" }), B(1, { key = "v" }) }
+  local h = ns.HoldLayout(grown, fr, { cols = 10, pack = true, balance = true, stack = true })
+  check(h[3].x == s1[3].x and h[3].y == h[2].y + h[2].height + 6 and not Overlap(h), "festhalten: Stapel rutscht nach")
 end
 
 -- ===== Anordnung festhalten im Fenster (ab 0.10) =====

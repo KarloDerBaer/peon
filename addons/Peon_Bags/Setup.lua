@@ -270,11 +270,17 @@ local function RefreshLayout(w)
     y = Place(c, p.arrHdr, y, 20)
     p.packRow.check:SetChecked(pack)
     y = Place(c, p.packRow, y, ROW)
+    local balance = w:Setting("Balance") and true or false
+    p.balanceRow.check:SetChecked(balance)
+    p.stackRow.check:SetChecked(w:Setting("Stack") and true or false)
     p.fillRow.check:SetChecked(w:Setting("Fill") and true or false)
     p.narrowRow.check:SetChecked(w:Setting("Narrow") and true or false)
-    for _, r in ipairs({ p.fillRow, p.narrowRow }) do
-        SetEnabled(r.check, pack)
-        r:SetAlpha(pack and 1 or 0.45)
+    -- ab 0.11: Zeilen ausgleichen ersetzt Luecken fuellen und schmaler, Stapeln geht nur damit
+    for _, e in ipairs({ { p.balanceRow, pack }, { p.stackRow, pack and balance },
+                         { p.fillRow, pack and not balance }, { p.narrowRow, pack and not balance } }) do
+        local r, on = e[1], e[2]
+        SetEnabled(r.check, on)
+        r:SetAlpha(on and 1 or 0.45)
         y = Place(c, r, y, ROW)
     end
     y = y - 8
@@ -456,6 +462,8 @@ local function BuildLayoutTab(w, p)
     p.arrHdr = Text(c, "GameFontNormal")
     p.arrHdr:SetText(L.HDR_ARRANGE)
     p.packRow = CheckRow(c, L.PACK, L.PACK_TIP, function(on) w:Set("Pack", on) end)
+    p.balanceRow = CheckRow(c, L.BALANCE, L.BALANCE_TIP, function(on) w:Set("Balance", on) end)
+    p.stackRow = CheckRow(c, L.STACK, L.STACK_TIP, function(on) w:Set("Stack", on) end)
     p.fillRow = CheckRow(c, L.FILL, L.FILL_TIP, function(on) w:Set("Fill", on) end)
     p.narrowRow = CheckRow(c, L.NARROW, L.NARROW_TIP, function(on) w:Set("Narrow", on) end)
 

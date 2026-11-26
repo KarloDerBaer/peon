@@ -2,6 +2,17 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.11.0
+
+Kurz: Die Taschen nutzen den Platz besser. Abschnitte brechen in mehrere Reihen um, damit mehr nebeneinander passen, und kleine Abschnitte stehen übereinander neben einem hohen.
+
+- 0.11.0 (26.11.2026, Wunsch KarloDerBaer):
+  - **Neu:** „Zeilen ausgleichen“ (`Balance` je Fenster). Die Abschnitte bleiben in ihrer Reihenfolge. Für alle Zeilen zusammen wird geplant, welche Abschnitte sich eine Zeile teilen und in wie vielen Reihen sie dort umbrechen, damit das Fenster am niedrigsten wird. Kein Abschnitt wird schmaler als 3 Spalten. Bleibt in einer Zeile Breite übrig, werden ihre Abschnitte wieder breiter, solange sie dadurch Reihen sparen. Ersetzt „Lücken füllen“ und „Große Abschnitte schmaler“, die dann ausgegraut sind.
+  - **Neu:** „Abschnitte stapeln“ (`Stack` je Fenster, nur mit Zeilen ausgleichen). Ein kleiner Abschnitt kommt unter einen niedrigeren Abschnitt derselben Zeile, wenn er dort hineinpasst. Beim Festhalten der Anordnung rutscht ein Stapel nach unten, wenn ein Abschnitt darin wächst.
+  - **Geändert:** Die Vorauswahlen Ausgewogen und Kompakt schalten beides ein. Wer bisher Ausgewogen oder Kompakt hatte, bekommt beides automatisch, bei Locker, Untereinander und Individuell ohne Lücken füllen und schmaler bleibt es aus.
+  - Beispiel mit zehn Abschnitten wie im Taschenfenster bei 12 Spalten: 473 statt 580 Punkte hoch (Rechnung im Test).
+  - Tests: `test_bags.lua`.
+
 ## 0.10.1
 
 Kurz: Der Knopf Gildenbank im Taschenfenster heißt jetzt Gilde. In der Auswahl der Charaktere steht dein eingeloggter Charakter oben, die anderen folgen unter einem Trenner.

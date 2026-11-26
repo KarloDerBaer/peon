@@ -22,12 +22,13 @@ local EMPTY_MODES = { hint = true, slot = true, drag = true }
 
 -- Vorauswahlen fuer den Reiter "Layout" (ab 0.7). Weicht eine Einstellung ab, heisst es "Individuell".
 -- Spalten und die Breite je Abschnitt gehoeren nicht dazu.
-ns.PRESET_KEYS = { "Pack", "Fill", "Narrow", "FreeStack", "Empty", "AutoCols" }
+-- Ab 0.11 gehoeren "Zeilen ausgleichen" (Balance) und "Stapeln" (Stack) dazu.
+ns.PRESET_KEYS = { "Pack", "Fill", "Narrow", "Balance", "Stack", "FreeStack", "Empty", "AutoCols" }
 ns.PRESETS = {
-    { key = "stacked",  Pack = false, Fill = false, Narrow = false, FreeStack = false, Empty = "hint", AutoCols = false },
-    { key = "loose",    Pack = true,  Fill = false, Narrow = false, FreeStack = false, Empty = "hint", AutoCols = false },
-    { key = "balanced", Pack = true,  Fill = true,  Narrow = true,  FreeStack = false, Empty = "slot", AutoCols = false },
-    { key = "compact",  Pack = true,  Fill = true,  Narrow = true,  FreeStack = true,  Empty = "drag", AutoCols = true },
+    { key = "stacked",  Pack = false, Fill = false, Narrow = false, Balance = false, Stack = false, FreeStack = false, Empty = "hint", AutoCols = false },
+    { key = "loose",    Pack = true,  Fill = false, Narrow = false, Balance = false, Stack = false, FreeStack = false, Empty = "hint", AutoCols = false },
+    { key = "balanced", Pack = true,  Fill = true,  Narrow = true,  Balance = true,  Stack = true,  FreeStack = false, Empty = "slot", AutoCols = false },
+    { key = "compact",  Pack = true,  Fill = true,  Narrow = true,  Balance = true,  Stack = true,  FreeStack = true,  Empty = "drag", AutoCols = true },
 }
 
 -- Automatische Kategorien in ihrer Standardreihenfolge (ab 0.5, Konzept Peon_Bags_Anordnung.md)
@@ -41,6 +42,14 @@ local OLD_CATS = { equip = true, consumable = true, food = true, potion = true, 
 -- Alte Anordnung "Taschenreihenfolge" / "Nach Art" in die neuen drei uebernehmen (einmal, layoutVer = 2).
 -- Mit eigenen Bereichen wird Individuell daraus, sonst Klassisch bzw. Nach Art. "Neu" bleibt anfangs aus.
 local function Migrate(_, acc)
+    -- ab 0.11: Zeilen ausgleichen und Stapeln nur dort einschalten, wo bisher Ausgewogen oder Kompakt galt
+    -- (Luecken fuellen und schmaler beide an), sonst bliebe eine gewaehlte Vorauswahl nicht erhalten
+    for _, k in ipairs({ "bag", "bank", "guild" }) do
+        if acc[k .. "Balance"] == nil and acc[k .. "Pack"] ~= nil then
+            local on = acc[k .. "Pack"] ~= false and acc[k .. "Fill"] == true and acc[k .. "Narrow"] == true
+            acc[k .. "Balance"], acc[k .. "Stack"] = on, on
+        end
+    end
     if acc.layoutVer == 2 then return end
     local hasGroups = type(acc.groups) == "table" and #acc.groups > 0
     local function Off(keepOld)
@@ -104,6 +113,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
         -- ab 0.7: Platz sparen (Reiter "Layout" in Einstellen), Standard ist die Vorauswahl "Ausgewogen"
         bagFill      = true, bankFill = true, guildFill = true,           -- Luecken frueherer Zeilen fuellen
         bagNarrow    = true, bankNarrow = true, guildNarrow = true,       -- grosse Abschnitte schmaler
+        bagBalance   = true, bankBalance = true, guildBalance = true,     -- ab 0.11: Zeilen ausgleichen
+        bagStack     = true, bankStack = true, guildStack = true,         -- ab 0.11: Abschnitte stapeln
         bagFreeStack = false, bankFreeStack = false, guildFreeStack = false, -- freie Plaetze als ein Platz
         bagEmpty     = "slot", bankEmpty = "slot", guildEmpty = "slot",   -- leere eigene Bereiche
         bagAutoCols  = false, bankAutoCols = false, guildAutoCols = false, -- Spaltenzahl automatisch

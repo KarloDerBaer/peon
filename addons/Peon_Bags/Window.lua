@@ -455,6 +455,7 @@ end
 --   width:  eigene Spaltenzahl des Abschnitts (Breite je Abschnitt), gilt vor narrow.
 -- Rueckgabe: { [i] = { x, y, c = Spalten der Plaetze, width, height } }, Hoehe
 function ns.PlanLayout(blocks, o)
+    if o.balance and o.pack then return ns.PlanBalanced(blocks, o) end
     local cols = o.cols
     local step = SLOT + GAP
     local full = cols * step - GAP
@@ -504,6 +505,161 @@ function ns.PlanLayout(blocks, o)
     return res, y
 end
 
+-- Zeilen ausgleichen (ab 0.11, o.balance): Die Abschnitte bleiben in ihrer Reihenfolge. Fuer alle Zeilen zusammen
+-- wird geplant, welche Abschnitte sich eine Zeile teilen und in wie vielen Reihen sie dort umbrechen, so dass das
+-- Fenster am niedrigsten wird. Kein Abschnitt wird schmaler als MIN_C Spalten (ausser er hat weniger Plaetze).
+-- Bleibt in einer Zeile Breite uebrig, werden ihre Abschnitte wieder breiter, solange sie dadurch Reihen sparen.
+-- Stapeln (o.stack): Ist ein Abschnitt niedriger als seine Zeile, kommt ein spaeterer Abschnitt derselben Zeile
+-- darunter, wenn er in die Hoehe passt und die Zeile dadurch schmaler bleibt als mit einer weiteren Spalte.
+-- Abschnitte eines Stapels stehen an derselben Stelle x, p.dy ist der Abstand zur Oberkante der Zeile.
+local MIN_C = 3
+function ns.PlanBalanced(blocks, o)
+    local cols = o.cols
+    local step = SLOT + GAP
+    local full = cols * step - GAP
+    local N = #blocks
+    local function Count(bl) return bl.folded and 0 or bl.n end
+    local function Size(bl, c)
+        local n = Count(bl)
+        local rows = n > 0 and math.ceil(n / c) or 0
+        local width = math.min(full, math.max(n > 0 and c * step - GAP or 0, bl.headerW or 0, 1))
+        return width, (bl.titled and HDR_H or 0) + rows * step
+    end
+    -- Form bei hoechstens maxRows Reihen, so schmal wie moeglich: Spalten, Breite, Hoehe (nil = passt nicht)
+    local function Shape(bl, maxRows)
+        local n = Count(bl)
+        local c
+        if n == 0 then c = 1
+        elseif ns.Num(bl.width) and bl.width > 0 then c = math.min(bl.width, cols)
+        else c = math.min(cols, math.max(math.ceil(n / maxRows), math.min(n, MIN_C))) end
+        if n > 0 and math.ceil(n / c) > maxRows then return nil end
+        local w, h = Size(bl, c)
+        return c, w, h
+    end
+    -- Zeile aus den Abschnitten i..j, Zeilenhoehe hoechstens H (R Reihen). Rueckgabe: Hoehe, Plan je Abschnitt
+    local function Line(i, j, H, R)
+        local stacks, used = {}, -PACK_GAP
+        local plan = {}
+        for k = i, j do
+            local bl = blocks[k]
+            local n = Count(bl)
+            local c2, w2, h2 = Shape(bl, R)
+            if not c2 then return nil end
+            local best, bc, bw, bh, grow
+            if o.stack then
+                for _, s in ipairs(stacks) do
+                    local rest = H - s.h - SEC_GAP
+                    local rows = math.floor((rest - HDR_H) / step)
+                    if rest >= HDR_H and (rows >= 1 or n == 0) then
+                        local c, w, h = Shape(bl, math.max(rows, 1))
+                        if c and s.h + SEC_GAP + h <= H then
+                            local g = math.max(s.w, w) - s.w
+                            if not best or g < grow then best, bc, bw, bh, grow = s, c, w, h, g end
+                        end
+                    end
+                end
+            end
+            local p
+            if best and grow < PACK_GAP + w2 then
+                p = { c = bc, width = bw, height = bh, bl = bl }
+                used = used + grow
+                best.w, best.h = best.w + grow, best.h + SEC_GAP + bh
+                best[#best + 1] = p
+            else
+                p = { c = c2, width = w2, height = h2, bl = bl }
+                local s = { w = w2, h = h2, p }
+                stacks[#stacks + 1] = s
+                used = used + PACK_GAP + w2
+            end
+            plan[k] = p
+            if used > full then return nil end
+        end
+        -- uebrige Breite: Abschnitte breiter machen, solange das Reihen spart (im Stapel bis zu dessen Breite)
+        local left = full - used
+        for _, s in ipairs(stacks) do
+            local add = 0
+            for _, p in ipairs(s) do
+                local bl = p.bl
+                local n = Count(bl)
+                if n > 0 and not (ns.Num(bl.width) and bl.width > 0) then
+                    local rows = math.ceil(n / p.c)
+                    for c = math.min(n, cols), p.c + 1, -1 do
+                        local w, h = Size(bl, c)
+                        local g = math.max(0, w - s.w - add)
+                        if math.ceil(n / c) < rows and g <= left - add then
+                            p.c, p.width, p.height, add = c, w, h, add + g
+                            break
+                        end
+                    end
+                end
+            end
+            -- nur so viel nehmen, wie der breiteste Abschnitt des Stapels braucht
+            local w = 0
+            for _, p in ipairs(s) do w = math.max(w, p.width) end
+            add = math.max(0, w - s.w)
+            s.w, left = s.w + add, left - add
+        end
+        local x, top = 0, 0
+        for _, s in ipairs(stacks) do
+            local dy = 0
+            for _, p in ipairs(s) do
+                p.x, p.dy, p.bl = x, dy, nil
+                dy = dy + p.height + SEC_GAP
+            end
+            top = math.max(top, dy - SEC_GAP)
+            x = x + s.w + PACK_GAP
+        end
+        return top, plan
+    end
+    -- beste Aufteilung in Zeilen, von hinten geplant: best[i] = niedrigste Hoehe ab Abschnitt i
+    local best = { [N + 1] = { h = 0 } }
+    for i = N, 1, -1 do
+        local bl = blocks[i]
+        if not bl.titled then
+            -- ohne Ueberschrift: allein, volle Breite
+            local n = Count(bl)
+            local p = { c = cols, width = full, height = (n > 0 and math.ceil(n / cols) or 0) * step, x = 0, dy = 0, alone = true }
+            best[i] = { h = p.height + (i < N and SEC_GAP or 0) + best[i + 1].h, j = i, lh = p.height, plan = { [i] = p } }
+        else
+            local maxR = 1
+            for j = i, N do
+                if not blocks[j].titled then break end
+                local bj, n = blocks[j], Count(blocks[j])
+                local cmin = ns.Num(bj.width) and bj.width > 0 and math.min(bj.width, cols) or math.min(n, MIN_C)
+                maxR = math.max(maxR, math.ceil(n / math.max(1, cmin)))
+                local lh, plan
+                for R = 1, maxR do
+                    local h, p = Line(i, j, HDR_H + R * step, R)
+                    if h and (not lh or h < lh) then lh, plan = h, p end
+                end
+                if not lh then break end   -- passt schon so nicht, mit weiteren Abschnitten erst recht nicht
+                local total = lh + (j < N and SEC_GAP or 0) + best[j + 1].h
+                if not best[i] or total < best[i].h then best[i] = { h = total, j = j, lh = lh, plan = plan } end
+            end
+            if not best[i] then   -- Sicherheitsnetz: allein, so breit wie moeglich
+                local c = ns.Num(bl.width) and bl.width > 0 and math.min(bl.width, cols) or cols
+                local w, h = Size(bl, c)
+                local p = { c = c, width = w, height = h, x = 0, dy = 0, alone = true }
+                best[i] = { h = h + (i < N and SEC_GAP or 0) + best[i + 1].h, j = i, lh = h, plan = { [i] = p } }
+            end
+        end
+    end
+    local res, y, line, i = {}, 0, 0, 1
+    while i <= N do
+        local b = best[i]
+        line = line + 1
+        for k = i, b.j do
+            local p = b.plan[k]
+            p.y, p.line = y + p.dy, line
+            if not p.alone then p.alone = p.x == 0 and p.dy == 0 and p.width >= full and i == b.j end
+            res[k] = p
+        end
+        y = y + b.lh + (b.j < N and SEC_GAP or 0)
+        i = b.j + 1
+    end
+    return res, y
+end
+
 -- Anordnung festhalten (ab 0.10, Einstellung holdLayout): Solange das Fenster offen ist, bleibt jeder Abschnitt
 -- in seiner Zeile an seiner Stelle und behaelt seine Breite. Waechst er, bekommt er weitere Reihen, statt dass
 -- die anderen Abschnitte springen. Leere Abschnitte lassen ihren Platz frei, ganz leere Zeilen fallen weg.
@@ -514,7 +670,7 @@ function ns.FreezePlan(blocks, plan, cols)
     for i, bl in ipairs(blocks) do
         local p = plan[i]
         if bl.key and p then
-            fr.blocks[bl.key] = { line = p.line, x = p.x, c = p.c, width = p.width, alone = p.alone }
+            fr.blocks[bl.key] = { line = p.line, x = p.x, c = p.c, width = p.width, alone = p.alone, dy = p.dy or 0 }
         end
         if p and p.line and p.line > fr.n then fr.n = p.line end
     end
@@ -532,12 +688,11 @@ function ns.HoldLayout(blocks, frozen, o)
             local c = f.alone and f.c or math.max(f.c, math.floor((f.width + GAP) / step))
             c = math.max(1, math.min(c, o.cols))
             local rows = n > 0 and math.ceil(n / c) or 0
-            local p = { c = c, x = f.x, width = f.width, alone = f.alone, line = f.line,
+            local p = { c = c, x = f.x, width = f.width, alone = f.alone, line = f.line, order = f.dy or 0,
                         height = (bl.titled and HDR_H or 0) + rows * step }
             res[i] = p
             local l = lines[f.line]
             if not l then l = { h = 0 } lines[f.line] = l end
-            l.h = math.max(l.h, p.height)
             l[#l + 1] = p
         else
             rest[#rest + 1] = i
@@ -549,7 +704,15 @@ function ns.HoldLayout(blocks, frozen, o)
         if l then
             if not first then y = y + SEC_GAP end
             first = false
-            for _, p in ipairs(l) do p.y = y end
+            -- gestapelte Abschnitte (gleiches x, ab 0.11) neu untereinander setzen, falls einer gewachsen ist
+            table.sort(l, function(a, b) if a.x ~= b.x then return a.x < b.x end return a.order < b.order end)
+            local lastX, dy = nil, 0
+            for _, p in ipairs(l) do
+                if p.x ~= lastX then lastX, dy = p.x, 0 end
+                p.y, p.dy, p.order = y + dy, dy, nil
+                dy = dy + p.height + SEC_GAP
+                l.h = math.max(l.h, dy - SEC_GAP)
+            end
             y = y + l.h
         end
     end
@@ -578,7 +741,8 @@ function Window:PlanFresh(blocks, opts)
         local function Area(c, h) return math.max(minW, PAD * 2 + c * (SLOT + GAP) - GAP) * math.max(h, SLOT) end
         local best = Area(cols, height)
         for c = cols - 1, 6, -1 do
-            local o2 = { cols = c, pack = opts.pack, fill = opts.fill, narrow = opts.narrow }
+            local o2 = { cols = c, pack = opts.pack, fill = opts.fill, narrow = opts.narrow,
+                         balance = opts.balance, stack = opts.stack }
             local p2, h2 = ns.PlanLayout(blocks, o2)
             local a = Area(c, h2)
             if a < best then best, cols, plan, height = a, c, p2, h2 end
@@ -605,7 +769,9 @@ function Window:Arrange(sections, allButtons)
     end
     local pack = self:Setting("Pack") ~= false
     local opts = { pack = pack, fill = pack and self:Setting("Fill") and true or false,
-                   narrow = pack and self:Setting("Narrow") and true or false }
+                   narrow = pack and self:Setting("Narrow") and true or false,
+                   balance = pack and self:Setting("Balance") and true or false }
+    opts.stack = opts.balance and self:Setting("Stack") and true or false
     local widths = self:Table("Widths")
     local hi, di = 0, 0
     local shown = {}

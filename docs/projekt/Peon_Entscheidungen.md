@@ -3,6 +3,12 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 26.11.2026: Zeilen ausgleichen und Stapeln (Bags 0.11.0)
+
+- **Platz besser nutzen** (Wunsch KarloDerBaer, Stapeln gleich mit): Die Planung legt alle Zeilen zusammen fest und lässt Abschnitte umbrechen, die Reihenfolge bleibt. Eine Packung in die höchste freie Lücke sparte weniger und brachte die Reihenfolge durcheinander (Claude).
+- **Mindestens 3 Spalten je Abschnitt** (Claude): Ohne Grenze wäre das Fenster noch etwas niedriger, aber Abschnitte stünden als dünne Türme da.
+- **Ausgewogen und Kompakt schalten beides ein** (Claude): Wer bisher eine davon hatte, bekommt es automatisch, alle anderen behalten ihre Anordnung.
+
 ## 26.11.2026: Preis- und Marktstabilität (Broker 0.165.0)
 
 - **Zwei Angaben zur Stabilität** (KarloDerBaer): Preisstabilität sagt, wie und in welche Richtung sich der Preis ändert, Marktstabilität sagt, wie unruhig der Markt ist. Schwankend bleibt als fünfter Zustand der Preisstabilität (KarloDerBaer).
