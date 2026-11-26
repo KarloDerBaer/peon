@@ -210,6 +210,38 @@ function QS.OnBought(key, n, cost)
     d.c = (d.c or 0) + (Num(cost) and cost or 0)
 end
 
+-- ab 0.140 (Statistik im Einkaufen): Gelegenheiten (o) und genutzte Gelegenheiten (w) je Tag, fuer die Quote
+function QS.OnOpp(key)
+    if key == nil then return end
+    local d = Day(key)
+    if d then d.o = (d.o or 0) + 1 end
+end
+
+function QS.OnWon(key)
+    if key == nil then return end
+    local d = Day(key)
+    if d then d.w = (d.w or 0) + 1 end
+end
+
+-- ab 0.140: Gekauftes der letzten days Tage (1 = heute): { n, cost, opps, won } oder nil
+function QS.Bought(key, days)
+    local st = QS.Store(false)
+    local all = st and key ~= nil and st[key]
+    if type(all) ~= "table" then return nil end
+    local from = QS.Today() - math.max(1, days or 1) + 1
+    local out, any = { n = 0, cost = 0, opps = 0, won = 0 }, false
+    for day, d in pairs(all) do
+        if type(day) == "number" and day >= from and type(d) == "table" then
+            any = true
+            out.n = out.n + (Num(d.k) and d.k or 0)
+            out.cost = out.cost + (Num(d.c) and d.c or 0)
+            out.opps = out.opps + (Num(d.o) and d.o or 0)
+            out.won = out.won + (Num(d.w) and d.w or 0)
+        end
+    end
+    return any and out or nil
+end
+
 -- ab 0.133 (U1, Konzept Peon_Broker_Schlank.md 4.1): heute Gekauftes eines Gegenstands (Stueck, Kosten) oder nil
 function QS.TodayBought(key)
     local st = QS.Store(false)

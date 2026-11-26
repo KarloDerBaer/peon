@@ -254,7 +254,8 @@ end
 function R.Budget(money)
     money = money or R.Money()
     if not money then return nil end
-    local reserve = (tonumber(mod.db.radarReserve) or 0) * 10000
+    -- ab 0.140: Haken vor der Goldreserve (radarReserveOn), aus = keine Reserve
+    local reserve = mod.db.radarReserveOn ~= false and (tonumber(mod.db.radarReserve) or 0) * 10000 or 0
     return math.max(0, money - reserve)
 end
 

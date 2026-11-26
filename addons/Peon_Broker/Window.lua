@@ -27,8 +27,8 @@ W.SIDE = 14           -- Abstand links und rechts
 W.BOTTOM = 30         -- Abstand unten (Statuszeile)
 W.TABS = {
     { key = "browse",   label = "TAB_BROWSE" },      -- Markt (am Auktionator Blizzards Kaufen)
-    { key = "sell",     label = "TAB_SELL" },        -- Verkaufen (nur am Auktionator, Blizzards Seite)
-    { key = "auctions", label = "NTAB_AUCTIONS" },   -- Auktionen
+    { key = "auctions", label = "NTAB_AUCTIONS" },   -- Auktionen (ab 0.140 vor Verkaufen, KarloDerBaer 26.11.2026)
+    { key = "sell",     label = "TAB_SELL" },        -- Verkaufen (nur am Auktionator)
     { key = "focus",    label = "NTAB_FOCUS" },      -- Einkaufen (bis 0.132 Fokus), ab 0.133 erster Broker-Reiter
     { key = "watch",    label = "NTAB_WATCH" },      -- Beobachten (ab 0.82 eigener Reiter)
     { key = "buy",      label = "AHTAB_SHOP" },      -- Listen (bis 0.132 Einkaufen), ab 0.133 nach Beobachten

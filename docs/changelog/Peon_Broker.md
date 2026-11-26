@@ -2,6 +2,31 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.140.0
+
+Kurz: Einkaufen ist neu aufgeteilt: links Kaufen bis, Menge, der höchste Preis eines Klicks, Kaufen und eine Statistik. Rechts die Angebote, drei Zeilen zum Markt und das Diagramm.
+Kurz: Der Knopf Auto heißt jetzt Vorschlag. Er setzt Kaufen bis so, dass ein Weiterverkauf zum günstigsten Angebot noch Gewinn bringt.
+Kurz: Die Reiter stehen in der Reihenfolge Markt, Auktionen, Verkaufen. Chancen zeigt wieder alle Arten, jede lässt sich einzeln abschalten.
+Kurz: Listen verwaltest du per Rechtsklick. Der Höchstpreis kommt aus dem Einkaufen, die Liste wird von selbst abgefragt.
+Kurz: Beobachten hat eine Löschspalte und einen Regler für die Abfragen je Gegenstand. Der mögliche Gewinn beim Verkaufen rechnet mit dem Durchschnitt deiner Kosten.
+
+- 0.140.0 (26.11.2026, Board Broker von KarloDerBaer in Obsidian, Fragen vorab abgestimmt):
+  - **Geändert, Reiter:** Reihenfolge Markt, Auktionen, Verkaufen, Einkaufen, Beobachten, Listen, Chancen, Mehr, im Fenster und im Auktionshaus. Blizzards Reiter bekommen dafür nur neue Anker (`AHTabs.lua`, `T.TabOrder`, Abstand einmal gemessen).
+  - **Geändert, Chancen:** alle Unterreiter von Anfang an, Reihenfolge Schnellkauf, Aufkauf, Spekulation, Markttausch, Pakete. Jeder Unterreiter hat in den Einstellungen der Chancen einen eigenen Schalter (`chancesShowQ`, `chancesTabBuyout`, `chancesTabSpec`, `tradeOn`, `chancesTabPkg`). Markttausch ist ab Werk an, Pakete laufen auch ohne Markttausch. Der Schalter „Weitere Chancen“ entfällt (`chancesMore` bleibt gespeichert).
+  - **Geändert, Pakete:** In der Zeile eines Pakets stehen der mögliche Gewinn jetzt und ob es sich gerade lohnt (lohnt sich, lohnt nicht, wird geprüft, alles gekauft). Gewinn jetzt rechnet für abgefragte Angebote mit dem Preis jetzt statt mit Kaufen bis (`Packages.GainNow`). Kaufen bis und Verkaufen ab stehen nur noch bei den Angeboten, Einsatz und Gewinn laut Manager im Tooltip.
+  - **Behoben, Beobachten:** Ein eingetipptes Kaufen bis ging verloren, wenn die gespeicherten Werte noch nicht als geladen galten. Eigene Eingaben werden jetzt immer gespeichert (`Focus.Store(add, user)`).
+  - **Neu, Beobachten:** Löschspalte am Ende jeder Zeile wie in Listen. Regler oben rechts für die Abfragen je Gegenstand, 1 bis 5, Vorgabe 3 (`watchProbes`). Mit 1 nur Preis und Menge, ab 2 auch die Bewegung.
+  - **Geändert, Listen:** Neu, Umbenennen und Löschen nur noch per Rechtsklick auf eine Liste, in der leeren Fläche Neu. Eine neue Liste beginnt gleich mit dem Umbenennen. Rabatt und Max. Gold entfallen. Der Höchstpreis ist Kaufen bis aus dem Einkaufen (aus der Liste geöffnet landet er in der Liste, sonst gilt Beobachten). Die offene Liste wird am Auktionshaus reihum abgefragt, je Gegenstand einmal, dann 30 Sek. Pause. Der Knopf „Liste durchsuchen“ entfällt.
+  - **Behoben, Verkaufen:** Der mögliche Gewinn rechnete mit den Kosten des nächsten Stücks laut Ledger, meist dem letzten Kauf. Jetzt zählt ohne Posten der Durchschnitt des Bestands (`Item.AvgCost`).
+  - **Geändert, Einkaufen links:** Kaufen bis mit Vorschlag, Menge, Max. Preis, Kaufknopf, darunter die Statistik (aufklappbar, Vorgabe offen) mit Sitzung, heute und 7 Tagen, je Stück, Durchschnitt und Quote. Lockangebot und Mehr Einstellungen bleiben aufklappbar.
+  - **Neu, Menge:** Der Regler reicht über das ganze Marktangebot. Massenware ganz links Alle, Einzelware ganz links 1. Hinter dem Feld steht kein Zusatz mehr.
+  - **Neu, Max. Preis:** feste Menge mal Kaufen bis, bei Alle was jetzt unter Kaufen bis liegt, sonst „keine Angebote“. Begrenzt die Goldreserve den Kauf, steht das hier.
+  - **Geändert, Goldreserve:** unter Mehr Einstellungen mit Haken davor (`radarReserveOn`), aus ist das Feld grau. Vorgabe 5 Gold.
+  - **Neu, Vorschlag statt Auto:** günstigstes Angebot ohne Ausreißer nach unten, minus Anteil des Auktionshauses, minus Mindestgewinn je Stück (`quickSuggestPct`, Vorgabe 5 %). Im Diagramm als graue gestrichelte Linie, abschaltbar (`chartSuggest`). Die Linie Einbrüche entfällt.
+  - **Neu, Einkaufen rechts:** drei Zeilen zwischen Angeboten und Diagramm, per Rechtsklick einstellbar (`focusRows`): Bewegung (Zufluss und Abfluss), Stabilität (stabil, steigend, fallend, sprunghaft, schwankend über den Zeitraum des Diagramms), Einbruch, Üblicher Bereich, Lockangebote, Langfristig. Vorgabe Bewegung, Stabilität, Einbruch.
+  - Verkaufen als eigene Seite: Konzept `Peon_Broker_Verkaufen_Seite.md`, noch nicht umgesetzt.
+  - Tests: `test_broker.lua`.
+
 ## 0.139.0
 
 Kurz: Die Einstellungen von Broker im Spielmenü haben jetzt drei Reiter: Allgemein, Anzeige und Erweitert. Hinweise stehen als Tooltip.

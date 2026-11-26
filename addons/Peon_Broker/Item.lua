@@ -87,6 +87,18 @@ function P.OwnCost(id)
     return nil
 end
 
+-- ab 0.140 (KarloDerBaer 26.11.2026): durchschnittliche Kosten je Stueck des Bestands laut Peon_Ledger (zweiter Wert
+-- von mod:Cost), sonst die Kosten des naechsten Stuecks oder nil. Fuer den moeglichen Gewinn: Waren die frueheren
+-- Kaeufe teurer als der letzte, rechnete der Gewinn mit dem naechsten Stueck viel zu gut.
+function P.AvgCost(id)
+    local led = P.Ledger()
+    if not led or type(led.Cost) ~= "function" then return nil end
+    local ok, nxt, avg = pcall(led.Cost, led, id)
+    if ok and Num(avg) and avg > 0 then return avg end
+    if ok and Num(nxt) then return nxt end
+    return nil
+end
+
 -- Offene Einstellgebuehren je Stueck laut Peon_Ledger (ab 0.100, Ledger 0.16) oder nil
 function P.OpenFee(id)
     local led = P.Ledger()

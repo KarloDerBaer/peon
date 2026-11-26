@@ -50,7 +50,14 @@ local function AHOpen() return ns.Scan.ahOpen and rawget(_G, "C_AuctionHouse") ~
 local function Money(v) return ns.Tooltip.Money(v) end
 
 function QC.On() return mod.db.chancesShowQ ~= false end
-function QC.Probes() return math.max(2, math.floor(tonumber(mod.db.qcProbes) or 5)) end
+-- ab 0.140 (KarloDerBaer 26.11.2026): in Beobachten eigene Zahl (watchProbes, 1 bis 5, Vorgabe 3, Regler oben rechts).
+-- Mit 1 Abfrage gibt es nur Preis und Menge, die Bewegung braucht mindestens 2.
+function QC.WatchProbes() return math.max(1, math.min(5, math.floor(tonumber(mod.db.watchProbes) or 3))) end
+function QC.Probes(src)
+    src = src or QC.src or QC.Source()
+    if src == "watch" then return QC.WatchProbes() end
+    return math.max(2, math.floor(tonumber(mod.db.qcProbes) or 5))
+end
 
 ---------------------------------------------------------------------------
 -- Ausgeblendete Vorschlaege (je Markt)

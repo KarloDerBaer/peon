@@ -260,17 +260,49 @@ function P.Columns()
           sort = function(r) return r.dipsH or -1 end },
         { key = "nowHits", title = L.WATCH_COL_NOW, width = 64, align = "RIGHT", format = P.NowCell,
           sort = function(r) return r.nowHits or -1 end },
+        -- ab 0.140 (KarloDerBaer 26.11.2026): Loeschspalte wie in Listen
+        { key = "del", title = "", width = 30, align = "CENTER", nosort = true, format = function() return P.DEL_ICON end },
     }
+end
+
+P.DEL_COL = 8
+P.DEL_ICON = "|TInterface\\Buttons\\UI-GroupLoot-Pass-Up:14:14|t"
+-- Ueber der Loeschspalte? Die Tabelle meldet nur die Zeile, darum ueber den Spaltenkopf (wie die Glocke)
+function P.OverDelete()
+    if not GetCursorPosition then return false end
+    local h = P.list and P.list.heads and P.list.heads[P.DEL_COL]
+    local left, right = h and h.GetLeft and h:GetLeft(), h and h.GetRight and h:GetRight()
+    local scale = h and h.GetEffectiveScale and h:GetEffectiveScale() or 1
+    local x = GetCursorPosition()
+    return left ~= nil and right ~= nil and x ~= nil and scale > 0 and x / scale >= left and x / scale <= right
+end
+
+-- Eintrag aus der Loeschspalte entfernen
+function P.DeleteRow(r)
+    if not r then return end
+    ns.Watch.Remove(r.key)
+    if P.selected and P.selected.key == r.key then P.selected = nil end
+    P.Refresh()
 end
 
 function P.Build(c)
     local UI = Peon.UI
     P.frame = c
-    P.hint = UI.Text(c, "small", GREY .. L.WATCH_HINT .. "|r", 380)
+    P.hint = UI.Text(c, "small", GREY .. L.WATCH_HINT .. "|r", 300)
     P.hint:SetPoint("TOPLEFT", 4, -10)
-    P.live = UI.Text(c, "small", "", 320)
+    -- ab 0.140 (KarloDerBaer 26.11.2026): Abfragen je Gegenstand oben rechts (1 bis 5, Vorgabe 3)
+    P.probes = UI.Slider(c, 110, 1, 5, 1, ns.QuickChances.WatchProbes(), function(v)
+        v = math.floor((tonumber(v) or 3) + 0.5)
+        if mod.db.watchProbes ~= v then mod.db.watchProbes = v; P.Refresh() end
+    end)
+    P.probes:SetPoint("TOPRIGHT", -4, -4)
+    UI.SetTooltip(P.probes, { L.WATCH_PROBES, L.WATCH_PROBES_TIP })
+    P.probesLabel = UI.Text(c, "small", L.WATCH_PROBES, 140)
+    P.probesLabel:SetJustifyH("RIGHT")
+    P.probesLabel:SetPoint("RIGHT", P.probes, "LEFT", -6, 0)
+    P.live = UI.Text(c, "small", "", 220)
     P.live:SetJustifyH("RIGHT")
-    P.live:SetPoint("TOPRIGHT", -4, -10)
+    P.live:SetPoint("RIGHT", P.probesLabel, "LEFT", -10, 0)
     local lp = UI.Panel(c, "list", true)
     lp:SetPoint("TOPLEFT", 0, -34)
     lp:SetPoint("BOTTOMRIGHT", 0, 34)
@@ -286,6 +318,8 @@ function P.Build(c)
         end,
         -- ab 0.83 (KarloDerBaer): Klick waehlt (fuer die Knoepfe unten), Doppelklick oeffnet das Einkaufen, Rechtsklick das Menue
         onClick = function(r, button)
+            -- ab 0.140: Klick in die Loeschspalte entfernt den Eintrag
+            if button == "LeftButton" and P.OverDelete() then P.clickKey = nil; mod:Call("Beobachtung", P.DeleteRow, r); return end
             -- ab 0.92: Klick auf das Symbol schaltet die Warnung, sonst nichts
             local bell = button == "LeftButton" and P.OverBell() or nil
             if bell then
@@ -310,6 +344,13 @@ function P.Build(c)
         end,
         onEnter = function(row, r)
             if not r then return end
+            if P.OverDelete() and GameTooltip then
+                GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+                GameTooltip:SetText(L.WATCH_DEL, 1, 0.82, 0)
+                GameTooltip:AddLine(L.WATCH_DEL_TIP, 1, 1, 1, true)
+                GameTooltip:Show()
+                return
+            end
             local bell = P.OverBell()
             if bell and GameTooltip then
                 GameTooltip:SetOwner(row, "ANCHOR_RIGHT")

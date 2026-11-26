@@ -298,12 +298,14 @@ local function Edges(tab)
     return l - fl, r - fr, l, r   -- Ueberstand links, Ueberstand rechts, sichtbare Kanten
 end
 
--- Reihenfolge der Reiter unten (ab 0.59): Blizzards Markt, Verkaufen, Auktionen, dann Brokers Reiter
+-- Reihenfolge der Reiter unten (ab 0.59): Blizzards Markt, Verkaufen, Auktionen, dann Brokers Reiter.
+-- Ab 0.140 (KarloDerBaer 26.11.2026): Markt, Auktionen, Verkaufen, dann Brokers Reiter. Blizzards Reiter bekommen
+-- dafuer nur neue Anker (nichts in Blizzards Tabellen, kein SetDisplayMode).
 function T.TabOrder(f)
     local list = {}
     if type(f.BuyTab) == "table" then list[#list + 1] = f.BuyTab end
-    if type(f.SellTab) == "table" then list[#list + 1] = f.SellTab end
     if type(f.AuctionsTab) == "table" then list[#list + 1] = f.AuctionsTab end
+    if type(f.SellTab) == "table" then list[#list + 1] = f.SellTab end
     for _, def in ipairs(T.TABS) do if T.tabs[def.key] then list[#list + 1] = T.tabs[def.key] end end
     return list
 end
@@ -311,13 +313,16 @@ end
 function T.AlignTabs()
     local f = AHFrame()
     if not T.built or not f or type(f.BuyTab) ~= "table" or type(f.SellTab) ~= "table" then return false end
-    local _, _, _, buyR = Edges(f.BuyTab)
-    local _, _, sellL = Edges(f.SellTab)
-    if not buyR or not sellL then return false end
-    local gap = sellL - buyR   -- sichtbarer Abstand bei Blizzard
+    local gap = T.tabGap   -- ab 0.140 einmal gemessen: danach steht Verkaufen nicht mehr neben Markt
+    if not gap then
+        local _, _, _, buyR = Edges(f.BuyTab)
+        local _, _, sellL = Edges(f.SellTab)
+        if not buyR or not sellL then return false end
+        gap = sellL - buyR   -- sichtbarer Abstand bei Blizzard
+    end
     local order = T.TabOrder(f)
     T.tabGaps = {}
-    for i = 4, #order do   -- Blizzards drei Reiter bleiben, wo Blizzard sie hinsetzt
+    for i = 2, #order do   -- ab 0.140 auch Auktionen und Verkaufen (neue Reihenfolge), Markt bleibt, wo Blizzard ihn hinsetzt
         local prev, tab = order[i - 1], order[i]
         local _, dr = Edges(prev)
         local dl = Edges(tab)
@@ -457,7 +462,7 @@ function T.Build()
     holder:SetAllPoints(f)
     if holder.SetFrameLevel and f.GetFrameLevel then holder:SetFrameLevel(f:GetFrameLevel() or 1) end
     T.tabHolder = holder
-    local prev = f.AuctionsTab
+    local prev = type(f.SellTab) == "table" and f.SellTab or f.AuctionsTab   -- ab 0.140 letzter Blizzard-Reiter
     for i, def in ipairs(T.TABS) do
         local ok, tab = pcall(CreateFrame, "Button", "PeonBrokerAHTab" .. i, holder, TabTemplate())
         if not ok or not tab then

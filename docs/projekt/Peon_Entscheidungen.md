@@ -3,6 +3,17 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 26.11.2026: Board Broker (Broker 0.140.0)
+
+- **Verkaufen wird eine eigene Broker-Seite** (KarloDerBaer), nicht Blizzards Fenster umgeordnet. Weil der Umbau an Blizzards Verkaufsfenster, Zum Einstellen, Varianten und Paketen hängt, kommt zuerst das Konzept `Peon_Broker_Verkaufen_Seite.md` mit offenen Fragen (Claude).
+- **Vorschlag rechnet mit Prozent je Stück** (Claude, Abweichung von der Antwort „mit Mindestgewinn Markt“): Der Mindestgewinn Markt gilt für ein ganzes Schnäppchen (Vorgabe 50 Silber). Je Stück abgezogen wäre der Vorschlag bei billiger Ware negativ. Deshalb eigener Wert `quickSuggestPct` (Vorgabe 5 %) in den Einstellungen des Einkaufens. Ausreißer nach unten: einzelne Stücke und eine Stufe mehr als 15 % unter der nächsten.
+- **Drei Zeilen rechts per Rechtsklick** (KarloDerBaer), gelten für alle Gegenstände.
+- **Brauche bleibt links mit Regler** (KarloDerBaer), Name, Neu und Löschen der Listen nur per Rechtsklick, Rabatt entfällt (Wert bleibt gespeichert).
+- **Höchstpreis der Listen aus dem Einkaufen** (KarloDerBaer): Aus einer Liste geöffnet landet Kaufen bis in allen Listen mit dem Gegenstand und nicht in Beobachten, sonst gilt es wie bisher für Beobachten (Claude).
+- **Markttausch ab Werk an** (KarloDerBaer: alle Chancen standardmäßig), Pakete brauchen ihn nicht mehr.
+- **Abfragen je Gegenstand in Beobachten 1 bis 5**, mit 1 gibt es nur Preis und Menge (Claude), Chancen behalten ihre eigene Zahl.
+- **Gewinn beim Verkaufen mit dem Durchschnitt** des Bestands aus Ledger, ein Posten geht weiter vor (Claude, nach Hinweis von KarloDerBaer).
+
 ## 25.11.2026: Kontrollrechnung ohne Auktionsliste (Ledger 0.18.1)
 
 - **Für Kosten und Handelsgewinn zählen nur Einstellen und Post** (KarloDerBaer fragte, wozu die Liste nötig ist): Was im Auktionshaus liegt, folgt aus eingestellt, zurück und verkauft. Die Liste des Spiels kam nach dem Einstellen teils ohne die neue Auktion. Dann buchte die Kontrollrechnung gekaufte Ware als fehlend aus und der Verkauf wurde Beute (914 Dickes Leder). Die Liste bleibt nur für die Anzeige und die frühe Meldung eines Verkaufs.

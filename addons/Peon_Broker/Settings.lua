@@ -55,7 +55,7 @@ local function BaitAlarmOff() return S.Get("focus", "quickBaitAlarm") == false e
 
 -- Fokus: Abfragen je Minute und die Grenzen fuer das Urteil (Measure.lua)
 S.SPECS.focus = {
-    title = "SET_FOCUS_TITLE", height = 860,   -- ab 0.108 hoeher (Marktbewegung), ab 0.109 noch ein Regler, ab 0.111 Ton fuer Lockangebote, ab 0.120 Vorgaben
+    title = "SET_FOCUS_TITLE", height = 900,   -- ab 0.140 Vorschlag, ab 0.108 hoeher (Marktbewegung), ab 0.109 noch ein Regler, ab 0.111 Ton fuer Lockangebote, ab 0.120 Vorgaben
     { "head", "SET_FOCUS_QUERY" },
     { "slider", "focusRate", "SET_FOCUS_RATE", 2, 90, 1, function(v) return L.SET_RATE_FMT:format(v, Dec(60 / v)) end },
     { "note", "SET_FOCUS_RATE_NOTE" },
@@ -73,6 +73,7 @@ S.SPECS.focus = {
     { "head", "SET_QUICK_DEFAULTS" },   -- ab 0.120: Vorgaben ohne eigene Werte
     { "slider", "quickLimitPct", "SET_QUICK_LIMIT_PCT", 10, 100, 5, function(v) return L.SET_PCT_FMT:format(v) end },
     { "money", "radarReserve", "SET_RADAR_RESERVE", 10000 },   -- ab 0.133 Goldreserve statt Limit pro Kauf (quickGoldDefault ruht)
+    { "slider", "quickSuggestPct", "SET_QUICK_SUGGEST_PCT", 0, 30, 1, function(v) return L.SET_PCT_FMT:format(v) end },   -- ab 0.140 Vorschlag
     { "head", "SET_QS_HEAD" },   -- ab 0.122: Gelegenheiten langfristig
     { "slider", "quickDipPct", "SET_QS_DIP", 1, 30, 1, function(v) return L.SET_PCT_FMT:format(v) end },
     { "slider", "quickStatDays", "SET_QS_DAYS", 1, 60, 1, function(v) return L.SET_DAYS_FMT:format(v) end },
@@ -135,14 +136,18 @@ S.QUICK_CHANCES = {
     { "note", "SET_QC_NOTE" },
 }
 S.SPECS.chances = {
-    title = "SET_CH_TITLE", height = 920,   -- ab 0.119 hoeher (Schnellkauf), ab 0.120 noch ein Regler, ab 0.138 Erweitert
+    title = "SET_CH_TITLE", height = 960,   -- ab 0.119 hoeher (Schnellkauf), ab 0.120 noch ein Regler, ab 0.140 Unterreiter einzeln
+    { "head", "SET_CH_TABS" },   -- ab 0.140: Unterreiter einzeln, in der Reihenfolge der Leiste
+    { "check", "chancesShowQ", "SET_CH_Q", "SET_CH_Q_TIP" },
+    { "check", "chancesTabBuyout", "SET_CH_TAB_B", "SET_CH_TAB_B_TIP" },
+    { "check", "chancesTabSpec", "SET_CH_TAB_S", "SET_CH_TAB_S_TIP" },
+    { "check", "tradeOn", "SET_CH_T", "SET_CH_T_TIP" },
+    { "check", "chancesTabPkg", "SET_CH_TAB_P", "SET_CH_TAB_P_TIP" },
     { "head", "SET_CH_KINDS" },
     { "check", "chancesShowS", "SET_CH_S", "SET_CH_S_TIP" },
     { "check", "chancesShowL", "SET_CH_L", "SET_CH_L_TIP" },
     { "check", "chancesShowB", "SET_CH_B", "SET_CH_B_TIP" },
     { "check", "chancesShowM", "SET_CH_M", "SET_CH_M_TIP" },
-    { "check", "chancesShowQ", "SET_CH_Q", "SET_CH_Q_TIP" },   -- ab 0.119
-    { "check", "tradeOn", "SET_CH_T", "SET_CH_T_TIP" },   -- ab 0.127, ab 0.128.2 Vorgabe aus (tradeOn)
     { "head", "SET_CH_NOTES" },
     { "check", "chancesAhNote", "SET_CH_AH_NOTE", "SET_CH_AH_NOTE_TIP" },
     { "check", "chancesNotify", "SET_CH_NOTIFY", "SET_CH_NOTIFY_TIP" },
@@ -151,9 +156,7 @@ S.SPECS.chances = {
 }
 for _, row in ipairs(S.RADAR_GENERAL) do table.insert(S.SPECS.chances, row) end
 for _, row in ipairs(S.QUICK_CHANCES) do table.insert(S.SPECS.chances, row) end
--- ab 0.138 (U6, Konzept 8): Weitere Chancen unter Erweitert
-table.insert(S.SPECS.chances, { "head", "SET_FOCUS_ADV" })
-table.insert(S.SPECS.chances, { "check", "chancesMore", "SET_CH_MORE", "SET_CH_MORE_TIP" })
+-- ab 0.138 (U6, Konzept 8): Weitere Chancen unter Erweitert. Ab 0.140 entfallen, jeder Unterreiter hat oben einen Schalter
 table.insert(S.SPECS.chances, { "col" })
 for _, row in ipairs(S.RADAR_KINDS) do table.insert(S.SPECS.chances, row) end
 for _, row in ipairs(S.RADAR_UPDATE) do table.insert(S.SPECS.chances, row) end
@@ -162,7 +165,7 @@ S.changed.chances = function()
     if R then R.loaded = nil end   -- Grenzen geaendert: Treffer aus der Datenbank neu rechnen
     if ns.QuickChances then ns.QuickChances.cands = nil end   -- ab 0.119: Vorschlaege neu
     if ns.Chances and ns.Chances.LayoutTabs then ns.Chances.LayoutTabs() end
-    -- ab 0.138: Weitere Chancen aus: laufender Radar-Scan endet, die Liste wechselt auf Schnellkauf
+    -- ab 0.138: Weitere Chancen aus: laufender Radar-Scan endet, die Liste wechselt auf den ersten eingeschalteten
     if ns.Chances and not ns.Chances.More() and R and R.running then R.Stop() end
     if ns.Chances and ns.Chances.tabs and ns.Chances.tabs.selected ~= ns.Chances.Tab() then ns.Chances.tabs:Select(ns.Chances.Tab()) end
     if ns.Chances and ns.Chances.Shown() then

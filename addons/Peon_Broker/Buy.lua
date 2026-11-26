@@ -409,13 +409,58 @@ function B.Advice(r)
     return "buy"
 end
 
+-- ab 0.140: Hoechstpreis eines Eintrags: der Wert in der Liste (aus dem Einkaufen uebernommen), sonst Kaufen bis
+-- des Einkaufens aus Beobachten. Der Rabatt der Liste (pct) zaehlt nicht mehr, er bleibt gespeichert.
+function B.LimitOf(key, it)
+    local v = it and tonumber(it.max)
+    if Num(v) and v > 0 then return v end
+    local Wt = ns.Watch
+    local w = Wt and Wt.Is(key) and Wt.Store()[key]
+    if w and Num(w.qlim) and w.qlim > 0 then return w.qlim end
+    return nil
+end
+
+-- ab 0.140: Listen, in denen key steht (fuer das Einkaufen)
+function B.ListsWith(key)
+    local out = {}
+    if key == nil then return out end
+    for _, l in ipairs(B.Lists()) do if type(l.items) == "table" and l.items[key] then out[#out + 1] = l end end
+    return out
+end
+
+-- ab 0.140: Kaufen bis aus dem Einkaufen in alle Listen mit diesem Gegenstand (nil = leeren)
+function B.SetMaxFromShop(key, price)
+    local n = 0
+    price = (Num(price) and price > 0) and math.floor(price) or nil
+    for _, l in ipairs(B.ListsWith(key)) do
+        local it = l.items[key]
+        if it.max ~= price then it.max = price; B.Touch(it, "max"); n = n + 1 end
+    end
+    if n > 0 and B.view then B.Refresh() end
+    return n
+end
+
+-- ab 0.140: Hoechstpreis fuer das Einkaufen: aus der Liste listId (sonst der ersten mit dem Gegenstand)
+function B.MaxForShop(key, listId)
+    local best
+    for _, l in ipairs(B.ListsWith(key)) do
+        local v = tonumber(l.items[key].max)
+        if Num(v) and v > 0 then
+            if l.id == listId then return v end
+            best = best or v
+        end
+    end
+    return best
+end
+
 function B.ListRows(list)
     list = list or B.CurrentList()
     local rows = {}
     if not list then return rows end
     for key, it in pairs(list.items) do
         local e = ns.Data.Lookup(key)
-        local limit = tonumber(it.max) or ns.Data.MaxBuyPrice(e, list.pct)   -- eigener Hoechstpreis geht vor (ab 0.34)
+        -- ab 0.140 (KarloDerBaer 26.11.2026): nur noch der Hoechstpreis aus dem Einkaufen (Kaufen bis), ohne Rabatt
+        local limit = B.LimitOf(key, it)
         local live = B.live[key]
         local levels = live and live.rows or ns.Data.ParseLevels(type(e) == "table" and e.lv)
         local cheapest
@@ -757,8 +802,37 @@ function B.NextSearch()
     if not run then return end
     run.i = run.i + 1
     local r = run.rows[run.i]
-    if not r or not AHOpen() then B.run = nil; B.Refresh(); return end
+    if not r or not AHOpen() or not B.Shown() then
+        B.run = nil
+        B.nextScan = (GetTime and GetTime() or time()) + B.SCAN_PAUSE   -- ab 0.140
+        B.Refresh()
+        return
+    end
     B.Query(r.key, function() B.NextSearch() end)
+end
+
+-- ab 0.140 (KarloDerBaer 26.11.2026): Solange Listen am Auktionshaus offen ist, fragt Broker die offene Liste reihum
+-- ab, jeden Gegenstand einmal, nach jeder Runde B.SCAN_PAUSE Sekunden Pause. Der Knopf "Liste durchsuchen" entfaellt.
+B.SCAN_PAUSE = 30
+B.TICK = 2
+function B.Tick()
+    B.ticking = false
+    if not (B.view and B.Shown()) then return end
+    local now = GetTime and GetTime() or time()
+    if AHOpen() and not B.run and now >= (B.nextScan or 0) then B.SearchList() end
+    B.StartTick()
+end
+
+function B.StartTick()
+    if B.ticking or not (C_Timer and C_Timer.After) then return end
+    B.ticking = true
+    C_Timer.After(B.TICK, function() mod:Call("Einkaufsliste", B.Tick) end)
+end
+
+-- ab 0.140: andere Liste gewaehlt: gleich die neue abfragen
+function B.RescanSoon()
+    B.run = nil
+    B.nextScan = 0
 end
 
 ---------------------------------------------------------------------------
@@ -994,17 +1068,7 @@ function B.UpdateView()
     -- Listen-Einstellungen
     -- ab 0.91: nicht ueberschreiben, waehrend man tippt. Jede Antwort des Auktionators fuellte die Felder neu, der
     -- getippte Name ging verloren und beim Verlassen wurde der alte gespeichert (Fehlerbericht 18).
-    B.filling = true
-    local function Fill(box, text)
-        if box.HasFocus and box:HasFocus() then return end
-        box:SetText(text)
-    end
-    Fill(B.nameBox, cur and cur.name or "")
-    Fill(B.pctBox, cur and tostring(cur.pct or 0) or "")
-    B.filling = false
-    if cur and not cur.watch then B.deleteButton:Enable() else B.deleteButton:Disable() end
-    if B.nameBox.SetEnabled then B.nameBox:SetEnabled(not (cur and cur.watch)) end
-    if B.pctBox.SetEnabled then B.pctBox:SetEnabled(not (cur and cur.watch)) end
+    -- ab 0.140: Name, Neu und Loeschen nur noch ueber den Rechtsklick auf eine Liste, der Rabatt entfaellt
     -- Gewaehlter Gegenstand (ab 0.136 ohne Kaufzeile, gekauft wird im Einkaufen)
     local row = B.selected
     if row then
@@ -1020,13 +1084,12 @@ function B.UpdateView()
             B.upBox:SetShown(isWatch)
             B.upBox:SetText(isWatch and it and it.up and tostring(it.up / 10000) or "")
         end
-        B.maxBox:SetText(it and it.max and tostring(it.max / 10000) or "")
         B.SyncWishSlider(it)
         B.filling = false
     else
         B.itemBar:Hide()
     end
-    if AHOpen() and not B.run and cur and next(cur.items) then B.searchButton:Enable() else B.searchButton:Disable() end
+    B.StartTick()   -- ab 0.140: laufende Abfrage statt Knopf
     if B.run then B.listStatus:SetText(GREY .. L.BUY_SEARCHING:format(B.run.i, #B.run.rows) .. "|r")
     else B.listStatus:SetText("") end
 end
@@ -1080,6 +1143,74 @@ function B.DeleteRow(r)
     if not (cur and r and cur.items[r.key]) then return end
     B.RemoveItem(cur, r.key)
     if B.selected and B.selected.key == r.key then B.selected = nil end
+    B.Refresh()
+end
+
+---------------------------------------------------------------------------
+-- ab 0.140 (KarloDerBaer 26.11.2026): Listen nur ueber den Rechtsklick verwalten. Auf einer Liste: Neu, Umbenennen,
+-- Loeschen. In der leeren Flaeche: Neu. Eine neue Liste beginnt gleich mit dem Umbenennen.
+---------------------------------------------------------------------------
+function B.ListMenu(r, owner)
+    local mu = rawget(_G, "MenuUtil")
+    if not (mu and mu.CreateContextMenu) then return false end
+    mu.CreateContextMenu(owner, function(_, root)
+        if r then root:CreateTitle(r.name or "") end
+        root:CreateButton(L.BUY_MENU_NEW, function() mod:Call("Einkaufsliste", B.MenuNew) end)
+        if r then
+            root:CreateButton(L.BUY_MENU_RENAME, function() mod:Call("Einkaufsliste", B.StartRename, r.index) end)
+            root:CreateButton(L.BUY_MENU_DELETE, function() mod:Call("Einkaufsliste", B.AskDelete, r.index) end)
+        end
+    end)
+    return true
+end
+
+function B.MenuNew()
+    B.NewList()
+    B.selected = nil
+    B.RescanSoon()
+    B.Refresh()
+    B.StartRename(mod.char.listSel)
+end
+
+function B.AskDelete(i)
+    local l = B.Lists()[i]
+    if not l then return end
+    Peon.UI.Confirm(L.BUY_DELETE_ASK:format(l.name or ""), L.BUY_DELETE, CANCEL or "Cancel", function()
+        mod:Call("Einkaufsliste", function()
+            B.DeleteList(i); B.selected = nil; B.RescanSoon(); B.Refresh()
+        end)
+    end)
+end
+
+function B.ShowRename(on)
+    if B.nameBox then B.nameBox:SetShown(on) end
+    if B.nameRow and B.nameRow.SetShown then B.nameRow:SetShown(on) end
+end
+
+function B.StartRename(i)
+    local l = B.Lists()[i]
+    if not (l and B.nameBox) then return end
+    B.renaming = l.id or i
+    mod.char.listSel = i
+    B.ShowRename(true)
+    B.nameBox:SetText(l.name or "")
+    if B.nameBox.SetFocus then B.nameBox:SetFocus() end
+    if B.nameBox.HighlightText then B.nameBox:HighlightText() end
+end
+
+-- text = nil: abbrechen
+function B.FinishRename(text)
+    local id = B.renaming
+    if id == nil then return end
+    B.renaming = nil
+    if text then
+        text = tostring(text):gsub("^%s+", ""):gsub("%s+$", "")
+        for i, l in ipairs(B.Lists()) do
+            if (l.id or i) == id and text ~= "" and l.name ~= text then l.name = text; B.Touch(l, "name") end
+        end
+    end
+    B.ShowRename(false)
+    if B.nameBox and B.nameBox.ClearFocus then B.nameBox:ClearFocus() end
     B.Refresh()
 end
 
@@ -1161,10 +1292,9 @@ function B.Build(c)
         self:ClearFocus()
     end)
     UI.SetTooltip(B.searchBox, { L.BUY_ADD_TITLE, L.BUY_ADD_TIP })
-    B.searchButton = UI.Button(c, L.BUY_SEARCH, 150, function() mod:Call("Einkaufen", B.SearchList) end)
-    B.searchButton:SetPoint("TOPRIGHT", -2, -4)
+    -- ab 0.140 ohne Knopf "Liste durchsuchen" (B.Tick fragt reihum ab), der Stand steht oben rechts
     B.listStatus = UI.Text(c, "small", "")
-    B.listStatus:SetPoint("RIGHT", B.searchButton, "LEFT", -10, 0)
+    B.listStatus:SetPoint("TOPRIGHT", -4, -10)
 
     -- Links oben: die Listen
     local lp = UI.Panel(c, "list", true)
@@ -1174,79 +1304,51 @@ function B.Build(c)
         columns = { { key = "name", title = L.BUY_LISTS },
                     { key = "count", title = "", width = 44, align = "RIGHT" } },
         empty = L.BUY_NO_LISTS,
-        onClick = function(r) mod.char.listSel = r.index; B.selected = nil; B.Refresh() end,
+        -- ab 0.140 (KarloDerBaer 26.11.2026): Rechtsklick auf eine Liste: Neu, Umbenennen, Loeschen
+        onClick = function(r, button)
+            if button == "RightButton" then mod:Call("Einkaufsliste", B.ListMenu, r, lp); return end
+            mod.char.listSel = r.index; B.selected = nil; B.RescanSoon(); B.Refresh()
+        end,
     }))
+    -- ab 0.140: Rechtsklick in die leere Flaeche der Listen: Neu
+    if lp.EnableMouse then lp:EnableMouse(true) end
+    local function EmptyClick(_, button)
+        if button == "RightButton" then mod:Call("Einkaufsliste", B.ListMenu, nil, lp) end
+    end
+    lp:HookScript("OnMouseUp", EmptyClick)
+    if B.listList.list and B.listList.list.box and B.listList.list.box.HookScript then
+        B.listList.list.box:HookScript("OnMouseUp", EmptyClick)
+    end
 
-    -- Links unten: Einstellungen der Liste und des gewaehlten Gegenstands
+    -- Links unten: gewaehlter Gegenstand (ab 0.140 ohne Einstellungen der Liste, die stehen im Rechtsklick)
     local left = UI.Panel(c, "left")
     left:SetPoint("TOPLEFT", lp, "BOTTOMLEFT", 0, -2)
     left:SetPoint("BOTTOMLEFT", 0, 0)
     left:SetWidth(B.LEFT_W)
-    local half = math.floor((B.LEFT_W - 24) / 2)
-    B.newButton = UI.Button(left, L.BUY_NEW, half, function() B.NewList(); B.Refresh() end)
-    B.newButton:SetPoint("TOPLEFT", 10, -10)
-    B.deleteButton = UI.Button(left, L.BUY_DELETE, half, function()
-        local cur, i = B.CurrentList()
-        if not cur or cur.watch then return end
-        UI.Confirm(L.BUY_DELETE_ASK:format(cur.name or ""), L.BUY_DELETE, CANCEL or "Cancel", function()
-            B.DeleteList(i); B.selected = nil; B.Refresh()
-        end)
-    end)
-    B.deleteButton:SetPoint("LEFT", B.newButton, "RIGHT", 4, 0)
+    -- Umbenennen (ab 0.140): Feld nur waehrend des Umbenennens, Eingabe speichert, Escape bricht ab
+    B.nameBox = UI.Input(left, 120)
+    B.nameRow = UI.FormRow(left, L.BUY_F_NAME, B.nameBox, B.FORM_X, -12)
+    B.nameBox:SetScript("OnEnterPressed", function(self) B.FinishRename(self:GetText()) end)
+    B.nameBox:SetScript("OnEscapePressed", function() B.FinishRename(nil) end)
+    B.nameBox:SetScript("OnEditFocusLost", function(self) if B.renaming then B.FinishRename(self:GetText()) end end)
+    B.ShowRename(false)
 
-    B.nameBox = UI.Input(left, 94)
-    UI.FormRow(left, L.BUY_F_NAME, B.nameBox, B.FORM_X, -40)
-    B.nameBox:SetScript("OnEditFocusLost", function(self)
-        local cur = B.CurrentList()
-        local text = (self:GetText() or ""):gsub("^%s+", ""):gsub("%s+$", "")
-        if cur and not B.filling and text ~= "" and cur.name ~= text then cur.name = text; B.Touch(cur, "name") end
-        B.Refresh()
-    end)
-    B.pctBox = UI.Input(left, 60, { numeric = true })
-    local pr = UI.FormRow(left, L.BUY_F_PCT, B.pctBox, B.FORM_X, -76, L.BUY_F_PCT_SUB)
-    UI.SetTooltip(B.pctBox, { L.BUY_F_PCT, L.BUY_F_PCT_TIP })
-    B.pctBox:SetScript("OnEditFocusLost", function(self)
-        local cur = B.CurrentList()
-        if cur and not B.filling then
-            local v = math.max(0, math.min(90, tonumber(self:GetText() or "") or 0))
-            if v ~= cur.pct then cur.pct = v; B.Touch(cur, "pct") end
-            B.Refresh()
-        end
-    end)
-
-    -- gewaehlter Gegenstand: Hoechstpreis in Gold, Ziel, Entfernen
+    -- gewaehlter Gegenstand: Brauche mit Regler (ab 0.140 ohne Hoechstpreis, der kommt aus dem Einkaufen)
     local ib = CreateFrame("Frame", nil, left)
-    ib:SetPoint("TOPLEFT", 0, -120)
+    ib:SetPoint("TOPLEFT", 0, -44)
     ib:SetPoint("RIGHT", left, "RIGHT", 0, 0)
-    ib:SetHeight(140)
+    ib:SetHeight(120)
     B.itemBar = ib
     local div = UI.Divider(ib, B.LEFT_W - 24)
     div:SetPoint("TOPLEFT", 12, 0)
     local il = UI.Text(ib, "heading", L.BUY_ITEM_HEAD)
     il:SetPoint("TOPLEFT", 14, -10)
-    B.maxBox = UI.Input(ib, 80)
-    UI.FormRow(ib, L.BUY_F_MAX, B.maxBox, B.FORM_X, -34, L.BUY_F_MAX_SUB)
-    B.maxBox:SetScript("OnEditFocusLost", function(self)
-        local cur = B.CurrentList()
-        if B.filling or not cur or not B.selected then return end
-        local v = Gold(self:GetText())
-        if cur.watch then   -- ab 0.49: Grenze der Beobachtung
-            ns.Watch.SetLimit(B.selected.key, v and "abs" or nil, v)
-            B.Refresh()
-            return
-        end
-        local it = cur.items[B.selected.key]
-        if it then
-            if v ~= it.max then it.max = v; B.Touch(it, "max") end
-            B.Refresh()
-        end
-    end)
     B.wishBox = UI.Input(ib, 80, { numeric = true })
-    B.wishRow = UI.FormRow(ib, L.BUY_F_WISH, B.wishBox, B.FORM_X, -70, L.BUY_F_WISH_SUB)
+    B.wishRow = UI.FormRow(ib, L.BUY_F_WISH, B.wishBox, B.FORM_X, -34, L.BUY_F_WISH_SUB)
     B.wishBox:SetScript("OnEditFocusLost", function(self) B.SetWish(self:GetText() or "") end)
     -- ab 0.68 (H4, Konzept 6.6): Beobachtung mit Grenze nach oben ("verkaufen ab"), an der Stelle des Ziels
     B.upBox = UI.Input(ib, 80)
-    B.upRow = UI.FormRow(ib, L.BUY_F_UP, B.upBox, B.FORM_X, -70, L.BUY_F_UP_SUB)
+    B.upRow = UI.FormRow(ib, L.BUY_F_UP, B.upBox, B.FORM_X, -34, L.BUY_F_UP_SUB)
     B.upBox:SetScript("OnEditFocusLost", function(self)
         local cur = B.CurrentList()
         if B.filling or not cur or not cur.watch or not B.selected then return end
@@ -1258,7 +1360,7 @@ function B.Build(c)
         if B.wishSync or not Num(v) then return end
         B.SetWish(v)
     end)
-    B.wishSlider:SetPoint("TOPLEFT", 20, -108)
+    B.wishSlider:SetPoint("TOPLEFT", 20, -72)
     UI.SetTooltip(B.wishSlider, { L.BUY_COL_WISH, L.BUY_WISH_TIP })
 
     -- Vorrat aller Charaktere (nur mit Peon_Ledger)

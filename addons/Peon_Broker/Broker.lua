@@ -49,7 +49,11 @@ local mod = Peon:NewModule(ADDON_NAME, {
         dealHold     = 48,      -- Markt-Schnaeppchen: hoechstens Absatz je Std. x so viele Stunden (ab 0.26)
         radarSoundKey = "raid", -- Warnton bei neuen Treffern (ab 0.19): raid, ready, alarm, tell
         radarFlash   = 5,       -- neue Treffer: Zeile pulsiert so viele Sekunden (ab 0.19)
-        radarReserve = 0,       -- Goldreserve in Gold: so viel gibt der Radar nie aus (ab 0.19)
+        radarReserve = 5,       -- Goldreserve in Gold: so viel gibt der Radar nie aus (ab 0.19, ab 0.140 Vorgabe 5)
+        radarReserveOn = true,  -- ab 0.140: Haken vor der Goldreserve im Einkaufen (aus = keine Reserve)
+        quickSuggestPct = 5,    -- ab 0.140: Mindestgewinn je Stueck in Prozent fuer den Vorschlag im Einkaufen
+        chartSuggest = true,    -- ab 0.140: Linie Vorschlag im Diagramm
+        foldStats = true,       -- ab 0.140: Statistik im Einkaufen aufgeklappt
         buyoutHours  = 2,       -- Aufkauf (ab 0.65): Menge muss sich in so vielen Stunden wieder verkaufen
         focusEvery   = 5,       -- Fokus (0.66 bis 0.69): Abstand der Abfragen in Sekunden, ab 0.70 focusRate
         focusRate    = 90,      -- Fokus (ab 0.70): Abfragen je Minute, bis 90 (Grenze des Spiels; bis 0.82 12)
@@ -104,15 +108,18 @@ local mod = Peon:NewModule(ADDON_NAME, {
         chancesAhNote = true,   -- beim Oeffnen des Auktionshauses sagen, wie viele Chancen warten
         chancesNotify = true,   -- Meldung, wenn ein guenstiges Zeitfenster beginnt (Muster)
         chancesScan  = "mgr",   -- ab 0.105: Auswahl des Scans im Reiter Chancen (mgr, watch, mass, all)
-        chancesTab   = "spec",  -- ab 0.119: zuletzt offener Unterreiter in Chancen (spec, buyout, quick)
+        chancesTab   = "quick", -- ab 0.119 (ab 0.140 Vorgabe Schnellkauf): zuletzt offener Unterreiter in Chancen (spec, buyout, quick)
         watchTab     = "buyout", -- ab 0.119: zuletzt offener Unterreiter in Beobachten (buyout, quick)
         chancesShowQ = true,    -- ab 0.119: Chancen der Art Schnellkauf (QuickChances.lua)
         chancesMore  = false,   -- ab 0.138 (U6): Weitere Chancen (Spekulation, Aufkauf, Markttausch, Pakete)
-        tradeOn = false,        -- ab 0.128.2: Markttausch in Chancen und Beobachten (Trade.lua), erst nach Einschalten (KarloDerBaer)
+        tradeOn = true,         -- ab 0.140 Vorgabe an (alle Chancen zu sehen, KarloDerBaer 26.11.2026)
+        chancesTabBuyout = true, chancesTabSpec = true, chancesTabPkg = true,   -- ab 0.140: Unterreiter der Chancen einzeln
+        -- ab 0.128.2: Markttausch in Chancen und Beobachten (Trade.lua), erst nach Einschalten (KarloDerBaer)
         chancesTradeNote = true,   -- ab 0.127: Hinweis am Zielhaus auf Ware aus dem Markttausch
         qcCount      = 10,      -- ab 0.119: so viele Vorschlaege fuer den Schnellkauf
         qcMinPrice   = 100,     -- ab 0.119: guenstigster Preis je Stueck mindestens (Kupfer, 1 Silber)
         qcProbes     = 5,       -- ab 0.119: Abfragen je Pruefung eines Gegenstands
+        watchProbes  = 3,       -- ab 0.140: Abfragen je Gegenstand in Beobachten (1 bis 5, Regler oben rechts)
         qcWaitMax    = 10,      -- ab 0.120: ruhige Vorschlaege hoechstens alle so viele Minuten pruefen (maessige gleitend oefter)
         quickLimitPct = 50,     -- ab 0.120: Kaufen bis im Schnellkauf ohne eigenen Wert: so viel % des guenstigsten Angebots
         quickGoldDefault = 50000, -- ab 0.120: Limit pro Kauf im Schnellkauf ohne eigenen Wert (Kupfer, 5 Gold)
@@ -168,7 +175,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  badgeChances = { off = true, ok = true, all = true },
                  focusMode = { buyout = true, quick = true },   -- ab 0.104
                  chancesScan = { mgr = true, watch = true, mass = true, all = true },   -- ab 0.105
-                 chancesTab = { spec = true, buyout = true, quick = true },   -- ab 0.119
+                 chancesTab = { spec = true, buyout = true, quick = true, trade = true, pkg = true },   -- ab 0.119
                  watchTab = { buyout = true, quick = true },
                  quickSound = { raid = true, ready = true, alarm = true, tell = true, coin = true, levelup = true, queue = true, ping = true, boss = true, auction = true },
                  quickBaitSound = { raid = true, ready = true, alarm = true, tell = true, coin = true, levelup = true, queue = true, ping = true, boss = true, auction = true },

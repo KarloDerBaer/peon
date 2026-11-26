@@ -378,6 +378,7 @@ function Q.CheckAlarm(key, rows, qty, button)
         local s = Q.Session(key)
         s.opps = (s.opps or 0) + 1
         Q.opp[key] = { t = Now(), won = false }
+        if ns.QuickStats and ns.QuickStats.OnOpp then ns.QuickStats.OnOpp(key) end   -- ab 0.140: Quote ueber Tage
     end
     -- ab 0.111: Ton fuer ein neues fremdes Lockangebot, solange der Kaufknopf noch gesperrt ist (zum Vorbereiten)
     if Q.baitPing == key then
@@ -715,7 +716,10 @@ function Q.OnBought(job, n, cost)
     if ns.QuickStats then ns.QuickStats.OnBought(job.key, n, cost) end   -- ab 0.126: bleibt ueber den Logout
     -- ab 0.111: die letzte Gelegenheit gilt als genutzt (einmal)
     local o = Q.opp[job.key]
-    if o and not o.won then o.won = true; s.won = (s.won or 0) + 1 end
+    if o and not o.won then
+        o.won = true; s.won = (s.won or 0) + 1
+        if ns.QuickStats and ns.QuickStats.OnWon then ns.QuickStats.OnWon(job.key) end   -- ab 0.140
+    end
 end
 
 -- ab 0.111: Kauf aus dem Schnellkauf ohne Erfolg (fehlgeschlagen, zu teuer, Fehler)
@@ -1038,6 +1042,120 @@ function Q.AutoLimit(key)
     local limit = F and F.ManualLimit and F.ManualLimit(key) or nil
     local high = Num(limit) and limit <= last.price or false
     return math.floor((last.price + reg) / 2), last.price, reg, high, kind
+end
+
+---------------------------------------------------------------------------
+-- ab 0.140 (Board KarloDerBaer 26.11.2026): Vorschlag statt Auto. Kaufen bis, bei dem ein Weiterverkauf zum
+-- guenstigsten Angebot jetzt noch Gewinn bringt: guenstigstes Angebot ohne Ausreisser nach unten, minus Anteil des
+-- Auktionshauses, minus Mindestgewinn je Stueck (quickSuggestPct Prozent, Vorgabe 5). Ausreisser: Stufen mit nur
+-- einem Stueck und eine Stufe mehr als Q.OUTLIER_PCT Prozent unter der naechsten mit mindestens 2 Stueck.
+---------------------------------------------------------------------------
+Q.OUTLIER_PCT = 15
+
+-- Guenstigster Preis ohne Ausreisser nach unten (rows = Live-Angebote) oder nil
+function Q.CleanLow(rows)
+    local lv = ns.Data.Available(rows or {})
+    local cand = {}
+    for _, l in ipairs(lv) do
+        if l.qty >= 2 then
+            cand[#cand + 1] = l.price
+            if #cand >= 2 then break end
+        end
+    end
+    if #cand == 0 then return lv[1] and lv[1].price or nil end
+    if cand[2] and cand[1] < cand[2] * (1 - Q.OUTLIER_PCT / 100) then return cand[2] end
+    return cand[1]
+end
+
+-- Vorschlag fuer key: Wert, guenstigstes (bereinigt), Anteil (0..1), Mindestgewinn je Stueck in Prozent. nil ohne
+-- Live-Angebote
+function Q.Suggestion(key)
+    local F = ns.Focus
+    if key == nil or key ~= F.key then return nil end
+    local rows = F.LiveRows()
+    if not rows then return nil end
+    local low = Q.CleanLow(rows)
+    if not Num(low) or low <= 0 then return nil end
+    local cut = ns.Data.Cut and ns.Data.Cut() or 0.05
+    local pct = math.max(0, tonumber(mod.db.quickSuggestPct) or 5)
+    local v = math.floor(low * (1 - cut) - low * pct / 100)
+    if v < 1 then return nil end
+    return v, low, cut, pct
+end
+
+---------------------------------------------------------------------------
+-- ab 0.140: Stabilitaet des Preises aus dem eigenen Verlauf (Q.hist) ueber den Zeitraum des Diagramms. Vergleicht
+-- das erste und das letzte Drittel (Trend) und zaehlt Spruenge des guenstigsten Preises. Rueckgabe Code
+-- ("stable", "rising", "falling", "jumpy", "wavy", "first") und Werte fuer den Tooltip.
+--   sprunghaft  mindestens Q.STAB_JUMPS Spruenge je Minute (Sprung = mindestens quickJumpPct Prozent, Vorgabe 2)
+--   steigend    letztes Drittel mindestens Q.STAB_TREND Prozent ueber dem ersten
+--   fallend     letztes Drittel mindestens Q.STAB_TREND Prozent unter dem ersten
+--   stabil      Spanne (hoechster minus tiefster) hoechstens Q.STAB_FLAT Prozent
+--   schwankend  sonst
+---------------------------------------------------------------------------
+Q.STAB_MIN = 5       -- so viele Eintraege braucht die Bewertung
+Q.STAB_JUMPS = 1.5   -- Spruenge je Minute
+Q.STAB_TREND = 3     -- Prozent
+Q.STAB_FLAT = 2      -- Prozent
+
+function Q.Stability(key, minutes, now)
+    local h = key ~= nil and Q.hist[key]
+    if not h then return "first" end
+    now = now or h.last
+    local from = now - (tonumber(minutes) or 5) * 60
+    local vals, times = {}, {}
+    for _, e in ipairs(h.list) do
+        if e.t > from and Num(e.min) then vals[#vals + 1] = e.min; times[#times + 1] = e.t end
+    end
+    local n = #vals
+    if n < Q.STAB_MIN then return "first", { n = n } end
+    local third = math.max(1, math.floor(n / 3))
+    local a, b = 0, 0
+    for i = 1, third do a = a + vals[i] end
+    for i = n - third + 1, n do b = b + vals[i] end
+    a, b = a / third, b / third
+    local lo, hi, jumps = vals[1], vals[1], 0
+    local jp = (tonumber(mod.db.quickJumpPct) or 2) / 100
+    for i = 2, n do
+        local v = vals[i]
+        if v < lo then lo = v end
+        if v > hi then hi = v end
+        local p = vals[i - 1]
+        if p > 0 and math.abs(v - p) / p >= jp then jumps = jumps + 1 end
+    end
+    local mins = math.max(1 / 60, (times[n] - times[1]) / 60)
+    local trend = a > 0 and (b - a) * 100 / a or 0
+    local span = lo > 0 and (hi - lo) * 100 / lo or 0
+    local info = { n = n, trend = trend, span = span, jumps = jumps, perMin = jumps / mins, lo = lo, hi = hi, minutes = mins }
+    if info.perMin >= Q.STAB_JUMPS then return "jumpy", info end
+    if trend >= Q.STAB_TREND then return "rising", info end
+    if trend <= -Q.STAB_TREND then return "falling", info end
+    if span <= Q.STAB_FLAT then return "stable", info end
+    return "wavy", info
+end
+
+---------------------------------------------------------------------------
+-- ab 0.140: Statistik im Einkaufen. Gekauft in dieser Sitzung (Q.sessions), heute und in 7 Tagen (QuickStats), je
+-- Stueck, Durchschnitt und Quote der genutzten Gelegenheiten. Rueckgabe { n, cost, opps, won } oder nil
+---------------------------------------------------------------------------
+function Q.SessionStats(key)
+    local s = key ~= nil and Q.sessions[key]
+    if not s then return nil end
+    return { n = s.bought or 0, cost = s.cost or 0, opps = s.opps or 0, won = s.won or 0 }
+end
+
+-- Zeile der Statistik: "12 Stueck, Ø 5s 3c (40 %)" oder grau "nichts"
+function Q.StatText(st)
+    if not st or (st.n or 0) <= 0 then
+        if st and (st.opps or 0) > 0 then return GREY .. L.QUICK_STAT_NONE_Q:format(0) .. "|r" end
+        return GREY .. L.QUICK_STAT_NONE .. "|r"
+    end
+    local avg = (Num(st.cost) and st.cost > 0) and Money(math.floor(st.cost / st.n + 0.5)) or "-"
+    local text = L.QUICK_STAT:format(st.n, avg)
+    if (st.opps or 0) > 0 then
+        text = text .. " " .. GREY .. L.QUICK_STAT_RATE:format(math.floor(math.min(st.won or 0, st.opps) * 100 / st.opps + 0.5)) .. "|r"
+    end
+    return text
 end
 
 ---------------------------------------------------------------------------

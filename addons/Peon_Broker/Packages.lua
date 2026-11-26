@@ -33,7 +33,7 @@ local function Now() return GetTime and GetTime() or time() end
 local function AHApi() return rawget(_G, "C_AuctionHouse") end
 local function AHOpen() return ns.Scan.ahOpen and AHApi() ~= nil end
 
-function K.On() return ns.Trade ~= nil and ns.Trade.On() end
+function K.On() return mod.db.chancesTabPkg ~= false end   -- ab 0.140 eigener Schalter (vorher mit Markttausch)
 
 -- Pakete vom Manager: t, pkg oder nil
 function K.Manager()
@@ -378,16 +378,50 @@ end
 
 -- ab 0.138: Zeilen fuer die Tabelle: je Paket eine Kopfzeile, aufgeklappt darunter seine Angebote
 K.open = {}   -- [Richtung] = true: aufgeklappt
+-- ab 0.140 (KarloDerBaer 26.11.2026): Gewinn eines Pakets mit den Live-Preisen im Haus der Quelle. Statt des Kaufen
+-- bis des Managers zaehlt fuer jedes abgefragte, noch fehlende Angebot der Preis jetzt. Rueckgabe Gewinn jetzt (oder
+-- nil ohne Angabe des Managers), Zahl der abgefragten Angebote, Zahl der noch fehlenden Angebote im Haus hier
+function K.GainNow(rows, dir, s)
+    local base = s and (Num(s.gain) and s.gain or (Num(s.gainSafe) and s.gainSafe or nil))
+    local delta, checked, open = 0, 0, 0
+    for _, x in ipairs(rows or {}) do
+        if x.dir == dir and x.where == "src" and (x.need or 0) > 0 then
+            open = open + 1
+            if (x.act == "buy" or x.act == "dear") and Num(x.live) and Num(x.buy) then
+                checked = checked + 1
+                delta = delta + (x.live - x.buy) * x.need
+            end
+        end
+    end
+    if base == nil then return nil, checked, open end
+    return math.floor(base - delta + 0.5), checked, open
+end
+
+-- ab 0.140: Zustand eines Pakets: alles gekauft, lohnt sich, lohnt nicht, wird geprueft
+function K.WorthText(s, now, checked, open)
+    if s.bought >= s.n then return GREEN .. L.PK_ROW_DONE .. "|r" end
+    if Num(now) and now <= 0 then return ORANGE .. L.PK_ROW_NOT_WORTH .. "|r" end
+    if open > 0 and checked == 0 then return GREY .. L.PK_ROW_CHECKING .. "|r" end
+    if not Num(now) then return GREY .. L.PK_ROW_STATE:format(s.bought, s.n) .. "|r" end
+    return GREEN .. L.PK_ROW_WORTH .. "|r"
+end
+
 function K.ViewRows(rows, sum)
     local out = {}
     for i, dir in ipairs({ "n", "h" }) do
         local s = sum and sum[dir]
         if s then
-            local state = L.PK_ROW_STATE:format(s.bought, s.n) .. (s.posted > 0 and L.PK_ROW_POSTED:format(s.posted) or "")
+            -- ab 0.140: in der Zeile des Pakets der moegliche Gewinn (jetzt) und ob es sich gerade lohnt. Kaufen bis und
+            -- Verkaufen ab stehen nur noch bei den Angeboten, Einsatz und Stand im Tooltip.
+            local now, checked, open = K.GainNow(rows, dir, s)
+            local name = L.PK_ROW:format(ns.Trade.DirText(dir))
+            if Num(now) then
+                name = L.PK_ROW_NAME_GAIN:format(name, (now > 0 and GREEN or ORANGE) .. ns.Radar.SignedMoney(now) .. "|r")
+            end
             out[#out + 1] = { pkg = true, key = "pkg:" .. dir, dir = dir, order = i * 10000,
-                name = L.PK_ROW:format(ns.Trade.DirText(dir)), qty = s.n, buy = s.stake, minSell = s.gainSafe or s.gain,
-                gain = s.gain, gainSafe = s.gainSafe, stake = s.stake, bought = s.bought, posted = s.posted,
-                state = (s.bought >= s.n and GREEN or GREY) .. state .. "|r", open = K.open[dir] == true,
+                name = name, qty = s.n, gain = s.gain, gainSafe = s.gainSafe, gainNow = now, checked = checked,
+                stake = s.stake, bought = s.bought, posted = s.posted,
+                state = K.WorthText(s, now, checked, open), open = K.open[dir] == true,
                 icon = "Interface\\Icons\\INV_Crate_01" }
             if K.open[dir] then
                 local j = 0
@@ -485,7 +519,11 @@ function K.PkgTooltip(row, r)
     GameTooltip:AddLine(r.name, 1, 0.82, 0)
     GameTooltip:AddDoubleLine(L.PK_ROW_OFFERS:format(r.qty or 0), L.PK_ROW_STATE:format(r.bought or 0, r.qty or 0), 0.8, 0.8, 0.8, 1, 1, 1)
     if Num(r.stake) then GameTooltip:AddDoubleLine(L.PK_ROW_STAKE, Money(r.stake), 0.8, 0.8, 0.8, 1, 1, 1) end
-    if Num(r.gainSafe) or Num(r.gain) then GameTooltip:AddDoubleLine(L.PK_ROW_GAIN, Money(math.max(0, r.gainSafe or r.gain)), 0.8, 0.8, 0.8, 0.38, 0.88, 0.38) end
+    if (r.posted or 0) > 0 then GameTooltip:AddLine((L.PK_ROW_POSTED:format(r.posted):gsub("^, ", "")), 0.8, 0.8, 0.8) end
+    if Num(r.gainNow) then GameTooltip:AddDoubleLine(L.PK_ROW_GAIN_NOW, ns.Radar.SignedMoney(r.gainNow), 0.8, 0.8, 0.8, 0.38, 0.88, 0.38) end   -- ab 0.140
+    if Num(r.gain) then GameTooltip:AddDoubleLine(L.PK_ROW_GAIN_MGR, Money(math.max(0, r.gain)), 0.8, 0.8, 0.8, 1, 1, 1) end
+    if Num(r.gainSafe) then GameTooltip:AddDoubleLine(L.PK_ROW_GAIN_SAFE, Money(math.max(0, r.gainSafe)), 0.8, 0.8, 0.8, 1, 1, 1) end
+    if (r.checked or 0) > 0 then GameTooltip:AddLine(L.PK_ROW_GAIN_TIP:format(r.checked), 0.6, 0.6, 0.6, true) end
     GameTooltip:AddLine(L.PK_ROW_TIP, 0.6, 0.6, 0.6, true)
     GameTooltip:Show()
 end

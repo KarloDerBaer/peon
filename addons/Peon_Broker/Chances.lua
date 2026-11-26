@@ -48,7 +48,10 @@ C.blink = false  -- ab 0.105: neue Treffer nach einem Komplettscan, Zahl blinkt 
 C.notified = {}  -- [Schluessel .. Fenster] = true: Meldung zum Fenster schon gegeben (diese Sitzung)
 C.KIND_SETTING = { s = "chancesShowS", l = "chancesShowL", b = "chancesShowB", m = "chancesShowM" }
 -- ab 0.119: Unterreiter
-C.TABS = { "spec", "buyout", "quick", "trade", "pkg" }   -- ab 0.129 Pakete
+-- ab 0.140 (KarloDerBaer 26.11.2026): alle Unterreiter von Anfang an, Reihenfolge Schnellkauf, Aufkauf, Spekulation,
+-- Markttausch, Pakete. Jeder Unterreiter einzeln abschaltbar (C.TAB_SETTING, Einstellungen der Chancen).
+C.TABS = { "quick", "buyout", "spec", "trade", "pkg" }
+C.TAB_SETTING = { quick = "chancesShowQ", buyout = "chancesTabBuyout", spec = "chancesTabSpec", trade = "tradeOn", pkg = "chancesTabPkg" }
 C.TAB_OF_MK = { s = "spec", l = "spec", m = "spec", b = "buyout" }
 C.TAB_OF_KIND = { buyout = "buyout", vendor = "buyout" }
 
@@ -62,18 +65,28 @@ function C.KindOn(mk)
     return k ~= nil and mod.db[k] ~= false
 end
 
--- ab 0.138 (U6): Weitere Chancen eingeschaltet?
-function C.More() return mod.db.chancesMore == true end
+-- ab 0.138 (U6): Weitere Chancen eingeschaltet? Ab 0.140 ohne eigenen Schalter: an, sobald ein Unterreiter ausser
+-- Schnellkauf an ist (chancesMore bleibt gespeichert, ungenutzt)
+function C.More()
+    return C.TabOn("buyout") or C.TabOn("spec") or C.TabOn("trade") or C.TabOn("pkg")
+end
 
--- ab 0.119: Unterreiter an? (mindestens eine Art eingeschaltet). ab 0.138 ausser Schnellkauf nur mit Weitere Chancen
+-- ab 0.140: Unterreiter in den Einstellungen eingeschaltet? (Vorgabe an, Markttausch ueber tradeOn)
+function C.TabWanted(tab)
+    local k = C.TAB_SETTING[tab]
+    if k == "tradeOn" then return mod.db.tradeOn == true end
+    return k ~= nil and mod.db[k] ~= false
+end
+
+-- ab 0.119: Unterreiter an? (mindestens eine Art eingeschaltet). ab 0.140 jeder Unterreiter mit eigenem Schalter
 function C.TabOn(tab)
-    if tab ~= "quick" and not C.More() then return false end
+    if not C.TabWanted(tab) then return false end
     if tab == "spec" then return C.KindOn("s") or C.KindOn("l") or C.KindOn("m") end
     if tab == "buyout" then
         local R = ns.Radar
         return C.KindOn("b") or (R ~= nil and (R.KIND_ON.vendor or R.KIND_ON.buyout)) or false
     end
-    if tab == "quick" then return mod.db.chancesShowQ ~= false end
+    if tab == "quick" then return true end
     if tab == "trade" then return ns.Trade ~= nil and ns.Trade.On() end   -- ab 0.127
     if tab == "pkg" then return ns.Packages ~= nil and ns.Packages.On() end   -- ab 0.129
     return false
@@ -81,9 +94,8 @@ end
 
 -- Offener Unterreiter: der gemerkte, wenn er an ist, sonst der erste eingeschaltete
 function C.Tab()
-    if not C.More() then return "quick" end   -- ab 0.138
     local t = mod.db.chancesTab
-    if t ~= "spec" and t ~= "buyout" and t ~= "quick" and t ~= "trade" and t ~= "pkg" then t = "spec" end
+    if t ~= "spec" and t ~= "buyout" and t ~= "quick" and t ~= "trade" and t ~= "pkg" then t = "quick" end
     if C.TabOn(t) then return t end
     for _, k in ipairs(C.TABS) do if C.TabOn(k) then return k end end
     return t
@@ -610,7 +622,7 @@ function C.Build(c)
     if ns.Trade then C.tpanel = ns.Trade.BuildList(c, -62) end
     if ns.Packages then C.kpanel = ns.Packages.BuildList(c, -62) end   -- ab 0.129
     -- ab 0.119: Unterreiter ueber der Liste
-    local defs = { { "spec", L.CH_TAB_SPEC }, { "buyout", L.CH_TAB_BUYOUT }, { "quick", L.CH_TAB_QUICK }, { "trade", L.CH_TAB_TRADE }, { "pkg", L.CH_TAB_PKG } }
+    local defs = { { "quick", L.CH_TAB_QUICK }, { "buyout", L.CH_TAB_BUYOUT }, { "spec", L.CH_TAB_SPEC }, { "trade", L.CH_TAB_TRADE }, { "pkg", L.CH_TAB_PKG } }   -- ab 0.140 Reihenfolge
     C.tabs = UI.TopTabs(c, defs, function(key) mod:Call("Chancen", C.SelectTab, key) end)
     C.LayoutTabs()
     C.tabs:Select(C.Tab())

@@ -280,7 +280,8 @@ function A.Profit(r, lot)
     local qty = r.qty or 1
     local unit = lot and ns.Lots and ns.Lots.UnitCost(lot) or nil
     local id = r.key ~= nil and ns.Data.ItemID and ns.Data.ItemID(r.key) or nil
-    if not Num(unit) and id and ns.Item and ns.Item.OwnCost then unit = ns.Item.OwnCost(id) end
+    -- ab 0.140: Durchschnitt des Bestands statt Kosten des naechsten Stuecks (Board KarloDerBaer 26.11.2026)
+    if not Num(unit) and id and ns.Item and ns.Item.AvgCost then unit = ns.Item.AvgCost(id) end
     local cost = Num(unit) and math.floor(unit * qty + 0.5) or nil
     local per = id and ns.Item and ns.Item.OpenFee and ns.Item.OpenFee(id) or nil
     local fee = Num(per) and math.floor(per * qty + 0.5) or nil
