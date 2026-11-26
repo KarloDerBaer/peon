@@ -1356,7 +1356,17 @@ end
     confirmed = nil
     fire("COMMODITY_PRICE_UPDATED", Rd.job.limit, (Rd.job.expect or 0) * 2 + 100)
     check(Rd.job and Rd.job.stage == "confirm" and Rd.job.warn and confirmed == nil, "0.91: Preiswarnung: wartet auf den zweiten Klick")
-    check(delays[#delays] == 20, "0.130.3: mit dem Preis wieder volle 20 Sek. fuer Bestaetigung und Ergebnis")
+    check(delays[#delays] == 20, "0.130.3: mit dem Preis 20 Sek. fuer den zweiten Klick")
+    check(Rd.buyUntil == nil, "0.166.1: eigener Kauf setzt keine Sperre nach dem Preis")
+    Rd.BuyStep({ key = Rd.job.key }, Rd.job.mode)
+    check(confirmed and Rd.job and Rd.job.stage == "wait" and delays[#delays] == Rd.RESULT_WAIT and Rd.RESULT_WAIT == 2,
+        "0.166.1: nach der Bestaetigung hoechstens 2 Sek. auf das Ergebnis warten")
+    fire("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT")
+    check(Rd.job and Rd.job.sent and delays[#delays] == Rd.SENT_WAIT and Rd.SENT_WAIT == 1,
+        "0.166.1: Bestaetigung abgeschickt: noch 1 Sek. auf das Ergebnis")
+    local nDelays = #delays
+    fire("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT")
+    check(#delays == nDelays, "0.166.1: weitere Nachrichten verlaengern die Wartezeit nicht")
     C_Timer.After = keepAfter
     -- 0.130.3: Start des Kaufs vom Spiel verworfen: Kauf sofort beendet statt 20 Sek. zu haengen
     local job = Rd.job

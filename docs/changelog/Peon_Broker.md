@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.166.1
+
+Kurz: Nach einem Kauf fragt Broker viel schneller wieder ab. Kommt vom Spiel kein Ergebnis, steht die Abfrage höchstens 1 bis 2 Sekunden statt bis zu 20 Sekunden.
+
+- 0.166.1 (27.11.2026, Bild und Kaufprotokoll KarloDerBaer):
+  - **Behoben, Abfragen nach dem Kauf:** Das Spiel kann die Bestätigung eines Kaufs verwerfen (`AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED`). Dann kommt weder Erfolg noch Fehlschlag, Broker wartete 20 Sek. auf das Ergebnis und fragte so lange nichts ab (Kaufprotokoll 27.11.2026, 00:13 Uhr: Lücke von 17 Sek. nach dem Einstellen des Lockangebots und einem Kauf). Seit 0.130.3 war nur ein verworfener Start abgefangen, nicht die Bestätigung.
+  - **Geändert, Wartezeit auf das Ergebnis:** Im Protokoll (12 Käufe) wartete die Bestätigung 0,5 bis 1,0 Sek. auf die Bremse des Spiels, nach dem Abschicken kam das Ergebnis nach 0,08 bis 0,23 Sek. Broker wartet nach Bestätigung oder Gebot jetzt höchstens 2 Sek. (`R.RESULT_WAIT`), sobald das Spiel die Nachricht abgeschickt hat nur noch 1 Sek. (`R.SENT_WAIT`, über `AUCTION_HOUSE_THROTTLED_MESSAGE_SENT`). Danach gilt der Kauf als fehlgeschlagen und der Gegenstand wird neu abgefragt. 20 Sek. bleiben nur für den zweiten Klick bei einer Preiswarnung.
+  - **Geändert, Sperre nach dem Preis:** Die 15 Sek. nach dem Preis des Spiels (`R.buyUntil`) gelten nur noch für Käufe in Blizzards Fenster. Eigene Käufe hält schon der laufende Kauf mit seiner kurzen Wartezeit.
+  - Tests: keine Sperre beim eigenen Kauf, 2 Sek. nach der Bestätigung, 1 Sek. nach dem Abschicken (`test_broker.lua`).
+
 ## 0.166.0
 
 Kurz: In Auktionen stimmen Unterwegs, Preis je Stück verkaufter Auktionen und der Gewinn von heute wieder. Abgebrochen zählt nur noch echte Abbrüche. Die Spalte links steht jetzt auch in Auktionen, wenn Broker nicht am Auktionshaus geöffnet ist.

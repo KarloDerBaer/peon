@@ -669,7 +669,13 @@ end
 -- zwischen Preis holen und Bestaetigen stoert den Kauf. Erkannt ueber die Ereignisse des Spiels, ohne Blizzards
 -- Funktionen anzufassen: COMMODITY_PRICE_UPDATED (Preis da) bis COMMODITY_PURCHASE_SUCCEEDED/FAILED.
 R.QUOTE_WAIT = 3   -- Sekunden: so lange auf den Preis des Spiels nach dem Start eines Kaufs warten (ab 0.130.3)
-R.BUY_HOLD = 15   -- Sekunden: so lange gilt ein Kauf nach dem Preis als laufend (ohne Abschluss-Ereignis)
+R.BUY_HOLD = 15   -- Sekunden: so lange gilt ein Kauf in Blizzards Fenster nach dem Preis als laufend (ohne Abschluss-Ereignis)
+-- ab 0.166.1: Wartezeit auf das Ergebnis nach Bestaetigung oder Gebot. Kaufprotokoll 27.11.2026 (12 Kaeufe): Die
+-- Bestaetigung wartet 0,5 bis 1,0 Sek. auf die Bremse des Spiels, ist sie abgeschickt, kommt das Ergebnis nach 0,08
+-- bis 0,23 Sek. Bisher 20 Sek., in denen keine Abfrage lief, wenn das Spiel die Bestaetigung verworfen hatte
+-- (AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED, danach weder Erfolg noch Fehlschlag).
+R.RESULT_WAIT = 2   -- Sekunden ab dem Aufruf (Bremse und Antwort)
+R.SENT_WAIT = 1     -- Sekunden, sobald das Spiel die Nachricht abgeschickt hat
 
 -- Anschluss fuer ein Kaufprotokoll (ab 0.118, Wunsch KarloDerBaer). Broker zeichnet selbst nichts auf und speichert
 -- nichts: Das private Peon_Debug setzt mod.traceHook = function(text) und schreibt die Zeilen in seine eigenen Daten.
@@ -1124,7 +1130,8 @@ local function JobTimer(job, sec)
     job.stamp = (job.stamp or 0) + 1
     local stamp = job.stamp
     if C_Timer then
-        C_Timer.After(sec, function() if R.job == job and job.stamp == stamp then R.Trace("timeout"); R.FinishJob(job.done and job.done > 0) end end)
+        C_Timer.After(sec, function() if R.job == job and job.stamp == stamp then
+            R.Trace("timeout"); R.FinishJob(job.done and job.done > 0) end end)
     end
 end
 
@@ -1142,7 +1149,7 @@ function R.BuyStep(d, mode)
         job.stage = "wait"
         local ok = pcall(ah.ConfirmCommoditiesPurchase, job.id, job.qty)
         R.Trace("confirm2 qty=%s ok=%s", B2S(job.qty), B2S(ok))
-        if not ok then R.job = nil; mod:Print(L.BUY_FAILED) end
+        if not ok then R.job = nil; mod:Print(L.BUY_FAILED) else JobTimer(job, R.RESULT_WAIT) end
         R.UpdateView()
         return
     end
@@ -1150,10 +1157,10 @@ function R.BuyStep(d, mode)
     if job and job.stage == "next" and job.key == d.key and job.mode == mode then
         job.idx = job.idx + 1
         local a = job.queue[job.idx]
-        job.stage = "wait"
+        job.stage, job.sent = "wait", nil
         local ok = pcall(ah.PlaceBid, a.id, a.price)
         if not ok then R.FinishJob(job.done > 0); mod:Print(L.BUY_FAILED); return end
-        JobTimer(job, 20)
+        JobTimer(job, R.RESULT_WAIT)
         R.UpdateView()
         return
     end
@@ -1196,7 +1203,7 @@ function R.BuyStep(d, mode)
     R.Trace("job limit=%s avg=%s gold=%s", B2S(R.job.limit), B2S(R.job.avg), B2S(R.job.goldCap))
     -- ab 0.130.3: Auf den Preis des Spiels nur R.QUOTE_WAIT Sek. warten (er kommt nach 0,15 bis 1,2 Sek.). Bisher
     -- 20 Sek., in denen weder Abfragen noch Klicks gingen, wenn das Spiel die Anfrage verworfen hatte.
-    JobTimer(R.job, R.job.stage == "quote" and R.QUOTE_WAIT or 20)
+    JobTimer(R.job, R.job.stage == "quote" and R.QUOTE_WAIT or R.RESULT_WAIT)
     R.UpdateView()
 end
 
@@ -1223,7 +1230,7 @@ function R.OnPriceUpdated(unitPrice, totalPrice)
     -- ab 0.66: Gesamtpreis hoeher als erwartet -> Warnung vor dem zweiten Klick (Konzept 6.1)
     job.warn = (not job.avg and Num(totalPrice) and Num(job.expect) and job.expect > 0 and totalPrice > job.expect * (1 + R.PriceTol())) or nil
     job.stage = "confirm"
-    JobTimer(job, 20)   -- ab 0.130.3: Bestaetigung und Ergebnis haben wieder die volle Zeit
+    JobTimer(job, 20)   -- ab 0.130.3: Zeit fuer den zweiten Klick (nur mit Warnung), danach R.RESULT_WAIT
     -- ab 0.91: Kauf aus dem Fokus mit einem Klick (Fehlerbericht 24). Nur der Start des Kaufs braucht einen echten
     -- Klick (StartCommoditiesPurchase HasRestrictions), die Bestaetigung nicht (AuctionHouseDocumentation.lua, Zweig
     -- forever). Ist der Gesamtpreis hoeher als erwartet, bleibt es beim zweiten Klick mit Warnung.
@@ -1231,7 +1238,7 @@ function R.OnPriceUpdated(unitPrice, totalPrice)
         job.stage = "wait"
         local ok = pcall(AHApi().ConfirmCommoditiesPurchase, job.id, job.qty)
         R.Trace("confirm qty=%s ok=%s", B2S(job.qty), B2S(ok))
-        if not ok then R.job = nil; mod:Print(L.BUY_FAILED) end
+        if not ok then R.job = nil; mod:Print(L.BUY_FAILED) else JobTimer(job, R.RESULT_WAIT) end
     end
     R.UpdateView()
 end
@@ -1532,7 +1539,12 @@ function R.Init()
     -- weitere Teile der Ergebnisse (ab 0.20.1)
     pcall(mod.RegisterEvent, mod, "COMMODITY_SEARCH_RESULTS_ADDED", function(_, itemID) OnResults(true, itemID) end)
     pcall(mod.RegisterEvent, mod, "ITEM_SEARCH_RESULTS_ADDED", function(_, itemKey) OnResults(false, itemKey) end)
-    mod:RegisterEvent("COMMODITY_PRICE_UPDATED", function(_, unit, total) R.buyUntil = Now() + R.BUY_HOLD; R.OnPriceUpdated(unit, total) end)
+    mod:RegisterEvent("COMMODITY_PRICE_UPDATED", function(_, unit, total)
+        -- ab 0.166.1 nur fuer Kaeufe in Blizzards Fenster. Eigene Kaeufe haelt R.job mit eigener Wartezeit, die
+        -- 15 Sek. hielten sonst die Abfragen an, wenn kein Ergebnis kam.
+        if not R.job then R.buyUntil = Now() + R.BUY_HOLD end
+        R.OnPriceUpdated(unit, total)
+    end)
     mod:RegisterEvent("COMMODITY_PURCHASE_SUCCEEDED", function() R.Trace("ev purchase_ok"); R.buyUntil = nil; R.OnBought(true) end)
     mod:RegisterEvent("COMMODITY_PURCHASE_FAILED", function() R.Trace("ev purchase_failed"); R.buyUntil = nil; R.OnBought(false) end)
     mod:RegisterEvent("AUCTION_HOUSE_PURCHASE_COMPLETED", function(_, auctionID) R.OnBought(true, auctionID) end)
@@ -1584,6 +1596,12 @@ function R.Init()
         end)
     end
     mod:RegisterEvent("AUCTION_HOUSE_THROTTLED_MESSAGE_SENT", function()
+        -- ab 0.166.1: Bestaetigung oder Gebot ist unterwegs, das Ergebnis kommt gleich (Broker fragt solange nichts ab)
+        local job = R.job
+        if job and job.stage == "wait" and not job.sent then
+            job.sent = true
+            JobTimer(job, R.SENT_WAIT)
+        end
         if R.pending then
             R.stats.gameSent = (R.stats.gameSent or 0) + 1
             if R.lastLog then R.lastLog.sent = true end
