@@ -424,8 +424,9 @@ end
 ---------------------------------------------------------------------------
 -- Bedienelemente im Taschenfenster
 ---------------------------------------------------------------------------
+-- Der eingeloggte Charakter steht ohne Zusatz oben, ab 0.10.1 durch einen Trenner von den anderen getrennt
 local function CharLabel(c)
-    if c.me then return L.SAVED_ME:format(c.name) end
+    if c.me then return c.name end
     return c.level and L.SAVED_CHAR_LEVEL:format(c.name, c.level) or c.name
 end
 
@@ -442,9 +443,11 @@ local function BuildCharDropdown(w, width)
     if ok and dd and dd.SetupMenu then
         dd:SetWidth(width)
         dd:SetupMenu(function(_, root)
-            for _, c in ipairs(mod:SavedChars()) do
+            local list = mod:SavedChars()
+            for i, c in ipairs(list) do
                 root:CreateRadio(CharLabel(c), function() return Current() == c.name end,
                     function() mod:Call("Charakter", Choose, c.name) end)
+                if c.me and list[i + 1] and root.CreateDivider then root:CreateDivider() end
             end
         end)
         dd.Update = function(self)

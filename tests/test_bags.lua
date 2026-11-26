@@ -1135,6 +1135,7 @@ do
   w:Set("Layout", "classic")
 
   -- ab 0.10: Knoepfe Taschen, Bank, Gildenbank auch beim eingeloggten Charakter
+  check(w.ortBtns[3]:GetText() == "Gilde", "0.10.1: Knopf Gilde")
   w.charDD.Choose(me)
   check(not ns.SavedActive() and w.ortBar.shown and w.ortBtns[1].peonOn and w.ortBtns[2].enabled ~= false and w.ortBtns[3].enabled == false, "eigene Taschen: Ortknoepfe da, Bank waehlbar")
   w.ortBtns[2].scripts.OnClick(w.ortBtns[2])

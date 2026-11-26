@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.10.1
+
+Kurz: Der Knopf Gildenbank im Taschenfenster heißt jetzt Gilde. In der Auswahl der Charaktere steht dein eingeloggter Charakter oben, die anderen folgen unter einem Trenner.
+
+- 0.10.1 (26.11.2026, Wunsch KarloDerBaer):
+  - **Geändert:** Knopf „Gildenbank“ heißt „Gilde“.
+  - **Geändert:** Auswahl des Charakters ohne Zusatz „(eingeloggt)“. Der eingeloggte Charakter steht immer oben, darunter ein Trenner und die anderen Charaktere. Text `SAVED_ME` entfällt.
+  - Tests: `test_bags.lua`.
+
 ## 0.10.0
 
 Kurz: Der Schlüsselbund öffnet sich in einem eigenen kleinen Fenster. Wer ihn lieber im Taschenfenster hat, stellt das unter Anzeige ein.
