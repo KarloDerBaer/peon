@@ -1020,29 +1020,64 @@ function Q.ChartSeries(key, limit, minutes, now)
 end
 
 ---------------------------------------------------------------------------
--- Marktbewegung (ab 0.108, Wunsch KarloDerBaer 19.11.2026): Lockangebote wirken nur, wenn viel eingestellt wird.
--- Ueber dem Diagramm stehen Zufluss, Abfluss und die Bewegung, dazu die Nachwirkung des letzten Lockangebots.
--- Grundlage ist die laufende Messung (Measure.lua, Fenster focusWindow). Bewegung zaehlt Ereignisse je Minute:
--- Einstellungen + Kaeufe + Preisspruenge (Stufen mit neuer bzw. weniger Menge, guenstigster Preis geaendert).
---   lebhaft  mindestens quickMoveIn Einstellungen je Minute und mindestens quickMoveAll Ereignisse je Minute
---   ruhig    weniger als quickMoveLow Ereignisse je Minute
---   maessig  sonst
+-- Marktstabilitaet (ab 0.165, KarloDerBaer 26.11.2026, bis 0.164 Lebhaftigkeit). Zaehlt nur noch besondere
+-- Ereignisse je Minute: Preisspruenge, Einbrueche und fremde Lockangebote. Einstellungen und Kaeufe zaehlen nicht mehr,
+-- bei Massenware hiess der Markt sonst fast immer lebhaft. Die Warenbewegung steht in der Zeile Bewegung.
+-- Grundlage ist die laufende Messung (Measure.lua, Fenster focusWindow).
+--   unruhig  (Code high) mindestens quickRestless Ereignisse je Minute
+--   stabil   (Code low)  weniger als quickCalm Ereignisse je Minute
+--   bewegt   (Code mid)  sonst
+-- Bis 0.164 (Marktbewegung ab 0.108): Einstellungen + Kaeufe + Preisspruenge, lebhaft ab quickMoveIn Einstellungen
+-- und quickMoveAll Ereignissen, ruhig unter quickMoveLow. Diese drei Werte ruhen.
 ---------------------------------------------------------------------------
-function Q.Movement(v)
+-- Einbrueche und fremde Lockangebote eines Gegenstands in den secs Sekunden bis t. Rueckgabe dips, baits
+function Q.EventsIn(key, t, secs)
+    if key == nil or not Num(t) or not Num(secs) or secs <= 0 then return 0, 0 end
+    local from = t - secs
+    local dips, baits = 0, 0
+    for _, x in ipairs(Q.dipTimes[key] or {}) do if x > from and x <= t then dips = dips + 1 end end
+    for _, b in ipairs(Q.baits[key] or {}) do
+        if not b.own and Num(b.t) and b.t > from and b.t <= t then baits = baits + 1 end
+    end
+    return dips, baits
+end
+
+-- Rueckgabe code ("first", "high", "mid", "low"), Ereignisse je Minute, Teile { jumps, dips, baits, nJumps, nDips,
+-- nBaits } (je Minute und Anzahl)
+function Q.Movement(v, key)
     local M = ns.Measure
     M.Sync()
     if not v or (v.n or 0) < 2 or (v.elapsed or 0) < M.FIRST then return "first" end
-    -- ab 0.120: Einstellungen und Kaeufe nur in der Kaufzone (Measure.Pair)
-    local zIn = v.zNewPerMin or v.newPerMin or 0
-    local ev = zIn + (v.zSoldPerMin or v.soldPerMin or 0) + (v.jumpsPerMin or 0)
-    return Q.MoveClass(zIn, ev), ev
+    if key == nil then key = v.key end
+    local secs = math.min(M.WINDOW, tonumber(v.secs) or 0)
+    local mins = secs / 60
+    local dips, baits = Q.EventsIn(key, v.t, secs)
+    local p = { nJumps = v.jumps or 0, nDips = dips, nBaits = baits, jumps = v.jumpsPerMin or 0,
+                dips = mins > 0 and dips / mins or 0, baits = mins > 0 and baits / mins or 0 }
+    local ev = p.jumps + p.dips + p.baits
+    return Q.MoveClass(ev), ev, p
 end
 
--- ab 0.119: Einordnung aus Einstellungen je Minute und Ereignissen je Minute (auch fuer QuickChances.lua)
-function Q.MoveClass(newPerMin, ev)
+-- Grenzen der Marktstabilitaet (Einstellungen, je Minute). Stabil hoechstens so hoch wie unruhig.
+function Q.MoveLimits()
     local db = mod.db
-    if (newPerMin or 0) >= (tonumber(db.quickMoveIn) or 2) and (ev or 0) >= (tonumber(db.quickMoveAll) or 5) then return "high" end
-    if (ev or 0) < (tonumber(db.quickMoveLow) or 1) then return "low" end
+    local hi = math.max(0.5, tonumber(db.quickRestless) or 2)
+    local lo = math.min(hi, math.max(0.5, tonumber(db.quickCalm) or 0.5))
+    return hi, lo
+end
+
+-- Regel als Satz fuer Tooltips
+function Q.MoveRuleText()
+    local hi, lo = Q.MoveLimits()
+    local function D(x) return ns.Settings and ns.Settings.Dec and ns.Settings.Dec(x) or tostring(x) end
+    return L.QUICK_MV_TIP_RULE:format(D(hi), D(lo))
+end
+
+-- ab 0.119: Einordnung (auch fuer QuickChances.lua), ab 0.165 nur aus den Ereignissen je Minute
+function Q.MoveClass(ev)
+    local hi, lo = Q.MoveLimits()
+    if (ev or 0) >= hi then return "high" end
+    if (ev or 0) < lo then return "low" end
     return "mid"
 end
 

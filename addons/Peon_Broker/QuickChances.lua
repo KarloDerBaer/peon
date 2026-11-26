@@ -213,7 +213,7 @@ end
 function QC.Result(key)
     local r = QC.res[key] or QC.Load(key)   -- ab 0.126 auch gespeichert
     if not (r and r.probes and #r.probes > 0) then return nil end
-    local v = { secs = 0, nNew = 0, nSold = 0, jumps = 0, inAll = 0, sold = 0, baits = 0, queries = 0 }
+    local v = { secs = 0, nNew = 0, nSold = 0, jumps = 0, inAll = 0, sold = 0, baits = 0, dips = 0, queries = 0 }
     for _, p in ipairs(r.probes) do
         for k in pairs(v) do
             if k == "queries" then v.queries = v.queries + (p.n or 0) else v[k] = v[k] + (p[k] or 0) end
@@ -223,9 +223,11 @@ function QC.Result(key)
     local mins = v.secs / 60
     v.newPerMin, v.soldPerMin, v.jumpsPerMin = v.nNew / mins, v.nSold / mins, v.jumps / mins
     v.inPerMin, v.outPerMin = v.inAll / mins, v.sold / mins
-    v.ev = v.newPerMin + v.soldPerMin + v.jumpsPerMin
-    v.events = v.nNew + v.nSold + v.jumps
-    v.class = ns.Quick.MoveClass(v.newPerMin, v.ev)
+    -- ab 0.165 Marktstabilitaet: nur Preisspruenge, Einbrueche und fremde Lockangebote (Quick.Movement)
+    v.dipsPerMin, v.baitsPerMin = v.dips / mins, v.baits / mins
+    v.ev = v.jumpsPerMin + v.dipsPerMin + v.baitsPerMin
+    v.events = v.jumps + v.dips + v.baits
+    v.class = ns.Quick.MoveClass(v.ev)
     v.probes, v.early, v.at = #r.probes, #r.probes < 2, r.at
     -- ab 0.126: Zeitpunkt der juengsten Pruefung (time()), alt ab QC.OLD
     local newest
@@ -237,16 +239,14 @@ end
 
 function QC.Rank(v) return QC.RANK[v and v.class or "none"] or 2 end
 
--- ab 0.120: Wartezeit bis zur naechsten Pruefung in Sekunden. Lebhaft und ungeprueft 0. Sonst gleitend nach dem Anteil
--- an der Grenze fuer lebhaft (0 = gar keine Bewegung, 1 = fast lebhaft): Wartezeit = qcWaitMax x (1 - Anteil),
--- mindestens 30 Sekunden. Vorlaeufige Ergebnisse (nur eine Pruefung) warten halb so lange.
+-- ab 0.120: Wartezeit bis zur naechsten Pruefung in Sekunden. Unruhig (bis 0.164 lebhaft) und ungeprueft 0. Sonst
+-- gleitend nach dem Anteil an der Grenze fuer unruhig (0 = keine Ereignisse, 1 = fast unruhig): Wartezeit =
+-- qcWaitMax x (1 - Anteil), mindestens 30 Sekunden. Vorlaeufige Ergebnisse (nur eine Pruefung) warten halb so lange.
 QC.WAIT_MIN = 30
 function QC.Wait(v)
     if not v or v.class == "high" then return 0 end
     local db = mod.db
-    local needIn = math.max(1, tonumber(db.quickMoveIn) or 2)
-    local needAll = math.max(1, tonumber(db.quickMoveAll) or 5)
-    local share = math.min(1, (v.newPerMin or 0) / needIn, (v.ev or 0) / needAll)
+    local share = math.min(1, (v.ev or 0) / ns.Quick.MoveLimits())
     local max = math.max(1, tonumber(db.qcWaitMax) or 10) * 60
     local w = math.max(QC.WAIT_MIN, max * (1 - share))
     if v.early then w = w / 2 end
@@ -325,7 +325,7 @@ end
 
 function QC.Begin(key)
     QC.run = { key = key, got = 0, sent = 0, wait = 0, answered = false, touch = Now(),
-               secs = 0, nNew = 0, nSold = 0, jumps = 0, inAll = 0, sold = 0, baits = 0 }
+               secs = 0, nNew = 0, nSold = 0, jumps = 0, inAll = 0, sold = 0, baits = 0, dips = 0 }
     return QC.run
 end
 
@@ -391,7 +391,8 @@ function QC.OnAnswer(key, rows, t)
     local s = M.Sample(rows, t or Now(), nil)
     if not s then return end
     if r.prev and s.t > r.prev.t then
-        if ns.QuickStats then ns.QuickStats.OnPair(key, r.prev, s) end   -- ab 0.122: Gelegenheiten langfristig
+        -- ab 0.122: Gelegenheiten langfristig, ab 0.165 zaehlt der Einbruch fuer die Marktstabilitaet
+        if ns.QuickStats and ns.QuickStats.OnPair(key, r.prev, s) then r.dips = r.dips + 1 end
         local pr = M.Pair(r.prev, s, nil)
         r.secs = r.secs + (pr.gap or 0)
         r.nNew, r.nSold = r.nNew + (pr.zNew or 0), r.nSold + (pr.zSold or 0)   -- ab 0.120 nur in der Kaufzone
@@ -417,7 +418,7 @@ function QC.Finish()
     local res = QC.res[r.key] or QC.Load(r.key) or { probes = {} }
     if r.got >= 2 and r.secs > 0 then
         res.probes[#res.probes + 1] = { secs = r.secs, nNew = r.nNew, nSold = r.nSold, jumps = r.jumps, inAll = r.inAll,
-                                        sold = r.sold, baits = r.baits, n = r.got, t = time() }
+                                        sold = r.sold, baits = r.baits, dips = r.dips, n = r.got, t = time() }
         while #res.probes > QC.HIST do table.remove(res.probes, 1) end
         res.at = Now()
         QC.Save(r.key, res.probes)   -- ab 0.126
@@ -519,14 +520,13 @@ function QC.TipLines(GT, key)
         if v.stamp then   -- ab 0.126: Stand der Bewegung (auch gespeichert)
             GT:AddLine(L.QC_TIP_STAMP:format(ns.Radar.ShortAge(math.max(0, time() - v.stamp))) .. (v.old and (" " .. L.QC_TIP_OLD) or ""), 0.7, 0.7, 0.7, true)
         end
-        GT:AddLine(L.QC_TIP_RATES:format(tonumber(mod.db.quickZonePct) or 5, QC.Rate(v.newPerMin), QC.Rate(v.soldPerMin), QC.Rate(v.jumpsPerMin)), 0.85, 0.85, 0.85, true)
+        GT:AddLine(L.QC_TIP_RATES:format(QC.Rate(v.jumpsPerMin), QC.Rate(v.dipsPerMin), QC.Rate(v.baitsPerMin)), 0.85, 0.85, 0.85, true)   -- ab 0.165
         GT:AddLine(L.QC_TIP_FLOW:format(QC.Rate(v.inPerMin), QC.Rate(v.outPerMin)), 0.85, 0.85, 0.85, true)
         GT:AddLine(L.QC_TIP_BASE:format(v.events, v.probes, v.queries, QC.Rate(v.secs)), 0.7, 0.7, 0.7, true)
         if v.baits > 0 then GT:AddLine(L.QC_TIP_BAITS:format(v.baits), 1, 0.82, 0, true) end
     end
     if ns.QuickStats then ns.QuickStats.TipLines(GT, key) end   -- ab 0.122
-    local db = mod.db
-    GT:AddLine(L.QUICK_MV_TIP_RULE:format(tonumber(db.quickMoveIn) or 2, tonumber(db.quickMoveAll) or 5, tonumber(db.quickMoveLow) or 1), 0.6, 0.6, 0.6, true)
+    GT:AddLine(ns.Quick.MoveRuleText(), 0.6, 0.6, 0.6, true)
 end
 
 ---------------------------------------------------------------------------

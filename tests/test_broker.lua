@@ -3652,7 +3652,7 @@ end)()
   local S, M = ns.Settings, ns.Measure
   S.Toggle("focus")
   local f = S.frames.focus
-  check(f and f:IsShown() and #f.controls == 30, "0.143: Gleitend unter Markt und Durchschnitt dazu. 0.70: Fenster Einstellungen des Fokus mit 7 Reglern (ab 0.122 Gelegenheiten, ab 0.120 zwei Vorgaben fuer den Schnellkauf, Kaufzone und Preissprung, ab 0.91 Haken Wiedereinstellen, ab 0.104 drei fuer den Schnellkauf, ab 0.108 vier fuer die Marktbewegung, ab 0.109 Grenze fuer Lockangebote, ab 0.115 ohne Kaufprotokoll, ab 0.111 Ton fuer Lockangebote, ab 0.113 automatisch speichern, ab 0.114 Pause der Abfragen)")
+  check(f and f:IsShown() and #f.controls == 29, "0.165: Marktstabilitaet mit zwei Grenzen statt drei. 0.143: Gleitend unter Markt und Durchschnitt dazu. 0.70: Fenster Einstellungen des Fokus mit 7 Reglern (ab 0.122 Gelegenheiten, ab 0.120 zwei Vorgaben fuer den Schnellkauf, Kaufzone und Preissprung, ab 0.91 Haken Wiedereinstellen, ab 0.104 drei fuer den Schnellkauf, ab 0.108 vier fuer die Marktbewegung, ab 0.109 Grenze fuer Lockangebote, ab 0.115 ohne Kaufprotokoll, ab 0.111 Ton fuer Lockangebote, ab 0.113 automatisch speichern, ab 0.114 Pause der Abfragen)")
   local rate
   for _, c in ipairs(f.controls) do if c.row[2] == "focusRate" then rate = c end end
   check(rate and plain(rate.value.text) == "12 (alle 5 Sek.)", "0.70: Abfragen pro Minute mit Abstand: " .. tostring(rate and plain(rate.value.text)))
@@ -5142,12 +5142,17 @@ end)()
   local v = M.Values()
   check(v.newPerMin == 10 and v.soldPerMin == 4 and v.jumps == 2 and v.jumpsPerMin == 4 and v.inAll == 42 and v.out == 10,
     "0.108: Messung zaehlt Einstellungen, Kaeufe, Preisspruenge und Zufluss aller Preise je Minute")
-  check(Q.Movement(v) == "high", "0.108: viele Einstellungen und Ereignisse heisst lebhaft")
-  local keepAll = mod.db.quickMoveAll
-  mod.db.quickMoveAll = 30
-  check(Q.Movement(v) == "mid", "0.108: zu wenige Ereignisse fuer lebhaft heisst maessig")
-  mod.db.quickMoveAll = keepAll
-  check(Q.Movement({ n = 5, elapsed = 60, newPerMin = 0, soldPerMin = 0.5, jumpsPerMin = 0 }) == "low", "0.108: kaum Ereignisse heisst ruhig")
+  -- ab 0.165 Marktstabilitaet: 2 Spruenge und 1 fremdes Lockangebot in 30 Sek. = 6 je Min. (das eigene zaehlt nicht,
+  -- Einstellungen und Kaeufe auch nicht)
+  local mcode, mev, mparts = Q.Movement(v)
+  check(mcode == "high" and math.abs(mev - 6) < 0.01 and mparts.nJumps == 2 and mparts.nBaits == 1 and mparts.nDips == 0,
+    "0.165: Spruenge und fremde Lockangebote je Minute heisst unruhig: " .. tostring(mev))
+  local keepR = mod.db.quickRestless
+  mod.db.quickRestless = 10
+  check(Q.Movement(v) == "mid", "0.165: unter der Grenze fuer unruhig heisst bewegt")
+  mod.db.quickRestless = keepR
+  check(Q.Movement({ n = 5, elapsed = 60, newPerMin = 40, soldPerMin = 30, jumpsPerMin = 0, secs = 60 }) == "low",
+    "0.165: viele Einstellungen und Kaeufe ohne Spruenge heisst stabil (bis 0.164 lebhaft)")
   check(Q.Movement({ n = 2, elapsed = 5 }) == "first", "0.108: in den ersten Sekunden noch kein Urteil")
   -- ab 0.110 fortlaufend: das fremde Lockangebot bei 15 s (90, 1 Stueck) hat Q.OnSample erkannt
   local foreign = 0
@@ -5166,24 +5171,33 @@ end)()
   -- Werte der Marktbewegung (ab 0.110 kurz, Einzelheiten im Tooltip, ab 0.133 links in der Zeile Markt)
   local vals, tips = F.QuickMoveValues(v)
   local t1, t3, t4, t5 = plain(vals[1]), plain(vals[3]), plain(vals[4]), plain(vals[5])
-  check(t1 == "42 je Min. (10×)" and t3 == "lebhaft (2 Sprünge)" and t4 == "2 in 10 Min., 1 mit Folge" and t5 == "noch keiner",
+  check(t1 == "42 je Min. (10×)" and t3 == "unruhig (6 je Min.)" and t4 == "2 in 10 Min., 1 mit Folge" and t5 == "noch keiner",
     "0.110: kurze Werte: " .. t1 .. " / " .. t3 .. " / " .. t4 .. " / " .. t5)
   check(tips[1] and tips[1][1]:find("in 10 Einstellungen je Minute", 1, true) and tips[3] and #tips[3] == 2
     and tips[4] and tips[4][2]:find("Eigenes Lockangebot", 1, true), "0.110/0.125: Einzelheiten fuer den Tooltip")
   F.UpdateQuickMove(v)
   local mk = F.marketRows[1]
-  check(plain(mk.label.text) == "Bewegung" and plain(mk.value.text):find("42 rein", 1, true) and plain(mk.value.text):find("raus je Min.", 1, true) and mk.bg.shown,
-    "0.140: Zeile Bewegung rechts mit Zufluss und Abfluss, Zeile eingefaerbt: " .. plain(mk.value.text))
+  check(plain(mk.label.text) == "Bewegung" and plain(mk.value.text):find("42 rein", 1, true) and plain(mk.value.text):find("raus je Min.", 1, true) and not mk.bg.shown,
+    "0.140/0.165: Zeile Bewegung rechts mit Zufluss und Abfluss, nicht mehr eingefaerbt: " .. plain(mk.value.text))
   local stabTip = table.concat(F.marketRows[2].tip or {}, "|")
-  check(plain(F.marketRows[2].label.text) == "Stabilität" and stabTip:find("Lebhaftigkeit", 1, true)
-    and plain(F.marketRows[3].label.text) == "Einbruch" and plain(F.marketRows[3].value.text) == "noch keiner",
-    "0.140: Zeilen Stabilitaet (mit Lebhaftigkeit im Tooltip) und Einbruch rechts")
+  local mkTip = table.concat(F.marketRows[3].tip or {}, "|")
+  check(#F.marketRows == 5 and plain(F.marketRows[2].label.text) == "Preisstabilität" and not stabTip:find("Lebhaftigkeit", 1, true)
+    and plain(F.marketRows[3].label.text) == "Marktstabilität" and plain(F.marketRows[3].value.text) == "unruhig (6 je Min.)"
+    and mkTip:find("2 Preissprünge", 1, true) and mkTip:find("1 fremde Lockangebote", 1, true)
+    and plain(F.marketRows[4].label.text) == "Einbruch" and plain(F.marketRows[4].value.text) == "noch keiner"
+    and plain(F.marketRows[5].label.text) == "Lockangebote",
+    "0.165: fuenf Zeilen Bewegung, Preisstabilitaet, Marktstabilitaet, Einbruch, Lockangebote: " .. plain(F.marketRows[3].value.text) .. " / " .. mkTip)
   mod.db.focusRows = { "band", "baits", "long" }
   F.UpdateQuickMove(v)
   check(plain(F.marketRows[1].label.text) == "Üblicher Bereich" and plain(F.marketRows[2].label.text) == "Lockangebote"
-    and plain(F.marketRows[3].label.text) == "Langfristig", "0.140: Zeilen einstellbar")
+    and plain(F.marketRows[3].label.text) == "Langfristig" and plain(F.marketRows[4].label.text) == "Bewegung"
+    and plain(F.marketRows[5].label.text) == "Preisstabilität", "0.140/0.165: Zeilen einstellbar, alte drei Zeilen ergaenzt ohne doppelte")
   F.SetMarketRow(2, "stab")
-  check(mod.db.focusRows[2] == "stab" and mod.db.focusRows[1] == "band", "0.140: eine Zeile umstellen")
+  check(mod.db.focusRows[2] == "stab" and mod.db.focusRows[1] == "band" and #mod.db.focusRows == 5, "0.140: eine Zeile umstellen")
+  mod.db.focusRows = { "move", "stab", "dip" }
+  check(table.concat(F.MarketRowKinds(), ",") == "move,stab,market,dip,baits", "0.165: alte Vorgabe wird zur neuen")
+  mod.db.focusRows = { "move", "stab", "band" }
+  check(table.concat(F.MarketRowKinds(), ",") == "move,stab,band,market,dip", "0.165: umgestellte alte Zeilen bleiben")
   mod.db.focusRows = nil
   -- Folge ohne einzelne Stuecke: 80 mit 1 Stueck (Lockangebot), dann +1 (noch ein Lockangebot, zaehlt nicht), dann +20
   Q.baits[7986] = nil
@@ -5631,9 +5645,9 @@ end)()
   QC.OnAnswer(7991, lv({ { 500, 4 }, { 600, 25 } }), 6)   -- 2 Kaeufe, Preissprung
   local v = QC.Result(7991)
   check(v and v.class == "high" and v.early and v.nNew == 1 and v.nSold == 1 and v.jumps == 2 and v.baits == 1 and v.queries == 3
-    and math.abs(v.ev - 40) < 0.01 and QC.run == nil,
-    "0.119/0.120: 3 Abfragen in 6 Sek.: in der Kaufzone 1 Einstellung, 1 Kauf, dazu 2 Preisspruenge, 1 Lockangebot heisst lebhaft (vorlaeufig)")
-  check(plain(QC.MoveText(v)) == "lebhaft?" and plain(QC.StateText(7991)):find("^vor "), "0.119: vorlaeufig mit Fragezeichen, Alter der Pruefung: " .. plain(QC.StateText(7991)))
+    and math.abs(v.ev - 30) < 0.01 and QC.run == nil,
+    "0.119/0.165: 3 Abfragen in 6 Sek.: 2 Preisspruenge und 1 Lockangebot heisst unruhig (vorlaeufig), Einstellung und Kauf zaehlen nicht")
+  check(plain(QC.MoveText(v)) == "unruhig?" and plain(QC.StateText(7991)):find("^vor "), "0.119: vorlaeufig mit Fragezeichen, Alter der Pruefung: " .. plain(QC.StateText(7991)))
   check(QC.LivelyCount() == 1 and C.BadgeCount("all", "quick") == 1, "0.119: Zahl am Unterreiter zaehlt die lebhaften")
   k = R.NextKey()
   check(k == 7993, "0.119: dann der naechste Vorschlag")
@@ -5647,13 +5661,13 @@ end)()
   local due93 = QC.DueIn(7993)
   check(due93 > 250 and due93 <= 300 and plain(QC.StateText(7993)):find("wieder in", 1, true),
     "0.120: ruhig und vorlaeufig wartet bis zu halbe 10 Min.: " .. plain(QC.StateText(7993)))
-  check(QC.Wait({ class = "high" }) == 0 and QC.Wait({ class = "mid", newPerMin = 1, ev = 4 }) == 300
-    and math.abs(QC.Wait({ class = "mid", newPerMin = 2, ev = 4.5 }) - 60) < 0.01 and QC.Wait({ class = "low", newPerMin = 0, ev = 0 }) == 600,
-    "0.120: Wartezeit gleitend: lebhaft 0, maessig nach Anteil an der Grenze, ruhig 10 Min.")
+  check(QC.Wait({ class = "high" }) == 0 and QC.Wait({ class = "mid", ev = 1 }) == 300
+    and math.abs(QC.Wait({ class = "mid", ev = 1.8 }) - 60) < 0.01 and QC.Wait({ class = "low", ev = 0 }) == 600,
+    "0.120/0.165: Wartezeit gleitend: unruhig 0, bewegt nach Anteil an der Grenze (2 je Min.), stabil 10 Min.")
   for i = 0, 2 do QC.Send(7991); QC.OnAnswer(7991, lv({ { 500, 4 }, { 600, 25 } }), 20 + i * 3) end
   v = QC.Result(7991)
-  check(v and not v.early and v.probes == 2 and v.secs == 12 and v.events == 4 and v.class == "high",
-    "0.119: gleitend: beide Pruefungen zusammen (4 Ereignisse in 12 Sek.)")
+  check(v and not v.early and v.probes == 2 and v.secs == 12 and v.events == 3 and v.class == "high",
+    "0.119/0.165: gleitend: beide Pruefungen zusammen (3 Ereignisse in 12 Sek.)")
   -- Antwort ueber das Radar, lange Pause, Anhalten
   k = R.NextKey()
   check(k == 7995, "0.119: dann der ungepruefte")
@@ -5675,7 +5689,7 @@ end)()
   if C.qlist then
     local t = {}
     for _, c in ipairs(C.qlist.o.columns) do t[#t + 1] = plain(c.title) end
-    check(table.concat(t, ",") == "Gegenstand,Günstigster,Menge,Zu / Ab je Min.,Bewegung,Einbr./Std.,Lockangebote,Zustand" and C.tabs and #C.tabs == 5,
+    check(table.concat(t, ",") == "Gegenstand,Günstigster,Menge,Zu / Ab je Min.,Markt,Einbr./Std.,Lockangebote,Zustand" and C.tabs and #C.tabs == 5,
       "0.119: fuenf Unterreiter (ab 0.127 Markttausch, ab 0.129 Pakete), Liste Schnellkauf mit eigenen Spalten: " .. table.concat(t, ","))
   end
   -- Menue
@@ -5874,7 +5888,7 @@ end)()
   local s2 = { t = 980, min = 120, lv = { { price = 120, qty = 8 }, { price = 200, qty = 100 } } }
   Q.OnSample(key, p2, s2)
   F.UpdateQuickMove(ns.Measure.Values())
-  local dr = F.marketRows[3]
+  local dr = F.marketRows[4]   -- ab 0.165 Einbruch in der vierten Zeile
   check(plain(dr.label.text) == "Einbruch" and plain(dr.value.text) == "tiefster 1s 20c (2)", "0.140: Zeile Einbruch rechts: " .. plain(dr.value.text))
   check(dr.tip and dr.tip[1]:find("8 Stück", 1, true), "0.125: Tooltip mit dem letzten Einbruch")
   -- juengeres Lockangebot geht vor
@@ -5934,7 +5948,16 @@ check(rawget(ns.L, "NOTICE_REBUILD_TITLE") == nil and rawget(ns.L, "NOTICE_QUICK
   mod.db.quickJumpPct, mod.db.quickZonePct = nil, nil
   local v = { n = 5, elapsed = 600, newPerMin = 40, soldPerMin = 30, jumpsPerMin = 1, zNewPerMin = 1, zSoldPerMin = 1 }
   local code, ev = ns.Quick.Movement(v)
-  check(code == "mid" and ev == 3, "0.120: Bewertung aus der Kaufzone: viel Bewegung oben macht nicht lebhaft (" .. tostring(code) .. ")")
+  check(code == "mid" and ev == 1, "0.120/0.165: viel Bewegung zaehlt nicht, nur der Preissprung (" .. tostring(code) .. ")")
+  -- ab 0.165: Einbrueche und fremde Lockangebote im Zeitraum der Messung
+  local QQ = ns.Quick
+  QQ.dipTimes[424242] = { 10, 50, 95 }
+  QQ.baits[424242] = { { t = 60, own = false }, { t = 70, own = true }, { t = 30, own = false } }
+  local d1, b1 = QQ.EventsIn(424242, 100, 60)
+  check(d1 == 2 and b1 == 1, "0.165: Einbrueche und fremde Lockangebote der letzten 60 Sek., das eigene zaehlt nicht")
+  local c2, ev2, p2 = QQ.Movement({ key = 424242, n = 5, elapsed = 600, secs = 60, t = 100, jumpsPerMin = 0 })
+  check(c2 == "high" and ev2 == 3 and p2.nDips == 2 and p2.nBaits == 1, "0.165: 2 Einbrueche und 1 Lockangebot je Minute heisst unruhig")
+  QQ.dipTimes[424242], QQ.baits[424242] = nil, nil
 end)()
 
 -- ===== 0.122: Gelegenheiten langfristig (QuickStats.lua) =====
@@ -6071,7 +6094,7 @@ end)()
   -- Bewegung: Pruefung speichern, nach "Logout" (QC.res leer) wieder da
   QC.res = {}
   QC.res[key] = nil
-  QC.run = { key = key, got = 3, secs = 6, nNew = 4, nSold = 2, jumps = 0, inAll = 10, sold = 5, baits = 0 }
+  QC.run = { key = key, got = 3, secs = 6, nNew = 4, nSold = 2, jumps = 1, inAll = 10, sold = 5, baits = 0, dips = 1 }   -- ab 0.165 zaehlen Sprung und Einbruch
   QC.Finish()
   check(type(mod.acc.quickMove) == "table" and mod.acc.quickMove[ns.MarketKey()][key], "0.126: Pruefung gespeichert")
   QC.res = {}

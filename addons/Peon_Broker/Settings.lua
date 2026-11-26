@@ -89,9 +89,9 @@ S.SPECS.focus = {
     { "slider", "focusMore", "SET_FOCUS_MORE", 0, 100, 5, function(v) return L.SET_PCT_FMT:format(v) end },
     { "slider", "focusGrow", "SET_FOCUS_GROW", 1, 50, 1, function(v) return L.SET_PCT_FMT:format(v) end },
     { "head", "SET_QUICK_MOVE" },   -- ab 0.108
-    { "slider", "quickMoveIn", "SET_QUICK_MOVE_IN", 1, 20, 1, function(v) return L.SET_PERMIN_FMT:format(v) end },
-    { "slider", "quickMoveAll", "SET_QUICK_MOVE_ALL", 1, 30, 1, function(v) return L.SET_PERMIN_FMT:format(v) end },
-    { "slider", "quickMoveLow", "SET_QUICK_MOVE_LOW", 1, 10, 1, function(v) return L.SET_PERMIN_FMT:format(v) end },
+    -- ab 0.165: Marktstabilitaet aus Spruengen, Einbruechen und Lockangeboten (quickMoveIn, quickMoveAll, quickMoveLow ruhen)
+    { "slider", "quickRestless", "SET_QUICK_RESTLESS", 0.5, 20, 0.5, function(v) return L.SET_PERMIN_DEC_FMT:format(Dec(v)) end },
+    { "slider", "quickCalm", "SET_QUICK_CALM", 0.5, 10, 0.5, function(v) return L.SET_PERMIN_DEC_FMT:format(Dec(v)) end },
     { "slider", "quickZonePct", "SET_QUICK_ZONE", 1, 50, 1, function(v) return L.SET_PCT_FMT:format(v) end },   -- ab 0.120
     { "slider", "quickJumpPct", "SET_QUICK_JUMP", 0, 20, 1, function(v) return L.SET_PCT_FMT:format(v) end },
     { "slider", "quickFollowSec", "SET_QUICK_FOLLOW", 10, 120, 5, function(v) return L.SET_SEC_FMT:format(v) end },

@@ -312,6 +312,7 @@ function M.Values(now)
     v.zNewPerMin = mins > 0 and zNew / mins or 0     -- ab 0.120: Einstellungen und Kaeufe in der Kaufzone
     v.zSoldPerMin = mins > 0 and zSold / mins or 0
     v.secs = secs
+    v.t = last.t   -- ab 0.165: Zeit der letzten Abfrage (Marktstabilitaet zaehlt Einbrueche und Lockangebote bis hier)
     local du = last.under - first.under
     if du > 0 and du >= math.max(1, first.under * M.GROW) then v.underTrend = "grow"
     elseif du < 0 and -du >= math.max(1, first.under * M.GROW) then v.underTrend = "shrink"

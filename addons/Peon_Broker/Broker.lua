@@ -90,7 +90,9 @@ local mod = Peon:NewModule(ADDON_NAME, {
         quickBaitSound = "ping",
         quickMoveIn  = 2,       -- Schnellkauf (ab 0.108): lebhaft ab so vielen Einstellungen je Minute ...
         quickMoveAll = 5,       -- ... und so vielen Ereignissen je Minute (Einstellungen, Kaeufe, Preisspruenge)
-        quickMoveLow = 1,       -- ruhig unter so vielen Ereignissen je Minute
+        quickMoveLow = 1,       -- ruhig unter so vielen Ereignissen je Minute (die drei ruhen ab 0.165)
+        quickRestless = 2,      -- ab 0.165: Marktstabilitaet unruhig ab so vielen Ereignissen je Minute (Spruenge, Einbrueche, Lockangebote)
+        quickCalm    = 0.5,     -- ab 0.165: stabil unter so vielen Ereignissen je Minute
         quickZonePct = 5,       -- ab 0.120: Einstellungen und Kaeufe zaehlen nur bis so viel % ueber dem guenstigsten (Kaufzone)
         quickJumpPct = 2,       -- ab 0.120: Preissprung erst ab so viel % Aenderung des guenstigsten Preises
         quickDipPct  = 5,       -- ab 0.122: Einbruch = neues Angebot so viel % unter dem bisher guenstigsten (QuickStats.lua)
@@ -153,7 +155,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  focusRate = { 2, 90, 1 }, focusWindow = { 2, 30, 1 }, focusFirst = { 10, 120, 5 }, focusSure = { 30, 600, 10 },
                  focusMore = { 0, 100, 5 }, focusGrow = { 1, 50, 1 }, focusPriceTol = { 0, 10, 1 },
                  quickBaitPct = { 5, 90, 5 }, quickMoveIn = { 1, 20, 1 }, quickMoveAll = { 1, 30, 1 },
-                 quickMoveLow = { 1, 10, 1 }, quickFollowSec = { 10, 120, 5 }, quickHold = { 0, 5, 0.5 }, quickBaitMinPct = { 1, 50, 1 }, baitQty = { 1, 50, 1 }, baitPct = { 0, 10, 1 }, baitGap = { 5, 50, 5 },
+                 quickMoveLow = { 1, 10, 1 }, quickRestless = { 0.5, 20, 0.5 }, quickCalm = { 0.5, 10, 0.5 }, quickFollowSec = { 10, 120, 5 }, quickHold = { 0, 5, 0.5 }, quickBaitMinPct = { 1, 50, 1 }, baitQty = { 1, 50, 1 }, baitPct = { 0, 10, 1 }, baitGap = { 5, 50, 5 },
                  buyoutMinQty = { 0, 100000, 10 }, buyoutMinLevels = { 2, 12, 1 }, buyoutMinSales = { 0, 100000, 5 }, buyoutTargetPct = { 0, 200, 5 },
                  radarRenewSec = { 15, 600, 15 }, radarRenewMax = { 30, 1200, 30 }, radarSearchPct = { 0, 80, 5 },
                  salesWindow = { 1, 24, 1 }, salesMidMin = { 10, 600, 10 }, salesSureMin = { 20, 1440, 10 },

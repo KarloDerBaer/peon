@@ -2,6 +2,19 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.165.0
+
+Kurz: Im Einkaufen stehen über dem Diagramm jetzt fünf Zeilen. Preisstabilität sagt, ob der Preis steigt, fällt, springt oder stabil bleibt. Marktstabilität zählt nur noch Preissprünge, Einbrüche und Lockangebote, Massenware heißt dadurch nicht mehr fast immer lebhaft.
+
+- 0.165.0 (26.11.2026, Wunsch KarloDerBaer, Rückfragen abgestimmt):
+  - **Neu, Einkaufen rechts:** fünf statt drei einstellbare Zeilen (`Focus.MARKET_DEFAULT`), Vorgabe Bewegung, Preisstabilität, Marktstabilität, Einbruch, Lockangebote. Gespeicherte drei Zeilen werden mit den noch fehlenden Vorgaben ergänzt, die alte Vorgabe wird zur neuen (`Focus.MarketRowKinds`). Verkaufen zeigt weiter die ersten drei.
+  - **Neu, Marktstabilität** (eigene Zeile `market`, bis 0.164.0 Lebhaftigkeit im Tooltip der Stabilität): zählt Preissprünge, Einbrüche und fremde Lockangebote je Minute im Zeitraum der Messung (`Quick.Movement`, `Quick.EventsIn`, `Measure.Values` liefert `t`). Stabil unter 0,5, unruhig ab 2 je Minute, sonst bewegt. Beide Grenzen im Fenster Einstellungen des Einkaufens (`quickRestless`, `quickCalm`).
+  - **Geändert, Preisstabilität:** heißt so statt Stabilität, Regel unverändert (steigend, fallend, sprunghaft, schwankend, stabil). Der Tooltip zeigt keine Lebhaftigkeit mehr.
+  - **Geändert, Chancen und Beobachten:** bewerten mit derselben Marktstabilität, die Prüfung zählt dazu Einbrüche (`QuickChances.OnAnswer`). Spalte heißt Markt, unruhige Gegenstände sind zuerst dran.
+  - **Geändert:** Auswahlliste Gleitend reicht bis zum rechten Rand des Mengenfelds (`Focus.QUICK_METHOD_W`).
+  - **Entfernt:** Neue Angebote und Käufe zählen nicht mehr für die Bewegung, die Regler Lebhaft ab Einstellungen, Lebhaft ab Ereignissen und Ruhig unter Ereignissen entfallen (`quickMoveIn`, `quickMoveAll`, `quickMoveLow` bleiben gespeichert, ungenutzt). Die Zeile Bewegung ist nicht mehr eingefärbt.
+  - Tests: `test_broker.lua`.
+
 ## 0.164.0
 
 Kurz: Der Griff der Seitenleiste schaut nur noch halb so weit heraus, der Pfeil ist gerade noch zu sehen. Die Holzkanten sind fest eingestellt.

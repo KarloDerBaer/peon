@@ -3,6 +3,13 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 26.11.2026: Preis- und Marktstabilität (Broker 0.165.0)
+
+- **Zwei Angaben zur Stabilität** (KarloDerBaer): Preisstabilität sagt, wie und in welche Richtung sich der Preis ändert, Marktstabilität sagt, wie unruhig der Markt ist. Schwankend bleibt als fünfter Zustand der Preisstabilität (KarloDerBaer).
+- **Marktstabilität nur aus besonderen Ereignissen** (KarloDerBaer wählte Weg b): Preissprünge, Einbrüche und fremde Lockangebote. Neue Angebote und Käufe zählen nicht, weil Massenware damit fast immer lebhaft hieß. Die Warenbewegung steht in der Zeile Bewegung.
+- **Stufen stabil, bewegt, unruhig** (Vorschlag Claude, KarloDerBaer stimmt zu). Grenzen 0,5 und 2 Ereignisse je Minute sind geschätzt (Claude) und im Fenster Einstellungen einstellbar.
+- **Chancen und Beobachten nutzen dieselbe Regel** (KarloDerBaer). Die Ampel in Beobachten behält ihre Farben (grün = unruhig = viele Gelegenheiten), im Einkaufen ist unruhig orange (Claude, Rückfrage offen).
+
 ## 26.11.2026: Markt öffnet Einkaufen (Broker 0.154.0)
 
 - **Klick im Markt öffnet Einkaufen** (KarloDerBaer). Broker hängt sich nur sicher an Blizzards `SelectBrowseResult` an und schaltet Blizzards Ansicht nie selbst um, wie seit 0.64.1 (Claude). Darum führt „Zurück zu Markt“ zu Blizzards Ansicht des gewählten Gegenstands, die Trefferliste liegt hinter Blizzards Zurück. Mit Umschalttaste bleibt Blizzards Ansicht (Claude).

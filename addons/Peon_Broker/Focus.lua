@@ -1268,7 +1268,9 @@ F.QUICK_LIMIT_Y, F.QUICK_GLIDE_Y, F.QUICK_QTY_Y, F.QUICK_UNIT_Y, F.QUICK_MAX_Y =
 F.QUICK_LIMIT_DY = -6   -- Feld des Standards auf Hoehe des Hakens Limit
 F.QUICK_BUY_TOP = -240  -- Oberkante des Kaufknopfs
 F.QUICK_FOLD_Y = -288   -- erster aufklappbarer Bereich (Statistik)
-F.QUICK_METHOD_W = 132
+-- ab 0.165 (KarloDerBaer 26.11.2026): Auswahlliste Gleitend buendig mit dem Mengenfeld darunter. Sie beginnt 2 links
+-- vom Regler, rechts endet das Feld (Breite 56 bei Massstab 0.8) 6 hinter dem Regler.
+F.QUICK_METHOD_W = math.floor(2 + F.QTY_SLIDER_W + 6 + 56 * 0.8 + 0.5)
 F.QUICK_X = 16
 F.QUICK_FIELD_X = 93   -- ab 0.112.1: Felder im Schnellkauf so weit rechts von der Beschriftung
 F.QUICK_AVG_X = 186    -- ab 0.112: Haken "Durchschnitt zaehlt"
@@ -1539,24 +1541,47 @@ end
 ---------------------------------------------------------------------------
 -- ab 0.140: drei einstellbare Zeilen rechts zwischen Angeboten und Diagramm. Rechtsklick auf eine Zeile waehlt,
 -- was sie zeigt (gilt fuer alle Gegenstaende, gespeichert in focusRows). Vorgabe Bewegung, Stabilitaet, Einbruch.
+-- ab 0.165 (KarloDerBaer 26.11.2026) fuenf Zeilen, neu Marktstabilitaet (market), Stabilitaet heisst
+-- Preisstabilitaet. Vorgabe Bewegung, Preisstabilitaet, Marktstabilitaet, Einbruch, Lockangebote. Verkaufen zeigt
+-- weiter die ersten drei.
 ---------------------------------------------------------------------------
-F.MARKET_ROWS = { "move", "stab", "dip", "band", "baits", "long" }
-F.MARKET_LABEL = { move = "QUICK_ROW_MOVE", stab = "QUICK_ROW_STAB", dip = "QUICK_DIP_L", band = "QUICK_ROW_BAND",
-                   baits = "QUICK_MV_BAITS_L", long = "QS_LABEL" }
-F.MARKET_DEFAULT = { "move", "stab", "dip" }
+F.MARKET_ROWS = { "move", "stab", "market", "dip", "band", "baits", "long" }
+F.MARKET_LABEL = { move = "QUICK_ROW_MOVE", stab = "QUICK_ROW_STAB", market = "QUICK_ROW_MARKET", dip = "QUICK_DIP_L",
+                   band = "QUICK_ROW_BAND", baits = "QUICK_MV_BAITS_L", long = "QS_LABEL" }
+F.MARKET_DEFAULT = { "move", "stab", "market", "dip", "baits" }
 F.MARKET_Y, F.MARKET_STEP = -26, 16
 
-function F.MarketRowKind(i)
+-- Gespeicherte Auswahl auf fuenf Zeilen ergaenzen. Bis 0.164 waren es drei: die fehlenden Zeilen bekommen der Reihe
+-- nach die Vorgaben, die noch nicht zu sehen sind (sonst stuende z. B. Einbruch doppelt da).
+function F.MarketRowKinds()
     local t = mod.db.focusRows
-    local k = type(t) == "table" and t[i] or nil
-    if F.MARKET_LABEL[k] then return k end
-    return F.MARKET_DEFAULT[i]
+    local out, used = {}, {}
+    -- die alte Vorgabe (move, stab, dip) gilt als nicht umgestellt
+    if type(t) == "table" and t[4] == nil and t[1] == "move" and t[2] == "stab" and t[3] == "dip" then t = nil end
+    if type(t) == "table" then
+        for i = 1, #F.MARKET_DEFAULT do
+            local k = t[i]
+            if F.MARKET_LABEL[k] then out[i] = k; used[k] = true end
+        end
+    else
+        for i, k in ipairs(F.MARKET_DEFAULT) do out[i] = k end
+        return out
+    end
+    local pool = {}
+    for _, k in ipairs(F.MARKET_DEFAULT) do if not used[k] then pool[#pool + 1] = k end end
+    for i = 1, #F.MARKET_DEFAULT do
+        if not out[i] then out[i] = table.remove(pool, 1) or F.MARKET_DEFAULT[i] end
+    end
+    return out
+end
+
+function F.MarketRowKind(i)
+    return F.MarketRowKinds()[i]
 end
 
 function F.SetMarketRow(i, kind)
     if not F.MARKET_LABEL[kind] then return end
-    local t = {}
-    for j = 1, #F.MARKET_DEFAULT do t[j] = F.MarketRowKind(j) end
+    local t = F.MarketRowKinds()
     t[i] = kind
     mod.db.focusRows = t
     F.Update()
@@ -1904,7 +1929,7 @@ function F.QuickMoveValues(v, key)   -- ab 0.140 key (Vorgabe F.key, Verkaufen n
     local vals, tips = { "", "", "", "", "", "", "" }, {}
     local win = math.floor(M.WINDOW / 60 + 0.5)
     local function R(x) x = x or 0; if x >= 10 then return tostring(math.floor(x + 0.5)) end return Dec(x) end
-    local code, ev = Q.Movement(v)
+    local code, ev, parts = Q.Movement(v)   -- ab 0.165 mit Einbruechen und Lockangeboten des gemessenen Gegenstands (v.key)
     if code == "first" then
         if v or (AHOpen() and key ~= nil) then vals[3] = GREY .. L.QUICK_MV_FIRST:format(M.FIRST) .. "|r" end
     else
@@ -1912,10 +1937,10 @@ function F.QuickMoveValues(v, key)   -- ab 0.140 key (Vorgabe F.key, Verkaufen n
         tips[1] = { L.QUICK_MV_TIP_IN:format(R(v.inAll), R(v.newPerMin), win) }
         vals[2] = L.QUICK_MV_RATE:format(R(v.out), R(v.soldPerMin))
         tips[2] = { L.QUICK_MV_TIP_OUT:format(R(v.out), R(v.soldPerMin), win) }
-        local color = (code == "high" and GREEN) or (code == "mid" and YELLOW) or GREY
-        vals[3] = color .. L["QUICK_MV_" .. code:upper()] .. "|r " .. GREY .. L.QUICK_MV_JUMPS:format(v.jumps or 0) .. "|r"
-        tips[3] = { L.QUICK_MV_TIP_MOVE:format(v.jumps or 0, tonumber(db.quickJumpPct) or 2, R(v.jumpsPerMin), R(ev), tonumber(db.quickZonePct) or 5),
-                    L.QUICK_MV_TIP_RULE:format(tonumber(db.quickMoveIn) or 2, tonumber(db.quickMoveAll) or 5, tonumber(db.quickMoveLow) or 1) }
+        -- ab 0.165 Marktstabilitaet: stabil gruen, bewegt gelb, unruhig orange, dahinter die Ereignisse je Minute
+        vals[3] = (F.MARKET_COLOR[code] or "") .. L["QUICK_MV_" .. code:upper()] .. "|r " .. GREY .. L.QUICK_MV_JUMPS:format(R(ev)) .. "|r"
+        tips[3] = { L.QUICK_MV_TIP_MOVE:format(parts.nJumps, tonumber(db.quickJumpPct) or 2, parts.nDips, parts.nBaits, win, R(ev)),
+                    GREY .. Q.MoveRuleText() .. "|r" }
     end
     local st = key ~= nil and (v or AHOpen()) and Q.BaitStats(key) or nil
     local sec = tonumber(db.quickFollowSec) or 30
@@ -1937,12 +1962,15 @@ function F.QuickMoveValues(v, key)   -- ab 0.140 key (Vorgabe F.key, Verkaufen n
     return vals, tips, code, v
 end
 
-F.MOVE_BG = { high = { 0.3, 0.9, 0.3, 0.12 }, mid = { 1, 0.82, 0, 0.10 }, low = { 0.6, 0.6, 0.6, 0.08 } }
+-- ab 0.165 ohne eingefaerbte Zeile Bewegung (bis 0.164 nach der Lebhaftigkeit), die Marktstabilitaet hat eine eigene Zeile
+F.MARKET_COLOR = { low = GREEN, mid = YELLOW, high = ORANGE }
 
 -- ab 0.140 (Board KarloDerBaer 26.11.2026): Zeilen rechts zwischen Angeboten und Diagramm, je Zeile einstellbar.
---   move   Bewegung: Zufluss und Abfluss je Minute, die Zeile faerbt sich nach der Lebhaftigkeit
---   stab   Stabilitaet: stabil, steigend, fallend, sprunghaft, schwankend (Quick.Stability ueber den Zeitraum des
---          Diagramms), im Tooltip auch die Lebhaftigkeit (bis 0.139 hiess sie Bewegung)
+--   move   Bewegung: Zufluss und Abfluss je Minute (bis 0.164 nach der Lebhaftigkeit eingefaerbt)
+--   stab   Preisstabilitaet (bis 0.164 Stabilitaet): stabil, steigend, fallend, sprunghaft, schwankend
+--          (Quick.Stability ueber den Zeitraum des Diagramms)
+--   market Marktstabilitaet (ab 0.165, vorher Lebhaftigkeit im Tooltip der Stabilitaet): stabil, bewegt, unruhig nach
+--          Preisspruengen, Einbruechen und Lockangeboten je Minute (Quick.Movement)
 --   dip    Einbruch dieser Sitzung
 --   band   Ueblicher Bereich
 --   baits  Lockangebote
@@ -1966,7 +1994,6 @@ function F.MarketRowValue(kind, v, vals, tips, code, key)
     elseif kind == "stab" then
         local st, info = ns.Quick.Stability(key, F.ChartRange())
         local tip = {}
-        if vals[3] and vals[3] ~= "" then tip[#tip + 1] = YELLOW .. L.QUICK_ROW_LIVELY .. ":|r " .. vals[3] end
         if st == "first" then
             if not (AHOpen() and HasHist(key)) then return GREY .. L.QUICK_STAB_NONE .. "|r", tip end
             return GREY .. L.QUICK_STAB_FIRST .. "|r", tip
@@ -1975,6 +2002,9 @@ function F.MarketRowValue(kind, v, vals, tips, code, key)
             Dec(info.span), info.jumps or 0, Dec(info.perMin or 0))
         tip[#tip + 1] = GREY .. L.QUICK_STAB_RULE .. "|r"
         return (F.STAB_COLOR[st] or "") .. L["QUICK_STAB_" .. st:upper()] .. "|r", tip
+    elseif kind == "market" then
+        if (vals[3] or "") == "" then return GREY .. L.QUICK_STAB_NONE .. "|r", { GREY .. ns.Quick.MoveRuleText() .. "|r" } end
+        return vals[3], tips[3]
     elseif kind == "dip" then
         return vals[5] or "", tips[5]
     elseif kind == "band" then
@@ -1996,9 +2026,7 @@ function F.UpdateQuickMove(v)
         local text, tip = F.MarketRowValue(kind, v, vals, tips, code)
         r.value:SetText(text or "")
         r.tip = tip
-        local col = kind == "move" and F.MOVE_BG[code] or nil
-        if col and r.bg.SetColorTexture then r.bg:SetColorTexture(col[1], col[2], col[3], col[4]) end
-        r.bg:SetShown(col ~= nil and ns.Quick.On())
+        r.bg:Hide()
     end
 end
 
