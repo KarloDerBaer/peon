@@ -2,6 +2,13 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.165.1
+
+Kurz: Zwischen Gleitend und Menge ist etwas mehr Abstand, die Auswahlliste ragt nicht mehr in die Menge.
+
+- 0.165.1 (26.11.2026, Wunsch KarloDerBaer):
+  - **Behoben, Einkaufen links:** Die seit 0.165.0 breitere Auswahlliste Gleitend ragte in die Zeile Menge. Menge und alles darunter stehen 4 Punkte tiefer (`Focus.QUICK_QTY_Y`, `QUICK_UNIT_Y`, `QUICK_MAX_Y`, `QUICK_BUY_TOP`, `QUICK_FOLD_Y`).
+
 ## 0.165.0
 
 Kurz: Im Einkaufen stehen über dem Diagramm jetzt fünf Zeilen. Preisstabilität sagt, ob der Preis steigt, fällt, springt oder stabil bleibt. Marktstabilität zählt nur noch Preissprünge, Einbrüche und Lockangebote, Massenware heißt dadurch nicht mehr fast immer lebhaft.

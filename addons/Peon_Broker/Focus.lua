@@ -1264,10 +1264,12 @@ end
 -- ab 0.143: Zeile Gleitend unter Limit, alles darunter 26 tiefer
 -- ab 0.144 (Board KarloDerBaer): Zeile Stueckpreis zwischen Menge und Gesamtpreis (vorher Max. Preis), Gesamtpreis mit
 -- zweiter Zeile fuer die Goldreserve, der Kaufknopf darunter. Der letzte Kauf steht in der Statistik (Zuletzt).
-F.QUICK_LIMIT_Y, F.QUICK_GLIDE_Y, F.QUICK_QTY_Y, F.QUICK_UNIT_Y, F.QUICK_MAX_Y = -100, -126, -154, -180, -200
+-- ab 0.165.1 (KarloDerBaer 26.11.2026): Menge und alles darunter 4 tiefer, die breitere Auswahlliste Gleitend ragte
+-- sonst in die Zeile Menge
+F.QUICK_LIMIT_Y, F.QUICK_GLIDE_Y, F.QUICK_QTY_Y, F.QUICK_UNIT_Y, F.QUICK_MAX_Y = -100, -126, -158, -184, -204
 F.QUICK_LIMIT_DY = -6   -- Feld des Standards auf Hoehe des Hakens Limit
-F.QUICK_BUY_TOP = -240  -- Oberkante des Kaufknopfs
-F.QUICK_FOLD_Y = -288   -- erster aufklappbarer Bereich (Statistik)
+F.QUICK_BUY_TOP = -244  -- Oberkante des Kaufknopfs
+F.QUICK_FOLD_Y = -292   -- erster aufklappbarer Bereich (Statistik)
 -- ab 0.165 (KarloDerBaer 26.11.2026): Auswahlliste Gleitend buendig mit dem Mengenfeld darunter. Sie beginnt 2 links
 -- vom Regler, rechts endet das Feld (Breite 56 bei Massstab 0.8) 6 hinter dem Regler.
 F.QUICK_METHOD_W = math.floor(2 + F.QTY_SLIDER_W + 6 + 56 * 0.8 + 0.5)
