@@ -114,6 +114,15 @@ local function ClearMoney(t)
     for _, k in ipairs({ "gold", "silver", "copper" }) do if t[k] then t[k]:SetText("") end end
 end
 
+-- ab 0.166.3: Ein nicht beobachteter Gegenstand bekommt beim Eintragen kein gespeichertes Kaufen bis mehr. Bisher galt
+-- das Limit ueber den gespeicherten Wert als eingeschaltet (Quick.LimitOn), jetzt setzt das Eintragen den Haken fuer
+-- die Sitzung, solange man ihn nicht selbst geschaltet hat.
+function F.LimitOnUnwatched()
+    local Q = ns.Quick
+    if not (Q and F.manualLimit and F.key ~= nil) or (ns.Watch and ns.Watch.Is(F.key)) then return end
+    if Q.limitOn[F.key] == nil then Q.limitOn[F.key] = true end
+end
+
 -- "Kaufen bis" setzen (Rechtsklick auf eine Preisstufe), price = nil: wieder alles unter dem Ziel
 function F.SetLimit(price)
     if F.key == nil then return end
@@ -123,7 +132,8 @@ function F.SetLimit(price)
     if F.limitInput then
         if F.manualLimit then F.limitInput:SetAmount(F.manualLimit.price) else ClearMoney(F.limitInput) end
     end
-    F.Store(F.manualLimit ~= nil, true)   -- ab 0.133: sofort speichern, mit Kaufen bis auch neu in Beobachten
+    F.LimitOnUnwatched()
+    F.Store(false, true)   -- ab 0.133 sofort speichern. Ab 0.166.3 nur schon beobachtete Gegenstaende (Wunsch KarloDerBaer), neu in Beobachten nur per Stern
     F.ToLists()   -- ab 0.140: Hoechstpreis in den Listen
     F.Update()
 end
@@ -152,7 +162,8 @@ function F.SetLimitTyped(amount)
     F.manualSrc = "own"
     if Num(amount) and amount > 0 then F.manualLimit = { key = F.key, price = math.floor(amount) } else F.manualLimit = nil end
     if ns.Quick then ns.Quick.NoteLimit(F.key, F.manualLimit) end   -- ab 0.107.1: selbst geleert merken
-    F.Store(F.manualLimit ~= nil, true)   -- ab 0.133, ab 0.140 immer (eigene Eingabe)
+    F.LimitOnUnwatched()
+    F.Store(false, true)   -- ab 0.133 sofort speichern. Ab 0.166.3 nur schon beobachtete Gegenstaende (Wunsch KarloDerBaer), neu in Beobachten nur per Stern
     F.ToLists()   -- ab 0.140
     F.Update()
 end
@@ -420,7 +431,8 @@ function F.AutoSave()
 end
 
 -- ab 0.133 (U1, Konzept 2.3 und 4.5): jede Eingabe gilt sofort, der Knopf Speichern entfaellt. Gespeichert wird fuer
--- Gegenstaende in Beobachten. add = true (Kaufen bis eingetragen): ein neuer Gegenstand kommt dabei in Beobachten.
+-- Gegenstaende in Beobachten. add = true: ein neuer Gegenstand kommt dabei in Beobachten (bis 0.166.2 beim Eintragen
+-- von Kaufen bis, ab 0.166.3 ruft das niemand mehr so auf).
 -- Nur mit geladenen Werten, damit nie Vorgaben ueber gespeicherte Werte geschrieben werden (wie 0.131).
 -- user (ab 0.140, Board KarloDerBaer 26.11.2026: Kaufen bis kam nicht in Beobachten an): eine eigene Eingabe gilt
 -- immer, auch wenn die gespeicherten Werte noch nicht als geladen markiert sind. Vorher ging sie dann verloren.

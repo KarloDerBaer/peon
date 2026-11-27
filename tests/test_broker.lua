@@ -4973,8 +4973,12 @@ end)()
     "0.112.1/0.133: Felder an fester Stelle, Beschriftungen ohne feste Breite")
   Q.SetLimitOn(true)
   F.SetLimit(150)
+  check(not Wt.Is(7981) and F.ManualLimit(7981) == 150, "0.166.3: Limit eintragen gilt, nimmt den Gegenstand aber nicht in Beobachten auf")
+  F.SetLimitTyped(150)
+  check(not Wt.Is(7981), "0.166.3: auch getippt nicht in Beobachten")
+  F.Save(true)   -- wie der Stern
   check(Wt.Is(7981) and Wt.Store()[7981].qlim == 150 and Wt.Store()[7981].qlimOn == true,
-    "0.133/0.143: Standard eintragen nimmt den Gegenstand in Beobachten auf, Haken Limit gemerkt")
+    "0.133/0.143/0.166.3: per Stern in Beobachten, mit Limit und Haken Limit")
   check(F.Plan().best.qty == 25 and plain(F.buyButton.text) == "Kaufen 25 für 35s" and plain(F.qtyHint.text) == ""
     and plain(F.quick.maxValue.text) == "35s (25 x 1s 40c)",
     "0.140: Menge Alle kauft alles unter Kaufen bis, Max. Preis darunter, kein Zusatz hinter der Menge: " .. plain(F.buyButton.text) .. " / " .. plain(F.quick.maxValue.text))
@@ -5466,9 +5470,13 @@ end)()
   Q.SetSkip(false)
   check(not Wt.Is(7990) and not Q.SkipOn(7990), "0.133: Haken allein nimmt nicht in Beobachten auf")
   F.SetLimit(250)
+  check(not Wt.Is(7990) and F.ManualLimit(7990) == 250, "0.166.3: Kaufen bis eintragen nimmt nicht in Beobachten auf")
+  F.Save(true)   -- wie der Stern
   local w = Wt.Store()[7990]
   check(w and w.qlim == 250 and w.qskip == false and w.qavg == true and w.mode == "quick" and w.qgold == nil and w.qqty == nil,
-    "0.133: Kaufen bis eintragen nimmt auf und speichert sofort, Menge bleibt Vorgabe")
+    "0.133/0.166.3: per Stern aufgenommen mit den Werten, Menge bleibt Vorgabe")
+  F.SetLimit(255)
+  check(w.qlim == 255, "0.133: beobachtet speichert ein neues Kaufen bis sofort")
   Q.SetGlideOn(true)
   Q.SetMethod("under")
   check(w.qglide == true and w.qmethod == "under" and w.qlimOn == true, "0.143: Gleitend und Methode je Gegenstand sofort gespeichert")

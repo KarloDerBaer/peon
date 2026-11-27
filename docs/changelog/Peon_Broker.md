@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.166.3
+
+Kurz: Wenn du im Einkaufen das Limit änderst, kommt der Gegenstand nicht mehr von selbst in Beobachten. Aufnehmen geht über den Stern.
+
+- 0.166.3 (27.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Einkaufen:** Kaufen bis eintragen (Feld, Knöpfe oder Klick auf eine Preisstufe) nimmt einen Gegenstand nicht mehr in Beobachten auf (`F.SetLimit`, `F.SetLimitTyped` rufen `F.Store(false, true)`). Das Limit gilt in der Sitzung und in den Listen. Bei schon beobachteten Gegenständen wird es wie bisher sofort gespeichert. In Beobachten aufnehmen geht über den Stern.
+  - **Geändert, Haken Limit:** Bei nicht beobachteten Gegenständen setzt das Eintragen den Haken für die Sitzung, solange man ihn nicht selbst geschaltet hat (`F.LimitOnUnwatched`). Bisher ergab er sich aus dem gespeicherten Wert.
+  - Hinweis am Haken Limit angepasst (`QUICK_LIMIT_TIP`).
+  - Tests: Limit eintragen ohne Beobachten, per Stern mit den Werten aufgenommen (`test_broker.lua`).
+
 ## 0.166.2
 
 Kurz: Beim Verkaufen ist ab jetzt der Preis „Günstige“ vorgewählt. Verschluckt das Spiel ein Einstellen, ist der Knopf nach 2 Sekunden wieder frei statt nach 10.
