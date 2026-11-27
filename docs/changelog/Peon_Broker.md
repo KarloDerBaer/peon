@@ -2,6 +2,16 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.166.2
+
+Kurz: Beim Verkaufen ist ab jetzt der Preis „Günstige“ vorgewählt. Verschluckt das Spiel ein Einstellen, ist der Knopf nach 2 Sekunden wieder frei statt nach 10.
+
+- 0.166.2 (27.11.2026, Kaufprotokoll und Wunsch KarloDerBaer):
+  - **Behoben, Verkaufen:** Im Protokoll (10:46 Uhr, Beulengras) kam auf das Einstellen keine Auktion zurück (kein `AUCTION_HOUSE_AUCTION_CREATED`, dafür `AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED`). Der Knopf blieb 10 Sek. gesperrt, erst der nächste Klick 15 Sek. später stellte ein. Sonst steht die Auktion 0,2 bis 0,8 Sek. nach dem Klick. Jetzt gilt ein Einstellen höchstens 2 Sek. als unterwegs (`S.POST_WAIT`), danach ist der Knopf von selbst wieder frei (`S.WaitPost`).
+  - **Geändert, Verkaufen:** Vorgewählt ist der Preisknopf Günstige statt Vorschlag (`S.Mode`). Ohne Angebote gilt weiter der Vorschlag.
+  - **Neu, Kaufprotokoll:** Einstellen, Bestätigen, Auktion erstellt und Ablauf der Wartezeit stehen mit im Protokoll (`post …`).
+  - Tests: Günstige vorgewählt, Knopf nach 2 Sek. frei (`test_broker.lua`).
+
 ## 0.166.1
 
 Kurz: Nach einem Kauf fragt Broker viel schneller wieder ab. Kommt vom Spiel kein Ergebnis, steht die Abfrage höchstens 1 bis 2 Sekunden statt bis zu 20 Sekunden.

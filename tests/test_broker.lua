@@ -7075,6 +7075,7 @@ end)()
     "0.141: Menge Alle (40), Regler ganz links")
   SP.OnSlider(5)
   check(SP.Qty() == 5 and SP.qtyInput.text == "5", "0.141: Regler waehlt 5")
+  check(SP.Mode() == "cheap", "0.166.2: ohne eigene Wahl ist Guenstige gewaehlt")
   -- Preis, Dauer, Gebuehr, Gewinn
   SP.SetPrice(1500)
   SP.SetHours(24)
@@ -7089,8 +7090,16 @@ end)()
   local pc = posted[1]
   check(pc and pc[1] == "C" and pc[2] == csf.loc and pc[3] == 3 and pc[4] == 5 and pc[5] == 1500 and SP.post.state == "confirm"
     and plain(SP.postButton.text) == "Bestätigen", "0.141: PostCommodity mit dem Gegenstand aus Blizzards Fenster, Rueckfrage")
+  local keepAfter, timers = C_Timer.After, {}
+  C_Timer.After = function(sec, fn) timers[#timers + 1] = { sec = sec, fn = fn } end
   SP.Post()
   check(confirmed and confirmed[3] == 5 and SP.post.state == "posting" and SP.postButton.disabled, "0.141: zweiter Klick bestaetigt")
+  C_Timer.After = keepAfter
+  check(#timers == 1 and timers[1].sec == SP.POST_WAIT and SP.POST_WAIT == 2, "0.166.2: Einstellen gilt hoechstens 2 Sek. als unterwegs")
+  local keepPost = SP.post
+  timers[1].fn()
+  check(SP.post == nil and not SP.postButton.disabled, "0.166.2: ohne Bestaetigung des Spiels ist der Knopf danach wieder frei")
+  SP.post = keepPost
   SP.OnCreated()
   ns.Lots.OnCreated()
   check(SP.post == nil and plain(SP.status.text) == "" and ns.Advice.LastPost(key) == 1500,

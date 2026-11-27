@@ -37,7 +37,9 @@ S.qty = nil          -- eigene Menge { key, qty }, qty 0 = Alle
 -- ab 0.142: Dauer je Gegenstand gemerkt in PeonBrokerDB.sellHours[Schluessel] (Stunden)
 S.post = nil         -- laufendes Einstellen { key, loc, dur, qty, price, commodity, state, t }
 S.since = 0          -- Live-Daten zaehlen ab hier (neuer Gegenstand)
-S.POST_WAIT = 10     -- Sekunden, so lange gilt ein Einstellen als unterwegs
+-- ab 0.166.2 (Kaufprotokoll 27.11.2026): Die Auktion steht 0,2 bis 0,8 Sek. nach dem Klick. Bisher 10 Sek., in
+-- denen der Knopf gesperrt blieb, wenn das Spiel das Einstellen verschluckt hatte (kein AUCTION_HOUSE_AUCTION_CREATED).
+S.POST_WAIT = 2      -- Sekunden, so lange gilt ein Einstellen als unterwegs
 S.HOURS = { 2, 8, 24 }
 
 local GREY, GREEN, ORANGE, YELLOW, RED = "|cff999999", "|cff60e060", "|cffff9933", "|cffffd100", "|cffff6666"
@@ -181,13 +183,13 @@ function S.Prices(it, r)
     return p
 end
 
--- Gewaehlter Knopf: Vorgabe Vorschlag, Individuell nur mit eigenem Preis
+-- Gewaehlter Knopf: Vorgabe Guenstige (ab 0.166.2, Wunsch KarloDerBaer, vorher Vorschlag), Individuell nur mit eigenem Preis
 function S.Mode(it)
     it = it or S.it
     if not it then return nil end
     local m = S.modes[it.key]
     if m == "custom" and not Num(S.customs[it.key]) then m = nil end
-    return m or "suggest"
+    return m or "cheap"
 end
 
 function S.SetMode(m)
@@ -197,7 +199,8 @@ function S.SetMode(m)
     S.Update()
 end
 
--- Preis je Stueck: der des gewaehlten Knopfs, sonst Vorschlag, sonst Guenstige, sonst Blizzards Vorgabe
+-- Preis je Stueck: der des gewaehlten Knopfs, sonst Vorschlag, sonst Guenstige, sonst Blizzards Vorgabe (ohne Angebote
+-- hat Guenstige keinen Preis, dann gilt der Vorschlag)
 function S.Price(it, prices)
     it = it or S.it
     if not it then return nil end
@@ -288,7 +291,8 @@ function S.Post()
         local ok
         if p.commodity then ok = fn and pcall(fn, p.loc, p.dur, p.qty, p.price)
         else ok = fn and pcall(fn, p.loc, p.dur, p.qty, nil, p.price) end
-        if ok then p.state, p.t = "posting", Now() else S.post = nil; mod:Print(L.SELL_POST_FAILED) end
+        ns.Radar.Trace("post confirm ok=%s", tostring(ok))
+        if ok then p.state, p.t = "posting", Now(); S.WaitPost(p) else S.post = nil; mod:Print(L.SELL_POST_FAILED) end
         S.Update()
         return
     end
@@ -308,14 +312,27 @@ function S.Post()
         if not ah.PostItem then mod:Print(L.SELL_POST_FAILED); return end
         ok, needs = pcall(ah.PostItem, it.loc, dur, qty, nil, price)
     end
+    ns.Radar.Trace("post key=%s qty=%s price=%s ok=%s needs=%s", tostring(it.key), tostring(qty), tostring(price), tostring(ok), tostring(needs))
     if not ok then mod:Print(L.SELL_POST_FAILED); return end
     S.post = { key = it.key, loc = it.loc, dur = dur, qty = qty, price = price, commodity = it.commodity,
                name = it.link, state = needs == true and "confirm" or "posting", t = Now() }
     ns.Radar.lastSend = Now()   -- Einstellen zaehlt wie eine Abfrage (Bremse des Spiels)
     -- wie Blizzards Knopf: Letzter Preis und Posten nach der Bestaetigung des Spiels (Lots.OnCreated)
     if ns.Lots then ns.Lots.pendingPost = { key = it.key, qty = qty, price = price, t = Now() } end
-    if needs == true then mod:Print(L.SELL_CONFIRM_ASK) end
+    if needs == true then mod:Print(L.SELL_CONFIRM_ASK) else S.WaitPost(S.post) end
     S.Update()
+end
+
+-- Ohne Bestaetigung des Spiels: nach S.POST_WAIT Knopf wieder frei (ab 0.166.2, vorher erst beim naechsten Neuzeichnen)
+function S.WaitPost(p)
+    if not C_Timer then return end
+    local t = p.t
+    C_Timer.After(S.POST_WAIT, function()
+        if S.post ~= p or p.state ~= "posting" or p.t ~= t then return end
+        ns.Radar.Trace("post timeout")
+        S.post = nil
+        if S.Shown() then mod:Call("Verkaufen", S.Update) end
+    end)
 end
 
 function S.OnPostWarning()
@@ -330,6 +347,7 @@ end
 function S.OnCreated()
     local p = S.post
     if not p or p.state ~= "posting" then return end
+    ns.Radar.Trace("post created")
     S.post = nil   -- ab 0.144 ohne Satz "eingestellt fuer je" (Board KarloDerBaer), der Knopf bleibt gewaehlt
     if S.Shown() then S.Update() end
 end
