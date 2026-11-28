@@ -280,28 +280,36 @@ local rows = { { price = 118, qty = 10, own = 0 }, { price = 120, qty = 30, own 
 D.ApplyLive(2770, rows, clock)
 check(#q == 2 and q[2].kind == "live" and q[2].key == "2770" and q[2].commodity == true and q[2].partial == false, "Live-Abfrage abgelegt")
 check(q[2].rows == "2770;;;10;;118;;1;111;1\n2770;;;30;;120;;4;112;1", "Live: Stueckpreis, Auktionsnummer, Restzeit aus Sekunden")
+check(q[2].low == 118, "0.15.0: guenstigster Stueckpreis in low")
+local firstId = q[2].id
 D.ApplyLive(2770, rows, clock + 30)
-check(#PeonBridgeDB.queue == 2, "gleiche Abfrage innerhalb 60 Sek. nicht doppelt")
-D.ApplyLive(2770, rows, clock + 61)
-check(#PeonBridgeDB.queue == 3, "nach 60 Sek. wieder abgelegt")
+check(#PeonBridgeDB.queue == 2 and PeonBridgeDB.queue[2].id == firstId, "gleiche Abfrage innerhalb 60 Sek. nicht doppelt")
+D.ApplyLive(2770, { { price = 125, qty = 10, own = 0 }, commodity = true }, clock + 61)
+q = PeonBridgeDB.queue
+check(#q == 2 and q[2].t == clock + 61 and q[2].id ~= firstId and q[2].low == 118 and q[2].rows == "2770;;;10;;125;;;;1",
+  "0.15.0: gleiche Stunde, die neue Abfrage ersetzt die wartende (neue Nummer, guenstigster Preis der Stunde bleibt)")
 D.ApplyLive(2770, { partial = true, commodity = true }, clock + 70)
-check(#PeonBridgeDB.queue == 3, "leer und unvollstaendig (laedt noch): nichts abgelegt")
+check(#PeonBridgeDB.queue == 2, "leer und unvollstaendig (laedt noch): nichts abgelegt")
 D.ApplyLive(2770, { foreign = 2, commodity = true }, clock + 71)
-check(#PeonBridgeDB.queue == 3, "Ergebnisse eines anderen Gegenstands: nichts abgelegt")
+check(#PeonBridgeDB.queue == 2, "Ergebnisse eines anderen Gegenstands: nichts abgelegt")
 D.ApplyLive(2770, { commodity = true }, clock + 72)
 q = PeonBridgeDB.queue
-check(#q == 4 and q[4].rows == "" and q[4].offers == 0, "keine Angebote mehr: leere Aufnahme")
+check(#q == 2 and q[2].rows == "" and q[2].offers == 0 and q[2].low == 118, "keine Angebote mehr: leere Aufnahme, guenstigster Preis der Stunde bleibt")
+D.ApplyLive(2770, rows, clock + 3600)
+q = PeonBridgeDB.queue
+check(#q == 3 and q[3].low == 118 and q[2].rows == "", "0.15.0: neue Stunde, eigene Abfrage")
+table.remove(q, 3)
 D.ApplyLive("6611:Klinge des Wolfs", { { price = 8000, qty = 1, own = 0 }, link = "|cff1eff00|Hitem:6611::::::::20:1488:::1:12731:::::|h[Klinge des Wolfs]|h|r",
   offers = { { id = 900, q = 1, p = 8000, band = 2 } } }, clock + 73)
-check(q[5].key == "6611:Klinge des Wolfs" and q[5].rows == "6611;12731;Klinge des Wolfs;1;;8000;;3;900;1" and q[5].commodity == false, "Live Variante: Bonus, Name, Stufe 0-3 -> 1-4")
+check(q[3].key == "6611:Klinge des Wolfs" and q[3].rows == "6611;12731;Klinge des Wolfs;1;;8000;;3;900;1" and q[3].commodity == false, "Live Variante: Bonus, Name, Stufe 0-3 -> 1-4")
 D.ApplyLive(2589, { { price = 30, qty = 5, own = 0 }, { price = 30, qty = 5, own = 0 }, partial = true }, clock + 74)
-check(q[6].rows == "2589;;;5;;30;;;;2" and q[6].partial == true, "Live ohne Einzelangebote: zusammengefasste Stufen, Teil markiert")
+check(q[4].rows == "2589;;;5;;30;;;;2" and q[4].partial == true, "Live ohne Einzelangebote: zusammengefasste Stufen, Teil markiert")
 
 -- ===== Grenzen der Warteschlange =====
 mod.db.queueMax = 2
 RunScan(); RunScan()
 local scans, live = ns.QueueInfo()
-check(scans == 2 and live == 5, "hoechstens 2 Komplettscans, aelteste weg")
+check(scans == 2 and live == 3,"hoechstens 2 Komplettscans, aelteste weg")
 check(PeonBridgeDB.queue[1].kind == "live", "aeltester Scan entfernt, Live-Abfragen bleiben")
 mod.db.liveMax = 2
 D.ApplyLive(2589, { { price = 31, qty = 1, own = 0 } }, clock + 80)

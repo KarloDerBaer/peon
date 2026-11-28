@@ -2,6 +2,18 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.57.0
+
+Kurz: Live-Abfragen aus dem Spiel speichert der Manager nur noch einmal je Gegenstand und Stunde. Im Diagramm steht je Stunde eine Raute mit dem günstigsten Preis. Das spart viel Platz, vor allem nach langem Limitkauf.
+
+- 0.57.0 (28.11.2026, Pflege der Datenmengen, Zustimmung KarloDerBaer):
+  - **Ursache:** Jede Live-Abfrage aus Broker landete einzeln samt Angeboten in der Datenbank und als Raute im Diagramm. Messung mit echten Daten: 34.928 Abfragen in 7 Tagen, 23 MB Angebote, 17.694 davon für einen Gegenstand. Gebraucht werden seit 0.40.0 nur der letzte Stand und im Diagramm der günstigste Preis.
+  - **Geändert, Schema 16** (`db.js`): neue Spalte `item_snap.low` (günstigster Stückpreis der Stunde, nur Live, `min` bleibt der letzte Stand) und Tabelle `live_ids` (Nummern zusammengefasster Abfragen, gelten als bekannt und werden der Bridge weiter bestätigt, `game.knownId`). Einmalige Umstellung `migrateLiveHourly` (meta `liveHourly`). Mit einer Kopie der echten Daten: aus 34.928 Abfragen werden 1.069, aus 23 MB etwa 0,4 MB, Dauer 0,3 Sek.
+  - **Geändert, Zusammenfassen beim Aufräumen** (`db.mergeLiveHours`, `retention.dropOld`): je Markt, Gegenstand und Stunde bleibt die neueste Abfrage, die laufende Stunde bleibt unberührt. Nicht beim Einlesen, weil der Zwischenspeicher (`snapindex.js`) sonst jedes Mal alles neu lesen müsste. `live_ids` fallen nach 7 Tagen weg wie die Abfragen.
+  - **Geändert, Diagramm** (`ItemChart.vue`): Reihe „Live (Min je Std.)“, eine Raute je Stunde mit dem günstigsten Preis (`low`, sonst `min`).
+  - **Behoben, Datenlage** (`Sources.vue`): Live-Abfragen zählen seit 0.40.0 nicht für den Absatz, die Übersicht sagte noch „Ergänzt“. Jetzt Verlauf „Je Std.“, Absatz „Nein“, gezählt werden Stundenwerte (auch in `status.js` und `Item.vue`).
+  - Gehört zu Bridge 0.15.0 (`e.low`). Tests: `live-stunde.test.js` (low aus der Bridge, Zusammenfassen, laufende Stunde, leere Abfrage, bekannte Nummern, Umstellung).
+
 ## 0.56.0
 
 Kurz: Der Manager ist aufgeräumt. Die Seitenleiste hat nur noch sechs Einträge: Heute, Chancen, Listen, Markt, Addons und Mehr. Die einzelnen Seiten stehen als Reiter oben. Die neue Startseite Heute zeigt nur, was gerade zu tun ist. Die Einstellungen haben die Reiter Allgemein und Erweitert.

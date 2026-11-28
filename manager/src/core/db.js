@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
 const { sameMarket } = require('./markets');
 
-const SCHEMA = 15;   // 15: Klasse, Unterklasse und Stapelbarkeit je Gegenstand (items.cls, sub, cls_name, sub_name, stack) fuer die Stabilitaet; 14: Kennzahlen kompakt (item_snap ohne rowid mit Zahl sid, item_hour als 3-Stunden-Werte mit med_lo/med_hi), Zwischenspeicher snap_cache; 13: Haendler-Vorschlaege entfernt (meta vendorKindGone), Muster in meta patterns:<Markt>; 12: Umstellungen bei Einzelgegenstaenden, Vergleiche neu (meta singlesRecheck, apiRedoMax); 11: Haendlerpreise neu aus dem Spiel (meta vendorRecheck); 10: Herkunft des Haendlerpreises (items.vendor_src); 9: Chancen und Prognosen (sale_px, sale_life, auc_first, item_level, chance_log, chance_rate, forecast_log); 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
+const SCHEMA = 16;   // 16: Live-Abfragen je Gegenstand und Stunde (item_snap.low, live_ids); 15: Klasse, Unterklasse und Stapelbarkeit je Gegenstand (items.cls, sub, cls_name, sub_name, stack) fuer die Stabilitaet; 14: Kennzahlen kompakt (item_snap ohne rowid mit Zahl sid, item_hour als 3-Stunden-Werte mit med_lo/med_hi), Zwischenspeicher snap_cache; 13: Haendler-Vorschlaege entfernt (meta vendorKindGone), Muster in meta patterns:<Markt>; 12: Umstellungen bei Einzelgegenstaenden, Vergleiche neu (meta singlesRecheck, apiRedoMax); 11: Haendlerpreise neu aus dem Spiel (meta vendorRecheck); 10: Herkunft des Haendlerpreises (items.vendor_src); 9: Chancen und Prognosen (sale_px, sale_life, auc_first, item_level, chance_log, chance_rate, forecast_log); 8: Protokoll des Abgleichs und Geloeschtes (sync_log, sync_trash); 7: Favoriten, Werte aus dem Spiel, Zwischenspeicher der Liste, andere Namen eines Markts, Merkliste entfernt; 2: hist (Broker-Verlauf), item_hour, item_day (Verdichtung); 3: Absatz, Chancen, Haendlerpreis, Warenart; 4: Blizzard-API, AHledger entfernt; 5: item_info (Tooltip)
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS item_snap (
   min REAL, median REAL, p25 REAL, p75 REAL, qty INTEGER, auctions INTEGER,
   PRIMARY KEY (sid, item_key)) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS item_snap_mkt ON item_snap(market_id, item_key, t);
+CREATE TABLE IF NOT EXISTS live_ids (
+  id TEXT PRIMARY KEY, t INTEGER NOT NULL) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS hist (
   market_id INTEGER NOT NULL, item_key TEXT NOT NULL, source TEXT NOT NULL, period TEXT NOT NULL, num INTEGER NOT NULL,
   t INTEGER NOT NULL, min REAL, median REAL, qty REAL, n INTEGER,
@@ -197,6 +199,7 @@ function openDb(dir, { now = Math.floor(Date.now() / 1000) } = {}) {
   if (!db.prepare("SELECT value FROM meta WHERE key = 'vendorKindGone'").get()) {
     db.exec(`DELETE FROM chance_log WHERE kind = 'v'; INSERT INTO meta(key, value) VALUES ('vendorKindGone', '1');`);
   }
+  migrateLiveHourly(db, now);
   // Schema 4: AHledger ist entfernt (05.11.2026)
   db.exec('DROP TABLE IF EXISTS ext_ahledger; DROP TABLE IF EXISTS ext_fetch;');
   // Schema 7: Die Merkliste ist entfernt, die Einkaufsliste ersetzt sie (06.11.2026)
@@ -289,6 +292,58 @@ function migrate14(db, now) {
     throw e;
   }
   return true;
+}
+
+// Schema 16 (Manager 0.57.0, KarloDerBaer 28.11.2026): Live-Abfragen je Gegenstand und Stunde nur einmal. Im Limitkauf kamen
+// Zehntausende Abfragen in der Woche, gebraucht werden nur der letzte Stand und der guenstigste Preis der Stunde.
+//   item_snap.low  guenstigster Stueckpreis der Stunde (nur Live), min bleibt der letzte Stand
+//   live_ids       Nummern zusammengefasster Abfragen: Sie gelten als bekannt und werden der Bridge weiter bestaetigt
+// Zusammengefasst wird beim Aufraeumen (retention.pruneSteps), nicht beim Einlesen: Der Zwischenspeicher (snapindex.js) nimmt
+// beim Einlesen nur neue Zeilen dazu. Weniger Zeilen liest er neu, das passt zum Aufraeumen, beim Einlesen waere es zu teuer.
+// Einmalig beim Oeffnen: Spalte und vorhandene Abfragen.
+function migrateLiveHourly(db, now = Math.floor(Date.now() / 1000)) {
+  const icols = new Set(db.prepare('PRAGMA table_info(item_snap)').all().map((c) => c.name));
+  if (!icols.has('low')) db.exec('ALTER TABLE item_snap ADD COLUMN low REAL');
+  if (db.prepare("SELECT value FROM meta WHERE key = 'liveHourly'").get()) return false;
+  db.exec('BEGIN');
+  try {
+    mergeLiveHours(db, now);
+    db.exec("INSERT INTO meta(key, value) VALUES ('liveHourly', '1')");
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+  return true;
+}
+
+// Live-Abfragen vor der Stunde von "before" je Markt, Gegenstand und Stunde auf die neueste zusammenfassen. Sie behaelt
+// ihren Stand, low wird der guenstigste Preis aller Abfragen der Stunde. Ohne Transaktion. Rueckgabe: Zahl entfernter Abfragen
+function mergeLiveHours(db, before) {
+  const cut = Math.floor(before / 3600);
+  const low = (a, b) => `CASE WHEN ${a} IS NULL THEN ${b} WHEN ${b} IS NULL THEN ${a} ELSE MIN(${a}, ${b}) END`;
+  db.exec(`
+    CREATE TEMP TABLE lg AS SELECT * FROM (
+        SELECT sid, id, t, market_id, item_key, t / 3600 AS h,
+          ROW_NUMBER() OVER (PARTITION BY market_id, item_key, t / 3600 ORDER BY t DESC, sid DESC) AS rn,
+          COUNT(*) OVER (PARTITION BY market_id, item_key, t / 3600) AS cnt
+        FROM snapshots WHERE source = 'live' AND item_key IS NOT NULL AND t / 3600 < ${cut})
+      WHERE cnt > 1;
+    CREATE TEMP TABLE lk AS SELECT g.sid, k.sid AS keep, g.id, g.t, g.rn FROM lg g
+      JOIN lg k ON k.market_id = g.market_id AND k.item_key = g.item_key AND k.h = g.h AND k.rn = 1;
+    CREATE TEMP TABLE lw AS SELECT lk.keep AS sid, i.item_key, MIN(${low('i.low', 'i.min')}) AS low
+      FROM lk JOIN item_snap i ON i.sid = lk.sid GROUP BY lk.keep, i.item_key;`);
+  try {
+    db.exec(`
+      UPDATE item_snap SET low = (SELECT lw.low FROM lw WHERE lw.sid = item_snap.sid AND lw.item_key = item_snap.item_key)
+        WHERE sid IN (SELECT keep FROM lk WHERE rn = 1);
+      INSERT OR IGNORE INTO live_ids(id, t) SELECT id, t FROM lk WHERE rn > 1;
+      DELETE FROM item_snap WHERE sid IN (SELECT sid FROM lk WHERE rn > 1);
+      DELETE FROM snapshots WHERE sid IN (SELECT sid FROM lk WHERE rn > 1);`);
+    return Number(db.prepare('SELECT COUNT(*) AS n FROM lk WHERE rn > 1').get().n);
+  } finally {
+    db.exec('DROP TABLE temp.lg; DROP TABLE temp.lk; DROP TABLE temp.lw;');
+  }
 }
 
 // ab Manager 0.44.0: Rechen-Prozess. Schreibt nur seine Ergebnisse, Umstellungen macht der Schreib-Prozess vorher.
@@ -419,4 +474,4 @@ function pruneLogs(db, days = 30, now = Date.now()) {
   return n;
 }
 
-module.exports = { openWorkDb, openReadDb, slotHour, SLOT_SQL, SNAPS_IN, hourFrom, migrate14, openDb, openManagerDb, migrateSplit, fileSize, removeDb, BROKER_FILE, MANAGER_FILE, tx, log, marketId, dbSize, pruneLogs, SCHEMA };
+module.exports = { openWorkDb, openReadDb, slotHour, SLOT_SQL, SNAPS_IN, hourFrom, migrate14, migrateLiveHourly, mergeLiveHours, openDb, openManagerDb, migrateSplit, fileSize, removeDb, BROKER_FILE, MANAGER_FILE, tx, log, marketId, dbSize, pruneLogs, SCHEMA };

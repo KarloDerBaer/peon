@@ -72,7 +72,7 @@ const datalage = computed(() => {
   if (!d.value) return '';
   const c = d.value.counts, p = [];
   if (c.scan) p.push(pl(c.scan, 'Stand', 'Stände'));
-  if (c.live) p.push(pl(c.live, 'Live-Abfrage', 'Live-Abfragen'));
+  if (c.live) p.push(pl(c.live, 'Live-Stundenwert', 'Live-Stundenwerte'));
   if (c.hour) p.push(pl(c.hour, 'Stundenwert', 'Stundenwerte'));
   if (c.day) p.push(pl(c.day, 'Tageswert', 'Tageswerte'));
   if (c.broker) p.push(`${pl(c.broker, 'Tag', 'Tage')} aus dem Broker-Verlauf`);

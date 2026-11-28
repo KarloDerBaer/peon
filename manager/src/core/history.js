@@ -110,7 +110,7 @@ function itemDetail(db, marketKey, key, { from = null, now = Math.floor(Date.now
   if (!m) return null;
   const f = from == null ? 0 : from;
   const nm = db.prepare('SELECT item_id, name, quality, variant FROM items WHERE key = ?').get(key);
-  const own = db.prepare(`SELECT t, source, min, median, p25, p75, qty, auctions FROM item_snap
+  const own = db.prepare(`SELECT t, source, min, median, p25, p75, qty, auctions, low FROM item_snap
       WHERE market_id = ? AND item_key = ? AND t >= ? ORDER BY t`).all(m.id, key, f);
   const hours = db.prepare(`SELECT t, source, min, median, p25, p75, qty, auctions, n FROM item_hour
       WHERE market_id = ? AND item_key = ? AND t >= ? ORDER BY t`).all(m.id, key, f);

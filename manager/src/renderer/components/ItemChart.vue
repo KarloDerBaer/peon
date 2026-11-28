@@ -25,7 +25,15 @@ function draw() {
   const d = props.detail;
   const own = [...d.own.filter((x) => x.source === 'scan'), ...d.hours.filter((x) => x.source === 'scan'), ...d.days.filter((x) => x.source === 'scan')]
     .sort((a, b) => a.t - b.t);
-  const live = d.own.filter((x) => x.source === 'live' && x.min != null);
+  // ab 0.57.0: ein Punkt je Stunde, der guenstigste Preis der Stunde (low, sonst min)
+  const hourLow = new Map();
+  for (const x of d.own) {
+    const lo = x.source === 'live' ? x.low ?? x.min : null;
+    if (lo == null) continue;
+    const h = Math.floor(x.t / 3600), y = hourLow.get(h);
+    if (!y || lo < y.lo) hourLow.set(h, { t: x.t, lo });
+  }
+  const live = [...hourLow.values()];
   const br = d.broker;
   const P = (arr, f) => arr.filter((x) => x[f] != null).map((x) => [x.t * 1000, x[f]]);
   const text = css('--muted'), line = css('--line-soft'), accent = css('--accent'), silver = css('--silver'), faint = css('--faint'), gold = css('--gold');
@@ -48,7 +56,7 @@ function draw() {
     animation: false,
     textStyle: { fontFamily: FONT },
     legend: { top: 0, left: 0, textStyle: { color: text, fontFamily: FONT }, itemWidth: 14, itemHeight: 3,
-      data: ['Median', 'Min', 'Mittlere Hälfte', 'Üblicher Bereich', 'Live (Min)', 'Broker (Tagesmittel)', 'Menge', 'Menge Broker', 'Absatz je Tag'] },
+      data: ['Median', 'Min', 'Mittlere Hälfte', 'Üblicher Bereich', 'Live (Min je Std.)', 'Broker (Tagesmittel)', 'Menge', 'Menge Broker', 'Absatz je Tag'] },
     tooltip: { trigger: 'axis', axisPointer: { type: 'line', link: [{ xAxisIndex: 'all' }] }, backgroundColor: css('--raised'), borderColor: css('--line'),
       textStyle: { color: css('--text'), fontFamily: FONT },
       formatter: (ps) => {
@@ -86,7 +94,7 @@ function draw() {
       { name: 'Min', type: 'line', showSymbol: own.length < 60, symbolSize: 4, lineStyle: { width: 1.5, color: silver }, itemStyle: { color: silver }, data: P(own, 'min') },
       { id: 'bandLow', name: 'Üblicher Bereich', type: 'line', symbol: 'none', lineStyle: { width: 1.2, type: [6, 4], color: warn }, itemStyle: { color: warn }, data: step('low') },
       { id: 'bandHigh', name: 'Üblicher Bereich', type: 'line', symbol: 'none', lineStyle: { width: 1.2, type: [6, 4], color: warn }, itemStyle: { color: warn }, data: step('high') },
-      { name: 'Live (Min)', type: 'scatter', symbol: 'diamond', symbolSize: 8, itemStyle: { color: gold }, data: P(live, 'min') },
+      { name: 'Live (Min je Std.)', type: 'scatter', symbol: 'diamond', symbolSize: 8, itemStyle: { color: gold }, data: P(live, 'lo') },
       { name: 'Broker (Tagesmittel)', type: 'line', symbol: 'emptyCircle', symbolSize: 6, lineStyle: { width: 1.5, type: [5, 4], color: faint }, itemStyle: { color: faint }, data: P(br, 'median') },
       { name: 'Menge', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barMaxWidth: 10, itemStyle: { color: accent, opacity: 0.75 }, data: P(own, 'qty') },
       { name: 'Absatz je Tag', type: 'line', xAxisIndex: 1, yAxisIndex: 2, symbol: 'circle', symbolSize: 6, lineStyle: { width: 2, color: gold }, itemStyle: { color: gold }, data: sd },

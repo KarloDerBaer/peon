@@ -34,15 +34,27 @@ function readQueue(file) {
 }
 
 // Eine Momentaufnahme in die Datenbank (ohne Transaktion, ruft importFile auf)
+// Schon eingelesen? Auch Nummern von Live-Abfragen, die in einer anderen derselben Stunde aufgegangen sind (ab Schema 16)
+function knownId(db, id) {
+  return !!(db.prepare('SELECT 1 FROM snapshots WHERE id = ?').get(String(id))
+    || db.prepare('SELECT 1 FROM live_ids WHERE id = ?').get(String(id)));
+}
+
+const minOf = (...v) => { const x = v.filter((n) => n != null); return x.length ? Math.min(...x) : null; };
+
 function importEntry(db, e, account) {
-  const known = db.prepare('SELECT 1 FROM snapshots WHERE id = ?').get(String(e.id));
-  if (known) return false;
+  if (knownId(db, e.id)) return false;
   if (typeof e.market !== 'string' || typeof e.t !== 'number') throw new Error(`Momentaufnahme ${e.id}: Markt oder Zeit fehlt`);
   const mid = marketId(db, e.market, { realm: e.realm, faction: e.faction, region: e.region });
   const rows = parseRows(e.rows || '');
   const stats = summarize(rows);
   const source = e.kind === 'scan' ? 'scan' : 'live';
   const now = Math.floor(Date.now() / 1000);
+  // ab Manager 0.57.0: low = guenstigster Preis der Stunde (Bridge ab 0.15.0 schickt ihn in e.low mit). Mehrere Abfragen
+  // derselben Stunde fasst das Aufraeumen zusammen (db.mergeLiveHours), das Diagramm zeigt ohnehin einen Wert je Stunde.
+  const eKey = e.key != null ? String(e.key) : null;
+  const eLow = typeof e.low === 'number' ? e.low : null;
+  const lowOf = (k, m) => (source === 'live' ? minOf(m, k === eKey ? eLow : null) : null);
   // ab Schema 14: feste Zahl je Stand (sid), item_snap verweist darauf
   const sid = Number(db.prepare('SELECT COALESCE(MAX(sid), 0) + 1 AS s FROM snapshots').get().s);
   db.prepare(`INSERT INTO snapshots(id, market_id, source, art, t, char, build, broker, region, account,
@@ -53,17 +65,17 @@ function importEntry(db, e, account) {
       e.partial ? 1 : 0, e.key ?? null, e.commodity == null ? null : (e.commodity ? 1 : 0),
       zlib.deflateSync(Buffer.from(e.rows || '', 'utf8')), now, sid);
 
-  const ins = db.prepare(`INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, p25, p75, qty, auctions)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const ins = db.prepare(`INSERT INTO item_snap(sid, market_id, item_key, t, source, min, median, p25, p75, qty, auctions, low)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   for (const st of stats.values()) {
     // Teil-Ergebnis einer Live-Abfrage: Menge und Median sind zu niedrig -> nur Min behalten (wie Broker)
     const part = source === 'live' && e.partial;
     ins.run(sid, mid, st.key, e.t, source, st.min, part ? null : st.median, part ? null : st.p25, part ? null : st.p75,
-      part ? null : st.qty, part ? null : st.auctions);
+      part ? null : st.qty, part ? null : st.auctions, lowOf(st.key, st.min));
   }
   // Live-Abfrage ohne Angebote: Gegenstand ist weg (Menge 0)
-  if (source === 'live' && rows.length === 0 && !e.partial && e.key != null) {
-    ins.run(sid, mid, String(e.key), e.t, source, null, null, null, null, 0, 0);
+  if (source === 'live' && rows.length === 0 && !e.partial && eKey != null) {
+    ins.run(sid, mid, eKey, e.t, source, null, null, null, null, 0, 0, lowOf(eKey, null));
   }
 
   // Namen, Qualitaet, ab Peon_Client 0.3.0 Haendlerpreis und Warenart: "Name|Qualitaet|Haendlerpreis|Massenware"
@@ -181,4 +193,4 @@ function snapshotRows(db, id) {
   return parseRows(zlib.inflateSync(Buffer.from(r.rows)).toString('utf8'));
 }
 
-module.exports = { findFiles, readQueue, importEntry, importFile, snapshotRows, parseName, parseTip, saveTips, FILE };
+module.exports = { findFiles, readQueue, importEntry, knownId, importFile, snapshotRows, parseName, parseTip, saveTips, FILE };

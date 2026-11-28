@@ -5,7 +5,7 @@
 // Momentaufnahmen bleiben (Zeit, Angebote, Gegenstaende).
 // Verdichtet wird in kleinen Zeitscheiben, damit das Programm dazwischen weiterarbeiten kann (pruneSteps).
 
-const { tx, slotHour } = require('./db');
+const { tx, slotHour, mergeLiveHours } = require('./db');
 
 // Der uebliche Bereich fuer Broker rechnet ueber 14 Tage, die Muster ueber 28 Tage, beide lesen keine Tageswerte
 const MIN_HOUR_DAYS = 28;
@@ -145,6 +145,11 @@ function* dropOld(db, now, res) {
     res.live = (res.live || 0) + ids.length;
     yield;
   }
+  // ab 0.57.0: Live-Abfragen je Gegenstand und Stunde zusammenfassen (laufende Stunde nicht), Nummern nach LIVE_DAYS weg
+  const merged = tx(db, () => mergeLiveHours(db, now));
+  if (merged) res.liveMerged = (res.liveMerged || 0) + merged;
+  db.prepare('DELETE FROM live_ids WHERE t < ?').run(now - LIVE_DAYS * 86400);
+  yield;
 }
 
 // Alles Aeltere als cut von den 3-Stunden-Werten zu Tageswerten. Tag = Stunde / 24 (UTC), fuer Tageswerte ueber Jahre genau

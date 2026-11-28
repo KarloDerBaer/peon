@@ -107,7 +107,7 @@ class BrokerClient {
     // bridgeFromCalc. Hier gleich die Bestaetigung mit den Werten der letzten Rechnung.
     const markets = this.role === 'write' ? this.storedMarkets() : this.buildMarkets();
     // Bestaetigen nur, was sicher in der Datenbank ist
-    const known = ids.filter((id) => this.db.prepare('SELECT 1 FROM snapshots WHERE id = ?').get(id));
+    const known = ids.filter((id) => game.knownId(this.db, id));
     this.writeAck(known, markets, sum);
     if (sum.imported > 0 || sum.failed.length > 0 || sum.error) {
       const text = sum.error || `${sum.imported} ${sum.imported === 1 ? 'neue Momentaufnahme' : 'neue Momentaufnahmen'}, ${sum.known} schon bekannt` + (sum.failed.length ? `, ${sum.failed.length} Fehler: ${sum.failed.map((x) => x.error).join('; ')}` : '');

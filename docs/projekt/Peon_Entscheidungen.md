@@ -3,6 +3,13 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 28.11.2026: Live-Abfragen je Gegenstand und Stunde (Bridge 0.15.0, Manager 0.57.0)
+
+- **Nur Stand und günstigster Preis der Stunde** (KarloDerBaer, Vorschlag Claude): Broker merkt sich ohnehin nur den letzten Live-Wert. Im Manager zählen Live-Abfragen seit 0.40.0 nicht für Verlauf und Absatz, gebraucht werden der letzte Stand und im Diagramm ein Wert je Stunde. Alles andere war Ballast (35.000 Abfragen in einer Woche).
+- **Schon in der Bridge** (Claude): Eine neue Abfrage ersetzt die wartende derselben Stunde. So bleibt auch die Datei des Spiels klein.
+- **Im Manager beim Aufräumen statt beim Einlesen** (Claude, beim Bau): Der Zwischenspeicher nimmt beim Einlesen nur neue Zeilen dazu. Würde das Einlesen Zeilen löschen, müsste er jedes Mal alles neu lesen (mit echten Daten 12 bis 27 Sek.). Das Diagramm fasst die laufende Stunde selbst zusammen.
+- **Vorhandene Abfragen einmalig zusammengefasst** (KarloDerBaer): Die Nummern bleiben 7 Tage bekannt, damit die Bridge sie nicht erneut schickt.
+
 ## 28.11.2026: Lockpreis wie der Auslöser (Broker 0.174.0)
 
 - **Aufbau wie der Auslöser** (KarloDerBaer): Quelle Fest, Auslöser oder Limit, dahinter Feld oder Prozent. 0 % ist erlaubt, damit der Lockpreis genau auf dem Auslöser liegen kann. Vorgabe Auslöser 25 %.

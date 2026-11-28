@@ -42,8 +42,9 @@ const sources = computed(() => [
     state: !view.value || !view.value.saved ? 'Kein Zugang eingetragen' : !apiInfo.value.selected ? 'Kein Auktionshaus gewählt' : apiInfo.value.last ? `${pl(apiInfo.value.stands, 'Stand', 'Stände')}, zuletzt ${ago(apiInfo.value.last, props.now)}` : 'Noch nicht abgerufen' },
   { name: 'Komplettscan', history: 'Ja', band: 'Ja', sales: 'Lücken', chances: 'Ja', renew: 'Wenn du im Spiel scannst und neu lädst',
     state: scansTotal.value ? pl(scansTotal.value, 'Scan', 'Scans') : 'Noch keine' },
-  { name: 'Live-Abfrage', history: 'Ja', band: 'Nein', sales: 'Ergänzt', chances: 'Nein', renew: 'Beim Verkaufen und im Radar im Spiel',
-    state: livesTotal.value ? pl(livesTotal.value, 'Abfrage', 'Abfragen') : 'Noch keine' },
+  // ab 0.57.0: je Gegenstand und Stunde ein Wert (letzter Stand und guenstigster Preis), zaehlen seit 0.40.0 nicht fuer den Absatz
+  { name: 'Live-Abfrage', history: 'Je Std.', band: 'Nein', sales: 'Nein', chances: 'Nein', renew: 'Bei Abfragen im Spiel, 7 Tage lang',
+    state: livesTotal.value ? pl(livesTotal.value, 'Stundenwert', 'Stundenwerte') : 'Noch keine' },
   { name: 'Broker-Verlauf', history: 'Lücken', band: 'Lücken', sales: 'Nein', chances: 'Nein', renew: 'Bei /reload oder beim Ausloggen',
     state: props.data.brokerHist && props.data.brokerHist.items ? `${num(props.data.brokerHist.items)} Gegenstände, ${pl(props.data.brokerHist.days, 'Tag', 'Tage')}` : 'Noch keiner' },
 ]);

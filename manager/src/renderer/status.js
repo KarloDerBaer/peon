@@ -26,7 +26,7 @@ export function apiStation(data, now) {
 export function managerStation(data, market, now) {
   const last = market && market.lastScan;
   return { key: 'manager', title: 'Manager', state: last ? freshness(last.t, 2 * 86400, now) : 'aus',
-    fact: market ? `${pl(market.scans, 'Scan', 'Scans')}${market.stands ? `, ${pl(market.stands, 'API-Stand', 'API-Stände')}` : ''}, ${pl(market.lives, 'Live-Abfrage', 'Live-Abfragen')}` : 'Noch nichts gespeichert',
+    fact: market ? `${pl(market.scans, 'Scan', 'Scans')}${market.stands ? `, ${pl(market.stands, 'API-Stand', 'API-Stände')}` : ''}, ${pl(market.lives, 'Live-Stundenwert', 'Live-Stundenwerte')}` : 'Noch nichts gespeichert',
     time: `Datenbank ${bytes(data.dbSize)}, ${market ? pl(market.items, 'Gegenstand', 'Gegenstände') : 'keine Gegenstände'}. Liest Neues sofort ein.` };
 }
 

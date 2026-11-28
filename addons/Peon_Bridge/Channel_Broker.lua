@@ -323,17 +323,20 @@ function E.Live(key, rows, t, info)
     end
     local bonus = E.Bonus(rows.link)
     local bag = NewBag()
+    local low   -- guenstigster Stueckpreis dieser Abfrage
     if type(rows.offers) == "table" and #rows.offers > 0 then
         for _, o in ipairs(rows.offers) do
             if Num(o.q) and o.q > 0 and Num(o.p) then
                 local band = E.BandFromSeconds(o.secs) or (Num(o.band) and o.band + 1) or nil
                 Put(bag, E.Line(itemID, bonus, full, o.q, nil, o.p, nil, band, o.id))
+                if not low or o.p < low then low = o.p end
             end
         end
     else
         for _, r in ipairs(rows) do
             if Num(r.qty) and r.qty > 0 and Num(r.price) then
                 Put(bag, E.Line(itemID, bonus, full, r.qty, nil, r.price, nil, nil, nil))
+                if not low or r.price < low then low = r.price end
             end
         end
     end
@@ -350,9 +353,22 @@ function E.Live(key, rows, t, info)
     e.key, e.partial, e.commodity = k, partial, info.commodity and true or false
     e.offers, e.lines = bag.offers, #bag.order
     e.rows = text   -- leer = keine Angebote
+    e.low = low
     if rows.link and not mod.acc.tipIds[k] then
         local tip = E.TipText(rows.link)
         if tip then e.tips = { [k] = tip } end
+    end
+    -- ab 0.15.0: je Gegenstand und Stunde wartet hoechstens eine Live-Abfrage. Die neue ersetzt die alte und traegt
+    -- den guenstigsten Preis der Stunde weiter (e.low). Neue Nummer, falls der Manager die alte schon abgeholt hat.
+    local q, h = mod.acc.queue, math.floor(t / 3600)
+    for i = #q, 1, -1 do
+        local x = q[i]
+        if type(x) == "table" and x.kind == "live" and x.key == k and x.market == e.market and Num(x.t) and math.floor(x.t / 3600) == h then
+            if Num(x.low) and (not e.low or x.low < e.low) then e.low = x.low end
+            if type(x.tips) == "table" and not e.tips then e.tips = x.tips end
+            table.remove(q, i)
+            break
+        end
     end
     E.Push(e)
     return e

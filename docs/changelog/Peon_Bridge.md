@@ -2,6 +2,15 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.15.0
+
+Kurz: Live-Abfragen aus dem Auktionshaus belegen weniger Platz. Je Gegenstand und Stunde wartet nur noch eine auf den Manager, sie merkt sich den günstigsten Preis dieser Stunde.
+
+- 0.15.0 (28.11.2026, Pflege der Datenmengen, Zustimmung KarloDerBaer):
+  - **Geändert, Live-Abfragen je Stunde** (`Channel_Broker.lua`, `E.Live`): Eine neue Abfrage desselben Gegenstands in derselben Stunde (gleicher Markt) ersetzt die wartende. Sie bekommt eine neue Nummer, falls der Manager die alte schon abgeholt hat. Anlass: Im Limitkauf entstanden in einer Woche rund 35.000 Abfragen, 17.700 davon für einen einzigen Gegenstand.
+  - **Neu, Feld `low`:** günstigster Stückpreis der Stunde. Er wird beim Ersetzen weitergetragen, auch wenn die neue Abfrage leer ist (Gegenstand weg).
+  - Tests: Ersetzen in derselben Stunde, neue Stunde, `low` mit leerer Abfrage, Grenzen der Warteschlange (`test_bridge.lua`).
+
 ## 0.14.1
 
 Kurz: Die Bridge merkt sich höchstens 40.000 schon übergebene Tooltip-Werte. So wächst ihre Datei nicht mehr ohne Ende.
