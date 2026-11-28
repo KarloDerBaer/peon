@@ -17,6 +17,7 @@
 --                                     ab 0.9 je Charakter: ohne Angabe der eingeloggte, "*" = alle Charaktere
 --   mod:LastBuy(itemID)            -> zuletzt gezahlt je Stueck, Zeit, Stueck, Quelle ("ah", "vendor", "cod", "trade") (ab 0.14)
 --   mod:LastSale(itemID)           -> zuletzt verkauft je Stueck (netto), Zeit, Stueck, Quelle ("ah", "vendor") (ab 0.14)
+--   mod:SalesSince(itemID, from)   -> Verkaeufe im Auktionshaus seit from (time()): { { t, unit, n }, ... } (ab 0.19)
 --   mod:ShowItem(itemID)           -> Gegenstand zeigen: Seite Gegenstand in Broker (ab 0.14), sonst Charaktere mit Suche
 -- Ab 0.5 (L6): Vermoegen mit Brokers Wert (ns.Value, Broker: mod:ItemValue).
 -- PeonLedgerDB (accountweit): realms[Realm].chars[Vorname Nachname] = Bestand; items[itemID] = { n, q, i };
@@ -159,6 +160,12 @@ function mod:LastSale(id)
     local b = ns.Last and type(id) == "number" and ns.Last.Sale(id)
     if not b then return nil end
     return b.unit, b.t, b.n, b.src
+end
+
+-- ab 0.19: Verkaeufe im Auktionshaus seit from (time()): Liste { t, unit, n }, aelteste zuerst (Kopie)
+function mod:SalesSince(id, from)
+    if not (ns.Last and ns.Last.Sales) then return {} end
+    return ns.Last.Sales(id, from)
 end
 
 -- Gegenstand zeigen (ab 0.14): Seite Gegenstand in Broker, ohne Broker der Reiter Charaktere mit Suche (ab 0.18)

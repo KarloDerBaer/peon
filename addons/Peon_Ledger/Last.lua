@@ -76,6 +76,22 @@ function LB.CloseTrade(buy, g)
     if cnt == 1 then Put(buy, only, g.e, -g.m / g.ins[only], g.ins[only], "trade") end
 end
 
+-- ab 0.19 (fuer Brokers Richtpreis Verkaufspreis): alle Verkaeufe im Auktionshaus seit from (time()), aelteste zuerst.
+-- Je Verkauf { t, unit = netto je Stueck, n = Stueck }. Nur der Verlauf (die letzten 90 Tage), keine Wochensummen.
+function LB.Sales(id, from)
+    local out = {}
+    if type(id) ~= "number" then return out end
+    for _, e in ipairs(ns.Moves.List()) do
+        if e.k == "ahsold" and e.id == id and Num(e.m) and e.m > 0 and (e.t or 0) >= (from or 0) then
+            local q = (Num(e.q) and e.q) or ((Num(e.n) and e.n < 0) and -e.n) or 1
+            local net = e.m
+            if Num(e.gross) and Num(e.cut) then net = e.gross - e.cut end
+            if q > 0 then out[#out + 1] = { t = e.t or 0, unit = net / q, n = q } end
+        end
+    end
+    return out
+end
+
 function LB.Buy(id) return LB.Index().buy[id] end
 function LB.Sale(id) return LB.Index().sale[id] end
 

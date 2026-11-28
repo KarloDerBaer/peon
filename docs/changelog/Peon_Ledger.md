@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.19.0
+
+Kurz: Broker kann jetzt alle deine Verkäufe im Auktionshaus der letzten Tage lesen und daraus einen Verkaufspreis bilden.
+
+- 0.19.0 (28.11.2026, für Broker 0.168.0):
+  - **Neu, Schnittstelle:** `mod:SalesSince(itemID, from)` liefert die Verkäufe im Auktionshaus seit einer Zeit, netto je Stück mit Menge und Zeit (`Last.Sales`). Nur der Verlauf, also die letzten 90 Tage.
+  - Tests: Verkäufe seit einer Zeit, Händler zählt nicht (`test_ledger.lua`).
+
 ## 0.18.2
 
 Kurz: Der alte Hinweis zum Neuaufbau von Ledger erscheint nicht mehr.
