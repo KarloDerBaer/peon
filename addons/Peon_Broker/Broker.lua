@@ -237,6 +237,11 @@ local mod = Peon:NewModule(ADDON_NAME, {
         end
     end,
 })
+
+-- ab 0.172 (KarloDerBaer 28.11.2026): Hinweis zu Limitkauf und Direktkauf, einmal nach dem Einloggen
+if mod.AddNotice then
+    mod:AddNotice({ id = "limitkauf-2026-11", date = "28.11.2026", title = L.NOTICE_LIMIT_TITLE, text = L.NOTICE_LIMIT })
+end
 ns.mod = mod
 
 -- Schnittstelle fuer andere Module (nur lesend): Wert eines Gegenstands (Zeile 1 des Tooltips) fuer count Stueck

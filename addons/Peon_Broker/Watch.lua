@@ -35,7 +35,8 @@ Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, u
             bon = true, qon = true, ton = true,   -- ab 0.120: Haken der Listen (ab 0.128 ueber t.lists)
             qlimOn = true, qglide = true, qmethod = true,   -- ab 0.143: Kaufart im Einkaufen, nur im Spiel
             qref = true, qmargin = true, qmin = true,   -- ab 0.167: Richtpreis, Gewinnspanne, Min. Menge
-            qtab = true, qtrig = true, qtrigPct = true, qtrigFix = true }   -- ab 0.168: Tab und Ausloeser, nur im Spiel
+            qtab = true, qtrig = true, qtrigPct = true, qtrigFix = true,   -- ab 0.168: Tab und Ausloeser, nur im Spiel
+            qbait = true, qbaitPct = true, qbaitFix = true }   -- ab 0.174: Lockpreis, nur im Spiel
 -- ab 0.91 (Fehlerberichte 20 und 21): Warnton je Richtung, einstellbar fuer alle (watchSoundDown, watchSoundUp, dazu
 -- Chatnachricht watchChatDown, watchChatUp) und je Gegenstand (sDown, sUp: Ton oder "off", nil = wie eingestellt).
 -- Die Werte je Gegenstand bleiben im Spiel, der Manager kennt sie nicht.
@@ -338,6 +339,16 @@ function Wt.SetQuickBand(key, tab, trig, pct, fix)
     if type(trig) == "string" then w.qtrig = trig end
     if Num(pct) then w.qtrigPct = math.floor(pct) end
     if Num(fix) then w.qtrigFix = fix > 0 and math.floor(fix) or nil end
+    return true
+end
+
+-- ab 0.174: Lockpreis (Quelle, Abstand, fester Preis) je Gegenstand, nur gesetzte Werte. fix 0 = Feld geleert.
+function Wt.SetQuickBait(key, src, pct, fix)
+    local w = Wt.Store()[key]
+    if not w then return false end
+    if type(src) == "string" then w.qbait = src end
+    if Num(pct) then w.qbaitPct = math.floor(pct) end
+    if Num(fix) then w.qbaitFix = fix > 0 and math.floor(fix) or nil end
     return true
 end
 

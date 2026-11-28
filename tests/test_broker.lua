@@ -3680,7 +3680,7 @@ end)()
   local S, M = ns.Settings, ns.Measure
   S.Toggle("focus")
   local f = S.frames.focus
-  check(f and f:IsShown() and #f.controls == 32, "0.167: ohne Unter Markt, dazu Min. Menge, Luft im Diagramm und Ton bei Fehlschlag. 0.165: Marktstabilitaet mit zwei Grenzen statt drei. 0.143: Gleitend unter Markt und Durchschnitt dazu. 0.70: Fenster Einstellungen des Fokus mit 7 Reglern (ab 0.122 Gelegenheiten, ab 0.120 zwei Vorgaben fuer den Schnellkauf, Kaufzone und Preissprung, ab 0.91 Haken Wiedereinstellen, ab 0.104 drei fuer den Schnellkauf, ab 0.108 vier fuer die Marktbewegung, ab 0.109 Grenze fuer Lockangebote, ab 0.115 ohne Kaufprotokoll, ab 0.111 Ton fuer Lockangebote, ab 0.113 automatisch speichern, ab 0.114 Pause der Abfragen)")
+  check(f and f:IsShown() and #f.controls == 31, "0.174: ohne Lockpreis-Prozent. 0.167: ohne Unter Markt, dazu Min. Menge, Luft im Diagramm und Ton bei Fehlschlag. 0.165: Marktstabilitaet mit zwei Grenzen statt drei. 0.143: Gleitend unter Markt und Durchschnitt dazu. 0.70: Fenster Einstellungen des Fokus mit 7 Reglern (ab 0.122 Gelegenheiten, ab 0.120 zwei Vorgaben fuer den Schnellkauf, Kaufzone und Preissprung, ab 0.91 Haken Wiedereinstellen, ab 0.104 drei fuer den Schnellkauf, ab 0.108 vier fuer die Marktbewegung, ab 0.109 Grenze fuer Lockangebote, ab 0.115 ohne Kaufprotokoll, ab 0.111 Ton fuer Lockangebote, ab 0.113 automatisch speichern, ab 0.114 Pause der Abfragen)")
   local rate
   for _, c in ipairs(f.controls) do if c.row[2] == "focusRate" then rate = c end end
   check(rate and plain(rate.value.text) == "12 (alle 5 Sek.)", "0.70: Abfragen pro Minute mit Abstand: " .. tostring(rate and plain(rate.value.text)))
@@ -4700,6 +4700,7 @@ end)()
   check(F.Plan().best.qty == 5 and F.Plan().limit == 150, "0.143: feste Menge ab dem guenstigsten, ueber mehrere Stufen")
   Q.qty[7971] = nil
   Q.SetLimitOn(true)   -- die aelteren Pruefungen gelten fuer das Limit
+  Q.baitSrc[7971], Q.baitPct[7971] = "limit", 50   -- ab 0.174: alte Bedeutung des Lockpreises (Limit minus 50 %)
   F.SetLimit(75)
   check(F.ManualLimit(7971) == 75 and F.limitInput:GetAmount() == 75 and Q.BuyKind(7971) == "limit", "0.143: Limit mit Standard 75")
   check(Q.Price(7971) == 37, "0.107: Lockpreis 50 % unter Kaufen bis")
@@ -7836,6 +7837,77 @@ end)()
   F.manualLimit = nil
   mod.acc.commodity[7854] = nil
   ns.Scan.ahOpen, GetMoney = keepOpen, keepMoney
+end)()
+
+-- 0.172: einmaliger Hinweis zu Limitkauf und Direktkauf
+;(function()
+  local L = ns.L
+  check(type(L.NOTICE_LIMIT_TITLE) == "string" and L.NOTICE_LIMIT_TITLE ~= "", "0.172: Titel des Hinweises")
+  check(type(L.NOTICE_LIMIT) == "table" and #L.NOTICE_LIMIT == 5, "0.172: Hinweis mit 5 Absaetzen")
+  local fh = io.open("Peon_Broker/Broker.lua", "rb")
+  local src = fh and fh:read("*a") or ""
+  if fh then fh:close() end
+  check(src:find('mod:AddNotice%(%{ id = "limitkauf%-2026%-11"') ~= nil, "0.172: Hinweis wird beim Kern angemeldet")
+end)()
+
+-- 0.173: Ton fuer Lockangebote nur bis zum Ausloeser, darueber still mit Meldung ueber dem Kaufknopf
+;(function()
+  local Q, F = ns.Quick, ns.Focus
+  local keepKey, keepLim = F.key, F.manualLimit
+  local K = 7861
+  F.key, F.manualLimit = K, { key = K, price = 100 }
+  Q.tab[K], Q.glide[K], Q.trig[K], Q.trigPct[K] = "limit", false, "limit", 25   -- Band 75 bis 100
+  Q.baits[K], Q.baitNote[K], Q.baitPing = nil, nil, nil
+  local p0 = { t = 100, min = 120, lv = { { price = 120, qty = 10 } } }
+  local s1 = { t = 105, min = 90, lv = { { price = 90, qty = 1 }, { price = 120, qty = 10 } } }
+  Q.OnSample(K, p0, s1)
+  check(Q.baits[K] and #Q.baits[K] == 1 and not Q.baits[K][1].above, "0.173: Lockangebot ueber dem Ausloeser wird weiter erkannt")
+  check(Q.baitPing == nil, "0.173: ueber dem Ausloeser kein Ton")
+  local price, trig = Q.BaitNote(K)
+  check(price == 90 and trig == 75, "0.173: Meldung mit Preis und Ausloeser")
+  check(plain(F.BaitNoteText(K)):find("Lockangebot") ~= nil, "0.173: Text der Meldung")
+  Q.baitNote[K].t = Q.baitNote[K].t - Q.BAIT_NOTE_SEC - 1
+  check(Q.BaitNote(K) == nil and F.BaitNoteText(K) == "", "0.173: Meldung verschwindet nach der Zeit")
+  -- am Ausloeser: Ton wie bisher
+  Q.baits[K] = nil
+  local s2 = { t = 105, min = 70, lv = { { price = 70, qty = 1 }, { price = 120, qty = 10 } } }
+  Q.OnSample(K, p0, s2)
+  check(Q.baitPing == K and Q.BaitNote(K) == nil, "0.173: unter dem Ausloeser Ton, keine Meldung")
+  -- Ausloeser aus: Grenze ist das Limit
+  Q.baitPing = nil; Q.baits[K] = nil; Q.trig[K] = "off"
+  Q.OnSample(K, p0, s1)
+  check(Q.baitPing == K, "0.173: Ausloeser aus, Ton bis zum Limit")
+  Q.tab[K], Q.glide[K], Q.trig[K], Q.trigPct[K], Q.baits[K], Q.baitNote[K], Q.baitPing = nil, nil, nil, nil, nil, nil, nil
+  F.key, F.manualLimit = keepKey, keepLim
+end)()
+
+-- 0.174: Lockpreis wie der Ausloeser (Quelle Fest, Ausloeser, Limit mit Abstand, Vorgabe Ausloeser 25 %)
+;(function()
+  local Q, F = ns.Quick, ns.Focus
+  local keepKey, keepLim = F.key, F.manualLimit
+  local K = 7862
+  F.key, F.manualLimit = K, { key = K, price = 200 }
+  Q.tab[K], Q.glide[K], Q.trig[K], Q.trigPct[K] = "limit", false, "limit", 25   -- Band 150 bis 200
+  check(Q.BaitSrc(K) == "trig" and Q.BaitPct(K) == 25, "0.174: Vorgabe Ausloeser 25 %")
+  check(Q.Price(K) == 112, "0.174: Lockpreis 25 % unter dem Ausloeser")
+  Q.SetBaitPct(0)
+  check(Q.Price(K) == 150, "0.174: 0 % liegt genau auf dem Ausloeser")
+  Q.SetBaitSrc("limit"); Q.SetBaitPct(10)
+  check(Q.Price(K) == 180, "0.174: Limit minus 10 %")
+  Q.SetBaitSrc("fix")
+  check(Q.Price(K) == nil and Q.ManualPrice(K) == nil, "0.174: Fest ohne Wert hat keinen Lockpreis")
+  Q.SetBaitFix(123)
+  check(Q.Price(K) == 123 and Q.ManualPrice(K) == 123, "0.174: Fest mit eigenem Preis")
+  check(plain(F.BaitValueText(K)) == "", "0.174: bei Fest kein Wert hinter der Auswahl")
+  Q.SetBaitSrc("trig")
+  check(plain(F.BaitValueText(K)) ~= "" and Q.Price(K) == 150 * 0.9, "0.174: Wert hinter dem Abstand")
+  Q.SetBaitSrc("bogus")
+  check(Q.BaitSrc(K) == "trig", "0.174: unbekannte Quelle wird ignoriert")
+  local src, pct, fix = Q.BaitValues(K)
+  check(src == "trig" and pct == 10 and fix == 123, "0.174: Werte zum Speichern in Beobachten")
+  Q.tab[K], Q.glide[K], Q.trig[K], Q.trigPct[K] = nil, nil, nil, nil
+  Q.baitSrc[K], Q.baitPct[K], Q.baitFix[K] = nil, nil, nil
+  F.key, F.manualLimit = keepKey, keepLim
 end)()
 
 print("ALLE TESTS OK")

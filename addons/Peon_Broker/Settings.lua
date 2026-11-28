@@ -71,7 +71,7 @@ S.SPECS.focus = {
     { "choice", "quickBaitSound", "SET_QUICK_SOUND", QuickSounds, test = QuickTest, off = BaitAlarmOff },
     { "check", "quickFailAlarm", "SET_QUICK_FAILALARM", "SET_QUICK_FAILALARM_TIP" },   -- ab 0.167
     { "choice", "quickFailSound", "SET_QUICK_SOUND", QuickSounds, test = QuickTest, off = FailAlarmOff },
-    { "slider", "quickBaitPct", "SET_QUICK_PCT", 5, 90, 5, function(v) return L.SET_PCT_FMT:format(v) end },
+    -- bis 0.173 Regler quickBaitPct (Lockpreis unter Kaufen bis), ab 0.174 je Gegenstand im Bereich Lockangebot
     { "slider", "quickHold", "SET_QUICK_HOLD", 0, 5, 0.5, function(v) return v == 0 and L.SET_OFF or L.SET_SECD_FMT:format(Dec(v)) end },   -- ab 0.114
     { "head", "SET_QUICK_DEFAULTS" },   -- ab 0.120: Vorgaben ohne eigene Werte
     { "slider", "quickLimitPct", "SET_QUICK_LIMIT_PCT", 10, 100, 5, function(v) return L.SET_PCT_FMT:format(v) end },

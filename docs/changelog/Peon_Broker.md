@@ -2,6 +2,36 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.174.0
+
+Kurz: Den Lockpreis stellst du jetzt wie den Auslöser ein: Fest mit eigenem Preis oder Auslöser beziehungsweise Limit minus einige Prozent. Mit 0 % liegt er genau darauf.
+Kurz: Vorgabe ist Auslöser minus 25 %. Bei beobachteten Gegenständen merkt sich Broker die Wahl.
+
+- 0.174.0 (28.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Lockpreis:** Auswahlliste Fest, Auslöser, Limit (zugeklappt Fix, Ausl, Lim), dahinter bei Fest das Feld, sonst der Abstand (0, 2, 3, 5, 10, 15, 20, 25, 30, 40, 50 %) mit dem Wert (`Quick.BAIT_SRCS`, `Quick.BAIT_PCTS`, `Quick.BaitSrc`, `Quick.BaitPct`, `Quick.BaitFix`, `Quick.Suggest(key)`). Grundlage ist das Band (`Quick.BandFor`), damit folgt der Lockpreis auch einem gleitenden Limit.
+  - **Neu, gespeichert in Beobachten:** Felder `qbait`, `qbaitPct`, `qbaitFix` (`Watch.SetQuickBait`).
+  - **Entfernt:** Regler „Lockpreis unter Kaufen bis“ in den Einstellungen des Einkaufens (`quickBaitPct`), er gilt jetzt je Gegenstand. Der eigene Lockpreis für eine Sitzung (`Quick.manual`) geht in Fest auf.
+  - Tests: Vorgabe, 0 %, Limit, Fest mit und ohne Wert, Werte zum Speichern (`test_broker.lua`).
+
+## 0.173.0
+
+Kurz: Der Ton für ein Lockangebot kommt im Limitkauf nur noch, wenn es den Auslöser erreicht, also gleich gekauft werden könnte.
+Kurz: Liegt ein Lockangebot darüber, steht stattdessen 30 Sekunden lang eine kurze Meldung über dem Kaufknopf. So siehst du, ob sich der Auslöser anpassen lohnt.
+
+- 0.173.0 (28.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Ton für Lockangebote:** Grenze ist der Auslöser aus dem Band (`Quick.BandFor`), bei Auslöser Aus das Limit, auch bei Gleitend. Bisher galt nur ein festes Limit, bei Gleitend klingelte jedes Lockangebot.
+  - **Neu, Meldung über dem Kaufknopf:** „Lockangebot … über dem Auslöser …“ in Orange zwischen Gesamtpreis und Kaufknopf, `Quick.BAIT_NOTE_SEC` = 30 Sekunden (`Quick.baitNote`, `Quick.BaitNote`, `Focus.BaitNoteText`).
+  - Erkennen und Zählen der Lockangebote bleibt unverändert.
+  - Tests: über dem Auslöser still mit Meldung, Ablauf der Meldung, darunter Ton, Auslöser Aus (`test_broker.lua`).
+
+## 0.172.0
+
+Kurz: Nach dem Einloggen erklärt ein Hinweis einmal den neuen Limitkauf und den Direktkauf. Mit /peon neu kannst du ihn wieder aufrufen.
+
+- 0.172.0 (28.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Hinweis:** einmaliger Hinweis über die Kern-API (`mod:AddNotice`, id `limitkauf-2026-11`) zu Limit, Auslöser, Band, Vorgaben und Direktkauf (`L.NOTICE_LIMIT_TITLE`, `L.NOTICE_LIMIT`).
+  - Tests: Hinweis ist angemeldet und hat Text (`test_broker.lua`).
+
 ## 0.171.0
 
 Kurz: Wählst du einen Gegenstand im Markt aus, öffnet das Einkaufen zuerst im Direktkauf.

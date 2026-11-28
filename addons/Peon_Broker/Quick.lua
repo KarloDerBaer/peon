@@ -25,13 +25,15 @@ Q.DURATION = 1        -- kuerzeste Laufzeit des Spiels
 Q.NEW_SEC = 6         -- Sekunden: so lange ist eine neue oder groessere Stufe gruen
 Q.POST_WAIT = 10      -- Sekunden: so lange warten wir auf die Bestaetigung des Spiels
 Q.bait = nil          -- { key, price, t, loc, id, state = "posting" | "confirm" | "up" | "cancelling" | "cancelled" | "gone" }
-Q.manual = nil        -- { key, price }: eigener Lockpreis (bis zum naechsten Gegenstand)
+Q.manual = nil        -- bis 0.173 eigener Lockpreis { key, price }, ab 0.174 Q.baitFix
 Q.sessions = {}       -- [Schluessel] = { baits, deposit, bought, cost }: Bilanz dieser Sitzung
 Q.marks = {}          -- [Schluessel] = { GetTime() eigener Lockangebote } fuer das Diagramm
 Q.baits = {}          -- ab 0.110: [Schluessel] = { { t, price, own, lastQ, added, times, reg, above }, ... } Lockangebote fortlaufend
 Q.hold = nil          -- ab 0.114: { key, rows, untilT } Pause der Abfragen, solange der Kaufknopf frei ist
 Q.opp = {}            -- ab 0.111: [Schluessel] = { t, won } letzte Gelegenheit zum Kauf
 Q.baitPing = nil      -- ab 0.111: Schluessel, fuer den gerade ein fremdes Lockangebot erkannt wurde
+Q.baitNote = {}       -- ab 0.173: [key] = { t, price, trig }, letztes Lockangebot ueber dem Ausloeser (still)
+Q.BAIT_NOTE_SEC = 30  -- so lange steht die Meldung ueber dem Kaufknopf
 Q.avg = {}            -- ab 0.112: [Schluessel] = true/false, Haken "Durchschnitt zaehlt" (sonst aus Beobachten)
 Q.skip = {}           -- ab 0.109: [Schluessel] = true/false, Haken "Lockangebot ignorieren" (sonst aus Beobachten)
 Q.newTiers = {}       -- [Preis] = GetTime(), bis wann die Stufe als neu gilt
@@ -1184,13 +1186,79 @@ end
 ---------------------------------------------------------------------------
 -- Lockangebot
 ---------------------------------------------------------------------------
--- Vorschlag (ab 0.107): Kaufen bis minus quickBaitPct Prozent (nil ohne Kaufen bis)
-function Q.Suggest()
-    local F = ns.Focus
-    local base = F.ManualLimit(F.key)
-    if not Num(base) then return nil, nil end
-    local pct = (tonumber(mod.db.quickBaitPct) or 50) / 100
-    return math.max(1, math.floor(base * (1 - pct))), base
+-- ab 0.174 (KarloDerBaer 28.11.2026): Lockpreis aufgebaut wie der Ausloeser. Je Gegenstand eine Quelle und ein
+-- Abstand (in Beobachten gespeichert wie der Ausloeser, Felder qbait, qbaitPct, qbaitFix):
+--   fix    Fest: eigener Preis im Feld (qbaitFix)
+--   trig   Ausloeser minus Abstand in Prozent (Vorgabe, 25 %)
+--   limit  Limit minus Abstand in Prozent
+-- Abstand 0 erlaubt, dann liegt der Lockpreis genau auf dem Ausloeser oder Limit. Bis 0.173 galt fuer alle
+-- Gegenstaende Kaufen bis minus quickBaitPct (Einstellung, nur mit festem Limit).
+Q.BAIT_SRCS = { "fix", "trig", "limit" }
+Q.BAIT_PCTS = { 0, 2, 3, 5, 10, 15, 20, 25, 30, 40, 50 }
+Q.BAIT_DEFAULT = { src = "trig", pct = 25 }
+Q.baitSrc, Q.baitPct, Q.baitFix = {}, {}, {}
+
+function Q.BaitSrc(key)
+    if key == nil then return Q.BAIT_DEFAULT.src end
+    local v = Q.baitSrc[key] or SavedField(key, "qbait")
+    for _, x in ipairs(Q.BAIT_SRCS) do if x == v then return v end end
+    return Q.BAIT_DEFAULT.src
+end
+
+function Q.BaitPct(key)
+    local v = key ~= nil and (Q.baitPct[key] or SavedField(key, "qbaitPct")) or nil
+    if not Num(v) then v = Q.BAIT_DEFAULT.pct end
+    return math.max(0, math.min(100, math.floor(v)))
+end
+
+function Q.BaitFix(key)
+    if key == nil then return nil end
+    local v = Q.baitFix[key]
+    if v == nil then v = SavedField(key, "qbaitFix") end
+    if Num(v) and v > 0 then return math.floor(v) end
+    return nil
+end
+
+function Q.SetBaitSrc(v)
+    local key = ns.Focus.key
+    if key == nil then return end
+    for _, x in ipairs(Q.BAIT_SRCS) do
+        if x == v then Q.baitSrc[key] = v; Changed(); return end
+    end
+end
+
+function Q.SetBaitPct(p)
+    local key = ns.Focus.key
+    if key == nil or not Num(p) then return end
+    Q.baitPct[key] = math.max(0, math.min(100, math.floor(p)))
+    Changed()
+end
+
+-- amount 0 oder nil = leer
+function Q.SetBaitFix(amount)
+    local key = ns.Focus.key
+    if key == nil then return end
+    Q.baitFix[key] = (Num(amount) and amount > 0) and math.floor(amount) or 0
+    Changed()
+end
+
+function Q.BaitValues(key)
+    return Q.baitSrc[key], Q.baitPct[key], Q.baitFix[key]
+end
+
+-- Lockpreis und Grundlage (Ausloeser, Limit oder der feste Preis). nil ohne Grundlage
+function Q.Suggest(key)
+    key = key or ns.Focus.key
+    if key == nil then return nil, nil end
+    local src = Q.BaitSrc(key)
+    if src == "fix" then
+        local v = Q.BaitFix(key)
+        return v, v
+    end
+    local limit, trig = Q.BandFor(key)
+    local base = src == "limit" and limit or trig
+    if not Num(base) or base <= 0 then return nil, nil end
+    return math.max(1, math.floor(base * (1 - Q.BaitPct(key) / 100))), base
 end
 
 -- ab 0.107: Kaufen bis des Aufkaufs fuer key: in Beobachten gespeichert, sonst was der Aufkauf gerade rechnet
@@ -1254,22 +1322,19 @@ function Q.EnsureLimit()
     end
 end
 
+-- Eigener Lockpreis: ab 0.174 der feste Preis bei Quelle Fest
 function Q.ManualPrice(key)
-    local m = Q.manual
-    if m and key ~= nil and m.key == key and Num(m.price) and m.price > 0 then return m.price end
-    return nil
+    if key == nil or Q.BaitSrc(key) ~= "fix" then return nil end
+    return Q.BaitFix(key)
 end
 
 function Q.Price(key)
-    return Q.ManualPrice(key) or (Q.Suggest())
+    return (Q.Suggest(key))
 end
 
--- Getippter Lockpreis (0 = wieder der Vorschlag)
+-- Getippter Lockpreis: ab 0.174 der feste Preis (Quelle Fest)
 function Q.SetPriceTyped(amount)
-    local F = ns.Focus
-    if F.key == nil then return end
-    if Num(amount) and amount > 0 then Q.manual = { key = F.key, price = math.floor(amount) } else Q.manual = nil end
-    F.Update()
+    Q.SetBaitFix(amount)
 end
 
 -- ab 0.132 (U0, Konzept Peon_Broker_Schlank.md 4.2): Menge des Lockangebots je Gegenstand, Vorgabe 1. Gespeichert in
@@ -1787,16 +1852,35 @@ function Q.OnSample(key, prev, s)
     -- above, damit der Knopf Auto Kaufen bis auch anheben kann (Q.AutoLimit).
     local F = ns.Focus
     local limit = F and F.key == key and F.ManualLimit and F.ManualLimit(key) or nil
+    -- ab 0.173 (KarloDerBaer 28.11.2026): Ton nur, wenn das Lockangebot den Ausloeser erreicht (gleich koennte
+    -- gekauft werden). Darueber still mit kurzer Meldung ueber dem Kaufknopf (Q.BaitNoteText). Erkannt und gezaehlt
+    -- werden die Lockangebote wie bisher.
+    local trig
+    if F and F.key == key then
+        local _, t = Q.BandFor(key)
+        trig = t
+    end
     for _, l in ipairs(Q.NewBaits(prev, s, nil)) do
         local above = Num(limit) and l.price > limit
         Q.AddBait(key, s.t, l.price, false, 1, prev.min, above)   -- ab 0.121 mit dem guenstigsten Preis davor
-        if not above then
+        if not above and Num(trig) and l.price > trig then
+            Q.baitNote[key] = { t = Now(), price = l.price, trig = trig }
+            Q.Trace("bait over trigger price=%s trig=%s", l.price, trig)
+        elseif not above then
             if ns.Focus and ns.Focus.key == key then Q.baitPing = key end   -- ab 0.111: Ton in Q.CheckAlarm
             Q.Trace("bait foreign price=%s min=%s", l.price, prev.min)
         else
             Q.Trace("bait above price=%s min=%s limit=%s", l.price, prev.min, limit)
         end
     end
+end
+
+-- ab 0.173: Meldung fuer ein Lockangebot ueber dem Ausloeser, Q.BAIT_NOTE_SEC lang. Rueckgabe price, trig oder nil
+function Q.BaitNote(key)
+    local n = key ~= nil and Q.baitNote[key]
+    if not n then return nil end
+    if Now() - n.t > Q.BAIT_NOTE_SEC then Q.baitNote[key] = nil; return nil end
+    return n.price, n.trig
 end
 
 -- Einbruch im Fokus (ab 0.125, Regel in QuickStats.Dip): in die Bilanz dieser Sitzung. Gezaehlt, tiefster Preis und

@@ -347,6 +347,7 @@ function F.LoadWatch(key)
         ns.Quick.limitOn[key], ns.Quick.glide[key], ns.Quick.method[key] = nil, nil, nil   -- ab 0.143: Kaufart aus Beobachten
         local Q = ns.Quick   -- ab 0.168: Tab und Ausloeser aus Beobachten
         Q.tab[key], Q.trig[key], Q.trigPct[key], Q.trigFix[key] = nil, nil, nil, nil
+        Q.baitSrc[key], Q.baitPct[key], Q.baitFix[key] = nil, nil, nil   -- ab 0.174: Lockpreis aus Beobachten
         F.loaded = { key = key, mode = "quick" }
         return true
     end
@@ -403,6 +404,7 @@ function F.Save(quiet)
         local ref, margin, minQ = ns.Quick.KindValues(key)   -- ab 0.167 Richtpreis, Gewinnspanne, Min. Menge
         Wt.SetQuickKind(key, ns.Quick.LimitOn(key), ns.Quick.GlideOn(key), ref, margin, minQ)   -- ab 0.143
         if Wt.SetQuickBand then Wt.SetQuickBand(key, ns.Quick.BandValues(key)) end   -- ab 0.168 Tab und Ausloeser
+        if Wt.SetQuickBait then Wt.SetQuickBait(key, ns.Quick.BaitValues(key)) end   -- ab 0.174 Lockpreis
         if ql then F.manualSrc = "watch" end
         if not quiet then mod:Print(L.FOCUS_SAVED_QUICK:format(name, Num(ql) and Money(ql) or "-")) end
         if ns.WatchPage then ns.WatchPage.Refresh() end
@@ -1390,6 +1392,7 @@ F.QUICK_TRIG_Y = F.QUICK_GLIDE_Y   -- ab 0.168: Zeile Ausloeser an der Stelle vo
 F.QUICK_BAND_Y = -230               -- ab 0.168: Band unter dem Stueckpreis
 F.QUICK_LIMIT_DY = -6   -- Feld des Standards auf Hoehe des Hakens Limit
 F.QUICK_BUY_TOP = -290  -- Oberkante des Kaufknopfs
+F.QUICK_BAIT_NOTE_Y = -270   -- ab 0.173: Meldung Lockangebot ueber dem Ausloeser
 F.QUICK_FOLD_Y = -338   -- erster aufklappbarer Bereich (Statistik)
 -- ab 0.168 (KarloDerBaer 28.11.2026): Zeilen je Tab. Limitkauf wie oben, Direktkauf ohne Limit, Ausloeser, Min. Menge
 -- und Band, alles rueckt nach oben.
@@ -1582,6 +1585,11 @@ function F.BuildQuick(left, Label)
     q.limitParts[#q.limitParts + 1] = q.bandLabel
     q.limitParts[#q.limitParts + 1] = q.bandValue
     q.limitParts[#q.limitParts + 1] = q.bandHover
+    -- ab 0.173 (KarloDerBaer 28.11.2026): Lockangebot ueber dem Ausloeser, still zwischen Gesamtpreis und Kaufknopf
+    q.baitNote = UI.Text(left, "text", "", UI.LEFT_W - 20)
+    q.baitNote:SetJustifyH("CENTER")
+    q.baitNote:SetPoint("TOPLEFT", 10, F.QUICK_BAIT_NOTE_Y)
+    q.limitParts[#q.limitParts + 1] = q.baitNote
     -- ab 0.140: Max. Preis unter der Menge, ab 0.144 Gesamtpreis mit zweiter Zeile
     q.maxLabel = LeftLabel(L.QUICK_MAX_L, F.QUICK_MAX_Y)
     q.maxValue = UI.Text(left, "text", "", UI.LEFT_W - F.QUICK_FIELD_X - 20)
@@ -1628,11 +1636,38 @@ function F.BuildQuick(left, Label)
         F.LayoutQuick()
     end)
     q.priceLabel = LeftLabel(L.QUICK_PRICE, F.QUICK_FOLD_Y)
-    q.priceInput = UI.MoneyInput(left, function(amount) Q.SetPriceTyped(amount) end)
+    -- ab 0.174 (KarloDerBaer 28.11.2026): wie der Ausloeser. Quelle (Fest, Ausloeser, Limit), dahinter das Feld (Fest)
+    -- oder der Abstand in Prozent mit dem Wert
+    q.priceHover = CreateFrame("Frame", nil, left)
+    q.priceHover:SetPoint("TOPLEFT", q.priceLabel, "TOPLEFT", 0, 2)
+    q.priceHover:SetSize(F.QUICK_FIELD_X - 4, 18)
+    UI.SetTooltip(q.priceHover, function() return F.BaitTip() end)
+    q.baitSrc = F.ShortDropdown(left, F.QUICK_SRC_W, function()
+        local out = {}
+        for _, t in ipairs(Q.BAIT_SRCS) do out[#out + 1] = { t, F.BaitName(t) } end
+        return out
+    end, function() return Q.BaitSrc(F.key) end, function(t) mod:Call("Schnellkauf", Q.SetBaitSrc, t) end)
+    if q.baitSrc.fallback then
+        q.baitSrc:SetScript("OnClick", function(self) mod:Call("Schnellkauf", F.BaitMenu, self) end)
+    end
+    q.baitSrc:SetPoint("LEFT", q.priceLabel, "LEFT", F.QUICK_FIELD_X - 2, 0)
+    UI.SetTooltip(q.baitSrc, function() return F.BaitTip() end)
+    q.priceInput = UI.MoneyInput(left, function(amount) mod:Call("Schnellkauf", Q.SetBaitFix, amount) end)
     if q.priceInput.SetScale then q.priceInput:SetScale(0.8) end
-    q.priceInput:SetPoint("LEFT", q.priceLabel, "LEFT", F.QUICK_FIELD_X / 0.8, 0)
+    q.priceInput:SetPoint("LEFT", q.baitSrc, "RIGHT", 4 / 0.8, 0)
+    UI.SetTooltip(q.priceInput, function() return F.BaitTip() end)
+    q.baitPct = UI.Dropdown(left, F.QUICK_MARGIN_W, function()
+        local out = {}
+        for _, m in ipairs(Q.BAIT_PCTS) do out[#out + 1] = { m, L.QUICK_MARGIN_FMT:format(m) } end
+        return out
+    end, function() return Q.BaitPct(F.key) end, function(m) mod:Call("Schnellkauf", Q.SetBaitPct, m) end)
+    if q.baitPct.fallback then
+        q.baitPct:SetScript("OnClick", function(self) mod:Call("Schnellkauf", F.BaitPctMenu, self) end)
+    end
+    q.baitPct:SetPoint("LEFT", q.baitSrc, "RIGHT", 4, 0)
+    UI.SetTooltip(q.baitPct, function() return F.BaitTip() end)
     q.priceHint = UI.Text(left, "small", "")
-    q.priceHint:SetPoint("LEFT", q.priceInput, "RIGHT", 4, 0)
+    q.priceHint:SetPoint("LEFT", q.baitPct, "RIGHT", 6, 0)
     -- ab 0.132 (U0, Konzept 4.2): unter dem Lockpreis die Menge, rechts davon der Knopf Einstellen
     q.qtyLabel = LeftLabel(L.QUICK_BAIT_QTY, F.QUICK_FOLD_Y)
     q.qtyInput = UI.Input(left, 48, { numeric = true, maxLetters = 4 })
@@ -1688,10 +1723,12 @@ function F.BuildQuick(left, Label)
     -- ab 0.142: aufklappbare Bereiche in einem Bildlauf
     q.scroll, q.body = F.MakeScroll(left, F.QUICK_FOLD_Y + 4)
     q.scroll:SetScript("OnSizeChanged", function() if q.contentH then F.FitScroll(q.scroll, q.contentH) end end)
-    q.baitParts = { q.priceLabel, q.priceInput, q.priceHint, q.qtyLabel, q.qtyInput, q.qtyHint, q.post, q.state }
+    q.baitParts = { q.priceLabel, q.priceHover, q.baitSrc, q.priceInput, q.baitPct, q.priceHint, q.qtyLabel, q.qtyInput,
+                    q.qtyHint, q.post, q.state }
     q.avg:Hide()   -- ab 0.143: Durchschnitt zaehlt gilt fuer alle (Einstellungen, Erweitert)
     q.moreParts = { q.resCheck, q.resLabel, q.resInput, q.portionLabel, q.portionDrop, q.portionHover, q.skip }
-    for _, f in ipairs({ q.foldStats, q.foldBait, q.foldMore, q.priceLabel, q.priceInput, q.priceHint, q.qtyLabel, q.qtyInput,
+    for _, f in ipairs({ q.foldStats, q.foldBait, q.foldMore, q.priceLabel, q.priceHover, q.baitSrc, q.baitPct,
+                         q.priceInput, q.priceHint, q.qtyLabel, q.qtyInput,
                          q.qtyHint, q.post, q.state, q.balance, q.resCheck, q.resLabel, q.resInput, q.skip, q.avg,
                          q.portionLabel, q.portionDrop, q.portionHover }) do f:SetParent(q.body) end
     for _, f in ipairs(q.statParts) do f:SetParent(q.body) end
@@ -1731,6 +1768,7 @@ function F.LayoutQuick()
     q.foldBait:SetShown(limTab)
     local bait = limTab and q.foldBait.open and true or false
     for _, f in ipairs(q.baitParts) do f:SetShown(bait) end
+    F.ShowBaitChoice(bait)
     if limTab then y = y - 24 end
     if bait then
         q.priceLabel:ClearAllPoints()
@@ -2147,6 +2185,61 @@ function F.TrigMenu(owner)
         function(v) mod:Call("Schnellkauf", Q.SetTrig, v) end)
 end
 
+-- ab 0.174: Lockpreis wie der Ausloeser
+function F.BaitName(t) return L["QUICK_BAIT_SRC_" .. tostring(t):upper()] or tostring(t) end
+
+function F.BaitShort(t)
+    if t == "fix" then return L.QUICK_SHORT_FIX end
+    if t == "trig" then return L.QUICK_SHORT_BTRIG end
+    if t == "limit" then return L.QUICK_SHORT_TLIMIT end
+    return F.BaitName(t)
+end
+
+function F.BaitMenu(owner)
+    local Q, list = ns.Quick, {}
+    for _, t in ipairs(Q.BAIT_SRCS) do list[#list + 1] = { t, F.BaitName(t) } end
+    return RadioMenu(owner, L.QUICK_PRICE, list, function(v) return Q.BaitSrc(F.key) == v end,
+        function(v) mod:Call("Schnellkauf", Q.SetBaitSrc, v) end)
+end
+
+function F.BaitPctMenu(owner)
+    local Q, list = ns.Quick, {}
+    for _, m in ipairs(Q.BAIT_PCTS) do list[#list + 1] = { m, L.QUICK_MARGIN_FMT:format(m) } end
+    return RadioMenu(owner, L.QUICK_TRIG_PCT_L, list, function(v) return Q.BaitPct(F.key) == v end,
+        function(v) mod:Call("Schnellkauf", Q.SetBaitPct, v) end)
+end
+
+-- Feld bei Fest, sonst Abstand und Wert. show = Bereich Lockangebot sichtbar
+function F.ShowBaitChoice(show)
+    local q = F.quick
+    if not (q and q.baitSrc) then return end
+    local src = show and F.key ~= nil and ns.Quick.BaitSrc(F.key) or nil
+    q.priceInput:SetShown(src == "fix")
+    q.baitPct:SetShown(src ~= nil and src ~= "fix")
+    q.priceHint:SetShown(src ~= nil and src ~= "fix")
+end
+
+-- Wert hinter dem Abstand: der Lockpreis, ohne Grundlage ein Hinweis
+function F.BaitValueText(key)
+    local Q = ns.Quick
+    if key == nil or Q.BaitSrc(key) == "fix" then return "" end
+    local v = Q.Suggest(key)
+    if Num(v) then return GREY .. Money(v) .. "|r" end
+    return GREY .. L.QUICK_BAIT_NONE .. "|r"
+end
+
+function F.BaitTip()
+    local Q = ns.Quick
+    local key = F.key
+    local lines = { L.QUICK_PRICE, L.QUICK_BAIT_PRICE_TIP, " " }
+    for _, t in ipairs(Q.BAIT_SRCS) do
+        local name = F.BaitName(t)
+        if key ~= nil and Q.BaitSrc(key) == t then name = "> " .. name end
+        lines[#lines + 1] = name .. ": " .. GREY .. L["QUICK_BAIT_SRC_" .. t:upper() .. "_TIP"] .. "|r"
+    end
+    return lines
+end
+
 function F.TrigPctMenu(owner)
     local Q, list = ns.Quick, {}
     for _, m in ipairs(Q.TRIG_PCTS) do list[#list + 1] = { m, L.QUICK_MARGIN_FMT:format(m) } end
@@ -2214,6 +2307,13 @@ function F.BandRowText(live, key)
     local text = L.QUICK_BAND_FMT:format(Money(trig), Money(limit))
     if Q.armed[key] then return text .. " " .. GREEN .. L.QUICK_BAND_ARMED .. "|r" end
     return text .. " " .. GREY .. L.QUICK_BAND_WAIT .. "|r"
+end
+
+-- ab 0.173: "Lockangebot 3s 80c ueber dem Ausloeser 3s 34c" oder leer
+function F.BaitNoteText(key)
+    local price, trig = ns.Quick.BaitNote(key)
+    if not price then return "" end
+    return ORANGE .. L.QUICK_BAIT_OVER:format(Money(price), Money(trig)) .. "|r"
 end
 
 function F.BandTip()
@@ -2378,15 +2478,20 @@ function F.UpdateQuick(d, live)
         if res > 0 then q.resInput:SetAmount(res) else ClearMoney(q.resInput) end
     end
     MoneyEnabled(q.resInput, resOn)
-    local suggest, base = Q.Suggest()
+    -- ab 0.174: Lockpreis wie der Ausloeser (Quelle, Feld oder Abstand mit Wert)
     local m = q.priceInput
     if not Typing(m) then
-        local v = Q.ManualPrice(key) or suggest
+        local v = key ~= nil and Q.BaitFix(key) or nil
         if Num(v) and v > 0 then m:SetAmount(v) else ClearMoney(m) end
     end
-    if Q.ManualPrice(key) then q.priceHint:SetText(GREY .. L.QUICK_PRICE_OWN .. "|r")
-    elseif Num(base) then q.priceHint:SetText(GREY .. L.QUICK_PRICE_HINT:format(tonumber(mod.db.quickBaitPct) or 50) .. "|r")
-    else q.priceHint:SetText("") end
+    local bsig = key ~= nil and (tostring(key) .. ":" .. Q.BaitSrc(key) .. ":" .. Q.BaitPct(key)) or ""
+    if q.baitSig ~= bsig then
+        q.baitSig = bsig
+        F.SetShort(q.baitSrc, F.BaitShort(key ~= nil and Q.BaitSrc(key) or Q.BAIT_DEFAULT.src))
+        F.RefreshDrop(q.baitPct, L.QUICK_MARGIN_FMT:format(Q.BaitPct(key)))
+    end
+    q.priceHint:SetText(F.BaitValueText(key))
+    F.ShowBaitChoice(q.priceLabel:IsShown())
     -- ab 0.132: Menge des Lockangebots, dahinter wie viele in den Taschen liegen
     local qn = key ~= nil and Q.BaitQty(key) or 1
     if not (q.qtyInput.HasFocus and q.qtyInput:HasFocus()) then q.qtyInput:SetText(tostring(qn)) end
@@ -2420,6 +2525,7 @@ function F.UpdateQuick(d, live)
     end
     q.trigValue:SetText(lim and F.TrigValueText(key) or "")
     q.bandValue:SetText(lim and F.BandRowText(live, key) or "")
+    q.baitNote:SetText(lim and F.BaitNoteText(key) or "")
     F.SyncMinQty(key)
     -- ab 0.167: Teilkauf
     local pm = Q.PortionOn() and "smart" or "off"

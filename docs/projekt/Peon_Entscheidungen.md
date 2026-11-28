@@ -3,6 +3,16 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 28.11.2026: Lockpreis wie der Auslöser (Broker 0.174.0)
+
+- **Aufbau wie der Auslöser** (KarloDerBaer): Quelle Fest, Auslöser oder Limit, dahinter Feld oder Prozent. 0 % ist erlaubt, damit der Lockpreis genau auf dem Auslöser liegen kann. Vorgabe Auslöser 25 %.
+- **Je Gegenstand statt Einstellung für alle** (Claude): Der Regler „Lockpreis unter Kaufen bis“ fällt weg, die Wahl wird in Beobachten gespeichert wie der Auslöser. Prozentstufen wie beim Auslöser, dazu 0, 40 und 50 % (Claude).
+
+## 28.11.2026: Ton für Lockangebote bis zum Auslöser (Broker 0.173.0)
+
+- **Ton nur bis zum Auslöser** (KarloDerBaer): Er soll nur kommen, wenn gleich eine Auslösung möglich ist.
+- **Lockangebote selbst unverändert** (KarloDerBaer): Auch über dem Auslöser sind sie interessant, weil man den Auslöser vielleicht anpassen will. Dafür eine stille Meldung zwischen Gesamtpreis und Kaufknopf (Ort KarloDerBaer, 30 Sekunden Claude).
+
 ## 28.11.2026: Markt im Direktkauf, Startwert für Fest (Broker 0.171.0)
 
 - **Markt öffnet im Direktkauf** (KarloDerBaer): wie die Listen, wer im Markt einen Gegenstand wählt, will ihn meist einfach kaufen.

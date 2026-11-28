@@ -1685,6 +1685,24 @@ L.WATCH_TIP_NOW_DIPS = "%d dips (%s per hour)"
 L.WATCH_TIP_NO_LIMIT = "Without a limit, no hits are counted."
 L.WATCH_TIP_DIRECT = "Direct buy: no band, no hits and no warning."
 L.QUICK_QTY_ONE   = "1 piece"
+L.QUICK_SHORT_BTRIG = "Trig"
+L.QUICK_BAIT_SRC_FIX = "Fixed"
+L.QUICK_BAIT_SRC_FIX_TIP = "Your own price in the field."
+L.QUICK_BAIT_SRC_TRIG = "Trigger"
+L.QUICK_BAIT_SRC_TRIG_TIP = "This many percent below the trigger. 0 % puts the lure price exactly on the trigger."
+L.QUICK_BAIT_SRC_LIMIT = "Limit"
+L.QUICK_BAIT_SRC_LIMIT_TIP = "This many percent below the limit. 0 % puts the lure price exactly on the limit."
+L.QUICK_BAIT_PRICE_TIP = "Price of your own lure offer. It moves along with a sliding limit and the trigger."
+L.QUICK_BAIT_NONE = "no limit yet"
+L.QUICK_BAIT_OVER = "Lure offer %s above the trigger %s"
+L.NOTICE_LIMIT_TITLE = "Buying with limit buy and direct buy"
+L.NOTICE_LIMIT = {
+    "Above the item in the Buy tab there are now two small tabs: Limit buy and Direct buy.",
+    "Limit buy is for items you want to stock up on cheaply. The limit is the highest unit price you pay. It is either a fixed amount or follows a reference price such as Cheapest calm, minus the auction house cut and your profit margin.",
+    "The trigger decides when Broker strikes. You can choose Off, a fixed amount, the limit minus a percentage or the last low price of the past 24 hours. Between trigger and limit lies the band. As soon as an offer falls below the trigger, Broker buys everything up to the limit until nothing is left below it. If the trigger is above the limit, the band shrinks to zero and Broker buys everything below the limit right away.",
+    "The first limit buy of an item starts with limit Cheapest calm with 5 % margin and trigger limit minus 25 %. Watch shows the band in its own column, bell and hits follow the trigger. In Chances, a click on Limit buy always opens the item in limit buy.",
+    "Direct buy is for normal shopping, for example when you need material for a profession. You only set the quantity and Broker buys the cheapest offers until it is reached. Items from the market or from a shopping list always open in direct buy.",
+}
 L.WATCH_BAND_DIRECT = "Direct"
 L.WATCH_TIP_LIMIT  = "Limit %s (%s)"
 L.WATCH_TIP_TRIG   = "Trigger %s (%s)"
@@ -3396,6 +3414,24 @@ if GetLocale() == "deDE" then
     L.WATCH_TIP_NO_LIMIT = "Ohne Limit zählen keine Treffer."
     L.WATCH_TIP_DIRECT = "Direktkauf: kein Band, keine Treffer und keine Warnung."
     L.QUICK_QTY_ONE   = "1 Stück"
+    L.QUICK_SHORT_BTRIG = "Ausl"
+    L.QUICK_BAIT_SRC_FIX = "Fest"
+    L.QUICK_BAIT_SRC_FIX_TIP = "Dein eigener Preis im Feld."
+    L.QUICK_BAIT_SRC_TRIG = "Auslöser"
+    L.QUICK_BAIT_SRC_TRIG_TIP = "So viel Prozent unter dem Auslöser. Mit 0 % liegt der Lockpreis genau auf dem Auslöser."
+    L.QUICK_BAIT_SRC_LIMIT = "Limit"
+    L.QUICK_BAIT_SRC_LIMIT_TIP = "So viel Prozent unter dem Limit. Mit 0 % liegt der Lockpreis genau auf dem Limit."
+    L.QUICK_BAIT_PRICE_TIP = "Preis deines eigenen Lockangebots. Er wandert mit einem gleitenden Limit und dem Auslöser mit."
+    L.QUICK_BAIT_NONE = "noch kein Limit"
+    L.QUICK_BAIT_OVER = "Lockangebot %s über dem Auslöser %s"
+    L.NOTICE_LIMIT_TITLE = "Einkaufen mit Limitkauf und Direktkauf"
+    L.NOTICE_LIMIT = {
+        "Im Reiter Einkaufen gibt es über dem Gegenstand jetzt zwei kleine Reiter: Limitkauf und Direktkauf.",
+        "Limitkauf ist für Gegenstände, die du günstig auf Vorrat kaufen willst. Das Limit ist der höchste Stückpreis, den du zahlst. Es ist entweder ein fester Betrag oder folgt einem Richtpreis wie Günstigster ruhig, abzüglich des Anteils des Auktionshauses und deiner Gewinnspanne.",
+        "Der Auslöser legt fest, wann Broker zuschlägt. Zur Wahl stehen Aus, ein fester Betrag, das Limit minus einige Prozent oder der letzte Tiefstpreis der vergangenen 24 Stunden. Zwischen Auslöser und Limit liegt das Band. Sobald ein Angebot unter den Auslöser fällt, kauft Broker alles bis zum Limit, bis darunter nichts mehr übrig ist. Liegt der Auslöser über dem Limit, schrumpft das Band auf null und Broker kauft alles unter dem Limit sofort.",
+        "Beim ersten Limitkauf eines Gegenstands gelten Limit Günstigster ruhig mit 5 % Gewinnspanne und Auslöser Limit minus 25 %. Beobachten zeigt das Band in einer eigenen Spalte, Glocke und Treffer richten sich nach dem Auslöser. In Chancen öffnet ein Klick auf Limitkauf den Gegenstand immer im Limitkauf.",
+        "Direktkauf ist für das normale Einkaufen, zum Beispiel wenn du Material für einen Beruf brauchst. Du stellst nur die Menge ein und Broker kauft die günstigsten Angebote, bis sie erreicht ist. Gegenstände aus dem Markt oder aus einer Einkaufsliste öffnen immer im Direktkauf.",
+    }
     L.WATCH_BAND_DIRECT = "Direkt"
     L.WATCH_TIP_LIMIT  = "Limit %s (%s)"
     L.WATCH_TIP_TRIG   = "Auslöser %s (%s)"
