@@ -140,7 +140,9 @@ function Q.Tab(key)
     if key == nil then return "limit" end
     local v = Q.tab[key]
     if v == "limit" or v == "direct" then return v end
-    if Q.listDirect and Q.listDirect[key] then return "direct" end   -- ab 0.169 aus einer Liste
+    -- ab 0.169 aus einer Liste Direktkauf, ab 0.170 aus Chancen Limitkauf (Q.openTab)
+    v = Q.openTab and Q.openTab[key]
+    if v == "limit" or v == "direct" then return v end
     v = SavedField(key, "qtab")
     if v == "limit" or v == "direct" then return v end
     if ns.Watch and ns.Watch.Is(key) then return "limit" end
@@ -173,6 +175,66 @@ function Q.BuyKind(key)
     return "limit"
 end
 
+-- ab 0.170 (KarloDerBaer 28.11.2026): Vorgaben, wenn ein Gegenstand zum ersten Mal im Limitkauf steht: Limit gleitend
+-- mit Guenstigster ruhig und 5 % Gewinnspanne, Ausloeser Limit mit 25 % Abstand. Erstes Mal heisst: weder in dieser
+-- Sitzung noch in Beobachten ist etwas zu Limit oder Ausloeser eingestellt, und im Einkaufen steht kein Standard. Die
+-- Vorgaben gelten dann als eigene Wahl der Sitzung und werden mit dem Gegenstand gespeichert, wenn er beobachtet ist.
+Q.DEFAULTS = { ref = "calm", margin = 5, trig = "limit", trigPct = 25 }
+
+function Q.Fresh(key)
+    if key == nil then return false end
+    if Q.glide[key] ~= nil or Q.trig[key] ~= nil or Q.ref[key] ~= nil or Q.limitOn[key] ~= nil then return false end
+    local F = ns.Focus
+    if F and F.ManualLimit and F.ManualLimit(key) then return false end
+    local Wt = ns.Watch
+    local w = Wt and Wt.Is(key) and Wt.Store()[key]
+    if w then
+        for _, f in ipairs({ "qlim", "qglide", "qref", "qtrig", "qlimOn", "qmargin" }) do
+            if w[f] ~= nil then return false end
+        end
+    end
+    return true
+end
+
+function Q.EnsureDefaults(key)
+    if not Q.Fresh(key) then return false end
+    local d = Q.DEFAULTS
+    Q.glide[key], Q.ref[key], Q.margin[key] = true, d.ref, d.margin
+    Q.trig[key], Q.trigPct[key] = d.trig, d.trigPct
+    return true
+end
+
+-- ab 0.171 (KarloDerBaer 28.11.2026): Startwert fuer Limit Fest. Steht im Limitkauf Fest ohne Standard, traegt Broker
+-- einmal je Gegenstand und Sitzung den Wert ein, den Gleitend mit Guenstigster ruhig und 5 % haette (Q.FIX_START).
+-- Ohne Live-Daten wartet er auf die naechste Abfrage. Leert man das Feld danach selbst, bleibt es leer.
+Q.FIX_START = { ref = "calm", margin = 5 }
+Q.fixFilled = {}
+
+function Q.FixStartValue(key, rows)
+    local base = Q.RefValue(key, Q.FIX_START.ref, rows)
+    if not Num(base) then return nil end
+    local cut = ns.Data.Cut and ns.Data.Cut() or 0.05
+    local v = math.floor(base * (1 - cut) / (1 + Q.FIX_START.margin / 100))
+    return v >= 1 and v or nil
+end
+
+-- Rueckgabe true, wenn ein Startwert eingetragen wurde
+function Q.EnsureFixStart(key, rows)
+    local F = ns.Focus
+    if key == nil or Q.fixFilled[key] or not F or F.key ~= key then return false end
+    if Q.Tab(key) ~= "limit" or Q.GlideOn(key) or F.ManualLimit(key) then return false end
+    local v = Q.FixStartValue(key, rows or F.LiveRows())
+    if not Num(v) then return false end
+    Q.fixFilled[key] = true
+    F.manualLimit = { key = key, price = v }
+    F.manualSrc = "own"
+    Q.NoteLimit(key, F.manualLimit)
+    if F.limitInput and F.limitInput.SetAmount then F.limitInput:SetAmount(v) end
+    F.Store(false, true)
+    F.ToLists()
+    return true
+end
+
 -- Quelle des Limits fuer die Auswahlliste: "fix" oder ein Richtpreis (Q.REFS)
 function Q.LimSrc(key)
     if Q.GlideOn(key) then return Q.Ref(key) end
@@ -192,7 +254,10 @@ function Q.SetLimitOn(on)
     local key = ns.Focus.key
     if key == nil then return end
     Q.limitOn[key] = on and true or false
-    if on then Q.tab[key] = "limit"
+    if on then
+        Q.tab[key] = "limit"
+        Q.glide[key] = false   -- ab 0.170: Haken Limit heisst Fest, ohne Band (die Haken kannten keins)
+        Q.trig[key] = "off"
     elseif not Q.GlideOn(key) then Q.tab[key] = "direct" end
     Changed()
 end
@@ -203,6 +268,7 @@ function Q.SetGlideOn(on)
     if on then
         Q.tab[key] = "limit"
         Q.glide[key] = true
+        if Q.trig[key] == nil then Q.trig[key] = "off" end   -- ab 0.170: die Haken kannten kein Band
     else
         Q.glide[key] = false
         if Q.limitOn[key] == false then Q.tab[key] = "direct" end
@@ -222,7 +288,8 @@ function Q.SetTab(t)
     local key = ns.Focus.key
     if key == nil or (t ~= "limit" and t ~= "direct") then return end
     Q.tab[key] = t
-    Q.listDirect[key] = nil
+    Q.openTab[key] = nil
+    if t == "limit" then Q.EnsureDefaults(key) end   -- ab 0.170
     Q.pick[key] = nil
     Q.dgot[key] = nil
     ns.Focus.qtyMax = nil
@@ -740,14 +807,27 @@ Q.qty = {}   -- [Schluessel] = Menge dieser Sitzung (0 = Alle), sonst aus Beobac
 -- was dort noch fehlt (auch nach jedem Kauf), bis man sie selbst aendert. Wird nie gespeichert.
 Q.fromList = {}
 
--- ab 0.169 (KarloDerBaer 28.11.2026): aus einer Liste immer im Direktkauf (Q.listDirect), bis man selbst einen Tab
--- waehlt. Eine eigene Menge aendert daran nichts. Aus einer anderen Seite gilt wieder der gemerkte Tab.
-Q.listDirect = {}
+-- ab 0.169 (KarloDerBaer 28.11.2026): aus einer Liste immer im Direktkauf, bis man selbst einen Tab waehlt. Eine
+-- eigene Menge aendert daran nichts. Aus einer anderen Seite gilt wieder der gemerkte Tab.
+-- ab 0.170 allgemein Q.openTab: [Schluessel] = Tab, in dem der Gegenstand geoeffnet wurde (Liste Direktkauf, Chancen
+-- Limitkauf, Q.OpenIn). Er geht dem gemerkten Tab vor, bis man selbst einen waehlt.
+Q.openTab = {}
+
+function Q.OpenIn(key, tab)
+    if key == nil then return end
+    if tab == "limit" or tab == "direct" then
+        Q.openTab[key] = tab
+        Q.tab[key] = nil
+        Q.pick[key] = nil
+    else
+        Q.openTab[key] = nil
+    end
+end
 
 function Q.FromList(key, listId)
     if key == nil then return end
     Q.fromList[key] = listId
-    Q.listDirect[key] = listId ~= nil or nil
+    Q.openTab[key] = listId ~= nil and "direct" or nil
     if listId ~= nil then
         Q.qty[key] = nil
         Q.tab[key] = nil

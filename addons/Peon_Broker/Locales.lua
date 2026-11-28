@@ -1531,7 +1531,7 @@ L.WATCH_LAST       = "Last item queried %s ago"
 -- ab 0.119: Unterreiter in Chancen und Beobachten, Chancen der Art Schnellkauf (QuickChances.lua)
 L.CH_TAB_SPEC      = "Speculation"
 L.CH_TAB_BUYOUT    = "Buyout"
-L.CH_TAB_QUICK     = "Quick buy"
+L.CH_TAB_QUICK     = "Limit buy"   -- ab 0.170 (bis 0.169 Quick buy)
 L.CH_TAB_TRADE     = "Market swap"
 L.MSG_REALM_MERGED = "The game reported no realm name for a while. Data recorded meanwhile was moved to %s."
 L.MSG_SV_BIG = "The saved price data is getting large (about %s values, the game loads at most about 262,000). Please report this to KarloDerBaer."
@@ -1658,7 +1658,7 @@ L.WATCH_EMPTY_TRADE = "Nothing watched for the market swap yet. Use \"Watch: mar
 L.WATCH_TIP_QGOLD  = "Limit per purchase: %s"
 L.WATCH_TIP_QAVG   = "Average counts"
 L.WATCH_TIP_DOUBLE = "Double click: open in shopping."
-L.SET_CH_Q         = "Quick buy"
+L.SET_CH_Q         = "Limit buy"   -- ab 0.170
 L.SET_CH_Q_TIP     = "Commodities with a lot on the market. Broker checks how restless the market is."
 L.SET_CH_T         = "Market swap"
 L.SET_CH_T_TIP     = "Buy in one house, sell in the other (faction and neutral). Shows the sub-tab market swap in chances and the note Neutral in watch. List from the Peon Manager."
@@ -1684,6 +1684,7 @@ L.WATCH_TIP_NOW_HITS = "%d hits (%s per hour, last %d days: %s per hour)"
 L.WATCH_TIP_NOW_DIPS = "%d dips (%s per hour)"
 L.WATCH_TIP_NO_LIMIT = "Without a limit, no hits are counted."
 L.WATCH_TIP_DIRECT = "Direct buy: no band, no hits and no warning."
+L.QUICK_QTY_ONE   = "1 piece"
 L.WATCH_BAND_DIRECT = "Direct"
 L.WATCH_TIP_LIMIT  = "Limit %s (%s)"
 L.WATCH_TIP_TRIG   = "Trigger %s (%s)"
@@ -3242,7 +3243,7 @@ if GetLocale() == "deDE" then
     -- ab 0.119: Unterreiter in Chancen und Beobachten, Chancen der Art Schnellkauf (QuickChances.lua)
     L.CH_TAB_SPEC      = "Spekulation"
     L.CH_TAB_BUYOUT    = "Aufkauf"
-    L.CH_TAB_QUICK     = "Schnellkauf"
+    L.CH_TAB_QUICK     = "Limitkauf"   -- ab 0.170 (bis 0.169 Schnellkauf)
     L.CH_TAB_TRADE     = "Markttausch"
     L.MSG_REALM_MERGED = "Das Spiel nannte eine Zeit lang keinen Realm-Namen. Die Daten aus dieser Zeit sind jetzt bei %s."
     L.MSG_SV_BIG = "Die gespeicherten Preisdaten werden groß (etwa %s Werte, das Spiel lädt höchstens etwa 262.000). Bitte KarloDerBaer melden."
@@ -3369,7 +3370,7 @@ if GetLocale() == "deDE" then
     L.WATCH_TIP_QGOLD  = "Limit pro Kauf: %s"
     L.WATCH_TIP_QAVG   = "Durchschnitt zählt"
     L.WATCH_TIP_DOUBLE = "Doppelklick: im Einkaufen öffnen."
-    L.SET_CH_Q         = "Schnellkauf"
+    L.SET_CH_Q         = "Limitkauf"   -- ab 0.170
     L.SET_CH_Q_TIP     = "Massenware mit viel Menge auf dem Markt. Broker prüft, wie unruhig der Markt ist."
     L.SET_CH_T         = "Markttausch"
     L.SET_CH_T_TIP     = "Im einen Haus kaufen, im anderen verkaufen (Fraktion und Neutral). Zeigt den Unterreiter Markttausch in Chancen und den Hinweis Neutral in Beobachten. Liste vom Peon Manager."
@@ -3394,6 +3395,7 @@ if GetLocale() == "deDE" then
     L.WATCH_TIP_NOW_DIPS = "%d Einbrüche (%s je Std.)"
     L.WATCH_TIP_NO_LIMIT = "Ohne Limit zählen keine Treffer."
     L.WATCH_TIP_DIRECT = "Direktkauf: kein Band, keine Treffer und keine Warnung."
+    L.QUICK_QTY_ONE   = "1 Stück"
     L.WATCH_BAND_DIRECT = "Direkt"
     L.WATCH_TIP_LIMIT  = "Limit %s (%s)"
     L.WATCH_TIP_TRIG   = "Auslöser %s (%s)"

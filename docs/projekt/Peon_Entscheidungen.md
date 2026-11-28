@@ -3,6 +3,17 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 28.11.2026: Markt im Direktkauf, Startwert für Fest (Broker 0.171.0)
+
+- **Markt öffnet im Direktkauf** (KarloDerBaer): wie die Listen, wer im Markt einen Gegenstand wählt, will ihn meist einfach kaufen.
+- **Einzelware ohne Mengenregler** (KarloDerBaer): ein Klick kauft ohnehin eine Auktion, Regler und Feld zeigten nur gesperrte Werte.
+- **Startwert für Fest einmal je Sitzung** (KarloDerBaer, Regel „einmal, selbst geleert bleibt leer“ von Claude): Der Wert entspricht dem gleitenden Limit mit Ruh 5 %, damit Fest und Gleitend gleich starten.
+
+## 28.11.2026: Chancen im Limitkauf, Vorgaben (Broker 0.170.0)
+
+- **Chancen öffnen im Limitkauf** (KarloDerBaer): Der Unterreiter heißt Limitkauf, ein Klick öffnet dort, auch wenn der Gegenstand vorher im Direktkauf stand.
+- **Vorgaben beim ersten Limitkauf** (KarloDerBaer): Limit Ruh 5 %, Auslöser Limit 25 %. Nur ohne vorhandene Einstellung, damit gespeicherte Limits in Beobachten bleiben, wie sie sind (Claude).
+
 ## 28.11.2026: Beobachten mit Band, Listen im Direktkauf (Broker 0.169.0)
 
 - **Beobachten folgt dem Einkaufen** (Hinweis KarloDerBaer, Vorschläge Claude, KarloDerBaer stimmt zu): eine Spalte Band statt zwei Spalten Auslöser und Limit, weil die Liste schon voll ist. Glocke und Treffer ab dem Auslöser, damit sie melden, wann Broker wirklich kauft. Direktkauf ohne Warnung, weil es dort keinen Preis gibt, auf den man wartet.

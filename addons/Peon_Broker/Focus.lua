@@ -780,6 +780,7 @@ function F.SyncQuickQty(d)
     local has = key ~= nil
     if F.goldInput then F.goldInput:Hide() end
     for _, f in ipairs({ F.qtyLabel, F.qtySlider, F.qtyInput, F.qtyHint, F.qtyHover }) do if f then f:SetShown(has) end end
+    if F.qtyOne then F.qtyOne:Hide() end
     if not has then F.qtyMax = 0; if F.qtyAll then F.qtyAll:Hide() end; return end
     F.qtyHint:SetText("")
     local mass = ns.Data.IsCommodity(key)
@@ -796,6 +797,10 @@ function F.SyncQuickQty(d)
     if F.qtyAll then F.qtyAll:SetShown(mass and not want and not typing) end
     if not mass then
         SliderSet(F.qtySlider, 0, 1, 1, false)
+        -- ab 0.171: Regler und Feld weg, dafuer "1 Stueck"
+        F.qtySlider:Hide(); F.qtyInput:Hide()
+        if F.qtyAll then F.qtyAll:Hide() end
+        if F.qtyOne then F.qtyOne:SetText(L.QUICK_QTY_ONE); F.qtyOne:Show() end
     elseif capped then
         if supply >= 1 then SliderSet(F.qtySlider, 0, supply, want and math.min(want, supply) or 0, true)
         else SliderSet(F.qtySlider, 0, 1, 0, false) end
@@ -1001,6 +1006,11 @@ function F.Build(c)
     F.qtyAll = UI.Text(F.qtyInput, "small", GREY .. L.FOCUS_QTY_ALL .. "|r")
     F.qtyAll:SetPoint("LEFT", F.qtyInput, "LEFT", 10, 0)
     F.qtyAll:Hide()
+    -- ab 0.171 (KarloDerBaer 28.11.2026): Einzelware im Einkaufen ohne Regler und Feld, nur "1 Stueck"
+    F.qtyOne = UI.Text(left, "text", "")
+    F.qtyOne:SetPoint("LEFT", F.qtyLabel, "LEFT", F.QUICK_FIELD_X, 0)
+    F.qtyOne:Hide()
+
     -- ab 0.112: Max. Gold im Schnellkauf (an der Stelle des Mengenfelds)
     F.goldInput = UI.MoneyInput(left, function(amount) F.SetGoldTyped(amount) end)
     if F.goldInput.SetScale then F.goldInput:SetScale(0.8) end
@@ -2277,6 +2287,7 @@ function F.ApplyTab(force)
     local key = F.key
     local tab = key ~= nil and Q.Tab(key) or "limit"
     local lim = tab == "limit"
+    if lim and key ~= nil then Q.EnsureDefaults(key) end   -- ab 0.170: Vorgaben beim ersten Limitkauf
     for _, f in ipairs(q.limitParts) do f:SetShown(lim) end
     local glide = lim and Q.GlideOn(key) or false
     F.limitInput:SetShown(lim and not glide)
@@ -2681,6 +2692,10 @@ function F.Update()
     local has = key ~= nil
     local live = AHOpen()
     if has and ns.Quick.On() then F.EnsureLoaded() end   -- ab 0.131: erst die gespeicherten Werte, dann Vorgaben
+    if has and live and ns.Quick.On() then   -- ab 0.170/0.171: Vorgaben im Limitkauf, Startwert fuer Fest
+        if ns.Quick.Tab(key) == "limit" then ns.Quick.EnsureDefaults(key) end
+        ns.Quick.EnsureFixStart(key)
+    end
     if has and live and ns.Quick.On() then
         -- ab 0.143 ohne Vorgabe fuer Kaufen bis (Q.EnsureLimit ruht): ohne Haken kauft Broker normal
         -- ab 0.133 ohne Limit pro Kauf (Q.EnsureGold): die Goldreserve begrenzt jeden Kauf

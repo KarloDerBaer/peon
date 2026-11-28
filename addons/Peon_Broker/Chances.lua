@@ -606,7 +606,7 @@ function C.Build(c)
         rowBg = function(r) if r and r.running then return 1, 0.82, 0, 0.16 end end,
         onClick = function(r, button)
             if button == "RightButton" then ns.Go.Menu(r, C.qpanel); return end
-            mod:Call("Sprung", ns.Go.Focus, { key = r.key, name = r.name, from = "chances", mode = "quick" })
+            mod:Call("Sprung", ns.Go.Focus, { key = r.key, name = r.name, from = "chances", mode = "quick", tab = "limit" })   -- ab 0.170 im Limitkauf
         end,
         onEnter = function(row, r)   -- ab 0.131 der gemeinsame Weg (W.ShowItemTooltip)
             if not r then return end

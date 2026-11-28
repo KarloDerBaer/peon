@@ -439,7 +439,7 @@ function T.OnBrowseResult(result)
     if IsShiftKeyDown and IsShiftKeyDown() then return false end
     local key = T.MarketKey(result.itemKey)
     if key == nil or not (ns.Go and ns.Go.Focus) then return false end
-    return ns.Go.Focus({ key = key, itemKey = result.itemKey, from = "market" })
+    return ns.Go.Focus({ key = key, itemKey = result.itemKey, from = "market", tab = "direct" })   -- ab 0.171 im Direktkauf
 end
 
 function T.SellWanted()

@@ -2,6 +2,29 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.171.0
+
+Kurz: Wählst du einen Gegenstand im Markt aus, öffnet das Einkaufen zuerst im Direktkauf.
+Kurz: Bei Gegenständen, die keine Massenware sind, steht bei der Menge nur „1 Stück“, ohne Regler und Feld.
+Kurz: Steht das Limit auf Fest und ist noch keins eingetragen, trägt Broker einmal einen Startwert ein: Günstigster ruhig minus Anteil des Auktionshauses und 5 % Gewinnspanne.
+
+- 0.171.0 (28.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Markt:** Klick auf einen Gegenstand in Blizzards Markt öffnet im Direktkauf (`AHTabs.OnBrowseResult` mit `tab = "direct"`, `Quick.OpenIn`), auch wenn er vorher im Limitkauf stand.
+  - **Geändert, Menge bei Einzelware:** Regler und Feld sind ausgeblendet, an ihrer Stelle steht „1 Stück“ (`Focus.qtyOne`).
+  - **Neu, Startwert für Fest** (`Quick.FIX_START`, `Quick.FixStartValue`, `Quick.EnsureFixStart`): steht im Limitkauf Fest ohne Standard, trägt Broker einmal je Gegenstand und Sitzung den Wert ein, den Gleitend mit Günstigster ruhig und 5 % hätte. Ohne Live-Daten wartet er auf die nächste Abfrage. Selbst geleert bleibt das Feld leer. Bei beobachteten Gegenständen wird der Wert gespeichert.
+  - Tests: Markt im Direktkauf, Einzelware mit 1 Stück, Startwert und geleertes Feld, Wechsel auf Fest (`test_broker.lua`).
+
+## 0.170.0
+
+Kurz: In Chancen heißt der Unterreiter Schnellkauf jetzt Limitkauf. Ein Klick öffnet den Gegenstand immer im Limitkauf.
+Kurz: Steht ein Gegenstand zum ersten Mal im Limitkauf, gilt Limit gleitend mit Günstigster ruhig und 5 % Gewinnspanne, der Auslöser steht auf Limit mit 25 % Abstand.
+
+- 0.170.0 (28.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Chancen:** Unterreiter und Schalter in den Einstellungen heißen Limitkauf (`CH_TAB_QUICK`, `SET_CH_Q`). Ein Klick in die Liste öffnet im Limitkauf, auch wenn der Gegenstand vorher im Direktkauf stand (`Go.Focus` mit `tab`, `Quick.OpenIn`). Danach gilt wieder der Tab, den man selbst wählt.
+  - **Neu, Vorgaben im Limitkauf** (`Quick.DEFAULTS`, `Quick.Fresh`, `Quick.EnsureDefaults`): beim ersten Mal Limit Günstigster ruhig mit 5 %, Auslöser Limit mit 25 %. Erstes Mal heißt: weder in der Sitzung noch in Beobachten ist etwas zu Limit oder Auslöser eingestellt und im Einkaufen steht kein Standard. Beobachtete Gegenstände mit gespeichertem Limit behalten ihre Einstellung.
+  - **Geändert, intern:** `Quick.listDirect` heißt `Quick.openTab` und merkt den Tab, in dem ein Gegenstand geöffnet wurde (Liste Direktkauf, Chancen Limitkauf). Die alten Aufrufe `Quick.SetLimitOn` und `Quick.SetGlideOn` schalten den Auslöser aus.
+  - Tests: Name in Chancen, Klick öffnet im Limitkauf, Vorgaben nur beim ersten Mal, beobachtet mit Limit ohne Vorgaben (`test_broker.lua`).
+
 ## 0.169.0
 
 Kurz: Beobachten zeigt statt Kaufen bis das Band aus Auslöser und Limit, gleitende Werte mit der Kurzform des Richtpreises. Gegenstände im Direktkauf stehen dort als „Direkt“.

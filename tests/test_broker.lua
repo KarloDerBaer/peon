@@ -5106,8 +5106,8 @@ end)()
   F.FromPage(7982, "watch")
   check(mod.db.focusMode == "buyout" and F.ManualLimit(7982) == 300, "0.107.1: aus Beobachten im Aufkauf mit Kaufen bis 3s")
   Q.SetMode("quick")
-  check(F.ManualLimit(7982) == nil and Q.BuyKind(7982) == "limit" and Q.Tab(7982) == "limit",
-    "0.143/0.168: Umschalten in den Schnellkauf fuellt kein Kaufen bis mehr, beobachtet: Limitkauf: " .. tostring(F.ManualLimit(7982)))
+  check(F.ManualLimit(7982) == 361 and Q.fixFilled[7982] and Q.BuyKind(7982) == "limit" and Q.Tab(7982) == "limit",
+    "0.143/0.168/0.171: beobachtet: Limitkauf, Fest ohne Limit bekommt den Startwert Ruh 5 % (400 x 0,95 / 1,05): " .. tostring(F.ManualLimit(7982)))
   F.SetLimitTyped(0)
   Q.SetMode("buyout")
   Q.SetMode("quick")
@@ -7536,6 +7536,10 @@ end)()
   F.directTab.scripts.OnClick(F.directTab)
   check(Q.Tab(7851) == "direct", "0.168: Klick auf Direktkauf")
   F.sectionTab.scripts.OnClick(F.sectionTab)
+  -- ab 0.170: beim ersten Limitkauf Limit Ruh 5 %, Ausloeser Limit 25 %
+  check(Q.Tab(7851) == "limit" and Q.LimSrc(7851) == "calm" and Q.Margin(7851) == 5 and Q.Trig(7851) == "limit" and Q.TrigPct(7851) == 25
+    and not Q.Fresh(7851), "0.170: erster Limitkauf mit den Vorgaben Ruh 5 %, Ausloeser Limit 25 %")
+  Q.SetLimSrc("fix"); Q.SetTrig("off"); Q.trigPct[7851] = nil
   check(Q.Tab(7851) == "limit" and Q.BuyKind(7851) == "limit" and Q.LimSrc(7851) == "fix" and F.quick.limSrc.shown and F.quick.trigSrc.shown
     and F.quick.bandLabel.shown and F.limitInput.shown and F.qtyLabel.points[1][3] == F.QUICK_QTY_Y and F.buyButton.points[1][3] == F.QUICK_BUY_TOP,
     "0.168: Klick auf Limitkauf: Limit Fest, Zeilen Limit, Ausloeser und Band")
@@ -7717,7 +7721,7 @@ end)()
   check(Q.Tab(key) == "direct" and Q.BuyKind(key) == "normal", "0.169: aus einer Liste im Direktkauf")
   Q.qty[key] = 5
   check(Q.Tab(key) == "direct", "0.169: eigene Menge laesst den Direktkauf stehen")
-  Q.tab[key] = "limit"; Q.listDirect[key] = nil
+  Q.tab[key] = "limit"; Q.openTab[key] = nil
   check(Q.Tab(key) == "limit", "0.169: selbst gewaehlter Tab gilt")
   Q.tab[key] = nil
   Q.FromList(key, nil)
@@ -7733,9 +7737,104 @@ end)()
   Q.qty[key] = 2
   check(plain(F.UnitText(true)) == "1s (Günstigstes)", "0.169: eine Stufe reicht: nur das Guenstigste")
   check(L.CHART_L_LIMIT == "Limit" and L.WATCH_TIP_UNDER:find("Limit", 1, true), "0.169: Linie Limit statt Kaufen bis")
-  Q.qty[key], Q.fromList[key], Q.listDirect[key] = nil, nil, nil
+  Q.qty[key], Q.fromList[key], Q.openTab[key] = nil, nil, nil
   Wt.Remove(key)
   mod.acc.commodity[key] = nil
+  ns.Scan.ahOpen, GetMoney = keepOpen, keepMoney
+end)()
+
+-- ===== 0.170: Chancen oeffnen im Limitkauf, Vorgaben beim ersten Limitkauf =====
+;(function()
+  local F, Q, Wt, L = ns.Focus, ns.Quick, ns.Watch, ns.L
+  check(L.CH_TAB_QUICK == "Limitkauf" and L.SET_CH_Q == "Limitkauf", "0.170: Unterreiter in Chancen heisst Limitkauf")
+  local key = 7852
+  -- vorher im Direktkauf, Klick in Chancen: Limitkauf
+  Q.tab[key] = "direct"
+
+  local C = ns.Chances
+  check(C.qlist and C.qlist.o and C.qlist.o.onClick, "0.170: Liste Limitkauf in Chancen gebaut")
+  local keepSet, keepFrom, keepOpenW, keepAt = F.Set, F.FromPage, ns.Window.Open, ns.Window.AtAH
+  F.Set, F.FromPage, ns.Window.Open = function() end, function() end, function() end
+  ns.Window.AtAH = function() return true end
+  C.qlist.o.onClick({ key = key, name = "Beutelstein" }, "LeftButton")
+  F.Set, F.FromPage, ns.Window.Open, ns.Window.AtAH = keepSet, keepFrom, keepOpenW, keepAt
+  check(Q.Tab(key) == "limit" and Q.openTab[key] == "limit" and Q.tab[key] == nil, "0.170: Klick in Chancen oeffnet im Limitkauf, auch nach Direktkauf")
+  -- eigener Tab danach gilt
+  local keepFK = F.key
+  F.key = key
+  Q.SetTab("direct")
+  check(Q.Tab(key) == "direct" and Q.openTab[key] == nil, "0.170: danach gilt der selbst gewaehlte Tab")
+  F.key = keepFK
+  -- Vorgaben nur beim ersten Mal
+  Q.tab[key], Q.glide[key], Q.ref[key], Q.margin[key], Q.trig[key], Q.trigPct[key], Q.limitOn[key] = nil, nil, nil, nil, nil, nil, nil
+  check(Q.Fresh(key) and Q.EnsureDefaults(key) and Q.GlideOn(key) == false and Q.Ref(key) == "calm" and Q.Trig(key) == "limit" and Q.TrigPct(key) == 25,
+    "0.170: Vorgaben gesetzt (Direktkauf: Limit noch nicht gleitend)")
+  Q.tab[key] = "limit"
+  check(Q.LimSrc(key) == "calm" and Q.Margin(key) == 5 and not Q.EnsureDefaults(key), "0.170: im Limitkauf Ruh 5 %, kein zweites Mal")
+  Q.tab[key], Q.glide[key], Q.ref[key], Q.margin[key], Q.trig[key], Q.trigPct[key] = nil, nil, nil, nil, nil, nil
+  -- beobachtet mit gespeichertem Limit: keine Vorgaben (bisherige Einstellungen bleiben)
+  Wt.Add(key, { name = "Beutelstein" })
+  Wt.Store()[key].qlim = 150
+  check(not Q.Fresh(key) and not Q.EnsureDefaults(key) and Q.LimSrc(key) == "fix" and Q.Trig(key) == "off",
+    "0.170: beobachtet mit Limit: keine Vorgaben, Fest ohne Ausloeser wie bisher")
+  Wt.Remove(key)
+  Q.openTab[key], Q.tab[key] = nil, nil
+end)()
+
+-- ===== 0.171: Markt im Direktkauf, Einzelware 1 Stueck, Startwert fuer Limit Fest =====
+;(function()
+  local F, Q, Wt, L = ns.Focus, ns.Quick, ns.Watch, ns.L
+  local T = ns.AHTabs
+  local keepOpen, keepMoney = ns.Scan.ahOpen, GetMoney
+  GetMoney = function() return 10000000 end
+  -- Klick im Markt: Direktkauf, auch wenn vorher Limitkauf
+  local keepFocus, sent = ns.Go.Focus, nil
+  ns.Go.Focus = function(item) sent = item; ns.Quick.OpenIn(item.key, item.tab); return true end
+  local keepBuilt, keepTouch, keepMK = T.built, ns.AHTouch, T.MarketKey
+  T.built, ns.AHTouch, T.MarketKey = true, function() return true end, function() return 7851 end
+  Q.tab[7851] = "limit"
+  T.OnBrowseResult({ itemKey = { itemID = 7851 } })
+  T.built, ns.AHTouch, T.MarketKey, ns.Go.Focus = keepBuilt, keepTouch, keepMK, keepFocus
+  check(sent and sent.from == "market" and sent.tab == "direct" and Q.Tab(7851) == "direct", "0.171: Auswahl im Markt oeffnet im Direktkauf")
+  Q.openTab[7851], Q.tab[7851] = nil, nil
+
+  -- Einzelware: ohne Regler und Feld, "1 Stueck"
+  ns.Scan.ahOpen = true
+  Q.SetMode("quick")
+  mod.acc.commodity[7854] = false
+  market.items[7854] = { m = 500, md = 600, q = 1, n = 1, t = clock, nm = "Schwert", ql = 2 }
+  ns.Data.Market(nil, true).items[7854] = market.items[7854]
+  F.Set(7854)
+  ns.Buy.live[7854] = { rows = { { price = 500, qty = 1, own = 0 } }, t = clock }
+  F.Update()
+  check(F.qtyOne.shown and plain(F.qtyOne.text) == "1 Stück" and not F.qtySlider.shown and not F.qtyInput.shown and Q.QtyWant(7854) == 1,
+    "0.171: Einzelware: Menge fest 1 Stueck ohne Regler und Feld")
+  -- Massenware: Regler wieder da
+  mod.acc.commodity[7851] = true
+  F.Set(7851)
+  ns.Buy.live[7851] = { rows = { { price = 100, qty = 30, own = 0 }, { price = 110, qty = 50, own = 0 }, commodity = true }, t = clock, commodity = true }
+  F.Update()
+  check(not F.qtyOne.shown and F.qtySlider.shown and F.qtyInput.shown, "0.171: Massenware mit Regler und Feld")
+
+  -- Fest ohne Limit: Startwert Ruh 5 %, nur einmal
+  Q.tab[7851], Q.glide[7851], Q.trig[7851], Q.fixFilled[7851] = "limit", false, "off", nil
+  ns.QuickStats.lows[7851] = nil   -- Guenstigster ruhig nur aus dieser Abfrage
+  F.manualLimit = nil
+  F.Update()
+  local start = math.floor(100 * 0.95 / 1.05)
+  check(F.ManualLimit(7851) == start and Q.fixFilled[7851] and F.limitInput:GetAmount() == start,
+    "0.171: Fest ohne Limit: Startwert aus Guenstigster ruhig und 5 %: " .. tostring(F.ManualLimit(7851)))
+  F.SetLimitTyped(0)
+  F.Update()
+  check(F.ManualLimit(7851) == nil, "0.171: selbst geleert bleibt leer")
+  -- Wechsel auf Fest aus Gleitend ohne Standard: Startwert
+  Q.fixFilled[7851] = nil
+  F.key = 7851
+  Q.SetLimSrc("week"); Q.SetLimSrc("fix")
+  check(F.ManualLimit(7851) == start, "0.171: Wechsel auf Fest traegt den Startwert ein")
+  Q.tab[7851], Q.glide[7851], Q.trig[7851], Q.fixFilled[7851], Q.ref[7851] = nil, nil, nil, nil, nil
+  F.manualLimit = nil
+  mod.acc.commodity[7854] = nil
   ns.Scan.ahOpen, GetMoney = keepOpen, keepMoney
 end)()
 
