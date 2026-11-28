@@ -33,7 +33,9 @@ Wt.SPEC = { { f = "buy", keys = { "lim", "pct" }, reset = "hit" }, { f = "up", k
 Wt.SKIP = { u = true, t = true, lim = true, pct = true, up = true, hit = true, upHit = true, sDown = true, sUp = true, muteDown = true, muteUp = true,
             qlim = true, qmax = true, qqty = true, mode = true, qskip = true, qgold = true, qavg = true,   -- ab 0.106: Werte des Schnellkaufs (ab 0.128 ueber t.q), qqty ab 0.133 nur im Spiel
             bon = true, qon = true, ton = true,   -- ab 0.120: Haken der Listen (ab 0.128 ueber t.lists)
-            qlimOn = true, qglide = true, qmethod = true }   -- ab 0.143: Kaufart im Einkaufen, nur im Spiel
+            qlimOn = true, qglide = true, qmethod = true,   -- ab 0.143: Kaufart im Einkaufen, nur im Spiel
+            qref = true, qmargin = true, qmin = true,   -- ab 0.167: Richtpreis, Gewinnspanne, Min. Menge
+            qtab = true, qtrig = true, qtrigPct = true, qtrigFix = true }   -- ab 0.168: Tab und Ausloeser, nur im Spiel
 -- ab 0.91 (Fehlerberichte 20 und 21): Warnton je Richtung, einstellbar fuer alle (watchSoundDown, watchSoundUp, dazu
 -- Chatnachricht watchChatDown, watchChatUp) und je Gegenstand (sDown, sUp: Ton oder "off", nil = wie eingestellt).
 -- Die Werte je Gegenstand bleiben im Spiel, der Manager kennt sie nicht.
@@ -315,12 +317,27 @@ function Wt.SetQuickValues(key, limit, qty, skip, avg)
 end
 
 -- ab 0.143: Kaufart im Einkaufen je Gegenstand (Haken Limit und Gleitend, Methode), nur im Spiel
-function Wt.SetQuickKind(key, limitOn, glideOn, method)
+-- ab 0.167 statt der Methode Richtpreis und Gewinnspanne (qmethod bleibt gespeichert, ungenutzt), dazu Min. Menge
+function Wt.SetQuickKind(key, limitOn, glideOn, ref, margin, minQty)
     local w = Wt.Store()[key]
     if not w then return false end
     w.qlimOn = limitOn and true or false
     w.qglide = glideOn and true or false
-    w.qmethod = method
+    w.qref = ref
+    w.qmargin = Num(margin) and margin or nil
+    w.qmin = Num(minQty) and minQty > 0 and math.floor(minQty) or nil
+    return true
+end
+
+-- ab 0.168: Tab (Limitkauf oder Direktkauf) und Ausloeser im Einkaufen je Gegenstand, nur im Spiel.
+-- Nur gesetzte Werte, nil laesst den gespeicherten Wert stehen. fix 0 = Feld geleert.
+function Wt.SetQuickBand(key, tab, trig, pct, fix)
+    local w = Wt.Store()[key]
+    if not w then return false end
+    if tab == "limit" or tab == "direct" then w.qtab = tab end
+    if type(trig) == "string" then w.qtrig = trig end
+    if Num(pct) then w.qtrigPct = math.floor(pct) end
+    if Num(fix) then w.qtrigFix = fix > 0 and math.floor(fix) or nil end
     return true
 end
 

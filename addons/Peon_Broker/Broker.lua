@@ -52,7 +52,10 @@ local mod = Peon:NewModule(ADDON_NAME, {
         radarReserve = 5,       -- Goldreserve in Gold: so viel gibt der Radar nie aus (ab 0.19, ab 0.140 Vorgabe 5)
         radarReserveOn = true,  -- ab 0.140: Haken vor der Goldreserve im Einkaufen (aus = keine Reserve)
         quickSuggestPct = 5,    -- ab 0.140: Mindestgewinn je Stueck in Prozent fuer den Vorschlag, ab 0.143 Gleitend Mindestgewinn
-        quickUnderPct = 10,     -- ab 0.143: Gleitend Unter Markt, so viel Prozent unter dem ruhigen Tiefstpreis
+        quickUnderPct = 10,     -- ab 0.143: Gleitend Unter Markt, so viel Prozent unter dem ruhigen Tiefstpreis (ab 0.167 ruht er)
+        quickMinMax = 100,      -- ab 0.167: Min. Menge im Einkaufen, so weit reicht der Regler
+        quickPortion = "smart", -- ab 0.167: Teilkauf im Einkaufen ("smart" oder "off")
+        quickChartPad = 10,     -- ab 0.167: Luft ueber und unter den Werten im Diagramm des Einkaufens, Prozent der Spanne
         quickAvg = true,        -- ab 0.143: Durchschnitt zaehlt fuer alle Gegenstaende (vorher je Gegenstand)
         chartSuggest = true,    -- ab 0.140: Linie Vorschlag im Diagramm
         foldStats = true,       -- ab 0.140: Statistik im Einkaufen aufgeklappt
@@ -88,6 +91,8 @@ local mod = Peon:NewModule(ADDON_NAME, {
         quickHold = 1,          -- ab 0.114: so viele Sekunden keine Abfrage, solange der Kaufknopf frei ist (0 = aus)
         quickBaitAlarm = true,  -- ab 0.111: Ton, wenn ein fremdes Lockangebot auftaucht und der Kaufknopf noch gesperrt ist
         quickBaitSound = "ping",
+        quickFailAlarm = true,  -- ab 0.167: Ton, wenn ein Kauf fehlschlaegt
+        quickFailSound = "raid",   -- Schlachtzugswarnung (KarloDerBaer)
         quickMoveIn  = 2,       -- Schnellkauf (ab 0.108): lebhaft ab so vielen Einstellungen je Minute ...
         quickMoveAll = 5,       -- ... und so vielen Ereignissen je Minute (Einstellungen, Kaeufe, Preisspruenge)
         quickMoveLow = 1,       -- ruhig unter so vielen Ereignissen je Minute (die drei ruhen ab 0.165)
@@ -150,7 +155,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  trendStrong = { 10, 100, 5 }, undercutValue = { 0, 100, 1 }, undercutMassValue = { 0, 100, 1 },
                  dumpPct = { 10, 90, 5 }, dealMinVendor = { 0, 10000000, 1 },
                  dealMinMarket = { 0, 100000, 1 }, dealScans = { 1, 50, 1 }, dealDays = { 1, 14, 1 }, radarMaxAge = { 0, 240, 5 },
-                 dealMargin = { 0, 100, 5 }, dealDepth = { 5, 100, 5 }, dealHold = { 6, 168, 6 }, radarFlash = { 0, 30, 1 }, radarReserve = { 0, 1000000, 1 },
+                 dealMargin = { 0, 100, 5 }, dealDepth = { 5, 100, 5 }, dealHold = { 6, 168, 6 }, radarFlash = { 0, 30, 1 }, radarReserve = { 0, 1000000, 1 }, quickMinMax = { 10, 1000, 10 }, quickChartPad = { 0, 50, 1 },
                  buyoutHours = { 1, 24, 1 }, focusEvery = { 3, 30, 1 },
                  focusRate = { 2, 90, 1 }, focusWindow = { 2, 30, 1 }, focusFirst = { 10, 120, 5 }, focusSure = { 30, 600, 10 },
                  focusMore = { 0, 100, 5 }, focusGrow = { 1, 50, 1 }, focusPriceTol = { 0, 10, 1 },
@@ -183,6 +188,7 @@ local mod = Peon:NewModule(ADDON_NAME, {
                  watchTab = { buyout = true, quick = true },
                  quickSound = { raid = true, ready = true, alarm = true, tell = true, coin = true, levelup = true, queue = true, ping = true, boss = true, auction = true },
                  quickBaitSound = { raid = true, ready = true, alarm = true, tell = true, coin = true, levelup = true, queue = true, ping = true, boss = true, auction = true },
+                 quickFailSound = { raid = true, ready = true, alarm = true, tell = true, coin = true, levelup = true, queue = true, ping = true, boss = true, auction = true },
                  windowTab = { start = true, sell = true, keep = true, auctions = true, buy = true, radar = true, prices = true,
                               market = true, watch = true, sources = true, vendors = true,
                               browse = true, focus = true, more = true } },   -- ab 0.59 (Neuaufbau N1)   -- ab 0.51 neue Reiter   -- ab 0.28 mit "start", ohne "book"

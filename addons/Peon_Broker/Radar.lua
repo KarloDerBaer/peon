@@ -879,6 +879,7 @@ end
 -- deshalb nicht in die Datenbank und kein Grund, einen Treffer zu entfernen
 function R.Apply(p, rows, commodity, cached)
     if not cached then
+        R.ClearFail(p.key, p.sent)   -- ab 0.167: neue Kaufmoeglichkeit, Fehlschlag weg
         ns.Buy.live[p.key] = { rows = rows, t = time(), commodity = commodity }
         R.Perf("daten", ns.Data.ApplyLive, p.key, rows, time())
     end
@@ -1131,8 +1132,35 @@ local function JobTimer(job, sec)
     local stamp = job.stamp
     if C_Timer then
         C_Timer.After(sec, function() if R.job == job and job.stamp == stamp then
-            R.Trace("timeout"); R.FinishJob(job.done and job.done > 0) end end)
+            R.Trace("timeout"); job.failWhy = job.failWhy or "timeout"; R.FinishJob(job.done and job.done > 0) end end)
     end
+end
+
+-- ab 0.167 (KarloDerBaer 27.11.2026): Ein fehlgeschlagener Kauf steht kurz auf dem Kaufknopf (R.FAIL_SHOW Sekunden),
+-- mit Grund: price (Preis nicht mehr verfuegbar), gone (Angebot nicht mehr da), timeout (keine Antwort des Spiels),
+-- busy (Spiel ausgelastet), sonst allgemein. Der Knopf bleibt dabei frei. Die erste Antwort auf eine Abfrage, die nach
+-- dem Fehlschlag abging, nimmt den Text sofort weg (R.ClearFail, meist nach hoechstens 0,7 Sek.). Dazu ein Ton, wenn
+-- eingeschaltet (quickFailAlarm, quickFailSound).
+R.FAIL_SHOW = 2.5
+R.failNote = nil   -- { key, why, t, untilT }
+function R.NoteFail(key, why)
+    local t = Now()
+    R.failNote = { key = key, why = why or "other", t = t, untilT = t + R.FAIL_SHOW }
+    if mod.db.quickFailAlarm ~= false then R.PlayAlert(mod.db.quickFailSound or "raid") end
+    if C_Timer then C_Timer.After(R.FAIL_SHOW + 0.05, function() R.UpdateView() end) end
+end
+
+-- Neue Antwort fuer key (Abfrage abgeschickt um sent): Fehlschlag nicht mehr zeigen
+function R.ClearFail(key, sent)
+    local f = R.failNote
+    if f and f.key == key and (sent == nil or sent >= f.t) then R.failNote = nil end
+end
+
+-- Text des Fehlschlags fuer key, solange er gezeigt wird, sonst nil
+function R.FailText(key)
+    local f = R.failNote
+    if not (f and key ~= nil and f.key == key and Now() < f.untilT) then return nil end
+    return L["BUY_FAIL_" .. f.why:upper()] or L.BUY_FAIL_OTHER
 end
 
 -- Ein Klick: je nach Stand pruefen, Kauf starten oder bestaetigen
@@ -1159,7 +1187,7 @@ function R.BuyStep(d, mode)
         local a = job.queue[job.idx]
         job.stage, job.sent = "wait", nil
         local ok = pcall(ah.PlaceBid, a.id, a.price)
-        if not ok then R.FinishJob(job.done > 0); mod:Print(L.BUY_FAILED); return end
+        if not ok then job.failWhy = "gone"; R.FinishJob(job.done > 0); mod:Print(L.BUY_FAILED); return end
         JobTimer(job, R.RESULT_WAIT)
         R.UpdateView()
         return
@@ -1179,7 +1207,7 @@ function R.BuyStep(d, mode)
         if not ok then mod:Print(L.BUY_FAILED); return end
         local expect = ns.Data.CostOf(d.rows or {}, got)
         R.job = { key = d.key, id = id, qty = got, limit = lastPrice, name = d.name, stage = "quote", kind = d.kind, mode = mode, t = Now(), done = 0,
-                  expect = expect, target = d.ref }
+                  expect = expect, target = d.ref, rows = d.rows }   -- ab 0.167 rows fuer den Smart-Teilkauf
     else
         -- Einzelgegenstand: nur mit frischer Pruefung kaufen, sonst erst pruefen
         if not d.live or not d.checked or Now() - d.checked > R.FRESH then
@@ -1217,6 +1245,8 @@ function R.OnPriceUpdated(unitPrice, totalPrice)
         -- ("Interner Auktionshausfehler"). Der Preis verfaellt ohne Bestaetigung von selbst.
         R.Trace("toohigh nocancel")
         R.buyUntil = nil
+        R.NoteFail(job.key, "price")   -- ab 0.167
+        if ns.Quick and ns.Quick.PortionLearn then ns.Quick.PortionLearn(job, "high", unitPrice) end   -- ab 0.167
         mod:Print(L.RADAR_GONE:format(job.name))
         R.MarkGone(R.entries[job.key], L.RADAR_GONE_PRICE:format(Money(unitPrice)))
         R.entries[job.key] = nil
@@ -1252,6 +1282,7 @@ function R.FinishJob(ok)
     if ns.Quick then ns.Quick.hold = nil end   -- ab 0.114: nach dem Kauf sofort wieder abfragen
     local n = job.items and job.done or (ok and job.qty or 0)
     if n == 0 and ns.Quick and ns.Quick.OnFailed then ns.Quick.OnFailed(job) end   -- ab 0.111
+    if n == 0 then R.NoteFail(job.key, job.failWhy) end   -- ab 0.167
     local cost = job.items and job.cost or (job.total or job.price)
     if n > 0 then
         mod:Print(L.BUY_DONE:format(n, job.name, cost and Money(cost) or "?"))
@@ -1288,7 +1319,7 @@ function R.OnBought(ok, auctionID)
     local job = R.job
     if not job then return end
     if job.items then
-        if not ok then R.FinishJob(false); mod:Print(L.BUY_FAILED); return end
+        if not ok then job.failWhy = "gone"; R.FinishJob(false); mod:Print(L.BUY_FAILED); return end
         local a = job.queue[job.idx]
         if job.stage ~= "wait" or (auctionID ~= nil and a and a.id ~= auctionID) then return end   -- nicht unsere Auktion
         job.done, job.cost = job.done + 1, job.cost + (a and a.price or 0)
@@ -1310,13 +1341,16 @@ function R.OnBought(ok, auctionID)
         end
         return
     end
-    if not ok then mod:Print(L.BUY_FAILED) end
+    if not ok then mod:Print(L.BUY_FAILED); job.failWhy = "gone" end
+    -- ab 0.167: Smart-Teilkauf lernt aus Kauf und Fehlschlag nach der Bestaetigung
+    if ns.Quick and ns.Quick.PortionLearn and job.stage == "wait" then ns.Quick.PortionLearn(job, ok and "won" or "lost") end
     R.FinishJob(ok)
 end
 
 function R.OnError()
     if R.job then
         local job = R.job
+        job.failWhy = job.failWhy or "gone"
         R.FinishJob(job.items and job.done > 0)
         mod:Print(L.BUY_FAILED)
         R.Refresh()
@@ -1572,6 +1606,7 @@ function R.Init()
         local job = R.job
         if job and job.stage == "quote" then
             R.Trace("dropped quote")
+            job.failWhy = "busy"
             R.FinishJob(false)
             mod:Print(L.BUY_FAILED)
             R.Refresh()
@@ -1658,6 +1693,21 @@ function PeonBroker_RadarBuy()
     local F = ns.Focus
     if not (F and F.Shown() and F.key ~= nil) then return end
     F.Buy()   -- ab 0.104: genau das, was der Kaufknopf zeigt (vorher nur Chancen aus dem Radar)
+end
+
+-- ab 0.167 (Wunsch KarloDerBaer): Lockangebot einstellen, wie der Knopf Einstellen im Einkaufen. Ein Tastendruck
+-- zaehlt fuer das Spiel wie ein Klick (Einstellen braucht einen echten Klick).
+function PeonBroker_BaitPost()
+    local F = ns.Focus
+    if not (F and F.Shown() and F.key ~= nil and ns.Quick and ns.Quick.On()) then return end
+    local b = F.quick and F.quick.post
+    if b and b.IsEnabled and not b:IsEnabled() then return end
+    mod:Call("Schnellkauf", ns.Quick.Post)
+end
+
+-- ab 0.167: naechster oder vorheriger Gegenstand aus Beobachten im Einkaufen (Side.WatchStep)
+function PeonBroker_WatchStep(dir)
+    if ns.Side and ns.Side.WatchStep then return ns.Side.WatchStep(tonumber(dir) or 1) end
 end
 
 function PeonBroker_RadarNext()

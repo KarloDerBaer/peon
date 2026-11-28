@@ -3,6 +3,23 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 28.11.2026: Limitkauf, Direktkauf und Auslöser (Broker 0.168.0)
+
+- **Zwei Tabs statt Haken** (KarloDerBaer, Vorschlag Tabs von Claude): Limitkauf und Direktkauf als kleine Tabs über dem Gegenstand. Im Limitkauf gilt immer ein Limit, deshalb hat die Auswahlliste Limit kein Aus (KarloDerBaer). Der Direktkauf hat nur die Menge, für den schnellen Kauf etwa für einen Beruf (KarloDerBaer). Beobachtete Gegenstände öffnen im Limitkauf, andere im Direktkauf, danach gilt der zuletzt gewählte Tab (Claude, KarloDerBaer stimmt zu).
+- **Auslöser und Limit bilden ein Band** (Idee KarloDerBaer): gekauft wird erst ab dem Auslöser, dann bis zum Limit. Name Auslöser statt „Kaufen ab“, weil „ab 5 Silber“ nach teurer klingt (Claude, Wahl KarloDerBaer). Der Auslöser liegt nie über dem Limit, deshalb kein eigener Deckel mehr für Gleitend (KarloDerBaer). Einmal ausgelöst bleibt das Band scharf, bis unter dem Limit nichts mehr steht, damit auch der Smart-Teilkauf weiterkauft (Claude, KarloDerBaer stimmt zu).
+- **Letzter Tiefstpreis nur mit echter Menge** (Idee KarloDerBaer, Absicherung Claude, KarloDerBaer stimmt zu): Einzelstücke und eigene Angebote zählen nicht, das Tief verfällt nach 24 Stunden. Sonst könnte ein einziges Stück für 1 Kupfer den Auslöser dauerhaft festsetzen. Damit zählen praktisch die Einbrüche, denn fremde Lockangebote haben nur 1 Stück.
+- **Verkaufspreis statt Letzter Verkauf** (Hinweis KarloDerBaer, Regel Claude): Median der Verkäufe der letzten 7 Tage nach Menge, Einzelstücke nur ohne größere Verkäufe. Verkaufte Lockangebote machten den Wert unbrauchbar.
+- **Gewinnspanne in Prozent bleibt** (Frage KarloDerBaer, Einschätzung Claude): Beim Limit sagt sie, wie viel Gewinn beim Wiedereinstellen bleibt. Ungenau nur bei sehr billiger Ware, wo die Einstellgebühr mehr ausmacht. Beim Auslöser heißt der Wert Abstand und rechnet ohne Gebühr vom Limit.
+
+## 27.11.2026: Gleitend, Mengen und Diagramm im Einkaufen (Broker 0.167.0)
+
+- **Gleitend mit Richtpreis und Gewinnspanne** (Wunsch KarloDerBaer, Auswahl der Richtpreise von Claude, KarloDerBaer stimmt zu): Die bisherigen Methoden gehen darin auf. Ein echter Tageshöchstwert der Verkäufe ist nicht möglich, weil Broker nur verschwundene Angebote sieht. Deshalb gilt der höchste Tiefstpreis einer Stunde der letzten 24 Stunden (Claude). Tagesmedian statt Tagesmittel, Üblicher Bereich mit dem unteren Rand, Letzter Verkauf ist der eigene Verkaufspreis aus Peon_Ledger (KarloDerBaer).
+- **Die Gebühr steckt in der Rechnung** (Claude, KarloDerBaer stimmt zu): Limit = Richtpreis mal (1 minus Anteil) geteilt durch (1 plus Spanne). So ist die Spanne der Gewinn nach dem Wiedereinstellen.
+- **Min. Menge sperrt den Kauf** (KarloDerBaer): Gibt es weniger als eingestellt, gibt es nichts zu kaufen, der Knopf bleibt grau. Auch eine Goldreserve, die weniger zulässt, sperrt (Claude).
+- **Achse eng mit einstellbarer Luft** (KarloDerBaer): Der erste Vorschlag mit ganzen Stufen um den Preis ließ zu viel Platz. Jetzt Luft in Prozent der Spanne, Grenzen auf kleinen runden Geldstufen (Claude).
+- **Smart-Teilkauf in Stück, Vorgabe an** (Idee KarloDerBaer, Auswertung und Regeln Claude, KarloDerBaer stimmt zu): Kaufprotokoll 27.11.2026 mit 70 Käufen: 47 % Preis zu hoch, 31 % nach der Bestätigung gescheitert, 17 % gekauft, ab 16 Stück keiner. Die Konkurrenz nimmt Stück, keine Anteile, deshalb eine Portion in Stück je Gegenstand statt Prozent. Keine eigene feste Einstellung, dafür gibt es die Max. Menge. Auswahl Smart oder Aus unter Mehr Einstellungen (KarloDerBaer). Nach dem zweiten Protokoll: neuer Stapel zuerst ganz versuchen, Untergrenze 5, nach Kauf verdoppeln, nach 20 Sek. wieder voll, weil die Portion zu schnell auf 1 fiel und große freie Stapel nur stückweise gekauft wurden (KarloDerBaer stimmt zu).
+- **Kaufknopf bleibt rot** (KarloDerBaer): Ein vorgemerkter Klick ist nicht möglich, weil das Spiel einen Kauf nur aus einem echten Klick startet (`StartCommoditiesPurchase`, `PlaceBid`, Claude). Deshalb sperrt die Pause der Abfragen den Knopf nicht mehr, ein Klick kauft mit dem letzten Stand. Ein Fehlschlag steht mit Grund auf dem Knopf, bis die nächste Antwort neue Angebote zeigt, dazu ein einstellbarer Ton (KarloDerBaer).
+
 ## 26.11.2026: Zeilen ausgleichen und Stapeln (Bags 0.11.0)
 
 - **Platz besser nutzen** (Wunsch KarloDerBaer, Stapeln gleich mit): Die Planung legt alle Zeilen zusammen fest und lässt Abschnitte umbrechen, die Reihenfolge bleibt. Eine Packung in die höchste freie Lücke sparte weniger und brachte die Reihenfolge durcheinander (Claude).

@@ -77,6 +77,24 @@ function S.Rows()
     return S.WatchRows()
 end
 
+-- ab 0.167 (Wunsch KarloDerBaer 27.11.2026): im Einkaufen den naechsten (dir = 1) oder vorherigen (dir = -1)
+-- Gegenstand aus Beobachten waehlen, in der Reihenfolge der Seitenleiste. Am Ende geht es vorn weiter und umgekehrt.
+-- Nur, wenn gerade ein beobachteter Gegenstand im Einkaufen steht. Rueckgabe der neue Schluessel oder nil.
+function S.WatchStep(dir)
+    local F = ns.Focus
+    local key = F and F.key
+    if key == nil or not (F.Shown and F.Shown()) or not ns.Watch.Is(key) then return nil end
+    local rows = S.WatchRows()
+    if #rows < 2 then return nil end
+    local at
+    for i, r in ipairs(rows) do if r.key == key then at = i; break end end
+    if not at then return nil end
+    local r = rows[((at - 1 + (dir < 0 and -1 or 1)) % #rows) + 1]
+    mod:Call("Sprung", ns.Go.Focus, { key = r.key, name = r.name, from = "watch" })
+    S.Refresh()
+    return r.key
+end
+
 ---------------------------------------------------------------------------
 -- Klick
 ---------------------------------------------------------------------------

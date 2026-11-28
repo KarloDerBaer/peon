@@ -141,6 +141,33 @@ local function NoteLow(d, price)
     if not d.lo[h] or price < d.lo[h] then d.lo[h] = price end
 end
 
+-- ab 0.168 (Ausloeser Letzter Tiefstpreis im Limitkauf): die letzten Einbrueche des Tages mit Preis, neuer Menge und
+-- Zeit (time()), d.dl = { { p, q, t }, ... }, hoechstens QS.DIP_KEEP je Tag. Ueberlebt den Logout.
+QS.DIP_KEEP = 20
+function QS.NoteDip(d, price, qty)
+    if not (d and Num(price) and price > 0) then return end
+    if type(d.dl) ~= "table" then d.dl = {} end
+    d.dl[#d.dl + 1] = { p = price, q = Num(qty) and qty or 0, t = time() }
+    while #d.dl > QS.DIP_KEEP do table.remove(d.dl, 1) end
+end
+
+-- Letzter Einbruch eines Gegenstands in den letzten secs Sekunden mit mindestens minQty neuen Stueck.
+-- Rueckgabe Preis, Zeit, Stueck oder nil
+function QS.LastDip(key, secs, minQty)
+    local st = QS.Store(false)
+    local days = st and key ~= nil and st[key]
+    if type(days) ~= "table" then return nil end
+    local from = time() - (secs or 86400)
+    local best
+    for _, d in pairs(days) do
+        for _, x in ipairs(type(d) == "table" and type(d.dl) == "table" and d.dl or {}) do
+            if Num(x.t) and x.t >= from and Num(x.p) and (x.q or 0) >= (minQty or 2) and (not best or x.t > best.t) then best = x end
+        end
+    end
+    if not best then return nil end
+    return best.p, best.t, best.q
+end
+
 -- Einbruch in Abfrage s gegenueber prev? ref = Tiefstpreis davor (ab 0.124, Vorgabe Tiefstpreis von prev).
 -- Rueckgabe Preisstufe oder nil
 function QS.Dip(prev, s, ref)
@@ -185,7 +212,10 @@ function QS.OnPair(key, prev, s)
     if dip then nw.e = nw.e + 1 end
     if hit then nw.h = nw.h + 1 end
     if d then
-        if dip then d.e = (d.e or 0) + 1 end
+        if dip then
+            d.e = (d.e or 0) + 1
+            QS.NoteDip(d, dip.price, dip.qty - QtyAt(prev, dip.price))   -- ab 0.168: fuer den Ausloeser
+        end
         if ns.Quick and ns.Quick.NewBaits then d.b = d.b + #ns.Quick.NewBaits(prev, s, nil) end
         -- ab 0.126: Treffer unter Kaufen bis und Tiefstpreis der Stunde
         if hit then d.h = (d.h or 0) + 1 end
@@ -265,6 +295,29 @@ function QS.Low24(key)
         end
     end
     return low
+end
+
+-- ab 0.167: Median und Hoechstwert der Tiefstpreise je Stunde der letzten hours Stunden (Richtpreis von Gleitend).
+-- Rueckgabe median, hoechster oder nil (keine Stunde gesehen). Der Median statt des Mittels (Board KarloDerBaer
+-- 27.11.2026): einzelne tiefe Stunden (Einbrueche) ziehen ihn nicht nach unten.
+function QS.LowStats(key, hours)
+    local st = QS.Store(false)
+    local days = st and key ~= nil and st[key]
+    if type(days) ~= "table" then return nil end
+    local from = QS.Hour() - math.max(1, hours or 24) + 1
+    local list = {}
+    for _, d in pairs(days) do
+        if type(d) == "table" and type(d.lo) == "table" then
+            for h, p in pairs(d.lo) do
+                if type(h) == "number" and h >= from and Num(p) and p > 0 then list[#list + 1] = p end
+            end
+        end
+    end
+    local n = #list
+    if n == 0 then return nil end
+    table.sort(list)
+    local med = n % 2 == 1 and list[(n + 1) / 2] or (list[n / 2] + list[n / 2 + 1]) / 2
+    return med, list[n]
 end
 
 -- Werte eines Gegenstands: nil (nie beobachtet) oder { secs, dips, baits, follows, hits, bought, cost, perHour,

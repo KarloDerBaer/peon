@@ -121,6 +121,7 @@ function F.LimitOnUnwatched()
     local Q = ns.Quick
     if not (Q and F.manualLimit and F.key ~= nil) or (ns.Watch and ns.Watch.Is(F.key)) then return end
     if Q.limitOn[F.key] == nil then Q.limitOn[F.key] = true end
+    if Q.tab and Q.tab[F.key] == nil then Q.tab[F.key] = "limit" end   -- ab 0.168: ein Limit gehoert zum Limitkauf
 end
 
 -- "Kaufen bis" setzen (Rechtsklick auf eine Preisstufe), price = nil: wieder alles unter dem Ziel
@@ -222,10 +223,9 @@ function F.OnQtySlider(v)
     if ns.Quick and ns.Quick.On() then
         -- ab 0.140: Massenware ganz links Alle, sonst die Zahl. Einzelware mindestens 1.
         if F.qtyMass then
-            if v <= 0 then ns.Quick.SetQty(nil) else ns.Quick.SetQty(v) end
-        else
-            ns.Quick.SetQty(math.max(1, v))
-        end
+            -- ab 0.167: ohne Haken gibt es kein Alle (Regler beginnt bei 1)
+            if v <= 0 and ns.Quick.BuyKind(F.key) ~= "normal" then ns.Quick.SetQty(nil) else ns.Quick.SetQty(math.max(1, v)) end
+        end   -- ab 0.167: Einzelstuecke fest 1
         return
     end
     if v >= max then F.SetQty(nil) else F.SetQty(math.max(1, v)) end
@@ -345,6 +345,8 @@ function F.LoadWatch(key)
         ns.Quick.avg[key] = nil    -- ab 0.112
         ns.Quick.qty[key] = nil    -- ab 0.133: Menge aus Beobachten (qqty)
         ns.Quick.limitOn[key], ns.Quick.glide[key], ns.Quick.method[key] = nil, nil, nil   -- ab 0.143: Kaufart aus Beobachten
+        local Q = ns.Quick   -- ab 0.168: Tab und Ausloeser aus Beobachten
+        Q.tab[key], Q.trig[key], Q.trigPct[key], Q.trigFix[key] = nil, nil, nil, nil
         F.loaded = { key = key, mode = "quick" }
         return true
     end
@@ -398,7 +400,9 @@ function F.Save(quiet)
         -- ab 0.133: Menge statt Limit pro Kauf. Das gespeicherte Limit (qgold) bleibt, wird aber nicht mehr genutzt.
         local ql = F.ManualLimit(key)
         Wt.SetQuickValues(key, ql, ns.Quick.qty[key], ns.Quick.SkipOn(key), ns.Quick.AvgOn(key))
-        Wt.SetQuickKind(key, ns.Quick.LimitOn(key), ns.Quick.GlideOn(key), ns.Quick.Method(key))   -- ab 0.143
+        local ref, margin, minQ = ns.Quick.KindValues(key)   -- ab 0.167 Richtpreis, Gewinnspanne, Min. Menge
+        Wt.SetQuickKind(key, ns.Quick.LimitOn(key), ns.Quick.GlideOn(key), ref, margin, minQ)   -- ab 0.143
+        if Wt.SetQuickBand then Wt.SetQuickBand(key, ns.Quick.BandValues(key)) end   -- ab 0.168 Tab und Ausloeser
         if ql then F.manualSrc = "watch" end
         if not quiet then mod:Print(L.FOCUS_SAVED_QUICK:format(name, Num(ql) and Money(ql) or "-")) end
         if ns.WatchPage then ns.WatchPage.Refresh() end
@@ -746,7 +750,7 @@ function F.SyncQty(d)
     if not F.qtySlider then return end
     if ns.Quick and ns.Quick.On() then return F.SyncQuickQty(d) end   -- ab 0.106, ab 0.133 Regler bis Alle
     local has = d ~= nil and not d.gone and F.key ~= nil
-    for _, f in ipairs({ F.qtyLabel, F.qtySlider, F.qtyInput, F.qtyHint }) do f:SetShown(has) end
+    for _, f in ipairs({ F.qtyLabel, F.qtySlider, F.qtyInput, F.qtyHint, F.qtyHover }) do if f then f:SetShown(has) end end
     local max = has and (d.maxQty or 0) or 0
     F.qtyMax = max
     if not has then return end
@@ -775,23 +779,52 @@ function F.SyncQuickQty(d)
     local key = F.key
     local has = key ~= nil
     if F.goldInput then F.goldInput:Hide() end
-    for _, f in ipairs({ F.qtyLabel, F.qtySlider, F.qtyInput, F.qtyHint }) do f:SetShown(has) end
+    for _, f in ipairs({ F.qtyLabel, F.qtySlider, F.qtyInput, F.qtyHint, F.qtyHover }) do if f then f:SetShown(has) end end
     if not has then F.qtyMax = 0; if F.qtyAll then F.qtyAll:Hide() end; return end
     F.qtyHint:SetText("")
     local mass = ns.Data.IsCommodity(key)
     local supply = F.MarketSupply()
     F.qtyMax, F.qtyMass = supply, mass
     local want = Q.QtyWant(key)
+    -- ab 0.167 (Board KarloDerBaer 27.11.2026): mit Haken Limit oder Gleitend heisst die Zeile Max. Menge (ganz links
+    -- Alle), ohne Haken Menge ab 1. Einzelstuecke fest 1, Regler und Feld gesperrt.
+    local capped = Q.BuyKind(key) ~= "normal"
+    F.qtyLabel:SetText((mass and capped) and L.QUICK_QTY_MAX or L.FOCUS_R_QTY)
     local typing = F.qtyInput.HasFocus and F.qtyInput:HasFocus()
     if not typing then F.qtyInput:SetText(want and tostring(want) or "") end
+    if F.qtyInput.SetEnabled then F.qtyInput:SetEnabled(mass and true or false) end
     if F.qtyAll then F.qtyAll:SetShown(mass and not want and not typing) end
-    if mass then
+    if not mass then
+        SliderSet(F.qtySlider, 0, 1, 1, false)
+    elseif capped then
         if supply >= 1 then SliderSet(F.qtySlider, 0, supply, want and math.min(want, supply) or 0, true)
         else SliderSet(F.qtySlider, 0, 1, 0, false) end
     else
         if supply >= 2 then SliderSet(F.qtySlider, 1, supply, math.min(want or 1, supply), true)
         else SliderSet(F.qtySlider, 0, 1, 1, false) end
     end
+end
+
+-- ab 0.167: Zeile Min. Menge (nur Massenware mit Haken Limit oder Gleitend, sonst bleibt ihr Platz leer)
+function F.SyncMinQty(key)
+    local q = F.quick
+    if not (q and q.minSlider) then return end
+    local Q = ns.Quick
+    local show = key ~= nil and Q.On() and ns.Data.IsCommodity(key) and Q.BuyKind(key) ~= "normal"
+    for _, f in ipairs(q.minParts) do f:SetShown(show and true or false) end
+    if not show then q.minOff:Hide(); return end
+    local mn = Q.MinQty(key)
+    local top = Q.MinMax()
+    local typing = q.minInput.HasFocus and q.minInput:HasFocus()
+    if not typing then q.minInput:SetText(mn and tostring(mn) or "") end
+    q.minOff:SetShown(not mn and not typing)
+    SliderSet(q.minSlider, 0, top, mn and math.min(mn, top) or 0, true)
+end
+
+function F.OnMinSlider(v)
+    if F.qtySync or F.key == nil or not Num(v) then return end
+    v = math.floor(v + 0.5)
+    mod:Call("Schnellkauf", ns.Quick.SetMinQty, v > 0 and v or nil)
 end
 
 -- Ueblicher Bereich als Text ("1s 20c bis 1s 60c", sonst "unbekannt")
@@ -850,7 +883,15 @@ function F.Build(c)
     left:SetPoint("BOTTOMLEFT", 0, 0)
     left:SetWidth(UI.LEFT_W)
     F.left = left
-    F.sectionTab = UI.SectionTab(left, L.FOCUS_HEAD_CHANCE)
+    -- ab 0.168: zwei anklickbare Tabs (Limitkauf, Direktkauf), im Aufkauf nur der erste mit seiner Ueberschrift
+    F.sectionTab = F.MakeTab(left, L.FOCUS_HEAD_CHANCE, function()
+        if ns.Quick.On() then mod:Call("Schnellkauf", ns.Quick.SetTab, "limit") end
+    end)
+    F.sectionTab:SetPoint("BOTTOMLEFT", left, "TOPLEFT", 42, -3)
+    UI.SetTooltip(F.sectionTab, function() return ns.Quick.On() and { L.QUICK_TAB_LIMIT, L.QUICK_TAB_LIMIT_TIP } or nil end)
+    F.directTab = F.MakeTab(left, L.QUICK_TAB_DIRECT, function() mod:Call("Schnellkauf", ns.Quick.SetTab, "direct") end)
+    F.directTab:SetPoint("BOTTOMLEFT", F.sectionTab, "BOTTOMRIGHT", 2, 0)
+    UI.SetTooltip(F.directTab, { L.QUICK_TAB_DIRECT, L.QUICK_TAB_DIRECT_TIP })
     F.header = UI.ItemHeader(left)
     F.header:SetPoint("TOPLEFT", 10, -10)
     F.header:SetScript("OnEnter", function(self)
@@ -931,7 +972,20 @@ function F.Build(c)
     F.qtyLabel = Label(L.FOCUS_R_QTY, F.QTY_Y)
     F.qtySlider = UI.Slider(left, F.QTY_SLIDER_W, 0, 1, 1, 1, function(v) F.OnQtySlider(v) end)
     F.qtySlider:SetPoint("LEFT", F.qtyLabel, "RIGHT", 6, 0)
-    UI.SetTooltip(F.qtySlider, { L.FOCUS_R_QTY, L.FOCUS_QTY_TIP })
+    -- ab 0.167: im Einkaufen je nach Kaufart (Max. Menge, Menge, Einzelstueck)
+    local function QtyTip()
+        local Q = ns.Quick
+        if not (Q and Q.On() and F.key ~= nil) then return { L.FOCUS_R_QTY, L.FOCUS_QTY_TIP } end
+        if not ns.Data.IsCommodity(F.key) then return { L.FOCUS_R_QTY, L.QUICK_QTY_TIP_ITEM } end
+        if Q.BuyKind(F.key) ~= "normal" then return { L.QUICK_QTY_MAX, L.QUICK_QTY_TIP_MAX } end
+        return { L.FOCUS_R_QTY, L.QUICK_QTY_TIP_NORMAL }
+    end
+    UI.SetTooltip(F.qtySlider, QtyTip)
+    -- ab 0.167 (Board KarloDerBaer): Tooltip auch ueber der Beschriftung vorn
+    F.qtyHover = CreateFrame("Frame", nil, left)
+    F.qtyHover:SetPoint("TOPLEFT", F.qtyLabel, "TOPLEFT", 0, 2)
+    F.qtyHover:SetSize(F.QUICK_FIELD_X - 4, 18)
+    UI.SetTooltip(F.qtyHover, QtyTip)
     F.qtyInput = UI.Input(left, 56, { numeric = true, maxLetters = 6 })
     if F.qtyInput.SetScale then F.qtyInput:SetScale(0.8) end
     if F.qtyInput.SetJustifyH then F.qtyInput:SetJustifyH("RIGHT") end
@@ -1048,11 +1102,49 @@ F.MEASURE_ROWS = { "MEASURE_OUT", "MEASURE_IN", "MEASURE_UNDER", "MEASURE_MIN" }
 F.QUICK_ROWS = { "QUICK_MV_IN", "QUICK_MV_OUT", "QUICK_MV_MOVE", "QUICK_MV_BAITS_L", "QUICK_DIP_L", "QUICK_MV_BOUGHT_L", "QS_LABEL" }   -- ab 0.108: Marktbewegung, ab 0.109 fuenf Zeilen, ab 0.122 Langfristig, ab 0.125 Einbruch statt Letztes
 F.ROW_H = 15       -- ab 0.122: sieben Zeilen (vorher 17)
 
+-- ab 0.167 (Board KarloDerBaer 27.11.2026): genau statt gerundet. Bisher stand bei einer engen Achse dreimal "6s".
+-- Gold und Silber mit Abstand, mit Kupfer als dritter Stelle ohne Abstand (schmaler Rand links).
 local function AxisMoney(v)
     if not Num(v) then return "" end
-    if v >= 10000 then return math.floor(v / 10000 + 0.5) .. "g" end
-    if v >= 100 then return math.floor(v / 100 + 0.5) .. "s" end
-    return math.floor(v + 0.5) .. "c"
+    v = math.floor(v + 0.5)
+    local g, si, c = math.floor(v / 10000), math.floor(v % 10000 / 100), v % 100
+    local parts = {}
+    if g > 0 then parts[#parts + 1] = g .. "g" end
+    if si > 0 then parts[#parts + 1] = si .. "s" end
+    if c > 0 or #parts == 0 then parts[#parts + 1] = c .. "c" end
+    return table.concat(parts, #parts >= 3 and "" or " ")
+end
+F.AxisMoney = AxisMoney
+
+-- ab 0.167: Bereich der Preisachse im Einkaufen. Alle Werte (Preislinie, Limit, Gleitend) liegen darin, dazu
+-- quickChartPad Prozent ihrer Spanne Luft oben und unten. Eine flache Linie bekommt mindestens 2 % des Preises als
+-- Spanne. Die Grenzen und die Mitte liegen auf einer runden Geldstufe (1, 2 oder 5 mal 10^k Kupfer, etwa ein
+-- Sechzehntel der Spanne), so sind die drei Beschriftungen genau und verschieden. Rueckgabe lo, hi oder nil.
+function F.AxisRange(lo, hi, padPct)
+    if not Num(lo) or not Num(hi) then return nil end
+    if hi < lo then lo, hi = hi, lo end
+    local minSpan = math.max(4, hi * 0.02)
+    if hi - lo < minSpan then
+        local mid = (lo + hi) / 2
+        lo, hi = mid - minSpan / 2, mid + minSpan / 2
+    end
+    local pad = (hi - lo) * math.max(0, tonumber(padPct) or 0) / 100
+    lo, hi = math.max(0, lo - pad), hi + pad
+    local want = (hi - lo) / 16
+    local u = 1
+    while u < want do
+        if u * 2 >= want then u = u * 2
+        elseif u * 5 >= want then u = u * 5
+        else u = u * 10 end
+    end
+    local a = math.floor(lo / u) * u
+    local b = math.ceil(hi / u) * u
+    if b <= a then b = a + 2 * u end
+    if ((b - a) / u) % 2 == 1 then
+        -- Mitte auf eine Stufe: auf der Seite erweitern, die naeher an ihrer Grenze liegt
+        if lo - a < b - hi and a >= u then a = a - u else b = b + u end
+    end
+    return a, b
 end
 
 -- Messung und Diagramm unter den Preisstufen (ab 0.66)
@@ -1251,13 +1343,16 @@ function F.UpdateMeasure(v, limit)
     if Num(limit) and limit > 0 then series[#series + 1] = { key = "limit", kind = "hline", value = limit, color = { 0.3, 0.55, 1, 0.95 } } end
     -- ab 0.75: mindestens F.CHART_SLOTS Plaetze, von links gefuellt. Mit nur zwei Abfragen war jeder Balken so breit
     -- wie das halbe Diagramm und ragte ueber den Rand.
+    if F.chart.SetRange then F.chart:SetRange("left", nil) end   -- ab 0.167: Bereich wie bisher von selbst
     ns.Radar.Perf("diagramm", function() F.chart:SetData(math.max(n, F.CHART_SLOTS or 60), series); F.chart:Draw() end)
     F.chartN = stamp   -- erst nach dem Zeichnen: bricht es ab, versucht es die naechste Antwort neu
 end
 
 -- Kaufknopf und Taste "Kaufen" (ab 0.104 beide hier): kauft, was der Knopf zeigt
+-- ab 0.167 (KarloDerBaer 27.11.2026) ohne Sperre nach der Pause der Abfragen (Quick.Locked): Der Knopf blinkte bei
+-- Einzelstuecken zwischen rot und grau. Ein Klick kauft mit dem letzten Stand, das Spiel prueft den Preis selbst, ein
+-- Fehlschlag steht kurz auf dem Knopf (Radar.FailText).
 function F.Buy()
-    if ns.Quick and ns.Quick.Locked(F.key) then return end   -- ab 0.114: erst die neue Antwort abwarten
     local d = F.Plan()
     if d then mod:Call("Radar", ns.Radar.BuyStep, d, "best") end
 end
@@ -1278,13 +1373,26 @@ end
 -- zweiter Zeile fuer die Goldreserve, der Kaufknopf darunter. Der letzte Kauf steht in der Statistik (Zuletzt).
 -- ab 0.165.1 (KarloDerBaer 26.11.2026): Menge und alles darunter 4 tiefer, die breitere Auswahlliste Gleitend ragte
 -- sonst in die Zeile Menge
-F.QUICK_LIMIT_Y, F.QUICK_GLIDE_Y, F.QUICK_QTY_Y, F.QUICK_UNIT_Y, F.QUICK_MAX_Y = -100, -126, -158, -184, -204
+-- ab 0.167 (Board KarloDerBaer 27.11.2026): Zeile Min. Menge unter der Menge, alles darunter 26 tiefer. Der Platz
+-- bleibt auch frei, wenn die Zeile nicht zu sehen ist.
+F.QUICK_LIMIT_Y, F.QUICK_GLIDE_Y, F.QUICK_QTY_Y, F.QUICK_MIN_Y, F.QUICK_UNIT_Y, F.QUICK_MAX_Y = -100, -126, -158, -184, -210, -250
+F.QUICK_TRIG_Y = F.QUICK_GLIDE_Y   -- ab 0.168: Zeile Ausloeser an der Stelle von Gleitend
+F.QUICK_BAND_Y = -230               -- ab 0.168: Band unter dem Stueckpreis
 F.QUICK_LIMIT_DY = -6   -- Feld des Standards auf Hoehe des Hakens Limit
-F.QUICK_BUY_TOP = -244  -- Oberkante des Kaufknopfs
-F.QUICK_FOLD_Y = -292   -- erster aufklappbarer Bereich (Statistik)
+F.QUICK_BUY_TOP = -290  -- Oberkante des Kaufknopfs
+F.QUICK_FOLD_Y = -338   -- erster aufklappbarer Bereich (Statistik)
+-- ab 0.168 (KarloDerBaer 28.11.2026): Zeilen je Tab. Limitkauf wie oben, Direktkauf ohne Limit, Ausloeser, Min. Menge
+-- und Band, alles rueckt nach oben.
+F.QUICK_TAB_ROWS = {
+    limit  = { qty = F.QUICK_QTY_Y, unit = F.QUICK_UNIT_Y, band = F.QUICK_BAND_Y, max = F.QUICK_MAX_Y, buy = F.QUICK_BUY_TOP, fold = F.QUICK_FOLD_Y },
+    direct = { qty = -100, unit = -132, max = -152, buy = -192, fold = -240 },
+}
+F.QUICK_SRC_W = 62      -- ab 0.168: Auswahllisten Limit und Ausloeser (zugeklappt Kurzform)
 -- ab 0.165 (KarloDerBaer 26.11.2026): Auswahlliste Gleitend buendig mit dem Mengenfeld darunter. Sie beginnt 2 links
 -- vom Regler, rechts endet das Feld (Breite 56 bei Massstab 0.8) 6 hinter dem Regler.
 F.QUICK_METHOD_W = math.floor(2 + F.QTY_SLIDER_W + 6 + 56 * 0.8 + 0.5)
+F.QUICK_MARGIN_W = 66   -- ab 0.167: Gewinnspanne rechts neben dem Richtpreis
+F.QUICK_REF_W = F.QUICK_METHOD_W - F.QUICK_MARGIN_W - 4
 F.QUICK_X = 16
 F.QUICK_FIELD_X = 93   -- ab 0.112.1: Felder im Schnellkauf so weit rechts von der Beschriftung
 F.QUICK_AVG_X = 186    -- ab 0.112: Haken "Durchschnitt zaehlt"
@@ -1361,33 +1469,90 @@ function F.BuildQuick(left, Label)
         t:SetPoint("TOPLEFT", F.QUICK_X, y)
         return t
     end
-    -- ab 0.143 (KarloDerBaer 26.11.2026): Haken Limit vor dem Standard (Feld Kaufen bis), darunter Gleitend mit Methode.
-    -- Ohne Haken kauft Broker normal ab dem guenstigsten Angebot. Der Knopf Vorschlag (0.140) steckt in der Methode
-    -- Mindestgewinn.
-    q.limitCheck = UI.Check(left, L.QUICK_LIMIT, false, function(on) mod:Call("Schnellkauf", Q.SetLimitOn, on) end,
-        { L.QUICK_LIMIT, L.QUICK_LIMIT_TIP })
-    if q.limitCheck.SetScale then q.limitCheck:SetScale(0.85) end
-    q.limitCheck:SetPoint("TOPLEFT", 8 / 0.85, (F.QUICK_LIMIT_Y + 8) / 0.85)
+    -- ab 0.168 (KarloDerBaer 28.11.2026): statt der Haken Limit und Gleitend zwei Zeilen mit Auswahlliste.
+    --   Limit     Fest (Standard im Feld) oder ein Richtpreis (gleitend, dahinter die Gewinnspanne). Kein Aus.
+    --   Ausloeser Aus, Fest (eigenes Feld), Limit (dahinter der Abstand) oder Letzter Tiefstpreis
+    -- Zugeklappt zeigen die Listen eine Kurzform (Fix, Ruh, Tag ...), aufgeklappt den ganzen Namen.
+    local Q2 = Q
+    q.limLabel = LeftLabel(L.QUICK_LIMIT, F.QUICK_LIMIT_Y)
+    q.limSrc = F.ShortDropdown(left, F.QUICK_SRC_W, function()
+        local out = {}
+        for _, r in ipairs(F.LimSrcList()) do out[#out + 1] = { r, F.SrcName(r) } end
+        return out
+    end, function() return Q2.LimSrc(F.key) end, function(r) mod:Call("Schnellkauf", Q2.SetLimSrc, r) end)
+    if q.limSrc.fallback then
+        q.limSrc:SetScript("OnClick", function(self) mod:Call("Schnellkauf", F.LimSrcMenu, self) end)
+    end
+    q.limSrc:SetPoint("TOPLEFT", F.QUICK_X + F.QUICK_FIELD_X - 2, F.QUICK_LIMIT_Y + 4)
+    UI.SetTooltip(q.limSrc, function() return F.RefTip() end)
     q.limitStd = UI.Text(left, "small", "")
     q.limitStd:SetPoint("LEFT", F.limitInput, "RIGHT", 4, 0)
-    q.glideCheck = UI.Check(left, L.QUICK_GLIDE, false, function(on) mod:Call("Schnellkauf", Q.SetGlideOn, on) end,
-        { L.QUICK_GLIDE, L.QUICK_GLIDE_TIP })
-    if q.glideCheck.SetScale then q.glideCheck:SetScale(0.85) end
-    q.glideCheck:SetPoint("TOPLEFT", 8 / 0.85, (F.QUICK_GLIDE_Y + 8) / 0.85)
-    -- ab 0.144 (Board KarloDerBaer) eine Auswahlliste statt eines Knopfs mit Menue
-    local Q2 = Q
-    q.method = UI.Dropdown(left, F.QUICK_METHOD_W, function()
+    q.margin = UI.Dropdown(left, F.QUICK_MARGIN_W, function()
         local out = {}
-        for _, m in ipairs(Q2.METHODS) do out[#out + 1] = { m, F.MethodName(m) } end
+        for _, m in ipairs(Q2.MARGINS) do out[#out + 1] = { m, L.QUICK_MARGIN_FMT:format(m) } end
         return out
-    end, function() return Q2.Method(F.key) end, function(m) mod:Call("Schnellkauf", Q2.SetMethod, m) end)
-    if q.method.fallback then
-        q.method:SetScript("OnClick", function(self) mod:Call("Schnellkauf", F.MethodMenu, self) end)
+    end, function() return Q2.Margin(F.key) end, function(m) mod:Call("Schnellkauf", Q2.SetMargin, m) end)
+    if q.margin.fallback then
+        q.margin:SetScript("OnClick", function(self) mod:Call("Schnellkauf", F.MarginMenu, self) end)
     end
-    q.method:SetPoint("TOPLEFT", F.QUICK_X + F.QUICK_FIELD_X - 2, F.QUICK_GLIDE_Y + 2)
-    UI.SetTooltip(q.method, function() return F.MethodTip() end)
+    q.margin:SetPoint("LEFT", q.limSrc, "RIGHT", 4, 0)
+    UI.SetTooltip(q.margin, function() return F.MarginTip() end)
     q.glideValue = UI.Text(left, "small", "")
-    q.glideValue:SetPoint("LEFT", q.method, "RIGHT", 6, 0)
+    q.glideValue:SetPoint("LEFT", q.margin, "RIGHT", 6, 0)
+    -- Ausloeser
+    q.trigLabel = LeftLabel(L.QUICK_TRIG_L, F.QUICK_TRIG_Y)
+    q.trigHover = CreateFrame("Frame", nil, left)
+    q.trigHover:SetPoint("TOPLEFT", q.trigLabel, "TOPLEFT", 0, 2)
+    q.trigHover:SetSize(F.QUICK_FIELD_X - 4, 18)
+    UI.SetTooltip(q.trigHover, function() return F.TrigTip() end)
+    q.trigSrc = F.ShortDropdown(left, F.QUICK_SRC_W, function()
+        local out = {}
+        for _, t in ipairs(Q2.TRIGS) do out[#out + 1] = { t, F.TrigName(t) } end
+        return out
+    end, function() return Q2.Trig(F.key) end, function(t) mod:Call("Schnellkauf", Q2.SetTrig, t) end)
+    if q.trigSrc.fallback then
+        q.trigSrc:SetScript("OnClick", function(self) mod:Call("Schnellkauf", F.TrigMenu, self) end)
+    end
+    q.trigSrc:SetPoint("TOPLEFT", F.QUICK_X + F.QUICK_FIELD_X - 2, F.QUICK_TRIG_Y + 4)
+    UI.SetTooltip(q.trigSrc, function() return F.TrigTip() end)
+    q.trigInput = UI.MoneyInput(left, function(amount) mod:Call("Schnellkauf", Q2.SetTrigFix, amount) end)
+    if q.trigInput.SetScale then q.trigInput:SetScale(0.8) end
+    q.trigInput:SetPoint("LEFT", q.trigSrc, "RIGHT", 4 / 0.8, 0)
+    UI.SetTooltip(q.trigInput, function() return F.TrigTip() end)
+    q.trigPct = UI.Dropdown(left, F.QUICK_MARGIN_W, function()
+        local out = {}
+        for _, m in ipairs(Q2.TRIG_PCTS) do out[#out + 1] = { m, L.QUICK_MARGIN_FMT:format(m) } end
+        return out
+    end, function() return Q2.TrigPct(F.key) end, function(m) mod:Call("Schnellkauf", Q2.SetTrigPct, m) end)
+    if q.trigPct.fallback then
+        q.trigPct:SetScript("OnClick", function(self) mod:Call("Schnellkauf", F.TrigPctMenu, self) end)
+    end
+    q.trigPct:SetPoint("LEFT", q.trigSrc, "RIGHT", 4, 0)
+    UI.SetTooltip(q.trigPct, function() return F.TrigTip() end)
+    q.trigValue = UI.Text(left, "small", "")
+    q.trigValue:SetPoint("LEFT", q.trigSrc, "RIGHT", 8, 0)
+    q.limitParts = { q.limLabel, q.limSrc, q.trigLabel, q.trigHover, q.trigSrc }
+    -- ab 0.167: Min. Menge unter der Menge (Regler ganz links aus, Feld mit der Zahl)
+    q.minLabel = LeftLabel(L.QUICK_MIN_L, F.QUICK_MIN_Y)
+    q.minSlider = UI.Slider(left, F.QTY_SLIDER_W, 0, 1, 1, 0, function(v) F.OnMinSlider(v) end)
+    q.minSlider:SetPoint("LEFT", q.minLabel, "LEFT", F.QUICK_FIELD_X, 0)
+    UI.SetTooltip(q.minSlider, function() return { L.QUICK_MIN_L, L.QUICK_MIN_TIP:format(Q2.MinMax()) } end)
+    q.minInput = UI.Input(left, 56, { numeric = true, maxLetters = 6 })
+    if q.minInput.SetScale then q.minInput:SetScale(0.8) end
+    if q.minInput.SetJustifyH then q.minInput:SetJustifyH("RIGHT") end
+    if q.minInput.SetTextInsets then q.minInput:SetTextInsets(6, 8, 0, 0) end
+    q.minInput:SetPoint("LEFT", q.minSlider, "RIGHT", 6 / 0.8, 0)
+    q.minInput:HookScript("OnTextChanged", function(self, user)
+        if user then mod:Call("Schnellkauf", Q2.SetMinQty, tonumber(self:GetText() or "")) end
+    end)
+    UI.SetTooltip(q.minInput, function() return { L.QUICK_MIN_L, L.QUICK_MIN_TIP:format(Q2.MinMax()) } end)
+    q.minOff = UI.Text(q.minInput, "small", GREY .. L.QUICK_MIN_OFF .. "|r")
+    q.minOff:SetPoint("LEFT", q.minInput, "LEFT", 10, 0)
+    q.minHover = CreateFrame("Frame", nil, left)
+    q.minHover:SetPoint("TOPLEFT", q.minLabel, "TOPLEFT", 0, 2)
+    q.minHover:SetSize(F.QUICK_FIELD_X - 4, 18)
+    UI.SetTooltip(q.minHover, function() return { L.QUICK_MIN_L, L.QUICK_MIN_TIP:format(Q2.MinMax()) } end)
+    q.minParts = { q.minLabel, q.minSlider, q.minInput, q.minHover }
     -- ab 0.144: Stueckpreis, der ermittelte Zielpreis je Stueck mit dem Hebel dahinter
     q.unitLabel = LeftLabel(L.QUICK_UNIT_L, F.QUICK_UNIT_Y)
     q.unitValue = UI.Text(left, "text", "", UI.LEFT_W - F.QUICK_FIELD_X - 20)
@@ -1396,6 +1561,17 @@ function F.BuildQuick(left, Label)
     q.unitHover:SetPoint("TOPLEFT", q.unitLabel, "TOPLEFT", 0, 2)
     q.unitHover:SetSize(UI.LEFT_W - 24, 16)
     UI.SetTooltip(q.unitHover, function() return { L.QUICK_UNIT_L, L.QUICK_UNIT_TIP } end)
+    -- ab 0.168: Band (Ausloeser bis Limit) unter dem Stueckpreis, nur im Limitkauf
+    q.bandLabel = LeftLabel(L.QUICK_BAND_L, F.QUICK_BAND_Y)
+    q.bandValue = UI.Text(left, "text", "", UI.LEFT_W - F.QUICK_FIELD_X - 20)
+    q.bandValue:SetPoint("TOPLEFT", q.bandLabel, "TOPLEFT", F.QUICK_FIELD_X, 0)
+    q.bandHover = CreateFrame("Frame", nil, left)
+    q.bandHover:SetPoint("TOPLEFT", q.bandLabel, "TOPLEFT", 0, 2)
+    q.bandHover:SetSize(UI.LEFT_W - 24, 16)
+    UI.SetTooltip(q.bandHover, function() return F.BandTip() end)
+    q.limitParts[#q.limitParts + 1] = q.bandLabel
+    q.limitParts[#q.limitParts + 1] = q.bandValue
+    q.limitParts[#q.limitParts + 1] = q.bandHover
     -- ab 0.140: Max. Preis unter der Menge, ab 0.144 Gesamtpreis mit zweiter Zeile
     q.maxLabel = LeftLabel(L.QUICK_MAX_L, F.QUICK_MAX_Y)
     q.maxValue = UI.Text(left, "text", "", UI.LEFT_W - F.QUICK_FIELD_X - 20)
@@ -1404,7 +1580,16 @@ function F.BuildQuick(left, Label)
     q.maxHover = CreateFrame("Frame", nil, left)
     q.maxHover:SetPoint("TOPLEFT", q.maxLabel, "TOPLEFT", 0, 2)
     q.maxHover:SetSize(UI.LEFT_W - 24, 34)
-    UI.SetTooltip(q.maxHover, function() return { L.QUICK_MAX_L, L.QUICK_MAX_TIP } end)
+    UI.SetTooltip(q.maxHover, function()
+        local lines = { L.QUICK_MAX_L, L.QUICK_MAX_TIP }
+        -- ab 0.167: wie die Portion des Smart-Teilkaufs entstand
+        local d = F.key ~= nil and ns.Quick.On() and F.Plan() or nil
+        if d and d.portion then
+            lines[#lines + 1] = L.QUICK_PORTION_LINE:format(d.portion, d.portionAll or 0)
+            lines[#lines + 1] = L["QUICK_PORTION_WHY_" .. tostring(d.portionWhy):upper()] or ""
+        end
+        return lines
+    end)
     -- unter dem Kaufknopf nur noch der Stand eines laufenden Kaufs (ab 0.144, der letzte Kauf steht in der Statistik)
     q.lastBuy = UI.Text(left, "small", "", UI.LEFT_W - 20)
     q.lastBuy:SetJustifyH("CENTER")
@@ -1470,6 +1655,19 @@ function F.BuildQuick(left, Label)
     if q.resInput.SetScale then q.resInput:SetScale(0.8) end
     q.resInput:SetPoint("LEFT", q.resLabel, "LEFT", F.QUICK_FIELD_X / 0.8, 0)
     UI.SetTooltip(q.resInput, { L.QUICK_RESERVE, L.QUICK_RESERVE_TIP })
+    -- ab 0.167: Teilkauf (Smart oder Aus) als Auswahlliste
+    q.portionLabel = LeftLabel(L.QUICK_PORTION_L, F.QUICK_FOLD_Y)
+    q.portionDrop = UI.Dropdown(left, 110, function()
+        return { { "smart", L.QUICK_PORTION_SMART }, { "off", L.QUICK_PORTION_OFF } }
+    end, function() return Q.PortionOn() and "smart" or "off" end, function(m) mod:Call("Schnellkauf", Q.SetPortionMode, m) end)
+    if q.portionDrop.fallback then
+        q.portionDrop:SetScript("OnClick", function() mod:Call("Schnellkauf", Q.SetPortionMode, Q.PortionOn() and "off" or "smart") end)
+    end
+    UI.SetTooltip(q.portionDrop, { L.QUICK_PORTION_L, L.QUICK_PORTION_TIP })
+    q.portionHover = CreateFrame("Frame", nil, left)
+    q.portionHover:SetPoint("TOPLEFT", q.portionLabel, "TOPLEFT", 0, 2)
+    q.portionHover:SetSize(F.QUICK_FIELD_X - 4, 18)
+    UI.SetTooltip(q.portionHover, { L.QUICK_PORTION_L, L.QUICK_PORTION_TIP })
     q.skip = UI.Check(left, L.QUICK_SKIP, false, function(on) mod:Call("Schnellkauf", Q.SetSkip, on) end, { L.QUICK_SKIP, L.QUICK_SKIP_TIP })
     if q.skip.SetScale then q.skip:SetScale(0.85) end
     q.avg = UI.Check(left, L.QUICK_AVG, false, function(on) mod:Call("Schnellkauf", Q.SetAvg, on) end, { L.QUICK_AVG, L.QUICK_AVG_TIP })
@@ -1482,13 +1680,16 @@ function F.BuildQuick(left, Label)
     q.scroll:SetScript("OnSizeChanged", function() if q.contentH then F.FitScroll(q.scroll, q.contentH) end end)
     q.baitParts = { q.priceLabel, q.priceInput, q.priceHint, q.qtyLabel, q.qtyInput, q.qtyHint, q.post, q.state }
     q.avg:Hide()   -- ab 0.143: Durchschnitt zaehlt gilt fuer alle (Einstellungen, Erweitert)
-    q.moreParts = { q.resCheck, q.resLabel, q.resInput, q.skip }
+    q.moreParts = { q.resCheck, q.resLabel, q.resInput, q.portionLabel, q.portionDrop, q.portionHover, q.skip }
     for _, f in ipairs({ q.foldStats, q.foldBait, q.foldMore, q.priceLabel, q.priceInput, q.priceHint, q.qtyLabel, q.qtyInput,
-                         q.qtyHint, q.post, q.state, q.balance, q.resCheck, q.resLabel, q.resInput, q.skip, q.avg }) do f:SetParent(q.body) end
+                         q.qtyHint, q.post, q.state, q.balance, q.resCheck, q.resLabel, q.resInput, q.skip, q.avg,
+                         q.portionLabel, q.portionDrop, q.portionHover }) do f:SetParent(q.body) end
     for _, f in ipairs(q.statParts) do f:SetParent(q.body) end
-    q.all = { q.limitCheck, q.limitStd, q.glideCheck, q.method, q.glideValue, q.unitLabel, q.unitValue, q.unitHover,
+    -- ab 0.168: Teile nur im Limitkauf (q.limitParts) und solche, die je nach Wahl erscheinen, zeigt F.ApplyTab
+    q.all = { q.unitLabel, q.unitValue, q.unitHover,
               q.maxLabel, q.maxValue, q.maxHover, q.lastBuy, q.line1,
               q.foldStats, q.foldBait, q.foldMore, q.scroll }
+    q.choiceParts = { q.limitStd, q.margin, q.glideValue, q.trigInput, q.trigPct, q.trigValue }
     q.info = {}   -- bis 0.139 Markt, Einbruch, Gekauft heute links (ab 0.140 rechts, F.marketRows)
 end
 
@@ -1515,9 +1716,12 @@ function F.LayoutQuick()
     end
     q.foldBait:ClearAllPoints()
     q.foldBait:SetPoint("TOPLEFT", X - 4, y)
-    local bait = quick and q.foldBait.open and true or false
+    -- ab 0.168: Lockangebot nur im Limitkauf, der Direktkauf bleibt schlank
+    local limTab = quick and not (F.key ~= nil and ns.Quick.Tab(F.key) == "direct")
+    q.foldBait:SetShown(limTab)
+    local bait = limTab and q.foldBait.open and true or false
     for _, f in ipairs(q.baitParts) do f:SetShown(bait) end
-    y = y - 24
+    if limTab then y = y - 24 end
     if bait then
         q.priceLabel:ClearAllPoints()
         q.priceLabel:SetPoint("TOPLEFT", X, y)
@@ -1543,7 +1747,13 @@ function F.LayoutQuick()
         q.resLabel:SetPoint("TOPLEFT", X + 22, y)
         q.resInput:ClearAllPoints()
         q.resInput:SetPoint("LEFT", q.resLabel, "LEFT", (F.QUICK_FIELD_X + 20) / 0.8, 0)
-        y = y - 24
+        y = y - 26
+        -- ab 0.167: Teilkauf
+        q.portionLabel:ClearAllPoints()
+        q.portionLabel:SetPoint("TOPLEFT", X + 22, y)
+        q.portionDrop:ClearAllPoints()
+        q.portionDrop:SetPoint("LEFT", q.portionLabel, "LEFT", F.QUICK_FIELD_X + 18, 0)
+        y = y - 26
         q.skip:ClearAllPoints()
         q.skip:SetPoint("TOPLEFT", 6 / 0.85, y / 0.85)
         y = y - 30
@@ -1559,10 +1769,11 @@ end
 -- Preisstabilitaet. Vorgabe Bewegung, Preisstabilitaet, Marktstabilitaet, Einbruch, Lockangebote. Verkaufen zeigt
 -- weiter die ersten drei.
 ---------------------------------------------------------------------------
-F.MARKET_ROWS = { "move", "stab", "market", "dip", "band", "baits", "long" }
+-- ab 0.167 (Wunsch KarloDerBaer 27.11.2026): Zeile Menge (qty) mit Trendpfeil, in der Vorgabe statt Einbruch
+F.MARKET_ROWS = { "move", "stab", "market", "qty", "dip", "band", "baits", "long" }
 F.MARKET_LABEL = { move = "QUICK_ROW_MOVE", stab = "QUICK_ROW_STAB", market = "QUICK_ROW_MARKET", dip = "QUICK_DIP_L",
-                   band = "QUICK_ROW_BAND", baits = "QUICK_MV_BAITS_L", long = "QS_LABEL" }
-F.MARKET_DEFAULT = { "move", "stab", "market", "dip", "baits" }
+                   band = "QUICK_ROW_BAND", baits = "QUICK_MV_BAITS_L", long = "QS_LABEL", qty = "QUICK_ROW_QTY" }
+F.MARKET_DEFAULT = { "move", "stab", "market", "qty", "baits" }
 F.MARKET_Y, F.MARKET_STEP = -26, 16
 
 -- Gespeicherte Auswahl auf fuenf Zeilen ergaenzen. Bis 0.164 waren es drei: die fehlenden Zeilen bekommen der Reihe
@@ -1572,6 +1783,8 @@ function F.MarketRowKinds()
     local out, used = {}, {}
     -- die alte Vorgabe (move, stab, dip) gilt als nicht umgestellt
     if type(t) == "table" and t[4] == nil and t[1] == "move" and t[2] == "stab" and t[3] == "dip" then t = nil end
+    -- ab 0.167: die Vorgabe bis 0.166 (mit Einbruch) gilt ebenso als nicht umgestellt
+    if type(t) == "table" and t[1] == "move" and t[2] == "stab" and t[3] == "market" and t[4] == "dip" and t[5] == "baits" then t = nil end
     if type(t) == "table" then
         for i = 1, #F.MARKET_DEFAULT do
             local k = t[i]
@@ -1678,6 +1891,10 @@ function F.ApplyMode()
         r.label:SetShown(not quick); r.value:SetShown(not quick); if r.hover then r.hover:SetShown(not quick) end
     end
     for _, f in ipairs(F.quick and F.quick.all or {}) do f:SetShown(quick) end
+    if F.quick and F.quick.minParts and not quick then   -- ab 0.167: Min. Menge nur im Schnellkauf
+        for _, f in ipairs(F.quick.minParts) do f:Hide() end
+        F.quick.minOff:Hide()
+    end
     -- ab 0.140: rechts die drei einstellbaren Zeilen (nur im Schnellkauf)
     for _, r in ipairs(F.marketRows or {}) do
         r.label:SetShown(quick); r.value:SetShown(quick); r.hover:SetShown(quick); r.bg:Hide()
@@ -1694,8 +1911,11 @@ function F.ApplyMode()
     F.limitLabel:SetWidth(quick and 0 or LW)
     F.qtyLabel:SetWidth(quick and 0 or LW)
     F.limitInput:ClearAllPoints()
-    if quick then F.limitInput:SetPoint("LEFT", F.limitLabel, "LEFT", fx, F.QUICK_LIMIT_DY / 0.8)
+    -- ab 0.168 hinter der Auswahlliste Limit
+    if quick and F.quick and F.quick.limSrc then F.limitInput:SetPoint("LEFT", F.quick.limSrc, "RIGHT", 4 / 0.8, 0)
+    elseif quick then F.limitInput:SetPoint("LEFT", F.limitLabel, "LEFT", fx, F.QUICK_LIMIT_DY / 0.8)
     else F.limitInput:SetPoint("LEFT", F.limitLabel, "RIGHT", 8 / 0.8, 0) end
+    if not quick then F.limitInput:Show() end
     F.qtySlider:ClearAllPoints()
     if quick then F.qtySlider:SetPoint("LEFT", F.qtyLabel, "LEFT", F.QUICK_FIELD_X, 0)
     else F.qtySlider:SetPoint("LEFT", F.qtyLabel, "RIGHT", 6, 0) end
@@ -1709,7 +1929,7 @@ function F.ApplyMode()
     if quick then F.buyButton:SetPoint("TOPLEFT", 10, F.QUICK_BUY_TOP)
     else F.buyButton:SetPoint("BOTTOMLEFT", 10, 70) end
     F.buyInfo:SetShown(not quick)
-    if F.sectionTab and F.sectionTab.SetText then F.sectionTab:SetText(quick and L.FOCUS_HEAD_BUY or L.FOCUS_HEAD_CHANCE) end
+    if F.sectionTab and F.sectionTab.SetText then F.sectionTab:SetText(quick and L.QUICK_TAB_LIMIT or L.FOCUS_HEAD_CHANCE) end
     -- ab 0.133: Umschalter nur, wenn der Aufkauf eingeschaltet ist (Einstellungen, Erweitert)
     local both = ns.Quick.BuyoutOn()
     F.modeQuick:SetShown(both)
@@ -1729,6 +1949,7 @@ function F.ApplyMode()
         if F.buyButton.UnlockHighlight then F.buyButton:UnlockHighlight() end
     end
     F.LayoutQuick()
+    F.ApplyTab(true)   -- ab 0.168: Zeilen je Tab
 end
 
 -- ab 0.144 (Board KarloDerBaer): Stueckpreis, der ermittelte Zielpreis je Stueck. Dahinter der Hebel, der ihn setzt:
@@ -1746,7 +1967,7 @@ function F.UnitText(live)
         return GREY .. L.QUICK_MAX_NONE .. "|r"
     end
     local lever
-    if kind == "glide" then lever = F.GlideCapped(key, rows) and L.QUICK_LEVER_LIMIT or L.QUICK_LEVER_GLIDE
+    if kind == "glide" then lever = L.QUICK_LEVER_GLIDE   -- ab 0.168 ohne Deckel durch den Standard
     elseif kind == "limit" then lever = L.QUICK_LEVER_LIMIT
     elseif Num(Q.pick[key]) then lever = L.QUICK_LEVER_PICK
     else lever = L.QUICK_LEVER_CHEAP end
@@ -1790,7 +2011,7 @@ function F.MaxText(d, live)
     end
     local function Avg(c, k) return k > 0 and math.floor(c / k + 0.5) or 0 end
     local short = plan and plan.reserveShort
-    if short then
+    if short or (plan and plan.portion) then   -- ab 0.167 auch mit Portion des Smart-Teilkaufs
         local best = plan.best or {}
         local got = Num(best.qty) and best.qty or 0
         local c = Num(best.cost) and best.cost or 0
@@ -1806,6 +2027,8 @@ function F.MaxText(d, live)
     if short then
         second[#second + 1] = ORANGE .. L.QUICK_MAX_RESERVE:format(Money((tonumber(mod.db.radarReserve) or 0) * 10000)) .. "|r"
     end
+    if plan and plan.minShort then second[#second + 1] = ORANGE .. L.QUICK_MIN_SHORT:format(plan.minShort) .. "|r" end   -- ab 0.167
+    if plan and plan.portion then second[#second + 1] = GREY .. L.QUICK_PORTION_LINE:format(plan.portion, plan.portionAll or 0) .. "|r" end
     if Num(top) then
         local ok, ctx = pcall(ns.Buyout.Context, nil, key)
         local band = ok and type(ctx) == "table" and ctx.band or nil
@@ -1815,39 +2038,295 @@ function F.MaxText(d, live)
     return text
 end
 
--- ab 0.143: Methoden von Gleitend (Menue am Knopf, Name mit dem eingestellten Wert)
-function F.MethodName(m)
-    if m == "under" then return L.QUICK_M_UNDER:format(tonumber(mod.db.quickUnderPct) or 10) end
-    if m == "band" then return L.QUICK_M_BAND end
-    return L.QUICK_M_GAIN:format(tonumber(mod.db.quickSuggestPct) or 5)
-end
-
-function F.MethodMenu(owner)
+-- ab 0.167: Richtpreis und Gewinnspanne von Gleitend (Menue nur, wenn das Spiel keine Auswahlliste kennt)
+local function RadioMenu(owner, title, list, isSel, set)
     local mu = rawget(_G, "MenuUtil")
     if not (mu and mu.CreateContextMenu) then return false end
-    local Q = ns.Quick
     mu.CreateContextMenu(owner, function(_, root)
-        root:CreateTitle(L.QUICK_GLIDE)
-        for _, m in ipairs(Q.METHODS) do
-            local method = m
-            local function IsSel() return Q.Method(F.key) == method end
-            local function Set() mod:Call("Schnellkauf", Q.SetMethod, method) end
-            if root.CreateRadio then root:CreateRadio(F.MethodName(method), IsSel, Set)
-            else root:CreateButton((IsSel() and "> " or "") .. F.MethodName(method), Set) end
+        root:CreateTitle(title)
+        for _, o in ipairs(list) do
+            local v, text = o[1], o[2]
+            if root.CreateRadio then root:CreateRadio(text, function() return isSel(v) end, function() set(v) end)
+            else root:CreateButton((isSel(v) and "> " or "") .. text, function() set(v) end) end
         end
     end)
     return true
 end
 
-function F.MethodTip()
+function F.RefMenu(owner)
+    local Q, list = ns.Quick, {}
+    for _, r in ipairs(Q.REFS) do list[#list + 1] = { r, L["QUICK_REF_" .. r:upper()] } end
+    return RadioMenu(owner, L.QUICK_REF_L, list, function(v) return Q.Ref(F.key) == v end,
+        function(v) mod:Call("Schnellkauf", Q.SetRef, v) end)
+end
+
+function F.MarginMenu(owner)
+    local Q, list = ns.Quick, {}
+    for _, m in ipairs(Q.MARGINS) do list[#list + 1] = { m, L.QUICK_MARGIN_FMT:format(m) } end
+    return RadioMenu(owner, L.QUICK_MARGIN_L, list, function(v) return Q.Margin(F.key) == v end,
+        function(v) mod:Call("Schnellkauf", Q.SetMargin, v) end)
+end
+
+---------------------------------------------------------------------------
+-- ab 0.168 (KarloDerBaer 28.11.2026): Auswahllisten Limit und Ausloeser mit Kurzform im zugeklappten Zustand
+---------------------------------------------------------------------------
+function F.LimSrcList()
+    local out = { "fix" }
+    for _, r in ipairs(ns.Quick.REFS) do out[#out + 1] = r end
+    return out
+end
+
+function F.SrcName(r)
+    if r == "fix" then return L.QUICK_SRC_FIX end
+    return L["QUICK_REF_" .. tostring(r):upper()] or tostring(r)
+end
+
+function F.SrcShort(r) return L["QUICK_SHORT_" .. tostring(r):upper()] or F.SrcName(r) end
+
+function F.TrigName(t) return L["QUICK_TRIG_" .. tostring(t):upper()] or tostring(t) end
+
+function F.TrigShort(t)
+    if t == "fix" then return L.QUICK_SHORT_FIX end
+    return L["QUICK_SHORT_T" .. tostring(t):upper()] or F.TrigName(t)
+end
+
+-- Auswahlliste, die zugeklappt eine Kurzform zeigt (dd.peonShort, gesetzt mit F.SetShort)
+function F.ShortDropdown(parent, width, items, get, set)
+    local dd = Peon.UI.Dropdown(parent, width, items, get, set)
+    if not dd.fallback and dd.SetSelectionTranslator then
+        pcall(dd.SetSelectionTranslator, dd, function(sel) return dd.peonShort or (type(sel) == "table" and sel.text) or "" end)
+    end
+    return dd
+end
+
+function F.SetShort(dd, text)
+    if not dd then return end
+    dd.peonShort = text
+    if dd.fallback or not dd.GenerateMenu then dd:SetText(text); return end
+    pcall(dd.GenerateMenu, dd)
+    local fs = rawget(dd, "Text")
+    if type(fs) == "table" and fs.SetText then fs:SetText(text) end
+end
+
+-- Auswahlliste neu beschriften (ohne Kurzform)
+function F.RefreshDrop(dd, text)
+    if not dd then return end
+    if dd.fallback or not dd.GenerateMenu then dd:SetText(text) else pcall(dd.GenerateMenu, dd) end
+end
+
+function F.LimSrcMenu(owner)
+    local Q, list = ns.Quick, {}
+    for _, r in ipairs(F.LimSrcList()) do list[#list + 1] = { r, F.SrcName(r) } end
+    return RadioMenu(owner, L.QUICK_LIMIT, list, function(v) return Q.LimSrc(F.key) == v end,
+        function(v) mod:Call("Schnellkauf", Q.SetLimSrc, v) end)
+end
+
+function F.TrigMenu(owner)
+    local Q, list = ns.Quick, {}
+    for _, t in ipairs(Q.TRIGS) do list[#list + 1] = { t, F.TrigName(t) } end
+    return RadioMenu(owner, L.QUICK_TRIG_L, list, function(v) return Q.Trig(F.key) == v end,
+        function(v) mod:Call("Schnellkauf", Q.SetTrig, v) end)
+end
+
+function F.TrigPctMenu(owner)
+    local Q, list = ns.Quick, {}
+    for _, m in ipairs(Q.TRIG_PCTS) do list[#list + 1] = { m, L.QUICK_MARGIN_FMT:format(m) } end
+    return RadioMenu(owner, L.QUICK_TRIG_PCT_L, list, function(v) return Q.TrigPct(F.key) == v end,
+        function(v) mod:Call("Schnellkauf", Q.SetTrigPct, v) end)
+end
+
+-- Alter einer Zeit (time()) als kurzer Text
+local function Age(t)
+    local m = math.max(0, math.floor((time() - (t or time())) / 60))
+    if m < 60 then return L.QUICK_AGE_MIN:format(m) end
+    return L.QUICK_AGE_HOUR:format(math.floor(m / 60))
+end
+
+-- Wert hinter der Auswahlliste Ausloeser (Limit: der Wert nach dem Abstand, Letzter Tiefstpreis: Preis und Alter)
+function F.TrigValueText(key)
     local Q = ns.Quick
-    local m = Q.Method(F.key)
-    local lines = { F.MethodName(m), L["QUICK_M_" .. m:upper() .. "_TIP"] }
+    if key == nil then return "" end
+    local t = Q.Trig(key)
+    if t == "low" then
+        local p, at = Q.LastLow(key)
+        if not Num(p) then return GREY .. L.QUICK_TRIG_LOW_NONE .. "|r" end
+        return GREY .. Money(p) .. " (" .. Age(at) .. ")|r"
+    end
+    if t == "limit" then
+        local limit = Q.EffectiveLimit(key, F.LiveRows())
+        local v = Num(limit) and Q.TriggerValue(key, limit) or nil
+        return Num(v) and (GREY .. Money(v) .. "|r") or ""
+    end
+    if t == "off" then return GREY .. L.QUICK_TRIG_OFF_HINT .. "|r" end
+    return ""
+end
+
+function F.TrigTip()
+    local Q = ns.Quick
+    local key = F.key
+    local lines = { L.QUICK_TRIG_L, L.QUICK_TRIG_TIP, " " }
+    local limit = key ~= nil and Q.EffectiveLimit(key, F.LiveRows()) or nil
+    for _, t in ipairs(Q.TRIGS) do
+        local name = F.TrigName(t)
+        if key ~= nil and Q.Trig(key) == t then name = "> " .. name end
+        lines[#lines + 1] = name .. ": " .. GREY .. L["QUICK_TRIG_" .. t:upper() .. "_TIP"] .. "|r"
+    end
+    lines[#lines + 1] = " "
+    lines[#lines + 1] = L.QUICK_TRIG_CAP
+    if Num(limit) then
+        local v = Q.TriggerValue(key, limit)
+        lines[#lines + 1] = L.QUICK_TRIG_NOW:format(Money(v), Money(limit))
+    end
+    return lines
+end
+
+-- Zeile Band: Ausloeser bis Limit und ob es ausgeloest hat
+function F.BandRowText(live, key)
+    local Q = ns.Quick
+    key = key or F.key
+    if key == nil then return "" end
+    local limit = Q.EffectiveLimit(key, live and F.LiveRows() or nil)
+    if not Num(limit) then return "" end
+    local trig, _, capped = Q.TriggerValue(key, limit)
+    if not Num(trig) or trig >= limit then
+        if capped then return GREY .. L.QUICK_BAND_CAPPED .. "|r" end
+        return GREY .. L.QUICK_BAND_NONE .. "|r"
+    end
+    local text = L.QUICK_BAND_FMT:format(Money(trig), Money(limit))
+    if Q.armed[key] then return text .. " " .. GREEN .. L.QUICK_BAND_ARMED .. "|r" end
+    return text .. " " .. GREY .. L.QUICK_BAND_WAIT .. "|r"
+end
+
+function F.BandTip()
+    return { L.QUICK_BAND_L, L.QUICK_BAND_TIP }
+end
+
+---------------------------------------------------------------------------
+-- ab 0.168: Tabs Limitkauf und Direktkauf ueber dem Gegenstand (wie Blizzards Reiter im Verkaufen, aber anklickbar)
+---------------------------------------------------------------------------
+function F.MakeTab(parent, text, fn)
+    local UI = Peon.UI
+    local b = CreateFrame("Button", nil, parent)
+    local l = b:CreateTexture(nil, "ARTWORK")
+    UI.SetAtlas(l, "auctionhouse-selltab-left", true)
+    l:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", 0, 0)
+    local fs = b:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+    fs:SetPoint("LEFT", l, "RIGHT", 12, 0)
+    local m = b:CreateTexture(nil, "BORDER")
+    UI.SetAtlas(m, "auctionhouse-selltab-middle", true)
+    m:SetPoint("TOPLEFT", l, "TOPRIGHT", 0, 0)
+    m:SetPoint("RIGHT", fs, "RIGHT", 12, 0)
+    local r = b:CreateTexture(nil, "BORDER")
+    UI.SetAtlas(r, "auctionhouse-selltab-right", true)
+    r:SetPoint("TOPLEFT", m, "TOPRIGHT", 0, 0)
+    r:SetPoint("BOTTOMLEFT", m, "BOTTOMRIGHT", 0, 0)
+    b.fs, b.parts = fs, { l, m, r }
+    b.Fit = function(self)
+        local function Size(f, m)
+            local v = f[m] and f[m](f)
+            return Num(v) and v or 0
+        end
+        local lw, rw, tw, h = Size(l, "GetWidth"), Size(r, "GetWidth"), Size(fs, "GetStringWidth"), Size(l, "GetHeight")
+        self:SetSize(math.max(40, lw + tw + 24 + rw), math.max(18, h))
+    end
+    -- Text setzen (ersetzt das SetText des Knopfs, die Schrift ist fs)
+    b.SetText = function(self, t) fs:SetText(t or ""); self:Fit() end
+    b.SetActive = function(self, on)
+        local a = on and 1 or 0.55
+        for _, p in ipairs(self.parts) do if p.SetAlpha then p:SetAlpha(a) end end
+        if fs.SetTextColor then
+            if on then fs:SetTextColor(1, 0.82, 0) else fs:SetTextColor(0.6, 0.6, 0.6) end
+        end
+    end
+    b:SetText(text)
+    if fn then b:SetScript("OnClick", fn) end
+    return b
+end
+
+function F.SyncTabs()
+    local Q = ns.Quick
+    local quick = Q.On()
+    local tab = F.key ~= nil and Q.Tab(F.key) or "limit"
+    if F.directTab then F.directTab:SetShown(quick) end
+    if F.sectionTab and F.sectionTab.SetActive then F.sectionTab:SetActive(not quick or tab == "limit") end
+    if F.directTab and F.directTab.SetActive then F.directTab:SetActive(quick and tab == "direct") end
+end
+
+-- Zeilen des Einkaufens je Tab anordnen und die Teile zeigen, die zum Tab und zur Wahl gehoeren
+function F.ApplyTab(force)
+    local q = F.quick
+    if not q then return end
+    local Q = ns.Quick
+    local quick = Q.On()
+    F.SyncTabs()
+    if not quick then
+        for _, f in ipairs(q.limitParts) do f:Hide() end
+        for _, f in ipairs(q.choiceParts) do f:Hide() end
+        q.layoutTab = nil
+        return
+    end
+    local key = F.key
+    local tab = key ~= nil and Q.Tab(key) or "limit"
+    local lim = tab == "limit"
+    for _, f in ipairs(q.limitParts) do f:SetShown(lim) end
+    local glide = lim and Q.GlideOn(key) or false
+    F.limitInput:SetShown(lim and not glide)
+    q.limitStd:SetShown(lim and not glide)
+    q.margin:SetShown(glide)
+    q.glideValue:SetShown(glide)
+    local t = lim and Q.Trig(key) or nil
+    q.trigInput:SetShown(t == "fix")
+    q.trigPct:SetShown(t == "limit")
+    q.trigValue:SetShown(t == "limit" or t == "low" or t == "off")
+    q.trigValue:ClearAllPoints()
+    if t == "limit" then q.trigValue:SetPoint("LEFT", q.trigPct, "RIGHT", 6, 0)
+    else q.trigValue:SetPoint("LEFT", q.trigSrc, "RIGHT", 8, 0) end
+    if q.layoutTab == tab and not force then return end
+    q.layoutTab = tab
+    local rows = F.QUICK_TAB_ROWS[tab]
+    MoveLabel(F.qtyLabel, rows.qty, F.QUICK_X)
+    MoveLabel(q.unitLabel, rows.unit, F.QUICK_X)
+    MoveLabel(q.maxLabel, rows.max, F.QUICK_X)
+    if rows.band then MoveLabel(q.bandLabel, rows.band, F.QUICK_X) end
+    F.buyButton:ClearAllPoints()
+    F.buyButton:SetPoint("TOPLEFT", 10, rows.buy)
+    q.line1:ClearAllPoints()
+    q.line1:SetPoint("TOPLEFT", 12, rows.fold + 8)
+    q.scroll:ClearAllPoints()
+    q.scroll:SetPoint("TOPLEFT", F.left, "TOPLEFT", 4, rows.fold + 4)
+    q.scroll:SetPoint("BOTTOMRIGHT", F.left, "BOTTOMRIGHT", -24, 6)
+    F.LayoutQuick()
+end
+
+-- Tooltip am Richtpreis: was er ist, sein Wert jetzt, darunter alle Richtpreise mit Wert
+function F.RefTip()
+    local Q = ns.Quick
+    local r = Q.Ref(F.key)
     local rows = F.LiveRows()
-    local low = Q.CalmLow(F.key, rows)
-    if Num(low) and m ~= "band" then lines[#lines + 1] = L.QUICK_M_LOW:format(Money(low)) end
-    local v = Q.GlideValue(F.key, m, rows)
-    lines[#lines + 1] = Num(v) and L.QUICK_M_VALUE:format(Money(v)) or (GREY .. L.QUICK_GLIDE_NONE .. "|r")
+    local lines = { L.QUICK_REF_TIP, " " }
+    for _, x in ipairs(Q.REFS) do
+        local v = F.key ~= nil and Q.RefValue(F.key, x, rows) or nil
+        local name = L["QUICK_REF_" .. x:upper()]
+        if x == r then name = "> " .. name end
+        lines[#lines + 1] = name .. ": " .. (Num(v) and Money(v) or (GREY .. L.QUICK_REF_NONE .. "|r"))
+        lines[#lines + 1] = GREY .. L["QUICK_REF_" .. x:upper() .. "_TIP"] .. "|r"
+    end
+    local g = F.key ~= nil and Q.GlideValue(F.key, nil, rows) or nil
+    lines[#lines + 1] = " "
+    lines[#lines + 1] = Num(g) and L.QUICK_M_VALUE:format(Money(g)) or (GREY .. L.QUICK_GLIDE_NONE .. "|r")
+    return lines
+end
+
+function F.MarginTip()
+    local Q = ns.Quick
+    local lines = { L.QUICK_MARGIN_TIP }
+    local key = F.key
+    local base = key ~= nil and Q.RefValue(key, nil, F.LiveRows()) or nil
+    local g = key ~= nil and Q.GlideValue(key, nil, F.LiveRows()) or nil
+    if Num(base) and Num(g) then
+        lines[#lines + 1] = " "
+        lines[#lines + 1] = L.QUICK_MARGIN_CALC:format(Money(base), Q.Margin(key), Money(g))
+    end
     return lines
 end
 
@@ -1898,35 +2377,45 @@ function F.UpdateQuick(d, live)
     local canPost = live and key ~= nil and ns.Data.IsCommodity(key) and Num(Q.Price(key)) and not busy
     q.post:SetText((b and b.state == "confirm") and L.QUICK_CONFIRM or L.QUICK_POST)
     On(q.post, canPost and true or false)
-    -- ab 0.143: Haken Limit und Gleitend, Methode, Wert jetzt
-    local limitOn, glideOn = Q.LimitOn(key), Q.GlideOn(key)
-    if q.limitCheck.SetChecked then q.limitCheck:SetChecked(limitOn) end
-    if q.glideCheck.SetChecked then q.glideCheck:SetChecked(glideOn) end
+    -- ab 0.168: Tab, Limit (Fest oder Richtpreis) und Ausloeser
+    F.ApplyTab()
+    local lim = key ~= nil and Q.Tab(key) == "limit"
+    local glideOn = lim and Q.GlideOn(key)
     MoneyEnabled(F.limitInput, true)
-    if F.limitInput.SetAlpha then F.limitInput:SetAlpha((limitOn or glideOn) and 1 or 0.6) end
-    if limitOn and not F.ManualLimit(key) then q.limitStd:SetText(ORANGE .. L.QUICK_LIMIT_EMPTY .. "|r")
+    if F.limitInput.SetAlpha then F.limitInput:SetAlpha(1) end
+    if lim and not glideOn and not F.ManualLimit(key) then q.limitStd:SetText(ORANGE .. L.QUICK_LIMIT_EMPTY .. "|r")
     else q.limitStd:SetText("") end
-    -- ab 0.144 Auswahlliste: Text neu, wenn Gegenstand oder Methode wechseln
-    local msig = tostring(key) .. ":" .. Q.Method(key) .. ":" .. tostring(mod.db.quickSuggestPct) .. ":" .. tostring(mod.db.quickUnderPct)
+    -- Auswahllisten: Text neu, wenn Gegenstand oder Wahl wechseln (zugeklappt die Kurzform)
+    local msig = tostring(key) .. ":" .. Q.LimSrc(key) .. ":" .. Q.Margin(key) .. ":" .. Q.Trig(key) .. ":" .. Q.TrigPct(key)
     if q.methodSig ~= msig then
         q.methodSig = msig
-        if q.method.fallback or not q.method.GenerateMenu then q.method:SetText(F.MethodName(Q.Method(key)))
-        else pcall(q.method.GenerateMenu, q.method) end
+        F.SetShort(q.limSrc, F.SrcShort(Q.LimSrc(key)))
+        F.SetShort(q.trigSrc, F.TrigShort(Q.Trig(key)))
+        F.RefreshDrop(q.margin, L.QUICK_MARGIN_FMT:format(Q.Margin(key)))
+        F.RefreshDrop(q.trigPct, L.QUICK_MARGIN_FMT:format(Q.TrigPct(key)))
     end
-    if q.method.SetAlpha then q.method:SetAlpha(glideOn and 1 or 0.6) end
-    local gv = live and key ~= nil and Q.GlideValue(key, nil, F.LiveRows()) or nil
-    if glideOn then
-        -- ab 0.145 (Board KarloDerBaer) ohne "jetzt ...": der Wert steht in der Zeile Stueckpreis
-        q.glideValue:SetText("")
-    else
-        q.glideValue:SetText(Num(gv) and (GREY .. Money(gv) .. "|r") or "")
+    if not Typing(q.trigInput) then
+        local tf = key ~= nil and Q.TrigFix(key) or nil
+        if tf then q.trigInput:SetAmount(tf) else ClearMoney(q.trigInput) end
     end
+    q.trigValue:SetText(lim and F.TrigValueText(key) or "")
+    q.bandValue:SetText(lim and F.BandRowText(live, key) or "")
+    F.SyncMinQty(key)
+    -- ab 0.167: Teilkauf
+    local pm = Q.PortionOn() and "smart" or "off"
+    if q.portionSig ~= pm then
+        q.portionSig = pm
+        if q.portionDrop.fallback or not q.portionDrop.GenerateMenu then
+            q.portionDrop:SetText(pm == "smart" and L.QUICK_PORTION_SMART or L.QUICK_PORTION_OFF)
+        else pcall(q.portionDrop.GenerateMenu, q.portionDrop) end
+    end
+    -- ab 0.145 (Board KarloDerBaer) ohne "jetzt ...": der Wert steht in der Zeile Stueckpreis
+    q.glideValue:SetText("")
     q.unitValue:SetText(F.UnitText(live))
     q.maxValue:SetText(F.MaxText(d, live))
-    -- ab 0.133: waehrend eines Kaufs steht hier sein Stand, ab 0.144 sonst nichts (Zuletzt in der Statistik)
-    local job = ns.Radar.job
-    if job and key ~= nil and job.key == key and F.jobInfo then q.lastBuy:SetText(F.jobInfo)
-    else q.lastBuy:SetText("") end
+    -- ab 0.133: waehrend eines Kaufs stand hier sein Stand, ab 0.144 sonst nichts (Zuletzt in der Statistik).
+    -- ab 0.166.4 immer leer (Board KarloDerBaer 27.11.2026): der Knopf zeigt den Stand des Kaufs schon selbst.
+    q.lastBuy:SetText("")
     if key ~= nil and not ns.Data.IsCommodity(key) then q.state:SetText(GREY .. L.QUICK_ONLY_MASS .. "|r")
     else q.state:SetText(Q.StateText(key)) end
     q.balance:SetText(Q.BalanceText(key))
@@ -2023,12 +2512,37 @@ function F.MarketRowValue(kind, v, vals, tips, code, key)
         return vals[5] or "", tips[5]
     elseif kind == "band" then
         return F.BandText(nil, key), nil
+    elseif kind == "qty" then
+        return F.QtyRowValue(key)
     elseif kind == "baits" then
         return vals[4] or "", tips[4]
     elseif kind == "long" then
         return vals[7] or "", tips[7]
     end
     return "", nil
+end
+
+-- ab 0.167: Zeile Menge: alles im Markt jetzt, dahinter Pfeil hoch oder runter (ab Quick.QTY_TREND_PCT Prozent ueber
+-- den Zeitraum des Diagramms), sonst ein grauer Punkt
+F.ICON_UP = "|TInterface\\Buttons\\Arrow-Up-Up:14:14:0:3|t"
+F.ICON_DOWN = "|TInterface\\Buttons\\Arrow-Down-Up:14:14:0:-3|t"
+function F.QtyRowValue(key)
+    local lv = ns.Buy.live and ns.Buy.live[key]
+    if not (type(lv) == "table" and type(lv.rows) == "table" and (AHOpen() or HasHist(key))) then return GREY .. L.QUICK_STAB_NONE .. "|r", nil end
+    local n = 0
+    for _, l in ipairs(ns.Data.Available(lv.rows)) do n = n + l.qty end
+    local text = tostring(n)
+    local now, old, pct, trend, mins = ns.Quick.QtyTrend(key, F.ChartRange())
+    local tip = { L.QUICK_QTY_ROW_TIP:format(ns.Quick.QTY_TREND_PCT) }
+    if trend then
+        local icon = trend == "up" and F.ICON_UP or trend == "down" and F.ICON_DOWN or ns.QuickStats.Dot("none")
+        text = text .. " " .. icon
+        tip[#tip + 1] = L.QUICK_QTY_ROW_CMP:format(mins, old, now, (pct >= 0 and "+" or "") .. Dec(pct))
+    else
+        tip[#tip + 1] = GREY .. L.QUICK_QTY_ROW_WAIT .. "|r"
+    end
+    if lv.rows.partial then tip[#tip + 1] = GREY .. L.QUICK_QTY_ROW_PART .. "|r" end
+    return text, tip
 end
 
 function F.UpdateQuickMove(v)
@@ -2051,8 +2565,11 @@ function F.UpdateQuickChart(limit)
     local Q = ns.Quick
     local rows = F.LiveRows()
     local eff, kind = Q.EffectiveLimit(F.key, rows)
-    local std = Q.LimitOn(F.key) and F.ManualLimit(F.key) or nil
-    local glide = Q.GlideValue(F.key, nil, rows)
+    -- ab 0.168: die Linie Limit zeigt das geltende Limit (fest oder gleitend), gestrichelt der Ausloeser, wenn er ein
+    -- Band bildet (Linie Ausloeser, bis 0.167 Gleitend)
+    local std = (kind ~= "normal" and Num(eff)) and eff or nil
+    local glide = Num(std) and Q.TriggerValue(F.key, std) or nil
+    if Num(glide) and glide >= std then glide = nil end
     limit = Num(eff) and eff or nil
     if AHOpen() and F.key ~= nil then
         F.mHead:SetText(L.QUICK_CHART_HEAD:format(Dec(ns.Radar.FocusEvery())))
@@ -2068,6 +2585,7 @@ function F.UpdateQuickChart(limit)
     if F.chartLines then F.chartLines.frame:SetShown(F.chart ~= nil) end
     if not show then F.chartN = nil; return end
     local stamp = "q:" .. tostring(key) .. ":" .. h.n .. ":" .. tostring(limit) .. ":" .. minutes .. ":" .. #(Q.baits[key] or {}) .. ":" .. tostring(glide) .. ":" .. tostring(std)
+        .. ":" .. tostring(mod.db.quickChartPad) .. ":" .. tostring(kind)
     if F.chartN == stamp then return end
     local n, under, mins, own, other, dips = Q.ChartSeries(key, limit, minutes)
     if not n then F.chartN = nil; return end
@@ -2082,7 +2600,16 @@ function F.UpdateQuickChart(limit)
     -- dann gestrichelt am unteren Rand (Kern API 28, fit = false).
     if Num(std) and std > 0 then series[#series + 1] = { key = "limit", kind = "hline", value = std, color = C.limit, fit = false } end
     -- ab 0.140 Vorschlag, ab 0.143 Gleitend als graue gestrichelte Linie (bestimmt die Achse nicht mit)
-    if Num(glide) then series[#series + 1] = { key = "suggest", kind = "hline", value = glide, color = C.suggest, dash = 4, fit = false } end
+    if Num(glide) then series[#series + 1] = { key = "suggest", kind = "hline", value = glide, color = C.limit, dash = 4, fit = false } end
+    -- ab 0.167 (Board KarloDerBaer 27.11.2026): fester Bereich mit Preislinie, Limit und (wenn an) Gleitend, dazu etwas
+    -- Luft (F.AxisRange). Bisher klebte die Linie am Rand und das Limit stand oft gestrichelt unten.
+    local lo, hi
+    local function Add(v) if Num(v) and v > 0 then lo = (lo == nil or v < lo) and v or lo; hi = (hi == nil or v > hi) and v or hi end end
+    for i = 1, n do Add(mins[i]) end
+    Add(std)
+    Add(glide)
+    local a, b = F.AxisRange(lo, hi, tonumber(mod.db.quickChartPad) or 10)
+    if F.chart.SetRange then F.chart:SetRange("left", a, b) end
     ns.Radar.Perf("diagramm", function() F.chart:SetData(n, series); F.chart:Draw() end)
     F.chartN = stamp
 end
@@ -2119,13 +2646,19 @@ local function BuyState(d)
     F.jobInfo = nil
     local quick = ns.Quick and ns.Quick.On()
     local info = quick and ns.Quick.Summary(d) or F.Summary(d)
+    -- ab 0.167: Fehlschlag kurz auf dem Knopf, der Knopf bleibt frei, wenn es etwas zu kaufen gibt
+    local fail = R.FailText((d and d.key) or F.key)
+    if fail then
+        local can = AHOpen() and d and not d.gone and (d.best and d.best.qty or 0) >= 1 and not d.cant and job == nil
+        return ORANGE .. fail .. "|r", can and true or false, info
+    end
     if not d or d.gone then return L.BUY_BUY, false, info end
     local qty = d.best and d.best.qty or 0
     -- ab 0.133 (U1, Konzept 4.1): im Schnellkauf steht auf dem Knopf, was ein Klick hoechstens kostet
     local buyText = quick and ns.Quick.BuyLabel(d) or L.FOCUS_BUY:format(qty)
     if not AHOpen() then return buyText, false, info end
     if R.IsStale(d.key or F.key) then return L.FOCUS_CHECKING, false, info end   -- ab 0.104
-    if ns.Quick and ns.Quick.Locked(d.key or F.key) then return L.FOCUS_CHECKING, false, info end   -- ab 0.114
+    -- ab 0.114 hiess es nach der Pause "Prueft ..." bis zur naechsten Antwort, ab 0.167 bleibt der Knopf frei
     -- ab 0.70: mit eigenem Ziel geht Kaufen auch ohne Gewinn (eigene Entscheidung), nur nicht ohne Menge oder Gold
     if qty < 1 or d.cant then return L.BUY_BUY, false, info end
     return buyText, job == nil, info

@@ -52,6 +52,7 @@ local function QuickSounds() return ns.Radar.SoundChoices() end   -- ab 0.111 al
 local function QuickTest(v) if ns.Radar and ns.Radar.PlayAlert then pcall(ns.Radar.PlayAlert, v) end end
 local function QuickAlarmOff() return S.Get("focus", "quickAlarm") == false end
 local function BaitAlarmOff() return S.Get("focus", "quickBaitAlarm") == false end
+local function FailAlarmOff() return S.Get("focus", "quickFailAlarm") == false end   -- ab 0.167
 
 -- Fokus: Abfragen je Minute und die Grenzen fuer das Urteil (Measure.lua)
 S.SPECS.focus = {
@@ -68,13 +69,17 @@ S.SPECS.focus = {
     { "choice", "quickSound", "SET_QUICK_SOUND", QuickSounds, test = QuickTest, off = QuickAlarmOff },
     { "check", "quickBaitAlarm", "SET_QUICK_BAITALARM", "SET_QUICK_BAITALARM_TIP" },   -- ab 0.111
     { "choice", "quickBaitSound", "SET_QUICK_SOUND", QuickSounds, test = QuickTest, off = BaitAlarmOff },
+    { "check", "quickFailAlarm", "SET_QUICK_FAILALARM", "SET_QUICK_FAILALARM_TIP" },   -- ab 0.167
+    { "choice", "quickFailSound", "SET_QUICK_SOUND", QuickSounds, test = QuickTest, off = FailAlarmOff },
     { "slider", "quickBaitPct", "SET_QUICK_PCT", 5, 90, 5, function(v) return L.SET_PCT_FMT:format(v) end },
     { "slider", "quickHold", "SET_QUICK_HOLD", 0, 5, 0.5, function(v) return v == 0 and L.SET_OFF or L.SET_SECD_FMT:format(Dec(v)) end },   -- ab 0.114
     { "head", "SET_QUICK_DEFAULTS" },   -- ab 0.120: Vorgaben ohne eigene Werte
     { "slider", "quickLimitPct", "SET_QUICK_LIMIT_PCT", 10, 100, 5, function(v) return L.SET_PCT_FMT:format(v) end },
     { "money", "radarReserve", "SET_RADAR_RESERVE", 10000 },   -- ab 0.133 Goldreserve statt Limit pro Kauf (quickGoldDefault ruht)
-    { "slider", "quickSuggestPct", "SET_QUICK_SUGGEST_PCT", 0, 30, 1, function(v) return L.SET_PCT_FMT:format(v) end },   -- ab 0.140 Vorschlag, ab 0.143 Gleitend
-    { "slider", "quickUnderPct", "SET_QUICK_UNDER_PCT", 1, 50, 1, function(v) return L.SET_PCT_FMT:format(v) end },   -- ab 0.143 Gleitend Unter Markt
+    { "slider", "quickSuggestPct", "SET_QUICK_SUGGEST_PCT", 0, 50, 1, function(v) return L.SET_PCT_FMT:format(v) end },   -- ab 0.140 Vorschlag, ab 0.143 Gleitend, ab 0.167 Gewinnspanne
+    -- ab 0.167 ohne quickUnderPct (Gleitend Unter Markt geht in Richtpreis und Gewinnspanne auf, der Wert ruht)
+    { "slider", "quickMinMax", "SET_QUICK_MINMAX", 10, 1000, 10, function(v) return L.SET_QTY_FMT:format(v) end },   -- ab 0.167
+    { "slider", "quickChartPad", "SET_QUICK_CHART_PAD", 0, 50, 1, function(v) return L.SET_PCT_FMT:format(v) end },   -- ab 0.167
     { "head", "SET_QS_HEAD" },   -- ab 0.122: Gelegenheiten langfristig
     { "slider", "quickDipPct", "SET_QS_DIP", 1, 30, 1, function(v) return L.SET_PCT_FMT:format(v) end },
     { "slider", "quickStatDays", "SET_QS_DAYS", 1, 60, 1, function(v) return L.SET_DAYS_FMT:format(v) end },

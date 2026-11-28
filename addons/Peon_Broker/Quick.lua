@@ -90,6 +90,8 @@ end
 -- Neuer Gegenstand im Fokus: eigener Lockpreis und Vergleich vergessen (Lockangebot und Bilanz bleiben)
 function Q.OnNewKey()
     Q.manual, Q.prev, Q.newTiers, Q.alarm, Q.hold = nil, nil, {}, {}, nil
+    Q.armed = {}   -- ab 0.168: das Band gilt nur fuer den Gegenstand, bei dem es ausgeloest hat
+    Q.dgot = {}    -- ab 0.168: Ziel des Direktkaufs beginnt von vorn
 end
 
 ---------------------------------------------------------------------------
@@ -104,6 +106,12 @@ end
 --   under  Unter Markt: mindestens quickUnderPct Prozent unter dem Tiefstpreis (Einbrueche, Lockangebote)
 --   band   Ueblicher Bereich: unterer Rand des ueblichen Bereichs aus den Preisdaten
 -- Haken und Methode merkt sich Broker je Gegenstand in Beobachten (qlimOn, qglide, qmethod, nur im Spiel).
+-- ab 0.167 (Board KarloDerBaer 27.11.2026): statt der drei Methoden zwei Auswahllisten.
+--   Richtpreis    Preis, zu dem man wieder einstellen koennte (Q.REFS, Q.RefValue)
+--   Gewinnspanne  so viel Prozent Gewinn bleiben mindestens, wenn man zum Richtpreis wieder einstellt (Q.MARGINS)
+--   Limit jetzt = Richtpreis x (1 - Anteil des Auktionshauses) / (1 + Gewinnspanne)
+-- Gespeichert je Gegenstand in Beobachten (qref, qmargin, nur im Spiel). Ohne qref gilt die alte Methode: gain und
+-- under werden zu calm, band zu band. Ohne qmargin gilt quickSuggestPct (Einstellungen). quickUnderPct ruht.
 ---------------------------------------------------------------------------
 Q.limitOn = {}   -- [Schluessel] = true/false dieser Sitzung
 Q.glide = {}     -- [Schluessel] = true/false dieser Sitzung
@@ -117,22 +125,36 @@ local function SavedField(key, field)
     return w and w[field] or nil
 end
 
-function Q.LimitOn(key)
-    if key == nil then return false end
-    local v = Q.limitOn[key]
-    if v ~= nil then return v end
-    v = SavedField(key, "qlimOn")
-    if v ~= nil then return v and true or false end
-    -- vor 0.143 gespeichert: mit Kaufen bis galt das Limit immer
-    local l = SavedField(key, "qlim")
-    return Num(l) and l > 0 or false
+---------------------------------------------------------------------------
+-- ab 0.168 (KarloDerBaer 28.11.2026): zwei Tabs ueber dem Gegenstand statt der Haken Limit und Gleitend.
+--   Limitkauf  (limit)  es gilt immer ein Limit: Fest (Standard im Feld) oder gleitend nach einem Richtpreis. Dazu der
+--                       Ausloeser (Q.Trig): erst wenn das Guenstigste ihn erreicht, wird bis zum Limit gekauft (Band).
+--   Direktkauf (direct) nur eine Menge ab dem guenstigsten Angebot (bisher der Einkauf ohne Haken, Kaufart normal)
+-- Welcher Tab beim Oeffnen gilt: der zuletzt gewaehlte (Sitzung, bei beobachteten Gegenstaenden qtab), sonst
+-- beobachtete Gegenstaende Limitkauf, alle anderen Direktkauf. Die Haken gibt es nicht mehr: qlimOn ruht, qglide sagt
+-- weiter, ob das Limit gleitet (qref ist dann der Richtpreis).
+---------------------------------------------------------------------------
+Q.tab = {}   -- [Schluessel] = "limit" oder "direct" dieser Sitzung
+
+function Q.Tab(key)
+    if key == nil then return "limit" end
+    local v = Q.tab[key] or SavedField(key, "qtab")
+    if v == "limit" or v == "direct" then return v end
+    if ns.Watch and ns.Watch.Is(key) then return "limit" end
+    return "direct"
 end
 
 function Q.GlideOn(key)
-    if key == nil then return false end
+    if key == nil or Q.Tab(key) ~= "limit" then return false end
     local v = Q.glide[key]
     if v ~= nil then return v end
     return SavedField(key, "qglide") == true
+end
+
+-- Fester Standard im Limitkauf (ab 0.168 ohne Haken: im Limitkauf immer, wenn nicht gleitend)
+function Q.LimitOn(key)
+    if key == nil or Q.Tab(key) ~= "limit" then return false end
+    return not Q.GlideOn(key)
 end
 
 function Q.Method(key)
@@ -141,11 +163,17 @@ function Q.Method(key)
     return "gain"
 end
 
--- "normal", "limit" oder "glide"
+-- "normal" (Direktkauf), "limit" (Limit fest) oder "glide" (Limit gleitend)
 function Q.BuyKind(key)
+    if key ~= nil and Q.Tab(key) == "direct" then return "normal" end
     if Q.GlideOn(key) then return "glide" end
-    if Q.LimitOn(key) then return "limit" end
-    return "normal"
+    return "limit"
+end
+
+-- Quelle des Limits fuer die Auswahlliste: "fix" oder ein Richtpreis (Q.REFS)
+function Q.LimSrc(key)
+    if Q.GlideOn(key) then return Q.Ref(key) end
+    return "fix"
 end
 
 local function Changed()
@@ -155,17 +183,27 @@ local function Changed()
     F.Update()
 end
 
+-- Bis 0.167 die Haken Limit und Gleitend. Ab 0.168 ohne Haken in der Oberflaeche, die Aufrufe bleiben und bilden die
+-- alte Bedeutung auf die Tabs ab: Limit an = Limitkauf fest, Gleitend an = Limitkauf gleitend, beides aus = Direktkauf.
 function Q.SetLimitOn(on)
     local key = ns.Focus.key
     if key == nil then return end
     Q.limitOn[key] = on and true or false
+    if on then Q.tab[key] = "limit"
+    elseif not Q.GlideOn(key) then Q.tab[key] = "direct" end
     Changed()
 end
 
 function Q.SetGlideOn(on)
     local key = ns.Focus.key
     if key == nil then return end
-    Q.glide[key] = on and true or false
+    if on then
+        Q.tab[key] = "limit"
+        Q.glide[key] = true
+    else
+        Q.glide[key] = false
+        if Q.limitOn[key] == false then Q.tab[key] = "direct" end
+    end
     Changed()
 end
 
@@ -173,6 +211,181 @@ function Q.SetMethod(m)
     local key = ns.Focus.key
     if key == nil then return end
     Q.method[key] = m
+    Changed()
+end
+
+-- ab 0.168: Tab waehlen. Eine angeklickte Stufe (Q.pick) gilt nur im Direktkauf und faellt beim Wechsel weg.
+function Q.SetTab(t)
+    local key = ns.Focus.key
+    if key == nil or (t ~= "limit" and t ~= "direct") then return end
+    Q.tab[key] = t
+    Q.pick[key] = nil
+    Q.dgot[key] = nil
+    ns.Focus.qtyMax = nil
+    Changed()
+end
+
+-- ab 0.168: Quelle des Limits aus der Auswahlliste ("fix" oder ein Richtpreis)
+function Q.SetLimSrc(v)
+    local key = ns.Focus.key
+    if key == nil then return end
+    if v == "fix" then
+        Q.glide[key] = false
+    else
+        local ok = false
+        for _, x in ipairs(Q.REFS) do if x == v then ok = true end end
+        if not ok then return end
+        Q.glide[key] = true
+        Q.ref[key] = v
+    end
+    Changed()
+end
+
+---------------------------------------------------------------------------
+-- ab 0.168 (KarloDerBaer 28.11.2026): Ausloeser im Limitkauf. Er legt mit dem Limit ein Band fest: gekauft wird erst,
+-- wenn das Guenstigste den Ausloeser erreicht oder unterschreitet, dann bis zum Limit (mit Durchschnitt zaehlt im
+-- Mittel). Der Ausloeser liegt nie ueber dem Limit, sonst gilt das Limit (Band 0, wie bisher).
+--   off    Aus: Ausloeser = Limit
+--   fix    Fest: eigener Preis (qtrigFix)
+--   limit  Limit minus Abstand in Prozent (qtrigPct, Q.TRIG_PCTS)
+--   low    Letzter Tiefstpreis: der letzte Einbruch (QuickStats.LastDip). Einzelstuecke zaehlen nicht (ein Einbruch hat
+--          mindestens 2 Stueck, mit Min. Menge mindestens so viele), eigene Angebote auch nicht. Er verfaellt nach
+--          Q.LOW_KEEP Sekunden, ohne gueltigen Tiefstpreis gilt das Limit.
+-- Einmal ausgeloest bleibt das Band scharf (Q.armed), bis unter dem Limit nichts mehr steht oder der Gegenstand
+-- wechselt. So kauft auch der Smart-Teilkauf in mehreren Klicks weiter.
+---------------------------------------------------------------------------
+Q.TRIGS = { "off", "fix", "limit", "low" }
+Q.TRIG_PCTS = { 2, 3, 5, 10, 15, 20, 25, 30 }
+Q.TRIG_PCT_DEFAULT = 5
+Q.LOW_KEEP = 24 * 3600
+Q.trig, Q.trigPct, Q.trigFix, Q.armed = {}, {}, {}, {}
+
+function Q.Trig(key)
+    if key == nil then return "off" end
+    local v = Q.trig[key] or SavedField(key, "qtrig")
+    for _, x in ipairs(Q.TRIGS) do if x == v then return v end end
+    return "off"
+end
+
+function Q.TrigPct(key)
+    local v = key ~= nil and (Q.trigPct[key] or SavedField(key, "qtrigPct")) or nil
+    if not Num(v) then v = Q.TRIG_PCT_DEFAULT end
+    return math.max(0, math.min(100, math.floor(v)))
+end
+
+function Q.TrigFix(key)
+    if key == nil then return nil end
+    local v = Q.trigFix[key]
+    if v == nil then v = SavedField(key, "qtrigFix") end
+    if Num(v) and v > 0 then return math.floor(v) end
+    return nil
+end
+
+function Q.SetTrig(v)
+    local key = ns.Focus.key
+    if key == nil then return end
+    local ok = false
+    for _, x in ipairs(Q.TRIGS) do if x == v then ok = true end end
+    if not ok then return end
+    Q.trig[key] = v
+    Q.armed[key] = nil
+    Changed()
+end
+
+function Q.SetTrigPct(p)
+    local key = ns.Focus.key
+    if key == nil or not Num(p) then return end
+    Q.trigPct[key] = math.max(0, math.floor(p))
+    Q.armed[key] = nil
+    Changed()
+end
+
+-- amount 0 oder nil = leer
+function Q.SetTrigFix(amount)
+    local key = ns.Focus.key
+    if key == nil then return end
+    Q.trigFix[key] = (Num(amount) and amount > 0) and math.floor(amount) or 0
+    Q.armed[key] = nil
+    Changed()
+end
+
+-- Letzter Tiefstpreis fuer key: Preis, Zeit (time()), Stueck oder nil
+function Q.LastLow(key)
+    local QS = ns.QuickStats
+    if key == nil or not (QS and QS.LastDip) then return nil end
+    local minQ = Q.MinQty(key)
+    return QS.LastDip(key, Q.LOW_KEEP, math.max(2, minQ or 2))
+end
+
+-- Ausloeser fuer key bei Limit limit. Rueckgabe Preis (nie ueber dem Limit), Art, capped (true = der eingestellte
+-- Wert fehlt oder liegt ueber dem Limit, es gilt das Limit)
+function Q.TriggerValue(key, limit)
+    if not Num(limit) then return nil end
+    local t = Q.Trig(key)
+    if t == "off" then return limit, t, false end
+    local v
+    if t == "fix" then v = Q.TrigFix(key)
+    elseif t == "limit" then v = math.floor(limit * (1 - Q.TrigPct(key) / 100))
+    elseif t == "low" then v = Q.LastLow(key) end
+    if not Num(v) or v <= 0 or v >= limit then return limit, t, true end
+    return v, t, false
+end
+
+-- Preis, ab dem das Guenstigste den Ausloeser erreicht: mit Lockangebot ignorieren das zweite Stueck von unten (ein
+-- einzelnes Lockangebot loest nicht aus), sonst das erste
+function Q.TriggerPrice(key, rows)
+    local need = Q.SkipOn(key) and (Q.SKIP_MAX + 1) or 1
+    local n = 0
+    for _, l in ipairs(ns.Data.Available(rows or {})) do
+        n = n + l.qty
+        if n >= need then return l.price end
+    end
+    return nil
+end
+
+-- Ist das Band fuer key scharf? rows = Live-Stufen, limit = geltendes Limit. Rueckgabe scharf, Ausloeser
+function Q.Armed(key, rows, limit)
+    if key == nil or not Num(limit) then return false, nil end
+    local trig = Q.TriggerValue(key, limit)
+    if not Num(trig) or trig >= limit then Q.armed[key] = nil; return true, trig end
+    local lv = ns.Data.Available(rows or {})
+    if not (lv[1] and lv[1].price <= limit) then Q.armed[key] = nil; return false, trig end
+    local p = Q.TriggerPrice(key, rows)
+    if Num(p) and p <= trig then Q.armed[key] = true end
+    return Q.armed[key] == true, trig
+end
+
+-- ab 0.167: Richtpreis und Gewinnspanne
+Q.REFS = { "calm", "day", "high", "week", "band", "sold" }
+Q.MARGINS = { 0, 5, 10, 15, 20, 25, 30, 40, 50 }
+Q.OLD_REF = { gain = "calm", under = "calm", band = "band" }
+Q.ref, Q.margin = {}, {}
+
+function Q.Ref(key)
+    if key == nil then return "calm" end
+    local r = Q.ref[key] or SavedField(key, "qref")
+    if r == nil then r = Q.OLD_REF[Q.method[key] or SavedField(key, "qmethod") or ""] end
+    for _, x in ipairs(Q.REFS) do if x == r then return r end end
+    return "calm"
+end
+
+function Q.Margin(key)
+    local m = key ~= nil and (Q.margin[key] or SavedField(key, "qmargin")) or nil
+    if not Num(m) then m = tonumber(mod.db.quickSuggestPct) or 5 end
+    return math.max(0, math.min(100, math.floor(m)))
+end
+
+function Q.SetRef(r)
+    local key = ns.Focus.key
+    if key == nil then return end
+    Q.ref[key] = r
+    Changed()
+end
+
+function Q.SetMargin(m)
+    local key = ns.Focus.key
+    if key == nil or not Num(m) then return end
+    Q.margin[key] = math.max(0, math.floor(m))
     Changed()
 end
 
@@ -202,25 +415,87 @@ function Q.CalmLow(key, rows)
     return rows and Q.CleanLow(rows) or nil
 end
 
--- Wert einer Methode fuer key (Kupfer je Stueck) oder nil
-function Q.GlideValue(key, method, rows)
-    method = method or Q.Method(key)
-    if method == "band" then
+-- ab 0.167: Richtpreis fuer key (Kupfer je Stueck) oder nil
+--   calm   Guenstigster ruhig: Median der Tiefstpreise der letzten Minute (Q.CalmLow)
+--   day    Tagesmedian: Median der Tiefstpreise je Stunde der letzten 24 Std. (QuickStats, nur was Broker sah)
+--   high   Tageshoechstwert: hoechster Tiefstpreis einer Stunde der letzten 24 Std.
+--   week   Wochenmittel: Mittel der Tiefstpreise aus den Scans der letzten 7 Tage
+--   band   Ueblicher Bereich: unterer Rand des ueblichen Bereichs (ab 0.167 Board KarloDerBaer, nicht die Mitte)
+--   sold   Verkaufspreis (bis 0.167 Letzter Verkauf): Median meiner Verkaeufe der letzten 7 Tage (Q.SalePrice)
+function Q.RefValue(key, ref, rows)
+    ref = ref or Q.Ref(key)
+    local v
+    if ref == "calm" then
+        v = Q.CalmLow(key, rows)
+    elseif ref == "day" or ref == "high" then
+        local QS = ns.QuickStats
+        local mean, top = nil, nil
+        if QS and QS.LowStats then mean, top = QS.LowStats(key, 24) end
+        v = ref == "day" and mean or top
+    elseif ref == "week" then
+        local e = ns.Data.Lookup(key)
+        local w = type(e) == "table" and ns.Data.Week(e) or nil
+        v = w and w.min
+    elseif ref == "band" then
         local ok, ctx = pcall(ns.Buyout.Context, nil, key)
         local band = ok and type(ctx) == "table" and ctx.band or nil
-        if type(band) == "table" and Num(band.low) and band.low > 0 then return math.floor(band.low) end
-        return nil
+        v = type(band) == "table" and band.low or nil
+    elseif ref == "sold" then
+        v = Q.SalePrice(key)
     end
-    local low = Q.CalmLow(key, rows)
-    if not Num(low) or low <= 0 then return nil end
-    local v
-    if method == "under" then
-        v = low * (1 - math.max(0, tonumber(mod.db.quickUnderPct) or 10) / 100)
-    else
-        local cut = ns.Data.Cut and ns.Data.Cut() or 0.05
-        v = low * (1 - cut) - low * math.max(0, tonumber(mod.db.quickSuggestPct) or 5) / 100
+    if not Num(v) or v <= 0 then return nil end
+    return math.floor(v + 0.5)
+end
+
+-- ab 0.168 (KarloDerBaer 28.11.2026): Verkaufspreis statt Letzter Verkauf. Bisher zaehlte der allerletzte Verkauf,
+-- auch ein verkauftes Lockangebot (dann weit unter dem Markt). Jetzt der Median je Stueck aller Verkaeufe im
+-- Auktionshaus der letzten Q.SALE_DAYS Tage, gewichtet nach Stueck (Peon_Ledger SalesSince). Verkaeufe von nur einem
+-- Stueck zaehlen nur, wenn es keine groesseren gibt: einzelne Lockangebote ziehen den Wert so nicht nach unten.
+-- Ein aelteres Ledger ohne SalesSince: wie bisher der letzte Verkauf.
+Q.SALE_DAYS = 7
+function Q.SalePrice(key)
+    local led = ns.Item and ns.Item.Ledger and ns.Item.Ledger()
+    if not led then return nil end
+    local id = ns.Data.ItemID(key)
+    if type(led.SalesSince) ~= "function" then
+        if type(led.LastSale) ~= "function" then return nil end
+        local ok, unit = pcall(led.LastSale, led, id)
+        return ok and unit or nil
     end
-    v = math.floor(v)
+    local ok, list = pcall(led.SalesSince, led, id, time() - Q.SALE_DAYS * 86400)
+    if not ok or type(list) ~= "table" then return nil end
+    return Q.WeightedMedian(list)
+end
+
+-- Median je Stueck einer Liste { unit, n }, gewichtet nach n. Einzelstuecke nur ohne groessere Verkaeufe.
+function Q.WeightedMedian(list)
+    local multi, all = {}, {}
+    for _, x in ipairs(list or {}) do
+        if type(x) == "table" and Num(x.unit) and x.unit > 0 and Num(x.n) and x.n > 0 then
+            all[#all + 1] = x
+            if x.n > 1 then multi[#multi + 1] = x end
+        end
+    end
+    local use = #multi > 0 and multi or all
+    if #use == 0 then return nil end
+    table.sort(use, function(a, b) return a.unit < b.unit end)
+    local total = 0
+    for _, x in ipairs(use) do total = total + x.n end
+    local half, cum = total / 2, 0
+    for _, x in ipairs(use) do
+        cum = cum + x.n
+        if cum >= half then return x.unit end
+    end
+    return use[#use].unit
+end
+
+-- Limit von Gleitend fuer key (Kupfer je Stueck) oder nil. ref = nil: der gewaehlte Richtpreis
+function Q.GlideValue(key, ref, rows)
+    if Q.OLD_REF[ref or ""] then ref = Q.OLD_REF[ref] end
+    local base = Q.RefValue(key, ref, rows)
+    if not Num(base) then return nil end
+    local cut = ns.Data.Cut and ns.Data.Cut() or 0.05
+    local v = math.floor(base * (1 - cut) / (1 + Q.Margin(key) / 100))
     return v >= 1 and v or nil
 end
 
@@ -231,9 +506,8 @@ function Q.EffectiveLimit(key, rows)
     local kind = Q.BuyKind(key)
     local std = F.ManualLimit(key)
     if kind == "glide" then
-        local g = Q.GlideValue(key, nil, rows)
-        if Q.LimitOn(key) and Num(std) then g = Num(g) and math.min(g, std) or std end
-        return g, kind
+        -- ab 0.168 ohne Deckel durch den Standard: das Band (Ausloeser) begrenzt nach unten, das Limit ist das Limit
+        return Q.GlideValue(key, nil, rows), kind
     end
     if kind == "limit" then return std, kind end
     -- normal: gewaehlte Stufe, sonst so weit, wie die feste Menge reicht, sonst die guenstigste Stufe
@@ -270,12 +544,20 @@ function Q.Plan()
     -- (radarReserve) bleibt nach jedem Kauf mindestens uebrig, die Menge wird notfalls gekuerzt.
     local want = Q.QtyWant(F.key)
     local budget = ns.Radar.Budget()
+    local avail = Q.GoldQty(d.rows, limit, math.huge)
     local cap = want
+    -- ab 0.167: Smart-Teilkauf (Q.Portion) begrenzt die Menge eines Klicks
+    local portion, portionWhy = Q.Portion(F.key, d.rows)
+    local full = math.min(want or avail, avail)
+    if portion and portion < full then cap = portion else portion = nil end
     local short = false
     if Num(budget) then
         local gq = Q.GoldQty(d.rows, limit, budget)
         if cap == nil or gq < cap then
-            short = gq < (cap or d.qty or 0)
+            -- ab 0.166.4: gekuerzt nur, wenn bis zum Limit mehr zu haben waere. Bis 0.166.3 stand "Begrenzt durch
+            -- Goldreserve" auch dann, wenn unter dem Limit gar nichts angeboten war (Board KarloDerBaer 27.11.2026).
+            local need = math.min(cap or avail, avail)
+            short = gq < need
             cap = gq
         end
     end
@@ -283,6 +565,7 @@ function Q.Plan()
     if c and not c.gone then
         c.goldCap = Num(budget) and budget or nil   -- Kauf bricht ab, wenn er die Goldreserve angreifen wuerde
         c.want, c.reserveShort = want, short or nil
+        if portion then c.portion, c.portionWhy, c.portionAll = portion, portionWhy, full end   -- ab 0.167
         c.buyKind = kind   -- ab 0.143
         -- ab 0.112: Kauf gilt, solange der Durchschnitt passt (ab 0.143 nur mit Limit oder Gleitend)
         if kind ~= "normal" and Q.AvgOn(F.key) then c.avgLimit = limit end
@@ -290,11 +573,34 @@ function Q.Plan()
     -- ab 0.109: Haken "Lockangebot ignorieren": Knopf und Alarm erst ab mehr als 1 Stueck unter Kaufen bis. Das
     -- Spiel verkauft von unten, der Kauf eines groesseren Stapels nimmt das eine Stueck also mit.
     -- ab 0.143 nur mit Limit oder Gleitend: im normalen Einkauf ist das guenstigste Stueck einfach das guenstigste
+    -- ab 0.167: Min. Menge. Gibt es unter dem Limit weniger, oder laesst die Goldreserve weniger kaufen, gibt es nichts
+    -- zu kaufen. Mehr als die Max. Menge verlangt sie nie.
+    local minQ = Q.MinQty(F.key)
+    if minQ and want then minQ = math.min(minQ, want) end
+    if c and not c.gone and minQ and ((c.maxQty or 0) < minQ or (c.reserveShort and ((c.best and c.best.qty) or 0) < minQ)) then
+        c.minShort = minQ
+        c.maxQty, c.qty, c.cost = 0, 0, 0
+        c.best = { qty = 0, cost = 0 }
+        c.buyLimit = 0
+        c.reserveShort, c.portion = nil, nil
+    end
     if c and not c.gone and kind ~= "normal" and Q.SkipOn(F.key) and (c.maxQty or 0) <= Q.SKIP_MAX and (c.maxQty or 0) > 0 then
         c.baitOnly = true
         c.maxQty, c.qty, c.cost = 0, 0, 0
         c.best = { qty = 0, cost = 0 }
         c.buyLimit = 0
+    end
+    -- ab 0.168: Band. Bis der Ausloeser erreicht ist, gibt es nichts zu kaufen (kein Knopf, kein Alarm).
+    if c and not c.gone and kind ~= "normal" then
+        local armed, trig = Q.Armed(F.key, d.rows, limit)
+        c.trigger = trig
+        if not armed and (c.maxQty or 0) > 0 then
+            c.waitTrig = trig
+            c.maxQty, c.qty, c.cost = 0, 0, 0
+            c.best = { qty = 0, cost = 0 }
+            c.buyLimit = 0
+            c.reserveShort, c.portion = nil, nil
+        end
     end
     return c
 end
@@ -438,11 +744,205 @@ function Q.QtyStored(key)
     return Q.QtyDefault(key)
 end
 
+---------------------------------------------------------------------------
+-- ab 0.167 (KarloDerBaer 27.11.2026, Kaufprotokoll 22:58 bis 23:15 Uhr): Smart-Teilkauf. Das Spiel verkauft eine
+-- angefragte Menge ganz oder gar nicht. Kaufen andere in den 1 bis 2 Sek. bis zum Kauf einen Teil der billigen Stueck,
+-- scheitert alles. Im Protokoll klappte kein Kauf ab 16 Stueck (0 von 25), bis 5 Stueck 36 %.
+-- Zweite Fassung (Kaufprotokoll 23:21 bis 23:31 Uhr: Quote 14 auf 33 %, aber 41 statt 101 Stueck, die Portion fiel
+-- bis auf 1, freie Stapel mit 46 und 24 Stueck kaufte Smart in vier bis fuenf kleinen Klicks):
+--   neuer Stapel  der erste Klick kauft alles (bis zur Max. Menge). Neu heisst: der guenstigste Preis ist ein anderer
+--                 als beim letzten Fehlschlag, oder an der Spitze kam deutlich Menge dazu (Q.NewStack).
+--   high          Preis des Spiels zu hoch: aus dem Preis zurueckrechnen, wie viele billige Stueck noch da waren
+--                 (Q.RestAfterQuote), die naechste Portion ist so gross (auch unter Q.PORTION_MIN, das meldet das Spiel)
+--   lost          bestaetigt, aber gescheitert: ein Drittel weniger, nie unter Q.PORTION_MIN. Schon kleine Kaeufe
+--                 scheitern, weil andere schneller sind, kleiner hilft dann nicht.
+--   won           gekauft: Portion doppelt so gross
+--   Ablauf        Q.PORTION_KEEP Sek. nach dem letzten Fehlschlag gilt wieder der volle Kauf
+-- Einstellung quickPortion: "smart" (Vorgabe) oder "off" (Mehr Einstellungen im Einkaufen).
+---------------------------------------------------------------------------
+Q.portion = {}        -- [Schluessel] = { n = Stueck, why = "high" | "lost" | "won", t = letzter Fehlschlag, price, qty }
+Q.PORTION_MIN = 5
+Q.PORTION_KEEP = 20
+
+function Q.PortionOn() return mod.db.quickPortion ~= "off" end
+
+function Q.SetPortionMode(m)
+    mod.db.quickPortion = (m == "off") and "off" or "smart"
+    ns.Focus.chartN = nil
+    ns.Focus.Update()
+end
+
+-- Spitze der Stufen: Preis und Menge der guenstigsten Stufe oder nil
+local function Top(rows)
+    local l = rows and ns.Data.Available(rows)[1]
+    if not l then return nil end
+    return l.price, l.qty
+end
+
+-- Ist an der Spitze ein anderer Stapel als bei p?
+function Q.NewStack(p, rows)
+    local price, qty = Top(rows)
+    if not (p and price) then return true end
+    if price ~= p.price then return true end
+    return qty > (p.qty or 0) + math.max(Q.PORTION_MIN, math.floor((p.qty or 0) / 2))
+end
+
+-- Portion fuer key: Stueck, Grund oder nil (alles kaufen). rows = aktuelle Stufen
+function Q.Portion(key, rows)
+    if key == nil or not Q.PortionOn() or not ns.Data.IsCommodity(key) or Q.BuyKind(key) == "normal" then return nil end
+    local p = Q.portion[key]
+    if not p then return nil end
+    if Now() - (p.t or 0) > Q.PORTION_KEEP or Q.NewStack(p, rows or ns.Focus.LiveRows()) then
+        Q.portion[key] = nil
+        return nil
+    end
+    return p.n, p.why
+end
+
+-- Kosten der Stueck from+1 bis from+n der Stufen (guenstigste zuerst). Rueckgabe Kosten, Stueck
+local function CostRange(rows, from, n)
+    local c1, g1 = ns.Data.CostOf(rows, from + n)
+    local c0, g0 = ns.Data.CostOf(rows, from)
+    return c1 - c0, g1 - g0
+end
+
+-- Nach einem zu hohen Preis: wie viele billige Stueck waren noch da? rows = Stufen beim Start, n = angefragt,
+-- unit = Durchschnitt je Stueck vom Spiel, limit = Grenze des Kaufs. Broker sucht, wie viele der guenstigsten Stueck
+-- andere vorher gekauft haben (x), sodass n Stueck ab dort den Preis des Spiels ergeben, und gibt zurueck, wie viele
+-- Stueck ab x noch selbst unter der Grenze liegen (nil oder 0 = Stapel ganz weg).
+function Q.RestAfterQuote(rows, n, unit, limit)
+    if type(rows) ~= "table" or not Num(n) or n < 1 or not Num(unit) or not Num(limit) then return nil end
+    local total = 0
+    for _, l in ipairs(ns.Data.Available(rows)) do total = total + l.qty end
+    if total < 1 then return nil end
+    local function Avg(from, m)
+        local c, g = CostRange(rows, from, m)
+        if g < 1 then return math.huge end
+        return c / g
+    end
+    -- kleinstes x mit Durchschnitt >= Preis des Spiels (der Durchschnitt steigt mit x)
+    local lo, hi = 0, total
+    while lo < hi do
+        local mid = math.floor((lo + hi) / 2)
+        if Avg(mid, n) >= unit - 0.5 then hi = mid else lo = mid + 1 end
+    end
+    -- Stueck ab x, die selbst hoechstens limit kosten (vorsichtig: nicht bis an den Rand des Durchschnitts)
+    local skip, rest = lo, 0
+    for _, l in ipairs(ns.Data.Available(rows)) do
+        local q = l.qty
+        if skip > 0 then local t = math.min(skip, q); skip, q = skip - t, q - t end
+        if q > 0 then
+            if l.price > limit then break end
+            rest = rest + q
+        end
+    end
+    return rest
+end
+
+-- Ergebnis eines Kaufs aus dem Einkaufen: Portion anpassen (Radar ruft es auf)
+function Q.PortionLearn(job, what, unit)
+    if not (job and job.quick and not job.items and Q.PortionOn() and job.key ~= nil) then return end
+    local key, n = job.key, tonumber(job.qty) or 0
+    local p = Q.portion[key]
+    local price, qty = Top(job.rows)
+    local function Set(m, why)
+        Q.portion[key] = { n = math.max(1, m), why = why, t = Now(), price = price or (p and p.price), qty = qty or (p and p.qty) }
+    end
+    if what == "won" then
+        if p then p.n, p.why = p.n * 2, "won" end
+    elseif what == "lost" then
+        if n > Q.PORTION_MIN then Set(math.max(Q.PORTION_MIN, math.floor(n * 2 / 3)), "lost")
+        elseif p then p.t = Now() end   -- schon klein: bleibt, der Stapel gilt weiter als umkaempft
+    elseif what == "high" then
+        local rest = Q.RestAfterQuote(job.rows, n, unit, job.limit)
+        if rest and rest >= 1 then
+            -- Spitze nach dem Fehlschlag: derselbe Preis mit weniger Menge (sonst gaelte der Rest als neuer Stapel)
+            Set(math.min(rest, math.max(1, n - 1)), "high")
+            Q.portion[key].qty = rest
+        elseif p then p.t = Now() end
+    end
+    Q.Trace("portion %s %s -> %s", tostring(what), tostring(n), tostring(Q.portion[key] and Q.portion[key].n))
+end
+
+---------------------------------------------------------------------------
+-- ab 0.168 (KarloDerBaer 28.11.2026): Direktkauf bleibt am Ziel. Das Spiel verkauft alles oder nichts, ein Klick
+-- kauft deshalb nicht immer die ganze Menge. Was schon gekauft ist, zaehlt Broker mit (Q.dgot), die naechsten Klicks
+-- kaufen nur den Rest ("Noch 40 kaufen"). Ist die Menge erreicht, beginnt das naechste Ziel wieder bei der ganzen
+-- Menge. Neue Menge, anderer Tab oder anderer Gegenstand: von vorn. Aus einer Einkaufsliste folgt die Menge ohnehin
+-- dem, was dort fehlt (Q.ListQty), dann zaehlt Broker nicht mit.
+---------------------------------------------------------------------------
+Q.dgot = {}   -- [Schluessel] = schon gekaufte Stueck zum aktuellen Ziel
+
+-- Ziel und schon gekauft fuer key im Direktkauf oder nil (kein Ziel, oder noch nichts davon gekauft)
+function Q.DirectProgress(key)
+    if key == nil or Q.BuyKind(key) ~= "normal" or Q.fromList[key] ~= nil then return nil end
+    local target = Q.QtyStored(key)
+    local got = Q.dgot[key]
+    if not (Num(target) and target >= 1 and Num(got) and got > 0) then return nil end
+    if got >= target then Q.dgot[key] = nil; return nil end
+    return target, got
+end
+
+function Q.DirectBought(key, n)
+    if key == nil or not Num(n) or n <= 0 or Q.BuyKind(key) ~= "normal" or Q.fromList[key] ~= nil then return end
+    if not ns.Data.IsCommodity(key) then return end
+    local target = Q.QtyStored(key)
+    if not (Num(target) and target >= 1) then return end
+    local got = (Q.dgot[key] or 0) + n
+    Q.dgot[key] = got < target and got or nil
+end
+
 -- Hoechstmenge oder nil (Alle)
+-- ab 0.167 (Board KarloDerBaer 27.11.2026): Einzelstuecke immer 1 (ein Klick kauft eine Auktion). Ohne Haken Limit
+-- und Gleitend gibt es kein Alle: dann gilt 1, bis man eine Zahl waehlt. Mit Haken heisst die Zeile Max. Menge.
 function Q.QtyWant(key)
+    if key ~= nil and not ns.Data.IsCommodity(key) then return 1 end
     local v = Q.QtyStored(key)
-    if Num(v) and v >= 1 then return v end
+    if Num(v) and v >= 1 then
+        local target, got = Q.DirectProgress(key)   -- ab 0.168: Direktkauf, nur noch der Rest
+        if target then return math.max(1, target - got) end
+        return v
+    end
+    -- Klick auf eine Stufe (Q.pick) nimmt weiter alles bis dorthin
+    if key ~= nil and Q.BuyKind(key) == "normal" and not Num(Q.pick[key]) then return 1 end
     return nil
+end
+
+-- ab 0.167: Min. Menge (nur mit Haken Limit oder Gleitend, nur Massenware). Unter dem Limit muessen mindestens so
+-- viele Stueck zu haben sein, sonst gibt es nichts zu kaufen. nil = aus. Gespeichert in Beobachten (qmin).
+Q.minQty = {}   -- [Schluessel] = Zahl dieser Sitzung (0 = aus)
+function Q.MinMax() return math.max(1, math.floor(tonumber(mod.db.quickMinMax) or 100)) end
+
+function Q.MinQty(key)
+    if key == nil or not ns.Data.IsCommodity(key) or Q.BuyKind(key) == "normal" then return nil end
+    local v = Q.minQty[key]
+    if v == nil then v = SavedField(key, "qmin") end
+    if Num(v) and v >= 1 then return math.floor(v) end
+    return nil
+end
+
+function Q.SetMinQty(n)
+    local key = ns.Focus.key
+    if key == nil then return end
+    n = tonumber(n)
+    Q.minQty[key] = (n and n >= 1) and math.floor(n) or 0
+    Changed()
+end
+
+-- ab 0.167: Werte fuer Beobachten (nur was selbst gewaehlt oder schon gespeichert ist, keine Vorgaben)
+function Q.KindValues(key)
+    local ref = Q.ref[key] or SavedField(key, "qref")
+    local margin = Q.margin[key]
+    if margin == nil then margin = SavedField(key, "qmargin") end
+    local mn = Q.minQty[key]
+    if mn == nil then mn = SavedField(key, "qmin") end
+    return ref, margin, mn
+end
+
+-- ab 0.168: Tab und Ausloeser fuer Beobachten (nur selbst gewaehlte Werte, keine Vorgaben). Der Tab wird erst
+-- gespeichert, wenn man ihn selbst gewechselt hat.
+function Q.BandValues(key)
+    return Q.tab[key], Q.trig[key], Q.trigPct[key], Q.trigFix[key]
 end
 
 -- n = Menge, nil oder < 1 = Alle
@@ -453,6 +953,7 @@ function Q.SetQty(n)
     n = tonumber(n)
     Q.qty[key] = (n and n >= 1) and math.floor(n) or 0
     Q.fromList[key] = nil   -- ab 0.136: eigene Wahl geht vor
+    Q.dgot[key] = nil       -- ab 0.168: neue Menge, neues Ziel
     F.Store()
     F.Update()
 end
@@ -462,6 +963,8 @@ function Q.BuyLabel(d)
     local best = d and not d.gone and d.best or nil
     local qty = best and Num(best.qty) and best.qty or 0
     if qty < 1 then return L.BUY_BUY end
+    -- ab 0.168: Direktkauf mit Rest zum Ziel
+    if d.key ~= nil and Q.DirectProgress(d.key) then return L.QUICK_BUY_LEFT:format(qty, Money(Num(best.cost) and best.cost or 0)) end
     return L.QUICK_BUY_FOR:format(qty, Money(Num(best.cost) and best.cost or 0))
 end
 
@@ -875,6 +1378,7 @@ function Q.OnBought(job, n, cost)
     s.buys = (s.buys or 0) + 1
     s.lastBuy = { n = n, cost = Num(cost) and cost or nil, t = Now() }   -- ab 0.125: unter dem Kaufknopf
     if ns.QuickStats then ns.QuickStats.OnBought(job.key, n, cost) end   -- ab 0.126: bleibt ueber den Logout
+    Q.DirectBought(job.key, n)   -- ab 0.168: Direktkauf bleibt am Ziel
     -- ab 0.111: die letzte Gelegenheit gilt als genutzt (einmal)
     local o = Q.opp[job.key]
     if o and not o.won then
@@ -965,6 +1469,10 @@ function Q.Record(key, s)
         p[i], q[i] = l.price, l.qty
     end
     e.p, e.q = p, q
+    -- ab 0.167: ganze Menge im Markt (alle Stufen) fuer die Zeile Menge mit Trend (Q.QtyTrend)
+    local all = 0
+    for _, l in ipairs(s.lv or {}) do if Num(l.qty) then all = all + l.qty end end
+    e.all = all
     local from = s.t - Q.HIST_SPAN
     while list[1] and list[1].t < from do table.remove(list, 1) end
     -- nur die letzten Gegenstaende behalten
@@ -1108,6 +1616,30 @@ function Q.AddBait(key, t, price, own, lastQ, reg, above)
     list[#list + 1] = { t = t, price = price, own = own or nil, lastQ = lastQ, added = 0, times = 0, reg = reg, above = above or nil }
     while #list > Q.BAIT_KEEP do table.remove(list, 1) end
     Q.baits[key] = list
+end
+
+-- ab 0.167 (Wunsch KarloDerBaer 27.11.2026): Trend der Menge im Markt ueber den Zeitraum des Diagramms. Vergleicht
+-- die aelteste Abfrage im Zeitraum mit der neuesten. Rueckgabe jetzt, damals, Prozent, Trend ("up", "down", "flat")
+-- oder nil (zu wenig Verlauf, unter Q.QTY_TREND_MIN Sekunden)
+Q.QTY_TREND_PCT = 5    -- ab so viel Prozent Aenderung zeigt der Pfeil
+Q.QTY_TREND_MIN = 30
+function Q.QtyTrend(key, minutes)
+    local h = key ~= nil and Q.hist[key]
+    if not h then return nil end
+    local list = h.list or {}
+    local last = list[#list]
+    if not (last and Num(last.all)) then return nil end
+    local from = last.t - (minutes or 5) * 60
+    local first
+    for _, e in ipairs(list) do
+        if e.t >= from and Num(e.all) then first = e; break end
+    end
+    if not first or last.t - first.t < Q.QTY_TREND_MIN then return nil end
+    local now, old = last.all, first.all
+    local pct = old > 0 and (now - old) * 100 / old or (now > 0 and 100 or 0)
+    local trend = "flat"
+    if pct >= Q.QTY_TREND_PCT then trend = "up" elseif pct <= -Q.QTY_TREND_PCT then trend = "down" end
+    return now, old, pct, trend, math.floor((last.t - first.t) / 60 + 0.5)
 end
 
 function Q.OnSample(key, prev, s)

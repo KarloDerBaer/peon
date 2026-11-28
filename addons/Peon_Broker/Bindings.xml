@@ -6,4 +6,15 @@
     <Binding name="PEON_BROKER_RADAR_NEXT" category="ADDONS">
         PeonBroker_RadarNext()
     </Binding>
+    <!-- ab Broker 0.167: Lockangebot im Einkaufen einstellen (wie der Knopf Einstellen) -->
+    <Binding name="PEON_BROKER_BAIT_POST" category="ADDONS">
+        PeonBroker_BaitPost()
+    </Binding>
+    <!-- ab Broker 0.167: im Einkaufen der naechste oder vorherige Gegenstand aus Beobachten (Reihenfolge der Seitenleiste) -->
+    <Binding name="PEON_BROKER_WATCH_NEXT" category="ADDONS">
+        PeonBroker_WatchStep(1)
+    </Binding>
+    <Binding name="PEON_BROKER_WATCH_PREV" category="ADDONS">
+        PeonBroker_WatchStep(-1)
+    </Binding>
 </Bindings>
