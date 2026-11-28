@@ -4073,9 +4073,9 @@ end)()
   check(row and row.price == 150 and row.limit == 100 and row.target == 200 and row.advice == nil, "0.82: Zeile mit Preis, Kaufen bis, Zielpreis")
   -- ab 0.92: Spalte mit Symbol statt Ueblich, Klick darauf schaltet die Warnung und waehlt nicht aus
   local cols = WP.list.o.columns
-  check(cols[3].key == "limit" and cols[4].key == "muteDown" and cols[5].key == "hitsH" and cols[6].key == "dipsH" and cols[7].key == "nowHits"
+  check(cols[3].key == "band" and cols[4].key == "muteDown" and cols[5].key == "hitsH" and cols[6].key == "dipsH" and cols[7].key == "nowHits"
     and cols[4].format(false) == WP.BELL_ON and cols[4].format(true) == WP.BELL_OFF and row.muteDown == false,
-    "0.92/0.135: Symbol hinter Kaufen bis, dann Treffer, Einbrueche, Jetzt")
+    "0.92/0.135/0.169: Symbol hinter Band, dann Treffer, Einbrueche, Jetzt")
   local keepOver = WP.OverBell
   WP.OverBell = function() return "Down" end
   WP.list.o.onClick(row, "LeftButton")
@@ -6229,7 +6229,7 @@ end)()
     local t = {}
     for _, c in ipairs(WP.list.o.columns) do t[#t + 1] = plain(c.title) end
     local cols = table.concat(t, ",")
-    check(cols:find("Gegenstand,Günstigster,Kaufen bis,", 1, true) == 1 and cols:find("Treffer 7 T.,Einbrüche 7 T.,Jetzt", 1, true), "0.135: Spalten der Liste: " .. cols)
+    check(cols:find("Gegenstand,Günstigster,Band,", 1, true) == 1 and cols:find("Treffer 7 T.,Einbrüche 7 T.,Jetzt", 1, true), "0.135: Spalten der Liste: " .. cols)
   end
   -- Markttausch: Hinweis Neutral hinter dem Namen
   Wt.Store()[key].ton = true
@@ -7652,6 +7652,90 @@ end)()
   check(L.QUICK_REF_SOLD == "Verkaufspreis" and L.CHART_L_SUGGEST == "Auslöser", "0.168: Namen Verkaufspreis und Linie Ausloeser")
 
   Q.tab[7851] = nil
+  ns.Scan.ahOpen, GetMoney = keepOpen, keepMoney
+end)()
+
+-- ===== 0.169: Beobachten mit Band, Glocke und Treffer ab dem Ausloeser, Listen im Direktkauf =====
+;(function()
+  local F, Q, Wt, WP, QS, L = ns.Focus, ns.Quick, ns.Watch, ns.WatchPage, ns.QuickStats, ns.L
+  local keepOpen, keepMoney = ns.Scan.ahOpen, GetMoney
+  GetMoney = function() return 10000000 end
+  local key = 7853
+  mod.acc.commodity[key] = true
+  local mk = ns.Data.Market(nil, true)
+  mk.items[key] = { m = 100, md = 150, q = 25, n = 3, t = clock, nm = "Wachband", ql = 1 }
+  Wt.Add(key, { name = "Wachband" })
+  local w = Wt.Store()[key]
+  w.mode, w.qlim = "quick", 120
+  -- Fest ohne Ausloeser: Band = Limit
+  local lim, trig, kind = Q.BandFor(key)
+  check(lim == 120 and trig == 120 and kind == "limit" and Wt.ActiveLimit(key) == 120 and QS.Limit(key) == 120,
+    "0.169: Fest ohne Ausloeser: Glocke und Treffer am Limit")
+  -- mit Ausloeser Fest 90
+  w.qtrig, w.qtrigFix = "fix", 90
+  lim, trig = Q.BandFor(key)
+  check(lim == 120 and trig == 90 and Wt.ActiveLimit(key) == 90 and QS.Limit(key) == 90, "0.169: Glocke und Treffer ab dem Ausloeser")
+  local row
+  for _, x in ipairs(WP.Rows()) do if x.key == key then row = x end end
+  check(row and row.limit == 120 and row.trig == 90 and row.band == 90 and row.advice == nil
+    and plain(WP.BandCell(nil, row)) == "90c bis 1s 20c", "0.169: Zeile mit Band, Guenstigstes 100 ueber dem Ausloeser: kein Rat Kaufen: " .. plain(WP.BandCell(nil, row)))
+  mk.items[key].m = 85
+  for _, x in ipairs(WP.Rows()) do if x.key == key then row = x end end
+  check(row.advice == "buy", "0.169: Guenstigstes am Ausloeser: Rat Kaufen")
+  mk.items[key].m = 100
+  -- Alarm: 100 liegt ueber dem Ausloeser, kein Treffer
+  w.hit = nil
+  local keepAlert, alerts = Wt.Alert, 0
+  Wt.Alert = function() alerts = alerts + 1 end
+  Wt.Check({ key })
+  check(alerts == 0 and not w.hit, "0.169: kein Alarm zwischen Ausloeser und Limit")
+  mk.items[key].m = 90
+  Wt.Check({ key })
+  check(alerts == 1 and w.hit, "0.169: Alarm am Ausloeser")
+  Wt.Alert = keepAlert
+  mk.items[key].m = 100
+  -- gleitend: Kurzform hinter dem Wert, ohne Live-Daten der zuletzt gerechnete Wert
+  w.qglide, w.qref, w.qtrig = true, "week", "off"
+  local keepGV = Q.GlideValue
+  Q.GlideValue = function() return 110 end
+  lim, trig, kind = Q.BandFor(key)
+  Q.GlideValue = function() return nil end
+  local lim2 = Q.BandFor(key)
+  Q.GlideValue = keepGV
+  check(lim == 110 and kind == "glide" and lim2 == 110, "0.169: gleitend aus der letzten Abfrage, sonst der zuletzt gerechnete Wert")
+  row = { key = key, limit = 110, trig = 110, kind = "glide" }
+  check(plain(WP.BandCell(nil, row)) == "1s 10c Wo", "0.169: gleitend mit Kurzform: " .. plain(WP.BandCell(nil, row)))
+  -- Direktkauf: kein Band, keine Glocke, keine Treffer
+  w.qtab = "direct"
+  lim, trig, kind = Q.BandFor(key)
+  for _, x in ipairs(WP.Rows()) do if x.key == key then row = x end end
+  check(lim == nil and trig == nil and kind == "direct" and Wt.ActiveLimit(key) == nil and QS.Limit(key) == nil
+    and plain(WP.BandCell(nil, row)) == "Direkt", "0.169: Direktkauf in Beobachten: Direkt, ohne Glocke und Treffer")
+  w.qtab = nil
+  -- aus einer Liste immer im Direktkauf, auch beobachtet
+  Q.FromList(key, 1)
+  check(Q.Tab(key) == "direct" and Q.BuyKind(key) == "normal", "0.169: aus einer Liste im Direktkauf")
+  Q.qty[key] = 5
+  check(Q.Tab(key) == "direct", "0.169: eigene Menge laesst den Direktkauf stehen")
+  Q.tab[key] = "limit"; Q.listDirect[key] = nil
+  check(Q.Tab(key) == "limit", "0.169: selbst gewaehlter Tab gilt")
+  Q.tab[key] = nil
+  Q.FromList(key, nil)
+  check(Q.Tab(key) == "limit", "0.169: aus einer anderen Seite wieder der gemerkte Tab")
+  -- Stueckpreis im Direktkauf: vorn das Guenstigste
+  ns.Scan.ahOpen = true
+  Q.SetMode("quick")
+  F.Set(key)
+  Q.FromList(key, 1)
+  ns.Buy.live[key] = { rows = { { price = 100, qty = 3, own = 0 }, { price = 120, qty = 10, own = 0 }, commodity = true }, t = clock, commodity = true }
+  Q.qty[key] = 5
+  check(plain(F.UnitText(true)) == "1s (Günstigstes) bis 1s 20c", "0.169: Stueckpreis vorn das Guenstigste: " .. plain(F.UnitText(true)))
+  Q.qty[key] = 2
+  check(plain(F.UnitText(true)) == "1s (Günstigstes)", "0.169: eine Stufe reicht: nur das Guenstigste")
+  check(L.CHART_L_LIMIT == "Limit" and L.WATCH_TIP_UNDER:find("Limit", 1, true), "0.169: Linie Limit statt Kaufen bis")
+  Q.qty[key], Q.fromList[key], Q.listDirect[key] = nil, nil, nil
+  Wt.Remove(key)
+  mod.acc.commodity[key] = nil
   ns.Scan.ahOpen, GetMoney = keepOpen, keepMoney
 end)()
 

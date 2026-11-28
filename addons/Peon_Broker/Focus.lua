@@ -1970,7 +1970,16 @@ function F.UnitText(live)
     if kind == "glide" then lever = L.QUICK_LEVER_GLIDE   -- ab 0.168 ohne Deckel durch den Standard
     elseif kind == "limit" then lever = L.QUICK_LEVER_LIMIT
     elseif Num(Q.pick[key]) then lever = L.QUICK_LEVER_PICK
-    else lever = L.QUICK_LEVER_CHEAP end
+    else
+        -- ab 0.169 (KarloDerBaer 28.11.2026): im Direktkauf vorn der aktuell guenstigste Preis. Reicht die Menge ueber
+        -- mehrere Stufen, steht die teuerste dahinter.
+        local lv = rows and ns.Data.Available(rows) or {}
+        local low = lv[1] and lv[1].price
+        if Num(low) and low < limit then
+            return Money(low) .. " " .. GREY .. "(" .. L.QUICK_LEVER_CHEAP .. ")|r " .. GREY .. L.QUICK_UNIT_UPTO:format(Money(limit)) .. "|r"
+        end
+        lever = L.QUICK_LEVER_CHEAP
+    end
     return Money(limit) .. " " .. GREY .. "(" .. lever .. ")|r"
 end
 

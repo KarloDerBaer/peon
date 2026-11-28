@@ -2,6 +2,22 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.169.0
+
+Kurz: Beobachten zeigt statt Kaufen bis das Band aus Auslöser und Limit, gleitende Werte mit der Kurzform des Richtpreises. Gegenstände im Direktkauf stehen dort als „Direkt“.
+Kurz: Glocke, Treffer und der Rat Kaufen richten sich jetzt nach dem Auslöser, ohne Auslöser nach dem Limit. Im Direktkauf gibt es keine Warnung.
+Kurz: Aus einer Einkaufsliste öffnet das Einkaufen immer im Direktkauf. Der Stückpreis zeigt dort vorn das günstigste Angebot.
+Kurz: Im Diagramm heißt die blaue Linie jetzt Limit.
+
+- 0.169.0 (28.11.2026, Wunsch KarloDerBaer):
+  - **Neu, Band außerhalb des Einkaufens** (`Quick.BandFor`): Limit, Auslöser und Art für jeden Gegenstand. Fest: im Einkaufen der eingetragene Standard, sonst `qlim`. Gleitend: aus der letzten Abfrage des Gegenstands, ohne Wert der zuletzt gerechnete dieser Sitzung (`Quick.lastGlide`). Direktkauf ohne Band.
+  - **Geändert, Beobachten:** Spalte Band statt Kaufen bis (`WatchPage.BandCell`): „Auslöser bis Limit“, ohne Auslöser nur das Limit, gleitend mit Kurzform dahinter (zum Beispiel „Wo“), im Direktkauf „Direkt“. Sortiert nach dem Auslöser. Rat Kaufen ab dem Auslöser. Tooltip der Zeile mit Limit und Quelle, Auslöser und Art, im offenen Einkaufen dazu wartet oder ausgelöst (`WatchPage.BandLines`).
+  - **Geändert, Glocke und Treffer:** `Watch.ActiveLimit` und `QuickStats.Limit` liefern im Einkaufen den Auslöser, ohne Auslöser das Limit, fest oder gleitend. Im Direktkauf keine Warnung und keine Treffer. Bisher gezählte Treffer bleiben.
+  - **Geändert, Listen:** Aus einer Einkaufsliste geöffnet gilt immer der Direktkauf (`Quick.listDirect`), auch für beobachtete Gegenstände, bis man selbst einen Tab wählt. Eine eigene Menge ändert daran nichts.
+  - **Geändert, Stückpreis im Direktkauf:** vorn der aktuell günstigste Preis, reicht die Menge über mehrere Stufen, „bis“ mit der teuersten dahinter.
+  - **Geändert, Texte:** Linie und Legende Limit statt Kaufen bis, Texte zu Glocke, Treffern, Hinweis am Reiter und leerer Liste nennen Auslöser und Limit.
+  - Tests: Band in Beobachten fest, mit Auslöser und gleitend, Alarm erst am Auslöser, Direktkauf ohne Glocke und Treffer, Liste im Direktkauf, Stückpreis mit Günstigstem (`test_broker.lua`).
+
 ## 0.168.0
 
 Kurz: Über dem Gegenstand gibt es zwei Tabs. Im Limitkauf gilt immer ein Limit, fest oder gleitend. Im Direktkauf kaufst du einfach eine Menge, zum Beispiel für einen Beruf.

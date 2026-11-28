@@ -3,6 +3,11 @@
 Kurzes Protokoll wichtiger Entscheidungen. Neue Einträge oben anfügen (Datum, Entscheidung, Grund).
 Ältere Einträge (September und Oktober 2026): `docs/archiv/Peon_Entscheidungen_bis_2026-10.md`.
 
+## 28.11.2026: Beobachten mit Band, Listen im Direktkauf (Broker 0.169.0)
+
+- **Beobachten folgt dem Einkaufen** (Hinweis KarloDerBaer, Vorschläge Claude, KarloDerBaer stimmt zu): eine Spalte Band statt zwei Spalten Auslöser und Limit, weil die Liste schon voll ist. Glocke und Treffer ab dem Auslöser, damit sie melden, wann Broker wirklich kauft. Direktkauf ohne Warnung, weil es dort keinen Preis gibt, auf den man wartet.
+- **Listen immer im Direktkauf** (KarloDerBaer): Wer aus einer Einkaufsliste kauft, will die fehlende Menge, kein Band. Der Stückpreis zeigt dort vorn das aktuell günstigste Angebot.
+
 ## 28.11.2026: Limitkauf, Direktkauf und Auslöser (Broker 0.168.0)
 
 - **Zwei Tabs statt Haken** (KarloDerBaer, Vorschlag Tabs von Claude): Limitkauf und Direktkauf als kleine Tabs über dem Gegenstand. Im Limitkauf gilt immer ein Limit, deshalb hat die Auswahlliste Limit kein Aus (KarloDerBaer). Der Direktkauf hat nur die Menge, für den schnellen Kauf etwa für einen Beruf (KarloDerBaer). Beobachtete Gegenstände öffnen im Limitkauf, andere im Direktkauf, danach gilt der zuletzt gewählte Tab (Claude, KarloDerBaer stimmt zu).

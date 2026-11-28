@@ -345,7 +345,15 @@ end
 function Wt.ActiveLimit(key, e)
     local w = Wt.Store()[key]
     if not w then return nil end
-    if w.mode == "quick" then return Num(w.qlim) and w.qlim or nil end
+    -- ab 0.169: im Einkaufen der Ausloeser (ohne Ausloeser das Limit, fest oder gleitend), im Direktkauf keiner
+    if w.mode == "quick" then
+        local Q = ns.Quick
+        if Q and Q.BandFor then
+            local _, trig = Q.BandFor(key)
+            return trig
+        end
+        return Num(w.qlim) and w.qlim or nil
+    end
     return Wt.Limit(key, e)
 end
 

@@ -138,7 +138,10 @@ Q.tab = {}   -- [Schluessel] = "limit" oder "direct" dieser Sitzung
 
 function Q.Tab(key)
     if key == nil then return "limit" end
-    local v = Q.tab[key] or SavedField(key, "qtab")
+    local v = Q.tab[key]
+    if v == "limit" or v == "direct" then return v end
+    if Q.listDirect and Q.listDirect[key] then return "direct" end   -- ab 0.169 aus einer Liste
+    v = SavedField(key, "qtab")
     if v == "limit" or v == "direct" then return v end
     if ns.Watch and ns.Watch.Is(key) then return "limit" end
     return "direct"
@@ -219,6 +222,7 @@ function Q.SetTab(t)
     local key = ns.Focus.key
     if key == nil or (t ~= "limit" and t ~= "direct") then return end
     Q.tab[key] = t
+    Q.listDirect[key] = nil
     Q.pick[key] = nil
     Q.dgot[key] = nil
     ns.Focus.qtyMax = nil
@@ -329,6 +333,31 @@ function Q.TriggerValue(key, limit)
     elseif t == "low" then v = Q.LastLow(key) end
     if not Num(v) or v <= 0 or v >= limit then return limit, t, true end
     return v, t, false
+end
+
+-- ab 0.169 (KarloDerBaer 28.11.2026): Band eines beliebigen Gegenstands, auch ausserhalb des Einkaufens (Beobachten,
+-- Glocke, Treffer). Rueckgabe limit, trig, kind ("limit", "glide" oder "direct"). Fest: der Standard (im Einkaufen der
+-- eingetragene, sonst qlim). Gleitend: aus der letzten Abfrage des Gegenstands, ohne Wert der zuletzt gerechnete dieser
+-- Sitzung (Q.lastGlide). Direktkauf hat kein Band: limit und trig nil.
+Q.lastGlide = {}
+function Q.BandFor(key)
+    if key == nil then return nil, nil, nil end
+    if Q.Tab(key) == "direct" then return nil, nil, "direct" end
+    local F = ns.Focus
+    local limit, kind
+    if Q.GlideOn(key) then
+        kind = "glide"
+        local live = ns.Buy and ns.Buy.live and ns.Buy.live[key]
+        local rows = type(live) == "table" and type(live.rows) == "table" and live.rows or nil
+        limit = Q.GlideValue(key, nil, rows)
+        if Num(limit) then Q.lastGlide[key] = limit else limit = Q.lastGlide[key] end
+    else
+        kind = "limit"
+        limit = (F and F.key == key and F.ManualLimit and F.ManualLimit(key)) or SavedField(key, "qlim")
+    end
+    if not Num(limit) or limit <= 0 then return nil, nil, kind end
+    local trig = Q.TriggerValue(key, limit)
+    return limit, trig, kind
 end
 
 -- Preis, ab dem das Guenstigste den Ausloeser erreicht: mit Lockangebot ignorieren das zweite Stueck von unten (ein
@@ -711,10 +740,19 @@ Q.qty = {}   -- [Schluessel] = Menge dieser Sitzung (0 = Alle), sonst aus Beobac
 -- was dort noch fehlt (auch nach jedem Kauf), bis man sie selbst aendert. Wird nie gespeichert.
 Q.fromList = {}
 
+-- ab 0.169 (KarloDerBaer 28.11.2026): aus einer Liste immer im Direktkauf (Q.listDirect), bis man selbst einen Tab
+-- waehlt. Eine eigene Menge aendert daran nichts. Aus einer anderen Seite gilt wieder der gemerkte Tab.
+Q.listDirect = {}
+
 function Q.FromList(key, listId)
     if key == nil then return end
     Q.fromList[key] = listId
-    if listId ~= nil then Q.qty[key] = nil end
+    Q.listDirect[key] = listId ~= nil or nil
+    if listId ~= nil then
+        Q.qty[key] = nil
+        Q.tab[key] = nil
+        Q.pick[key] = nil
+    end
 end
 
 -- Menge aus der Liste: was fehlt, mindestens 1 (nie "Alle"), nil = nicht aus einer Liste

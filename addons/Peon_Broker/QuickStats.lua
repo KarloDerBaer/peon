@@ -117,7 +117,15 @@ function QS.Limit(key)
     local Wt = ns.Watch
     if not Wt then return nil end
     local w = Wt.Store()[key]
-    return type(w) == "table" and Num(w.qlim) and w.qlim or nil
+    if type(w) ~= "table" then return nil end
+    -- ab 0.169: Treffer zaehlen ab dem Ausloeser des Einkaufens (ohne Ausloeser das Limit, fest oder gleitend). Im
+    -- Direktkauf gibt es keine Treffer.
+    local Q = ns.Quick
+    if Q and Q.BandFor then
+        local _, trig = Q.BandFor(key)
+        return trig
+    end
+    return Num(w.qlim) and w.qlim or nil
 end
 
 -- ab 0.126: steht in Abfrage s ein fremdes Angebot bis limit?

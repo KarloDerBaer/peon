@@ -150,10 +150,31 @@ function P.OverBell()
 end
 
 -- Kaufen bis einer Zeile: der Wert des Einkaufens (qlim). Mit eingeschaltetem Aufkauf ohne qlim der Wert des Aufkaufs.
+-- ab 0.169: Band des Einkaufens (Quick.BandFor). Rueckgabe limit, trig, kind
 function P.Limit(key, w, e)
-    if Num(w.qlim) then return w.qlim end
-    if BuyoutOn() then return ns.Watch.Limit(key, e) end
+    local Q = ns.Quick
+    if Q and Q.BandFor and w.mode ~= "buyout" then
+        local limit, trig, kind = Q.BandFor(key)
+        if kind == "direct" or Num(limit) then return limit, trig, kind end
+    end
+    if Num(w.qlim) then return w.qlim, w.qlim, "limit" end
+    if BuyoutOn() then local v = ns.Watch.Limit(key, e); return v, v, "buyout" end
     return nil
+end
+
+-- ab 0.169 (KarloDerBaer 28.11.2026): Zelle Band. Direktkauf grau "Direkt", ohne Werte "-", mit Ausloeser unter dem
+-- Limit "Ausloeser bis Limit", sonst das Limit. Gleitend grau mit der Kurzform des Richtpreises dahinter.
+function P.BandCell(_, r)
+    if not r then return "" end
+    if r.kind == "direct" then return GREY .. L.WATCH_BAND_DIRECT .. "|r" end
+    if not Num(r.limit) then return GREY .. "-|r" end
+    local text = Money(r.limit)
+    if Num(r.trig) and r.trig < r.limit then text = L.QUICK_BAND_FMT:format(Money(r.trig), Money(r.limit)) end
+    if r.kind == "glide" then
+        local short = ns.Focus and ns.Focus.SrcShort and ns.Focus.SrcShort(ns.Quick.Ref(r.key)) or ""
+        text = text .. " " .. GREY .. short .. "|r"
+    end
+    return text
 end
 
 -- Zeilen der Liste: jeder beobachtete Gegenstand einmal (ab 0.135)
@@ -174,8 +195,9 @@ function P.Row(key, w)
         muteDown = w.muteDown == true,
         neutral = w.ton == true,
     }
-    r.limit = P.Limit(key, w, e)
-    if r.price and r.limit and r.price <= r.limit then r.advice = "buy" end
+    r.limit, r.trig, r.kind = P.Limit(key, w, e)
+    r.band = r.trig or r.limit   -- ab 0.169: Sortierung der Spalte Band
+    if r.price and r.trig and r.price <= r.trig then r.advice = "buy" end   -- ab 0.169 ab dem Ausloeser
     -- Zielpreis nur mit eingeschaltetem Aufkauf (ruht sonst, Konzept 6.2)
     r.target = Num(w.up) and w.up or nil
     if BuyoutOn() and not r.advice and r.price and r.target and r.price >= r.target then r.advice = "sell" end
@@ -252,7 +274,8 @@ function P.Columns()
           color = function(r) return UI.QualityColor(r.quality or 1) end,
           format = function(v, r) return (r and r.neutral) and (tostring(v) .. " " .. GREY .. L.WATCH_NEUTRAL .. "|r") or v end },
         { key = "price", title = L.QC_COL_MIN, width = 90, align = "RIGHT", format = Price },
-        { key = "limit", title = L.FOCUS_R_LIMIT, width = 90, align = "RIGHT", format = Price },
+        { key = "band", title = L.QUICK_BAND_L, width = 150, align = "RIGHT", format = P.BandCell,
+          sort = function(r) return r.band or -1 end },   -- ab 0.169 statt Kaufen bis
         P.BellColumn("Down"),
         { key = "hitsH", title = L.WATCH_COL_HITS_D:format(days), width = 84, align = "RIGHT", format = P.RateCell,
           sort = function(r) return r.hitsH or -1 end },
@@ -416,10 +439,11 @@ function P.RowTooltip(row, r)
             end
             GT:AddLine(L.WATCH_TIP_NOW_DIPS:format(n.dips, QS.Rate(n.perHour)), 0.85, 0.85, 0.85, true)
         end
-        if not lim then GT:AddLine(L.WATCH_TIP_NO_LIMIT, 0.7, 0.7, 0.7, true) end
+        if not lim then GT:AddLine(r.kind == "direct" and L.WATCH_TIP_DIRECT or L.WATCH_TIP_NO_LIMIT, 0.7, 0.7, 0.7, true) end
         GT:AddLine(L.WATCH_TIP_NOW_RULE:format(QS.Days()), 0.6, 0.6, 0.6, true)
         local under = P.Under(r.key, r.limit)
         if under then GT:AddLine(L.WATCH_TIP_UNDER:format(under), 0.85, 0.85, 0.85, true) end
+        P.BandLines(GT, r)   -- ab 0.169
         GT:AddLine(" ")
         if ns.QuickChances then ns.QuickChances.TipLines(GT, r.key) end
         if w.qskip then GT:AddLine(L.QUICK_SKIP, 0.85, 0.85, 0.85) end
@@ -428,6 +452,22 @@ function P.RowTooltip(row, r)
         if r.neutral and ns.Pages then P.TradeLines(GT, r.key) end
         GT:AddLine(L.WATCH_TIP_DOUBLE, 0.6, 0.6, 0.6)
     end)
+end
+
+-- ab 0.169: Limit und Ausloeser im Tooltip einer Zeile: Quelle und Wert, im Einkaufen offen auch der Zustand des Bands
+function P.BandLines(GT, r)
+    local Q, F = ns.Quick, ns.Focus
+    if not (Q and F and r and r.kind ~= "direct" and r.kind ~= "buyout" and r.kind ~= nil) then return end
+    GT:AddLine(" ")
+    local src = r.kind == "glide" and (F.SrcName(Q.Ref(r.key)) .. ", " .. L.QUICK_MARGIN_FMT:format(Q.Margin(r.key))) or L.QUICK_SRC_FIX
+    GT:AddLine(L.WATCH_TIP_LIMIT:format(Num(r.limit) and Money(r.limit) or "-", src), 0.85, 0.85, 0.85, true)
+    local t = Q.Trig(r.key)
+    local tv = Num(r.trig) and Money(r.trig) or "-"
+    if t == "limit" then tv = tv .. " (" .. L.QUICK_MARGIN_FMT:format(Q.TrigPct(r.key)) .. ")" end
+    GT:AddLine(L.WATCH_TIP_TRIG:format(tv, F.TrigName(t)), 0.85, 0.85, 0.85, true)
+    if F.key == r.key and Num(r.trig) and Num(r.limit) and r.trig < r.limit then
+        GT:AddLine(Q.armed[r.key] and L.WATCH_TIP_ARMED or L.WATCH_TIP_WAIT, 0.85, 0.85, 0.85, true)
+    end
 end
 
 -- ab 0.135: Werte des Markttauschs im Tooltip (vorher eigener Unterreiter): beide Haeuser, Richtung, Spanne, Absatz
