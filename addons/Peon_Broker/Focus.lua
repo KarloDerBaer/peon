@@ -1219,16 +1219,17 @@ F.CHART_RANGES = { 5, 15, 60 }
 F.CHART_COLORS = {
     min = { 1, 0.82, 0.2, 1 }, limit = { 0.3, 0.55, 1, 0.95 }, under = { 0.6, 0.6, 0.6, 0.4 },
     dips = { 1, 0.35, 0.25, 0.8 }, baits = { 0.7, 0.4, 1, 0.8 }, baitsOther = { 0.7, 0.4, 1, 0.35 },
-    suggest = { 0.75, 0.75, 0.75, 0.8 },   -- ab 0.140: Vorschlag grau gestrichelt
+    suggest = { 0.3, 0.55, 1, 0.95 },   -- ab 0.140 Vorschlag grau, ab 0.175 Ausloeser blau gestrichelt wie im Diagramm
 }
 -- Schluessel im Diagramm, gespeicherter Wert und Beschriftung, in der Reihenfolge der Knoepfe
 F.CHART_LINES = {
     { key = "min", db = "chartMin", label = "CHART_L_MIN", kind = "line" },
     { key = "limit", db = "chartLimit", label = "CHART_L_LIMIT", kind = "hline" },
+    -- ab 0.140 (Board KarloDerBaer 26.11.2026): ohne Einbrueche, dafuer der Vorschlag (chartDips bleibt gespeichert).
+    -- Ab 0.175 (KarloDerBaer 28.11.2026) der Ausloeser direkt hinter dem Limit.
+    { key = "suggest", db = "chartSuggest", label = "CHART_L_SUGGEST", kind = "hline", dash = true },
     { key = "under", db = "chartUnder", label = "CHART_L_UNDER", kind = "bar" },
-    -- ab 0.140 (Board KarloDerBaer 26.11.2026): ohne Einbrueche, dafuer der Vorschlag (chartDips bleibt gespeichert)
     { key = "baits", db = "chartBaits", label = "CHART_L_BAITS", kind = "marks" },
-    { key = "suggest", db = "chartSuggest", label = "CHART_L_SUGGEST", kind = "hline" },
 }
 
 function F.ChartRange()
@@ -1265,6 +1266,26 @@ function F.RefreshChart()
     if F.tiers and F.Update then F.Update() end
 end
 
+-- ab 0.175: gestrichelte Linien (dash) in der Legende als drei kurze Striche statt einem durchgehenden
+function F.DashSwatches(lg)
+    local C = F.CHART_COLORS
+    for _, b in ipairs(lg and lg.buttons or {}) do
+        local dashed
+        for _, l in ipairs(F.CHART_LINES) do if l.key == b.key and l.dash then dashed = true end end
+        if dashed and b.sw and not b.dashes then
+            b.sw:SetSize(2, 2)
+            b.dashes = {}
+            for i = 1, 2 do
+                local t = b:CreateTexture(nil, "ARTWORK")
+                t:SetSize(2, 2)
+                t:SetPoint("LEFT", 2 + i * 4, 0)
+                t:SetColorTexture(unpack(C[b.key]))
+                b.dashes[i] = t
+            end
+        end
+    end
+end
+
 function F.BuildChartControls(mp)
     local ch = F.chart
     if not ch then return end
@@ -1279,6 +1300,7 @@ function F.BuildChartControls(mp)
         for _, l in ipairs(F.CHART_LINES) do if l.key == key then mod.db[l.db] = on and true or false end end
     end)
     F.chartLines.frame:SetPoint("BOTTOMLEFT", mp, "BOTTOMLEFT", 8, 5)
+    F.DashSwatches(F.chartLines)
     -- Zeitraum oben rechts, in der Zeile der Ueberschrift
     F.rangeButtons = {}
     local x = -10

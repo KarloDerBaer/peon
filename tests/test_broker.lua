@@ -6778,7 +6778,10 @@ end)()
     "0.134: Diagramm mit fuenf Knoepfen fuer die Linien")
   local keys = {}
   for _, b in ipairs(F.chartLines.buttons) do keys[#keys + 1] = b.key end
-  check(table.concat(keys, ",") == "min,limit,under,baits,suggest", "0.140: Reihenfolge Guenstigster, Kaufen bis, Menge, Lockangebote, Vorschlag (ohne Einbrueche)")
+  check(table.concat(keys, ",") == "min,limit,suggest,under,baits", "0.175: Reihenfolge Guenstigster, Limit, Ausloeser, Menge, Lockangebote (0.140 ohne Einbrueche)")
+  local sb = F.chartLines.buttons[3]
+  check(sb.dashes and #sb.dashes == 2 and sb.sw.w == 2, "0.175: Ausloeser in der Legende gestrichelt")
+  check(F.CHART_COLORS.suggest[3] == F.CHART_COLORS.limit[3], "0.175: Ausloeser blau wie das Limit")
   -- ab 0.140: Stabilitaet aus dem Verlauf (gleichbleibend 150)
   local st = Q.Stability(7995, 5)
   check(st == "stable", "0.140: gleichbleibender Preis ist stabil: " .. tostring(st))
@@ -6793,7 +6796,7 @@ end)()
   local hasLimit = false
   for _, s in ipairs(F.chart.series) do if s.key == "limit" and s.fit == false then hasLimit = true end end
   check(hasLimit and F.chart.o.trim and F.chart.o.trim.right == 0.9, "0.134: Preis bestimmt weiter die Aufloesung, Menge mit eigener Achse (0.131)")
-  F.chartLines.buttons[3].scripts.OnClick(F.chartLines.buttons[3])
+  F.chartLines.buttons[4].scripts.OnClick(F.chartLines.buttons[4])
   check(mod.db.chartUnder == false and not F.chart:IsShownKey("under"), "0.134: Menge ausgeschaltet und gespeichert")
   F.ApplyChartLines(true)
   check(not F.chart:IsShownKey("under") and F.chart:IsShownKey("min"), "0.134: Wahl gilt nach dem Neuladen weiter")

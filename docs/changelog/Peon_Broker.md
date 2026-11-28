@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.175.0
+
+Kurz: In der Legende des Diagramms steht der Auslöser jetzt direkt hinter dem Limit und ist blau gestrichelt wie seine Linie.
+
+- 0.175.0 (28.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Legende:** Reihenfolge Günstigster, Limit, Auslöser, Menge, Lockangebote (`Focus.CHART_LINES`). Farbe des Auslösers blau wie das Limit, das Zeichen aus drei kurzen Strichen (`Focus.DashSwatches`).
+  - Tests: Reihenfolge, Striche und Farbe (`test_broker.lua`).
+
 ## 0.174.0
 
 Kurz: Den Lockpreis stellst du jetzt wie den Auslöser ein: Fest mit eigenem Preis oder Auslöser beziehungsweise Limit minus einige Prozent. Mit 0 % liegt er genau darauf.
