@@ -22,6 +22,12 @@ test('Seitenleiste: sechs Eintraege in fester Reihenfolge mit den Unterreitern a
     ['Addons', ['modules']],
     ['Mehr', ['sources', 'reports', 'help', 'settings']],
   ]);
+  // ab 0.58.0: Addons und Mehr unten in der Seitenleiste, direkt ueber Peon unterstuetzen
+  assert.match(sec, /key: 'addons', label: 'Addons', views: \['modules'\], bottom: true/);
+  assert.match(sec, /key: 'mehr', label: 'Mehr', views: \[[^\]]*\], bottom: true/);
+  const rail = APP.slice(APP.indexOf('<div class="rail-bottom">'), APP.indexOf('Peon unterstützen</button>'));
+  assert.match(rail, /v-for="sec in bottomSections"/, 'untere Eintraege im unteren Teil');
+  assert.match(APP, /<template v-for="sec in topSections"/);
   const all = block(APP, 'const ALL = [');
   const label = (k) => (all.match(new RegExp(`key: '${k}', label: '([^']+)'`)) || [])[1];
   assert.deepEqual(['chances', 'compare', 'packages', 'success', 'shopping', 'favorites', 'market', 'items', 'vendors'].map(label),

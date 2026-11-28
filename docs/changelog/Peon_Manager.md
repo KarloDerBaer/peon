@@ -2,6 +2,14 @@
 
 Neueste Version oben. Den aktuellen Stand (Dateien, Einstellungen, Befehle) zeigt `docs/projekt/Peon_Stand.md`. Übernommen aus dem bisherigen `Peon_Stand.md` am 31.10.2026, Notizen zu Tests stehen bei der Version, zu der sie gehören.
 
+## 0.58.0
+
+Kurz: Addons und Mehr stehen jetzt unten in der Seitenleiste, direkt über „Peon unterstützen“.
+
+- 0.58.0 (28.11.2026, Wunsch KarloDerBaer):
+  - **Geändert, Seitenleiste** (`App.vue`, `SECTIONS` mit `bottom`): Addons und Mehr rücken in den unteren Teil, unter den Knopf „Jetzt aktualisieren“ und über „Peon unterstützen“. Oben bleiben Heute, Chancen, Listen und Markt. Die Zahl verfügbarer Updates steht weiter an Addons.
+  - Tests: `schlank.test.js`.
+
 ## 0.57.0
 
 Kurz: Live-Abfragen aus dem Spiel speichert der Manager nur noch einmal je Gegenstand und Stunde. Im Diagramm steht je Stunde eine Raute mit dem günstigsten Preis. Das spart viel Platz, vor allem nach langem Limitkauf.

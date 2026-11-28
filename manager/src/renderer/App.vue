@@ -66,14 +66,17 @@ const SECTIONS = [
   { key: 'chancen', label: 'Chancen', views: ['chances', 'compare', 'packages', 'success'] },
   { key: 'listen', label: 'Listen', views: ['shopping', 'favorites'] },
   { key: 'markt', label: 'Markt', views: ['market', 'items', 'vendors'] },
-  { key: 'addons', label: 'Addons', views: ['modules'] },
-  { key: 'mehr', label: 'Mehr', views: ['sources', 'reports', 'help', 'settings'] },
+  // ab 0.58.0 unten in der Seitenleiste, ueber Peon unterstuetzen (KarloDerBaer 28.11.2026)
+  { key: 'addons', label: 'Addons', views: ['modules'], bottom: true },
+  { key: 'mehr', label: 'Mehr', views: ['sources', 'reports', 'help', 'settings'], bottom: true },
 ];
 function hasView(v, o = data.value) {
   const n = ALL.find((x) => x.key === v);
   return !!n && (n.always || !!(o && o.views.includes(n.needs || n.key)));
 }
 const sections = computed(() => SECTIONS.map((s) => ({ ...s, subs: ALL.filter((n) => s.views.includes(n.key) && hasView(n.key)) })).filter((s) => s.subs.length));
+const topSections = computed(() => sections.value.filter((s) => !s.bottom));
+const bottomSections = computed(() => sections.value.filter((s) => s.bottom));
 const sectionOf = (v) => SECTIONS.find((s) => s.views.includes(v)) || null;
 // Abschnitt der offenen Seite. Ein offener Gegenstand gehoert zum Abschnitt, aus dem er geoeffnet wurde.
 const curSection = computed(() => {
@@ -272,9 +275,9 @@ function openCoffee() { window.peon.openLink(COFFEE_URL); }
       <select v-if="broker && marketOptions.length > 1" class="market small" :value="current && current.key" aria-label="Markt" @change="pickMarket($event.target.value)">
         <option v-for="m in marketOptions" :key="m.key" :value="m.key">{{ m.label }}</option>
       </select>
-      <template v-for="sec in sections" :key="sec.key">
+      <template v-for="sec in topSections" :key="sec.key">
         <button class="nav" :class="{ on: curSection && curSection.key === sec.key }" @click="openSection(sec)">
-          {{ sec.label }}<span v-if="sec.key === 'addons' && updates && updates.count" class="count" :title="`${updates.count} verfügbar`">{{ updates.count }}</span>
+          {{ sec.label }}
         </button>
         <template v-for="n in sec.subs" :key="n.key">
           <div v-if="subs[n.key]" class="sub" :class="{ on: view === 'item' && origin === n.key }">
@@ -287,6 +290,10 @@ function openCoffee() { window.peon.openLink(COFFEE_URL); }
       <div class="rail-bottom">
         <button class="primary rail-update" v-if="updates && updates.count" @click="showUpdates = true">
           {{ updates.manager || updates.addons.some((a) => a.kind === 'update') ? 'Jetzt aktualisieren' : 'Neues ansehen' }}<span class="rail-count">{{ updates.count }}</span>
+        </button>
+        <!-- ab 0.58.0: Addons und Mehr unten, ohne offene Gegenstaende darunter (beide oeffnen keine) -->
+        <button v-for="sec in bottomSections" :key="sec.key" class="nav" :class="{ on: curSection && curSection.key === sec.key }" @click="openSection(sec)">
+          {{ sec.label }}<span v-if="sec.key === 'addons' && updates && updates.count" class="count" :title="`${updates.count} verfügbar`">{{ updates.count }}</span>
         </button>
         <!-- ab 0.49.0: Peon unterstuetzen, klein unter den Eintraegen -->
         <button class="nav coffee" title="Öffnet die Seite von KarloDerBaer bei Buy Me a Coffee im Browser" @click="openCoffee">☕ Peon unterstützen</button>
